@@ -387,6 +387,15 @@ Type objective_function<Type>::operator() () {
   DATA_MATRIX( comp_obs );                // Observed age/length comp; cols = Comp_1, Comp_2, etc. can be proportion
   DATA_IMATRIX( caal_ctl );               // Info on observed CAAL; columns = Survey_name, Survey_code, Species, Year
   DATA_MATRIX( caal_n );                  // Sample size on CAAL; ONE column = Sample size. Unlike comp_n there is no month: a CAAL observation is placed at its fleet's Month, and the age-length key is annual.
+
+  // -- 2.4.4. Initial equilibrium catch
+  // The catch the stock yielded under the initial F, in the year before the
+  // hindcast. Written by the user as a catch_data row at styr - 1 and split out
+  // by rearrange_data(), because it is predicted from the deviation-free
+  // equilibrium age structure rather than from a hindcast year. Empty (0 rows)
+  // unless the data supply one, which is the case for every bundled dataset.
+  DATA_IMATRIX( equil_catch_ctl );        // columns = Fleet_code, Species
+  DATA_MATRIX( equil_catch_obs );         // columns = Catch, Log_sd
   DATA_MATRIX( caal_obs );                // Observed CAAL; cols = Comp_1, Comp_2, etc. can be proportion
 
   // -- 2.4.5 Age and selectivity
@@ -562,6 +571,12 @@ Type objective_function<Type>::operator() () {
   // Filled in section 6.5 from the species' fisheries in the first hindcast
   // year; 1 everywhere for every other mode, which leaves them unchanged.
   array<Type>   sel_init(nspp, max_sex, max_age); sel_init.setZero();
+  // Initial age structure WITHOUT the initial deviates, i.e. the equilibrium the
+  // deviates are applied to. Only the equilibrium catch reads it, and that is
+  // the quantity it is defined on: SS3 computes the equilibrium catch from the
+  // deviation-free equilibrium, not from the year-1 numbers. Filled alongside
+  // N_at_age in section 6.5 so the two cannot drift apart.
+  array<Type>   N_eq(nspp, max_sex, max_age); N_eq.setZero();
   matrix<Type>  R0(nspp, nyrs); R0.setZero();                                       // Equilibrium recruitment at F = 0.
   matrix<Type>  alpha(nspp, nyrs); alpha.setZero();                                 // Stock recruit alpha
   matrix<Type>  Beta(nspp, nyrs); Beta.setZero();                                   // Stock recruit beta
@@ -1940,6 +1955,12 @@ Type objective_function<Type>::operator() () {
               if(nsex(sp) > 1){
                 N_at_age(sp, 1, 0, 0) = R(sp, 0) * (1-sex_ratio(sp, 0));
               }
+              // The equilibrium carries no recruitment deviation: it is the mean
+              // level the deviates depart from.
+              N_eq(sp, 0, 0) = R_init(sp) * sex_ratio(sp, 0);
+              if(nsex(sp) > 1){
+                N_eq(sp, 1, 0) = R_init(sp) * (1-sex_ratio(sp, 0));
+              }
             }
 
             // - Estimate  as free parameters
@@ -1948,6 +1969,12 @@ Type objective_function<Type>::operator() () {
                 N_at_age(sp, 0, age, 0) = exp(init_dev(sp, age-1)) * sex_ratio(sp, 0);
                 if(nsex(sp) > 1){
                   N_at_age(sp, 1, age, 0) = exp(init_dev(sp, age-1)) * (1-sex_ratio(sp, 0));
+                }
+                // No equilibrium underlies free initial numbers; Finit is 0 here
+                // and an equilibrium catch is refused, so this is never fitted.
+                N_eq(sp, 0, age) = N_at_age(sp, 0, age, 0);
+                if(nsex(sp) > 1){
+                  N_eq(sp, 1, age) = N_at_age(sp, 1, age, 0);
                 }
               }
             }
@@ -2003,21 +2030,34 @@ Type objective_function<Type>::operator() () {
 
                 if(sex == 0){
                   N_at_age(sp, 0, age, 0) = R_init(sp) * exp( - mort_sum(sp, age) + init_dev(sp, age - 1) + init_log_scalar) * sex_ratio(sp, 0);
+                  N_eq(sp, 0, age)        = R_init(sp) * exp( - mort_sum(sp, age) + init_log_scalar) * sex_ratio(sp, 0);
                 }
                 if(sex == 1){
                   N_at_age(sp, 1, age, 0) = R_init(sp) * exp( - mort_sum(sp, age) + init_dev(sp, age - 1) + init_log_scalar) * (1-sex_ratio(sp, 0));
+                  N_eq(sp, 1, age)        = R_init(sp) * exp( - mort_sum(sp, age) + init_log_scalar) * (1-sex_ratio(sp, 0));
                 }
               }
 
               // -- 6.5.3. Amax
               if(age == (nages(sp) - 1)) {
 
+                // The plus group accumulates at its own total mortality. Under
+                // initMode 6 the initial F reaches an age through that age's
+                // selectivity, so the oldest age decays at M1 + Finit * sel --
+                // SS3's equilibrium convention. Every other mode charges the
+                // full Finit here, as it does in mort_sum above.
+                Type Z_plus = M1_at_age(sp, sex, nages(sp) - 1, 0) + Finit(sp) *
+                  ((initMode == 6) ? sel_init(sp, sex, nages(sp) - 1) : Type(1.0));
+                Type plus_grp = 1 - exp(-Z_plus);
+
                 if(sex == 0){// NOTE: This solves for the geometric series
-                  N_at_age(sp, 0, age, 0) = R_init(sp) * exp( - mort_sum(sp, age) + init_dev(sp, age - 1) + init_log_scalar) / (1 - exp(-M1_at_age(sp, sex, nages(sp) - 1, 0) - Finit(sp))) * sex_ratio(sp, 0);
+                  N_at_age(sp, 0, age, 0) = R_init(sp) * exp( - mort_sum(sp, age) + init_dev(sp, age - 1) + init_log_scalar) / plus_grp * sex_ratio(sp, 0);
+                  N_eq(sp, 0, age)        = R_init(sp) * exp( - mort_sum(sp, age) + init_log_scalar) / plus_grp * sex_ratio(sp, 0);
                 }
 
                 if(sex == 1){
-                  N_at_age(sp, 1, age, 0) = R_init(sp) * exp( - mort_sum(sp, age) + init_dev(sp, age - 1) + init_log_scalar) / (1 - exp(-M1_at_age(sp, sex, nages(sp) - 1, 0) - Finit(sp))) * (1-sex_ratio(sp, 0));
+                  N_at_age(sp, 1, age, 0) = R_init(sp) * exp( - mort_sum(sp, age) + init_dev(sp, age - 1) + init_log_scalar) / plus_grp * (1-sex_ratio(sp, 0));
+                  N_eq(sp, 1, age)        = R_init(sp) * exp( - mort_sum(sp, age) + init_log_scalar) / plus_grp * (1-sex_ratio(sp, 0));
                 }
               }
             }
@@ -2861,6 +2901,40 @@ Type objective_function<Type>::operator() () {
     }
   }
 
+  // -- 9.1a. Initial equilibrium catch (kg)
+  //
+  // The catch the stock yielded under the initial F, in the year before the
+  // hindcast, taken on the deviation-free equilibrium age structure:
+  //
+  //   C_eq = sum_a Finit * s_a * w_a * N_eq_a * (1 - exp(-Z_a)) / Z_a
+  //   Z_a  = M1_a + Finit * s_a
+  //
+  // i.e. Baranov at equilibrium, with the fleet's own selectivity and body
+  // weight in the first hindcast year. This is SS3's equilibrium catch
+  // (SS_popdyn.tpl, Do_Equil_Calc), and it is what identifies Finit: without it
+  // the initial F is shaped only by the initial age structure and sits on a
+  // ridge with the initial deviates. N_eq rather than N_at_age because the
+  // equilibrium is what the deviates depart from.
+  vector<Type> equil_catch_hat(equil_catch_ctl.rows()); equil_catch_hat.setZero();
+  for(int eq_ind = 0; eq_ind < equil_catch_ctl.rows(); eq_ind++){
+    flt = equil_catch_ctl(eq_ind, 0) - 1;
+    sp  = equil_catch_ctl(eq_ind, 1) - 1;
+    wt_idx_flt = nspp * 2 + flt;
+    for(sex = 0; sex < nsex(sp); sex++){
+      for(age = 0; age < nages(sp); age++){
+        Type s_a = sel_at_age(flt, sex, age, 0);
+        Type Z_a = M1_at_age(sp, sex, age, 0) + Finit(sp) * s_a;
+        Type baranov = Finit(sp) * s_a / Z_a * (1.0 - exp(-Z_a)) * N_eq(sp, sex, age);
+        if(flt_units(flt) == 1){          // by weight
+          equil_catch_hat(eq_ind) += baranov * weight_hat( wt_idx_flt, sex, age, 0 );
+        }
+        if(flt_units(flt) == 2){          // by numbers
+          equil_catch_hat(eq_ind) += baranov;
+        }
+      }
+    }
+  }
+
   // -- 9.1b. Analytical catch sigma, following Ludwig and Walters (1994)
   //
   // The sd that minimises the catch density, accumulating the squared log
@@ -3353,7 +3427,8 @@ Type objective_function<Type>::operator() () {
     JNLL_STOMACH        = 18,  // Stomach content data
     JNLL_LINKAGE_PRIOR  = 19,  // Linkage-table priors (per-row)
     JNLL_LINKAGE_RE     = 20,  // Linkage random effects
-    JNLL_N_ROWS         = 21   // total row count (for dimensioning)
+    JNLL_EQUIL_CATCH    = 21,  // Initial equilibrium catch
+    JNLL_N_ROWS         = 22   // total row count (for dimensioning)
   };
   matrix<Type> jnll_comp(JNLL_N_ROWS, n_col); jnll_comp.setZero();  // negative log-likelihood components
   matrix<Type> unweighted_jnll_comp(JNLL_N_ROWS, n_col); unweighted_jnll_comp.setZero();  // same, without likelihood weights
@@ -3781,6 +3856,27 @@ Type objective_function<Type>::operator() () {
       if(sim_pos >= 0){
         obsvec(sim_pos) = log(catch_obs(fsh_ind, 0));
       }
+    }
+  }
+
+  // -- Initial equilibrium catch likelihood
+  //
+  // The same lognormal the hindcast catch uses, on the row's own Log_sd, booked
+  // to its own jnll row: SS3 reports it separately (equ_catch_like), and it is
+  // worth seeing separately, because it is invisible in the total while
+  // carrying real gradient -- on AI cod 0.0035 nats against a gradient on the
+  // growth parameters of up to 6.6, and it is what holds Finit off its ridge.
+  //
+  // Its own loop rather than a branch inside the catch loop above, which would
+  // not run for a fleet with no hindcast catch rows. No OSA slot: a one-off
+  // equilibrium observation has no residual sequence to condition on.
+  for(int eq_ind = 0; eq_ind < equil_catch_ctl.rows(); eq_ind++){
+    int eq_flt = equil_catch_ctl(eq_ind, 0) - 1;
+    if((equil_catch_obs(eq_ind, 0) > 0) && (flt_type(eq_flt) == 1)){
+      Type eq_sd = equil_catch_obs(eq_ind, 1);
+      Type eq_mu = log(equil_catch_hat(eq_ind)) - bias_adjust_obs*square(eq_sd)/2.0;
+      jnll_comp(JNLL_EQUIL_CATCH, eq_flt) -=
+        dnorm(log(equil_catch_obs(eq_ind, 0)), eq_mu, eq_sd, true);
     }
   }
 
@@ -5529,6 +5625,7 @@ Type objective_function<Type>::operator() () {
   // REPORT( n_hat );
   // REPORT( comp_n );
   REPORT( caal_hat );
+  REPORT( equil_catch_hat );
   REPORT( caal_obs );
   REPORT( pred_CAAL );
 

@@ -698,7 +698,8 @@ print.Rceattle_profile <- function(x, cutoff = 1.92, ...) {
   "Ration penalties"           = "species",
   "Stomach content data"       = "species",
   "Linkage-table priors"       = "species",
-  "Linkage random effects"     = "model"
+  "Linkage random effects"     = "model",
+  "Initial equilibrium catch"  = "fleet"
 )
 
 

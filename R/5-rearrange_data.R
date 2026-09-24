@@ -407,6 +407,29 @@ rearrange_data <- function(data_list, build_osa = FALSE){
 
 
   # 3 -  Catch data ----
+  # - An initial equilibrium catch is written as a catch_data row at styr - 1:
+  #   the catch the stock yielded under the initial F, before the hindcast. It
+  #   is split out here because it is predicted from the equilibrium age
+  #   structure rather than from a hindcast year, and because leaving it in
+  #   catch_ctl would index year -1 in section 9.1 (an out-of-bounds read, not
+  #   an error). The remaining rows are the hindcast and projection as before.
+  .equil <- data_list$catch_data$Year == (data_list$styr - 1L)
+  .equil[is.na(.equil)] <- FALSE
+  data_list$equil_catch_ctl <- data_list$catch_data[.equil, , drop = FALSE] %>%
+    dplyr::select(Fleet_code, Species) %>%
+    dplyr::mutate_all(as.integer) %>%
+    as.matrix()
+  data_list$equil_catch_obs <- data_list$catch_data[.equil, , drop = FALSE] %>%
+    dplyr::select(Catch, Log_sd) %>%
+    dplyr::mutate_all(as.numeric) %>%
+    as.matrix()
+  # TMB needs a matrix with the right column count even when there are no rows.
+  if (!nrow(data_list$equil_catch_ctl)) {
+    data_list$equil_catch_ctl <- matrix(0L, 0, 2)
+    data_list$equil_catch_obs <- matrix(0,  0, 2)
+  }
+  data_list$catch_data <- data_list$catch_data[!.equil, , drop = FALSE]
+
   # - Seperate catch metadata from observation
   data_list$catch_ctl <- data_list$catch_data %>%
     dplyr::select(Fleet_code, Species, Year) %>%

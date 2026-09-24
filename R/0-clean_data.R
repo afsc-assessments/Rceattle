@@ -158,12 +158,21 @@ clean_data <- function(data_list){
 
   # --- 1. Filter Data by Year ----
   # Data in likelihood (use absolute Year)
-  abs_year_data <- c("index_data", "catch_data", "comp_data", "caal_data")
+  abs_year_data <- c("index_data", "comp_data", "caal_data")
   for(df_name in abs_year_data) {
     if(!is.null(data_list[[df_name]])) {
       data_list[[df_name]] <- data_list[[df_name]] |>
         dplyr::filter(abs(Year) >= data_list$styr & abs(Year) <= data_list$projyr)
     }
+  }
+
+  # catch_data admits one year more than the others: styr - 1 holds the initial
+  # equilibrium catch, the catch the stock yielded under the initial F before
+  # the hindcast began. It is an observation, not a hindcast year, and
+  # rearrange_data() splits it out before catch_ctl is built.
+  if(!is.null(data_list$catch_data)) {
+    data_list$catch_data <- data_list$catch_data |>
+      dplyr::filter(abs(Year) >= (data_list$styr - 1L) & abs(Year) <= data_list$projyr)
   }
 
   # Fixed data (allow Year == 0)
