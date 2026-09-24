@@ -386,7 +386,7 @@ Type objective_function<Type>::operator() () {
   DATA_MATRIX( comp_n );                  // Month and sample size on observed age/length comp; columns = Month, Sample size
   DATA_MATRIX( comp_obs );                // Observed age/length comp; cols = Comp_1, Comp_2, etc. can be proportion
   DATA_IMATRIX( caal_ctl );               // Info on observed CAAL; columns = Survey_name, Survey_code, Species, Year
-  DATA_MATRIX( caal_n );                  // Month and sample size on CAAL; columns = Month, Sample size
+  DATA_MATRIX( caal_n );                  // Sample size on CAAL; ONE column = Sample size. Unlike comp_n there is no month: a CAAL observation is placed at its fleet's Month, and the age-length key is annual.
   DATA_MATRIX( caal_obs );                // Observed CAAL; cols = Comp_1, Comp_2, etc. can be proportion
 
   // -- 2.4.5 Age and selectivity
