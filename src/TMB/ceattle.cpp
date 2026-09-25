@@ -215,6 +215,25 @@ Type objective_function<Type>::operator() () {
   DATA_VECTOR( MSB0 );                    // B0 from projecting the model forward in multi-species mode under no fishing
 
   int max_nlengths = imax(nlengths);      // Integer of maximum nlengths to make the arrays
+  // The age-length key and selectivity-at-length live on the POPULATION length
+  // bins, which are the data bins whenever no pop_lengths is supplied.
+  int max_nlengths_pop = imax(nlengths_pop);
+
+  // First and last population bin falling in each data bin, per species. The
+  // map is monotone, so each data bin owns a contiguous run and anything that
+  // has to report per data bin (pred_CAAL, and the length compositions built
+  // from it) can sum that run. With one grid every run is a single bin, so the
+  // arithmetic and the work are exactly what they were.
+  matrix<int> pop_bin_lo(nspp, max_nlengths); pop_bin_lo.setZero();
+  matrix<int> pop_bin_hi(nspp, max_nlengths); pop_bin_hi.setZero();
+  for(int sp_i = 0; sp_i < nspp; sp_i++){
+    for(int d = 0; d < nlengths(sp_i); d++){ pop_bin_lo(sp_i, d) = -1; pop_bin_hi(sp_i, d) = -2; }
+    for(int lp = 0; lp < nlengths_pop(sp_i); lp++){
+      int d = pop_to_data_bin(sp_i, lp);
+      if(pop_bin_lo(sp_i, d) < 0) pop_bin_lo(sp_i, d) = lp;
+      pop_bin_hi(sp_i, d) = lp;
+    }
+  }
   int max_age = imax(nages);              // Integer of maximum nages to make the arrays
   int max_bin = (max_age > max_nlengths) ? max_age : max_nlengths;
 
@@ -557,7 +576,7 @@ Type objective_function<Type>::operator() () {
   Type ricker_intercept = 0.0;
 
   // -- 4.2. Growth
-  array<Type> growth_matrix(nspp * 2 + n_flt, max_sex, max_age, max_nlengths, nyrs); growth_matrix.setZero(); // growth transition matrix for each fleet and each species derived quantity (biomass and ssb)
+  array<Type> growth_matrix(nspp * 2 + n_flt, max_sex, max_age, max_nlengths_pop, nyrs); growth_matrix.setZero(); // growth transition matrix on the POPULATION length bins, for each fleet and each species derived quantity (biomass and ssb)
   array<Type> weight_hat(nspp * 2 + n_flt, max_sex, max_age, nyrs); weight_hat.setZero(); // Estimated weight-at-age for each fleet and each species derived quantity (biomass and ssb)
   array<Type> mat_weight_hat(nspp * 2 + n_flt, max_sex, max_age, nyrs); mat_weight_hat.setZero(); // Mature weight-at-age (kg), maturity-at-length species only
   array<Type> length_hat(nspp * 2 + n_flt, max_sex, max_age, nyrs); length_hat.setZero(); // Estimated length-at-age for each fleet and each species derived quantity (biomass and ssb)
@@ -603,7 +622,7 @@ Type objective_function<Type>::operator() () {
 
   // -- 4.4. Selectivity parameters
   array<Type>   sel_at_age(n_flt, max_sex, max_age, nyrs); sel_at_age.setZero();    // Estimated selectivity at age
-  array<Type>   sel_at_length(n_flt, max_sex, max_nlengths, nyrs); sel_at_length.setZero();// Estimated selectivity at length
+  array<Type>   sel_at_length(n_flt, max_sex, max_nlengths_pop, nyrs); sel_at_length.setZero();// Estimated selectivity at length, on the POPULATION length bins
   array<Type>   avg_sel(n_flt, max_sex, nyrs_hind); avg_sel.setZero();              // Average selectivity for non-parametric up to n_sel_bins
   array<Type>   non_par_sel(n_flt, max_sex, max_bin, nyrs); non_par_sel.setZero();  // Estimated selectivity for AMAK non-parametric (pre-normalization)
   array<Type>   log_non_par_sel(n_flt, max_sex, max_bin, nyrs); log_non_par_sel.setZero(); // Same curve on the log scale, the scale the penalties are written on (exp() underflows below about -745, so it is carried rather than recovered)
@@ -1280,6 +1299,9 @@ Type objective_function<Type>::operator() () {
     nages,                // Vector of max ages per species
     nlengths,             // Vector of max lengths per species
     lengths,              // Length bin boundaries matrix
+    nlengths_pop,         // Population length bins per species (= nlengths when no pop grid)
+    lengths_pop,          // Population length bin lower edges
+    pop_to_data_bin,      // Data bin each population bin falls in
     flt_spp,              // Fleet to species mapping
     flt_sel_type,         // Selectivity model type per fleet
     flt_sel_dim,          // Age or length based
@@ -1326,10 +1348,13 @@ Type objective_function<Type>::operator() () {
       for(age = 0; age < nages(sp); age++){
         for(yr = 0; yr < nyrs; yr++){
           Type num = 0, den = 0;
-          for(int ln = 0; ln < nlengths(sp); ln++){
-            Type lenmid = (ln < nlengths(sp) - 1)
-              ? (lengths(sp, ln) + lengths(sp, ln + 1)) / Type(2.0)
-              : lengths(sp, ln) + (lengths(sp, ln) - lengths(sp, ln - 1)) / Type(2.0);
+          // Integrated over POPULATION bins: both the key and the curve live
+          // there, so the selectivity weighting is applied at the resolution
+          // the curve is defined on rather than to a bin average.
+          for(int ln = 0; ln < nlengths_pop(sp); ln++){
+            Type lenmid = (ln < nlengths_pop(sp) - 1)
+              ? (lengths_pop(sp, ln) + lengths_pop(sp, ln + 1)) / Type(2.0)
+              : lengths_pop(sp, ln) + (lengths_pop(sp, ln) - lengths_pop(sp, ln - 1)) / Type(2.0);
             Type p_sel = growth_matrix(wt_idx_sel, sex, age, ln, yr) * sel_at_length(flt, sex, ln, yr);
             num += p_sel * weight_length_pars(sp, 0) * pow(lenmid, weight_length_pars(sp, 1));
             den += p_sel;
@@ -3039,14 +3064,34 @@ Type objective_function<Type>::operator() () {
             switch(flt_type(flt)){
             case 1: // - Fishery
               if(flt_sel_dim(flt) == 1){ // Length based
-                pred_CAAL(flt, sex, age, ln, yr) = sel_at_length(flt, sex, ln, yr) * Frate / Z_at_age(sp, sex, age, yr) * (1 - exp(-Z_at_age(sp, sex, age, yr))) * N_at_age(sp, sex, age, yr) * growth_matrix(wtind,  sex, age, ln, yr);
+                {
+                  // sel(L) * P(L|age) summed over the POPULATION bins in this
+                  // data bin: SS3 forms that product at population resolution
+                  // and bins the result, rather than applying one bin-average
+                  // selectivity to the whole data bin.
+                  Type ps_ln = 0.0;
+                  for(int lp = pop_bin_lo(sp, ln); lp <= pop_bin_hi(sp, ln); lp++){
+                    ps_ln += sel_at_length(flt, sex, lp, yr) * growth_matrix(wtind, sex, age, lp, yr);
+                  }
+                  pred_CAAL(flt, sex, age, ln, yr) = ps_ln * (Frate / Z_at_age(sp, sex, age, yr) * (1 - exp(-Z_at_age(sp, sex, age, yr))) * N_at_age(sp, sex, age, yr));
+                }
               }
               break;
 
 
             case 2: // - Survey
               if(flt_sel_dim(flt) == 1){ // Length based
-                pred_CAAL(flt, sex, age, ln, yr) = N_at_age(sp, sex, age, yr) * sel_at_length(flt, sex, ln, yr) * index_q(flt, yr_ind) * exp( - Type(mo/12.0) * Z_at_age(sp, sex, age, yr)) * growth_matrix(wtind,  sex, age, ln, yr);
+                {
+                  // sel(L) * P(L|age) summed over the POPULATION bins in this
+                  // data bin: SS3 forms that product at population resolution
+                  // and bins the result, rather than applying one bin-average
+                  // selectivity to the whole data bin.
+                  Type ps_ln = 0.0;
+                  for(int lp = pop_bin_lo(sp, ln); lp <= pop_bin_hi(sp, ln); lp++){
+                    ps_ln += sel_at_length(flt, sex, lp, yr) * growth_matrix(wtind, sex, age, lp, yr);
+                  }
+                  pred_CAAL(flt, sex, age, ln, yr) = ps_ln * (N_at_age(sp, sex, age, yr) * index_q(flt, yr_ind) * exp( - Type(mo/12.0) * Z_at_age(sp, sex, age, yr)));
+                }
               }
               break;
             }
@@ -3320,14 +3365,34 @@ Type objective_function<Type>::operator() () {
       switch(flt_type(flt)){
       case 1: // - Fishery
         if(flt_sel_dim(flt) == 1){
-          pred_CAAL(flt, sex, age, ln, yr) = sel_at_length(flt, sex, ln, yr) * Frate / Z_at_age(sp, sex, age, yr) * (1 - exp(-Z_at_age(sp, sex, age, yr))) * N_at_age(sp, sex, age, yr) * growth_matrix(wtind,  sex, age, ln, yr);
+          {
+                  // sel(L) * P(L|age) summed over the POPULATION bins in this
+                  // data bin: SS3 forms that product at population resolution
+                  // and bins the result, rather than applying one bin-average
+                  // selectivity to the whole data bin.
+                  Type ps_ln = 0.0;
+                  for(int lp = pop_bin_lo(sp, ln); lp <= pop_bin_hi(sp, ln); lp++){
+                    ps_ln += sel_at_length(flt, sex, lp, yr) * growth_matrix(wtind, sex, age, lp, yr);
+                  }
+                  pred_CAAL(flt, sex, age, ln, yr) = ps_ln * (Frate / Z_at_age(sp, sex, age, yr) * (1 - exp(-Z_at_age(sp, sex, age, yr))) * N_at_age(sp, sex, age, yr));
+                }
         }
         break;
 
 
       case 2: // - Survey
         if(flt_sel_dim(flt) == 1){
-          pred_CAAL(flt, sex, age, ln, yr) = N_at_age(sp, sex, age, yr) * sel_at_length(flt, sex, ln, yr) * growth_matrix(wtind,  sex, age, ln, yr) * index_q(flt, yr_ind) * exp( - Type(mo/12.0) * Z_at_age(sp, sex, age, yr)) ;
+          {
+                  // sel(L) * P(L|age) summed over the POPULATION bins in this
+                  // data bin: SS3 forms that product at population resolution
+                  // and bins the result, rather than applying one bin-average
+                  // selectivity to the whole data bin.
+                  Type ps_ln = 0.0;
+                  for(int lp = pop_bin_lo(sp, ln); lp <= pop_bin_hi(sp, ln); lp++){
+                    ps_ln += sel_at_length(flt, sex, lp, yr) * growth_matrix(wtind, sex, age, lp, yr);
+                  }
+                  pred_CAAL(flt, sex, age, ln, yr) = ps_ln * (N_at_age(sp, sex, age, yr) * index_q(flt, yr_ind) * exp( - Type(mo/12.0) * Z_at_age(sp, sex, age, yr)) );
+                }
         }
         break;
       }
@@ -4269,7 +4334,11 @@ Type objective_function<Type>::operator() () {
     // Non-parametric penalties act over the fleet's selectivity dimension:
     // nbins = nages for age-based, nlengths for length-based selectivity.
     bool sel_is_length = (flt_sel_dim(flt) == 1);
-    int  nbins = sel_is_length ? nlengths(sp) : nages(sp);
+    // sel_at_length is indexed on the POPULATION bins, so the penalty's bin
+    // range is counted there. Identical to the data bins with one grid, and
+    // data_check() refuses a time-varying length-based selectivity on a coarser
+    // data grid, where Sel_pen_first_bin / Sel_pen_last_bin would be ambiguous.
+    int  nbins = sel_is_length ? nlengths_pop(sp) : nages(sp);
 
     // If estimating survey or fishery (and not a selectivity mirror of an earlier
     // fleet - the shared penalty is accumulated once, on the lead fleet).

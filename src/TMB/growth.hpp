@@ -60,7 +60,16 @@ void fill_age_length_key(int wtind, int sp, int sex, int age, int yr,
                          array<Type>& weight_hat,
                          array<Type>& mat_weight_hat) {
   int np = nlengths_pop(sp);
-  for(int ln = 0; ln < nlengths(sp); ln++) growth_matrix(wtind, sex, age, ln, yr) = Type(0.0);
+  // The key is kept on the POPULATION bins, not summed into the data bins here.
+  // Everything that reads it multiplies it by selectivity-at-length, and SS3
+  // forms that product at population resolution before binning the result, so
+  // aggregating first would apply one bin-average selectivity to a whole data
+  // bin. Consumers aggregate through pop_to_data_bin where they need data bins
+  // (pred_CAAL); where they integrate over all lengths (selectivity-at-age,
+  // selectivity-weighted weight-at-age) they simply sum every population bin.
+  // Identical either way whenever the two grids coincide, which is the case
+  // for every model that supplies no pop_lengths.
+  for(int lp = 0; lp < np; lp++) growth_matrix(wtind, sex, age, lp, yr) = Type(0.0);
 
   Type expected_weight = 0.0;
   Type expected_mat_weight = 0.0;
@@ -73,7 +82,7 @@ void fill_age_length_key(int wtind, int sp, int sex, int age, int yr,
     } else {
       prob = pnorm((lengths_pop(sp, lp + 1) - mu) / sd) - pnorm((lengths_pop(sp, lp) - mu) / sd);
     }
-    growth_matrix(wtind, sex, age, pop_to_data_bin(sp, lp), yr) += prob;
+    growth_matrix(wtind, sex, age, lp, yr) = prob;
 
     Type lenmid;
     if(lp < np - 1) {

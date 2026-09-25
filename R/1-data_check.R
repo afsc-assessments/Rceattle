@@ -1816,6 +1816,41 @@ data_check <- function(data_list) {
     }
   }
 
+  # A length-based selectivity curve is built on the POPULATION length bins, so
+  # a form whose PARAMETERS are indexed by bin only means what the user intended
+  # when the two grids coincide. Non-parametric and AR1 forms carry one
+  # coefficient per bin, and their centring and random walk are defined ACROSS
+  # bins, so evaluating them on a finer grid would change the model rather than
+  # its resolution; a time-varying deviation penalty reads Sel_pen_first_bin /
+  # Sel_pen_last_bin as bin indices with the same ambiguity. Refuse rather than
+  # pick a reading. Parametric forms are functions of length and are unaffected.
+  if (has_data(data_list$fleet_control) && !is.null(data_list$pop_lengths)) {
+    fc <- data_list$fleet_control
+    .bin_indexed <- c("NonParametric", "NonParametricPM", "NonParametricIID",
+                      "NonParametricRW", "AR1", "AR1_3D", 2, 5, 6, 7, 9, 13, 14)
+    len_based <- as.character(fc$Selectivity_dimension) == "Length"
+    np_form   <- as.character(fc$Selectivity) %in% as.character(.bin_indexed)
+    tv_on     <- !is.na(fc$Time_varying_sel) &
+                 !(as.character(fc$Time_varying_sel) %in% c("0", "Off"))
+    coarse <- vapply(seq_len(nrow(fc)), function(i) {
+      sp <- suppressWarnings(as.integer(fc$Species[i]))
+      if (is.na(sp) || is.null(data_list$nlengths_pop)) return(FALSE)
+      isTRUE(data_list$nlengths_pop[sp] != data_list$nlengths[sp])
+    }, logical(1))
+    bad <- which(len_based & coarse & (np_form | tv_on))
+    if (length(bad)) {
+      errors <- c(errors, paste0(
+        "Fleet(s) ", paste(as.character(fc$Fleet_name[bad]), collapse = ", "),
+        " have a length-based selectivity whose parameters are indexed by bin ",
+        "(non-parametric/AR1, or a time-varying deviation penalty) on a species ",
+        "whose population length grid is finer than its data length grid. The ",
+        "curve is built on the population bins, so those per-bin coefficients, ",
+        "their centring and their random walk would no longer mean what the ",
+        "data grid implied. Use a parametric form, or give the species one ",
+        "length grid (drop pop_lengths)."))
+    }
+  }
+
   # CAAL: presence required when growth is being estimated (declarative
   # requirement table); the column / length adequacy checks stay imperative.
   errors <- c(errors, .rce_check_presence(data_list, "caal_data"))
