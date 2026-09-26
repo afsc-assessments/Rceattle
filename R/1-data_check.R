@@ -1851,6 +1851,30 @@ data_check <- function(data_list) {
     }
   }
 
+  # Ageing_error_index must name a matrix that exists. Absent or NA means the
+  # fleet's own species, which is the one-matrix-per-species default, so only a
+  # supplied value is checked.
+  if (has_data(data_list$fleet_control) && !is.null(data_list$age_error)) {
+    ae <- as.data.frame(data_list$age_error)
+    have <- if (!is.null(ae$Ageing_error_index))
+      unique(suppressWarnings(as.integer(ae$Ageing_error_index))) else
+      unique(suppressWarnings(as.integer(ae$Species)))
+    want <- suppressWarnings(as.integer(data_list$fleet_control[["Ageing_error_index"]]))
+    if (length(want)) {
+      bad <- which(!is.na(want) & !(want %in% have))
+      if (length(bad)) {
+        errors <- c(errors, paste0(
+          "fleet_control$Ageing_error_index names matrices that 'age_error' does ",
+          "not define, on fleet(s) ",
+          paste(as.character(data_list$fleet_control$Fleet_name[bad]), collapse = ", "),
+          ": asked for ", paste(sort(unique(want[bad])), collapse = ", "),
+          ", available ", paste(sort(have), collapse = ", "),
+          ". Give 'age_error' an 'Ageing_error_index' column naming each matrix, ",
+          "or drop the fleet_control column to use one matrix per species."))
+      }
+    }
+  }
+
   # CAAL: presence required when growth is being estimated (declarative
   # requirement table); the column / length adequacy checks stay imperative.
   errors <- c(errors, .rce_check_presence(data_list, "caal_data"))

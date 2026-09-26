@@ -301,6 +301,18 @@ rearrange_data <- function(data_list, build_osa = FALSE){
   # - 13) Dim3 of age transition matrix (what ALK to use)
   data_list$flt_age_transition_index <- .pull_int0(data_list$fleet_control, "Age_transition_index")
 
+  # - 13b) Ageing error matrix per fleet. Absent or NA means the fleet's own
+  #        species, which reproduces the one-matrix-per-species behaviour
+  #        exactly, so an existing fleet_control needs no new column.
+  {
+    .ae <- data_list$fleet_control[["Ageing_error_index"]]
+    .sp <- as.integer(data_list$fleet_control$Species)
+    .ae <- if (is.null(.ae)) .sp else {
+      v <- suppressWarnings(as.integer(.ae)); ifelse(is.na(v), .sp, v)
+    }
+    data_list$flt_ageing_error_index <- as.integer(.ae) - 1L   # 0-based for C++
+  }
+
   # - 14) Parametric form of q
   data_list$est_index_q <- .pull_int(data_list$fleet_control, "Catchability")
 
@@ -625,14 +637,28 @@ rearrange_data <- function(data_list, build_osa = FALSE){
 
 
   # 9 - Rearrange age_error matrices ----
-  arm <- array(0, dim = c(data_list$nspp, max_age, max_age))
-
-  # age_error may arrive as a tibble or a matrix, and the loop below mixes `$`
-  # column access with positional `[i, ]` -- the two disagree on both. Coerce to
-  # a plain data frame first so each row reads the same way whatever was passed.
+  # Indexed by Ageing_error_index, not by species, so one species can carry
+  # several matrices -- an ageing method that changed part way through a series
+  # reads the same otolith differently before and after, and a fleet picks its
+  # matrix through fleet_control$Ageing_error_index. Absent the column the index
+  # IS the species, which is what the model did when there was one matrix each.
   data_list$age_error <- as.data.frame(data_list$age_error)
+  if (is.null(data_list$age_error$Ageing_error_index)) {
+    data_list$age_error$Ageing_error_index <- data_list$age_error$Species
+  }
+  n_ae <- max(as.numeric(as.character(data_list$age_error$Ageing_error_index)),
+              data_list$nspp, na.rm = TRUE)
+  arm <- array(0, dim = c(n_ae, max_age, max_age))
+
+  # The observed-age columns were read positionally as "everything after the
+  # first two". Name the metadata instead, so adding a column cannot silently
+  # shift which columns are read as probabilities.
+  .ae_meta <- c("Species", "True_age", "Ageing_error_index", "Ageing_error_name")
+  .ae_obs  <- setdiff(colnames(data_list$age_error), .ae_meta)
+
   for (i in seq_len(nrow(data_list$age_error))) {
     sp <- as.numeric(as.character(data_list$age_error$Species[i]))
+    idx <- as.numeric(as.character(data_list$age_error$Ageing_error_index[i]))
     true_age <- as.numeric(as.character(data_list$age_error$True_age[i])) - data_list$minage[sp] + 1
 
     if (true_age > data_list$nages[sp]) {
@@ -642,10 +668,11 @@ rearrange_data <- function(data_list, build_osa = FALSE){
       stop()
     }
 
-    arm[sp, true_age, 1:data_list$nages[sp]] <- as.numeric(as.character(data_list$age_error[i, (1:data_list$nages[sp]) + 2]))
+    arm[idx, true_age, 1:data_list$nages[sp]] <-
+      as.numeric(as.character(data_list$age_error[i, .ae_obs[1:data_list$nages[sp]]]))
 
     # Normalize
-    arm[sp, true_age, 1:data_list$nages[sp]] <- arm[sp, true_age, 1:data_list$nages[sp]] / sum(arm[sp, true_age, 1:data_list$nages[sp]], na.rm = TRUE)
+    arm[idx, true_age, 1:data_list$nages[sp]] <- arm[idx, true_age, 1:data_list$nages[sp]] / sum(arm[idx, true_age, 1:data_list$nages[sp]], na.rm = TRUE)
   }
   data_list$age_error <- arm
 

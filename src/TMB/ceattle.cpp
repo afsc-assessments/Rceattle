@@ -326,6 +326,7 @@ Type objective_function<Type>::operator() () {
   DATA_IVECTOR(flt_units);                // Vector to save fleet units (1 = weight, 2 = numbers)
   DATA_IVECTOR(flt_wt_index);             // Vector to save 1st dim of weight to use for weight-at-age
   DATA_IVECTOR(flt_age_transition_index); // Vector to save 3rd dim of age_trans_matrix to use for ALK
+  DATA_IVECTOR(flt_ageing_error_index);   // Ageing error matrix each fleet reads (0-based); the fleet's own species unless fleet_control gives one
   DATA_IVECTOR(est_index_q);              // Vector to save wether or not analytical q is used
   DATA_IVECTOR(index_varying_q);          // Vector storing information on wether time-varying q is estimated
   DATA_IVECTOR(est_sigma_index);          // Vector to save wether sigma survey is estimated
@@ -421,7 +422,7 @@ Type objective_function<Type>::operator() () {
   DATA_IMATRIX( emp_sel_ctl );            // Info on empirical fishery selectivity; columns =  Fishery_name, Fishery_code, Species, Year
   DATA_MATRIX( emp_sel_obs );             // Observed emprical fishery selectivity; columns = Compe_1, Comp_2, etc.
   DATA_ARRAY( age_trans_matrix);          // observed sp_age/size compositions; n = [nspp, nages, index_age_bins]
-  DATA_ARRAY( age_error );                // Array of aging error matrices for each species; n = [nspp, nages, nages]
+  DATA_ARRAY( age_error );                // Aging error matrices; n = [n_matrices, nages, nages]. One per species unless fleet_control$Ageing_error_index selects otherwise.
 
   // -- 2.3.5. Growth
   DATA_ARRAY( weight_obs );               // Weight-at-age by year; n = [nweight, sex, nages, nyrs]
@@ -3155,7 +3156,7 @@ Type objective_function<Type>::operator() () {
       // Adjust for aging error
       for(int obs_age = 0; obs_age < nages(sp); obs_age++) {
         for(int true_age = 0; true_age < nages(sp); true_age++) {
-          age_obs_hat(comp_ind, obs_age) += age_hat(comp_ind, true_age ) * age_error(sp, true_age, obs_age);
+          age_obs_hat(comp_ind, obs_age) += age_hat(comp_ind, true_age ) * age_error(flt_ageing_error_index(flt), true_age, obs_age);
         }
       }
 
@@ -3168,7 +3169,7 @@ Type objective_function<Type>::operator() () {
             int true_age_tmp = true_age - nages(sp);
             int obs_age_tmp = obs_age - nages(sp);
 
-            age_obs_hat(comp_ind, obs_age) += age_hat(comp_ind, true_age ) * age_error(sp, true_age_tmp, obs_age_tmp);
+            age_obs_hat(comp_ind, obs_age) += age_hat(comp_ind, true_age ) * age_error(flt_ageing_error_index(flt), true_age_tmp, obs_age_tmp);
           }
         }
       }
@@ -3245,7 +3246,7 @@ Type objective_function<Type>::operator() () {
       // Adjust for aging error
       for(int obs_age = 0; obs_age < nages(sp); obs_age++) {
         for(int true_age = 0; true_age < nages(sp); true_age++) {
-          age_obs_hat(comp_ind, obs_age) += age_hat(comp_ind, true_age ) * age_error(sp, true_age, obs_age);
+          age_obs_hat(comp_ind, obs_age) += age_hat(comp_ind, true_age ) * age_error(flt_ageing_error_index(flt), true_age, obs_age);
         }
       }
 
@@ -3258,7 +3259,7 @@ Type objective_function<Type>::operator() () {
             int true_age_tmp = true_age - nages(sp);
             int obs_age_tmp = obs_age - nages(sp);
 
-            age_obs_hat(comp_ind, obs_age) += age_hat(comp_ind, true_age ) * age_error(sp, true_age_tmp, obs_age_tmp);
+            age_obs_hat(comp_ind, obs_age) += age_hat(comp_ind, true_age ) * age_error(flt_ageing_error_index(flt), true_age_tmp, obs_age_tmp);
           }
         }
       }
@@ -3401,7 +3402,7 @@ Type objective_function<Type>::operator() () {
     // Adjust for aging error
     for(int obs_age = 0; obs_age < nages(sp); obs_age++) {
       for(int true_age = 0; true_age < nages(sp); true_age++) {
-        caal_hat(caal_ind, obs_age) += pred_CAAL(flt, sex, true_age, ln, yr) * age_error(sp, true_age, obs_age);
+        caal_hat(caal_ind, obs_age) += pred_CAAL(flt, sex, true_age, ln, yr) * age_error(flt_ageing_error_index(flt), true_age, obs_age);
       }
     }
 
