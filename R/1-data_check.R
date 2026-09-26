@@ -681,7 +681,10 @@ data_check <- function(data_list) {
   }
   # ALK / age_error: row sums (warning -- rearrange may renormalize)
   if(has_data(data_list$age_error)){
-    ae_cols <- setdiff(colnames(data_list$age_error), c("Species", "True_age"))
+    # Name the metadata, as rearrange_data() does. Taking "everything but
+    # Species and True_age" summed Ageing_error_index as if it were a
+    # probability once that column existed.
+    ae_cols <- setdiff(colnames(data_list$age_error), .RCE_AGE_ERROR_META)
     if(length(ae_cols) > 0){
       ae_sums <- rowSums(data_list$age_error[, ae_cols, drop = FALSE], na.rm = TRUE)
       if(any(ae_sums > 0 & abs(ae_sums - 1) > 1e-3)){

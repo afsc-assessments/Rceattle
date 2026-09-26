@@ -1,3 +1,14 @@
+#' Metadata columns of `age_error`; every other column is an observed-age probability
+#'
+#' Read by both `data_check()` and `rearrange_data()`. Each previously took
+#' "the columns after the first two", which silently mis-read the table as soon
+#' as a metadata column was added -- Ageing_error_index was summed as if it were
+#' a probability, and every row then failed the sums-to-1 check.
+#' @keywords internal
+#' @noRd
+.RCE_AGE_ERROR_META <- c("Species", "True_age", "Ageing_error_index",
+                         "Ageing_error_name")
+
 # =============================================================================
 # Canonical workbook-column schema
 # =============================================================================

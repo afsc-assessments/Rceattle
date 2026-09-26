@@ -653,8 +653,7 @@ rearrange_data <- function(data_list, build_osa = FALSE){
   # The observed-age columns were read positionally as "everything after the
   # first two". Name the metadata instead, so adding a column cannot silently
   # shift which columns are read as probabilities.
-  .ae_meta <- c("Species", "True_age", "Ageing_error_index", "Ageing_error_name")
-  .ae_obs  <- setdiff(colnames(data_list$age_error), .ae_meta)
+  .ae_obs  <- setdiff(colnames(data_list$age_error), .RCE_AGE_ERROR_META)
 
   for (i in seq_len(nrow(data_list$age_error))) {
     sp <- as.numeric(as.character(data_list$age_error$Species[i]))
