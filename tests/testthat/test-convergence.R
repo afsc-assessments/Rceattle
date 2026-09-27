@@ -374,9 +374,19 @@ test_that("the coordinate lines share one column width", {
   hc <- convergence_diagnostics(fit)$checks$hessian_conditioning
   lines <- grep("^  [^ ]", strsplit(hc$message, "\n")[[1]], value = TRUE)
   expect_length(lines, 2L)
-  starts <- regexpr("ages ", lines, fixed = TRUE)
-  expect_true(all(starts > 0))
-  expect_length(unique(starts), 1L)
+
+  # Where the coordinate column begins: the first non-space past the padded block
+  # name. Measured, not matched on the coordinate text -- its wording depends on
+  # which elements the 90% cut keeps ("13 ages in 1-14" against "ages 1-14"), and
+  # that set moves with rounding in eigen().
+  coord_start <- function(nm) {
+    l <- lines[startsWith(lines, paste0("  ", nm))]
+    expect_length(l, 1L)
+    rest <- substring(l, 3 + nchar(nm))
+    3 + nchar(nm) + regexpr("[^ ]", rest) - 1
+  }
+  expect_equal(coord_start(.rce_par_display("rec_dev")),
+               coord_start(.rce_par_display("log_M1")))
 })
 
 test_that("a negative variance gives NA, not NaN", {
