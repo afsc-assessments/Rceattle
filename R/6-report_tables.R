@@ -314,10 +314,11 @@ report_tables <- function(object,
   est <- tryCatch(stats::coef(fit), error = function(e) NULL)
   if (is.null(est) || !length(est)) return(NULL)
 
-  # Fixed effects only, and NA rather than absent when getsd = FALSE.
+  # Fixed effects only. NA when getsd = FALSE, and NA for a negative variance
+  # too: a SAFE table must not carry sqrt(|variance|) as an uncertainty.
   se <- tryCatch({
     v <- stats::vcov(fit)
-    if (is.null(v)) NULL else sqrt(abs(diag(v)))
+    if (is.null(v)) NULL else .conv_se_from_cov(v)
   }, error = function(e) NULL)
   se <- if (!is.null(se) && length(se) == length(est)) unname(se)
         else rep(NA_real_, length(est))

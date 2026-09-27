@@ -362,22 +362,21 @@
   txt
 }
 
-# How far the estimates still are from the optimum, in standard errors. A
-# quadratic approximation puts the optimum a Newton step cov %*% gradient away;
-# dividing each element by its own SE makes the size comparable across log,
-# logit and natural-scale parameters, which the raw gradient is not. NULL
-# unless cov.fixed describes the same parameter vector as the hindcast gradient
-# (under an estimating HCR the sdreport is the projection's).
-# Standard errors from a covariance diagonal, without warning on a negative
-# variance. An indefinite Hessian gives one, and this battery reports through
-# message() and must not emit "NaNs produced" from inside a diagnostic; the
-# callers already drop non-finite entries.
+# Standard errors from a covariance diagonal. An indefinite Hessian inverts to a
+# negative variance, which has no standard error and must not warn from in here.
+# A variance within rounding of zero is a parameter the data barely move, not an
+# indefinite Hessian, so it reports 0 rather than NA.
 .conv_se_from_cov <- function(cov) {
   v <- diag(cov)
-  v[!is.finite(v) | v < 0] <- NA_real_
+  tol <- 1e-10 * max(abs(v[is.finite(v)]), 0, na.rm = TRUE)
+  v[!is.finite(v) | v < -tol] <- NA_real_
+  v[is.finite(v) & v < 0] <- 0
   sqrt(v)
 }
 
+# How far the estimates are from the optimum, in standard errors: the Newton
+# step -cov %*% gradient, scaled so every parameter scale compares.
+# NULL unless cov.fixed is the hindcast's (under an estimating HCR it is not).
 .conv_newton_step_se <- function(object, gg) {
   cov <- tryCatch(object$sdrep$cov.fixed, error = function(e) NULL)
   if (is.null(cov) || !is.matrix(cov) || is.null(gg) || is.null(names(gg)) ||
@@ -390,11 +389,10 @@
   nm <- rownames(cov)
   if (is.null(nm)) nm <- names(object$sdrep$par.fixed)
   if (!identical(unname(as.character(nm)), names(gg))) return(NULL)
-  # A negative variance is dropped rather than square-rooted: this battery
-  # reports through message() and never raises, and sqrt() would emit "NaNs
-  # produced" from inside a diagnostic.
+  # Signed the way the estimates would move; the message reports the largest
+  # absolute value.
   se   <- unname(.conv_se_from_cov(cov))
-  step <- as.numeric(cov %*% gg) / se
+  step <- as.numeric(-(cov %*% gg)) / se
   if (!any(is.finite(step))) return(NULL)
   i <- which.max(abs(replace(step, !is.finite(step), NA)))
   list(max = abs(step[i]), i = i, step_se = stats::setNames(step, names(gg)))

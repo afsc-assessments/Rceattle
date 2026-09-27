@@ -9,8 +9,8 @@
 \arguments{
 \item{x}{A \code{"summary.Rceattle"} object from \code{\link[=summary.Rceattle]{summary.Rceattle()}}.}
 
-\item{n}{Number of parameters to show, largest gradient-free standard error
-first. Default 10; use \code{Inf} for all, or take \code{x$coefficients}.}
+\item{n}{Number of parameters to show, in \code{coef()} order. Default 10; use
+\code{Inf} for all, or take \code{x$coefficients}.}
 
 \item{...}{Currently unused.}
 }

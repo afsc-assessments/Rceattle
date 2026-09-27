@@ -52,13 +52,17 @@ test_that("the largest gradient is named by quantity and coordinate", {
 })
 
 test_that("the distance to the optimum is reported in standard errors", {
-  # The Newton step is cov %*% gradient = (0.04, 0.002, 0); over SEs (2, 1, 1)
-  # that is (0.02, 0.002, 0), largest on the first parameter.
+  # The Newton step is -cov %*% gradient = (-0.04, -0.002, 0); over SEs (2, 1, 1)
+  # that is (-0.02, -0.002, 0), largest in absolute value on the first parameter.
   fit <- .fake_located_fit(c(0.01, 0.002, 0), cov = diag(c(4, 1, 1)))
   mg  <- convergence_diagnostics(fit)$checks$max_gradient
   expect_equal(mg$data$newton_step_se, 0.02)
   expect_match(mg$message,
                "at most 0.02 standard errors (log_M1 (M1): age 1)", fixed = TRUE)
+  # Signed the way the estimates would move: a positive gradient means the
+  # estimate comes down. The reported figure is the largest absolute value, so
+  # nothing else in this file would notice the sign.
+  expect_equal(unname(mg$data$step_se), c(-0.02, -0.002, 0))
 })
 
 test_that("no step is reported when the sdreport is for another parameter vector", {
@@ -325,9 +329,9 @@ test_that("the Newton step is withheld when the covariance cannot carry it", {
   pd <- convergence_diagnostics(.fake_located_fit(c(0.01, 0.002, 0), cov = cov))
   expect_equal(pd$checks$max_gradient$data$newton_step_se, 0.02)
 
-  # Not on a saddle: cov %*% gradient is the distance to a minimum only if cov
-  # inverts one, and the sentence would read as reassurance beside the pdHess
-  # check that just failed.
+  # Not on a saddle: the step is the distance to a minimum only if cov inverts
+  # one, and the sentence would read as reassurance beside the pdHess check that
+  # just failed.
   saddle <- .fake_located_fit(c(0.01, 0.002, 0), cov = cov)
   saddle$sdrep$pdHess <- FALSE
   mg <- convergence_diagnostics(saddle)$checks$max_gradient
@@ -338,4 +342,58 @@ test_that("the Newton step is withheld when the covariance cannot carry it", {
   # reports through message() and must not emit "NaNs produced" from sqrt().
   neg <- cov; neg[3, 3] <- -1
   expect_no_warning(convergence_diagnostics(.fake_located_fit(c(0.01, 0.002, 0), cov = neg)))
+})
+
+# The three claims 5.43.0 rests on that nothing held: the coordinate columns line
+# up, a negative variance becomes NA rather than NaN, and the deliberately
+# non-converged fixture stays off stdout -- its dump has been read as a real
+# convergence regression three times (TRAPS.md). Added reviewing #158.
+test_that("the coordinate lines share one column width", {
+  # Two real blocks whose display names straddle the 16-character floor, on one
+  # flat direction spread evenly over both. The width used to be computed inside
+  # .rce_par_summary(), which the check calls once per block, so each line sized
+  # to its own name: that puts the coordinates at columns 36 and 20 rather than
+  # both at 36. The coordinates are synthetic; what is pinned is the layout.
+  expect_gt(nchar(.rce_par_display("rec_dev")), 16L)   # the premise of the test
+  expect_lt(nchar(.rce_par_display("log_M1")), 16L)
+  n1 <- 30; n2 <- 14                       # sizes set the share, so both print
+  nm  <- c(rep("rec_dev", n1), rep("log_M1", n2))
+  p   <- length(nm)
+  v1  <- rep(1, p) / sqrt(p)
+  Q   <- qr.Q(qr(cbind(v1, diag(p)[, -1])))
+  cov <- Q %*% diag(c(1e8, rep(1, p - 1))) %*% t(Q)
+  dimnames(cov) <- list(nm, nm)
+
+  idx <- data.frame(par_index = seq_len(p), block = nm, species = NA, fleet = NA,
+                    sex = NA, age = c(seq_len(n1), seq_len(n2)), bin = NA,
+                    year = NA, slot = NA, stringsAsFactors = FALSE)
+  fit <- make_fake_fit()
+  fit$sdrep <- list(cov.fixed = cov, pdHess = TRUE)
+  fit$.conv_hindcast$index <- idx
+
+  hc <- convergence_diagnostics(fit)$checks$hessian_conditioning
+  lines <- grep("^  [^ ]", strsplit(hc$message, "\n")[[1]], value = TRUE)
+  expect_length(lines, 2L)
+  starts <- regexpr("ages ", lines, fixed = TRUE)
+  expect_true(all(starts > 0))
+  expect_length(unique(starts), 1L)
+})
+
+test_that("a negative variance gives NA, not NaN", {
+  cov <- diag(c(4, -1, 0))
+  expect_equal(.conv_se_from_cov(cov), c(2, NA_real_, 0))
+  expect_no_warning(.conv_se_from_cov(cov))
+  # A variance within rounding of zero is a flat direction, not an indefinite
+  # Hessian: it reports 0, so a converged fit on a ridge keeps its table.
+  expect_equal(.conv_se_from_cov(diag(c(4, -1e-18))), c(2, 0))
+  expect_equal(.conv_se_from_cov(diag(c(4, NA_real_))), c(2, NA_real_))
+})
+
+test_that("building the battery writes nothing", {
+  # print() is the only call in the battery that writes, and this holds it that
+  # way. What keeps the fixture's "[FAIL] max_gradient ..." out of a dead Windows
+  # worker's dump is the capture.output() around print() above, not this test.
+  fit <- make_fake_fit(max_gradient = 4e12, worst = "sel_inf", pdHess = FALSE)
+  expect_silent(cv <- convergence_diagnostics(fit))
+  expect_equal(cv$status, "FAIL")
 })
