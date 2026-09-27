@@ -156,7 +156,15 @@ convergence_diagnostics(model_1)
 The checks cover:
 
 - **`max_gradient`**: maximum absolute marginal gradient and the parameter
-  holding it (`WARN` > 1e-3, `FAIL` > 1).
+  holding it (`WARN` > 1e-3, `FAIL` > 1). When an `sdreport` of the same
+  parameters is available, the message also says how far the estimates are from
+  the optimum in standard errors. A quadratic approximation puts the optimum a
+  Newton step `cov.fixed %*% gradient` away, and each element is divided by its
+  own standard error. That size is comparable across log, logit and
+  natural-scale parameters, which the raw gradient is not: 0.02 means finishing
+  the optimization would move no estimate by more than 2% of its standard error.
+  The value is in `$data$newton_step_se`. It is reported only; the severity is
+  still read on the gradient.
 - **`pdHess`**: whether the Hessian is positive definite (`FAIL` if not).
 - **`sdreport_failed`**: `FAIL` when an `sdreport` was requested but the
   Hessian could not be inverted.
@@ -226,16 +234,24 @@ The checks cover:
 ### Naming the parameter, not just the block
 
 TMB names every element of `obj$par` after its parameter block, so on their own
-`estimability`, `parameters_on_bounds` and `hessian_conditioning` could say
-`sel_coff_dev` was flagged but not which of its 392 elements. Each now reports
-the fleet, sex, bin and year instead, from [`parameter_index()`]:
+`max_gradient`, `estimability`, `parameters_on_bounds` and
+`hessian_conditioning` could say `sel_coff_dev` was flagged but not which of its
+392 elements. Each now reports the fleet, sex, age, bin and year instead, from
+[`parameter_index()`], and follows the block name with the quantity it
+estimates, from [`parameter_dictionary()`]:
 
 ```
-[FAIL] estimability  49 non-identifiable fixed parameter(s)
-  sel_coff_dev  GOA_pollock_fishery, bins 1-8, 2013-2018  (41)
+  [WARN] max_gradient     Maximum absolute marginal gradient = 0.00222 on log_M1 (M1): Pollock, age 1.
+  [WARN] hessian_conditioning Condition number = 2.4e+06; loads on: log_F (F): 67% + rec_dev (recruitment deviations): 26%.
+  log_F (F)                        Hake_fishery, 38 years in 1980-2021  (38 of 44 parameters; 67% of the direction)
+  rec_dev (recruitment deviations) 24 years in 1981-2013  (24 of 44 parameters; 26% of the direction)
 ```
 
-The three checks do not all count positions in the same vector.
+A scattered set of years or ages is counted against its span ("38 years in
+1980-2021"); a consecutive run prints as a range. The count in parentheses is
+how many of the block's parameters carry 90% of its loading.
+
+The checks do not all count positions in the same vector. `max_gradient`,
 `estimability` and `parameters_on_bounds` are captured from the hindcast
 optimization; `hessian_conditioning` reads the `sdreport`, which under an
 estimating HCR belongs to the projection fit and holds only `log_Ftarget` /

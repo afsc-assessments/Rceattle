@@ -21,6 +21,68 @@ test_that("high gradient and non-PD Hessian are flagged", {
   expect_match(cv$checks$max_gradient$message, "sel_inf")
 })
 
+test_that("parameters print with the quantity they estimate", {
+  expect_equal(.rce_par_display(c("log_M1", "rec_dev", "not_a_block")),
+               c("log_M1 (M1)", "rec_dev (recruitment deviations)",
+                 "not_a_block"))
+})
+
+# A hindcast snapshot whose gradient and index agree, so the checks can say
+# where a parameter sits. Three parameters: M1 at ages 1-2 and one F.
+.fake_located_fit <- function(gradient, cov = NULL) {
+  nm  <- c("log_M1", "log_M1", "log_F")
+  idx <- data.frame(par_index = 1:3, block = nm,
+                    label = c("age 1", "age 2", "1990"),
+                    stringsAsFactors = FALSE)
+  fit <- make_fake_fit(max_gradient = max(abs(gradient)))
+  fit$.conv_hindcast$gradient <- stats::setNames(gradient, nm)
+  fit$.conv_hindcast$index    <- idx
+  if (!is.null(cov)) {
+    dimnames(cov) <- list(nm, nm)
+    fit$sdrep <- list(cov.fixed = cov, pdHess = TRUE)
+  }
+  fit
+}
+
+test_that("the largest gradient is named by quantity and coordinate", {
+  fit <- .fake_located_fit(c(1e-4, 2.2e-3, -5e-4))
+  mg  <- convergence_diagnostics(fit)$checks$max_gradient
+  expect_equal(mg$severity, "WARN")
+  expect_match(mg$message, "on log_M1 (M1): age 2.", fixed = TRUE)
+})
+
+test_that("the distance to the optimum is reported in standard errors", {
+  # The Newton step is cov %*% gradient = (0.04, 0.002, 0); over SEs (2, 1, 1)
+  # that is (0.02, 0.002, 0), largest on the first parameter.
+  fit <- .fake_located_fit(c(0.01, 0.002, 0), cov = diag(c(4, 1, 1)))
+  mg  <- convergence_diagnostics(fit)$checks$max_gradient
+  expect_equal(mg$data$newton_step_se, 0.02)
+  expect_match(mg$message,
+               "at most 0.02 standard errors (log_M1 (M1): age 1)", fixed = TRUE)
+})
+
+test_that("no step is reported when the sdreport is for another parameter vector", {
+  # Under an estimating HCR the sdreport holds the projection's parameters.
+  fit <- .fake_located_fit(c(0.01, 0.002, 0))
+  fit$sdrep <- list(cov.fixed = matrix(1, 1, 1,
+                                       dimnames = list("log_Ftarget", "log_Ftarget")),
+                    pdHess = TRUE)
+  mg <- convergence_diagnostics(fit)$checks$max_gradient
+  expect_null(mg$data$newton_step_se)
+  expect_false(grepl("standard errors", mg$message))
+})
+
+test_that("a scattered year set is counted against its span", {
+  yrs <- c(1980:1985, 1990, 1995:1998, 2021)            # 12 years, not a run
+  idx <- data.frame(par_index = seq_along(yrs), block = "log_F",
+                    species = NA, fleet = "Hake_fishery", sex = NA, age = NA,
+                    bin = NA, year = as.character(yrs), slot = NA,
+                    stringsAsFactors = FALSE)
+  out <- .rce_par_summary(idx$par_index, idx)
+  expect_match(out, "log_F (F)", fixed = TRUE)
+  expect_match(out, "12 years in 1980-2021  (12)", fixed = TRUE)
+})
+
 test_that("a converged fit is OK", {
   fit <- make_fake_fit(max_gradient = 1e-5, pdHess = TRUE)
   cv <- convergence_diagnostics(fit)
@@ -118,7 +180,7 @@ test_that("Hessian eigen check falls back to par.fixed names without dimnames", 
   fit$sdrep <- list(cov.fixed = cov, pdHess = TRUE,
                     par.fixed = stats::setNames(c(0, 0, 0), nm))
   hc  <- convergence_diagnostics(fit)$checks$hessian_conditioning
-  expect_match(hc$message, "loads on: [ab] ")      # named from par.fixed, ...
+  expect_match(hc$message, "loads on: [ab]: ")     # named from par.fixed, ...
   expect_false(grepl("p1", hc$message))            # ... not the "p1" placeholder
 })
 
@@ -210,7 +272,12 @@ test_that("print method runs and is non-erroring", {
   fit <- make_fake_fit(max_gradient = 4e12, worst = "sel_inf", pdHess = FALSE)
   cv <- convergence_diagnostics(fit)
   expect_output(print(cv), "status: FAIL")
-  expect_invisible(print(cv))
+  # Captured, not printed. expect_invisible() does not sink output, so this
+  # line used to write the fixture's "[FAIL] max_gradient ..." to stdout -- and
+  # when a Windows testthat worker dies, R CMD check dumps whatever that file
+  # had printed, which has been read as a real convergence regression three
+  # times. The fixture is deliberately non-converged; it should stay quiet.
+  invisible(capture.output(expect_invisible(print(cv))))
 })
 
 # getsd = FALSE leaves sdrep NULL, so the Hessian eigenvalue, sdreport, pdHess
@@ -233,4 +300,42 @@ test_that("getsd = FALSE is reported rather than passing silently", {
   fit$.conv_hindcast$sd_requested <- NULL
   expect_null(convergence_diagnostics(fit)$checks$hessian_not_run)
   expect_equal(convergence_diagnostics(fit)$status, "OK")
+})
+
+# The two claims the Newton-step report rests on, neither of which had a test:
+# that it changes no severity, and that it is withheld when the covariance
+# cannot support it. Added reviewing PR #161 for the 5.43.0 release.
+test_that("the Newton step reports without changing any severity", {
+  g <- c(0.01, 0.002, 0)
+  with_cov    <- convergence_diagnostics(.fake_located_fit(g, cov = diag(c(4, 1, 1))))
+  without_cov <- convergence_diagnostics(.fake_located_fit(g))
+
+  # The step is reported in one and absent from the other ...
+  expect_false(is.null(with_cov$checks$max_gradient$data$newton_step_se))
+  expect_null(without_cov$checks$max_gradient$data$newton_step_se)
+  # ... and the severity is the same either way: it is read on the gradient.
+  expect_identical(with_cov$checks$max_gradient$severity,
+                   without_cov$checks$max_gradient$severity)
+})
+
+test_that("the Newton step is withheld when the covariance cannot carry it", {
+  cov <- diag(c(4, 1, 1))
+
+  # On a positive-definite Hessian it is reported.
+  pd <- convergence_diagnostics(.fake_located_fit(c(0.01, 0.002, 0), cov = cov))
+  expect_equal(pd$checks$max_gradient$data$newton_step_se, 0.02)
+
+  # Not on a saddle: cov %*% gradient is the distance to a minimum only if cov
+  # inverts one, and the sentence would read as reassurance beside the pdHess
+  # check that just failed.
+  saddle <- .fake_located_fit(c(0.01, 0.002, 0), cov = cov)
+  saddle$sdrep$pdHess <- FALSE
+  mg <- convergence_diagnostics(saddle)$checks$max_gradient
+  expect_null(mg$data$newton_step_se)
+  expect_false(grepl("standard errors", mg$message, fixed = TRUE))
+
+  # A negative variance is dropped rather than square-rooted: this battery
+  # reports through message() and must not emit "NaNs produced" from sqrt().
+  neg <- cov; neg[3, 3] <- -1
+  expect_no_warning(convergence_diagnostics(.fake_located_fit(c(0.01, 0.002, 0), cov = neg)))
 })

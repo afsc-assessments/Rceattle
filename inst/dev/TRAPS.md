@@ -581,6 +581,25 @@ only in a Markdown file, the same file executed and the worker died with exit co
 exported, and it is printed in the step's own env block, so the log says which mode ran. 1 of 7
 recent Windows runs slipped; when it does not slip you learn nothing.
 
+**What the crash DUMPS is not a finding either — fixed at the source in 5.43.0.** When the
+worker dies, `R CMD check` prints whatever that test file had written to stdout, under a
+`── Test failures ──` heading. `test-convergence.R` used `expect_invisible(print(cv))`, which
+unlike `expect_output()` does not sink output, so the file wrote three lines of a **deliberately
+non-converged synthetic fixture** on every run:
+
+```
+<Rceattle convergence>  status: FAIL
+  [FAIL] max_gradient     Maximum absolute marginal gradient = 4e+12 on sel_inf (...)
+  [FAIL] pdHess           Hessian is not positive definite; standard errors are unavailable.
+```
+
+Those lines were read as a real convergence regression three separate times, most recently on
+#161 -- and 5.43.0 naming the quantity (`sel_inf (selectivity inflection)`) made them read
+*more* like a genuine finding, not less. The call is captured now and the file prints nothing,
+so a dead-worker dump is quieter. **Diagnose from the traceback**
+(`parallel_event_loop_chunky` -> `handle_error` -> `cli_abort` means a worker died), never from
+the text it dumped.
+
 **The file testthat names for this crash carries NO information — measured 2026-09-21.** Tests
 run in parallel (`Config/testthat/parallel: true`, two workers on the runner), so when a worker
 dies testthat reports whichever file that worker was holding. Three occurrences have named three
