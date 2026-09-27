@@ -68,7 +68,80 @@ testthat::test_that("rearrange_data() refuses a blank Fleet_type as well", {
                          "'Fleet_type' is blank for fleet\\(s\\)")
 })
 
-testthat::test_that("the refusal names the row when Fleet_name is blank too", {
+testthat::test_that("a Fleet_type outside the allowed set is refused", {
+  # convert_switches() passes an out-of-range code through to the template:
+  # 3 fits as a survey with its catch dropped, 2.7 truncates to Survey, and -1
+  # contributes nothing AND leads its Selectivity_index group, so the group's
+  # shape and curvature penalty is never charged. data_check() refuses all three,
+  # so this closes the exported rearrange_data() path to match.
+  d <- suppressMessages(Rceattle:::switch_check(Rceattle::Atka2022))
+  for (v in list(3, -1, 2.7)) {
+    bad <- d; bad$fleet_control$Fleet_type[1] <- v
+    testthat::expect_error(
+      suppressMessages(suppressWarnings(Rceattle::rearrange_data(bad))),
+      "could not be read for fleet\\(s\\) Bottom_trawl")
+  }
+
+  # A factor is read downstream by its LEVEL INDEX, so Atka2022's Off survey and
+  # its fishery reached the template as 2, 1 -- the Off fleet fitted as a fishery.
+  # Resolved by label now. Every switch column takes the same route, so check one
+  # more: the fishery's Selectivity must not read as its level index either.
+  fac <- d
+  fac$fleet_control$Fleet_type  <- factor(c("Off", "Fishery"))
+  fac$fleet_control$Selectivity <- factor(c("DoubleLogistic", "Logistic"))
+  out <- suppressMessages(suppressWarnings(Rceattle::rearrange_data(fac)))
+  testthat::expect_identical(out$flt_type, c(0L, 1L))
+  testthat::expect_identical(out$flt_sel_type, c(3L, 1L))
+})
+
+testthat::test_that("a factor Time_varying_q is read by label on the fit path", {
+  # revert_switches() resolves eight of the nine switch columns, so switch_check()
+  # covers them; Time_varying_q is the one it does not, and a factor there reached
+  # the template by LEVEL INDEX: factor("Off") became IID (1), estimating
+  # time-varying catchability deviations nobody asked for.
+  d <- Rceattle::Atka2022
+  d$fleet_control$Time_varying_q <- factor(c("Off", "Off"))
+  out <- suppressMessages(suppressWarnings(
+    Rceattle::rearrange_data(suppressMessages(Rceattle:::switch_check(d)))))
+  testthat::expect_identical(out$index_varying_q, c(0L, 0L))
+})
+
+testthat::test_that("the de-factor rule covers every column it is handed", {
+  fc <- data.frame(Fleet_name = factor(c("a", "b")), Fleet_type = factor(c("Off", "Fishery")),
+                   Selectivity = c(2, 1), stringsAsFactors = FALSE)
+  out <- Rceattle:::.rce_defactor_fleet_control(fc)
+  testthat::expect_false(any(vapply(out, is.factor, logical(1))))
+  testthat::expect_identical(out$Fleet_type, c("Off", "Fishery"))
+  testthat::expect_identical(out$Selectivity, c(2, 1))   # non-factors untouched
+  testthat::expect_null(Rceattle:::.rce_defactor_fleet_control(NULL))
+})
+
+testthat::test_that("the refusal names the row when Fleet_name is blank as well", {
+  # The blank guard falls back to "row N" because Fleet_name has no default
+  # either; this one has to do the same or it names nothing.
+  d <- suppressMessages(Rceattle:::switch_check(Rceattle::Atka2022))
+  d$fleet_control$Fleet_type[1] <- "Fisherie"
+  d$fleet_control$Fleet_name[1] <- NA
+  testthat::expect_error(
+    suppressMessages(suppressWarnings(Rceattle::rearrange_data(d))),
+    "could not be read for fleet\\(s\\) row 1")
+})
+
+testthat::test_that("a Fleet_type that cannot be read is named, not called blank", {
+  # convert_switches() maps an unrecognised type to NA, so a typo used to be
+  # reported as a blank cell -- the wrong thing to go looking for. data_check()
+  # has validate_switches() for this; rearrange_data() is a separate entry point.
+  d <- suppressMessages(Rceattle:::switch_check(Rceattle::Atka2022))
+  d$fleet_control$Fleet_type[1] <- "Fisherie"
+  err <- tryCatch(suppressMessages(suppressWarnings(Rceattle::rearrange_data(d))),
+                  error = function(e) conditionMessage(e))
+  testthat::expect_match(err, "could not be read")
+  testthat::expect_match(err, "Fisherie")          # names the value ...
+  testthat::expect_match(err, "Bottom_trawl")      # ... and the fleet
+  testthat::expect_false(grepl("is blank", err))
+})
+
+testthat::test_that("the blank guard names the row when Fleet_name is blank too", {
   d <- Rceattle::Atka2022
   d$fleet_control$Fleet_type[1] <- NA
   d$fleet_control$Fleet_name[1] <- NA

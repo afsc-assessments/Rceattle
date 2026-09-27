@@ -8,7 +8,9 @@
 
 # GOA2018SS fleet 7 is Fleet_type 0 with an estimated Selectivity and no
 # composition data. Given its own Selectivity_index it cannot borrow another
-# fleet's data either, so it is the case the defect acted on.
+# fleet's data either, so it is the fleet the Fleet_type defect acted on: it was
+# named in the error and is not now. The error itself still fires, on fleets 4
+# and 5 -- see the positive control below.
 raw_with_off_fleet <- function() {
   d <- Rceattle::GOA2018SS
   d$fleet_control$Selectivity_index[7] <- 99
@@ -31,6 +33,10 @@ testthat::test_that("data_check() does not call an integer-coded Off fleet estim
   # Positive control: the fixture really does reach the check it is meant to.
   # Without this the negative assertion below could rot to green if the data
   # or the message ever changed and the condition stopped reproducing.
+  # What satisfies it today is fleets 4 and 5, not fleet 7: `Selectivity` on the
+  # same line is still read raw, so `0 != "Fixed"` keeps two Fixed fleets in the
+  # subset (CLEANUP_BACKLOG.md, schema switches at the boundary). Fixing that line
+  # turns this assertion red -- name a fleet with an estimated form and no comps.
   testthat::expect_match(msgs_of(d), "estimated Selectivity but no comp_data")
 
   # And the Off fleet is not among the fleets it names.
@@ -51,10 +57,16 @@ testthat::test_that("the old spelling is what made it estimated", {
 
 testthat::test_that("the canonical path is untouched", {
   # fit_mod(), build_map() and build_params() canonicalize first, so the change
-  # must be inert on a canonical fleet_control.
-  for (nm in c("BS2017SS", "GOA2018SS", "GOApollock", "GeorgesBank3spp", "GOAatf")) {
-    d <- suppressMessages(Rceattle:::switch_check(
-      get(nm, envir = as.environment("package:Rceattle"))))
+  # must be inert on a canonical fleet_control. Named rather than fetched with
+  # get() to match the sibling file, where the dynamic form did fail inside the
+  # full suite; every runner we use attaches the package, so this is consistency
+  # rather than a fix.
+  bundled <- list(BS2017SS = Rceattle::BS2017SS, GOA2018SS = Rceattle::GOA2018SS,
+                  GOApollock = Rceattle::GOApollock,
+                  GeorgesBank3spp = Rceattle::GeorgesBank3spp,
+                  GOAatf = Rceattle::GOAatf)
+  for (nm in names(bundled)) {
+    d <- suppressMessages(Rceattle:::switch_check(bundled[[nm]]))
     ft <- d$fleet_control$Fleet_type
     testthat::expect_identical(Rceattle:::.canon_switch(ft, Rceattle:::fleet_map) != "Off",
                                ft != "Off")

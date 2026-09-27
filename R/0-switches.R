@@ -375,13 +375,14 @@ index_distribution_map <- c(
 #' Read a switch column by canonical name, whichever spelling it arrived in
 #'
 #' `switch_check()` -> `revert_switches()` upgrades integer codes to names, and
-#' every path through `fit_mod()` and `read_data()` runs it. `data_check()` is
-#' callable on a hand-built list that has not, so its checks canonicalize first
-#' rather than test one spelling and silently pass the other.
+#' every path through `fit_mod()` runs it. `read_data()` does not, and
+#' `data_check()` is callable on a list straight from it, so its checks
+#' canonicalize first rather than test one spelling and silently pass the other.
 #'
 #' @param x Column values, names or integer codes.
 #' @param map Named integer vector for this switch (e.g. `q_map`).
-#' @return Canonical names; `"<blank>"` where the value is missing.
+#' @return Canonical names; `"<blank>"` for `NA` or an out-of-map integer, and
+#'   the trimmed value itself for anything else it cannot resolve.
 #' @noRd
 .canon_switch <- function(x, map) {
   x <- trimws(as.character(x))
@@ -735,6 +736,44 @@ msmMode_map <- c(
 }
 
 
+#' Resolve factor columns in a fleet_control to their labels
+#'
+#' `read.csv(stringsAsFactors = TRUE)` factors every column. A factor switch is
+#' then read by its LEVEL INDEX downstream -- `convert_switches()` passes it
+#' through and `as.integer()`s it -- so `Fleet_type = factor(c("Off","Survey"))`
+#' reaches the template as 1, 2: the Off fleet fits as a fishery. The label is
+#' what the user wrote, so resolve it before anything reads the column.
+#'
+#' @param fleet_control the fleet control table.
+#' @return The table with every factor column as character.
+#' @keywords internal
+#' @noRd
+.rce_defactor_fleet_control <- function(fleet_control) {
+  if (is.null(fleet_control)) return(fleet_control)
+  fac <- vapply(fleet_control, is.factor, logical(1))
+  if (any(fac)) fleet_control[fac] <- lapply(fleet_control[fac], as.character)
+  fleet_control
+}
+
+#' Name fleets for a message: Fleet_name, or "row N" where it is blank too
+#'
+#' `Fleet_name` has no schema default either, so a message that interpolates it
+#' can name nothing at all.
+#'
+#' @param fleet_control the fleet control table.
+#' @param i row indices to name.
+#' @return A character vector, one entry per element of `i`.
+#' @keywords internal
+#' @noRd
+.rce_fleet_who <- function(fleet_control, i) {
+  who <- paste("row", i)
+  if (!is.null(fleet_control$Fleet_name)) {
+    nm <- as.character(fleet_control$Fleet_name)[i]
+    who[!is.na(nm) & trimws(nm) != ""] <- nm[!is.na(nm) & trimws(nm) != ""]
+  }
+  who
+}
+
 #' Refuse a blank Fleet_type, naming the fleets
 #'
 #' `Fleet_type` has no schema default, so a blank one is not "unset, take the
@@ -751,16 +790,38 @@ msmMode_map <- c(
   bad <- which(is.na(fleet_control$Fleet_type) |
                  trimws(as.character(fleet_control$Fleet_type)) == "")
   if (!length(bad)) return(invisible(NULL))
-  # Name the row when Fleet_name is itself blank -- it has no default either.
-  who <- paste("row", bad)
-  if (!is.null(fleet_control$Fleet_name)) {
-    nm <- as.character(fleet_control$Fleet_name)[bad]
-    who[!is.na(nm) & trimws(nm) != ""] <- nm[!is.na(nm) & trimws(nm) != ""]
-  }
+  who <- .rce_fleet_who(fleet_control, bad)
   stop("'Fleet_type' is blank for fleet(s) ", paste(who, collapse = ", "),
        ". It has no default: set it to one of ", paste(names(fleet_map), collapse = ", "),
        " (or the integer codes ", paste(fleet_map, collapse = ", "),
        "). Use \"Off\" for a fleet the model should carry but not fit.", call. = FALSE)
+}
+
+#' Refuse a Fleet_type the package cannot resolve, naming the fleet and the value
+#'
+#' `convert_switches()` passes an unrecognized value through and then
+#' `as.integer()`s it, so `"Fisherie"` reaches the template as `NA` and `-1` or
+#' `3` reach it as themselves -- a fleet whose role in the likelihood nobody
+#' stated either way. The allowed set is the one `validate_switches()` applies on
+#' the `data_check()` path; this is for `rearrange_data()`, which is exported and
+#' has no such pass. A blank is the other guard's to report.
+#'
+#' @param fleet_control the fleet control table.
+#' @return `invisible(NULL)`; stops when a Fleet_type does not resolve.
+#' @keywords internal
+#' @noRd
+.rce_stop_unreadable_fleet_type <- function(fleet_control) {
+  ft <- fleet_control$Fleet_type
+  if (is.null(ft)) return(invisible(NULL))
+  blank <- is.na(ft) | trimws(as.character(ft)) == ""
+  bad   <- which(!blank & !ft %in% c(fleet_map, names(fleet_map)))
+  if (!length(bad)) return(invisible(NULL))
+  stop("'Fleet_type' could not be read for fleet(s) ",
+       paste(sprintf("%s ('%s')", .rce_fleet_who(fleet_control, bad),
+                     as.character(ft)[bad]), collapse = ", "),
+       ". Use one of ", paste(names(fleet_map), collapse = ", "),
+       " or the integer codes ", paste(fleet_map, collapse = ", "), ".",
+       call. = FALSE)
 }
 
 #' Function to check for missing switches for map and parameter functions
@@ -791,6 +852,10 @@ switch_check <- function(data_list){
   # Estimate_q, Estimate_survey_sd, Age_first_selected, Age_max_selected(_upper).
   data_list$fleet_control <-
     .rce_upgrade_fleet_control_aliases(data_list$fleet_control)
+  # Before anything reads or writes a switch: assigning "Off" into a factor whose
+  # levels lack it writes NA, and every switch column is read by level index.
+  data_list$fleet_control <-
+    .rce_defactor_fleet_control(data_list$fleet_control)
 
   # Whether a fleet is fit at all is not a thing to infer, and the two halves of
   # the package disagree about a blank: `Fleet_type != "Off"` is NA, while
@@ -1697,6 +1762,12 @@ convert_switches <- function(data_list) {
     if (is.character(x) && x %in% names(map)) unname(map[[x]]) else x
   }
   .conv <- Vectorize(.conv_single, vectorize.args = "x", USE.NAMES = FALSE)
+
+  # A factor reaches .conv() as its level index, not its label, and all nine
+  # switch columns below would take it. rearrange_data() is exported, so this
+  # entry point needs the rule too.
+  data_list$fleet_control <-
+    .rce_defactor_fleet_control(data_list$fleet_control)
 
   # Fleet controls ----
   # Guard: default the newer switch columns when a caller supplies a
