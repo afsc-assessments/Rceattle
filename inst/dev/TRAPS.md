@@ -886,5 +886,15 @@ section above.
   `RCEATTLE_SAFEBOUNDS=true` and run `tools/verify/verify-safebounds.R`, which asserts
   `-DTMB_SAFEBOUNDS` actually reached the compile line — `pkgload` only recompiles when sources
   change, so a clean result against a stale `.so` means nothing.
+- **`newtonsteps > 0` can return a parameter OUTSIDE its bounds.** `fit_mod()` passes
+  `build_bounds()`'s range to `nlminb`, which respects it, but the Newton refinement afterwards
+  is a plain unconstrained step in both `.fit_tmb()` paths — TMBhelper's own included, which the
+  package cannot clamp. Measured on a GOA Pacific cod bridge at `newtonsteps = 3`: a growth
+  parameter came back at 5.08e-05 against a lower bound of 1e-3, gradient 0.263, Hessian not
+  invertible; at `newtonsteps = 0`, same code, it sat on the bound at 1.00e-03, gradient
+  0.00246, `sdreport` clean. The three steps bought 0.0017 nats. `convergence` reports it as
+  `parameters_outside_bounds` (FAIL) since 5.45.0; before that it read as `parameters_on_bounds`
+  (WARN, "at a configured bound") because `par <= lo + tol` is also true below `lo`. The default
+  is 0, but the golden references all run 3.
 - **A slow fit is the model, not a regression** — `BS2017SS` has needed ~500–700 `nlminb`
   iterations since at least 2023.

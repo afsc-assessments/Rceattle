@@ -11,6 +11,16 @@
 # overall status (the worst severity present).
 .CONV_SEVERITY <- c("OK", "NOTE", "WARN", "FAIL")
 
+# The parameters the bounds checks must skip at the -999 "off" sentinel: a
+# fleet-year with no catch (`log_F`) and an initial deviate the template never
+# reads (`init_dev`). Both are bounded below at -1000, so the sentinel has to be
+# matched by NAME and value -- a bare `par > -900` would also hide a parameter
+# that genuinely diverged downwards. `log_Ftarget` also carries -999 (fit_mod(),
+# for a held HCR parameter) but needs no entry here: it has no build_bounds()
+# range, so `is.finite(lo)` is FALSE and neither check can fire on it. Give it one
+# and it belongs in this list.
+.CONV_SENTINEL_PARS <- c("log_F", "init_dev")
+
 # Build one check record.
 .conv_record <- function(id, tier, severity, message, data = NULL) {
   severity <- match.arg(severity, .CONV_SEVERITY)
@@ -601,9 +611,15 @@
     "sdreport failed (Hessian not invertible); standard errors unavailable."))
 }
 
-# Parameters at a configured bound. Optimization is unbounded in fit_mod(), so a
-# parameter at/beyond its build_bounds() range means the MLE hit the edge of the
-# plausible range -- often unidentified or mis-scaled.
+# Parameters at, or past, a configured bound. fit_mod() passes build_bounds()'s
+# range to nlminb, so a parameter sitting ON a bound means the MLE reached the
+# edge of the plausible range -- often unidentified or mis-scaled, but a
+# well-posed optimum, so WARN.
+#
+# Sitting PAST one is different and reported separately, at FAIL. nlminb respects
+# the bounds; the Newton refinement that `newtonsteps` asks for afterwards does
+# not, in either `.fit_tmb()` path, so a parameter nlminb parked on a bound can be
+# pushed straight through it and the value that comes back is the one saved.
 .check_bounds <- function(object, index = .conv_par_index(object)) {
   ch <- object$.conv_hindcast
   if (is.null(ch) || is.null(ch$par) || is.null(ch$lower) || is.null(ch$upper)) {
@@ -612,24 +628,55 @@
   par <- ch$par; lo <- ch$lower; hi <- ch$upper
   rng <- hi - lo
   tol <- pmax(1e-6, 1e-3 * ifelse(is.finite(rng) & rng > 0, rng, 1))
+  # Skip the -999 sentinel by name and value (.CONV_SENTINEL_PARS), not by a bare
+  # value test, which would also hide a parameter that diverged downwards. An
+  # unnamed vector keeps every element: names() would give NULL, and `%in%` on it
+  # returns logical(0), which would silently empty BOTH records.
+  nm    <- if (is.null(names(par))) rep("", length(par)) else names(par)
+  real  <- !(!is.na(par) & par == -999 & nm %in% .CONV_SENTINEL_PARS)
+  # Which side fired is read off the test itself, so a parameter bounded on one
+  # side only reports that side. Most bounds are one-sided.
+  below <- is.finite(lo) & par < lo - tol
+  above <- is.finite(hi) & par > hi + tol
+  out   <- which((below | above) & real)
   at_lo <- is.finite(lo) & par <= lo + tol
   at_hi <- is.finite(hi) & par >= hi - tol
-  hit <- which((at_lo | at_hi) & par > -900)   # skip -999 sentinels (e.g. log_F)
-  if (length(hit) == 0) return(list())
-  tab <- data.frame(param = names(par)[hit], mle = signif(par[hit], 4),
-                    lower = signif(lo[hit], 4), upper = signif(hi[hit], 4),
-                    bound = ifelse(at_lo[hit], "lower", "upper"))
-  # `hit` counts positions in the hindcast bounds vector, so the index has to be
-  # the one built from it.
-  idx <- .conv_index_for(index, names(par))
-  tab <- .conv_attach_label(tab, hit, idx)
-  list(parameters_on_bounds = .conv_record(
-    "parameters_on_bounds", "fit", "WARN",
-    .conv_with_coords(
-      sprintf("%d parameter(s) at a configured bound: %s.",
-              length(hit), paste(unique(names(par)[hit]), collapse = ", ")),
-      hit, idx),
-    tab))
+  hit <- setdiff(which((at_lo | at_hi) & real), out)
+  if (length(hit) == 0 && length(out) == 0) return(list())
+
+  # Both sets count positions in the hindcast bounds vector, so the index has to
+  # be the one built from it.
+  idx <- .conv_index_for(index, nm)
+  tabulate_hits <- function(k, side) {
+    tab <- data.frame(param = nm[k], mle = signif(par[k], 4),
+                      lower = signif(lo[k], 4), upper = signif(hi[k], 4),
+                      bound = side)
+    .conv_attach_label(tab, k, idx)
+  }
+
+  res <- list()
+  if (length(out)) {
+    res$parameters_outside_bounds <- .conv_record(
+      "parameters_outside_bounds", "fit", "FAIL",
+      .conv_with_coords(
+        sprintf(paste0("%d parameter(s) OUTSIDE a configured bound: %s. The ",
+                       "optimizer returned a value the model declared ",
+                       "implausible; if fit_control(newtonsteps) is above 0, ",
+                       "those steps are unconstrained -- refit with 0."),
+                length(out), paste(unique(nm[out]), collapse = ", ")),
+        out, idx),
+      tabulate_hits(out, ifelse(below[out], "below lower", "above upper")))
+  }
+  if (length(hit)) {
+    res$parameters_on_bounds <- .conv_record(
+      "parameters_on_bounds", "fit", "WARN",
+      .conv_with_coords(
+        sprintf("%d parameter(s) at a configured bound: %s.",
+                length(hit), paste(unique(nm[hit]), collapse = ", ")),
+        hit, idx),
+      tabulate_hits(hit, ifelse(at_lo[hit], "lower", "upper")))
+  }
+  res
 }
 
 #' A process variance estimated to zero
@@ -948,8 +995,8 @@
 #' re-run it on any fit. Checks cover the optimizer gradient, a requested
 #' \code{sdreport} that did not return, an \code{sdreport} that was never
 #' requested, Hessian positive-definiteness and conditioning, parameters on
-#' bounds, a deviation variance estimated to zero, phasing, parameter
-#' estimability, a numbers-at-age, Ricker-intercept or recruitment floor that
+#' bounds, parameters past them, a deviation variance estimated to zero, phasing,
+#' parameter estimability, a numbers-at-age, Ricker-intercept or recruitment floor that
 #' was reached, and the stock-recruit curve.
 #'
 #' @param object An object of class \code{"Rceattle"} returned by [fit_mod()].
@@ -960,7 +1007,7 @@
 #'   records).
 #' @export
 convergence_diagnostics <- function(object, ...) {
-  # Four checks name their parameters by coordinate. The hindcast index was
+  # Five checks name their parameters by coordinate. The hindcast index was
   # stored by fit_mod(); the one for the fit's final parameter vector means
   # pushing a tagged vector through TMB's parList(), so a promise builds the pair
   # at most once, and not at all on a fit where every check passes.

@@ -89,8 +89,8 @@
 #' @param loopnum Integer. Number of times to re-start optimization
 #'   (`loopnum = 3` sometimes achieves a lower final gradient than
 #'   `loopnum = 1`). Default `5`.
-#' @param newtonsteps Integer. Number of extra Newton steps to take
-#'   after optimization (alternative to `loopnum`). Default `0`.
+#' @param newtonsteps Integer. Number of extra unconstrained Newton steps to
+#'   take after optimization (alternative to `loopnum`). Default `0`.
 #' @param phase `TRUE`/`FALSE` or a list. If `FALSE`, the model is not
 #'   phased. If `TRUE`, default phasing is used. Can also accept a
 #'   list of parameter object names with corresponding phase. Default

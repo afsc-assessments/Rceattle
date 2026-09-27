@@ -216,6 +216,108 @@ test_that("a parameter at a configured bound is flagged (WARN)", {
                  names(convergence_diagnostics(fit2)$checks))
 })
 
+# A parameter PAST a bound is a different verdict from one sitting on it, and the
+# two used to share a record: `par <= lo + tol` is also true below `lo`, so a
+# value outside the range was reported as "at a configured bound" at WARN. It
+# arises from fit_control(newtonsteps > 0) -- nlminb respects the bounds, the
+# Newton refinement after it does not -- and on GOA Pacific cod it came back with
+# a growth parameter at 5.08e-05 against a lower bound of 1e-3, a gradient of
+# 0.263 and no invertible Hessian, where newtonsteps = 0 gave 0.00246 and a clean
+# sdreport.
+test_that("a parameter outside a configured bound is flagged (FAIL), not 'at' it", {
+  fit <- structure(list(.conv_hindcast = list(
+    par   = c(a = 0.5, b = -0.5),
+    lower = c(0, 0), upper = c(1, 2))), class = "Rceattle")
+  cv <- convergence_diagnostics(fit)
+  ob <- cv$checks$parameters_outside_bounds
+  expect_equal(ob$severity, "FAIL")
+  expect_match(ob$message, "OUTSIDE")
+  expect_match(ob$message, "b")
+  expect_match(ob$message, "newtonsteps")
+  expect_equal(ob$data$bound, "below lower")
+  # It must not ALSO be reported as at the bound, or the count double-counts.
+  expect_false("parameters_on_bounds" %in% names(cv$checks))
+  expect_equal(cv$status, "FAIL")
+})
+
+test_that("a parameter exactly on a bound is still WARN, not reclassified", {
+  fit <- structure(list(.conv_hindcast = list(
+    par   = c(a = 0.5, b = 2.0),
+    lower = c(0, -1), upper = c(1, 2))), class = "Rceattle")
+  cv <- convergence_diagnostics(fit)
+  expect_equal(cv$checks$parameters_on_bounds$severity, "WARN")
+  expect_false("parameters_outside_bounds" %in% names(cv$checks))
+})
+
+test_that("one parameter past a bound and another on one give both records", {
+  fit <- structure(list(.conv_hindcast = list(
+    par   = c(a = 3.0, b = 2.0),
+    lower = c(0, -1), upper = c(1, 2))), class = "Rceattle")
+  cv <- convergence_diagnostics(fit)
+  expect_equal(cv$checks$parameters_outside_bounds$data$bound, "above upper")
+  expect_match(cv$checks$parameters_outside_bounds$message, "a")
+  expect_match(cv$checks$parameters_on_bounds$message, "b")
+})
+
+test_that("a one-sided bound reports the side that actually fired", {
+  # build_bounds() leaves most bounds infinite on one side, so the reported side
+  # has to come from the test that fired rather than from comparing against a
+  # bound that may not be there.
+  fit <- structure(list(.conv_hindcast = list(
+    par   = c(a = 5.0),
+    lower = c(-Inf), upper = c(1))), class = "Rceattle")
+  ob <- convergence_diagnostics(fit)$checks$parameters_outside_bounds
+  expect_equal(ob$data$bound, "above upper")
+})
+
+# The -999 sentinel has to be skipped by NAME and value, not by a bare
+# `par > -900`. A value test also hides a parameter that genuinely diverged
+# DOWNWARDS -- which is the direction an unconstrained Newton step most plausibly
+# takes, and the whole reason the outside-bounds check exists. Only log_F (a
+# fleet-year with no catch) and init_dev (a deviate above the plus group) carry
+# the sentinel, and both are bounded below at -1000.
+test_that("the -999 sentinel is skipped, for both parameters that carry it", {
+  for (nm in c("log_F", "init_dev")) {
+    par <- stats::setNames(-999, nm)
+    fit <- structure(list(.conv_hindcast = list(
+      par = par, lower = -1000, upper = 10)), class = "Rceattle")
+    cv <- convergence_diagnostics(fit)
+    expect_false("parameters_outside_bounds" %in% names(cv$checks))
+    expect_false("parameters_on_bounds" %in% names(cv$checks))
+  }
+})
+
+test_that("a parameter that diverged downwards is NOT hidden by the sentinel skip", {
+  # The case a bare `par > -900` filter silently dropped.
+  fit <- structure(list(.conv_hindcast = list(
+    par = c(a = -1e6), lower = c(-10), upper = c(10))), class = "Rceattle")
+  ob <- convergence_diagnostics(fit)$checks$parameters_outside_bounds
+  expect_equal(ob$severity, "FAIL")
+  expect_equal(ob$data$bound, "below lower")
+})
+
+test_that("an unnamed par vector is still checked", {
+  # The sentinel skip reads names(par); on an unnamed vector names() is NULL and
+  # `%in%` on it returns logical(0), which would silently empty BOTH records and
+  # report OK. convergence_diagnostics() is exported and documented as re-runnable
+  # on any fit, so a FAIL-tier check must not vanish on a missing attribute.
+  fit <- structure(list(.conv_hindcast = list(
+    par = c(0.5, -0.5), lower = c(0, 0), upper = c(1, 2))), class = "Rceattle")
+  cv <- convergence_diagnostics(fit)
+  expect_equal(cv$status, "FAIL")
+  expect_equal(cv$checks$parameters_outside_bounds$severity, "FAIL")
+  expect_equal(cv$checks$parameters_outside_bounds$data$bound, "below lower")
+})
+
+test_that("a sentinel-carrying parameter is still checked at other values", {
+  # log_F is skipped only AT -999; a log_F that ran past its bound is a finding.
+  fit <- structure(list(.conv_hindcast = list(
+    par = c(log_F = -1500), lower = c(-1000), upper = c(10))), class = "Rceattle")
+  ob <- convergence_diagnostics(fit)$checks$parameters_outside_bounds
+  expect_equal(ob$severity, "FAIL")
+  expect_equal(ob$data$bound, "below lower")
+})
+
 test_that(".capture_opt_convergence aligns each MLE with its own bounds", {
   # Regression for the bug where the (mle, lower, upper) triple was assembled
   # from two independently-ordered sources, pairing one parameter's MLE with

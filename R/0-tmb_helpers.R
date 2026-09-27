@@ -56,7 +56,9 @@
     stop("Optimization failed in .fit_tmb fallback (install TMBhelper for richer diagnostics).")
   }
 
-  # Optional Newton steps to refine the gradient
+  # Optional Newton steps to refine the gradient. These are UNCONSTRAINED, as
+  # TMBhelper's own are, so a parameter nlminb parked on a bound can be pushed
+  # past it; convergence_diagnostics() reports that as parameters_outside_bounds.
   if (newtonsteps > 0) {
     par <- best$par
     for (i in seq_len(newtonsteps)) {

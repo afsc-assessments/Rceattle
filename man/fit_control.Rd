@@ -74,8 +74,8 @@ evaluation of the object it came from. Default \code{1}.}
 (\code{loopnum = 3} sometimes achieves a lower final gradient than
 \code{loopnum = 1}). Default \code{5}.}
 
-\item{newtonsteps}{Integer. Number of extra Newton steps to take
-after optimization (alternative to \code{loopnum}). Default \code{0}.}
+\item{newtonsteps}{Integer. Number of extra unconstrained Newton steps to
+take after optimization (alternative to \code{loopnum}). Default \code{0}.}
 
 \item{phase}{\code{TRUE}/\code{FALSE} or a list. If \code{FALSE}, the model is not
 phased. If \code{TRUE}, default phasing is used. Can also accept a

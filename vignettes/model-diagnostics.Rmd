@@ -210,8 +210,15 @@ The checks cover:
   fleet, bin and year, with a count: a ridge over ten years and one over a single
   year read differently. Complements `TMBhelper::check_estimability`, which gives
   a per-parameter verdict, with a continuous severity and a direction.
-- **`parameters_on_bounds`**: parameters that hit a configured `build_bounds()`
-  limit (often unidentified or mis-scaled).
+- **`parameters_on_bounds`**: parameters that sit ON a configured
+  `build_bounds()` limit (often unidentified or mis-scaled). `WARN`: the edge of
+  the plausible range is still a well-posed optimum.
+- **`parameters_outside_bounds`**: parameters PAST one, which is a different
+  verdict and a `FAIL` -- the optimizer returned a value the model declared
+  implausible. `fit_mod()` passes the bounds to `nlminb`, which respects them, but
+  the Newton refinement `fit_control(newtonsteps)` asks for afterwards is
+  unconstrained, so a parameter parked on a bound can be pushed through it. Refit
+  with `newtonsteps = 0`, the default.
 - **`variance_collapse`**: a deviation standard deviation estimated to zero
   (`WARN` below 1e-3), meaning the process it governs is not varying: a model
   configured as time-varying has fitted something time-invariant. Covers the
@@ -234,7 +241,7 @@ The checks cover:
 ### Naming the parameter, not just the block
 
 TMB names every element of `obj$par` after its parameter block, so on their own
-`max_gradient`, `estimability`, `parameters_on_bounds` and
+`max_gradient`, `estimability`, the two bounds checks and
 `hessian_conditioning` could say `sel_coff_dev` was flagged but not which of its
 392 elements. Each now reports the fleet, sex, age, bin and year instead, from
 [`parameter_index()`], and follows the block name with the quantity it
@@ -252,7 +259,7 @@ A scattered set of years or ages is counted against its span ("38 years in
 how many of the block's parameters carry 90% of its loading.
 
 The checks do not all count positions in the same vector. `max_gradient`,
-`estimability` and `parameters_on_bounds` are captured from the hindcast
+`estimability` and the two bounds checks are captured from the hindcast
 optimization; `hessian_conditioning` reads the `sdreport`, which under an
 estimating HCR belongs to the projection fit and holds only `log_Ftarget` /
 `log_Flimit`. Each check therefore verifies that the index describes the vector

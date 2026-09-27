@@ -12,6 +12,51 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.45.0
+
+## A parameter past a bound is now its own verdict, at FAIL
+
+`fit_mod()` passes `build_bounds()`'s range to `nlminb`, which respects it. The
+Newton refinement that `fit_control(newtonsteps)` asks for afterwards does not:
+in both `.fit_tmb()` paths it is a plain unconstrained step, so a parameter
+`nlminb` parked on a bound can be pushed straight through it, and the value that
+comes back is the one saved in the fit.
+
+`convergence_diagnostics()` reported that as `parameters_on_bounds` at `WARN`,
+whose message read "at a configured bound" -- because the test `par <= lo + tol`
+is also true below `lo`. A value outside the range the model declared plausible
+now gets its own record, `parameters_outside_bounds`, at `FAIL`, naming the
+parameter and pointing at `newtonsteps`. A parameter genuinely sitting on a bound
+still reports `parameters_on_bounds` at `WARN` and is no longer double-counted.
+A tolerance band remains, scaled to each parameter's declared range, so a value
+just inside `lo - tol` still reads as "at" the bound.
+
+**The `par > -900` filter is gone**, which is the substantive part: it hid any
+parameter that had diverged DOWNWARDS -- a value at `-1e6` against a lower bound
+of `-10` drew no record at all -- and that is the direction an unconstrained
+Newton step most plausibly takes. The `-999` sentinel it was there for (an
+unfished fleet-year in `log_F`, an `init_dev` above the plus group) is now matched
+by NAME and value instead. That skip is defensive rather than load-bearing: every
+`-999` slot is mapped out before the bounds vector is built, so none reaches this
+check on a fit built from scratch, but a warm start can carry one into a slot
+whose catch is now non-zero. An unnamed parameter vector keeps every element,
+rather than emptying both records.
+
+No fit changes. The Newton steps themselves are left alone in both paths --
+clamping the one in `.fit_tmb()`'s fallback was considered and rejected, because
+that path runs only when TMBhelper is absent, so neither the test suite nor the
+golden references reach it, and an unverifiable change to how a fit is computed is
+worse than a reported one. The diagnostic covers both paths.
+
+`newtonsteps` defaults to `0`, so no default fit is affected. Measured on a GOA
+Pacific cod bridge at `newtonsteps = 3`: a growth parameter returned at 5.08e-05
+against a lower bound of 1e-3, with a maximum gradient of 0.263 and a Hessian that
+would not invert. At `newtonsteps = 0`, the same code and the same data, that
+parameter sat at 1.00e-03, on the bound, with a maximum gradient of 0.00246 and a
+clean `sdreport` -- so the three steps bought 0.0017 nats of objective and cost the
+feasible region and the standard errors. The stale comment in `R/0-convergence.R` claiming
+optimization is unbounded in `fit_mod()` is corrected.
+
 # Rceattle 5.44.0
 
 ## A shared catchability now says when it starts somewhere no fleet asked for
