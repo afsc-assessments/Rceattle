@@ -14,10 +14,10 @@ review of #158 (5.42.1) both landed after the release PR was written.
 **Checklist state at 5.43.0.** Two of the four measurements have been re-taken at this head,
 and the other two are argued rather than re-run:
 
-- **Full suite, re-run 2026-09-27 at the head that carries `fix/pr158-review-round3`**
+- **Full suite, re-run 2026-09-27 at `05169240`, the head of `fix/pr158-review-round3`**
   (`NOT_CRAN=true TESTTHAT_PARALLEL=false`, serial, R 4.5.1 on macOS with every Suggests
-  installed): **9,701 assertions / 0 failures / 0 errors**, 223 warnings, 3 skips, 243 files.
-  Supersedes 9,613 (5.42.1) and 9,506 (2026-09-21); the +88 are that branch's new tests. The failure count is
+  installed): **9,702 assertions / 0 failures / 0 errors**, 3 skips, 243 files. Supersedes
+  9,613 (5.42.1) and 9,506 (2026-09-21); the +89 are that branch's new tests. The failure count is
   the load-bearing number; **the skip count is environment-specific** -- 459 `skip_on_cran()`,
   763 `skip_if_not_installed()` and 93 `skip_if()` guards mean a clean machine will skip far
   more, so do not treat 3 as a target.
@@ -116,6 +116,15 @@ passes ran over it; between them they found nine and eleven items, of which thes
   other `TODO-*` notes still do, because `man/run_mse.Rd` cites two of them.
 - The repository `homepage` setting pointed at `grantdadams.github.io/Rceattle/index.html` (404);
   it is now the live site. That was a GitHub setting, not a file, so no sweep would have caught it.
+- **A green local suite did not establish the tests were sound.** The width-alignment assertion
+  located its column by searching for `"ages "` in the printed line, and which elements the 90%
+  loading cut keeps moves with rounding in `eigen()`: a consecutive set prints `ages 1-14`, a
+  scattered one `13 ages in 1-14`, so the token sits three characters further along. It passed
+  locally on both lines and failed the `R-CMD-check` `oldrel-1` leg (`FAIL 1 | PASS 3050`). It now
+  measures the first non-space past the padded block name. Twice in this review the tests were
+  the weak link rather than the code -- the 5.42.1 round found three that passed for the wrong
+  reason -- so when a new assertion reads printed output, check what in that output is
+  platform-dependent before trusting one machine's green.
 
 **The release sequence, from here:**
 
