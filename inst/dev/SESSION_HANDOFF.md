@@ -14,9 +14,10 @@ review of #158 (5.42.1) both landed after the release PR was written.
 **Checklist state at 5.43.0.** Two of the four measurements have been re-taken at this head,
 and the other two are argued rather than re-run:
 
-- **Full suite, re-run at 5.42.1** (`NOT_CRAN=true TESTTHAT_PARALLEL=false`, serial, R 4.5.1
-  on macOS with every Suggests installed): **9,613 assertions / 0 failures / 0 errors**, 223
-  warnings, 3 skips. Supersedes the 9,506 figure measured 2026-09-21. The failure count is
+- **Full suite, re-run 2026-09-27 at the head that carries `fix/pr158-review-round3`**
+  (`NOT_CRAN=true TESTTHAT_PARALLEL=false`, serial, R 4.5.1 on macOS with every Suggests
+  installed): **9,701 assertions / 0 failures / 0 errors**, 223 warnings, 3 skips, 243 files.
+  Supersedes 9,613 (5.42.1) and 9,506 (2026-09-21); the +88 are that branch's new tests. The failure count is
   the load-bearing number; **the skip count is environment-specific** -- 459 `skip_on_cran()`,
   763 `skip_if_not_installed()` and 93 `skip_if()` guards mean a clean machine will skip far
   more, so do not treat 3 as a target.
@@ -76,14 +77,53 @@ What a reviewer should still go at hardest:
   rather than transliterating dashes; the risk to look for is a `carry` that meant *propagate*
   being flattened to `hold`. Six such were caught in roxygen; assume more exist.
 
+## Round 3 of the #158 review (branch `fix/pr158-review-round3`, 4 commits)
+
+Folded into 5.43.0, no bump: `dev` was already there and 5.43.1 is reserved. Two adversarial
+passes ran over it; between them they found nine and eleven items, of which these mattered.
+
+- **A negative variance printed as a standard error** in `summary()` and `report_tables()`'s
+  parameter table, which is the table a SAFE executive summary is built from. `vcov()` is
+  `sdreport()`'s covariance with no `pdHess` gate and an indefinite Hessian inverts without
+  being positive definite, so `sqrt(abs(variance))` reported a meaningless number unflagged.
+  Measured on `diag(2, -3)`: `chol()` fails, the diagonal is `0.5, -0.333`, the old code
+  reported `0.707` and `0.577`. Both now return `NA`, with a rounding tolerance of `1e-10` so a
+  converged fit on a flat ridge still reports `0` rather than `NA`.
+- **A factor switch column was read by its level index.** `revert_switches()` resolves eight of
+  the nine columns `convert_switches()` handles; **`Time_varying_q` is the ninth**, so a factor
+  there reached the template by level index through `fit_mod()` -- `factor("Off")` became `IID`,
+  estimating catchability deviations nobody asked for, with `data_check()` clean. One shared
+  rule (`.rce_defactor_fleet_control()`) now runs in `switch_check()` and `convert_switches()`.
+  Nothing in the ecosystem supplies a factor (375 workbooks, 15 bundled `.rda`, every
+  `data.frame()`/`read.csv()` in the four consumer repos), and R >= 4.1 defaults it off.
+- **The blank-`Fleet_type` guard ran after `convert_switches()` had destroyed the evidence**, so
+  a mistyped type was refused as a blank cell. It now reads the column as supplied, and a type
+  outside the allowed set is refused by fleet and value -- closing `3`, `-1` (which was eligible
+  to lead a `Selectivity_index` group whose penalty is gated on `flt_type > 0`, so the group's
+  penalty went uncharged) and `2.7`.
+- **Two claims the second reviewer made did not survive checking**, and one had already been
+  written into NEWS on its word: `revert_switches()` de-factors `Fleet_type` four lines before
+  the `"Off"` assignment that was said to corrupt it, so neither the `switch_check()` NA
+  corruption nor a fit-moving factor `Fleet_type` through `fit_mod()` is real. Verify a
+  reviewer's mechanism before it reaches a release note.
+- **Deliberately left open**: `R/1-data_check.R:1255` still reads `Selectivity != "Fixed"` raw,
+  so raw `GOA2018SS` fleets 4 and 5 are still false positives of the class 5.43.0 fixed -- and
+  they are what satisfies the positive control in `test-switches-fleet-type-integer-off.R`, so
+  fixing the line turns that assertion red. The class fix (canonicalise every schema `switch`
+  column at `data_check()`'s entry) wants its own PR and a golden run; it is the
+  `CLEANUP_BACKLOG.md` row "schema `switch` not enforced at the boundary".
+- The two transfer notes no longer ship in the tarball. `TRAPS.md`, `CLEANUP_BACKLOG.md` and the
+  other `TODO-*` notes still do, because `man/run_mse.Rd` cites two of them.
+- The repository `homepage` setting pointed at `grantdadams.github.io/Rceattle/index.html` (404);
+  it is now the live site. That was a GitHub setting, not a file, so no sweep would have caught it.
+
 **The release sequence, from here:**
 
-1. Merge the 5.42.1 and 5.43.0 review branches. `fix/release-doc-corrections` and #162 are already in.
-   **#161 is open and is NOT documentation only** -- it changes `R/0-convergence.R`,
-   `R/0-parameter_index.R`, a vignette and `DESCRIPTION`, and its bump is **5.41.0 -> 5.42.0**,
-   which `dev` passed two versions ago. Either renumber it and merge it into this release, or
-   hold it for the next one; do not merge it as written. Note 5.43.1 is already spoken for by
-   the `golden` robustness fix.
+1. **Done.** Every review branch is in: `fix/release-doc-corrections`, #162, #164, #165, #166,
+   and #161 (merged at `eafcece3` with no further bump, since `dev` already read 5.43.0; its
+   NEWS entries were filed under 5.42.0 and have been moved to 5.43.0).
+   `fix/pr158-review-round3` carries the third review of #158 -- see "Round 3" below. **5.43.1
+   is spoken for by the `golden` robustness fix**, so a further review round folds into 5.43.0.
 2. Merge the `dev` -> `main` release PR #158. Its body must say what forces a refit, what
    breaks and what is new, and must cover 5.42.0, 5.42.1 and 5.43.0; do not paste `NEWS.md`. Suite and
    sweep are already re-taken at this head (above); the install is checklist section 4.
@@ -101,8 +141,8 @@ What a reviewer should still go at hardest:
 
 **The last installable tag is `5.28.0`, not 5.33.0.** `main` carried 5.29.0, 5.30.0, 5.31.0,
 5.32.0, 5.32.1 and 5.33.0 without a tag being pushed for any of them. So a consumer who pins
-tags, which is what step 5 asks for, moves **5.28.0 -> 5.43.0**, fourteen minor versions, not
-eight. Say that in the release body, and treat step 3 as the fragile step it has proven to be:
+tags, which is what step 5 asks for, moves **5.28.0 -> 5.43.0**, fifteen minor versions (29 through 43
+inclusive), not eight. Say that in the release body, and treat step 3 as the fragile step it has proven to be:
 the pkgdown `release: published` miss at 5.21.0 is the same step failing in a different way.
 
 **Three things are red before the release starts, and none is from this batch.** None is
