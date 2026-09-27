@@ -56,8 +56,7 @@ version throughout.
   than to convert them one at a time.
 
 * **The distance-to-optimum report is withheld when the covariance cannot
-  carry it.** `max_gradient` reports the Newton step `cov.fixed %*% gradient`
-  in standard errors, which measures the distance to a minimum only if
+  carry it.** The Newton step measures the distance to a minimum only if
   `cov.fixed` inverts a positive-definite Hessian. On a saddle the step points
   away from one, so "reaching the optimum would move the estimates by at most
   0.0009 standard errors" read as reassurance printed directly beside a failing
@@ -69,6 +68,21 @@ version throughout.
   `sqrt(diag(cov))` unguarded, in a battery documented never to raise; they now
   share `.conv_se_from_cov()`. The callers already dropped non-finite entries --
   it was the `sqrt()` itself that warned.
+
+* **A negative variance reports no standard error, rather than
+  `sqrt(|variance|)`.** `summary()` and `report_tables()`'s parameter table both
+  took `sqrt(abs(diag(vcov(fit))))`. `vcov()` is `sdreport()`'s fixed-effect
+  covariance with no `pdHess` gate, and an indefinite Hessian inverts without
+  being positive definite, so a variance can come back below zero (demonstrated on
+  an indefinite 2x2 Hessian; the defect is reachable only where `pdHess` is
+  `FALSE`): `abs()` then
+  printed a plausible standard error, with no warning, in the table a SAFE
+  chapter's executive summary is built from. Both now return `NA` for that
+  parameter and the real standard error for every other; the `pdHess` check in
+  `convergence_diagnostics()` says why it is missing, and `print(summary())` says
+  which of the two reasons applies. A variance within rounding of zero
+  (`-1e-18` on a flat ridge) reports `0`, not `NA`: that is a direction the data
+  barely inform, not an indefinite Hessian.
 
   `hessian_conditioning`'s coordinates line up again. The column width was
   computed inside `.rce_par_summary()`, which `.check_hessian_eigen()` calls
@@ -85,6 +99,25 @@ version throughout.
   `switch_check()`, and a blank reaching it was handed to the template as
   `flt_type = NA`.
 
+  `rearrange_data()` checks it **before** `convert_switches()`, which coerces the
+  column to integers: a blank and a value it cannot map both become `NA` there,
+  so a mistyped `Fleet_type` was reported as a blank cell. It now refuses, by
+  fleet and by value, any type outside the set `validate_switches()` allows --
+  `Fleet_type could not be read for fleet(s) Bottom_trawl ('Fisherie')`. That
+  closes three codes the old check handed to the template: `3` (the index takes
+  the survey branch and the catch is dropped, and because the predicted
+  composition is only assigned for types 1 and 2 while the composition
+  likelihood is gated on `type > 0`, the comps are fit against an all-zero
+  prediction and accrue a `posfun` penalty), `-1` (contributes nothing, **and**
+  is eligible to lead its `Selectivity_index` group, whose penalty is gated on
+  `flt_type > 0`, so the group's shape and curvature penalty goes uncharged) and
+  `2.7` (truncated to `Survey`). `data_check()` refuses all three, so no model
+  that fits through `fit_mod()` today is newly stopped. It is stricter than the
+  converter in one respect, deliberately: a padded or non-canonical spelling
+  (`" 0 "`, `"00"`, `"2.0"`) is refused here although `convert_switches()` could
+  resolve it, because the allowed set is the documented one. Write the canonical
+  name or the bare code.
+
   `NA` was the damaging case, and the two halves of the package read it
   differently. `Fleet_type != "Off"` is `NA` rather than `FALSE`, so
   `data_check()`'s estimated-selectivity subset kept an all-`NA` row and died
@@ -96,6 +129,32 @@ version throughout.
   too, earlier and from one rule, rather than because they were broken in the
   same way.
 
+* **A factor-valued `fleet_control` column is read by its labels, not its level
+  indices.** `read.csv(stringsAsFactors = TRUE)` factors every column, and
+  `convert_switches()` passed a factor straight to `as.integer()`, which returns
+  the level index rather than the code the label names. `switch_check()` ->
+  `revert_switches()` already resolved eight of the nine switch columns, so for
+  those the exposure is the exported `rearrange_data()` path, where
+  `Fleet_type = factor(c("Off", "Survey"))` reached the template as `1, 2` -- the
+  `Off` fleet fitted as a fishery, its catch entering the likelihood while
+  `build_map()`, which reads labels, pinned its parameters.
+
+  **`Time_varying_q` is the ninth, and it is not on that list**, so a factor there
+  reached the template by level index even through `fit_mod()`: a column of
+  `factor("Off")` became `IID` (1), estimating time-varying catchability
+  deviations nobody asked for. **That is the one configuration in this release
+  whose fit moves**; refit any model whose `fleet_control` was built through
+  `read.csv(stringsAsFactors = TRUE)`. Neither `switch_check()` nor
+  `validate_switches()` refused it -- both compare labels, so it looked valid all
+  the way down.
+
+  Factor columns are now resolved once, in `switch_check()` and again in
+  `convert_switches()` for the `rearrange_data()` path. No bundled data set and
+  no workbook or script in the four consumer repositories supplies a factor
+  (checked: 375 workbooks, 15 bundled `.rda`, and every `data.frame()` /
+  `read.csv()` that builds a `fleet_control`), and the package requires R >= 4.1,
+  where the default is already `FALSE`.
+
   Every spelling of a stated type -- canonical name, integer code, character
   code, and `Off` -- is accepted exactly as before. No bundled data set and
   none of the 183 consumer-repository workbooks carrying a `Fleet_type` column
@@ -106,6 +165,32 @@ version throughout.
   reads as live at every bare `!= "Off"` comparison, because `0 != "Off"` is
   `TRUE`. `validate_switches()` documents the trap and canonicalizes first;
   fourteen other raw comparisons in `R/` do not.
+
+## Convergence messages name the quantity and the coordinate
+
+* **`fit$convergence` names what a flagged parameter estimates.** The
+  `max_gradient` message, the `hessian_conditioning` loadings, and the
+  per-coordinate lines under `hessian_conditioning`, `parameters_on_bounds` and
+  `estimability` now follow each block name with the natural-scale quantity
+  from `parameter_dictionary()`: `log_M1 (M1)`, `rec_dev (recruitment
+  deviations)`, `log_F (F)`. The block name stays first, since it is what
+  `map` and the parameter list are keyed on.
+* **`max_gradient` says where the largest gradient sits.** It gave the block
+  alone (`'log_M1'`); it now gives the species, fleet, sex, age or year from
+  `parameter_index()`, the way `estimability`, `parameters_on_bounds` and
+  `hessian_conditioning` already did. The coordinate is resolved only when the
+  check is not `OK`, so a clean fit still skips building the index.
+* **`max_gradient` reports the distance to the optimum in standard errors**,
+  as `$data$newton_step_se` (the largest absolute value), `$data$step_se` (the
+  signed vector) and in the message. A quadratic approximation puts
+  the optimum a Newton step `-cov.fixed %*% gradient` away; dividing each
+  element by its standard error makes the size comparable across log, logit
+  and natural-scale parameters. It is reported only when the `sdreport`
+  describes the hindcast parameters (not under an estimating HCR), and the
+  severity is still read on the gradient, so no fit changes status.
+* **Scattered years and ages read as a count against their span**: "38 years in
+  1980-2021" rather than "38 of 1980-2021", and the `hessian_conditioning`
+  count reads "(38 of 44 parameters; 67% of the direction)".
 
 # Rceattle 5.42.1
 
@@ -403,31 +488,6 @@ to the integrable forms.
   (which ships verbatim into `meta_data_names.xlsx`), in `?BS2017SS` and in
   `vignette("model-parameterizations")`. All three described the directional
   sign as working on every non-parametric form.
-
-## Convergence messages name the quantity and the coordinate
-
-* **`fit$convergence` names what a flagged parameter estimates.** The
-  `max_gradient` message, the `hessian_conditioning` loadings, and the
-  per-coordinate lines under `hessian_conditioning`, `parameters_on_bounds` and
-  `estimability` now follow each block name with the natural-scale quantity
-  from `parameter_dictionary()`: `log_M1 (M1)`, `rec_dev (recruitment
-  deviations)`, `log_F (F)`. The block name stays first, since it is what
-  `map` and the parameter list are keyed on.
-* **`max_gradient` says where the largest gradient sits.** It gave the block
-  alone (`'log_M1'`); it now gives the species, fleet, sex, age or year from
-  `parameter_index()`, the way `estimability`, `parameters_on_bounds` and
-  `hessian_conditioning` already did. The coordinate is resolved only when the
-  check is not `OK`, so a clean fit still skips building the index.
-* **`max_gradient` reports the distance to the optimum in standard errors**,
-  as `$data$newton_step_se` and in the message. A quadratic approximation puts
-  the optimum a Newton step `cov.fixed %*% gradient` away; dividing each
-  element by its standard error makes the size comparable across log, logit
-  and natural-scale parameters. It is reported only when the `sdreport`
-  describes the hindcast parameters (not under an estimating HCR), and the
-  severity is still read on the gradient, so no fit changes status.
-* **Scattered years and ages read as a count against their span**: "38 years in
-  1980-2021" rather than "38 of 1980-2021", and the `hessian_conditioning`
-  count reads "(38 of 44 parameters; 67% of the direction)".
 
 # Rceattle 5.41.0
 

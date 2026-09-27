@@ -159,12 +159,13 @@ The checks cover:
   holding it (`WARN` > 1e-3, `FAIL` > 1). When an `sdreport` of the same
   parameters is available, the message also says how far the estimates are from
   the optimum in standard errors. A quadratic approximation puts the optimum a
-  Newton step `cov.fixed %*% gradient` away, and each element is divided by its
+  Newton step `-cov.fixed %*% gradient` away, and each element is divided by its
   own standard error. That size is comparable across log, logit and
   natural-scale parameters, which the raw gradient is not: 0.02 means finishing
   the optimization would move no estimate by more than 2% of its standard error.
-  The value is in `$data$newton_step_se`. It is reported only; the severity is
-  still read on the gradient.
+  The largest absolute value is in `$data$newton_step_se` and the signed vector,
+  which says which way each estimate would move, in `$data$step_se`. Reported
+  only; the severity is still read on the gradient.
 - **`pdHess`**: whether the Hessian is positive definite (`FAIL` if not).
 - **`sdreport_failed`**: `FAIL` when an `sdreport` was requested but the
   Hessian could not be inverted.

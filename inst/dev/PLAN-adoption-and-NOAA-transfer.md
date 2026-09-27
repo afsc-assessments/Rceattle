@@ -1,7 +1,9 @@
 # Plan: adoption fixes and transfer to a NOAA organization
 
-State and plan, not policy. Written 2026-09-23 from a review of `dev` (5.41.0), the public site
-(5.33.0), `../Rceattle-models`, and the AFSC platform readiness workbook. It sits **after** the
+State and plan, not policy. **The transfer happened on 2026-09-26: the repository is now
+`afsc-assessments/Rceattle`, and section 1's link sweep shipped at 5.43.0.** Sections 2 and 3 are
+kept as the record of what moved and what broke. Written 2026-09-23 from a review of `dev` (5.41.0),
+the public site (5.33.0), `../Rceattle-models`, and the AFSC platform readiness workbook. It sits **after** the
 release sequence in `SESSION_HANDOFF.md` and does not replace it. Companion documents, for
 leadership and for Grant, are in `~/Claude/Projects/FIMS overview/`:
 `Rceattle_2027_leadership_onepager.docx` and `Rceattle_working_plan_bridges_and_friction.docx`.
@@ -72,13 +74,14 @@ follows is the summary. In this order:
    local minimum. Until this is fixed, `deep-checks` cannot gate a release.
    - This matters more for adoption than any docs work: "bomb-proof" is the pitch.
    - The fix is a harness change (warm start or best of two), so it cannot move a fitted number.
-3. **Apply the tag convention everywhere.** `inst/RELEASE-CHECKLIST.md` section 3 already sets
-   it: bare `X.Y.Z` with no `v`, where only the first tag, `v4.3.0`, differs. The docs don't
-   follow it: `R/0-rceattle_class.R:12` tells users `@vX.Y.Z`. Nothing tagged sits above 5.28.0
-   while `main` is 5.33.0.
-4. **Fix the pin in the README.** `remotes::install_github("afsc-assessments/Rceattle@4.3.0")` fails,
-   because the tag is `v4.3.0`, and it is also years out of date. Point it at the release from
-   step 1.
+3. **Apply the tag convention everywhere.** Done, verified 2026-09-27: `inst/RELEASE-CHECKLIST.md`
+   section 3 sets it -- bare `X.Y.Z` with no `v`, where only the first tag, `v4.3.0`, differs --
+   and `R/0-rceattle_class.R:12` now reads `@X.Y.Z`. What remains is the tag itself: nothing
+   tagged sits above 5.28.0 while `main` is 5.33.0.
+4. **Fix the pin in the README.** Done at 5.43.0. It read
+   `remotes::install_github("grantdadams/Rceattle@4.3.0")`, which fails -- the tag is `v4.3.0`,
+   and it was years out of date. `README.md:43` now pins `afsc-assessments/Rceattle@5.43.0`, valid
+   the moment the release tag is pushed.
 5. **Add `LICENSE`** (decision 2) and **`.github/CODEOWNERS`** listing Grant and the
    co-maintainer.
    - Do not turn on required reviews on `main`/`dev` until the co-maintainer exists, or you will
@@ -115,21 +118,22 @@ needs permission to create repositories in that organization.
 - issues, PRs, wiki, stars, watchers
 - releases and tags
 - Actions secrets, including `CODECOV_TOKEN`
-- web and git redirects: `remotes::install_github("afsc-assessments/Rceattle")` and existing clones
+- web and git redirects: `remotes::install_github("grantdadams/Rceattle")` and existing clones
   keep working through the redirect
 
 **Breaks:**
 
-- **The GitHub Pages site is not redirected.** `afsc-assessments.github.io/Rceattle` stops serving,
-  and the site moves to `<org>.github.io/Rceattle`.
+- **The GitHub Pages site is not redirected.** `grantdadams.github.io/Rceattle` stops serving (it
+  404s today), and the site moves to `afsc-assessments.github.io/Rceattle`.
 - **Codecov** needs the Codecov app installed on the organization, and possibly a new token.
 - **Organization Actions policy** may block the third-party Actions (decision 1). If the deploy
   action is blocked, `actions/deploy-pages` is the first-party replacement.
 
-**Trap: never create a repository or fork named `afsc-assessments/Rceattle` after the move.** GitHub
-permanently deletes the redirects when that name is reused. Anyone forking back to a personal
-account for PR work must rename the fork (for example `Rceattle-fork`), or better, use branches
-in the organization repo.
+**Trap: never create a repository or fork named `grantdadams/Rceattle` now that the move has
+happened.** GitHub permanently deletes the redirects when the old name is reused, and every pinned
+`install_github("grantdadams/Rceattle@X.Y.Z")` in a consumer script stops resolving. Anyone forking
+back to a personal account for PR work must rename the fork (for example `Rceattle-fork`), or
+better, use branches in the organization repo.
 
 ---
 

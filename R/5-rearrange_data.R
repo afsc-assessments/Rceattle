@@ -111,6 +111,15 @@ rearrange_data <- function(data_list, build_osa = FALSE){
          paste(.missing_fc, collapse = ", "),
          ". Run switch_check() first to fill defaulted columns.", call. = FALSE)
 
+  # Both read the column as supplied: convert_switches() turns a blank and a type
+  # it cannot map into the same NA, and an out-of-range code into itself.
+  .rce_stop_blank_fleet_type(data_list$fleet_control)
+  # convert_switches() resolves factor columns; do it here too so the refusal
+  # below reads the label the user wrote rather than a level index.
+  data_list$fleet_control <-
+    .rce_defactor_fleet_control(data_list$fleet_control)
+  .rce_stop_unreadable_fleet_type(data_list$fleet_control)
+
   # Convert text to integer for switches used in TMB
   data_list <- convert_switches(data_list)
 
@@ -195,9 +204,6 @@ rearrange_data <- function(data_list, build_osa = FALSE){
   # A Fixed curve is read from emp_sel_obs and never normalized, so its value is
   # allowed to be stale -- the same fleets switch_check() leaves alone.
   .norm_hi[data_list$flt_sel_type == 0] <- NA_real_
-  # Refused here too: rearrange_data() is exported and switch_check() does not
-  # run on every path in, so a blank would otherwise reach TMB as flt_type = NA.
-  .rce_stop_blank_fleet_type(data_list$fleet_control)
 
   .is_pm <- data_list$fleet_control$Selectivity %in% c(11, "LogisticPM")
 

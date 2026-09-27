@@ -438,3 +438,45 @@ testthat::test_that("the parameter table names sigma_R and its process", {
       report_tables(fixed)$parameters$parameter == "R_log_sd", ]), 0L)
   testthat::expect_true(all(is.finite(fixed$quantities$R_sd)))
 })
+
+
+# An indefinite Hessian inverts without being positive definite, so a variance
+# can come back below zero. Both reporters took sqrt(abs(.)) of it, which prints
+# a meaningless number as an uncertainty in the table that becomes the executive
+# summary. Found reviewing the 5.34.0-5.43.0 release (#158).
+testthat::test_that("a negative variance reports no standard error", {
+  nm  <- c("ln_mean_rec", "sel_inf")
+  cov <- diag(c(4, -1)); dimnames(cov) <- list(nm, nm)
+  fit <- structure(list(opt = list(par = stats::setNames(c(1, 2), nm)),
+                        sdrep = list(cov.fixed = cov, pdHess = FALSE)),
+                   class = "Rceattle")
+
+  # The positive variance still reports sqrt(4) = 2, so this is not "NA for
+  # everything once one entry is bad".
+  testthat::expect_no_warning(p <- Rceattle:::.rce_tab_parameters(fit, "m"))
+  testthat::expect_equal(p$std_error, c(2, NA_real_))
+
+  testthat::expect_no_warning(s <- summary(fit))
+  testthat::expect_equal(s$coefficients$std_error, c(2, NA_real_))
+})
+
+
+# print(summary(fit)) explains WHY a standard error column is empty, and there are
+# two reasons. Neither arm had a test. Added reviewing #158.
+testthat::test_that("print(summary()) says which reason the standard errors are missing", {
+  nm <- c("ln_mean_rec", "sel_inf")
+  mk <- function(sdrep) structure(
+    list(opt = list(par = stats::setNames(c(1, 2), nm)), sdrep = sdrep),
+    class = "Rceattle")
+
+  # No sdreport: getsd = FALSE.
+  none <- utils::capture.output(print(summary(mk(NULL))))
+  testthat::expect_true(any(grepl("no sdreport", none)))
+
+  # An sdreport whose every variance is negative: the Hessian is not positive
+  # definite, which is a different thing to tell the user.
+  cov <- diag(c(-4, -1)); dimnames(cov) <- list(nm, nm)
+  bad <- utils::capture.output(print(summary(mk(list(cov.fixed = cov, pdHess = FALSE)))))
+  testthat::expect_true(any(grepl("pdHess", bad)))
+  testthat::expect_false(any(grepl("no sdreport", bad)))
+})

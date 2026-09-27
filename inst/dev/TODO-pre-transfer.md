@@ -15,8 +15,10 @@ to both rather than repeating them.
 Work the stages in order. Stage A can run in parallel with B and C, because it is mostly
 waiting on other people.
 
-## Where things stand (2026-09-23)
+## Where things stand (2026-09-27)
 
+- **The transfer is done**: the repository is `afsc-assessments/Rceattle` as of 2026-09-26, and
+  Stage D's link sweep shipped at 5.43.0. Stages A, E and F are settings work that outlives it.
 - `dev` is at 5.43.0. `main` is at 5.33.0.
 - **The newest tag is 5.28.0.** `main` sits 42 commits past it and is untagged.
 - `golden` (the `deep-checks` workflow) fails on `main`. Windows `R-CMD-check` fails
@@ -234,9 +236,10 @@ These are GitHub settings; no code changes.
   - the authors of `Rceattle-models` stocks
   - anyone who has opened an issue
   - Melissa (FYI)
-- [ ] **G3. Note for the day of the transfer:** never fork the organization repo back to
-  `afsc-assessments/Rceattle`. Reusing that name permanently deletes GitHub's redirects. Use
-  branches in the organization repo, or rename any fork.
+- [ ] **G3. Standing note now the transfer is done:** never recreate or fork anything at
+  `grantdadams/Rceattle`. Reusing the old name permanently deletes GitHub's redirects, and every
+  pinned `install_github("grantdadams/Rceattle@X.Y.Z")` stops resolving. Use branches in the
+  organization repo, or rename any fork.
 
 ---
 

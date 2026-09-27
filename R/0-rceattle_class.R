@@ -113,7 +113,9 @@ summary.Rceattle <- function(object, ...) {
   est <- tryCatch(stats::coef(object), error = function(e) NULL)
   se  <- tryCatch({
     v <- stats::vcov(object)
-    if (is.null(v)) NULL else sqrt(abs(diag(v)))
+    # An indefinite Hessian inverts to a negative variance, which has no
+    # standard error; NA reports it as unavailable, not as sqrt(|variance|).
+    if (is.null(v)) NULL else .conv_se_from_cov(v)
   }, error = function(e) NULL)
 
   coefs <- NULL
@@ -140,8 +142,8 @@ summary.Rceattle <- function(object, ...) {
 #' Print method for an Rceattle model summary
 #'
 #' @param x A `"summary.Rceattle"` object from [summary.Rceattle()].
-#' @param n Number of parameters to show, largest gradient-free standard error
-#'   first. Default 10; use `Inf` for all, or take `x$coefficients`.
+#' @param n Number of parameters to show, in `coef()` order. Default 10; use
+#'   `Inf` for all, or take `x$coefficients`.
 #' @param ... Currently unused.
 #' @return `x`, invisibly.
 #' @export
@@ -162,8 +164,18 @@ print.summary.Rceattle <- function(x, n = 10, ...) {
           sep = "")
     }
     if (all(is.na(cf$std_error))) {
-      cat("  standard errors are unavailable -- this fit has no sdreport",
-          "(fit_control(getsd = FALSE))\n")
+      # Two reasons, and the user needs to know which: no sdreport at all, or one
+      # whose variances are unusable because the Hessian is not positive definite.
+      # A print method must not stop, so an unreadable spec falls back to the
+      # commoner reason.
+      v <- tryCatch(stats::vcov(x$spec), error = function(e) NULL)
+      if (is.null(v)) {
+        cat("  standard errors are unavailable -- this fit has no sdreport",
+            "(fit_control(getsd = FALSE))\n")
+      } else {
+        cat("  standard errors are unavailable -- no variance in the sdreport is",
+            "usable; see convergence_diagnostics() 'pdHess'\n")
+      }
     }
   }
 
