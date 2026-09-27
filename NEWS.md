@@ -12,6 +12,62 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.44.0
+
+## A shared catchability now says when it starts somewhere no fleet asked for
+
+Fleets sharing a `Catchability_index` share ONE `index_log_q`, and TMB starts a
+shared parameter at the mean of its members' starting values. `index_log_q` is
+`log(Catchability_init)`, so the group starts at the **geometric mean** of the
+members' inits and no fleet keeps the value in its own row. That has always been
+the behaviour; `vignette("model-options-and-functionality")` has described it
+correctly since 5.9.0, which corrected docs that said otherwise. Nothing said so
+at run time, though -- unlike the deviation standard deviations, which
+`build_map()` has warned about for some time.
+
+`build_map()` now warns for the catchability itself, naming the group, the
+differing inits and the geometric mean it will start from. Two things the
+warning is careful about:
+
+* A member whose `Catchability_init` is blank, zero or negative seeds the whole
+  group at `NA` or `-Inf` rather than at any mean, and the group cannot fit.
+  `data_check()` requires the column positive only on fleets that carry index
+  rows, and exempts `Analytical` / `AnalyticalArith` because they solve q from
+  the data -- yet a fleet in either category still joins an estimated block. The
+  warning reports the non-finite start instead of naming a geometric mean the fit
+  will never reach.
+* `Catchability_init` is read twice. Under `Estimated-with-prior` the lognormal q
+  prior stays centred on the **lead** fleet's value, so differing inits there move
+  the objective and not merely the starting point. The warning says so, and only
+  where a prior is actually scored. Relatedly, a non-lead fleet's
+  `Catchability_prior_sd` is never read either, which the vignette now states.
+
+`Catchability_init`'s schema entry now says it must be positive on a fleet sharing
+an estimated `Catchability_index` group too, not only on a fleet carrying index
+rows, and `Catchability_prior_sd`'s says only the lead's is read.
+`inst/extdata/meta_data_names.xlsx` is regenerated from the schema accordingly.
+
+`data_check()`'s existing reports are unchanged: the analytical case, a `Fixed`
+lead leaving fleets on different inits, and a `Catchability` or `Time_varying_q`
+differing within a group. The gap was the ordinary case -- forms agreeing, inits
+not, a q estimated for the group.
+
+No fit changes. This is a warning and a documentation fix.
+
+Why it is worth a warning rather than a note in a vignette: a shared q at the
+mean scales a survey's whole predicted index by a constant factor, and no
+residual pattern distinguishes that from a real change in abundance. It was found
+on an SS3 bridge for GOA Pacific cod, where a fleet created by a converter kept a
+default init and dragged the survey's q to `sqrt(1.4964) = 1.2233`. Measured on a
+forward pass -- `estimateMode = 3`, so the objective is evaluated AT the starting
+values and the start IS the fitted value -- that was 18% low across all 16 index
+observations and 6.23 nats, with the standard deviations right to 5e-07 and both
+composition components agreeing to under 0.001. In a fit that estimates q the
+start matters less, though it still chooses which optimum is found.
+
+The internal helper `.warn_shared_dev_sd()` is now `.warn_shared_block_start()`,
+since it no longer reports only standard deviations.
+
 # Rceattle 5.43.0
 
 ## Breaking changes

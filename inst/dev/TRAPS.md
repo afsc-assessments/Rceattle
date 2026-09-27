@@ -78,6 +78,23 @@ fleet — an `Off` fleet's slice is all `NA` and must never lead. Penalties and 
 block are accumulated once, on the lead fleet (`flt_sel_lead` / `flt_q_lead`); without that gate
 they are counted once per sharing fleet.
 
+**A shared block STARTS at the geometric mean of its members' starting values, not at the
+lead's.** TMB collapses a shared parameter to `tapply(par, map, mean)`, and these are all held
+on the log scale, so no fleet keeps the value in its own row. It bites hardest on catchability,
+where `index_log_q` is seeded from `log(Catchability_init)`: a shared q at the mean scales a
+survey's whole predicted index by a constant factor, and no residual pattern distinguishes that
+from a real change in abundance. Measured on an SS3 bridge for GOA Pacific cod, where a
+converter-created fleet kept a default init and pulled the survey's q to
+`sqrt(1.496398) = 1.223270` — 18% low across all 16 index observations, 6.23 nats, with the
+standard deviations right to 5e-07 and both composition components agreeing to under 0.001.
+`build_map()` warns since 5.44.0 (`.warn_shared_block_start()`), for both deviation sds and the
+catchability. Two edges: a member whose `Catchability_init` is blank, zero or negative seeds the
+WHOLE group at `NA`/`-Inf` and it cannot fit — `data_check()` requires that column positive only
+on fleets carrying index rows, and exempts `Analytical`/`AnalyticalArith` — and under
+`Estimated-with-prior` the prior centre, and the prior SD, are the **lead's** alone, so a
+non-lead fleet's values there are simply never read. **Inject or set per-fleet starting values by
+BLOCK, never by fleet name.**
+
 **Worked example: GOA2018SS.** Fleets 1 and 7 share selectivity; fleets 9 and 10 share
 selectivity *and* q.
 

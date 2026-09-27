@@ -386,3 +386,13 @@ calc_dirmultinom_nll <- function(obs_num, alpha) {
   return(-ll)
 }
 
+# Every warning an expression raises, not just the first: build_map() raises
+# several and the one under test is rarely the earliest.
+collect_warnings <- function(expr) {
+  w <- character(0)
+  withCallingHandlers(expr, warning = function(cond) {
+    w <<- c(w, conditionMessage(cond))
+    invokeRestart("muffleWarning")
+  })
+  w
+}

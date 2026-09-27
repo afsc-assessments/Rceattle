@@ -1654,7 +1654,7 @@ data_check <- function(data_list) {
   # log(Time_varying_sel_sd) exactly as it takes log(Time_varying_q_sd), so a
   # blank or non-positive value is the same -Inf/NaN start with the same
   # unattributable TMB error -- and it additionally makes the geometric mean
-  # .warn_shared_dev_sd() reports for a shared Selectivity_index group NaN.
+  # .warn_shared_block_start() reports for a shared Selectivity_index group NaN.
   #
   # Required only where the TEMPLATE actually reads sel_dev_sd, which is a
   # property of the (Selectivity, Time_varying_sel) pair rather than of either

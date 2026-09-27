@@ -309,7 +309,7 @@ Found during the 5.34.0-5.41.0 batch and recorded rather than fixed:
   intuition to unlearn: TMB's `updateMap()` collapses a shared parameter with
   `tapply(par, map, mean)`, and this one is held on the log scale, so the group starts at the
   **geometric mean** of its estimated members' values — `sqrt(0.3 * 0.7) = 0.4583` for a
-  two-fleet group at 0.3 and 0.7, a value neither row asks for. `.warn_shared_dev_sd()` reports
+  two-fleet group at 0.3 and 0.7, a value neither row asks for. `.warn_shared_block_start()` reports
   it, once per group, and runs at the END of `build_map()`: `build_map_f_and_data_weights()`
   maps the parameter out for `Off` fleets and `build_map_fixed_natage()` for a fixed-dynamics
   species, both after the sharing pass, so a check placed inside
@@ -321,7 +321,7 @@ Found during the 5.34.0-5.41.0 batch and recorded rather than fixed:
   `random_q` integrated the catchability deviates out and left their sd fixed at
   `Time_varying_q_sd`. Now symmetric, so `random_q = TRUE` estimates it — **and any fit using that
   flag moves.** With the sd estimable the shared-group copy is meaningful, so a shared
-  `Catchability_index` goes through the same `.warn_shared_dev_sd()` check, on the same
+  `Catchability_index` goes through the same `.warn_shared_block_start()` check, on the same
   geometric-mean footing described in the row above.
 
   Caveat, measured rather than assumed: on a 40-year index with the observation sd FIXED and q
