@@ -85,10 +85,31 @@ build_map <- function(data_list, params, debug = FALSE, random_rec = FALSE,
   # Last, so they read the final map: build_map_f_and_data_weights() maps
   # sel_dev_log_sd out for "Off" fleets, build_map_fixed_natage() maps both out
   # for a fixed-dynamics species, and build_map_debug() maps out everything.
-  .warn_shared_dev_sd(map_list, data_list, "Selectivity_index",
-                      "Time_varying_sel_sd", "sel_dev_log_sd")
-  .warn_shared_dev_sd(map_list, data_list, "Catchability_index",
-                      "Time_varying_q_sd", "index_q_dev_log_sd")
+  .warn_shared_block_start(map_list, data_list, "Selectivity_index",
+                           "Time_varying_sel_sd", "sel_dev_log_sd")
+  .warn_shared_block_start(map_list, data_list, "Catchability_index",
+                           "Time_varying_q_sd", "index_q_dev_log_sd")
+  # The catchability itself, not just its deviations. data_check() already
+  # reports a shared group whose Catchability forms or Time_varying_q differ, and
+  # a Fixed lead whose inits differ, but not the ordinary case: forms agreeing,
+  # inits not, a q estimated for the group.
+  .warn_shared_block_start(map_list, data_list, "Catchability_index",
+                           "Catchability_init", "index_log_q",
+                           what = "catchability",
+                           # Catchability_init is read twice: as the shared
+                           # starting value, and under Estimated-with-prior as
+                           # the LEAD fleet's prior centre (ceattle.cpp gates the
+                           # prior on est_index_q == 2 inside flt_q_lead == 1).
+                           # The lead's value therefore survives, in the prior,
+                           # and a difference is worth nats rather than a start.
+                           note = paste0(
+                             "The lognormal q prior is centred on the LEAD ",
+                             "fleet's Catchability_init, so differing values ",
+                             "here move the objective and not just the ",
+                             "starting point."),
+                           note_when = function(fc, est)
+                             any(.canon_switch(fc$Catchability[est], q_map) ==
+                                   "Estimated-with-prior"))
 
   # --- Final Steps ---
   map_list_grande <- list()
@@ -101,30 +122,72 @@ build_map <- function(data_list, params, debug = FALSE, random_rec = FALSE,
 ## Helper Functions ----
 
 # Fleets sharing a Selectivity_index or a Catchability_index estimate ONE
-# deviation sd between them. TMB collapses a shared parameter to the mean of its
-# members' starting values, and both sds are held on the log scale, so the group
-# starts at the GEOMETRIC MEAN of the members' values -- no fleet keeps the one
-# in its own row. Warned once per group, over the members that are actually
-# estimated: a fleet whose map slot is NA keeps its own value and contributes
-# nothing to the mean.
-.warn_shared_dev_sd <- function(map_list, data_list, index_col, sd_col, par) {
+# parameter between them -- a deviation sd, or the catchability itself. TMB
+# collapses a shared parameter to the mean of its members' starting values, and
+# all of these are held on the log scale, so the group starts at the GEOMETRIC
+# MEAN of the members' values -- no fleet keeps the one in its own row. Warned
+# once per group, over the members that are actually estimated: a fleet whose map
+# slot is NA keeps its own value and contributes nothing to the mean.
+#
+# The catchability case is the one that hurts: a shared q at the mean of two
+# fleets' Catchability_init scales a survey's whole predicted index by a constant
+# factor, which no residual pattern distinguishes from a real change in abundance.
+# `what` is spliced after "The group estimates one", so it must be a bare noun
+# phrase; `note` is appended verbatim where `note_when` says it applies.
+.warn_shared_block_start <- function(map_list, data_list, index_col, start_col,
+                                     par, what = "deviation sd", note = NULL,
+                                     note_when = NULL) {
   fc <- data_list$fleet_control
-  if (is.null(fc[[index_col]]) || is.null(fc[[sd_col]])) return(invisible(NULL))
+  if (is.null(fc[[index_col]]) || is.null(fc[[start_col]])) return(invisible(NULL))
 
   for (idx in unique(fc[[index_col]][!is.na(fc[[index_col]])])) {
     grp  <- which(fc[[index_col]] == idx)
     est  <- grp[!is.na(map_list[[par]][fc$Fleet_code[grp]])]
-    vals <- fc[[sd_col]][est]
-    if (length(est) < 2 || length(unique(vals)) < 2) next
+    if (length(est) < 2) next
+    vals <- fc[[start_col]][est]
+
+    # as.character() first: as.numeric() on a FACTOR returns level codes, which
+    # are all positive, so a zero would pass the check below and be reported as a
+    # geometric mean the fit can never use. data_check() reads the same columns
+    # off a workbook, where a factor is exactly what a stray text cell produces.
+    num <- suppressWarnings(as.numeric(as.character(vals)))
+    bad <- !is.finite(num) | num <= 0
+
+    # A member that is blank, zero or negative seeds the WHOLE group at NA, -Inf
+    # or NaN rather than at any mean, and the group cannot fit. Reported even when
+    # every member carries the same unusable value, unlike the geometric mean,
+    # which is only surprising when they differ. Only Analytical and
+    # AnalyticalArith may leave the column non-positive (they solve q from the
+    # data) and a fleet with no fitted index rows may leave it blank, but either
+    # still joins the group's mean once it shares an estimated block.
+    if (any(bad)) {
+      shown <- ifelse(is.na(vals) | !nzchar(trimws(as.character(vals))),
+                      "<blank>", trimws(as.character(vals)))
+      warning(paste0(
+        "Fleets sharing ", index_col, " ", idx, " (",
+        paste(fc$Fleet_name[est], collapse = ", "), ") share one ", what,
+        ", seeded from the log of ", start_col, ", and ",
+        paste(fc$Fleet_name[est][bad], collapse = ", "),
+        if (sum(bad) > 1) " carry " else " carries ",
+        paste(shown[bad], collapse = ", "),
+        ", whose log is not finite. The group starts at ",
+        format(suppressWarnings(mean(log(num)))),
+        " on the log scale rather than at a usable mean, and cannot fit."))
+      next
+    }
+    if (length(unique(vals)) < 2) next
 
     warning(paste0(
       "Fleets sharing ", index_col, " ", idx, " (",
       paste(fc$Fleet_name[est], collapse = ", "),
-      ") have different ", sd_col, " (", paste(vals, collapse = ", "),
-      "). The group estimates one deviation sd, and it starts at the geometric ",
-      "mean of those values (", signif(exp(mean(log(vals))), 4),
+      ") have different ", start_col, " (",
+      paste(trimws(as.character(vals)), collapse = ", "),
+      "). The group estimates one ", what, ", and it starts at the geometric ",
+      "mean of those values (", signif(exp(mean(log(num))), 4),
       ") -- the mean on the log scale TMB takes for a shared parameter -- so no ",
-      "fleet keeps the value in its own row."))
+      "fleet keeps the value in its own row.",
+      if (!is.null(note) && (is.null(note_when) || isTRUE(note_when(fc, est))))
+        paste0(" ", note) else ""))
   }
   invisible(NULL)
 }
@@ -1446,7 +1509,7 @@ adjust_map_shared_params <- function(map_list, data_list) {
       # Sel_norm_bin*, Time_varying_sel) are checked in data_check().
 
       # A differing Time_varying_sel_sd across the group is reported by
-      # .warn_shared_dev_sd(), which runs at the end of build_map() because two
+      # .warn_shared_block_start(), which runs at the end of build_map() because two
       # later steps still map this parameter out.
 
       # Make selectivity maps the same if selectivity is the same
@@ -1472,9 +1535,10 @@ adjust_map_shared_params <- function(map_list, data_list) {
       # cannot share a group at all, are checked in data_check().
 
       # A differing Time_varying_q_sd across the group is reported by
-      # .warn_shared_dev_sd(), as for selectivity. index_q_log_sd is a prior sd
-      # the assessor sets, never estimated, so a differing Catchability_prior_sd
-      # is always honoured per fleet.
+      # .warn_shared_block_start(), as for selectivity. index_q_log_sd is a prior sd
+      # the assessor sets and never estimated, but in a shared group only the
+      # LEAD fleet's is read: the prior is scored once, on the lead, so a
+      # differing value on a non-lead fleet has no effect.
 
       # Make catchability maps the same.
       #

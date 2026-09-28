@@ -227,6 +227,8 @@ What to consult when documenting a switch, shaping a workflow, or naming a proce
 One line each; the fuller text and the measured numbers are in `inst/dev/TRAPS.md` (the last
 section holds every entry below in full).
 
+- **`newtonsteps > 0` can return a parameter OUTSIDE its bounds**: nlminb respects them, the Newton refinement after it does not, in either `.fit_tmb()` path. `convergence` reports `parameters_outside_bounds` (FAIL); default is 0 but golden runs 3.
+- **A shared parameter block starts at the GEOMETRIC MEAN of its members' starting values**, not the lead's; inject per BLOCK, never per fleet. Cost a GOA cod survey 18% of its index.
 - **`Index_distribution` has a second registry**: a new family must also be classified in `.index_rows_natural_scale()`, or it gets the log-scale residual.
 - **`jnll_comp` columns count fleets on rows 1–8, species on 9–20, and neither on row 21** (model-wide linkage REs); `.JNLL_ROW_AXIS` is the registry, so `rowSums()` mixes axes.
 - **A reference point CEATTLE never estimated is a number, not a gap**: `Ftarget`/`Flimit` = 1, `MSSB0` = 999 mt, per-recruit quantities 0 under `msmMode > 0`.

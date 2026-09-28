@@ -482,13 +482,19 @@ is shared, so each fleet sits at its own `Catchability_init`. Where a q *is*
 estimated for the group, its starting value is the mean of the group's
 log `Catchability_init` (TMB averages the initial values of parameters mapped
 together) rather than the lead's; only the prior centre uses the lead's.
+`build_map()` warns when those inits differ, and names the geometric mean the
+group will start from. Worth heeding: a shared q starting at the mean scales a
+survey's whole predicted index by a constant factor, which no residual pattern
+distinguishes from a real change in abundance.
 
 `Time_varying_q_sd` is shared the same way once it is estimated, which is
 `random_q = TRUE` with a `Time_varying_q` of `"IID"` or `"RandomWalk"`:
 the group gets one deviation sd starting at the geometric mean of its estimated
 members' values, and `build_map()` warns when they differ. While the sd is
 fixed, each fleet keeps its own. `Catchability_prior_sd` is a prior sd the
-assessor sets and is never estimated, so it is always honoured per fleet.
+assessor sets and is never estimated, but in a shared group only the **lead**
+fleet's is read: the prior is scored once, on the lead, so a differing value on a
+non-lead fleet has no effect at all.
 
 `data_check()` warns on the analytical case, on a `Fixed` lead that leaves fleets
 on different inits, and on a `Catchability` or `Time_varying_q` that differs

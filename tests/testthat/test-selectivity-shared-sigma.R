@@ -28,17 +28,6 @@ build_shared_sel_map <- function(d, random_sel) {
   )
 }
 
-# Every warning raised, not just the first: build_map() raises several, and the
-# one under test is not the earliest.
-collect_warnings <- function(expr) {
-  w <- character(0)
-  withCallingHandlers(expr, warning = function(cond) {
-    w <<- c(w, conditionMessage(cond))
-    invokeRestart("muffleWarning")
-  })
-  w
-}
-
 
 test_that("a shared Selectivity_index warns when an estimated sd differs", {
   d <- make_shared_sel_data(sd1 = 0.3, sd2 = 0.7)
