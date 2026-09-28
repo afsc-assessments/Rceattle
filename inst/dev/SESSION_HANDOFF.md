@@ -5,19 +5,24 @@ session. Maintained by `/handoff`.
 
 ## Now
 
-**`dev` is at 5.43.0 and `main` at 5.33.0.** The next step is one `dev` -> `main` release
-covering 5.34.0 through 5.43.0, per `inst/RELEASE-CHECKLIST.md`. Read that file's pkgdown note
+**`dev` is at 5.45.0 and `main` at 5.33.0.** The next step is one `dev` -> `main` release
+covering 5.34.0 through 5.45.0, per `inst/RELEASE-CHECKLIST.md`. Read that file's pkgdown note
 before tagging: the `release: published` event has silently failed to fire once already.
-**The tag is the DESCRIPTION version, so it is 5.43.0, not 5.41.0** -- #160 (5.42.0) and the
+**The tag is the DESCRIPTION version, so read it off `DESCRIPTION` at the moment you tag; it
+has moved four times during this release (5.41.0 -> 5.42.1 -> 5.43.0 -> 5.45.0) as review and
+follow-up work landed on `dev`, and `README.md:43` has had to follow it each time.** #160 (5.42.0),
+#169 (5.44.0, 5.45.0) and the
 review of #158 (5.42.1) both landed after the release PR was written.
 
-**Checklist state at 5.43.0.** Two of the four measurements have been re-taken at this head,
+**Checklist state at 5.45.0.** Two of the four measurements have been re-taken at this head,
 and the other two are argued rather than re-run:
 
-- **Full suite, re-run 2026-09-27 at `05169240`, the head of `fix/pr158-review-round3`**
+- **Full suite, re-run 2026-09-28 at `be207905`, `dev` at 5.45.0**
   (`NOT_CRAN=true TESTTHAT_PARALLEL=false`, serial, R 4.5.1 on macOS with every Suggests
-  installed): **9,702 assertions / 0 failures / 0 errors**, 3 skips, 243 files. Supersedes
-  9,613 (5.42.1) and 9,506 (2026-09-21); the +89 are that branch's new tests. The failure count is
+  installed): **9,765 assertions / 0 failures / 0 errors**, 3 skips, 244 files. Supersedes
+  9,702 (round 3), 9,613 (5.42.1) and 9,506 (2026-09-21). **Re-take it after anything lands on
+  `dev`**: this figure has gone stale four times in this release, most recently when #169 merged
+  minutes after the 9,702 run. The failure count is
   the load-bearing number; **the skip count is environment-specific** -- 459 `skip_on_cran()`,
   763 `skip_if_not_installed()` and 93 `skip_if()` guards mean a clean machine will skip far
   more, so do not treat 3 as a target.
@@ -79,7 +84,7 @@ What a reviewer should still go at hardest:
 
 ## Round 3 of the #158 review (branch `fix/pr158-review-round3`, 4 commits)
 
-Folded into 5.43.0, no bump: `dev` was already there and 5.43.1 is reserved. Two adversarial
+Folded into 5.43.0, no bump: `dev` was already there and 5.45.1 is reserved. Two adversarial
 passes ran over it; between them they found nine and eleven items, of which these mattered.
 
 - **A negative variance printed as a standard error** in `summary()` and `report_tables()`'s
@@ -131,7 +136,7 @@ passes ran over it; between them they found nine and eleven items, of which thes
 1. **Done.** Every review branch is in: `fix/release-doc-corrections`, #162, #164, #165, #166,
    and #161 (merged at `eafcece3` with no further bump, since `dev` already read 5.43.0; its
    NEWS entries were filed under 5.42.0 and have been moved to 5.43.0).
-   `fix/pr158-review-round3` carries the third review of #158 -- see "Round 3" below. **5.43.1
+   `fix/pr158-review-round3` carries the third review of #158 -- see "Round 3" below. **5.45.1
    is spoken for by the `golden` robustness fix**, so a further review round folds into 5.43.0.
 2. Merge the `dev` -> `main` release PR #158. Its body must say what forces a refit, what
    breaks and what is new, and must cover 5.42.0, 5.42.1 and 5.43.0; do not paste `NEWS.md`. Suite and
@@ -150,7 +155,7 @@ passes ran over it; between them they found nine and eleven items, of which thes
 
 **The last installable tag is `5.28.0`, not 5.33.0.** `main` carried 5.29.0, 5.30.0, 5.31.0,
 5.32.0, 5.32.1 and 5.33.0 without a tag being pushed for any of them. So a consumer who pins
-tags, which is what step 5 asks for, moves **5.28.0 -> 5.43.0**, fifteen minor versions (29 through 43
+tags, which is what step 5 asks for, moves **5.28.0 -> 5.45.0**, seventeen minor versions (29 through 45
 inclusive), not eight. Say that in the release body, and treat step 3 as the fragile step it has proven to be:
 the pkgdown `release: published` miss at 5.21.0 is the same step failing in a different way.
 
@@ -163,7 +168,7 @@ signature below, because that is the only thing separating a known red from a ne
   **Before dispatching `deep-checks` on `main`, expect exactly this signature: a `goa_ss` delta
   of 52.9 with the other three models bit-identical.** Any other pattern is a real regression
   and stops the release. Diagnose from the gradient at the reference `par`, not the objective
-  (`TRAPS.md`). The robustness fix is the first job after the release and ships as 5.43.1; until
+  (`TRAPS.md`). The robustness fix is the first job after the release and ships as 5.45.1; until
   it lands this guard cannot gate anything.
 - **`deep-checks` `suite` never finishes.** It is `cancelled` in every recent run at 5h00-5h01
   wall clock, a timeout rather than a pass. So the one job that runs the 140 `skip_on_cran()`
@@ -208,7 +213,7 @@ adversarially before commit and again by a second session before merge:
    from the pinned parameters, or take the lower of two starts. It is a harness change and
    cannot move a fitted number. **This is not just the next cleanup: it gates the NOAA
    transfer** (`PLAN-adoption-and-NOAA-transfer.md` section 0, item 5) and it has a release
-   vehicle already chosen, 5.43.1 (`TODO-pre-transfer.md` B3). Do it before anything below.
+   vehicle already chosen, 5.45.1 (`TODO-pre-transfer.md` B3). Do it before anything below.
    While doing it, fix the `deep-checks` `suite` timeout too; a guard that cannot finish is
    the same problem in a different job.
 2. **Decide on the three inert test guards** (`CLEANUP_BACKLOG.md`): restore or delete. The
@@ -242,7 +247,7 @@ the hake `MSE_yr2024.R` run. Both are recorded above with their results.
   Grant** (destination org, license, co-maintainer, whether `Rceattle-models` moves, timing);
   agents do not pick these.
 - `TODO-pre-transfer.md` — the execution checklist for that plan, stages A-F with owner tags.
-  Stage B is this release. **B3 is the `golden` robustness fix**, to ship as 5.43.1 if it lands
+  Stage B is this release. **B3 is the `golden` robustness fix**, to ship as 5.45.1 if it lands
   after the tag.
 
 ## Tagged snapshots of the DSEM lines (2026-09-24)
@@ -292,13 +297,14 @@ start rather than `SIMPLIFY-LOG.md`.
 2. **Merge PR #158.** As of 2026-09-25 it is `CLEAN` / `MERGEABLE`, and CI is green on all
    five platforms -- Windows passed on both runs, which is worth noting given the intermittent
    access violation. Re-check before merging; the branch has moved since.
-3. **Tag the merge commit `5.43.0`**, bare, no `v` prefix, then publish a GitHub Release from
+3. **Tag the merge commit with whatever `DESCRIPTION` reads then (5.45.0 today)**, bare, no `v`
+   prefix, then publish a GitHub Release from
    it. **This is the step that has silently not happened five times** (5.29.0 through 5.33.0
    are all untagged), so do not defer it or hand it on.
 4. **Run the canary** (release sequence, step 4). It 404s now and must return 200 after.
 5. **Dispatch `deep-checks` on `main`** and read `golden` against the 52.9 signature above
    before concluding anything from it.
-6. **Then 5.43.1: make `golden` robust**, which gates the NOAA transfer.
+6. **Then 5.45.1: make `golden` robust**, which gates the NOAA transfer.
 
 Two loose ends that are not release-blocking: commit the `GOA-ATF-ESP` pin change in that
-repo, and the `deep-checks` `suite` 5h timeout, which belongs with the 5.43.1 work.
+repo, and the `deep-checks` `suite` 5h timeout, which belongs with the 5.45.1 work.
