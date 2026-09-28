@@ -12,31 +12,76 @@
 
 # The GOA reference objectives changed in 5.33.0 (goa_ss -0.0150, goa_ms -0.0030):
 # GOA2018SS fleet 2 has a q prior, which is now mean-centred under bias_adjust_proc.
-testthat::test_that("the four reference fits reproduce their pinned objectives", {
+#
+# WHAT THIS PINS, AND WHY IT NO LONGER RE-OPTIMIZES. The question golden exists
+# to answer is "is this still the same likelihood". Re-fitting answered a second
+# question as well -- "does a cold phased optimization find the lower of two
+# minima on this machine" -- and that one has a platform-dependent answer:
+# `goa_ss` has a second local minimum 52.9 units up, a one-ULP change in a single
+# log_F gradient element is enough for nlminb to reach it, and `goa_ms` inherits
+# the basin through its warm start. The two GOA references therefore moved
+# together on the CI runners while reproducing exactly on local macOS, and the
+# job that runs this file was red on `main` for weeks over a summation order.
+#
+# The likelihood is now evaluated AT the reference parameters, which removes the
+# optimizer from the gate entirely: `fit_mod(estimateMode = 3)` builds the object
+# and evaluates without optimizing, so any change to the model moves the
+# objective while a change to the optimizer's path cannot. Measured at 5.45.0:
+# all four reproduce their pinned objective to 1e-12 absolute (1e-16 relative)
+# and sit at max|gradient| between 1.1e-11 and 3.3e-06, against the 1e-4
+# threshold. The multispecies pair was the open question -- predation iterates
+# inside fit_mod() -- and the iteration reaches the same state from the
+# reference parameters, so they pin as cleanly as the single-species pair.
+#
+# The cold-start path is still exercised below, on convergence only. Regenerate
+# the fixture with tools/verify/regenerate-golden-reference.R, and only when a
+# model change is intended.
+testthat::test_that("the likelihood at the reference parameters is unchanged", {
   testthat::skip_on_cran()
-  # covr instruments the TMB model at -O0, which historically moved the GOA fits
-  # to a different point of their flat selectivity ridge. Polishing to a
-  # stationary point ought to make the optima build-independent, but that is not
-  # verified here, so the skip is kept.
+  # covr instruments the TMB model at -O0. The evaluation here no longer depends
+  # on an optimizer path, so the historical reason for this skip is gone, but a
+  # -O0 build's arithmetic is still not what the reference was taken under.
   testthat::skip_on_covr()
   testthat::skip_if_not_installed("TMB")
   testthat::skip_if_not_installed("Rceattle")
 
-  # Pinned objective functions (this branch), at Newton-POLISHED optima.
-  # Without newtonsteps each fit stops on nlminb's objective-RELATIVE tolerance,
-  # so it halts wherever that tolerance happens to bite rather than at a
-  # stationary point -- the GOA fits in particular sat ~1e-3 in gradient, far
-  # above the package's own 1e-4 convergence threshold. That made the reference
-  # sensitive to changes that cannot alter the model at all: adding a constant to
-  # the objective (which leaves every gradient untouched) once moved goa_ss by
-  # 52.9 units. Polishing pins the minimum that is reached; goa_ss has a second
-  # local minimum 52.9 units higher that a one-ULP gradient change can select
-  # (inst/dev/TRAPS.md). getsd = FALSE is numerically inert here.
-  ref <- c(ss     = 10241.0304272585,
-           ms     = 10267.2478324443,
-           goa_ss = 12867.9902664788,
-           goa_ms = 12932.7902167145)
-  tol <- 1e-6
+  ref <- readRDS(testthat::test_path("fixtures", "golden-reference.rds"))
+
+  # Each reference's own configuration, matching the recipe the fixture script
+  # fits: the multispecies pair warm-starts from its single-species MLEs and the
+  # GOA multispecies fit holds M fixed.
+  spec <- list(
+    ss     = list(data = Rceattle::BS2017SS,  msmMode = 0, niter = 3),
+    ms     = list(data = Rceattle::BS2017MS,  msmMode = 1, niter = 5),
+    goa_ss = list(data = Rceattle::GOA2018SS, msmMode = 0, niter = 3),
+    goa_ms = list(data = Rceattle::GOA2018SS, msmMode = 1, niter = 3))
+
+  for (m in names(spec)) {
+    s <- spec[[m]]
+    fit <- Rceattle::fit_mod(
+      data_list = s$data, inits = ref[[m]]$params, file = NULL,
+      estimateMode = 3, niter = s$niter, random_rec = FALSE,
+      msmMode = s$msmMode, suitMode = 0,
+      fit_control = Rceattle::fit_control(getsd = FALSE, verbose = 0))
+
+    par <- fit$obj$par
+    testthat::expect_equal(as.numeric(fit$obj$fn(par)), ref[[m]]$objective,
+                           tolerance = 1e-8, info = m)
+    # And the reference is still a stationary point of it, so the pin cannot
+    # drift to a number that merely reproduces at a non-stationary point.
+    testthat::expect_lt(max(abs(fit$obj$gr(par))), 1e-4)
+  }
+})
+
+# Convergence from a cold start, with NO objective pinned. This is the half that
+# used to make the gate platform-dependent: which of `goa_ss`'s two minima is
+# reached varies with summation order, and both are stationary points, so the
+# gradient holds on either. A failure here means the optimizer or the phasing
+# stopped working, not that the model changed.
+testthat::test_that("a cold start still converges", {
+  testthat::skip_on_cran()
+  testthat::skip_on_covr()
+  testthat::skip_if_not_installed("TMB")
 
   fc <- function(...) Rceattle::fit_control(getsd = FALSE, verbose = 0,
                                             newtonsteps = 3, ...)
@@ -44,27 +89,18 @@ testthat::test_that("the four reference fits reproduce their pinned objectives",
   ss <- Rceattle::fit_mod(data_list = Rceattle::BS2017SS, file = NULL,
     inits = NULL, estimateMode = 0, random_rec = FALSE, msmMode = 0,
     fit_control = fc(phase = TRUE))
-  ms <- Rceattle::fit_mod(data_list = Rceattle::BS2017MS,
-    inits = ss$estimated_params, file = NULL, estimateMode = 0, niter = 5,
-    random_rec = FALSE, msmMode = 1, suitMode = 0, fit_control = fc())
   goa_ss <- Rceattle::fit_mod(data_list = Rceattle::GOA2018SS, file = NULL,
     inits = NULL, estimateMode = 0, random_rec = FALSE, msmMode = 0,
     fit_control = fc(phase = TRUE))
+  ms <- Rceattle::fit_mod(data_list = Rceattle::BS2017MS,
+    inits = ss$estimated_params, file = NULL, estimateMode = 0, niter = 5,
+    random_rec = FALSE, msmMode = 1, suitMode = 0, fit_control = fc())
   goa_ms <- Rceattle::fit_mod(data_list = Rceattle::GOA2018SS,
     inits = goa_ss$estimated_params, file = NULL, estimateMode = 0, niter = 3,
     random_rec = FALSE, msmMode = 1, suitMode = 0, fit_control = fc(phase = TRUE))
 
-  fits <- list(ss = ss, ms = ms, goa_ss = goa_ss, goa_ms = goa_ms)
-  got  <- vapply(fits, function(f) f$opt$objective, numeric(1))
-
-  for (m in names(ref))
-    testthat::expect_equal(got[[m]], ref[[m]], tolerance = tol, info = m)
-
-  # Each constant must pin a CONVERGED optimum, not merely a reproducible number.
-  # Without this the pinned values can drift back to a non-stationary point and
-  # still pass, which is how the reference silently became fragile before.
-  for (m in names(ref))
-    testthat::expect_lt(max(abs(fits[[m]]$obj$gr(fits[[m]]$opt$par))), 1e-4)
+  for (f in list(ss = ss, ms = ms, goa_ss = goa_ss, goa_ms = goa_ms))
+    testthat::expect_lt(max(abs(f$obj$gr(f$opt$par))), 1e-4)
 })
 
 # =============================================================================

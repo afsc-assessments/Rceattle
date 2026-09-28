@@ -5,7 +5,17 @@ session. Maintained by `/handoff`.
 
 ## Now
 
-**`dev` is at 5.45.0 and `main` at 5.33.0.** The next step is one `dev` -> `main` release
+**5.45.0 is released.** Tagged `5.45.0` on `main`'s merge commit `b4506079` and published
+2026-09-28; the `release: published` event fired pkgdown (the 5.21.0 silent failure did not
+recur), `deep-checks` was dispatched, and **checklist section 4 passed**: installed from the tag
+into a temporary library in a clean session, `packageVersion()` reads 5.45.0, `citation()` and
+the `fit_mod` example resolve. `dev` carries 5.45.1, the `golden` robustness fix.
+
+**Read this before trusting `deep-checks` `golden` again:** it is fixed at 5.45.1, so the
+expected signature has changed. A `goa_ss` delta of 52.9 is no longer the thing to look for --
+the gate no longer re-optimizes. See the 5.45.1 NEWS entry.
+
+**Historical, for the release that just shipped: `dev` was at 5.45.0 and `main` at 5.33.0.** The next step is one `dev` -> `main` release
 covering 5.34.0 through 5.45.0, per `inst/RELEASE-CHECKLIST.md`. Read that file's pkgdown note
 before tagging: the `release: published` event has silently failed to fire once already.
 **The tag is the DESCRIPTION version, so read it off `DESCRIPTION` at the moment you tag; it

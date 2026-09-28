@@ -100,7 +100,7 @@ jobs:
               stop("golden regression ran no assertions -- it was skipped, ",
                    "which is the failure mode this job exists to prevent")
             if (sum(df$failed) > 0 || sum(df$error) > 0)
-              stop("golden regression failed: a reference fit moved")'
+              stop("golden regression failed: the likelihood at the reference parameters moved")'
         shell: bash
 
   suite:

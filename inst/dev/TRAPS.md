@@ -738,8 +738,13 @@ minimum with `newtonsteps = 3` in place. HEAD reproduces the reference (12867.99
 52.9 that `golden-check.md` attributes to tolerance-stopping (commit `1a172677`) is the same
 gap; polishing did not remove it. A `goa_ss` delta of 52.9 with the other three models
 bit-identical is this, not a numeric regression. Diagnose it from the gradient at the reference
-`par`, not from the objective. A robustness fix (a warm start from the reference `par`, or a
-second start keeping the lower minimum) is open; see `CLEANUP_BACKLOG.md`.
+`par`, not from the objective. **Fixed at 5.45.1**, not by making the optimizer land in one
+basin but by taking it out of the gate: `test-golden-regression.R` now evaluates the likelihood
+AT the committed reference parameters (`tests/testthat/fixtures/golden-reference.rds`,
+`estimateMode = 3`) and asserts they are still a stationary point, with the cold-start fits kept
+as a separate convergence-only test. The second minimum is still there, and a real change that
+moved the model into it would now show as a gradient failure at the reference rather than as a
+52.9 objective delta.
 
 ## Prior centring shares `bias_adjust_proc` with the recruitment deviations
 

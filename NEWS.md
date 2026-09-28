@@ -12,6 +12,49 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.45.1
+
+## The golden check no longer asks which local minimum the machine found
+
+`test-golden-regression.R` re-fit its four reference models and compared the
+objective. That answered two questions at once: whether the likelihood had
+changed, which is what a golden check is for, and whether a cold phased
+optimization reaches the lower of two minima on this machine, which has a
+platform-dependent answer. `goa_ss` has a second local minimum 52.9 units up, a
+one-ULP change in a single `log_F` gradient element is enough for `nlminb` to
+reach it, and `goa_ms` inherits the basin through its warm start -- so the two
+GOA references moved together on the CI runners while reproducing exactly on
+local macOS. `deep-checks`, the only job that runs this file, was red on `main`
+for weeks over a summation order, which is the gate a release leans on.
+
+The likelihood is now evaluated **at** the reference parameters, which removes
+the optimizer from the gate: the parameters are committed as
+`tests/testthat/fixtures/golden-reference.rds` (28 KB) and
+`fit_mod(estimateMode = 3)` builds the object and evaluates without optimizing.
+A change to the model moves the objective; a change to the optimizer's path
+cannot. The check still asserts the reference is a stationary point, so a pin
+cannot drift to a number that merely reproduces somewhere flat.
+
+Measured at 5.45.0: all four reproduce their pinned objective to 1e-12 absolute,
+1e-16 relative, at gradients between 1.1e-11 and 3.3e-06 against the 1e-4
+threshold. The multispecies pair was the open question, since predation iterates
+inside `fit_mod()`, and the iteration reaches the same state from the reference
+parameters. The gate's tolerance is 1e-8 relative, a hundred times tighter than
+the 1e-6 it replaces; a 0.01 shift in the objective (9.8e-7 relative) fails it,
+verified by mutating the template and reverting.
+
+The cold-start fits are kept as their own test, asserting **convergence only**.
+Both of `goa_ss`'s minima are stationary points, so the gradient holds whichever
+is reached, and a failure there means the optimizer or the phasing stopped
+working rather than that the model changed.
+
+Regenerate the fixture with `tools/verify/regenerate-golden-reference.R`, and
+only when a model change is intended. The script refuses to write a reference
+whose gradient is above 1e-4.
+
+`/golden-check` and the `deep-checks` failure message describe the new meaning.
+No package code changed: this is the test harness, a fixture and documentation.
+
 # Rceattle 5.45.0
 
 ## A parameter past a bound is now its own verdict, at FAIL
