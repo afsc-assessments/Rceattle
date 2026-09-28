@@ -12,6 +12,27 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.45.3
+
+## Bug fixes
+
+* **An aggregated composition figure no longer pools two observation
+  structures into one normalization.** A fleet can carry more than one --
+  sexes combined in the early years of a series and disaggregated later -- and
+  the likelihood scores one density per structure. The aggregate pooled every
+  row for a fleet and comp type into one panel and renormalized across the
+  whole of it, so neither the combined series nor the sex-specific ones summed
+  to 1 and the two were not on comparable axes. `plot_comp()` now keys the
+  panel on the structure as well, but **only for a fleet that mixes them**: a
+  fleet with one structure, which is every bundled data set, keeps its previous
+  panel and title exactly. The effective-sample-size annotation on the same
+  figure already grouped on the key the likelihood scores a density over
+  (fleet, species, sex, year); the aggregate now follows it.
+
+  Reported by an external user running a two-sex model, who was otherwise going
+  to add a mirrored fleet to work around it -- changing the model to fix a
+  figure.
+
 # Rceattle 5.45.2
 
 ## Documentation
