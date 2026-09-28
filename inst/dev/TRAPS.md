@@ -627,6 +627,17 @@ ran zero lines was blamed for the fault. Do not investigate the named file, and 
 `verify-safebounds.R`'s "the CI crash config" case as targeting anything established; that
 config was chosen from one such attribution.
 
+**The same fault also shows up as a broken worker message, not a crash code -- measured
+2026-09-27 on #158.** The parent died in
+`test_check() -> rs__read_message() -> rs__parse_header()` with `Internal callr error, invalid
+message header`, and the Windows log carried **no `Failure (` line and no `FAIL n` count**: no
+test failed, the IPC stream to a parallel worker broke. Treat it as the same dead-worker class as
+the access violation, and check the same two things -- whether any assertion actually failed, and
+whether the same commit passed elsewhere. Here **commit `44864a79` passed Windows in the
+`pull_request` run and failed in the `push` run**, one commit with both outcomes on one platform,
+which is the strongest evidence available that a Windows red is infrastructure. A red with a
+`Failure (` line in it is a different thing and is worth investigating.
+
 **It is not specific to any release line.** `main` at 5.33.0, released and unchanged, crashed
 with the same exit code on 2026-09-21. Rate over the 30 most recent `R-CMD-check` runs: 2
 failures, both that day, while Windows also PASSED on that day on another branch -- so
