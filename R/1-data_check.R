@@ -1382,21 +1382,19 @@ data_check <- function(data_list) {
   }
 
   # Initial equilibrium catch ----
-  # A catch_data row at styr - 1 is read as the catch the stock yielded under the
-  # initial fishing mortality, but ONLY under an initMode that estimates Finit:
-  # the prediction is Baranov at Finit, so a mode holding Finit at 0 would predict
-  # 0 and the lognormal likelihood would take log(0). That year is also ordinary
-  # catch history in real data (GOA2018SS carries 23 rows before styr), so the
-  # rows are named here whenever they ARE read, and nothing is reinterpreted
-  # silently. SS3 pairs the observation and the parameter the same way
-  # (SS_readcontrol_330.tpl).
-  if (has_data(data_list$catch_data) && "Year" %in% colnames(data_list$catch_data)) {
-    .eq <- .rce_equil_catch_rows(data_list$catch_data, data_list$styr,
-                                 data_list$initMode)
+  # A catch_data row at styr - 1 is the catch the stock yielded under the initial
+  # fishing mortality, read only under an initMode that estimates Finit: the
+  # prediction is Baranov at Finit, so a mode holding Finit at 0 predicts 0 and
+  # the lognormal takes log(0). That year also holds ordinary catch history, so
+  # the fleets are named whenever the rows ARE read. SS3 pairs the observation
+  # and the parameter the same way (SS_readcontrol_330.tpl).
+  .eq_rows <- .rce_equil_catch_candidates(data_list)
+  if (!is.null(.eq_rows) && nrow(.eq_rows)) {
+    .eq <- .rce_equil_catch_rows(.eq_rows, data_list$styr, data_list$initMode)
     if (any(.eq)) {
-      .flt <- data_list$catch_data$Fleet_code[.eq]
-      .nm  <- if ("Fleet_name" %in% colnames(data_list$catch_data)) {
-        data_list$catch_data$Fleet_name[.eq]
+      .flt <- .eq_rows$Fleet_code[.eq]
+      .nm  <- if ("Fleet_name" %in% colnames(.eq_rows)) {
+        .eq_rows$Fleet_name[.eq]
       } else .flt
       message("Initial equilibrium catch read from catch_data at Year ",
               data_list$styr - 1L, " for fleet(s) ",
@@ -1411,12 +1409,39 @@ data_check <- function(data_list) {
           paste(unique(.flt[duplicated(.flt)]), collapse = ", "),
           ". A fleet has one initial F and so one equilibrium catch."))
       }
-      .eqc <- suppressWarnings(as.numeric(data_list$catch_data$Catch[.eq]))
+      .eqc <- suppressWarnings(as.numeric(.eq_rows$Catch[.eq]))
       if (any(!is.finite(.eqc) | .eqc <= 0)) {
         errors <- c(errors, paste0(
           "An initial equilibrium catch (Year ", data_list$styr - 1L,
           ") must be positive; it is the observation Finit is fitted to, and a ",
           "zero or blank one leaves Finit with nothing to identify it."))
+      }
+      # The checks catch_data gets. These rows are held in their own element by
+      # then, so the loops over catch_data no longer see them, and the template
+      # indexes flt_type and flt_units by Fleet_code without a range test.
+      .eqsd <- suppressWarnings(as.numeric(.eq_rows$Log_sd[.eq]))
+      if (any(!is.finite(.eqsd) | .eqsd <= 0)) {
+        errors <- c(errors, paste0(
+          "An initial equilibrium catch needs 'Log_sd' > 0; it is fitted with ",
+          "the same lognormal as the hindcast catch."))
+      }
+      if (has_data(data_list$fleet_control)) {
+        .codes <- suppressWarnings(as.numeric(data_list$fleet_control$Fleet_code))
+        .bad <- setdiff(unique(.flt), .codes[!is.na(.codes)])
+        if (length(.bad)) {
+          errors <- c(errors, paste0(
+            "An initial equilibrium catch names Fleet_code(s) not in ",
+            "fleet_control: ", paste(.bad, collapse = ", "), "."))
+        } else if ("Species" %in% colnames(.eq_rows)) {
+          .want <- data_list$fleet_control$Species[match(.flt, .codes)]
+          .off <- which(suppressWarnings(as.integer(.eq_rows$Species[.eq])) !=
+                          suppressWarnings(as.integer(.want)))
+          if (length(.off)) {
+            errors <- c(errors, paste0(
+              "An initial equilibrium catch gives a Species its fleet does not ",
+              "belong to, on fleet(s) ", paste(.flt[.off], collapse = ", "), "."))
+          }
+        }
       }
     }
   }

@@ -100,6 +100,16 @@ write_data <- function(data_list, file = "Rceattle_data.xlsx") {
   names_used <- c(names_used, "fleet_control")
 
 
+  # The initial equilibrium catch is an ordinary catch row at styr - 1 that
+  # clean_data() holds apart. It goes back at the head of the catch sheet, so a
+  # cleaned data_list writes a workbook that reads back whole.
+  if (!is.null(data_list$equil_catch_data) && nrow(data_list$equil_catch_data) &&
+      !is.null(data_list$catch_data)) {
+    data_list$catch_data <- as.data.frame(dplyr::bind_rows(
+      data_list$equil_catch_data, data_list$catch_data))
+    rownames(data_list$catch_data) <- NULL
+  }
+
   # Composition, fleet control, fixed selectivity, n-at-age ---
   matrix_data <- c("index_data", "catch_data", "comp_data",  "caal_data", "emp_sel", "NByageFixed", "age_trans_matrix")
   for (i in 1:length(matrix_data)) {

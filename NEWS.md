@@ -107,6 +107,17 @@ The observation is a `catch_data` row at `styr - 1`. **No new columns**:
 `Fleet_code`, `Year`, `Catch` and `Log_sd` already say everything, and
 `write_data()` / `read_data()` round-trip it unchanged.
 
+`clean_data()` moves the row out of `catch_data` into a new `data_list` element,
+**`equil_catch_data`**, so `catch_data` keeps one row per fitted catch. Every
+predicted-catch quantity is indexed by that frame -- `catch_hat`, `catch_sd`,
+`plot_catch()`, `residuals(source = "catch")`, `sim_mod()` and `run_mse()`'s
+projection fill all pair with it row for row -- so a `catch_data` carrying an
+extra row puts the wrong year's catch in each of them. The element is read back
+by `clean_data()` itself, so cleaning twice is a no-op and a refit through
+`retrospective()`, `jitter()`, `self_test()` or `run_mse()` keeps the
+observation; it is combined by `combine_data()` and written back into the catch
+sheet by `write_data()`.
+
 **That year is shared with ordinary catch history, so the rule is gated rather
 than marked.** `GOA2018SS` carries 23 catch rows before `styr`, two of them on
 1976, and a model has no way to say which a row is. A `styr - 1` row is therefore
@@ -119,10 +130,14 @@ fleet or a non-positive value. A negative sentinel was considered and rejected:
 `run_mse()` reserves negative `Year` for rows it splices back in as the next
 assessment's data, and its window filters are on `abs(Year)`.
 
-`rearrange_data()` splits the rows it reads into `equil_catch_ctl` /
-`equil_catch_obs` before `catch_ctl` is built, because a row at `styr - 1`
-reaching the catch equation would index `F_flt_age(..., -1)` -- an out-of-bounds
-read, not an error.
+`rearrange_data()` turns the rows it reads into `equil_catch_ctl` /
+`equil_catch_obs`, and drops any `styr - 1` row still sitting in `catch_data`
+for a list that reached it uncleaned: such a row in the catch equation would
+index `F_flt_age(..., -1)`, an out-of-bounds read rather than an error.
+`data_check()` reads the rows from either place, so it names the fleets whether
+or not the list has been cleaned, and gives them the checks a catch row gets --
+a `Fleet_code` that is in `fleet_control`, a `Species` that matches it, and a
+positive `Log_sd`.
 
 The prediction is Baranov on the deviation-free equilibrium age structure, using
 the fleet's own selectivity and weight in the first hindcast year:

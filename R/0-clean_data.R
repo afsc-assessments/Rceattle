@@ -157,22 +157,19 @@ clean_data <- function(data_list){
   }
 
   # --- 1. Filter Data by Year ----
+  # The initial equilibrium catch sits at styr - 1, a year the other data do not
+  # use. It is held apart from catch_data so that frame keeps one row per fitted
+  # catch, which is what every predicted-catch quantity is indexed by.
+  .eq <- .rce_equil_catch_candidates(data_list)
+  if(!is.null(.eq)) data_list$equil_catch_data <- .eq
+
   # Data in likelihood (use absolute Year)
-  abs_year_data <- c("index_data", "comp_data", "caal_data")
+  abs_year_data <- c("index_data", "catch_data", "comp_data", "caal_data")
   for(df_name in abs_year_data) {
     if(!is.null(data_list[[df_name]])) {
       data_list[[df_name]] <- data_list[[df_name]] |>
         dplyr::filter(abs(Year) >= data_list$styr & abs(Year) <= data_list$projyr)
     }
-  }
-
-  # catch_data admits one year more than the others: styr - 1 may hold the
-  # initial equilibrium catch. Whether it does depends on initMode, which
-  # rearrange_data() applies -- under a mode that holds Finit at 0 the row is
-  # ordinary history and is dropped there, as it always was.
-  if(!is.null(data_list$catch_data)) {
-    data_list$catch_data <- data_list$catch_data |>
-      dplyr::filter(abs(Year) >= (data_list$styr - 1L) & abs(Year) <= data_list$projyr)
   }
 
   # Fixed data (allow Year == 0)

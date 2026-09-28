@@ -1,24 +1,36 @@
-#' Metadata columns of `age_error`; every other column is an observed-age probability
-#'
-#' Read by both `data_check()` and `rearrange_data()`. Each previously took
-#' "the columns after the first two", which silently mis-read the table as soon
-#' as a metadata column was added -- Ageing_error_index was summed as if it were
-#' a probability, and every row then failed the sums-to-1 check.
-#' @keywords internal
-#' @noRd
-# An initial equilibrium catch is a catch_data row at Year == styr - 1: the catch
-# the stock yielded under the initial fishing mortality before the hindcast began.
-# It shares that year with ordinary catch history -- GOA2018SS carries 23 rows
-# back to 1961 -- so it is only READ as an equilibrium catch under an initMode
-# that estimates Finit, and data_check() names the rows when it is. A negative
-# sentinel cannot be used: run_mse() reserves negative Year for data it splices in
-# as the next assessment's.
+# The initial equilibrium catch is a catch_data row at Year == styr - 1: the catch
+# the stock yielded under the initial fishing mortality. Only a mode that estimates
+# Finit reads one; under any other the row is catch history and is dropped. The
+# year is the marker because a negative Year cannot be: run_mse() reserves those
+# for rows it splices in as the next assessment's data.
 .RCE_FINIT_INITMODES <- c("FishedNonEquilibrium", "FishedNonEquilibriumScaled",
                           "FishedNonEquilibriumSelected")
 
-# TRUE where a catch_data row is the initial equilibrium catch. `initMode` may be
-# a code or a name; absent, switch_check() announces NonEquilibrium, which holds
-# Finit at 0 and therefore reads no equilibrium catch.
+# The styr - 1 rows, taken from both places they can sit: clean_data() moves them
+# out of catch_data into equil_catch_data, so a cleaned list holds them there and
+# a raw one still has them in catch_data. The union, one row per fleet, keeps
+# clean_data() idempotent and stops an already-split element hiding a row the
+# user has since added to catch_data.
+.rce_equil_catch_candidates <- function(data_list) {
+  pick <- function(d) {
+    if (is.null(d) || !nrow(d) || is.null(data_list$styr) ||
+        !"Year" %in% names(d)) return(NULL)
+    d[!is.na(d$Year) & d$Year == (data_list$styr - 1L), , drop = FALSE]
+  }
+  held <- pick(data_list$equil_catch_data)
+  fresh <- pick(data_list$catch_data)
+  if (is.null(held)) return(fresh)
+  if (!is.null(fresh) && nrow(fresh)) {
+    fresh <- fresh[!(fresh$Fleet_code %in% held$Fleet_code), , drop = FALSE]
+    if (nrow(fresh)) held <- dplyr::bind_rows(held, fresh)
+  }
+  rownames(held) <- NULL
+  held
+}
+
+# TRUE where a row is read as the initial equilibrium catch. `initMode` may be a
+# code or a name; absent, switch_check() announces NonEquilibrium, which holds
+# Finit at 0.
 .rce_equil_catch_rows <- function(catch_data, styr, initMode) {
   if (is.null(catch_data) || !nrow(catch_data) || is.null(styr)) return(logical(0))
   im <- if (is.null(initMode) || !length(initMode) || all(is.na(initMode))) {
@@ -28,6 +40,14 @@
   !is.na(catch_data$Year) & catch_data$Year == (styr - 1L)
 }
 
+#' Metadata columns of `age_error`; every other column is an observed-age probability
+#'
+#' Read by both `data_check()` and `rearrange_data()`. Each previously took
+#' "the columns after the first two", which silently mis-read the table as soon
+#' as a metadata column was added -- Ageing_error_index was summed as if it were
+#' a probability, and every row then failed the sums-to-1 check.
+#' @keywords internal
+#' @noRd
 .RCE_AGE_ERROR_META <- c("Species", "True_age", "Ageing_error_index",
                          "Ageing_error_name")
 

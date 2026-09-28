@@ -77,15 +77,7 @@ rename_output <- function(data_list = NULL, quantities = NULL){
   }
 
   # * Fleets ----
-  # catch_sd has one entry per fitted catch row. `data_list` here is the
-  # pre-rearrange_data() list, which still holds the initial equilibrium catch
-  # at styr - 1; that row is predicted from the equilibrium age structure and
-  # has no catch_sd slot, so drop it before naming.
-  .cd <- data_list$catch_data
-  if (!is.null(.cd) && !is.null(data_list$styr)) {
-    .cd <- .cd[!(!is.na(.cd$Year) & .cd$Year == (data_list$styr - 1L)), , drop = FALSE]
-  }
-  names(quantities$catch_sd) <- .cd$Fleet_name
+  names(quantities$catch_sd) <- data_list$catch_data$Fleet_name
   names(quantities$index_sd) <- data_list$index_data$Fleet_name
 
   # Deprecated spellings, kept one release so existing scripts and saved

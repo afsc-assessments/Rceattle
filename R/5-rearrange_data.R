@@ -429,36 +429,35 @@ rearrange_data <- function(data_list, build_osa = FALSE){
 
 
   # 3 -  Catch data ----
-  # - An initial equilibrium catch is written as a catch_data row at styr - 1:
-  #   the catch the stock yielded under the initial F, before the hindcast. It
-  #   is split out here because it is predicted from the equilibrium age
-  #   structure rather than from a hindcast year, and because leaving it in
-  #   catch_ctl would index year -1 in section 9.1 (an out-of-bounds read, not
-  #   an error). The remaining rows are the hindcast and projection as before.
-  # Only a mode that estimates Finit reads a styr - 1 row as an equilibrium
-  # catch; under any other the row is ordinary catch history and is dropped
-  # below, exactly as it was before this existed.
-  .equil <- .rce_equil_catch_rows(data_list$catch_data, data_list$styr,
-                                  data_list$initMode)
-  .hist  <- !is.na(data_list$catch_data$Year) &
-    data_list$catch_data$Year == (data_list$styr - 1L) & !.equil
-  data_list$equil_catch_ctl <- data_list$catch_data[.equil, , drop = FALSE] %>%
-    dplyr::select(Fleet_code, Species) %>%
-    dplyr::mutate_all(as.integer) %>%
-    as.matrix()
-  data_list$equil_catch_obs <- data_list$catch_data[.equil, , drop = FALSE] %>%
-    dplyr::select(Catch, Log_sd) %>%
-    dplyr::mutate_all(as.numeric) %>%
-    as.matrix()
-  # TMB needs a matrix with the right column count even when there are no rows.
-  if (!nrow(data_list$equil_catch_ctl)) {
+  # - The initial equilibrium catch is predicted from the equilibrium age
+  #   structure rather than from a hindcast year, so it gets its own inputs.
+  #   Only a mode that estimates Finit reads it; under any other the rows are
+  #   catch history and are dropped.
+  .equil_rows <- .rce_equil_catch_candidates(data_list)
+  if (!is.null(.equil_rows) && nrow(.equil_rows)) {
+    .equil_rows <- .equil_rows[.rce_equil_catch_rows(
+      .equil_rows, data_list$styr, data_list$initMode), , drop = FALSE]
+  }
+  if (is.null(.equil_rows) || !nrow(.equil_rows)) {
+    # TMB needs a matrix with the right column count even when there are no rows.
     data_list$equil_catch_ctl <- matrix(0L, 0, 2)
     data_list$equil_catch_obs <- matrix(0,  0, 2)
+  } else {
+    data_list$equil_catch_ctl <- .equil_rows %>%
+      dplyr::select(Fleet_code, Species) %>%
+      dplyr::mutate_all(as.integer) %>%
+      as.matrix()
+    data_list$equil_catch_obs <- .equil_rows %>%
+      dplyr::select(Catch, Log_sd) %>%
+      dplyr::mutate_all(as.numeric) %>%
+      as.matrix()
   }
-  data_list$catch_data <- data_list$catch_data[!(.equil | .hist), , drop = FALSE]
-  # Drop the row names the subset carries over. They are an artifact of
-  # splitting the equilibrium rows out, and catch_obs is built from this frame:
-  # named rows there would travel into obsvec's OSA bookkeeping.
+  # clean_data() has already taken the styr - 1 rows out of catch_data; this
+  # catches a data_list that reached here without it. catch_obs is built from
+  # this frame, and named rows there would travel into obsvec's OSA bookkeeping.
+  data_list$catch_data <- data_list$catch_data[
+    is.na(data_list$catch_data$Year) |
+      data_list$catch_data$Year != (data_list$styr - 1L), , drop = FALSE]
   rownames(data_list$catch_data) <- NULL
 
   # - Seperate catch metadata from observation
@@ -862,7 +861,7 @@ rearrange_data <- function(data_list, build_osa = FALSE){
   # spec objects), not TMB data; strip it here alongside the other list-of-spec
   # objects so it does not ride into obj$env$data (inert to the objective, but it
   # bloats the fit and relies on TMB's sanitizer tolerating an arbitrary list).
-  items_to_remove <- c("emp_sel",  "fsh_comp",    "srv_comp",    "catch_data",    "index_data", "comp_data", "caal_data", "env_data", "spnames",
+  items_to_remove <- c("emp_sel",  "fsh_comp",    "srv_comp",    "catch_data", "equil_catch_data", "index_data", "comp_data", "caal_data", "env_data", "spnames",
                        "aLW", "diet_data", "index_cov", "model_config", # "NByageFixed", "estDynamics", "Ceq",
                        "avgnMode", "minNByage", "weight", "fleet_control")
   data_list[items_to_remove] <- NULL

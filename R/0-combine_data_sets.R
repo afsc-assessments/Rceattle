@@ -37,7 +37,9 @@ combine_data <- function(data_list1 = NULL, data_list2 = NULL){
 
   vec_names <- c("spnames", "nsex", "spawn_month", "nages", "minage", "nlengths","pop_wt_index", "ssb_wt_index", "M1_model", "M1_re", "pop_alk_index", "sigma_rec", "other_food", "estDynamics", "Ceq", "Cindex","Pvalue", "fday", "CA","CB", "Qc", "Tco",  "Tcm",  "Tcl",  "CK1", "CK4", "beta_wt_len", "alpha_wt_len", "Diet_distribution", "Diet_comp_weights") # Object names of per-species vectors
 
-  mat_names <- c("fleet_control", "index_data", "catch_data", "comp_data", "caal_data", "emp_sel", "NByageFixed", "age_trans_matrix", "age_error", "weight",   "maturity", "sex_ratio", "M1_base", "ration_data", "diet_data") # Object names of matrices
+  # equil_catch_data is here so a cleaned data set keeps its initial equilibrium
+  # catch, and gets the same Fleet_code and Species reindexing as catch_data.
+  mat_names <- c("fleet_control", "index_data", "catch_data", "equil_catch_data", "comp_data", "caal_data", "emp_sel", "NByageFixed", "age_trans_matrix", "age_error", "weight",   "maturity", "sex_ratio", "M1_base", "ration_data", "diet_data") # Object names of matrices
 
   # Get index from data_set1 of the 4 indices
   fleet_index1 <- max(data_list1$fleet_control$Fleet_code, na.rm = TRUE)
@@ -96,8 +98,10 @@ combine_data <- function(data_list1 = NULL, data_list2 = NULL){
     }
   }
 
-  # Combine matrices
+  # Combine matrices. An optional one -- equil_catch_data, which only a cleaned
+  # data set carries -- may be absent from both, and stays absent.
   for(i in mat_names){
+    if(is.null(data_list1[[i]]) && is.null(data_list2[[i]])) next
     data_list_new[[i]] <- plyr::rbind.fill(data_list1[[i]], data_list2[[i]])
   }
 
