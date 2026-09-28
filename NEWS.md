@@ -73,6 +73,15 @@ whose gradient is above 1e-4.
 `/golden-check` and the `deep-checks` failure message describe the new meaning.
 No package code changed: this is the test harness, a fixture and documentation.
 
+## The README's install pin is checked against DESCRIPTION
+
+`README.md`'s pinning example names a version, and it went stale four times in
+the 5.34.0-5.45.0 release -- at 5.41.0, 5.42.1, 5.43.0 and 5.45.0 -- each time
+because a version landed on `dev` after the release paperwork was written. Three
+were caught in review and one shipped to `main`, where it told an assessor to
+install a tag that does not exist. `test-docs-anchors.R` now fails when the pin
+and `DESCRIPTION` disagree.
+
 # Rceattle 5.45.0
 
 ## A parameter past a bound is now its own verdict, at FAIL

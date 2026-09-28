@@ -212,3 +212,24 @@ test_that("the two test lines whose failures the recipe pastes still carry those
   testthat::expect_match(canonical[cited("test-schema-canonical.R")],
                          "missing_from_docs", fixed = TRUE)
 })
+
+
+# The README's pinning example is the one install command an assessor is told to
+# use for management advice, and it names a version. It has gone stale four times
+# in the 5.34.0-5.45.0 release alone -- 5.41.0, 5.42.1, 5.43.0 and 5.45.0 -- each
+# time because a version landed on dev after the paperwork was written, and each
+# time it shipped pointing at a tag that does not exist. A reviewer caught three
+# of those; this catches the rest.
+test_that("the README pins the version in DESCRIPTION", {
+  root <- .docs_root()
+  readme <- paste(readLines(file.path(root, "README.md"), warn = FALSE),
+                  collapse = "\n")
+  ver <- as.character(read.dcf(file.path(root, "DESCRIPTION"), "Version")[1, 1])
+
+  pins <- regmatches(readme,
+                     gregexpr("Rceattle@[0-9]+\\.[0-9]+\\.[0-9]+", readme))[[1]]
+  # If the example stops naming a version there is nothing to keep in step, but
+  # silently passing would retire the check without anyone deciding to.
+  expect_gt(length(pins), 0)
+  expect_equal(unique(sub("^Rceattle@", "", pins)), ver)
+})
