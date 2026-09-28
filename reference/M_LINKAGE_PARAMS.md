@@ -1,7 +1,7 @@
-# Allowed M-parameter names for `linkages` in [`build_M1()`](https://grantdadams.github.io/Rceattle/reference/build_M1.md)
+# Allowed M-parameter names for `linkages` in [`build_M1()`](https://afsc-assessments.github.io/Rceattle/reference/build_M1.md)
 
 Natural-scale names of the underlying natural-mortality parameters that
-the linkage system can address. Currently just `M1` – with the default
+the linkage system can address. Currently just `M1`, with the default
 log link the offset is added to M1 on the log scale (applied across all
 ages unless the linkage row pins a specific `age_bin`).
 

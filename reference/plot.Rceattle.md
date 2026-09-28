@@ -16,13 +16,13 @@ plot(x, what = "biomass", ...)
 - x:
 
   An object of class `"Rceattle"` returned by
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md).
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md).
 
 - what:
 
   Character. One of `"biomass"` (default), `"ssb"`, `"recruitment"`,
   `"depletion"` (total biomass / B0), `"ssb_depletion"` (female spawning
-  biomass / SB0 – the quantity a Tier 3 HCR compares against B40%),
+  biomass / SB0, the quantity a Tier 3 HCR compares against B40%),
   `"index"`, `"catch"`, `"selectivity"`, `"mortality"`, or `"data"`.
 
 - ...:

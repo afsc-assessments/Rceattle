@@ -107,7 +107,7 @@ ms_run_proj2 <- fit_mod(
   data_list    = BS2017MS,
   inits        = ms_run$estimated_params,
   file         = NULL,
-  estimateMode = 3,   # Evaluate only — do not re-estimate
+  estimateMode = 3,   # Evaluate only, do not re-estimate
   niter        = 5,
   random_rec   = FALSE,
   msmMode      = 1,
@@ -118,7 +118,7 @@ ms_run_proj2 <- fit_mod(
 
 ### Stochastic recruitment via `sample_rec()`
 
-[`sample_rec()`](https://grantdadams.github.io/Rceattle/reference/sample_rec.md)
+[`sample_rec()`](https://afsc-assessments.github.io/Rceattle/reference/sample_rec.md)
 bootstraps historical recruitment deviations into the projection period.
 The optional `rec_trend` argument adds a linear trend:
 `rec_trend = -0.5` imposes a 50% decline in mean recruitment by the end
@@ -155,8 +155,8 @@ plot_catch(Rceattle = mod_list, model_names = mod_names, incl_proj = TRUE)
 
 Setting `random_rec = TRUE` treats log-recruitment deviations as random
 effects, marginalized via the Laplace approximation, rather than as
-penalized fixed effects. This carries recruitment process uncertainty
-through into the projections.
+penalized fixed effects. This propagates recruitment process uncertainty
+into the projections.
 
 ``` r
 
@@ -182,16 +182,16 @@ plot_recruitment(
 ## Available harvest control rules
 
 The `HCR` argument to
-[`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+[`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
 accepts the output of
-[`build_hcr()`](https://grantdadams.github.io/Rceattle/reference/build_hcr.md).
+[`build_hcr()`](https://afsc-assessments.github.io/Rceattle/reference/build_hcr.md).
 See
-[`?build_hcr`](https://grantdadams.github.io/Rceattle/reference/build_hcr.md)
+[`?build_hcr`](https://afsc-assessments.github.io/Rceattle/reference/build_hcr.md)
 for full parameter details.
 
 | Value | String | Description | Multi-species? |
 |----|----|----|----|
-| 0 | `"NoFishing"` | No fishing — estimate hindcast only | Yes |
+| 0 | `"NoFishing"` | No fishing, estimate hindcast only | Yes |
 | 1 | `"CMSY"` | CMSY: maximize catch across all species (can constrain depletion ≥ `Plimit`) | Yes |
 | 2 | `"ConstantF"` | Constant F set at `Ftarget` for each species | Yes |
 | 3 | `"ConstantFSSB"` | F that achieves `Ftarget`% of SSB₀ at the end of the projection | Yes |
@@ -222,4 +222,4 @@ ss_run_tier3 <- fit_mod(
 
 For closed-loop testing of control rules across many simulated
 trajectories, see
-[`vignette("hcrs-and-mses")`](https://grantdadams.github.io/Rceattle/articles/hcrs-and-mses.md).
+[`vignette("hcrs-and-mses")`](https://afsc-assessments.github.io/Rceattle/articles/hcrs-and-mses.md).

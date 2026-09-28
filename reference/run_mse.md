@@ -83,7 +83,7 @@ run_mse(
   projection. Resampled deviations are used rather than drawing from
   N(0, sigmaR) because the initial deviations bias R0 low. If FALSE,
   uses the single deviation described in
-  [`sample_rec()`](https://grantdadams.github.io/Rceattle/reference/sample_rec.md).
+  [`sample_rec()`](https://afsc-assessments.github.io/Rceattle/reference/sample_rec.md).
 
 - rec_trend:
 
@@ -161,7 +161,7 @@ terminal year).
 ## Assessment schedule
 
 A single `assessment_period` is a fixed cycle. A vector is the schedule
-itself, for a design whose years are not evenly spaced – one assessment
+itself, for a design whose years are not evenly spaced, one assessment
 missed inside an otherwise biennial cycle, for instance:
 
     biennial <- seq(om$data_list$endyr + 2, om$data_list$projyr, by = 2)
@@ -186,7 +186,7 @@ every assessment after it.
 
 Common random numbers are not complete, and the gap is worth knowing
 before designing a comparison. One
-[`sim_mod()`](https://grantdadams.github.io/Rceattle/reference/sim_mod.md)
+[`sim_mod()`](https://afsc-assessments.github.io/Rceattle/reference/sim_mod.md)
 call draws every year in the assessment interval, under that
 assessment's seed — so a year sitting *inside* a longer interval is
 drawn under a different seed than the same year in a schedule that
@@ -203,7 +203,7 @@ That is a real difference in the runs, not an artefact.
 Make the last assessment year reach the projection horizon. Catch is
 only ever filled up to the last assessment, so a schedule that stops
 short leaves the trailing years at `NA`, and
-[`mse_summary()`](https://grantdadams.github.io/Rceattle/reference/mse_summary.md)
+[`mse_summary()`](https://afsc-assessments.github.io/Rceattle/reference/mse_summary.md)
 summarises over the whole projection — understating Average Catch, Catch
 IAV and P(Closed) with nothing in the table to say which years it
 covered. A biennial cycle over an odd number of projection years lands
@@ -234,7 +234,7 @@ operating model's terminal year to the last assessment, which is where
 catch is filled, not the whole projection.
 
 Note that this reduces catch, not ABC. Where realized catch sits well
-below ABC – GOA arrowtooth flounder, for one – reducing ABC changes
+below ABC, GOA arrowtooth flounder, for one, reducing ABC changes
 removals only to the extent the fishery attains it, while reducing catch
 changes them in full. Either scale the multiplier by recent attainment,
 `1 - (1 - mult) * attainment`, or report the unscaled result as an upper
@@ -246,8 +246,8 @@ Catch recorded past a model's terminal year is blanked to `NA` at setup,
 with a warning naming the years. Those years are the projection, and the
 MSE sets their catch from the control rule; the likelihood never scored
 them either, since it fits only `Year <= endyr`. This is what a workbook
-looks like when `endyr` has fallen behind the catch series – catch
-through 2023 with `endyr` still 2019 – and it is worth resolving before
+looks like when `endyr` has fallen behind the catch series, catch
+through 2023 with `endyr` still 2019, and it is worth resolving before
 running the MSE, because conditioning the assessment on those years is a
 different question from projecting over them.
 

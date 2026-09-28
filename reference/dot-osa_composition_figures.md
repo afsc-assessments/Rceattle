@@ -39,12 +39,12 @@ length)
   Per-species bin counts (the `rceattle_osa` `"nages"` / `"nlengths"`
   attributes), used to split joint-sex (Sex == 3) bins onto a single
   age/length axis, matching
-  [`plot_comp()`](https://grantdadams.github.io/Rceattle/reference/plot_comp.md).
+  [`plot_comp()`](https://afsc-assessments.github.io/Rceattle/reference/plot_comp.md).
 
 - add_sdnr_ci, add_qq_quantiles:
 
   Passed to
-  [`.osa_qqplot()`](https://grantdadams.github.io/Rceattle/reference/dot-osa_qqplot.md).
+  [`.osa_qqplot()`](https://afsc-assessments.github.io/Rceattle/reference/dot-osa_qqplot.md).
 
 ## Value
 

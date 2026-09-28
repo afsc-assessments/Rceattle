@@ -2,14 +2,14 @@
 
 One-sample process residuals for the model's random-effect (or
 penalized) process deviations, in the style of SAM's `procres()`
-(Nielsen and Berg 2014). They validate the *process* model – whether the
-deviations behave like their assumed iid normal process – a complement
-to the observation-based
-[`osa_residuals()`](https://grantdadams.github.io/Rceattle/reference/osa_residuals.md).
+(Nielsen and Berg 2014). They validate the *process* model, whether the
+deviations behave like their assumed iid normal process, a complement to
+the observation-based
+[`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md).
 
-Each set of deviations carries a Gaussian process prior in the model.
-The posterior *mode* of the deviations is shrunk toward that prior, so –
-following SAM – a single draw is taken from the joint posterior of the
+Each set of deviations holds a Gaussian process prior in the model. The
+posterior *mode* of the deviations is shrunk toward that prior, so,
+following SAM, a single draw is taken from the joint posterior of the
 deviations (from the joint precision when they are random effects, or
 the fixed-effect covariance when they are penalized fixed effects) and
 standardized by the process standard deviation. Under a correctly
@@ -57,9 +57,9 @@ process_residuals(
 
 - object:
 
-  A fitted `Rceattle` model. The targeted deviations must be estimated –
+  A fitted `Rceattle` model. The targeted deviations must be estimated,
   as random effects (e.g. `random_rec = TRUE`) or as penalized fixed
-  effects – with a usable covariance.
+  effects, with a usable covariance.
 
 - process:
 
@@ -77,9 +77,9 @@ process_residuals(
 ## Value
 
 A data frame of class `rceattle_osa` (so it can be passed to
-[`osa_diagnostics()`](https://grantdadams.github.io/Rceattle/reference/osa_diagnostics.md)
+[`osa_diagnostics()`](https://afsc-assessments.github.io/Rceattle/reference/osa_diagnostics.md)
 and
-[`plot.rceattle_osa()`](https://grantdadams.github.io/Rceattle/reference/plot.rceattle_osa.md))
+[`plot.rceattle_osa()`](https://afsc-assessments.github.io/Rceattle/reference/plot.rceattle_osa.md))
 with one row per deviation: columns `source` (the process), `fleet`,
 `species`, `year`, `age_length_bin`, and `residual`.
 
@@ -90,5 +90,5 @@ in stock assessments using state-space models. Fish. Res. 158:96-101.
 
 ## See also
 
-[`osa_residuals()`](https://grantdadams.github.io/Rceattle/reference/osa_residuals.md),
-[`osa_diagnostics()`](https://grantdadams.github.io/Rceattle/reference/osa_diagnostics.md)
+[`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md),
+[`osa_diagnostics()`](https://afsc-assessments.github.io/Rceattle/reference/osa_diagnostics.md)

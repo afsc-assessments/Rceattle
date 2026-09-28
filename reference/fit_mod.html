@@ -9,7 +9,7 @@ optionally project the stock and apply a harvest control rule."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.33.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -38,12 +38,14 @@ optionally project the stock and apply a harvest control rule."></head><body>
     <li><a class="dropdown-item" href="../articles/stock-synthesis-conversion.html">Converting from Stock Synthesis</a></li>
     <li><h6 class="dropdown-header" data-toc-skip>--- Contributing ---</h6></li>
     <li><a class="dropdown-item" href="../articles/developer-guide.html">Developer guide</a></li>
+    <li><a class="dropdown-item" href="../articles/adding-a-selectivity-form.html">Adding a selectivity form</a></li>
+    <li><a class="dropdown-item" href="../cpp/index.html">C++ template reference</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
-<li class="nav-item"><a class="external-link nav-link" href="https://github.com/grantdadams/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/afsc-assessments/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
       </ul></div>
 
 
@@ -53,7 +55,7 @@ optionally project the stock and apply a harvest control rule."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Fit the CEATTLE assessment model</h1>
-      <small class="dont-index">Source: <a href="https://github.com/grantdadams/Rceattle/blob/main/R/6-fit_mod.R" class="external-link"><code>R/6-fit_mod.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/R/6-fit_mod.R" class="external-link"><code>R/6-fit_mod.R</code></a></small>
       <div class="d-none name"><code>fit_mod.Rd</code></div>
     </div>
 
@@ -129,7 +131,7 @@ from scratch via <code><a href="build_params.html">build_params</a></code>.</p><
 (<code>HCR</code>); <code>"Hindcast"</code> (1) = fit the hindcast only (no fitting BRPs/HCR/projection);
 <code>"Projection"</code> (2) = fit the BRPs/HCR/projection only, from the initial
 parameters in <code>inits</code>; <code>"DebugBuild"</code> (3) = build through
-<code>MakeADFun</code> but not <code>nlminb</code> – the returned <code>obj</code> carries the
+<code>MakeADFun</code> but not <code>nlminb</code>, the returned <code>obj</code> holds the
 real objective and gradient, so <code>obj$fn()</code> / <code>obj$gr()</code> are usable
 for diagnosing a model before committing to a fit; <code>"DebugOptimize"</code>
 (4) = optimize with all parameters mapped out, so the objective is a
@@ -141,11 +143,11 @@ placeholder (<code>dummy^2</code>), not a likelihood. Defaults to <code>"Estimat
 
 
 <dt id="arg-random-q">random_q<a class="anchor" aria-label="anchor" href="#arg-random-q"></a></dt>
-<dd><p>logical. If TRUE, treats annual catchability deviations as random effects using the Laplace approximation, and estimates their standard deviation rather than fixing it at <code>Time_varying_q_sd</code>. The default is FALSE.</p></dd>
+<dd><p>logical (default FALSE); if TRUE the <code>Time_varying_q</code> deviations are integrated as random effects with one estimated sd per <code>Catchability_index</code> group, not fixed at <code>Time_varying_q_sd</code> (linkage random effects are integrated either way).</p></dd>
 
 
 <dt id="arg-random-sel">random_sel<a class="anchor" aria-label="anchor" href="#arg-random-sel"></a></dt>
-<dd><p>logical. If TRUE, treats annual selectivity deviations as random effects using the Laplace approximation, and estimates their standard deviation rather than fixing it at <code>Time_varying_sel_sd</code>. The default is FALSE.</p></dd>
+<dd><p>logical (default FALSE); if TRUE the <code>Time_varying_sel</code> deviations are integrated as random effects with one estimated sd per <code>Selectivity_index</code> group, not fixed at <code>Time_varying_sel_sd</code> (linkage random effects are integrated either way).</p></dd>
 
 
 <dt id="arg-hcr">HCR<a class="anchor" aria-label="anchor" href="#arg-hcr"></a></dt>
@@ -170,15 +172,15 @@ placeholder (<code>dummy^2</code>), not a likelihood. Defaults to <code>"Estimat
 
 <dt id="arg-qfun">qFun<a class="anchor" aria-label="anchor" href="#arg-qfun"></a></dt>
 <dd><p>Catchability specification from <code><a href="build_catchability.html">build_catchability</a></code>,
-carrying any environmental linkages on q.</p></dd>
+holding any environmental linkages on q.</p></dd>
 
 
 <dt id="arg-selfun">selFun<a class="anchor" aria-label="anchor" href="#arg-selfun"></a></dt>
-<dd><p>Selectivity specification from <code><a href="build_selectivity.html">build_selectivity</a></code>, carrying any environmental linkages on selectivity parameters.</p></dd>
+<dd><p>Selectivity specification from <code><a href="build_selectivity.html">build_selectivity</a></code>, holding any environmental linkages on selectivity parameters.</p></dd>
 
 
 <dt id="arg-compfun">compFun<a class="anchor" aria-label="anchor" href="#arg-compfun"></a></dt>
-<dd><p>Composition-weighting specification from <code><a href="build_composition.html">build_composition</a></code>, carrying any priors on the Dirichlet-multinomial weights.</p></dd>
+<dd><p>Composition-weighting specification from <code><a href="build_composition.html">build_composition</a></code>, holding any priors on the Dirichlet-multinomial weights.</p></dd>
 
 
 <dt id="arg-msmmode">msmMode<a class="anchor" aria-label="anchor" href="#arg-msmmode"></a></dt>
@@ -224,22 +226,20 @@ defaults of each field.</p></dd>
 
 
 <dt id="arg-config">config<a class="anchor" aria-label="anchor" href="#arg-config"></a></dt>
-<dd><p>(Optional) An <code>Rceattle_run_config</code> from <code><a href="load_config.html">load_config()</a></code> (or
-<code><a href="run_config.html">run_config()</a></code>). Its stored <code>model_config</code> structure and estimation controls
-(<code>estimateMode</code>, <code>random_rec</code>/<code>random_q</code>/<code>random_sel</code>, <code>suit_styr</code>/
-<code>suit_endyr</code>, <code>fit_control</code>) overlay only the arguments the caller did <em>not</em>
-pass – an explicit argument always wins. <code>NULL</code> (default) applies no
-configuration. Example: <code>fit_mod(data_list, config = load_config("run.yaml"))</code>.</p></dd>
+<dd><p>(Optional) An <code>Rceattle_run_config</code> from <code><a href="load_config.html">load_config()</a></code> or
+<code><a href="run_config.html">run_config()</a></code> whose stored settings overlay the ones you did not pass;
+<code>NULL</code> (default) applies no configuration. See Details for what it overlays.</p></dd>
 
 
 <dt id="arg-quiet-data-check">quiet_data_check<a class="anchor" aria-label="anchor" href="#arg-quiet-data-check"></a></dt>
 <dd><p>Drop the warnings the fit-time validation raises (errors still
 stop the fit). <code>FALSE</code> (default) for an ordinary fit. The diagnostic refits
-– <code><a href="retrospective.html">retrospective()</a></code>, <code><a href="jitter.html">jitter()</a></code>, <code><a href="self_test.html">self_test()</a></code>, <code><a href="https://rdrr.io/r/stats/profile.html" class="external-link">profile()</a></code>, <code><a href="run_mse.html">run_mse()</a></code>,
-<code><a href="remove_F.html">remove_F()</a></code>, <code><a href="sample_rec.html">sample_rec()</a></code>, <code><a href="reweight_comps.html">reweight_comps()</a></code> – set it, since they
+, <code><a href="retrospective.html">retrospective()</a></code>, <code><a href="jitter.html">jitter()</a></code>, <code><a href="self_test.html">self_test()</a></code>, <code><a href="https://rdrr.io/r/stats/profile.html" class="external-link">profile()</a></code>, <code><a href="run_mse.html">run_mse()</a></code>,
+<code><a href="remove_F.html">remove_F()</a></code>, <code><a href="sample_rec.html">sample_rec()</a></code>, <code><a href="reweight_comps.html">reweight_comps()</a></code>, set it, since they
 re-validate a <code>data_list</code> the caller has already fitted once and would
 otherwise repeat the same warnings per peel, jitter, or MSE iteration.
-Convergence and TMB warnings are unaffected.</p></dd>
+Also drops a linkage filter's "has no effect" warning; a filter that
+drops its whole spec still warns. Convergence and TMB warnings are unaffected.</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
@@ -270,11 +270,23 @@ Convergence and TMB warnings are unaffected.</p></dd>
     <p>CEATTLE is an age-structured population dynamics model that can be fit with or without predation mortality. The default is to exclude predation mortality by setting <code>msmMode</code> to 0. Predation mortality can be included by setting <code>msmMode</code> with the following options:</p><ul><li><p>0. Single species mode</p></li>
 <li><p>1. Holsman et al. 2015 predation based on multi-species virtual population analysis (MSVPA) based predation formation.</p></li>
 <li><p>2. MSVPA Holling Type III</p></li>
-</ul><p>Values 3 through 9 (Kinzey &amp; Punt 2009 functional responses –
+</ul><p>Values 3 through 9 (Kinzey &amp; Punt 2009 functional responses,
 Holling Type I/II/III, predator interference, predator preemption,
 Hassell-Varley, Ecosim) are blocked at runtime by <code><a href="data_check.html">data_check()</a></code>
 because the implementations have not been validated against the
 current parameter set. See <code>src/TMB/predation.hpp</code>.</p>
+<p><strong>What <code>config</code> overlays.</strong> Two overlays happen, at different levels. The
+estimation controls (<code>estimateMode</code>, <code>random_rec</code> / <code>random_q</code> /
+<code>random_sel</code>, <code>suit_styr</code> / <code>suit_endyr</code>, <code>fit_control</code>) overlay only the
+arguments you did not pass, so an explicit argument always wins. The stored
+<code>model_config</code> is merged into the data object's <strong>field by field</strong>, not
+wholesale: only the fields the config actually set are imposed, and the data
+object keeps the rest. Since 5.36.0 a config built with <code><a href="model_config.html">model_config()</a></code>
+therefore no longer drops the linkages held on the data object, which it
+did when the whole structure was replaced. Where a field is set on both and
+the two disagree, the config's value is used and the difference is reported
+as a warning naming the field. A config written before that field record
+existed is treated as having set its non-default fields.</p>
     </div>
     <div class="section level2">
     <h2 id="initial-age-structure">Initial age structure<a class="anchor" aria-label="anchor" href="#initial-age-structure"></a></h2>
@@ -286,7 +298,7 @@ parameter per age.</p></dd>
 
 <dt><code>"Equilibrium"</code> (1)</dt>
 <dd><p>Unfished (\(F_{init} = 0\)) equilibrium age-structure,
-carried out from \(R_0\) and residual natural mortality \(M1\).</p></dd>
+projected from \(R_0\) and residual natural mortality \(M1\).</p></dd>
 
 <dt><code>"NonEquilibrium"</code> (2)</dt>
 <dd><p>As (1), plus estimated initial population deviates, so
@@ -308,7 +320,7 @@ applied. This is the Cole Monnahan / AFSC GOA pollock convention.</p></dd>
 
 
 </dl><p>Modes 1 and 5 differ by exactly one term: both start from the initial equilibrium
-recruitment \(R_{init}\), but (1) carries it forward unchanged while (5) seeds the first
+recruitment \(R_{init}\), but (1) projects it forward unchanged while (5) seeds the first
 year with the realized recruitment <code>R_init * exp(rec_dev[1])</code>. On a stock whose first
 year was not average, that is not a small difference.</p>
 <p>\(R_{init}\) is not always \(R_0\): under a random-about-mean stock-recruit relationship

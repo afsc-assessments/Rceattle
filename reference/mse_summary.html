@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.33.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -36,12 +36,14 @@
     <li><a class="dropdown-item" href="../articles/stock-synthesis-conversion.html">Converting from Stock Synthesis</a></li>
     <li><h6 class="dropdown-header" data-toc-skip>--- Contributing ---</h6></li>
     <li><a class="dropdown-item" href="../articles/developer-guide.html">Developer guide</a></li>
+    <li><a class="dropdown-item" href="../articles/adding-a-selectivity-form.html">Adding a selectivity form</a></li>
+    <li><a class="dropdown-item" href="../cpp/index.html">C++ template reference</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
-<li class="nav-item"><a class="external-link nav-link" href="https://github.com/grantdadams/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/afsc-assessments/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
       </ul></div>
 
 
@@ -51,7 +53,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Management strategy evaluation performance metric summary</h1>
-      <small class="dont-index">Source: <a href="https://github.com/grantdadams/Rceattle/blob/main/R/10-mse_summary.R" class="external-link"><code>R/10-mse_summary.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/R/10-mse_summary.R" class="external-link"><code>R/10-mse_summary.R</code></a></small>
       <div class="d-none name"><code>mse_summary.Rd</code></div>
     </div>
 
@@ -80,7 +82,7 @@ estimation-model (EM) perception metrics.</p></dd>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A named list, one element per entity dimension so each metric lives
-only where it applies (no NA padding):</p><ul><li><p><code>species</code> – a data.frame with one row per species (keyed by <code>Species</code>)
+only where it applies (no NA padding):</p><ul><li><p><code>species</code>, a data.frame with one row per species (keyed by <code>Species</code>)
 of the conservation / status metrics: per-species average catch, catch
 inter-annual variability (IAV), and P(Closed) = the probability the
 fishery is closed (catch ~ 0); the relative mean-squared error of
@@ -90,14 +92,14 @@ perceived overfishing / overfished probabilities (via
 (estimation model disagrees with the operating-model truth); and terminal
 biomass, SSB, dynamic SB0, SSB depletion (equilibrium and dynamic),
 average SSB depletion, and SSB-collapse counts.</p></li>
-<li><p><code>fleet</code> – a data.frame with one row per fishery fleet (keyed by
+<li><p><code>fleet</code>, a data.frame with one row per fishery fleet (keyed by
 <code>Fleet_code</code> / <code>Fleet_name</code>) of average catch, catch IAV, and P(Closed).</p></li>
-<li><p><code>total</code> – a named numeric of the across-fleet total average catch and
+<li><p><code>total</code>, a named numeric of the across-fleet total average catch and
 catch IAV.</p></li>
-<li><p><code>meta</code> – run provenance (<code>nsim</code>, <code>nspp</code>, <code>nflts</code>, <code>HCR</code>, projection-year
+<li><p><code>meta</code>, run provenance (<code>nsim</code>, <code>nspp</code>, <code>nflts</code>, <code>HCR</code>, projection-year
 range).</p></li>
 </ul><p>All metrics are averaged across projection years and simulations.</p>
-<p>Metric columns carry syntactic names, so they can be typed without
+<p>Metric columns hold syntactic names, so they can be typed without
 backticks: <code>avg_catch</code>, <code>catch_iav</code>, <code>p_closed</code>, <code>ssb_rmse_avg</code>,
 <code>ssb_rmse_terminal</code>, <code>em_p_overfishing</code>, <code>em_p_overfished</code>,
 <code>om_p_overfishing</code>, <code>om_p_overfished</code>, <code>p_overfishing_false_pos</code>,
@@ -110,15 +112,23 @@ the operating model's truth and <code>em_</code> the estimation model's percepti
 the four <code>*_false_pos</code> / <code>*_false_neg</code> metrics are the probability the two
 disagree. The three <code>*_sims_collapsed</code> metrics are <strong>counts of
 simulations</strong>, not probabilities.</p>
-<p><code>om_terminal_depletion</code> is <code>NA</code> for a multispecies run that derived no
-unfished reference, which is any run without a harvest control rule
-(<code>HCR = "NoFishing"</code>): under <code>msmMode &gt; 0</code> the model reads spawning
-biomass against the <code>MSSB0</code> input, and <code><a href="fit_mod.html">fit_mod()</a></code> only fills that in by
-projecting under no fishing when an HCR is present. Dividing by the
-placeholder instead reported SSB/999 as a depletion – on the Pacific hake
-three-species model, 2.68e3. Use <code>om_terminal_depletion_dynamic</code>, which is
-computed against the model's own <code>DynamicSB0</code> and is unaffected.</p>
-<p>Each frame carries a <code>"labels"</code> attribute mapping those names to the long
+<p>The three depletions divide by different references:</p><ul><li><p><code>om_terminal_depletion_dynamic</code>: terminal SSB over the OM's own
+<code>DynamicSB0</code>, its history with no fishing on the stock-recruit curve with
+the realized recruitment deviations and, under predation, the suitability
+fitted in the hindcast. Defined for single- and multispecies OMs. A
+species with input numbers-at-age (<code>estDynamics &gt; 0</code>) keeps those numbers
+in the dynamic run, so its dynamic depletion is near 1 and says nothing
+about fishing.</p></li>
+<li><p><code>om_terminal_depletion</code>: terminal SSB over <code>SB0</code>, the equilibrium value
+for a single-species OM. Under <code>msmMode &gt; 0</code> it is <code>MSSB0</code>, SSB at the end
+of a no-fishing projection, which <code><a href="fit_mod.html">fit_mod()</a></code> derives only when a harvest
+control rule is present; without one (<code>HCR = "NoFishing"</code>) this is <code>NA</code>.</p></li>
+<li><p><code>om_avg_depletion</code>: the OM's own <code>ssb_depletion</code> averaged over the
+projection. Under predation with no HCR that series divides by SSB in the
+last projection year, not by an unfished reference.</p></li>
+</ul><p>The collapse metrics compare the OM with <code>OM_no_F</code>, the OM refit with no
+fishing after the original operating model's <code>endyr</code> (<code><a href="remove_F.html">remove_F()</a></code>).</p>
+<p>Each frame holds a <code>"labels"</code> attribute mapping those names to the long
 display strings (e.g. <code>om_terminal_depletion_dynamic</code> -&gt;
 <code>"OM: Terminal SSB Depletion (Dynamic)"</code>) for plots and tables:
 <code>attr(summ$species, "labels")</code>.</p>

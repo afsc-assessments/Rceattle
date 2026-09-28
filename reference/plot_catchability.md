@@ -1,7 +1,7 @@
 # Survey catchability over time
 
 Plots the fitted survey catchability `q` by year, faceted by fleet.
-Every fleet carrying `index_data` is drawn, a fishery with a CPUE series
+Every fleet holding `index_data` is drawn, a fishery with a CPUE series
 as much as a survey.
 
 ## Usage
@@ -34,7 +34,7 @@ plot_catchability(
 - Rceattle:
 
   A single
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   object or a list of them (overlaid).
 
 - file:
@@ -123,7 +123,7 @@ or `ar1(1 | Year)`, or the closed-form value under `"Analytical"` /
 flat line, which is the honest picture of a constant `q` rather than an
 empty panel.
 
-**Hindcast years only.** The model carries catchability over the
+**Hindcast years only.** The model applies catchability over the
 hindcast and does not project it, so the series stops at `endyr`
 regardless of the projection horizon. There is no `incl_proj`.
 

@@ -22,8 +22,8 @@ Returns `model_names` if supplied, otherwise `"Model 1"`, `"Model 2"`,
 ## Details
 
 `model_names` is often built as a
-[`list()`](https://rdrr.io/r/base/list.html) – the package's own
-vignettes do – so it is flattened to character here. Left as a list it
+[`list()`](https://rdrr.io/r/base/list.html), the package's own
+vignettes do , so it is flattened to character here. Left as a list it
 becomes a one-element list per model and the plot frame fails to bind.
 
 Too few names would be recycled, drawing two models as one series under

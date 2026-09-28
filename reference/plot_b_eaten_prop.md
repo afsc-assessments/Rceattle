@@ -34,7 +34,7 @@ plot_b_eaten_prop(
 - Rceattle:
 
   A single
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   object or a list of them (overlaid).
 
 - file:
@@ -85,7 +85,7 @@ plot_b_eaten_prop(
 - mohns:
 
   Ignored. Formerly annotated the figure with Mohn's rho from
-  [`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md);
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md);
   add it with `ggplot2::labs(subtitle = ...)` instead.
 
 - width, height:
@@ -104,7 +104,7 @@ plot_b_eaten_prop(
 - add_ci:
 
   Add a 95% confidence interval. Only available where the plotted
-  quantity carries standard errors; warns and draws none otherwise.
+  quantity holds standard errors; warns and draws none otherwise.
 
 - mod_cex:
 

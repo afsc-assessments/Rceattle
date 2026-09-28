@@ -2,7 +2,7 @@
 
 Reports Mohn's rho against a reference band rather than as a bare
 number. The default band is +/- 0.2 on SSB, the rule of thumb
-[`vignette("model-diagnostics")`](https://grantdadams.github.io/Rceattle/articles/model-diagnostics.md)
+[`vignette("model-diagnostics")`](https://afsc-assessments.github.io/Rceattle/articles/model-diagnostics.md)
 states; Hurtado-Ferro et al. (2015) give the asymmetric,
 life-history-dependent alternatives (-0.15 to 0.20 for long-lived, -0.22
 to 0.30 for short-lived), which is why the band is an argument rather
@@ -24,7 +24,7 @@ print(x, band = 0.2, ...)
 - x:
 
   A `"Rceattle_retro"` object from
-  [`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md).
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md).
 
 - band:
 

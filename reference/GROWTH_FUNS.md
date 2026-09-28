@@ -1,4 +1,4 @@
-# Allowed growth functions for `fun` in [`build_growth()`](https://grantdadams.github.io/Rceattle/reference/build_growth.md)
+# Allowed growth functions for `fun` in [`build_growth()`](https://afsc-assessments.github.io/Rceattle/reference/build_growth.md)
 
 Currently:
 

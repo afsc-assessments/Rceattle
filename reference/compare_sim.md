@@ -39,6 +39,6 @@ replicates redrew the observations alone. If they were produced with
 deviations are no longer what generated the data and the bias this
 reports is an artefact. Compare against `attr(sims, "process_sim")` in
 that case. Passing a
-[`self_test`](https://grantdadams.github.io/Rceattle/reference/self_test.md)
-result that carries process draws warns, since the attribute makes that
+[`self_test`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md)
+result that holds process draws warns, since the attribute makes that
 case detectable rather than only documented.

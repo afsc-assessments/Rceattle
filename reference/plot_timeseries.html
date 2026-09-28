@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.33.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -36,12 +36,14 @@
     <li><a class="dropdown-item" href="../articles/stock-synthesis-conversion.html">Converting from Stock Synthesis</a></li>
     <li><h6 class="dropdown-header" data-toc-skip>--- Contributing ---</h6></li>
     <li><a class="dropdown-item" href="../articles/developer-guide.html">Developer guide</a></li>
+    <li><a class="dropdown-item" href="../articles/adding-a-selectivity-form.html">Adding a selectivity form</a></li>
+    <li><a class="dropdown-item" href="../cpp/index.html">C++ template reference</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
-<li class="nav-item"><a class="external-link nav-link" href="https://github.com/grantdadams/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/afsc-assessments/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
       </ul></div>
 
 
@@ -51,7 +53,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Plot time-series</h1>
-      <small class="dont-index">Source: <a href="https://github.com/grantdadams/Rceattle/blob/main/R/7-plot_ceattle.R" class="external-link"><code>R/7-plot_ceattle.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/R/7-plot_ceattle.R" class="external-link"><code>R/7-plot_ceattle.R</code></a></small>
       <div class="d-none name"><code>plot_timeseries.Rd</code></div>
     </div>
 
@@ -139,7 +141,7 @@ read as labels for back-compatibility.</p></dd>
 
 <dt id="arg-add-ci">add_ci<a class="anchor" aria-label="anchor" href="#arg-add-ci"></a></dt>
 <dd><p>Add a 95% confidence interval. Only available where the
-plotted quantity carries standard errors; warns and draws none otherwise.</p></dd>
+plotted quantity holds standard errors; warns and draws none otherwise.</p></dd>
 
 
 <dt id="arg-lwd">lwd<a class="anchor" aria-label="anchor" href="#arg-lwd"></a></dt>
@@ -231,13 +233,13 @@ otherwise names the series.</p></dd>
     </div>
     <div class="section level2">
     <h2 id="units">Units<a class="anchor" aria-label="anchor" href="#units"></a></h2>
-    <p>The model carries numbers-at-age in <strong>thousands</strong> and weight-at-age in
+    <p>The model holds numbers-at-age in <strong>thousands</strong> and weight-at-age in
 <strong>kg</strong>, so every biomass series (<code>biomass</code>, <code>ssb</code>, <code>exploitable_biomass</code>)
 comes out of the model in <strong>mt</strong> and recruitment comes out in <strong>thousands of
 fish</strong>. For display these are divided by 1e6 (million mt) and 1e3 (millions
 of recruits) respectively; depletion is a ratio and is not rescaled. Supply
-the model's inputs on that convention – catch and index in mt, weight-at-age
-in kg – or the axis labels will not describe what is plotted.</p>
+the model's inputs on that convention, catch and index in mt, weight-at-age
+in kg, or the axis labels will not describe what is plotted.</p>
     </div>
     <div class="section level2">
     <h2 id="confidence-intervals">Confidence intervals<a class="anchor" aria-label="anchor" href="#confidence-intervals"></a></h2>
@@ -248,7 +250,7 @@ parameters where <code>x</code> is exponential in them: the interval is both a b
 linearization and right-skewed, and it cannot cross zero the way a symmetric
 natural-scale interval does for weak year classes and depleted stocks.</p>
 <p><code>sd_log</code> comes from the model's own <code>log_biomass</code> / <code>log_ssb</code> / <code>log_R</code> where
-those are reported, and is otherwise recovered as <code>sd(x) / x</code> – the delta
+those are reported, and is otherwise recovered as <code>sd(x) / x</code>, the delta
 method's own identity, which matches the reported values to machine
 precision. That covers <code>exploitable_biomass</code> and the two depletions, which
 cannot be reported on the log scale (<code>exploitable_biomass</code> is identically 0

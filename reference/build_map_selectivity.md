@@ -17,8 +17,9 @@ logit(right_floor) (right-tail floor, SS3 P6/end_logit);
 `log_sel_slp[1]` = log(sigma_asc); `log_sel_slp[2]` = log(sigma_desc).
 right_floor-\>0: dome-shaped; right_floor-\>1: logistic ascending only.
 
-`N_sel_bins` Number of age/length bins to estimate non-parametric
-selectivity when Selectivity = 2 or 5. Not used otherwise
+`N_sel_bins` Number of age/length bins to estimate for non-parametric
+and AR1 selectivity (Selectivity = 2, 5, 6, 7, 9, or 13). Not used
+otherwise
 
 `Time_varying_sel` determines if time-varying selectivity should be
 estimated for logistic, double logistic selectivity, descending logistic

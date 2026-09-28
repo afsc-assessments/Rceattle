@@ -16,10 +16,10 @@ read_data(file = "Rceattle_data.xlsx")
 
 ## See also
 
-[`build_data()`](https://grantdadams.github.io/Rceattle/reference/build_data.md)
+[`build_data()`](https://afsc-assessments.github.io/Rceattle/reference/build_data.md)
 to assemble or edit a data list in R (and to read a workbook then
 override blocks in one call, `build_data(file = ...)`),
-[`data_requirements()`](https://grantdadams.github.io/Rceattle/reference/data_requirements.md)
+[`data_requirements()`](https://afsc-assessments.github.io/Rceattle/reference/data_requirements.md)
 to see which inputs a configuration needs.
 
 ## Examples

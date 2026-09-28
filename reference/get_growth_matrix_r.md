@@ -19,7 +19,8 @@ get_growth_matrix_r(
   maxage_sp,
   growth_params_sp,
   growth_log_sd_sp,
-  growth_model_sp
+  growth_model_sp,
+  M_plus_sp
 )
 ```
 
@@ -69,6 +70,12 @@ get_growth_matrix_r(
 - growth_model_sp:
 
   Integer. 1 = Von Bertalanffy, 2 = Richards.
+
+- M_plus_sp:
+
+  Numeric. Natural mortality at the oldest age (one value, or one per
+  sex), which weights the ages pooled in the plus group by survival, as
+  the template does.
 
 ## Value
 

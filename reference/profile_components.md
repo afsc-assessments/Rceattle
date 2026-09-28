@@ -9,7 +9,7 @@ The total is the least informative curve on a profile: a well-behaved
 quadratic total can hide two data sources pulling the parameter in
 opposite directions, and their conflict is visible only once the
 components are drawn separately. This is the extractor behind
-[`plot_profile()`](https://grantdadams.github.io/Rceattle/reference/plot_profile.md);
+[`plot_profile()`](https://afsc-assessments.github.io/Rceattle/reference/plot_profile.md);
 use it directly to tabulate, or to draw the figure yourself.
 
 ## Usage
@@ -29,7 +29,7 @@ profile_components(
 - object:
 
   An `"Rceattle_profile"` object from
-  [`profile.Rceattle()`](https://grantdadams.github.io/Rceattle/reference/profile.Rceattle.md).
+  [`profile.Rceattle()`](https://afsc-assessments.github.io/Rceattle/reference/profile.Rceattle.md).
 
 - weighted:
 
@@ -39,10 +39,10 @@ profile_components(
   weighted components, since those are what moved the fit.
   `unweighted_jnll_comp` exists so Francis and McAllister-Ianelli can
   read a composition likelihood without its `Comp_weights` multiplier,
-  so only the rows that carry such a multiplier are filled: composition,
+  so only the rows that hold such a multiplier are filled: composition,
   CAAL, stomach content and the two linkage rows. Every other row is
   zero there and is dropped as unfitted, so `weighted = FALSE` returns a
-  much smaller set of series — the index, catch, selectivity,
+  much smaller set of series, the index, catch, selectivity,
   catchability and penalty components are absent, not flat.
 
 - relative:
@@ -83,7 +83,7 @@ profile_components(
   Drop components whose change over the grid is less than this fraction
   of the total's change, as in `r4ss::SSplotProfile()`. Default `0`
   keeps everything;
-  [`plot_profile()`](https://grantdadams.github.io/Rceattle/reference/plot_profile.md)
+  [`plot_profile()`](https://afsc-assessments.github.io/Rceattle/reference/plot_profile.md)
   uses `0.01`. `"Total"` is never dropped.
 
 - include_total:
@@ -94,18 +94,18 @@ profile_components(
 ## Value
 
 A data frame with one row per grid point per retained component: the
-profile's `grid` columns (`slot_1`, ...) carrying the value profiled
+profile's `grid` columns (`slot_1`, ...) holding the value profiled
 over, then `fit` (grid row index), `component` (the `jnll_comp` row),
 `unit` (fleet or species name, `NA` for model-wide rows), `axis`
 (`"fleet"`, `"species"` or `"model"`), `series` (the plotting label),
 and `value` (the re-zeroed negative log-likelihood). Series are ordered
 by decreasing change over the grid, with `"Total"` first. The profile's
-`param`, `alias` and the `relative` used are carried as attributes.
+`param`, `alias` and the `relative` used are held as attributes.
 
 ## Details
 
 **Which cells are reported.** `jnll_comp` is a component-by-column
-matrix whose columns mean different things on different rows – fleets on
+matrix whose columns mean different things on different rows, fleets on
 the data, selectivity and catchability rows, species on the priors,
 penalties and predation rows. Each cell is labelled from the axis its
 row uses, so a cell becomes e.g. `"Shelikof acoustic: Index data"`. The
@@ -126,9 +126,9 @@ drawn across it.
 
 ## See also
 
-[`plot_profile()`](https://grantdadams.github.io/Rceattle/reference/plot_profile.md)
+[`plot_profile()`](https://afsc-assessments.github.io/Rceattle/reference/plot_profile.md)
 to draw it,
-[`profile.Rceattle()`](https://grantdadams.github.io/Rceattle/reference/profile.Rceattle.md)
+[`profile.Rceattle()`](https://afsc-assessments.github.io/Rceattle/reference/profile.Rceattle.md)
 to produce the profile.
 
 ## Examples
@@ -149,10 +149,10 @@ comps <- profile_components(prof)
 head(comps)
 #>   slot_1 fit component unit  axis series     value
 #> 1   0.20   1     Total <NA> model  Total 28.479708
-#> 2   0.25   2     Total <NA> model  Total 23.399627
-#> 3   0.30   3     Total <NA> model  Total 18.451669
+#> 2   0.25   2     Total <NA> model  Total 23.399626
+#> 3   0.30   3     Total <NA> model  Total 18.451668
 #> 4   0.35   4     Total <NA> model  Total 13.636791
 #> 5   0.40   5     Total <NA> model  Total  8.955937
-#> 6   0.45   6     Total <NA> model  Total  4.410035
+#> 6   0.45   6     Total <NA> model  Total  4.410034
 # }
 ```

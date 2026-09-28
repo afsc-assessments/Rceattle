@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.33.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -53,6 +53,8 @@
     <li><a class="dropdown-item" href="../articles/stock-synthesis-conversion.html">Converting from Stock Synthesis</a></li>
     <li><h6 class="dropdown-header" data-toc-skip>--- Contributing ---</h6></li>
     <li><a class="dropdown-item" href="../articles/developer-guide.html">Developer guide</a></li>
+    <li><a class="dropdown-item" href="../articles/adding-a-selectivity-form.html">Adding a selectivity form</a></li>
+    <li><a class="dropdown-item" href="../cpp/index.html">C++ template reference</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
@@ -62,7 +64,7 @@
 <li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json">
 </form></li>
-<li class="nav-item"><a class="external-link nav-link" href="https://github.com/grantdadams/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/afsc-assessments/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
       </ul>
 </div>
 
@@ -79,7 +81,7 @@
       <h1>Growth estimation with linkages and priors</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/grantdadams/Rceattle/blob/main/vignettes/growth-estimation.Rmd" class="external-link"><code>vignettes/growth-estimation.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/vignettes/growth-estimation.Rmd" class="external-link"><code>vignettes/growth-estimation.Rmd</code></a></small>
       <div class="d-none name"><code>growth-estimation.Rmd</code></div>
     </div>
 
@@ -100,7 +102,7 @@ plus the stock assessment inputs needed to estimate growth.</p>
 <h2 id="load-data-and-inspect-the-growth-dataset">Load data and inspect the growth dataset<a class="anchor" aria-label="anchor" href="#load-data-and-inspect-the-growth-dataset"></a>
 </h2>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://grantdadams.github.io/Rceattle/">Rceattle</a></span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://afsc-assessments.github.io/Rceattle/">Rceattle</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">whamGrowthData</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/plot_data.html">plot_data</a></span><span class="op">(</span><span class="va">whamGrowthData</span><span class="op">)</span></span>
@@ -117,9 +119,9 @@ plus the stock assessment inputs needed to estimate growth.</p>
 </h2>
 <p>Growth linkages are built with <code><a href="../reference/build_growth.html">build_growth()</a></code> and
 <code><a href="../reference/linkage_spec.html">linkage_spec()</a></code>. A linkage can act on any von Bertalanffy
-parameter — <code>K</code>, <code>Linf</code>, or <code>L1</code>
+parameter, <code>K</code>, <code>Linf</code>, or <code>L1</code>
 (natural-scale names; the default <code>link = "log"</code> keeps the
-underlying TMB parameter on the log scale) — and can carry priors on the
+underlying TMB parameter on the log scale), and can hold priors on the
 linked coefficients.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Create a simple environmental covariate for the example data.</span></span>
@@ -166,12 +168,12 @@ and the temperature slope.</li>
 <p>The <code>(Intercept)</code> prior is a prior on the base
 <code>Linf</code> value (natural scale, because the default log link is
 back-transformed inside the prior block). An intercept-bearing linkage
-replaces the base parameter and carries its level.</p>
+replaces the base parameter and holds its level.</p>
 </div>
 <div class="section level3">
 <h3 id="time-varying-growth">Time-varying growth<a class="anchor" aria-label="anchor" href="#time-varying-growth"></a>
 </h3>
-<p>The same grammar carries time variation, with a random-effect term on
+<p>The same grammar holds time variation, with a random-effect term on
 the right-hand side instead of (or alongside) a covariate:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># A random walk on the von Bertalanffy k. Use ar1(1 | Year) for a stationary</span></span>
@@ -182,13 +184,13 @@ the right-hand side instead of (or alongside) a covariate:</p>
 <span>  linkages <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>K <span class="op">=</span> <span class="fu"><a href="../reference/linkage_spec.html">linkage_spec</a></span><span class="op">(</span><span class="op">~</span> <span class="fu">rw</span><span class="op">(</span><span class="fl">1</span> <span class="op">|</span> <span class="va">Year</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p>This is the only route to time-varying growth. The
-<code>growth_re</code> switch that earlier versions carried in the
-<code>data_list</code> was never implemented — nothing consumed it, the
+<code>growth_re</code> switch that earlier versions held in the
+<code>data_list</code> was never implemented, nothing consumed it, the
 deviation array was mapped off in every configuration, and the model
-gave it no density — so it is removed as of 5.9.0 and setting it now
-raises a deprecation message. Unlike the switch, a random linkage
-carries a real density, so it is estimated, reported in the linkage
-table, and redrawn by <code>sim_mod(process = "growth")</code>.</p>
+gave it no density, so it is removed as of 5.9.0 and setting it now
+raises a deprecation message. Unlike the switch, a random linkage holds
+a real density, so it is estimated, reported in the linkage table, and
+redrawn by <code>sim_mod(process = "growth")</code>.</p>
 </div>
 </div>
 <div class="section level2">
@@ -267,7 +269,7 @@ or per-sex stratification.</li>
 <li>The length-at-age SD endpoints <code>sd_L1</code> and
 <code>sd_Linf</code> are also linkage targets, so you can set
 <code>init</code> / <code>bounds</code> / <code>priors</code> on them.
-Only intercept formulas (e.g. <code>~ 1</code>) are honored — the SDs do
+Only intercept formulas (e.g. <code>~ 1</code>) are honored, the SDs do
 not vary by year, so slope terms have no effect. See the “Growth SD
 endpoints” section of
 <code><a href="../articles/environmental-linkages-and-priors.html">vignette("environmental-linkages-and-priors")</a></code> for an

@@ -2,7 +2,7 @@
 
 Simulates the data an Rceattle model would have produced, either as
 expected values or as a random draw. Every observation type is covered:
-survey biomass (under the fleet's own `Index_distribution` – lognormal,
+survey biomass (under the fleet's own `Index_distribution`, lognormal,
 natural-scale normal, or the correlated MVN/MVNORM draw from its
 covariance), total catch (lognormal), age/length composition and
 conditional age-at-length (multinomial or Dirichlet-multinomial), and
@@ -45,7 +45,7 @@ sim_mod(object = NULL, simulate = FALSE, process = FALSE, Rceattle = NULL)
 A `data_list` object containing the simulated or expected data values,
 formatted for use in `Rceattle`. When `process` redrew something, the
 deviations that generated the data are attached as
-`attr(x, "process_sim")` – a named list holding whichever of `rec_dev`,
+`attr(x, "process_sim")`, a named list holding whichever of `rec_dev`,
 `init_dev`, `log_M1_dev` and `beta_linkage_re` were drawn. Those are the
 truth a refit has to recover; without them the only comparison available
 is against the original fitted deviations, which are no longer the
@@ -55,23 +55,23 @@ Each is accompanied by a logical of the same shape named with a `_drawn`
 suffix (`rec_dev_drawn`, ...), `TRUE` where the draw touched that cell.
 The draws cover the hindcast only, and `beta_linkage_re` is one vector
 over every random-linkage slot whether or not its process was asked for,
-so the arrays carry fitted values alongside simulated ones. Restrict any
-recovery statistic to the `_drawn` cells – over the full array it
-reports perfect recovery on the cells that were never redrawn.
+so the arrays hold fitted values alongside simulated ones. Restrict any
+recovery statistic to the `_drawn` cells, over the full array it reports
+perfect recovery on the cells that were never redrawn.
 
 ## Details
 
 Every draw is taken by the TMB model itself, in a `SIMULATE` block
 beside the likelihood that defines it, so the two are edited together. A
-simulator that has drifted from its likelihood does not error – it makes
-[`self_test`](https://grantdadams.github.io/Rceattle/reference/self_test.md)
+simulator that has drifted from its likelihood does not error, it makes
+[`self_test`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md)
 report recovery against a process the likelihood never assumed.
 
 Consequently `simulate = TRUE` needs a model to evaluate. A model loaded
 from an `.Rdata`/`.rds` file has one, and a fit whose `$obj` was dropped
 to save space is rebuilt from its `data_list` and estimates, provided
 the rebuild reproduces the fit's own expected values.
-[`model_average`](https://grantdadams.github.io/Rceattle/reference/model_average.md)
+[`model_average`](https://afsc-assessments.github.io/Rceattle/reference/model_average.md)
 output cannot be simulated from at all: its quantities are an average
 over models rather than any one model's fit, so no parameters produced
 them. `simulate = FALSE` reads only `$quantities` and draws no random
@@ -97,7 +97,7 @@ trip, since the offset is applied to both sides on the next fit.
 Simulating leaves the drawn values in the object's report environment,
 under names ending `_sim`. The estimates, the data and the objective
 function are untouched, so a later
-[`osa_residuals()`](https://grantdadams.github.io/Rceattle/reference/osa_residuals.md)
+[`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md)
 or [`vcov()`](https://rdrr.io/r/stats/vcov.html) on the same model is
 unaffected.
 
@@ -107,7 +107,7 @@ unaffected.
 if (FALSE) { # \dontrun{
 data(BS2017SS)
 fit <- fit_mod(BS2017SS, estimateMode = "Hindcast")
-# Expected values only -- no observation error drawn.
+# Expected values only, no observation error drawn.
 sim_mod(fit)
 # One stochastic replicate, drawn from each fleet's own likelihood.
 sim_mod(fit, simulate = TRUE)

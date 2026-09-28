@@ -28,7 +28,7 @@ build_map(
 - params:
 
   A parameter list created from
-  [`build_params`](https://grantdadams.github.io/Rceattle/reference/build_params.md).
+  [`build_params`](https://afsc-assessments.github.io/Rceattle/reference/build_params.md).
 
 - debug:
 
@@ -50,7 +50,7 @@ build_map(
   Logical. If TRUE, treats catchability deviations as random effects,
   meaning the variance parameter (`index_q_dev_log_sd`) is estimated.
   Defaults to `data_list$random_q`, which is what
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   stores there.
 
 ## Value
@@ -64,10 +64,10 @@ Fleets sharing a `Selectivity_index` or a `Catchability_index` have the
 lead fleet's map slice copied over the rest of the group, so a per-fleet
 setting that differs within a group is resolved here rather than
 reported. Those disagreements are checked in
-[`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md),
+[`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md),
 which
-[`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+[`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
 runs first; `build_map()` does not call it, so a caller invoking
 `build_map()` directly should run
-[`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+[`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
 too.

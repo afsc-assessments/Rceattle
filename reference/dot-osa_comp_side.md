@@ -26,7 +26,7 @@ bubbles
 - add_sdnr_ci, add_qq_quantiles:
 
   Passed to
-  [`.osa_qqplot()`](https://grantdadams.github.io/Rceattle/reference/dot-osa_qqplot.md).
+  [`.osa_qqplot()`](https://afsc-assessments.github.io/Rceattle/reference/dot-osa_qqplot.md).
 
 ## Value
 

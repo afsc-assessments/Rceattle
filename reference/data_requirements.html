@@ -4,13 +4,13 @@ configuration, which top-level data_list elements are Required,
 Optional (used if supplied, otherwise default-filled by clean_data()), or
 Ignored (not consulted because the feature that would use them is switched
 off). It answers "what do I actually need to supply for this model?" without
-having to read the validation code or the switch tables – the same conditions
+having to read the validation code or the switch tables, the same conditions
 enforced at fit time (they share one declarative table).'><meta property="og:description" content='Introspects the Rceattle data-element catalogue and reports, for a given model
 configuration, which top-level data_list elements are Required,
 Optional (used if supplied, otherwise default-filled by clean_data()), or
 Ignored (not consulted because the feature that would use them is switched
 off). It answers "what do I actually need to supply for this model?" without
-having to read the validation code or the switch tables – the same conditions
+having to read the validation code or the switch tables, the same conditions
 enforced at fit time (they share one declarative table).'></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
@@ -19,7 +19,7 @@ enforced at fit time (they share one declarative table).'></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.33.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -48,12 +48,14 @@ enforced at fit time (they share one declarative table).'></head><body>
     <li><a class="dropdown-item" href="../articles/stock-synthesis-conversion.html">Converting from Stock Synthesis</a></li>
     <li><h6 class="dropdown-header" data-toc-skip>--- Contributing ---</h6></li>
     <li><a class="dropdown-item" href="../articles/developer-guide.html">Developer guide</a></li>
+    <li><a class="dropdown-item" href="../articles/adding-a-selectivity-form.html">Adding a selectivity form</a></li>
+    <li><a class="dropdown-item" href="../cpp/index.html">C++ template reference</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
-<li class="nav-item"><a class="external-link nav-link" href="https://github.com/grantdadams/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/afsc-assessments/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
       </ul></div>
 
 
@@ -63,7 +65,7 @@ enforced at fit time (they share one declarative table).'></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Report which data inputs a model configuration requires</h1>
-      <small class="dont-index">Source: <a href="https://github.com/grantdadams/Rceattle/blob/main/R/1-data_requirements.R" class="external-link"><code>R/1-data_requirements.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/R/1-data_requirements.R" class="external-link"><code>R/1-data_requirements.R</code></a></small>
       <div class="d-none name"><code>data_requirements.Rd</code></div>
     </div>
 
@@ -73,7 +75,7 @@ configuration, which top-level <code>data_list</code> elements are <strong>Requi
 <strong>Optional</strong> (used if supplied, otherwise default-filled by <code><a href="clean_data.html">clean_data()</a></code>), or
 <strong>Ignored</strong> (not consulted because the feature that would use them is switched
 off). It answers "what do I actually need to supply for <em>this</em> model?" without
-having to read the validation code or the switch tables – the same conditions
+having to read the validation code or the switch tables, the same conditions
 enforced at fit time (they share one declarative table).</p>
     </div>
 
@@ -160,8 +162,8 @@ when the element is absent.</p></dd>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>The configuration can be given either as an existing (possibly partial)
-<code>data_list</code> – its switches are normalized through <code><a href="clean_data.html">clean_data()</a></code> /
-<code><a href="switch_check.html">switch_check()</a></code> so the conditions evaluate against filled defaults – or,
+<code>data_list</code>, its switches are normalized through <code><a href="clean_data.html">clean_data()</a></code> /
+<code><a href="switch_check.html">switch_check()</a></code> so the conditions evaluate against filled defaults, or,
 when no <code>data_list</code> is supplied, built from the convenience arguments.</p>
 <p>Requirements are <em>conditional</em>: e.g. <code>diet_data</code>, <code>ration_data</code> and the
 bioenergetics scalars are Ignored under single-species (<code>msmMode = 0</code>) but

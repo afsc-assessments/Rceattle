@@ -1,7 +1,7 @@
 # Plot one-step-ahead (OSA) residual diagnostics
 
 Diagnostic plots for an `rceattle_osa` object (from
-[`osa_residuals()`](https://grantdadams.github.io/Rceattle/reference/osa_residuals.md)),
+[`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md)),
 following the recommendations of Stewart and Monnahan (2025) and the
 styling of the NOAA-AFSC `afscOSA` package. Under a correctly specified
 model OSA residuals are iid standard normal, so the headline diagnostic
@@ -16,8 +16,8 @@ present:
 
 2.  **Composition** (`comp` / `caal`): a Q-Q panel, a signed
     OSA-residual bubble panel, and a signed Pearson-residual bubble
-    panel (the Pearson residuals carried on the `rceattle_osa` object).
-    By default age-based bins (age composition and conditional
+    panel (the Pearson residuals held on the `rceattle_osa` object). By
+    default age-based bins (age composition and conditional
     age-at-length) are shown in the left column and length-based bins in
     the right column, each with its own bin axis; set `combine = FALSE`
     to draw the age and length composition as two separate figures
@@ -25,7 +25,7 @@ present:
 
 Panel headers use the fleet name from `fleet_control`. Process residuals
 (from
-[`process_residuals()`](https://grantdadams.github.io/Rceattle/reference/process_residuals.md))
+[`process_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/process_residuals.md))
 are drawn as a Q-Q panel plus a residual-by-year panel.
 
 ## Usage
@@ -48,16 +48,16 @@ plot(
 - x:
 
   An `rceattle_osa` object from
-  [`osa_residuals()`](https://grantdadams.github.io/Rceattle/reference/osa_residuals.md)
+  [`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md)
   or
-  [`process_residuals()`](https://grantdadams.github.io/Rceattle/reference/process_residuals.md).
+  [`process_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/process_residuals.md).
 
 - source:
 
   Data source(s) to plot: any of `"index"`, `"catch"`, `"comp"`,
   `"caal"`, `"diet"`, or `"all"` (default). Mirrors the `source`
   argument of
-  [`residuals.Rceattle()`](https://grantdadams.github.io/Rceattle/reference/residuals.Rceattle.md);
+  [`residuals.Rceattle()`](https://afsc-assessments.github.io/Rceattle/reference/residuals.Rceattle.md);
   filters which figures are produced.
 
 - species:
@@ -100,5 +100,5 @@ Stewart, I.J., and Monnahan, C.C. 2025. Can. J. Fish. Aquat. Sci.
 
 ## See also
 
-[`osa_residuals()`](https://grantdadams.github.io/Rceattle/reference/osa_residuals.md),
-[`osa_diagnostics()`](https://grantdadams.github.io/Rceattle/reference/osa_diagnostics.md)
+[`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md),
+[`osa_diagnostics()`](https://afsc-assessments.github.io/Rceattle/reference/osa_diagnostics.md)

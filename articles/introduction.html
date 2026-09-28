@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.33.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -53,6 +53,8 @@
     <li><a class="dropdown-item" href="../articles/stock-synthesis-conversion.html">Converting from Stock Synthesis</a></li>
     <li><h6 class="dropdown-header" data-toc-skip>--- Contributing ---</h6></li>
     <li><a class="dropdown-item" href="../articles/developer-guide.html">Developer guide</a></li>
+    <li><a class="dropdown-item" href="../articles/adding-a-selectivity-form.html">Adding a selectivity form</a></li>
+    <li><a class="dropdown-item" href="../cpp/index.html">C++ template reference</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
@@ -62,7 +64,7 @@
 <li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json">
 </form></li>
-<li class="nav-item"><a class="external-link nav-link" href="https://github.com/grantdadams/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/afsc-assessments/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
       </ul>
 </div>
 
@@ -79,7 +81,7 @@
       <h1>1. Rceattle: An Introduction</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/grantdadams/Rceattle/blob/main/vignettes/introduction.Rmd" class="external-link"><code>vignettes/introduction.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/vignettes/introduction.Rmd" class="external-link"><code>vignettes/introduction.Rmd</code></a></small>
       <div class="d-none name"><code>introduction.Rmd</code></div>
     </div>
 
@@ -127,7 +129,7 @@ installed as follows:</p>
 <span><span class="co"># executing it in CI would reinstall mid-render.</span></span>
 <span><span class="co"># Rceattle (pulls CRAN dependencies automatically; e.g. TMB, Matrix, dplyr)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"remotes"</span><span class="op">)</span></span>
-<span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"grantdadams/Rceattle"</span><span class="op">)</span></span>
+<span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"afsc-assessments/Rceattle"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Optional: TMBhelper provides richer optimization diagnostics.</span></span>
 <span><span class="co"># Rceattle falls back to plain nlminb + sdreport if it's not installed.</span></span>
@@ -140,7 +142,7 @@ installed as follows:</p>
 Gulf of Alaska and 2017 eastern Bering Sea single- and multi-species
 assessments are bundled with the package:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://grantdadams.github.io/Rceattle/">Rceattle</a></span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://afsc-assessments.github.io/Rceattle/">Rceattle</a></span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"GOApollock"</span><span class="op">)</span> <span class="co"># Data for GOA-pollock (1-species) ?GOApollock for more information on the data </span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"BS2017SS"</span><span class="op">)</span> <span class="co"># Combined data for 3 species. ?BS2017SS for more information on the data </span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"BS2017MS"</span><span class="op">)</span> <span class="co"># Multi-species data. Note: the only difference is the residual mortality (M1_base) is lower</span></span></code></pre></div>
@@ -243,14 +245,14 @@ what you need is reachable through standard S3 methods:</p>
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">model_1</span><span class="op">)</span>        <span class="co"># reference points, likelihood, convergence</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">model_1</span><span class="op">)</span>           <span class="co"># estimated parameters</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/vcov.html" class="external-link">vcov</a></span><span class="op">(</span><span class="va">model_1</span><span class="op">)</span><span class="op">)</span>     <span class="co"># covariance matrix (NULL when getsd = FALSE)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/stats/logLik.html" class="external-link">logLik</a></span><span class="op">(</span><span class="va">model_1</span><span class="op">)</span>         <span class="co"># log-likelihood, carrying its degrees of freedom</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/stats/logLik.html" class="external-link">logLik</a></span><span class="op">(</span><span class="va">model_1</span><span class="op">)</span>         <span class="co"># log-likelihood, holding its degrees of freedom</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/stats/AIC.html" class="external-link">AIC</a></span><span class="op">(</span><span class="va">model_1</span><span class="op">)</span>            <span class="co"># so stats::AIC() works</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/residuals.html" class="external-link">residuals</a></span><span class="op">(</span><span class="va">model_1</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">as.data.frame</a></span><span class="op">(</span><span class="va">model_1</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <p><code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code>, <code><a href="https://rdrr.io/r/stats/simulate.html" class="external-link">simulate()</a></code> and
 <code><a href="https://rdrr.io/r/stats/profile.html" class="external-link">profile()</a></code> dispatch on the fit too, and the diagnostics
 return their own classes with <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> methods that
-summarize the result — <code><a href="../reference/retrospective.html">retrospective()</a></code> gives an
+summarize the result, <code><a href="../reference/retrospective.html">retrospective()</a></code> gives an
 <code>Rceattle_retro</code>, <code><a href="../reference/jitter.html">jitter()</a></code> an
 <code>Rceattle_jitter</code>, <code><a href="../reference/self_test.html">self_test()</a></code> an
 <code>Rceattle_selftest</code>, <code><a href="https://rdrr.io/r/stats/profile.html" class="external-link">profile()</a></code> an
@@ -258,7 +260,7 @@ summarize the result — <code><a href="../reference/retrospective.html">retrosp
 <code>rceattle_osa</code>. A data list read by <code><a href="../reference/read_data.html">read_data()</a></code>
 is an <code>Rceattle_data</code>, which also prints and summarizes.</p>
 <p>The numbers themselves live in two places. Derived quantities on
-their natural scale are in <code>fit$quantities</code> — biomass,
+their natural scale are in <code>fit$quantities</code>, biomass,
 <code>ssb</code>, <code>N_at_age</code>, <code>M_at_age</code>,
 <code>sel_at_age</code>, reference points and the likelihood components.
 The parameters the optimizer actually estimated are in
@@ -272,13 +274,13 @@ names:</p>
 needs <code><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp()</a></code> to reach the quantity named in the dictionary’s
 <code>natural</code> column.</p>
 <p><code><a href="../reference/quantity_dictionary.html">quantity_dictionary()</a></code> does the same job for the reported
-quantities — what each one means, the units it is in, its dimensions,
-and whether <code>sdreport()</code> gives it a standard error:</p>
+quantities, what each one means, the units it is in, its dimensions, and
+whether <code>sdreport()</code> gives it a standard error:</p>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/quantity_dictionary.html">quantity_dictionary</a></span><span class="op">(</span><span class="st">"ssb_depletion"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/quantity_dictionary.html">quantity_dictionary</a></span><span class="op">(</span>process <span class="op">=</span> <span class="st">"reference_points"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Everything that carries a standard error</span></span>
+<span><span class="co"># Everything that holds a standard error</span></span>
 <span><span class="va">dict</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/quantity_dictionary.html">quantity_dictionary</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">dict</span><span class="op">[</span><span class="va">dict</span><span class="op">$</span><span class="va">se</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"quantity"</span>, <span class="st">"units"</span><span class="op">)</span><span class="op">]</span></span></code></pre></div>
 <p>Units follow the model throughout: numbers-at-age are
@@ -287,7 +289,7 @@ and whether <code>sdreport()</code> gives it a standard error:</p>
 worth reading off the dictionary before using a quantity.
 <code>ssb</code> is <em>female</em> spawning-stock biomass, and every
 per-recruit reference point (<code>SPR0</code>, <code>SPRlimit</code>,
-<code>SPRtarget</code>) is defined only in single-species mode — on a
+<code>SPRtarget</code>) is defined only in single-species mode, on a
 multispecies fit the model leaves them at zero, which is not an estimate
 of zero.</p>
 </div>
@@ -307,10 +309,10 @@ likelihood components are stored in the model objects built above:</p>
 <span><span class="co"># Compare AIC across 3-species penalized likelihood models</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">sapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">model_2</span>, <span class="va">model_3</span>, <span class="va">model_5</span><span class="op">)</span>, <span class="va">AIC</span><span class="op">)</span></span></code></pre></div>
 <p><code><a href="../reference/report_tables.html">report_tables()</a></code> collects the quantities an assessment
-reports — the fit and its likelihood decomposition, the time series with
-uncertainty, the reference points, and the fits to index and catch —
-into one set of tidy tables. Every table carries a <code>model</code>
-column, so several fits stack for a like-for-like comparison:</p>
+reports, the fit and its likelihood decomposition, the time series with
+uncertainty, the reference points, and the fits to index and catch, into
+one set of tidy tables. Every table holds a <code>model</code> column,
+so several fits stack for a like-for-like comparison:</p>
 <div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">tabs</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/report_tables.html">report_tables</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>pollock <span class="op">=</span> <span class="va">model_1</span>, three_species <span class="op">=</span> <span class="va">model_2</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">tabs</span></span>
@@ -371,14 +373,14 @@ accept a list of models (see above).</p>
 <span><span class="co"># Biomass depletion (total biomass / B0)</span></span>
 <span><span class="fu"><a href="../reference/plot_depletion.html">plot_depletion</a></span><span class="op">(</span><span class="va">model_list</span>, model_names <span class="op">=</span> <span class="va">model_names</span>, incl_proj <span class="op">=</span> <span class="cn">FALSE</span>, add_ci <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># SSB depletion (female spawning biomass / SB0) -- the quantity a Tier 3 HCR</span></span>
+<span><span class="co"># SSB depletion (female spawning biomass / SB0), the quantity a Tier 3 HCR</span></span>
 <span><span class="co"># compares against B40%</span></span>
 <span><span class="fu"><a href="../reference/plot_depletionSSB.html">plot_depletionSSB</a></span><span class="op">(</span><span class="va">model_list</span>, model_names <span class="op">=</span> <span class="va">model_names</span>, incl_proj <span class="op">=</span> <span class="cn">FALSE</span>, add_ci <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
 <p>Diagnostic plots cover selectivity, composition fits, index fits, and
 catch fits. Composition plots take a single model; selectivity, index
 and catch plots take one or more.</p>
-<p>Each fleet is drawn on the dimension its selectivity was estimated on
-– age, or length bin for a fleet whose
+<p>Each fleet is drawn on the dimension its selectivity was estimated
+on, age, or length bin for a fleet whose
 <code>Selectivity_dimension</code> is <code>"Length"</code>. With one
 model, colour is the year, so time-varying selectivity reads as a fan.
 With several, colour separates the models and the fan moves to

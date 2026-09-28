@@ -38,7 +38,7 @@ plot_depletion(
 - Rceattle:
 
   A single
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   object or a list of them (overlaid).
 
 - file:
@@ -71,7 +71,7 @@ plot_depletion(
 - add_ci:
 
   Add a 95% confidence interval. Only available where the plotted
-  quantity carries standard errors; warns and draws none otherwise.
+  quantity holds standard errors; warns and draws none otherwise.
 
 - lwd:
 
@@ -126,9 +126,9 @@ plot_depletion(
 - mse:
 
   Is an MSE object from
-  [`load_mse`](https://grantdadams.github.io/Rceattle/reference/load_mse.md)
+  [`load_mse`](https://afsc-assessments.github.io/Rceattle/reference/load_mse.md)
   or
-  [`run_mse`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+  [`run_mse`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
 
 - OM:
 

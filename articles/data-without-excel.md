@@ -1,8 +1,8 @@
 # 6. Building a data object in R
 
 Rceattle normally reads input data from an Excel workbook via
-[`read_data()`](https://grantdadams.github.io/Rceattle/reference/read_data.md).
-The same data object can be built entirely in R as a named list — useful
+[`read_data()`](https://afsc-assessments.github.io/Rceattle/reference/read_data.md).
+The same data object can be built entirely in R as a named list, useful
 when:
 
 - Simulating data for testing or MSE operating models
@@ -11,20 +11,20 @@ when:
 - Integrating Rceattle into pipelines that don’t use Excel
 
 Everything passed to
-[`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+[`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
 lives in this list, so understanding its structure also helps you modify
 existing data objects read from Excel. This vignette walks through each
 component. The result is validated by `build_data(.check = TRUE)` (the
 default) and fitted with
-[`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md),
+[`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md),
 or exported back to Excel with
-[`write_data()`](https://grantdadams.github.io/Rceattle/reference/write_data.md).
+[`write_data()`](https://afsc-assessments.github.io/Rceattle/reference/write_data.md).
 
 If you would rather start from a workbook than a list,
-[`write_template()`](https://grantdadams.github.io/Rceattle/reference/write_template.md)
+[`write_template()`](https://afsc-assessments.github.io/Rceattle/reference/write_template.md)
 writes a minimal, structurally complete single-species starter workbook
 on the current column names that you can open, edit, and read back with
-[`read_data()`](https://grantdadams.github.io/Rceattle/reference/read_data.md):
+[`read_data()`](https://afsc-assessments.github.io/Rceattle/reference/read_data.md):
 
 ``` r
 
@@ -35,10 +35,10 @@ dat <- read_data("my_data_template.xlsx")
 ## The quick path: `build_data()`
 
 Most of the time you do not need to assemble the whole list by hand.
-[`build_data()`](https://grantdadams.github.io/Rceattle/reference/build_data.md)
+[`build_data()`](https://afsc-assessments.github.io/Rceattle/reference/build_data.md)
 is a constructor that takes only the blocks a model uses and
 default-fills the rest (via
-[`clean_data()`](https://grantdadams.github.io/Rceattle/reference/clean_data.md)),
+[`clean_data()`](https://afsc-assessments.github.io/Rceattle/reference/clean_data.md)),
 so a single-species model does not need the predation, growth, or
 empirical-selectivity blocks. It has three combinable entry points:
 
@@ -61,10 +61,10 @@ dat <- build_data(nspp = 1, styr = 1977, endyr = 2023,
                   comp_data = ages)
 ```
 
-[`build_data()`](https://grantdadams.github.io/Rceattle/reference/build_data.md)
+[`build_data()`](https://afsc-assessments.github.io/Rceattle/reference/build_data.md)
 checks each block name against the recognized schema, so a typo
 (`maturty`) or a case-slip (`Maturity`) is caught at construction with a
-suggestion — not much later inside a fit — and legacy names (`fsh_biom`,
+suggestion (not much later inside a fit) and legacy names (`fsh_biom`,
 `srv_biom`, `wt`, `pmature`, `Pyrs`) are mapped to their canonical
 equivalents. Printing the result shows an indented specification tree
 rather than the raw list:
@@ -77,10 +77,10 @@ dat            # <Rceattle data>: dimensions -> fleets -> processes -> ...
 ### Which inputs does my model need?
 
 Rather than reading the table below by hand, ask
-[`data_requirements()`](https://grantdadams.github.io/Rceattle/reference/data_requirements.md):
+[`data_requirements()`](https://afsc-assessments.github.io/Rceattle/reference/data_requirements.md):
 it reports, for a given configuration, which blocks are **Required**,
 **Optional** (used if supplied, otherwise default-filled), or
-**Ignored** (not consulted because the feature is off) — the exact
+**Ignored** (not consulted because the feature is off), the exact
 conditions the fit-time validation enforces.
 
 ``` r
@@ -110,8 +110,8 @@ by leaving the field unset.
 
 The rest of this vignette assembles the list field by field. This is the
 machinery
-[`build_data()`](https://grantdadams.github.io/Rceattle/reference/build_data.md)
-wraps — useful when you are simulating data, generating inputs
+[`build_data()`](https://afsc-assessments.github.io/Rceattle/reference/build_data.md)
+wraps, useful when you are simulating data, generating inputs
 programmatically, or want to understand exactly what each block
 contains. Feel free to skip sections you don’t need.
 
@@ -121,7 +121,7 @@ contains. Feel free to skip sections you don’t need.
 
 library(Rceattle)
 
-# Define core dimensions up front — these drive the size of all downstream arrays.
+# Define core dimensions up front, these drive the size of all downstream arrays.
 nspp     <- 2   # number of species (or stocks)
 nages    <- 10  # maximum age classes (same for all species here)
 nlengths <- 20  # number of length bins (for age-length keys / CAAL data)
@@ -150,7 +150,7 @@ simData$spnames <- paste0("Species", 1:nspp)
 #        2 = sex-structured model (separate selectivity and mortality by sex)
 simData$nsex    <- rep(1, nspp)
 
-# Calendar month of spawning — used to compute the fraction-of-year weight
+# Calendar month of spawning, used to compute the fraction-of-year weight
 # applied to spawning stock biomass (e.g., 6 = mid-year spawning)
 simData$spawn_month <- rep(6, nspp)
 
@@ -195,38 +195,38 @@ modeled. Multiple fleets can target the same species.
 ``` r
 
 # Fleet_type:
-#   "Fishery" -- contributes catch and catch-at-age/length composition data
-#   "Survey"  -- contributes an abundance index and composition data
-#   "Off"     -- fleet is present in the data but excluded from the likelihood
+#   "Fishery", contributes catch and catch-at-age/length composition data
+#   "Survey", contributes an abundance index and composition data
+#   "Off", fleet is present in the data but excluded from the likelihood
 
-# Selectivity options (Selectivity column) — use the string name or integer code:
-#   "Fixed"              (0) -- fixed at values in emp_sel; not estimated
-#   "Logistic"           (1) -- two-parameter ascending logistic (a50, slope)
-#   "NonParametric"      (2) -- freely estimated selectivity-at-age/length with smoothness penalty
-#   "DoubleLogistic"     (3) -- ascending + descending dome-shaped logistic
-#   "DescendingLogistic" (4) -- descending logistic only (dome-shaped for oldest ages)
-#   "Hake"               (5) -- non-parametric selectivity à la Taylor et al. (Pacific hake)
-#   "2DAR1"              (6) -- 2D autoregressive random effects (bin × year)
-#   "3DAR1"              (7) -- 3D autoregressive random effects (bin × year × cohort)
+# Selectivity options (Selectivity column), use the string name or integer code:
+#   "Fixed"              (0), fixed at values in emp_sel; not estimated
+#   "Logistic"           (1), two-parameter ascending logistic (a50, slope)
+#   "NonParametric"      (2), freely estimated selectivity-at-age/length with smoothness penalty
+#   "DoubleLogistic"     (3), ascending + descending dome-shaped logistic
+#   "DescendingLogistic" (4), descending logistic only (dome-shaped for oldest ages)
+#   "Hake"               (5), non-parametric selectivity à la Taylor et al. (Pacific hake)
+#   "2DAR1"              (6), 2D autoregressive random effects (bin × year)
+#   "3DAR1"              (7), 3D autoregressive random effects (bin × year × cohort)
 #
 # Selectivity_dimension: "Age" or "Length"
 #   Length-based selectivity requires an age-to-length transition matrix (see below).
 
-# Catchability options (Catchability column) — use the string name or integer code:
-#   "Fixed"                (0) -- Q fixed at Catchability_init; not estimated
-#   "Estimated"            (1) -- freely estimated on log scale
-#   "Estimated-with-prior" (2) -- estimated with a lognormal prior (Catchability_init, Catchability_prior_sd)
-#   "Analytical"           (3) -- Ludwig & Walters / Martell (1994) analytical Q
-#   "PowerEquation"        (4) -- power-equation Q (habitat area scaling)
-#   "Environmental"        (5) -- mu_q + X * beta, where X is a covariate in env_data
-#   "AR1"                  (6) -- REMOVED in 5.12.0; data_check() errors. Use a q
+# Catchability options (Catchability column), use the string name or integer code:
+#   "Fixed"                (0), Q fixed at Catchability_init; not estimated
+#   "Estimated"            (1), freely estimated on log scale
+#   "Estimated-with-prior" (2), estimated with a lognormal prior (Catchability_init, Catchability_prior_sd)
+#   "Analytical"           (3), Ludwig & Walters / Martell (1994) analytical Q
+#   "PowerEquation"        (4), power-equation Q (habitat area scaling)
+#   "Environmental"        (5), mu_q + X * beta, where X is a covariate in env_data
+#   "AR1"                  (6), REMOVED in 5.12.0; data_check() errors. Use a q
 #                                  linkage with ar1(1 | Year) and observe = <column>
-#   NA                         -- not applicable (use for fisheries without CPUE)
+#   NA, not applicable (use for fisheries without CPUE)
 
 # Comp_distribution / CAAL_distribution options:
-#   "Multinomial"           -- standard multinomial
-#   "DirichletMultinomial"  -- overdispersed; estimates a concentration parameter
-#   "MultinomialAFSC"       -- AFSC variant of multinomial (marginal age + length)
+#   "Multinomial", standard multinomial
+#   "DirichletMultinomial", overdispersed; estimates a concentration parameter
+#   "MultinomialAFSC", AFSC variant of multinomial (marginal age + length)
 
 simData$fleet_control <- data.frame(
   Fleet_name  = paste0(c("Survey", "Fishery"),
@@ -248,7 +248,7 @@ simData$fleet_control <- data.frame(
   #   0 / "Off" = time-invariant (default)
   #   1 / "IID" = penalized log-normal deviates (SD fixed at Time_varying_sel_sd
   #       unless random_sel = TRUE in fit_mod)
-  #   2 / "AR1" = AR(1) (not yet implemented)
+  #   2 / "AR1" = REMOVED in 5.16.0; data_check() errors on it
   #   3 / "Block" = time blocks (specify via R-side mapping)
   #   4 / "RandomWalk" = random walk
   #   5 / "RandomWalkAscending" = random walk on ascending portion of double logistic
@@ -258,8 +258,8 @@ simData$fleet_control <- data.frame(
   Sel_norm_bin             = "Off", # "Max", "Off", or a bin to normalize at
   Sel_norm_bin_upper       = "Off", # "Off", or the top of a bin range
   # Two-sex models only: whether the normalization reference is pooled over the
-  # sexes ("AcrossSexes", default -- keeps relative sex selectivity) or taken per
-  # sex ("WithinSex" -- both sexes reach 1, only the shape differs).
+  # sexes ("AcrossSexes", default, keeps relative sex selectivity) or taken per
+  # sex ("WithinSex", both sexes reach 1, only the shape differs).
   Sel_norm_scope           = "AcrossSexes",
 
   # Composition likelihoods
@@ -282,7 +282,7 @@ simData$fleet_control <- data.frame(
   #   0 / "Off" = time-invariant
   #   1 / "IID" = penalized log-normal deviates (SD fixed at Time_varying_q_sd
   #       unless random_q = TRUE in fit_mod)
-  #   2 / "AR1" = AR(1) (not yet implemented)
+  #   2 / "AR1" = REMOVED in 5.16.0; data_check() errors on it
   #   3 / "Block" = time blocks
   #   4 / "RandomWalk" = random walk
   Time_varying_q          = rep(c(0, NA), nspp),
@@ -357,12 +357,12 @@ simData$catch_data <- data.frame(
 Age or length composition data. `Age0_Length1 = 0` for age compositions,
 `1` for length compositions. `Sex = 0` for combined sex, `1` for
 females, `2` for males, `3` for joint female+male. Composition columns
-(`Comp_1`, `Comp_2`, …) can be raw counts or proportions — Rceattle
+(`Comp_1`, `Comp_2`, …) can be raw counts or proportions; Rceattle
 normalizes internally.
 
 Skip this section entirely (don’t set `simData$comp_data`) if no
-composition data are available —
-[`clean_data()`](https://grantdadams.github.io/Rceattle/reference/clean_data.md)
+composition data are available,
+[`clean_data()`](https://afsc-assessments.github.io/Rceattle/reference/clean_data.md)
 will fill it with an empty data.frame.
 
 ``` r
@@ -392,9 +392,9 @@ simData$comp_data <- cbind(
 CAAL data provide observed age frequencies within each length bin and
 allow the model to jointly fit length and age compositions, and
 optionally estimate the growth curve internally (see
-[`vignette("model-parameterizations")`](https://grantdadams.github.io/Rceattle/articles/model-parameterizations.md)
+[`vignette("model-parameterizations")`](https://afsc-assessments.github.io/Rceattle/articles/model-parameterizations.md)
 and
-[`?build_growth`](https://grantdadams.github.io/Rceattle/reference/build_growth.md)).
+[`?build_growth`](https://afsc-assessments.github.io/Rceattle/reference/build_growth.md)).
 One row per fleet-sex-year-length-bin combination.
 
 `caal_data` becomes **required** when growth is being estimated
@@ -514,7 +514,7 @@ colnames(sex_matrix) <- paste0("Age", 1:nages)
 simData$sex_ratio <- cbind(data.frame(Species = 1:nspp), sex_matrix)
 ```
 
-Where species carry different numbers of age bins, `maturity` and
+Where species have different numbers of age bins, `maturity` and
 `sex_ratio` are as wide as the longest-lived species, and **each row
 must be filled across its own species’ `nages`**. Columns past that are
 padding and may be `NA`.
@@ -524,10 +524,10 @@ biomass uses `maturity` (times `sex_ratio` where a species is modelled
 one-sex), and spawner-per-recruit sums the same schedule. So a
 `maturity` gap leaves SSB `NA` for any species, and a `sex_ratio` gap
 does the same for a one-sex species. On a **two-sex** species
-`sex_ratio` reaches only spawner-per-recruit — so the model fits
-normally and the failure waits until a harvest control rule asks for
-reference points.
-[`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+`sex_ratio` reaches only spawner-per-recruit, so the model fits normally
+and the failure waits until a harvest control rule asks for reference
+points.
+[`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
 names the table, the species and the missing ages.
 
 Rows are read by position: the `Species` column is dropped before the
@@ -563,8 +563,6 @@ Used when `estDynamics > 0`:
 
 - `1` = numbers-at-age fixed exactly to these values
 - `2` = numbers-at-age scaled by a single estimated scalar per species
-- `3` = numbers-at-age scaled by age-specific estimated scalars per
-  species
 
 **Required** when `any(estDynamics > 0)`. Skip if you’re estimating
 population dynamics from scratch (the default `estDynamics = 0`).
@@ -579,7 +577,7 @@ single-species mode, total mortality M = M1. In multi-species mode, M =
 M1 + M2 where M2 is predation mortality estimated from the bioenergetics
 model. When switching to multi-species mode it is important to reduce M1
 accordingly (see
-[`vignette("single-vs-multispecies")`](https://grantdadams.github.io/Rceattle/articles/single-vs-multispecies.md)).
+[`vignette("single-vs-multispecies")`](https://afsc-assessments.github.io/Rceattle/articles/single-vs-multispecies.md)).
 
 ``` r
 
@@ -589,7 +587,7 @@ simData$M1_base <- cbind(data.frame(Species = 1:nspp, Sex = 0), m_matrix)
 ```
 
 M1 can also be estimated rather than fixed. See
-[`?build_M1`](https://grantdadams.github.io/Rceattle/reference/build_M1.md)
+[`?build_M1`](https://afsc-assessments.github.io/Rceattle/reference/build_M1.md)
 for options including estimating a single scalar, an age-specific
 vector, or a temperature-dependent function.
 
@@ -601,10 +599,10 @@ the column mean. Column names after `Year` can be anything and are
 referenced by column order.
 
 Skip this if no environmental covariates are used.
-[`clean_data()`](https://grantdadams.github.io/Rceattle/reference/clean_data.md)
+[`clean_data()`](https://afsc-assessments.github.io/Rceattle/reference/clean_data.md)
 will fall back to a Year-only data.frame with no indices, and validation
 only complains when a feature actually needs one (env-q catchability, a
-consumption equation that reads a temperature – `Ceq` 1, 2 or 3 – or any
+consumption equation that reads a temperature, `Ceq` 1, 2 or 3, or any
 env linkage). With no index to read, consumption uses the constant
 `fT = 1` of `Ceq = 4`. That is an error under `msmMode > 0`, where
 consumption drives predation mortality, and a warning under
@@ -623,19 +621,19 @@ simData$env_data <- data.frame(
 These parameters govern the Wisconsin bioenergetics model used to
 compute predation mortality (M2) in multi-species mode. In
 single-species mode they reach only the reported `ration` and
-`consumption_at_age`, never the objective, and can be omitted entirely —
+`consumption_at_age`, never the objective, and can be omitted entirely;
 Rceattle fills any missing scalars with safe defaults (`Ceq = 4`, the
 constant form that reads no environmental index).
 
 In multi-species mode (`msmMode > 0`) **all** of `Ceq`, `Cindex`,
 `Pvalue`, `fday`, `CA`, `CB`, `Qc`, `Tco`, `Tcm`, `Tcl`, `CK1`, `CK4`
 must be supplied as length-`nspp` vectors;
-[`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+[`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
 will list any that are missing or wrong-length. Likewise `diet_data` and
 `ration_data` are required.
 
 See
-[`?build_M1`](https://grantdadams.github.io/Rceattle/reference/build_M1.md)
+[`?build_M1`](https://afsc-assessments.github.io/Rceattle/reference/build_M1.md)
 and the CEATTLE technical documentation for full details on each
 parameter.
 
@@ -681,7 +679,7 @@ simData$Diet_comp_weights <- rep(1, nspp)
 
 ## 9. Validate and fit
 
-[`plot_data()`](https://grantdadams.github.io/Rceattle/reference/plot_data.md)
+[`plot_data()`](https://afsc-assessments.github.io/Rceattle/reference/plot_data.md)
 prints a summary of the data list.
 
 ``` r
@@ -696,7 +694,7 @@ plot_data(simData)
 # estimateMode: 0 = full fit (hindcast + projection)
 #               1 = hindcast only
 #               2 = projection only (fix parameters, run HCR)
-#               3 = evaluate only (MakeADFun, no optimisation) -- useful for debugging
+#               3 = evaluate only (MakeADFun, no optimisation), useful for debugging
 #
 # msmMode:      0 = single-species, 1 = Type II MSVPA, 2 = Type III MSVPA
 #
@@ -723,11 +721,11 @@ sim_run <- fit_mod(
 
 ## 10. Export back to Excel (optional)
 
-[`write_data()`](https://grantdadams.github.io/Rceattle/reference/write_data.md)
+[`write_data()`](https://afsc-assessments.github.io/Rceattle/reference/write_data.md)
 exports the data list to an Excel workbook in the standard Rceattle
 template format, which can then be edited and re-read with
-[`read_data()`](https://grantdadams.github.io/Rceattle/reference/read_data.md)
-– so you can move between R-based and spreadsheet-based workflows.
+[`read_data()`](https://afsc-assessments.github.io/Rceattle/reference/read_data.md),
+so you can move between R-based and spreadsheet-based workflows.
 
 ``` r
 
@@ -736,23 +734,28 @@ write_data(simData, file = tempfile(fileext = ".xlsx"))
 
 ## 11. Persist and share a run configuration (optional)
 
-[`write_data()`](https://grantdadams.github.io/Rceattle/reference/write_data.md)
+[`write_data()`](https://afsc-assessments.github.io/Rceattle/reference/write_data.md)
 stores the *data*; the model *structure* and estimation controls live in
 the
-[`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+[`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
 call (or in a
-[`model_config()`](https://grantdadams.github.io/Rceattle/reference/model_config.md)
+[`model_config()`](https://afsc-assessments.github.io/Rceattle/reference/model_config.md)
 slot).
-[`save_config()`](https://grantdadams.github.io/Rceattle/reference/save_config.md)
-writes that full run configuration – the
-[`model_config()`](https://grantdadams.github.io/Rceattle/reference/model_config.md)
+[`save_config()`](https://afsc-assessments.github.io/Rceattle/reference/save_config.md)
+writes that full run configuration, the
+[`model_config()`](https://afsc-assessments.github.io/Rceattle/reference/model_config.md)
 structure plus the estimation controls and
-[`fit_control()`](https://grantdadams.github.io/Rceattle/reference/fit_control.md)
-bundle – to a documented, git-diffable YAML file, so two assessment runs
+[`fit_control()`](https://afsc-assessments.github.io/Rceattle/reference/fit_control.md)
+bundle, to a documented, git-diffable YAML file, so two assessment runs
 diff cleanly and a configuration can be archived alongside the data.
-[`load_config()`](https://grantdadams.github.io/Rceattle/reference/load_config.md)
+[`load_config()`](https://afsc-assessments.github.io/Rceattle/reference/load_config.md)
 reads it back, and passing it as `fit_mod(config = ...)` reproduces the
-fit (filling only the arguments you did not pass explicitly):
+fit (filling only the arguments you did not pass explicitly). The model
+structure is overlaid field by field: a field the config leaves at its
+default keeps what the data object holds, so a config built from
+[`model_config()`](https://afsc-assessments.github.io/Rceattle/reference/model_config.md)
+does not drop linkages attached with `build_data(model_config = )`, and
+a field both set differently is taken from the config with a warning:
 
 ``` r
 

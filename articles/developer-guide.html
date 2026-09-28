@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.33.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -53,6 +53,8 @@
     <li><a class="dropdown-item" href="../articles/stock-synthesis-conversion.html">Converting from Stock Synthesis</a></li>
     <li><h6 class="dropdown-header" data-toc-skip>--- Contributing ---</h6></li>
     <li><a class="dropdown-item" href="../articles/developer-guide.html">Developer guide</a></li>
+    <li><a class="dropdown-item" href="../articles/adding-a-selectivity-form.html">Adding a selectivity form</a></li>
+    <li><a class="dropdown-item" href="../cpp/index.html">C++ template reference</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
@@ -62,7 +64,7 @@
 <li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json">
 </form></li>
-<li class="nav-item"><a class="external-link nav-link" href="https://github.com/grantdadams/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/afsc-assessments/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
       </ul>
 </div>
 
@@ -79,7 +81,7 @@
       <h1>Developer guide</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/grantdadams/Rceattle/blob/main/vignettes/articles/developer-guide.Rmd" class="external-link"><code>vignettes/articles/developer-guide.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/vignettes/articles/developer-guide.Rmd" class="external-link"><code>vignettes/articles/developer-guide.Rmd</code></a></small>
       <div class="d-none name"><code>developer-guide.Rmd</code></div>
     </div>
 
@@ -87,10 +89,11 @@
     
 <p>This guide is for people who want to modify Rceattle itself: add a
 parameter, a data input, a new selectivity or suitability form, or a
-likelihood component. It is not needed to <em>fit</em> models — for
-that, start with the user articles (<a href="../introduction.html">Introduction</a> and <a href="../model-options-and-functionality.html">Model options and
+likelihood component. It is not needed to <em>fit</em> models, for that,
+start with the user articles (<a href="introduction.html">Introduction</a> and <a href="model-options-and-functionality.html">Model options and
 functionality</a>).</p>
-<p>It consolidates and updates the developer notes on the <a href="https://github.com/grantdadams/Rceattle/wiki" class="external-link">GitHub wiki</a>.</p>
+<p>It consolidates and updates the developer notes on the <a href="https://github.com/afsc-assessments/Rceattle/wiki" class="external-link">GitHub
+wiki</a>.</p>
 <div class="section level2">
 <h2 id="repository-layout">Repository layout<a class="anchor" aria-label="anchor" href="#repository-layout"></a>
 </h2>
@@ -140,8 +143,8 @@ articles like this one.</td>
 </tr>
 </tbody>
 </table>
-<p>The whole model — observation model, population dynamics, and
-likelihood — is a single C++ TMB script,
+<p>The whole model (observation model, population dynamics, and
+likelihood) is a single C++ TMB script,
 <code>src/TMB/ceattle.cpp</code>, which <code>#include</code>s a set of
 topical <code>.hpp</code> modules. <code><a href="../reference/fit_mod.html">fit_mod()</a></code> is the R entry
 point; it calls a chain of helpers that build the TMB inputs, optimize,
@@ -230,15 +233,15 @@ requested).</td>
 <p>Phasing (optional staged estimation) is handled by
 <code><a href="../reference/set_phases.html">set_phases()</a></code> / <code><a href="../reference/TMBphase.html">TMBphase()</a></code> in
 <code>R/6-phaser.R</code>; <code><a href="../reference/TMBAIC.html">TMBAIC()</a></code>
-(<code>R/6-tmb_aic.R</code>) computes AIC. Downstream wrappers —
-<code><a href="../reference/retrospective.html">retrospective()</a></code>, <code><a href="../reference/jitter.html">jitter()</a></code>,
+(<code>R/6-tmb_aic.R</code>) computes AIC. Downstream wrappers
+(<code><a href="../reference/retrospective.html">retrospective()</a></code>, <code><a href="../reference/jitter.html">jitter()</a></code>,
 <code><a href="../reference/run_mse.html">run_mse()</a></code>, <code><a href="../reference/sim_mod.html">sim_mod()</a></code>,
-<code><a href="../reference/self_test.html">self_test()</a></code>, the <code>plot_*()</code> family — all take
-the fitted <code>Rceattle</code> object returned by
+<code><a href="../reference/self_test.html">self_test()</a></code>, the <code>plot_*()</code> family) all take the
+fitted <code>Rceattle</code> object returned by
 <code><a href="../reference/fit_mod.html">fit_mod()</a></code>.</p>
 <p>Before that pipeline runs, a user can assemble or edit the
 <code>data_list</code> programmatically and see exactly what a given
-model needs — see <strong>Data assembly and the column schema</strong>
+model needs, see <strong>Data assembly and the column schema</strong>
 below.</p>
 </div>
 <div class="section level2">
@@ -250,16 +253,16 @@ the TMB template consumes. <code>R/0-switches.R</code> is the single
 source of truth for that correspondence, via four functions:</p>
 <ul>
 <li>
-<code><a href="../reference/switch_check.html">switch_check()</a></code> — fill missing switches with defaults
-and normalize.</li>
+<code><a href="../reference/switch_check.html">switch_check()</a></code>: fill missing switches with defaults and
+normalize.</li>
 <li>
-<code>validate_switches()</code> — error if any switch is not a
-known code/string.</li>
+<code>validate_switches()</code>: error if any switch is not a known
+code/string.</li>
 <li>
-<code>convert_switches()</code> — canonical string → integer code
-for TMB.</li>
+<code>convert_switches()</code>: canonical string → integer code for
+TMB.</li>
 <li>
-<code>revert_switches()</code> — integer code → canonical string
+<code>revert_switches()</code>: integer code → canonical string
 (backward compatibility for older integer-coded data files).</li>
 </ul>
 <p>The mappings live in named vectors: <code>sel_map</code>,
@@ -304,8 +307,8 @@ this).</p>
 a script produces when it assigns an older name to a
 <code>data_list</code> that <code><a href="../reference/read_data.html">read_data()</a></code> has already
 translated: the assignment creates the old column beside the new one.
-They must then hold the same setting — an integer switch code and its
-string count as the same — and anything else is an error naming both
+They must then hold the same setting (an integer switch code and its
+string count as the same) and anything else is an error naming both
 values. Nothing is merged and no blank is filled in from the other
 column, because <code>NA</code> is a real setting in several of these
 (<code>Sel_norm_bin</code> and <code>Sel_cap_bin</code> mean “do not
@@ -316,7 +319,7 @@ discarded here, which is how several assessment scripts came to be
 running settings they did not ask for.</p>
 <p><strong><code><a href="../reference/data_requirements.html">data_requirements()</a></code></strong> reports, for a
 given model setup, which inputs that model requires, which are optional,
-and which are ignored — so you can see what a configuration needs before
+and which are ignored, so you can see what a configuration needs before
 fitting rather than hitting a validation error partway through.</p>
 <p><strong><code><a href="../reference/build_data.html">build_data()</a></code> with
 <code><a href="../reference/model_config.html">model_config()</a></code></strong> assembles or edits a
@@ -330,12 +333,12 @@ configuration.</p>
 <h2 id="run-configuration-save-load">Run configuration (save / load)<a class="anchor" aria-label="anchor" href="#run-configuration-save-load"></a>
 </h2>
 <p><code><a href="../reference/save_config.html">save_config()</a></code> and <code><a href="../reference/load_config.html">load_config()</a></code> write and
-read a run’s full configuration — the model setup plus the estimation
-and uncertainty settings from <code><a href="../reference/fit_control.html">fit_control()</a></code> — as a
-plain-text YAML file. Each field is commented with its meaning, and
-fields left at their default are omitted, so two saved runs differ in
-the file only where they differ in substance, and the file reviews
-cleanly in version control.</p>
+read a run’s full configuration, the model setup plus the estimation and
+uncertainty settings from <code><a href="../reference/fit_control.html">fit_control()</a></code>, as a plain-text
+YAML file. Each field is commented with its meaning, and fields left at
+their default are omitted, so two saved runs differ in the file only
+where they differ in substance, and the file reviews cleanly in version
+control.</p>
 <p>Apply a saved configuration with
 <code>fit_mod(data_list, config = load_config("run.yaml"))</code>. It
 fills in only the arguments you did not pass yourself, so an explicit
@@ -376,9 +379,10 @@ decomposition.</td>
 <tr class="even">
 <td><code>selectivity.hpp</code></td>
 <td>Selectivity forms, dispatched by the integer case of the
-<code>switch</code> on <code>Selectivity</code> — e.g. logistic (1),
-double logistic (3), Hake/Taylor non-parametric (5), 2D/3D AR1 (6/7),
-double-normal (8), NonParametricRPM (9), LogisticPM (11).</td>
+<code>switch</code> on <code>Selectivity</code>: logistic (1), Ianelli
+non-parametric (2), double logistic (3), descending logistic (4),
+Hake/Taylor non-parametric (5), 2D/3D AR1 (6/7), double normal (8),
+NonParametricPM (9), LogisticPM (11), NonParametricIntegrable (13).</td>
 </tr>
 <tr class="odd">
 <td><code>recruitment.hpp</code></td>
@@ -405,8 +409,8 @@ priors / RE densities into the likelihood.</td>
 </tr>
 <tr class="even">
 <td><code>comp_sim.hpp</code></td>
-<td>Composition draws — multinomial (sequential conditional binomial),
-Dirichlet, and Dirichlet-multinomial — used by the <code>SIMULATE</code>
+<td>Composition draws: multinomial (sequential conditional binomial),
+Dirichlet, and Dirichlet-multinomial, used by the <code>SIMULATE</code>
 blocks.</td>
 </tr>
 </tbody>
@@ -417,16 +421,20 @@ blocks.</td>
 data objects), then the <code>PARAMETER_*</code> block, then the
 population and observation dynamics, and finally the joint negative
 log-likelihood. The likelihood is accumulated in the
-<code>jnll_comp</code> matrix — rows are likelihood components, columns
+<code>jnll_comp</code> matrix, rows are likelihood components, columns
 are species/fleet. Each row is addressed by a named constant from the
 <code>JnllRow</code> enum (<code>JNLL_INDEX</code>,
 <code>JNLL_CATCH</code>, <code>JNLL_COMP</code>, …
 <code>JNLL_LINKAGE_RE</code>, with <code>JNLL_N_ROWS</code> dimensioning
 the matrix), so a row is referred to by name in the C++ rather than by a
-bare integer. The <strong>display names</strong> for those rows live
-separately in <code>R/6-rename_output.R</code>; if you add or reorder a
-row, update both the enum and that name vector by hand (they are kept in
-sync manually).</p>
+bare integer. The enum has <strong>two hand-synced partners</strong>:
+the display names in <code>R/6-rename_output.R</code>, and
+<code>.JNLL_ROW_AXIS</code> in <code>R/9-profile.R</code>, which records
+whether a row’s columns count fleets or species. Adding or reordering a
+row means updating all three by hand, or a row is classified on the
+wrong axis and a survey’s likelihood is reported against a species.
+<code>tests/testthat/test-schema-jnll-rows.R</code> reads the template
+and asserts the three agree.</p>
 <p><strong>Building.</strong> <code>src/TMB/compile.R</code> compiles
 the model (<code>framework = "TMBad"</code>); <code>TMB</code> and
 <code>RcppEigen</code> are <code>LinkingTo</code> dependencies. The
@@ -444,35 +452,35 @@ compiler flag, since CRAN rejects warning-suppressing flags.</p>
 is the user entry point, attached through the per-process builders:</p>
 <ul>
 <li>
-<code><a href="../reference/build_srr.html">build_srr()</a></code> — recruitment (<code>R0</code>,
+<code><a href="../reference/build_srr.html">build_srr()</a></code>: recruitment (<code>R0</code>,
 <code>alpha</code>, <code>beta</code>),</li>
 <li>
-<code><a href="../reference/build_M1.html">build_M1()</a></code> — natural mortality (<code>M1</code>),</li>
+<code><a href="../reference/build_M1.html">build_M1()</a></code>: natural mortality (<code>M1</code>),</li>
 <li>
-<code><a href="../reference/build_growth.html">build_growth()</a></code> — growth (<code>K</code>,
+<code><a href="../reference/build_growth.html">build_growth()</a></code>: growth (<code>K</code>,
 <code>L1</code>, <code>Linf</code>, <code>m</code>) and the SD endpoints
 (<code>sd_L1</code>, <code>sd_Linf</code>),</li>
 <li>
-<code><a href="../reference/build_catchability.html">build_catchability()</a></code> — catchability
+<code><a href="../reference/build_catchability.html">build_catchability()</a></code>: catchability
 (<code>q</code>),</li>
 <li>
-<code><a href="../reference/build_selectivity.html">build_selectivity()</a></code> — selectivity
-(<code>slp_asc</code>, <code>slp_desc</code>, <code>inf_asc</code>,
-<code>inf_desc</code>, <code>coff</code>),</li>
+<code><a href="../reference/build_selectivity.html">build_selectivity()</a></code>: selectivity (<code>slp_asc</code>,
+<code>slp_desc</code>, <code>inf_asc</code>, <code>inf_desc</code>,
+<code>coff</code>),</li>
 <li>
-<code><a href="../reference/build_composition.html">build_composition()</a></code> — the Dirichlet-multinomial weights
+<code><a href="../reference/build_composition.html">build_composition()</a></code>: the Dirichlet-multinomial weights
 (<code>theta_comp</code>, <code>theta_caal</code>,
 <code>theta_diet</code>), <strong>prior-only</strong>.</li>
 </ul>
 <p>The same formula grammar covers every way a parameter can vary. The
 right-hand side can be a covariate (<code>~ temp</code>), a set of time
-blocks (<code>~ cut(Year, ...)</code> — the fixed part goes straight to
+blocks (<code>~ cut(Year, ...)</code> (the fixed part goes straight to
 <code><a href="https://rdrr.io/r/stats/model.matrix.html" class="external-link">model.matrix()</a></code>, so there is no bespoke block helper), or a
-year-to-year random effect — independent (<code>~ (1|Year)</code>), a
+year-to-year random effect) independent (<code>~ (1|Year)</code>), a
 random walk (<code>rw(1|Year)</code>), or first-order autoregressive
 (<code>ar1(1|Year)</code>). <code>~ 1</code> with a <code>priors</code>
 list leaves the parameter at one value but places a prior on it. Use
-<code>by =</code> to say what the effect varies over —
+<code>by =</code> to say what the effect varies over,
 <code>by = ~ species + sex + age_bin</code> for the population
 processes, <code>by = ~ fleet</code> for catchability and
 selectivity.</p>
@@ -495,7 +503,7 @@ the <code>priors</code> quosure in a data mask
 (<code>rlang::eval_tidy(..., data = .prior_dispatch_mask())</code>) that
 binds <code>normal</code> → <code>prior_normal</code>, and so on. Both
 spellings work inside <code><a href="../reference/linkage_spec.html">linkage_spec()</a></code>, and the bare form is
-intentional — do not “fix” it to <code><a href="../reference/prior_normal.html">prior_normal()</a></code>.</p>
+intentional, do not “fix” it to <code><a href="../reference/prior_normal.html">prior_normal()</a></code>.</p>
 </div>
 <div class="section level2">
 <h2 id="recipes">Recipes<a class="anchor" aria-label="anchor" href="#recipes"></a>
@@ -533,19 +541,19 @@ the <code><a href="../reference/fit_mod.html">fit_mod()</a></code> roxygen.</li>
 <li>
 <code>REPORT()</code> it in <code>ceattle.cpp</code> (and
 <code>ADREPORT()</code> it if it needs a standard error). A
-<code>REPORT</code> inside a comment block is not reported — enumerate
+<code>REPORT</code> inside a comment block is not reported, enumerate
 from a real fit, not from a grep, when checking what a model actually
 returns.</li>
 <li>Give it dimension names in <code>R/6-rename_output.R</code> if it is
 an array.</li>
 <li>Add it to the quantity dictionary in
 <code>R/0-quantity_dictionary.R</code>, with its units and whether it
-carries a standard error. <code>test-schema-quantity-dictionary.R</code>
+holds a standard error. <code>test-schema-quantity-dictionary.R</code>
 reads the template and a fit and asserts the two agree, so a quantity
 added here and not there fails a test.</li>
-<li>If a quantity is only defined for some configurations — the
+<li>If a quantity is only defined for some configurations, the
 per-recruit reference points are computed only under
-<code>msmMode = 0</code> — say so in its <code>meaning</code>, and gate
+<code>msmMode = 0</code>, say so in its <code>meaning</code>, and gate
 it in <code><a href="../reference/report_tables.html">report_tables()</a></code>. CEATTLE leaves a <em>number</em>
 behind rather than a gap, so an ungated quantity reports a plausible
 wrong figure.</li>
@@ -556,7 +564,7 @@ wrong figure.</li>
 </h3>
 <p>There are two cases. Follow the one that matches.</p>
 <p><strong>A <code>fleet_control</code> column</strong> (e.g. a new
-per-fleet setting) — add it in <strong>one</strong> place,
+per-fleet setting), add it in <strong>one</strong> place,
 <code>R/0-column_schema.R</code>:</p>
 <ol style="list-style-type: decimal">
 <li>Add a row to <code>.rce_column_schema()</code> with the column’s
@@ -568,7 +576,7 @@ so no other file needs editing to make the column persist and
 round-trip.</li>
 <li>Consume the column where it matters (<code><a href="../reference/data_check.html">data_check()</a></code>,
 <code><a href="../reference/rearrange_data.html">rearrange_data()</a></code>, or the cpp) by its
-<strong>canonical</strong> name — aliases are already upgraded on
+<strong>canonical</strong> name, aliases are already upgraded on
 entry.</li>
 <li>If it is a rename of an existing column, put the old spelling in
 <code>aliases</code> and pin it in
@@ -583,7 +591,7 @@ consume it in the module.</li>
 <strong>Add read <em>and</em> write support in
 <code>R/0-read_write_excel_data.R</code>.</strong> A new element with no
 <code><a href="../reference/write_data.html">write_data()</a></code>/<code><a href="../reference/read_data.html">read_data()</a></code> handling round-trips
-to nothing through the standard xlsx format — the feature is silently
+to nothing through the standard xlsx format; the feature is silently
 lossy. (This is exactly how <code>index_cov</code> was lost; it is the
 single most common data-input bug.)</li>
 <li>Add validation in <code>R/1-data_check.R</code> and, if the model
@@ -599,6 +607,9 @@ roxygen.</li>
 <h3 id="add-a-new-switch-option-e-g--a-selectivity-form-or-suitmode">Add a new switch option (e.g. a selectivity form or
 <code>suitMode</code>)<a class="anchor" aria-label="anchor" href="#add-a-new-switch-option-e-g--a-selectivity-form-or-suitmode"></a>
 </h3>
+<p>For a selectivity form, <a href="adding-a-selectivity-form.html">Adding a selectivity form</a>
+traces one existing form through every file and names the tests that
+catch a half-finished addition. The general shape:</p>
 <ol style="list-style-type: decimal">
 <li>Implement the case in the module <code>.hpp</code>
 (e.g. <code>selectivity.hpp</code> case <em>N</em>,
@@ -608,8 +619,8 @@ roxygen.</li>
 <code>suitMode_map</code>); otherwise <code>validate_switches()</code>
 rejects the new name.</li>
 <li>If the option is not yet ready for use, block it in
-<code>R/1-data_check.R</code> — as the length-based suitability modes
-are (<code>suitMode %in% c(1, 3, 5)</code>).</li>
+<code>R/1-data_check.R</code>, as the length-based suitability modes are
+(<code>suitMode %in% c(1, 3, 5)</code>).</li>
 <li>Add bounds in <code>R/4-build_parameter_bounds.R</code> if the
 option introduces bounded parameters (see the
 <code>suitMode %in% c(1:2)</code> branch).</li>
@@ -631,15 +642,15 @@ intended.</p>
 same time.</strong> Every observation and every process error is drawn
 in a <code>SIMULATE</code> block next to the density that scores it, so
 the two are edited together. A simulator that has drifted from its
-likelihood does not error — it makes <code><a href="../reference/self_test.html">self_test()</a></code> report
+likelihood does not error, it makes <code><a href="../reference/self_test.html">self_test()</a></code> report
 recovery against a data-generating process the model never assumed.
 Three rules the existing blocks follow:</p>
 <ul>
 <li>
-<strong>Draw what the density assumes</strong>, including the
+<strong>Draw what the density assumes</strong>: including the
 bias-correction convention and the scale (log vs. natural). Where a
-family has no exact sampler — a multivariate normal truncated to the
-positive orthant, say — note it in the draw and warn from
+family has no exact sampler (a multivariate normal truncated to the
+positive orthant, say) note it in the draw and warn from
 <code><a href="../reference/sim_mod.html">sim_mod()</a></code> rather than substituting a different
 distribution.</li>
 <li>
@@ -652,14 +663,14 @@ under its name is readable as the data it replaced, which is why
 are separate copies.</li>
 <li>
 <strong>Do not draw what the model does not define.</strong> If two
-densities score one latent — the AMAK/Ianelli stock-recruit penalty is
-the live example — there is no single distribution to draw from. Leave
-it and warn.</li>
+densities score one latent, the AMAK/Ianelli stock-recruit penalty is
+the live example; there is no single distribution to draw from. Leave it
+and warn.</li>
 </ul>
 <p><code>simulate_state</code> selects which processes are redrawn
 (recruitment, M, growth, catchability, selectivity). Its slot order is
 the linkage process code, so a random linkage is gated by
-<code>simulate_state(linkage_process(i))</code> with no translation —
+<code>simulate_state(linkage_process(i))</code> with no translation,
 change one and change the other (<code>R/0-linkage_encode.R</code>).</p>
 <p><code>simulate_period</code> is a two-slot vector, and <strong>only
 slot 0 is read</strong>. It gates the <em>process</em> draws, whose
@@ -668,14 +679,14 @@ period deliberately, because <code><a href="../reference/run_mse.html">run_mse()
 negative-<code>Year</code> rows back in as the next assessment’s data,
 so gating them would hand the estimation model observations that were
 never simulated. Slot 1 is reserved for a projection-period process draw
-— WHAM uses its equivalent that way — and is inert today; nothing in
+(WHAM uses its equivalent that way) and is inert today; nothing in
 <code><a href="../reference/sim_mod.html">sim_mod()</a></code>’s interface reaches either slot, and the tests
 and <code>tools/verify/</code> scripts that exercise slot 0 do so
 through the internal <code>.sim_draw(period = )</code>. Wiring slot 1 up
 means giving the projection-period deviations a density to draw from
 first.</p>
 <p>Both are <code>DATA_IVECTOR</code>s, defaulted in
-<code><a href="../reference/build_osa_data.html">build_osa_data()</a></code> — the single funnel every data list passes
+<code><a href="../reference/build_osa_data.html">build_osa_data()</a></code>, the single funnel every data list passes
 through on its way to <code>MakeADFun()</code>.</p>
 </div>
 </div>
@@ -713,67 +724,13 @@ before testing, since the tests load the compiled
 <div class="section level2">
 <h2 id="branches-and-releases">Branches and releases<a class="anchor" aria-label="anchor" href="#branches-and-releases"></a>
 </h2>
-<p><code>origin/HEAD</code> points at <code>main</code>. The general
-model, per the Onboarding wiki page, is: cut feature branches from
-<code>dev</code>, merge them back into <code>dev</code>, and merge
-<code>dev</code> into <code>main</code> once a project’s developments
-are complete.</p>
-<table class="table">
-<colgroup>
-<col width="50%">
-<col width="50%">
-</colgroup>
-<thead><tr class="header">
-<th>Branch</th>
-<th>Role</th>
-</tr></thead>
-<tbody>
-<tr class="odd">
-<td><code>main</code></td>
-<td>Most stable / documented; CI and CRAN target.</td>
-</tr>
-<tr class="even">
-<td><code>dev</code></td>
-<td>Active development branch; base for feature branches.</td>
-</tr>
-<tr class="odd">
-<td><code>dev-DSEM</code></td>
-<td>
-<code>dev</code> with DSEM-linked recruitment (experimental).</td>
-</tr>
-<tr class="even">
-<td><code>dev-ebs-pk</code></td>
-<td>EBS pollock application / bridge.</td>
-</tr>
-<tr class="odd">
-<td><code>dev-RTMB</code></td>
-<td>RTMB port (remote).</td>
-</tr>
-<tr class="even">
-<td><code>testing-suite-overhaul</code></td>
-<td>Test-suite expansion.</td>
-</tr>
-<tr class="odd">
-<td><code>depricated-ceattle_classic*</code></td>
-<td>Original Holsman et al. (2016) single-sex model
-(<code>ceattle_v01_02</code>/<code>_04</code>.cpp); historical reference
-only.</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Versioning (SemVer).</strong> MAJOR for breaking changes,
-MINOR for new features/functionality, PATCH for bug fixes. Update
-<code>DESCRIPTION</code> and add a <code>NEWS.md</code> entry with each
-release.</p>
-<p><strong>Commit messages (Conventional Commits).</strong> Prefix with
-one of <code>feat</code>, <code>fix</code>, <code>docs</code>,
-<code>style</code>, <code>refactor</code>, <code>perf</code>,
-<code>test</code>, <code>chore</code>, optionally scoped, e.g.
-<code>fix(selectivity): normalize Hake-type curve</code>.</p>
-<p><strong>CI.</strong> <code>R-CMD-check.yaml</code> runs on macOS,
-Windows, and Ubuntu (R release) on push/PR to
-<code>main</code>/<code>master</code> and weekly;
-<code>pkgdown.yaml</code> rebuilds this site.</p>
+<p>Feature branches are cut from <code>dev</code> and merged back into
+<code>dev</code>; the maintainer merges <code>dev</code> into
+<code>main</code> as a release, following
+<code>inst/RELEASE-CHECKLIST.md</code>. Operational assessments pin a
+tagged release. What a pull request holds (<code>NEWS.md</code>, the
+<code>DESCRIPTION</code> version, the affected vignette), the
+commit-message convention and what CI runs where are stated once, in <a href="https://github.com/afsc-assessments/Rceattle/blob/main/CONTRIBUTING.md" class="external-link"><code>CONTRIBUTING.md</code></a>.</p>
 </div>
 <div class="section level2">
 <h2 id="debugging-tips">Debugging tips<a class="anchor" aria-label="anchor" href="#debugging-tips"></a>
@@ -781,7 +738,7 @@ Windows, and Ubuntu (R release) on push/PR to
 <ul>
 <li>
 <strong><code>gradient is of length 1</code> (or similar).</strong>
-The population is usually crashing — numbers-at-age going negative or a
+The population is usually crashing, numbers-at-age going negative or a
 divide-by-zero. Check starting values and bounds for the offending
 process.</li>
 <li>
@@ -794,8 +751,8 @@ numbers-at-age via the <code>NByageFixed</code> sheet and selectivity
 via <code>emp_sel</code> with <code>Selectivity = "Fixed"</code>, set
 <code>estDynamics = 1</code>, and run
 <code>fit_mod(estimateMode = 1)</code> to evaluate without re-fitting.
-(See also the <a href="../stock-synthesis-conversion.html">Stock
-Synthesis conversion</a> article.)</li>
+(See also the <a href="stock-synthesis-conversion.html">Stock Synthesis
+conversion</a> article.)</li>
 </ul>
 </div>
 <div class="section level2">
@@ -821,7 +778,7 @@ reopened each time someone reads the API cold.</p>
 <p><em>Switch codes are frozen.</em> Renumbering any of them silently
 reinterprets every saved <code>run_config</code> YAML, every workbook,
 and every fitted <code>.rds</code> in <code>../Rceattle-models</code>
-and <code>../GOA-ATF-ESP</code> — the same integer would mean something
+and <code>../GOA-ATF-ESP</code>, the same integer would mean something
 new with nothing to signal it. This outweighs the readability of a
 tidier numbering, so these stay as they are:</p>
 <ul>
@@ -832,7 +789,7 @@ reads backwards.</li>
 <code>srr_fun</code>’s valid set is non-contiguous: 0/2/4 are live,
 1/3/5 soft-deprecated.</li>
 <li>
-<code>sel_map</code> skips 10.</li>
+<code>sel_map</code> skips 10, 12 and 14.</li>
 <li>
 <code>initMode</code> 1 (<code>Equilibrium</code>) and 5
 (<code>OffsetEquilibrium</code>) differ by one term.</li>
@@ -845,20 +802,20 @@ code for most fleets but a 1-based <code>env_data</code> column index
 (possibly comma-separated, <code>"1,3"</code>) when
 <code>Catchability</code> is <code>Environmental</code> (5). Code 6 was
 the other such form and is removed, but the overload is not academic: it
-is why the <code>Time_varying_q</code> mode checks —
-<code>validate_switches()</code>, the soft-deprecation, and the 5.16.0
-<code>"AR1"</code> refusal — all exempt those fleets. A check that
+is why the <code>Time_varying_q</code> mode checks
+(<code>validate_switches()</code>, the soft-deprecation, and the 5.16.0
+<code>"AR1"</code> refusal) all exempt those fleets. A check that
 forgets it rejects a working model for a value the assessor never set as
 a mode.</p>
 <p><code>Sel_curve_pen1</code> is a penalty weight for selectivity
-2/9/11 and <code>Sel_curve_pen2</code> a curvature penalty for 2/9,
-while for 6/7 both are logit-scale AR1 correlations. Re-encoding either
-would break existing workbooks; they are documented in the column schema
-instead.</p>
+2/9/11/13 and <code>Sel_curve_pen2</code> a curvature penalty for
+2/9/13, while for 6/7 both are logit-scale AR1 correlations. Re-encoding
+either would break existing workbooks; they are documented in the column
+schema instead.</p>
 <p><em>Argument counts and names.</em> <code><a href="../reference/fit_mod.html">fit_mod()</a></code> and
 <code><a href="../reference/run_mse.html">run_mse()</a></code> both take upwards of twenty arguments, and the
 iteration counts are spelled <code>peels</code>, <code>njitter</code>,
-<code>nsim</code> and <code>n_iter</code> – each idiomatic where it
+<code>nsim</code> and <code>n_iter</code>, each idiomatic where it
 appears. <code><a href="../reference/fit_mod.html">fit_mod()</a></code> also still accepts the optimizer
 arguments that moved onto <code><a href="../reference/fit_control.html">fit_control()</a></code>, with a warning;
 the live list is <code>.deprecated_ctl_args</code> in
@@ -871,8 +828,8 @@ is, but it is the one place where <code>object</code> means something
 else.</p>
 <p><em><code><a href="https://rdrr.io/r/stats/profile.html" class="external-link">profile()</a></code> is the odd diagnostic out.</em> It refits
 like <code><a href="../reference/retrospective.html">retrospective()</a></code>, <code><a href="../reference/jitter.html">jitter()</a></code> and
-<code><a href="../reference/self_test.html">self_test()</a></code> but takes only a bare <code>getsd=</code> – no
-<code>phase</code>, no <code>fit_control</code> – so every profile point
+<code><a href="../reference/self_test.html">self_test()</a></code> but takes only a bare <code>getsd=</code>, no
+<code>phase</code>, no <code>fit_control</code>, so every profile point
 refits at <code>.refit_like()</code>’s unphased default. Worth knowing
 when reading a profile that looks flatter than expected.</p>
 </div>
@@ -881,16 +838,15 @@ when reading a profile that looks flatter than expected.</p>
 </h2>
 <ul>
 <li>
-<a href="https://github.com/grantdadams/Rceattle/wiki" class="external-link">GitHub
-wiki</a> — the original developer notes this page consolidates.</li>
+<a href="https://github.com/afsc-assessments/Rceattle/wiki" class="external-link">GitHub
+wiki</a>, the original developer notes this page consolidates.</li>
 <li>
-<a href="../model-parameterizations.html">Model
-parameterizations</a> — equation-level detail on selectivity,
-catchability, and predation.</li>
-<li>Adams et al. (2022), <em>Fisheries Research</em> 251:106303 — the
-TMB generalisation of CEATTLE. Holsman et al. (2016), <em>Deep-Sea
-Research II</em> 134:360–378 — the original model. Wassermann et
-al. (2024), <em>ICES JMS</em> — the hake/cannibalism extension.</li>
+<a href="model-parameterizations.html">Model parameterizations</a>,
+equation-level detail on selectivity, catchability, and predation.</li>
+<li>Adams et al. (2022), <em>Fisheries Research</em> 251:106303, the TMB
+generalisation of CEATTLE. Holsman et al. (2016), <em>Deep-Sea Research
+II</em> 134:360–378 (the original model. Wassermann et al. (2024),
+<em>ICES JMS</em>) the hake/cannibalism extension.</li>
 </ul>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

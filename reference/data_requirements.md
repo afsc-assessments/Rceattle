@@ -4,11 +4,11 @@ Introspects the Rceattle data-element catalogue and reports, for a given
 model configuration, which top-level `data_list` elements are
 **Required**, **Optional** (used if supplied, otherwise default-filled
 by
-[`clean_data()`](https://grantdadams.github.io/Rceattle/reference/clean_data.md)),
+[`clean_data()`](https://afsc-assessments.github.io/Rceattle/reference/clean_data.md)),
 or **Ignored** (not consulted because the feature that would use them is
 switched off). It answers "what do I actually need to supply for *this*
-model?" without having to read the validation code or the switch tables
-– the same conditions enforced at fit time (they share one declarative
+model?" without having to read the validation code or the switch tables,
+the same conditions enforced at fit time (they share one declarative
 table).
 
 ## Usage
@@ -30,9 +30,9 @@ data_requirements(
 - data_list:
 
   Optional. An existing Rceattle data list (e.g. from
-  [`read_data()`](https://grantdadams.github.io/Rceattle/reference/read_data.md)
+  [`read_data()`](https://afsc-assessments.github.io/Rceattle/reference/read_data.md)
   /
-  [`build_data()`](https://grantdadams.github.io/Rceattle/reference/build_data.md),
+  [`build_data()`](https://afsc-assessments.github.io/Rceattle/reference/build_data.md),
   or a bundled dataset). When supplied, the configuration is read from
   it and the convenience arguments are ignored.
 
@@ -96,7 +96,7 @@ A `data.frame` with one row per data element and columns:
 - `default`:
 
   for Optional elements, the
-  [`clean_data()`](https://grantdadams.github.io/Rceattle/reference/clean_data.md)
+  [`clean_data()`](https://afsc-assessments.github.io/Rceattle/reference/clean_data.md)
   default used when the element is absent.
 
 Rows are ordered Required, then Optional, then Ignored.
@@ -104,11 +104,11 @@ Rows are ordered Required, then Optional, then Ignored.
 ## Details
 
 The configuration can be given either as an existing (possibly partial)
-`data_list` – its switches are normalized through
-[`clean_data()`](https://grantdadams.github.io/Rceattle/reference/clean_data.md)
+`data_list`, its switches are normalized through
+[`clean_data()`](https://afsc-assessments.github.io/Rceattle/reference/clean_data.md)
 /
-[`switch_check()`](https://grantdadams.github.io/Rceattle/reference/switch_check.md)
-so the conditions evaluate against filled defaults – or, when no
+[`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md)
+so the conditions evaluate against filled defaults, or, when no
 `data_list` is supplied, built from the convenience arguments.
 
 Requirements are *conditional*: e.g. `diet_data`, `ration_data` and the
@@ -121,8 +121,8 @@ unless `growth_model > 0`; `NByageFixed` is Ignored unless
 
 ## See also
 
-[`clean_data()`](https://grantdadams.github.io/Rceattle/reference/clean_data.md),
-[`build_data()`](https://grantdadams.github.io/Rceattle/reference/build_data.md).
+[`clean_data()`](https://afsc-assessments.github.io/Rceattle/reference/clean_data.md),
+[`build_data()`](https://afsc-assessments.github.io/Rceattle/reference/build_data.md).
 
 ## Examples
 

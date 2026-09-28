@@ -9,7 +9,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.33.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -38,12 +38,14 @@
     <li><a class="dropdown-item" href="../articles/stock-synthesis-conversion.html">Converting from Stock Synthesis</a></li>
     <li><h6 class="dropdown-header" data-toc-skip>--- Contributing ---</h6></li>
     <li><a class="dropdown-item" href="../articles/developer-guide.html">Developer guide</a></li>
+    <li><a class="dropdown-item" href="../articles/adding-a-selectivity-form.html">Adding a selectivity form</a></li>
+    <li><a class="dropdown-item" href="../cpp/index.html">C++ template reference</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
-<li class="nav-item"><a class="external-link nav-link" href="https://github.com/grantdadams/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/afsc-assessments/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
       </ul></div>
 
 
@@ -53,7 +55,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Data inputs for single species CEATTLE of the Bering Sea from 1979 to 2017</h1>
-      <small class="dont-index">Source: <a href="https://github.com/grantdadams/Rceattle/blob/main/R/data.R" class="external-link"><code>R/data.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/R/data.R" class="external-link"><code>R/data.R</code></a></small>
       <div class="d-none name"><code>BS2017SS.Rd</code></div>
     </div>
 
@@ -115,7 +117,7 @@
 <dd><p>Other food in the ecosystem for each species</p></dd>
 
 <dt>estDynamics</dt>
-<dd><p>Estimate or fix numbers-at-age. Accepts integer codes or the equivalent readable strings: 0 / "Estimated" = estimate dynamics; 1 / "Fixed" = use input numbers-at-age in NByageFixed; 2 / "FixedScaled" = multiply input numbers-at-age (NByageFixed) by a single scaling coefficient; 3 / "FixedScaledByAge" = multiply input numbers-at-age (NByageFixed) by an age-specific scaling coefficient.</p></dd>
+<dd><p>Estimate or fix numbers-at-age. Accepts integer codes or the equivalent readable strings: 0 / "Estimated" = estimate dynamics; 1 / "Fixed" = use input numbers-at-age in NByageFixed; 2 / "FixedScaled" = multiply input numbers-at-age (NByageFixed) by a single scaling coefficient, estimated under predation (msmMode &gt; 0) and fixed at 1 otherwise.</p></dd>
 
 <dt>M1_model</dt>
 <dd><p>Estimate residual (multi-species mode) or total natural mortality (single-species mode). 0 = use fixed natural mortality from M1_base, 1 = estimate sex- and age-invariant M1, 2 = sex-specific (two-sex model), age-invariant M1, 3 = estimate sex- and age-specific M1.</p></dd>
@@ -224,7 +226,7 @@
 <dd><p>Index used to give fleets the same selectivity (otherwise, same as Fleet_code). Fleets sharing a value share one selectivity parameter block, with its penalties and priors accumulated once on the group's first non-Off fleet. Sharing the parameters is not enough on its own: the columns that shape the curve are read per fleet and must agree across the group, or the fleets end up with different selectivities. <code><a href="data_check.html">data_check()</a></code> reports any that differ. To mirror a fleet, copy its fleet_control row and change only the identity and catchability columns. See <code><a href="../articles/model-options-and-functionality.html">vignette("model-options-and-functionality")</a></code>.</p></dd>
 
 <dt>Selectivity</dt>
-<dd><p>Selectivity form: 0 = "Fixed"; 1 = "Logistic"; 2 = "NonParametric" (Ianelli et al. 2018); 3 = "DoubleLogistic"; 4 = "DescendingLogistic"; 5 = "Hake" non-parametric (Taylor et al. 2014); 6 = "2DAR1"; 7 = "3DAR1" (Cheng et al. 2024); 8 = "DoubleNormal"; 9 = "NonParametricPM" (non-parametric random walk, AMAK "pm"); 11 = "LogisticPM" (logistic with a free age-1 selectivity, AMAK "pm"). Whether a form is age- or length-based is set by Selectivity_dimension.</p></dd>
+<dd><p>Selectivity form: 0 = "Fixed"; 1 = "Logistic"; 2 = "NonParametric" (Ianelli et al. 2018); 3 = "DoubleLogistic"; 4 = "DescendingLogistic"; 5 = "Hake" non-parametric (Taylor et al. 2014); 6 = "2DAR1"; 7 = "3DAR1" (Cheng et al. 2024); 8 = "DoubleNormal"; 9 = "NonParametricPM" (non-parametric random walk with penalized increments, AMAK "pm"; not integrable under random_sel); 11 = "LogisticPM" (logistic with a free age-1 selectivity, AMAK "pm"); 13 = "NonParametricIntegrable" (the Ianelli base curve whose deviations have a proper density, so random_sel integrates them; Time_varying_sel picks the structure: "Off", "IID" or "RandomWalk"). Whether a form is age- or length-based is set by Selectivity_dimension.</p></dd>
 
 <dt>Selectivity_dimension</dt>
 <dd><p>"Age" or "Length".</p></dd>
@@ -233,7 +235,7 @@
 <dd><p>Number of bins (ages or length bins) to estimate for non-parametric selectivity.</p></dd>
 
 <dt>Time_varying_sel</dt>
-<dd><p>Whether a time-varying selectivity should be estimated. 0 = "Off"; 1 = "IID" penalized deviates given <code>Time_varying_sel_sd</code>, or random effects with that sd estimated under <code>random_sel</code>; 2 = "AR1" REMOVED in 5.16.0 – it was scored as "IID", so <code><a href="data_check.html">data_check()</a></code> errors on it; use "IID" for the same fit, or <code>linkage_spec(~ ar1(1 | Year))</code> for a real one; 3 = "Block" time blocks with no penalty; 4 = "RandomWalk" following Dorn; 5 = "RandomWalkAscending" on the ascending limb of double logistic only.</p></dd>
+<dd><p>Whether a time-varying selectivity should be estimated. 0 = "Off"; 1 = "IID" penalized deviates given <code>Time_varying_sel_sd</code>, or random effects with that sd estimated under <code>random_sel</code>; 2 = "AR1" REMOVED in 5.16.0, it was scored as "IID", so <code><a href="data_check.html">data_check()</a></code> errors on it; use "IID" for the same fit, or <code>linkage_spec(~ ar1(1 | Year))</code> for a real one; 3 = "Block" time blocks with no penalty; 4 = "RandomWalk" following Dorn; 5 = "RandomWalkAscending" on the ascending limb of double logistic only.</p></dd>
 
 <dt>Time_varying_sel_sd</dt>
 <dd><p>The fixed or initial sd to use for time varying selectivity.</p></dd>
@@ -245,19 +247,19 @@
 <dd><p>Age/length bin at which selectivity is non-zero</p></dd>
 
 <dt>Sel_shape_sd, Sel_curvature_sd, Sel_devmag_sd</dt>
-<dd><p>Selectivity penalties expressed as standard deviations (an intuitive alternative to the raw penalty weights in Sel_curve_pen1/2/3). Each penalty is a Gaussian SSQ, so the weight is <code>1 / (2 * sd^2)</code>: Sel_shape_sd is the shape/smoothness penalty (Sel_curve_pen1), Sel_curvature_sd the 2nd-difference curvature penalty (Sel_curve_pen2), Sel_devmag_sd the deviation-magnitude penalty (Sel_curve_pen3). Supplying an SD sets the corresponding Sel_curve_pen column; a legacy Sel_curve_pen value is never overwritten. Sel_shape_sd and Sel_devmag_sd apply to NonParametric (2/9) and LogisticPM (11); Sel_curvature_sd is NonParametric-only (LogisticPM does not use Sel_curve_pen2). The 2DAR1/3DAR1 forms reuse Sel_curve_pen for logit-scale correlations and keep those columns.</p></dd>
+<dd><p>Selectivity penalties expressed as standard deviations (an intuitive alternative to the raw penalty weights in Sel_curve_pen1/2/3). Each penalty is a Gaussian SSQ, so the weight is <code>1 / (2 * sd^2)</code>: Sel_shape_sd is the shape/smoothness penalty (Sel_curve_pen1), Sel_curvature_sd the 2nd-difference curvature penalty (Sel_curve_pen2), Sel_devmag_sd the deviation-magnitude penalty (Sel_curve_pen3). Supplying an SD sets the corresponding Sel_curve_pen column; a legacy Sel_curve_pen value is never overwritten. Sel_shape_sd applies to NonParametric (2/9/13) and LogisticPM (11), Sel_devmag_sd to "NonParametricPM" (9) and "LogisticPM" (11) only, the slot being unread by "NonParametric" (2) and "NonParametricIntegrable" (13); Sel_curvature_sd is NonParametric-only (2/9/13; LogisticPM does not use Sel_curve_pen2). The 2DAR1/3DAR1 forms reuse Sel_curve_pen for logit-scale correlations and keep those columns.</p></dd>
 
 <dt>Sel_shape_dir</dt>
-<dd><p>Direction of the (directional-mode) NonParametric shape penalty when Sel_shape_sd is used: "Decreasing" (default, penalize decreasing selectivity) or "Increasing" (sets the sign of Sel_curve_pen1). LogisticPM's shape penalty is two-sided, so "Increasing" is rejected there.</p></dd>
+<dd><p>Direction of the shape penalty when Sel_shape_sd is used: "Decreasing" (default, penalize decreasing selectivity) or "Increasing" (sets the sign of Sel_curve_pen1). Only "NonParametricPM" (9) with Sel_shape_mode = "Directional" branches on the sign; every other form, that one under "Smooth" included, applies Sel_curve_pen1 as written, so "Increasing" is refused there rather than negating it.</p></dd>
 
 <dt>Sel_curve_pen1</dt>
-<dd><p>Raw shape/smoothness penalty weight for non-parametric (type 2/9) and LogisticPM (11) selectivity. The intuitive alternative is Sel_shape_sd, which sets this to <code>1 / (2 * sd^2)</code>. The 2DAR1/3DAR1 forms reuse this column as a logit-scale correlation.</p></dd>
+<dd><p>Raw shape/smoothness penalty weight for non-parametric (type 2/9/13) and LogisticPM (11) selectivity. The intuitive alternative is Sel_shape_sd, which sets this to <code>1 / (2 * sd^2)</code>. The 2DAR1/3DAR1 forms reuse this column as a logit-scale correlation.</p></dd>
 
 <dt>Sel_curve_pen2</dt>
 <dd><p>Raw 2nd-difference curvature penalty weight for non-parametric selectivity (the intuitive alternative is Sel_curvature_sd). Reused as a logit-scale correlation by the 2DAR1/3DAR1 forms.</p></dd>
 
 <dt>Sel_curve_pen3</dt>
-<dd><p>Raw deviation-magnitude penalty weight for non-parametric / LogisticPM selectivity (the intuitive alternative is Sel_devmag_sd).</p></dd>
+<dd><p>Raw deviation-magnitude penalty weight, read only by "NonParametricPM" (9) and "LogisticPM" (11) (the intuitive alternative is Sel_devmag_sd).</p></dd>
 
 <dt>Sel_pen_first_bin</dt>
 <dd><p>First bin (age or length, on the fleet's Selectivity_dimension) for the non-parametric shape penalty. NA defaults to Bin_first_selected.</p></dd>
@@ -272,7 +274,7 @@
 <dd><p>Weight on the AMAK average-selectivity base-level penalty (type 9 only): 0 = off (default), 10 matches AMAK.</p></dd>
 
 <dt>Sel_cap_bin</dt>
-<dd><p>NonParametricRPM selectivity bin cap. NA (default) applies no cap.</p></dd>
+<dd><p>NonParametricPM selectivity bin cap. NA (default) applies no cap.</p></dd>
 
 <dt>Sel_norm_bin</dt>
 <dd><p>Where selectivity is normalized to 1. <code>"Max"</code>
@@ -282,7 +284,7 @@ A number is an absolute age for an age-based fleet (6 means age 6, not the
 6th bin) or a 1-based length-bin ordinal for a length-based one, and must
 lie in the range the fleet is selected over; below it the curve is zeroed,
 so a value there is read as <code>"Max"</code>. In a two-sex model this says only
-where the reference is taken – whether it is pooled across the sexes is
+where the reference is taken, whether it is pooled across the sexes is
 <code>Sel_norm_scope</code>. See the sex-structure section of
 <code><a href="../articles/model-options-and-functionality.html">vignette("model-options-and-functionality")</a></code>.</p></dd>
 
@@ -309,10 +311,10 @@ NA.</p></dd>
 <dd><p>Age transition matrix (e.g. growth trajectory) index to use for derived quantities to convert age to length</p></dd>
 
 <dt>Catchability_index</dt>
-<dd><p>Index used to give fleets the same catchability (otherwise, same as Fleet_code). Fleets sharing a value share one q parameter, so the group carries only one answer to whether q is estimated: the group's first non-Off fleet decides for all of them, regardless of fleet type. Give a fleet its own value when it should be estimated independently. "Analytical" and "AnalyticalArith" are the exception – they solve q from each fleet's own index observations, so a group containing one does <em>not</em> share a catchability. <code><a href="data_check.html">data_check()</a></code> reports that case, a Fixed lead that leaves fleets on different inits, and a <code>Catchability</code> or <code>Time_varying_q</code> that differs within a group. See <code><a href="../articles/model-options-and-functionality.html">vignette("model-options-and-functionality")</a></code>.</p></dd>
+<dd><p>Index used to give fleets the same catchability (otherwise, same as Fleet_code). Fleets sharing a value share one q parameter, so the group holds only one answer to whether q is estimated: the group's first non-Off fleet decides for all of them, regardless of fleet type. Give a fleet its own value when it should be estimated independently. "Analytical" and "AnalyticalArith" are the exception, they solve q from each fleet's own index observations, so a group containing one does <em>not</em> share a catchability. <code><a href="data_check.html">data_check()</a></code> reports that case, a Fixed lead that leaves fleets on different inits, and a <code>Catchability</code> or <code>Time_varying_q</code> that differs within a group. See <code><a href="../articles/model-options-and-functionality.html">vignette("model-options-and-functionality")</a></code>.</p></dd>
 
 <dt>Catchability</dt>
-<dd><p>Estimate catchability? 0 or "Fixed" = fixed at prior; 1 or "Estimated" = estimate a single parameter; 2 or "Estimated-with-prior" = estimate a single parameter with a prior; 3 or "Analytical" = geometric-mean analytical q (Ludwig and Walters 1994); 4 = power equation (not yet implemented); 5 or "Environmental" = linear equation log(q_y) = q_mu + beta * index_y; 6 or "AR1" = removed, and <code><a href="data_check.html">data_check()</a></code> errors on it – the deviates were never estimated, so q came back constant; express the Rogers et al. (2024) form as a q linkage with ar1(1 | Year) and <code>observe</code>, passed to <code>fit_mod(qFun = )</code>; 7 or "AnalyticalArith" = arithmetic-mean analytical q = mean(obs)/mean(pred), the AMAK/ebswp form used with the MVN survey likelihood.</p></dd>
+<dd><p>Estimate catchability? 0 or "Fixed" = fixed at prior; 1 or "Estimated" = estimate a single parameter; 2 or "Estimated-with-prior" = estimate a single parameter with a prior; 3 or "Analytical" = geometric-mean analytical q (Ludwig and Walters 1994); 4 = power equation (not yet implemented); 5 or "Environmental" = linear equation log(q_y) = q_mu + beta * index_y; 6 or "AR1" = removed, and <code><a href="data_check.html">data_check()</a></code> errors on it, the deviates were never estimated, so q came back constant; express the Rogers et al. (2024) form as a q linkage with ar1(1 | Year) and <code>observe</code>, passed to <code>fit_mod(qFun = )</code>; 7 or "AnalyticalArith" = arithmetic-mean analytical q = mean(obs)/mean(pred), the AMAK/ebswp form used with the MVN survey likelihood.</p></dd>
 
 <dt>Catchability_init</dt>
 <dd><p>Starting value (or fixed value) for catchability. When Catchability = "Estimated-with-prior" this also centers the q prior.</p></dd>
@@ -321,7 +323,7 @@ NA.</p></dd>
 <dd><p>Log-scale standard deviation of the q prior: dnorm(log_q, log(Catchability_init) - bias_adjust_proc * sd^2/2, sd). Used only when Catchability = "Estimated-with-prior".</p></dd>
 
 <dt>Time_varying_q</dt>
-<dd><p>Whether a time-varying q should be estimated. 0 = "Off"; 1 = "IID" penalized deviate or random effect; 2 = "AR1" REMOVED in 5.16.0 – it was scored as "IID", so <code><a href="data_check.html">data_check()</a></code> errors on it; use "IID" for the same fit, or <code>linkage_spec(~ ar1(1 | Year))</code> for a real one; 3 = "Block" time blocks with no penalty; 4 = "RandomWalk" from the mean following Dorn 2018. Under <code>Catchability = "Environmental"</code> this column instead holds the <code>env_data</code> column index, not a mode.</p></dd>
+<dd><p>Whether a time-varying q should be estimated. 0 = "Off"; 1 = "IID" penalized deviate or random effect; 2 = "AR1" REMOVED in 5.16.0, it was scored as "IID", so <code><a href="data_check.html">data_check()</a></code> errors on it; use "IID" for the same fit, or <code>linkage_spec(~ ar1(1 | Year))</code> for a real one; 3 = "Block" time blocks with no penalty; 4 = "RandomWalk" from the mean following Dorn 2018. Under <code>Catchability = "Environmental"</code> this column instead holds the <code>env_data</code> column index, not a mode.</p></dd>
 
 <dt>Time_varying_q_sd</dt>
 <dd><p>The sd to use for the random walk of time varying q if set to 1</p></dd>
@@ -345,7 +347,7 @@ NA.</p></dd>
 <dd><p>Age/length composition data distribution. Accepts integer codes or readable strings: -1 or "MultinomialAFSC" (default) = AFSC multinomial; 0 or "Multinomial" = full multinomial; 1 or "DirichletMultinomial".</p></dd>
 
 <dt>Comp_weights</dt>
-<dd><p>Composition weight. Its scale follows <code>Comp_distribution</code>: under a multinomial it is the natural-scale multiplier on the input sample size, while under a Dirichlet-multinomial the model uses <code>exp(Comp_weights)</code>, so the column holds the <em>log</em> of the starting weight – a value of 1 is a starting weight of \(e\); use 0 for a weight of 1. It is read when a model is built from scratch, so a refit keeps whatever weight it is given. A fit reports the weight its residuals imply – a harmonic mean of the ratio of effective to input sample size (McAllister &amp; Ianelli 1997) – in <code>Comp_weights_mcallister</code>; <code><a href="reweight_comps.html">reweight_comps</a></code> tunes towards it.</p></dd>
+<dd><p>Composition weight. Its scale follows <code>Comp_distribution</code>: under a multinomial it is the natural-scale multiplier on the input sample size, while under a Dirichlet-multinomial the model uses <code>exp(Comp_weights)</code>, so the column holds the <em>log</em> of the starting weight, a value of 1 is a starting weight of \(e\); use 0 for a weight of 1. It is read when a model is built from scratch, so a refit keeps whatever weight it is given. A fit reports the weight its residuals imply, a harmonic mean of the ratio of effective to input sample size (McAllister &amp; Ianelli 1997), in <code>Comp_weights_mcallister</code>; <code><a href="reweight_comps.html">reweight_comps</a></code> tunes towards it.</p></dd>
 
 <dt>CAAL_distribution</dt>
 <dd><p>Conditional age-at-length composition distribution. Accepts integer codes or readable strings: -1 or "MultinomialAFSC" = AFSC multinomial; 0 or "Multinomial" (default) = full multinomial; 1 or "DirichletMultinomial".</p></dd>

@@ -2,8 +2,8 @@
 
 Plots fitted index series: observed points with 95% observation
 intervals and the model-predicted index, faceted by fleet. Every fleet
-carrying `index_data` is drawn, a fishery with a CPUE series as much as
-a survey.
+holding `index_data` is drawn, a fishery with a CPUE series as much as a
+survey.
 
 ## Usage
 
@@ -30,7 +30,7 @@ plot_index(
 - Rceattle:
 
   A single
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   object or a list of them (overlaid).
 
 - file:

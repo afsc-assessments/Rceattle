@@ -18,7 +18,7 @@ build_growth(
 - fun:
 
   Growth function. Either a string
-  ([GROWTH_FUNS](https://grantdadams.github.io/Rceattle/reference/GROWTH_FUNS.md):
+  ([GROWTH_FUNS](https://afsc-assessments.github.io/Rceattle/reference/GROWTH_FUNS.md):
   `"empirical"` (default), `"vonBertalanffy"`, `"Richards"`) or the
   equivalent integer code (`0`, `1`, `2`). The canonical string form is
   stored on the returned object.
@@ -48,13 +48,13 @@ build_growth(
 - linkages:
 
   Optional named list of
-  [`linkage_spec()`](https://grantdadams.github.io/Rceattle/reference/linkage_spec.md)
+  [`linkage_spec()`](https://afsc-assessments.github.io/Rceattle/reference/linkage_spec.md)
   objects keyed by parameter name (must be one of
-  [GROWTH_LINKAGE_PARAMS](https://grantdadams.github.io/Rceattle/reference/GROWTH_LINKAGE_PARAMS.md)).
+  [GROWTH_LINKAGE_PARAMS](https://afsc-assessments.github.io/Rceattle/reference/GROWTH_LINKAGE_PARAMS.md)).
   The mean-growth keys (`K`, `L1`, `Linf`, `m`) accept arbitrary
   one-sided formulas and make that growth parameter year-varying (a
   per-year offset around its mean). The SD-endpoint keys (`sd_L1`,
-  `sd_Linf`) only honor intercept-bearing formulas (typically `~ 1`) –
+  `sd_Linf`) only honor intercept-bearing formulas (typically `~ 1`),
   they thread `init`, `bounds`, and `priors` onto the growth SD-at-age,
   giving the SDs the same prior/fix/initial-value contract as the mean
   parameters. Slope rows on SD specs raise a warning and have no effect;

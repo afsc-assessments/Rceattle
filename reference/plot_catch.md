@@ -35,7 +35,7 @@ plot_catch(
 - Rceattle:
 
   A single
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   object or a list of them (overlaid).
 
 - file:

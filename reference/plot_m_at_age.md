@@ -33,7 +33,7 @@ plot_m_at_age(
 - Rceattle:
 
   A single
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   object or a list of them (overlaid).
 
 - file:
@@ -105,7 +105,7 @@ plot_m_at_age(
 - add_ci:
 
   Add a 95% confidence interval. Only available where the plotted
-  quantity carries standard errors; warns and draws none otherwise.
+  quantity holds standard errors; warns and draws none otherwise.
 
 - top_adj:
 

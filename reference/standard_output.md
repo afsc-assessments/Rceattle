@@ -1,7 +1,7 @@
 # Rceattle output in the NOAA standardized assessment format
 
 Relabels
-[`report_tables()`](https://grantdadams.github.io/Rceattle/reference/report_tables.md)
+[`report_tables()`](https://afsc-assessments.github.io/Rceattle/reference/report_tables.md)
 output into the standardized assessment output that the `stockplotr` and
 `asar` packages consume, so Rceattle results can be plotted and written
 into a report by the same tools used for SS3, BAM, WHAM and FIMS.
@@ -17,9 +17,9 @@ standard_output(x, species = NULL, model = NULL)
 - x:
 
   An `"rceattle_report"` from
-  [`report_tables()`](https://grantdadams.github.io/Rceattle/reference/report_tables.md),
+  [`report_tables()`](https://afsc-assessments.github.io/Rceattle/reference/report_tables.md),
   or an Rceattle fit, which is passed through
-  [`report_tables()`](https://grantdadams.github.io/Rceattle/reference/report_tables.md)
+  [`report_tables()`](https://afsc-assessments.github.io/Rceattle/reference/report_tables.md)
   first.
 
 - species:
@@ -39,14 +39,14 @@ plus `species` and `model`.
 ## Details
 
 Quantity names are translated through the `standard_label` column of
-[`quantity_dictionary()`](https://grantdadams.github.io/Rceattle/reference/quantity_dictionary.md),
+[`quantity_dictionary()`](https://afsc-assessments.github.io/Rceattle/reference/quantity_dictionary.md),
 so `ssb` becomes `spawning_biomass`, `R` becomes `recruitment`, `F_spp`
 becomes `fishing_mortality`, and so on. A quantity the standard has no
 name for keeps its Rceattle name, so nothing is silently dropped.
 
 **The standard has no species dimension.** It describes one stock, so a
 multispecies CEATTLE fit cannot be represented in it as a whole. A
-`species` column is carried alongside the standard columns and `species`
+`species` column is held alongside the standard columns and `species`
 selects one stock; with several species in the fit and no selection,
 this errors rather than returning a frame in which two stocks' biomass
 share a year.
@@ -56,9 +56,9 @@ the model was fit to, `"fore"` for the projection.
 
 ## See also
 
-[`report_tables()`](https://grantdadams.github.io/Rceattle/reference/report_tables.md)
+[`report_tables()`](https://afsc-assessments.github.io/Rceattle/reference/report_tables.md)
 for the native tables and
-[`quantity_dictionary()`](https://grantdadams.github.io/Rceattle/reference/quantity_dictionary.md)
+[`quantity_dictionary()`](https://afsc-assessments.github.io/Rceattle/reference/quantity_dictionary.md)
 for the name crosswalk.
 
 ## Examples

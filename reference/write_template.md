@@ -1,15 +1,15 @@
 # Write a minimal starter CEATTLE data workbook
 
-Emits a small, structurally complete single-species workbook – one
-survey and one fishery, flat placeholder data – that a user can open and
-edit as a starting point. fleet_control is built on the canonical column
-names with schema defaults filled by
-[`switch_check`](https://grantdadams.github.io/Rceattle/reference/switch_check.md),
+Emits a small, structurally complete single-species workbook, one survey
+and one fishery, flat placeholder data, that a user can open and edit as
+a starting point. fleet_control is built on the canonical column names
+with schema defaults filled by
+[`switch_check`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md),
 so the template is always in sync with the current schema. The template
 round-trips through
-[`read_data`](https://grantdadams.github.io/Rceattle/reference/read_data.md)
+[`read_data`](https://afsc-assessments.github.io/Rceattle/reference/read_data.md)
 and
-[`data_check`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+[`data_check`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
 and builds under `fit_mod(estimateMode = 3)`; replace the placeholder
 observations with real data before fitting.
 
@@ -57,7 +57,7 @@ Invisibly, the minimal `data_list` that was written.
 f <- file.path(tempdir(), "template.xlsx")
 dat <- write_template(f, nages = 8, nyrs = 20)
 
-# The workbook is correctly shaped but carries placeholder observations;
+# The workbook is correctly shaped but holds placeholder observations;
 # data_requirements() reports what a given configuration still needs.
 head(data_requirements(dat), 4)
 #>            element category   status condition default

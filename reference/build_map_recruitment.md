@@ -5,7 +5,7 @@ stock-recruitment parameters (`rec_pars`) and Rec dev variances
 (`R_log_sd`)
 
 see
-[`build_srr()`](https://grantdadams.github.io/Rceattle/reference/build_srr.md)
+[`build_srr()`](https://afsc-assessments.github.io/Rceattle/reference/build_srr.md)
 for options,
 
 ## Usage

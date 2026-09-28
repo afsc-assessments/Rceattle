@@ -2,11 +2,11 @@
 
 Maps `beta_linkage` (one entry per row of `data_list$linkage_table`).
 Rows whose `est_phase == 0` are fixed at their initial values via `NA`;
-`(Intercept)` rows are also fixed (their value stays at 0 – the base
-parameter carries the level). Everything else is estimated. Phased
+`(Intercept)` rows are also fixed (their value stays at 0, the base
+parameter holds the level). Everything else is estimated. Phased
 estimation honoring nonzero phase ordinals can layer on later via the
 `phase` argument to
-[`fit_control()`](https://grantdadams.github.io/Rceattle/reference/fit_control.md).
+[`fit_control()`](https://afsc-assessments.github.io/Rceattle/reference/fit_control.md).
 
 ## Usage
 
@@ -23,7 +23,7 @@ build_map_linkages(map_list, data_list)
 - data_list:
 
   an Rceattle data_list (with the pooled `linkage_table` from
-  [`pool_linkages()`](https://grantdadams.github.io/Rceattle/reference/pool_linkages.md)).
+  `pool_linkages()`).
 
 ## Value
 

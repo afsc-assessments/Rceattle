@@ -2,7 +2,7 @@
 
 Collects the quantities a stock assessment reports into one set of tidy
 tables, so a SAFE chapter or a model comparison is built from a single
-call rather than from a dozen ad-hoc extractions. Every table carries a
+call rather than from a dozen ad-hoc extractions. Every table holds a
 `model` column, so passing several fits gives a like-for-like
 comparison.
 
@@ -25,7 +25,7 @@ report_tables(
 - object:
 
   An Rceattle fit from
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md),
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md),
   or a list of them.
 
 - model_names:
@@ -36,21 +36,21 @@ report_tables(
 - retro:
 
   A
-  [`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md)
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md)
   result per model, or `NULL` (default) to omit that section.
 
 - jitter:
 
   A
-  [`jitter()`](https://grantdadams.github.io/Rceattle/reference/jitter.md)
+  [`jitter()`](https://afsc-assessments.github.io/Rceattle/reference/jitter.md)
   result per model, or `NULL` (default) to omit that section.
 
 - osa:
 
   An
-  [`osa_residuals()`](https://grantdadams.github.io/Rceattle/reference/osa_residuals.md)
+  [`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md)
   result per model, summarized here with
-  [`osa_diagnostics()`](https://grantdadams.github.io/Rceattle/reference/osa_diagnostics.md),
+  [`osa_diagnostics()`](https://afsc-assessments.github.io/Rceattle/reference/osa_diagnostics.md),
   or `NULL` (default) to omit that section.
 
 - ci_level:
@@ -60,15 +60,15 @@ report_tables(
 - quantities:
 
   Time-series quantities to include, from the set
-  [`as.data.frame.Rceattle()`](https://grantdadams.github.io/Rceattle/reference/as.data.frame.Rceattle.md)
+  [`as.data.frame.Rceattle()`](https://afsc-assessments.github.io/Rceattle/reference/as.data.frame.Rceattle.md)
   accepts;
-  [`quantity_dictionary()`](https://grantdadams.github.io/Rceattle/reference/quantity_dictionary.md)
+  [`quantity_dictionary()`](https://afsc-assessments.github.io/Rceattle/reference/quantity_dictionary.md)
   says what each one means.
 
 ## Value
 
 A list of data frames with class `"rceattle_report"`, one element per
-section described above. Each carries a `model` column.
+section described above. Each holds a `model` column.
 
 ## Details
 
@@ -85,11 +85,11 @@ Guidelines for what a chapter reports:
 
   Every estimated parameter with its standard error, and the
   natural-scale name and process from
-  [`parameter_dictionary()`](https://grantdadams.github.io/Rceattle/reference/parameter_dictionary.md).
+  [`parameter_dictionary()`](https://afsc-assessments.github.io/Rceattle/reference/parameter_dictionary.md).
   Where `sigma_R` and an estimated M are found. Estimates are on the
   parameter's own scale, so a `log_` name needs
   [`exp()`](https://rdrr.io/r/base/Log.html); a **fixed** M is not here
-  at all, because it was never estimated — read it off `M_at_age`.
+  at all, because it was never estimated, read it off `M_at_age`.
 
 - `likelihood`:
 
@@ -108,7 +108,7 @@ Guidelines for what a chapter reports:
   The executive-summary quantities: the SPR-based F proxies, unfished
   and target female spawning-stock biomass, the biomass proxies implied
   by `Ptarget` / `Plimit`, and terminal status. A `basis` column says
-  whether each was estimated, and if not, why – see below.
+  whether each was estimated, and if not, why, see below.
 
 - `fits`:
 
@@ -125,7 +125,7 @@ rather than run inside a table-building call; a section whose object is
 `NULL` is simply absent from the result.
 
 The standard harvest scenarios of guideline section 4.11.3 are **not**
-produced – they need a standard projection module, which Rceattle does
+produced, they need a standard projection module, which Rceattle does
 not have. Projected biomass under the model's own harvest control rule
 is in `timeseries` with `era = "fore"`.
 
@@ -143,7 +143,7 @@ summary. Each is returned as `NA` with the reason in `basis`:
 
 - `SB0` / `B0` under `msmMode > 0` come from the `MSSB0` / `MSB0`
   inputs, which stand at a placeholder until
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   derives them from a no-fishing projection. `B_target` and `B_limit`
   are fractions of `SB0` and go with it.
 
@@ -159,8 +159,8 @@ reference, so the series is meaningful there.
 
 `model` reports both, and **both are minimized**: a smaller value is the
 better fit. `marginal_nll` is the negative log marginal likelihood the
-optimizer minimized – random effects integrated out by the Laplace
-approximation – and is what `AIC` is built from. `joint_nll` is what the
+optimizer minimized, random effects integrated out by the Laplace
+approximation, and is what `AIC` is built from. `joint_nll` is what the
 template evaluated at the conditional modes, so it is what `likelihood`
 sums to, on the same scale as `jnll_comp`. They are equal when
 `n_random` is 0 and differ by the Laplace correction otherwise.
@@ -170,18 +170,18 @@ sums to, on the same scale as `jnll_comp`. They are equal when
 A diagnostics list is matched to models **by name**, so
 `list(alt = ..., base = ...)` pairs correctly whatever the order. An
 unnamed list is paired positionally and says so in a message. Names that
-are not model names are an error – which catches the realistic mistake
-of passing one model's
-[`osa_residuals()`](https://grantdadams.github.io/Rceattle/reference/osa_residuals.md)
+are not model names are an error, which catches the realistic mistake of
+passing one model's
+[`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md)
 result stored as a list of parts.
 
 ## See also
 
-[`quantity_dictionary()`](https://grantdadams.github.io/Rceattle/reference/quantity_dictionary.md)
+[`quantity_dictionary()`](https://afsc-assessments.github.io/Rceattle/reference/quantity_dictionary.md)
 for what each quantity means and its units,
-[`as.data.frame.Rceattle()`](https://grantdadams.github.io/Rceattle/reference/as.data.frame.Rceattle.md)
+[`as.data.frame.Rceattle()`](https://afsc-assessments.github.io/Rceattle/reference/as.data.frame.Rceattle.md)
 for the time series alone, and
-[`standard_output()`](https://grantdadams.github.io/Rceattle/reference/standard_output.md)
+[`standard_output()`](https://afsc-assessments.github.io/Rceattle/reference/standard_output.md)
 to relabel the result into the NOAA standardized assessment output that
 `stockplotr` and `asar` consume.
 

@@ -35,7 +35,7 @@ plot_data(
 - Rceattle:
 
   Either a single Rceattle model object exported from
-  [`Rceattle::fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md),
+  [`Rceattle::fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md),
   or a raw `data_list` (e.g. one of the bundled datasets such as
   `BS2017MS`).
 
@@ -50,9 +50,9 @@ plot_data(
 
   Integer vector controlling which subplots are produced:
 
-  - 1 – equal-size points showing presence/absence by year/fleet
+  - 1, equal-size points showing presence/absence by year/fleet
 
-  - 2 – points scaled to relative quantity / precision within each data
+  - 2, points scaled to relative quantity / precision within each data
     type (catch tonnage, 1/SE for indices, sample size for comps)
 
 - datatypes:
@@ -123,7 +123,7 @@ plot_data(
 
 ## Value
 
-Invisibly, a list with `typetable` – the long data frame underlying the
+Invisibly, a list with `typetable`, the long data frame underlying the
 plot (year, fleet, data type, relative size).
 
 ## Details

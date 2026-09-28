@@ -15,7 +15,7 @@ The Beverton-Holt and Ricker curves above are the deterministic mean; realized
 recruitment applies the annual log deviation, \(R_y \cdot exp(R_{dev,y})\), as in the
 mean form. For numerical stability the Ricker \(\beta_{srr}\) is estimated on a scale
 divided by 1,000,000, so the fitted beta is 1e6 times the density-dependence
-coefficient in the equation above; Bmsy_lim (\(\approx 1/\beta_{srr}\)) carries
+coefficient in the equation above; Bmsy_lim (\(\approx 1/\beta_{srr}\)) holds
 the same scaling.
 When srr_pred_fun &amp;gt; 0 and srr_fun = 0 recruitment in the hindcast is estimated as in srr_fun = 0 $$R_y = exp(R0 + R_{dev,y})$$, but an additional stock recruitment relationship defined by srr_pred_fun is estimated between srr_hat_styr and srr_hat_endyr and treated as an additional penalty. The stock recruitment relationship defined by srr_pred_fun is then used in the projection.
 Multispecies models. Spawning biomass per recruit is undefined when
@@ -40,7 +40,7 @@ The Beverton-Holt and Ricker curves above are the deterministic mean; realized
 recruitment applies the annual log deviation, \(R_y \cdot exp(R_{dev,y})\), as in the
 mean form. For numerical stability the Ricker \(\beta_{srr}\) is estimated on a scale
 divided by 1,000,000, so the fitted beta is 1e6 times the density-dependence
-coefficient in the equation above; Bmsy_lim (\(\approx 1/\beta_{srr}\)) carries
+coefficient in the equation above; Bmsy_lim (\(\approx 1/\beta_{srr}\)) holds
 the same scaling.
 When srr_pred_fun &amp;gt; 0 and srr_fun = 0 recruitment in the hindcast is estimated as in srr_fun = 0 $$R_y = exp(R0 + R_{dev,y})$$, but an additional stock recruitment relationship defined by srr_pred_fun is estimated between srr_hat_styr and srr_hat_endyr and treated as an additional penalty. The stock recruitment relationship defined by srr_pred_fun is then used in the projection.
 Multispecies models. Spawning biomass per recruit is undefined when
@@ -57,7 +57,7 @@ beta go through linkages.'></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.33.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -86,12 +86,14 @@ beta go through linkages.'></head><body>
     <li><a class="dropdown-item" href="../articles/stock-synthesis-conversion.html">Converting from Stock Synthesis</a></li>
     <li><h6 class="dropdown-header" data-toc-skip>--- Contributing ---</h6></li>
     <li><a class="dropdown-item" href="../articles/developer-guide.html">Developer guide</a></li>
+    <li><a class="dropdown-item" href="../articles/adding-a-selectivity-form.html">Adding a selectivity form</a></li>
+    <li><a class="dropdown-item" href="../cpp/index.html">C++ template reference</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
-<li class="nav-item"><a class="external-link nav-link" href="https://github.com/grantdadams/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/afsc-assessments/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
       </ul></div>
 
 
@@ -101,7 +103,7 @@ beta go through linkages.'></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Specify the stock-recruit relationship (SRR) for Rceattle</h1>
-      <small class="dont-index">Source: <a href="https://github.com/grantdadams/Rceattle/blob/main/R/0-build_srr.R" class="external-link"><code>R/0-build_srr.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/R/0-build_srr.R" class="external-link"><code>R/0-build_srr.R</code></a></small>
       <div class="d-none name"><code>build_srr.Rd</code></div>
     </div>
 
@@ -119,7 +121,7 @@ $$R_y = \alpha_{srr} * SB_{y-minage} * exp(-\beta_{srr} * SB_{y-minage})$$</p></
 recruitment applies the annual log deviation, \(R_y \cdot exp(R_{dev,y})\), as in the
 mean form. For numerical stability the Ricker \(\beta_{srr}\) is estimated on a scale
 divided by 1,000,000, so the fitted <code>beta</code> is 1e6 times the density-dependence
-coefficient in the equation above; <code>Bmsy_lim</code> (\(\approx 1/\beta_{srr}\)) carries
+coefficient in the equation above; <code>Bmsy_lim</code> (\(\approx 1/\beta_{srr}\)) holds
 the same scaling.</p>
 <p>When <code>srr_pred_fun &gt; 0</code> and <code>srr_fun = 0</code> recruitment in the hindcast is estimated as in <code>srr_fun = 0</code> $$R_y = exp(R0 + R_{dev,y})$$, but an additional stock recruitment relationship defined by <code>srr_pred_fun</code> is estimated between <code>srr_hat_styr</code> and <code>srr_hat_endyr</code> and treated as an additional penalty. The stock recruitment relationship defined by <code>srr_pred_fun</code> is then used in the projection.</p>
 <p><strong>Multispecies models.</strong> Spawning biomass per recruit is undefined when
@@ -243,12 +245,15 @@ spawning biomass per recruit and so exists only in single-species models.</p>
     <h2 id="starting-values">Starting values<a class="anchor" aria-label="anchor" href="#starting-values"></a></h2>
 
 
-<p>Alpha starts at <code>srr_prior</code> (default 4) wherever that is an alpha, and at
-\(e^3\) otherwise; beta starts at 3. Neither knows the stock's scale. Set them
+<p>Mean recruitment (<code>R0</code>) starts at \(e^9 = 8103\) thousand fish; under
+a curve fitted in the hindcast of a multispecies model the same slot is the
+free initial recruitment level <code>R_init</code>, with the same start. Alpha
+starts at <code>srr_prior</code> (default 4) wherever that is an alpha, and at
+\(e^3\) otherwise; beta starts at 3. None of them knows the stock's scale. Set them
 with <code>srr_alpha_init</code> / <code>srr_beta_init</code> or a linkage <code>init</code>;
 supplying <code>srr_prior</code> as alpha's starting value is deprecated. \(\beta\) sets the density dependence in
 \(R = \alpha S / (1 + \beta S)\), so it must be on the order of
-\((\alpha - 1/\phi_0) / R_0\) – typically \(10^{-3}\) or smaller for a
+\((\alpha - 1/\phi_0) / R_0\), typically \(10^{-3}\) or smaller for a
 stock measured in tonnes; starting three orders of magnitude away drives
 predicted recruitment to near zero and the optimizer returns
 <code>NA/NaN gradient evaluation</code>. From a steepness \(h\) and unfished

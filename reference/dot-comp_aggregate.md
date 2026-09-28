@@ -4,8 +4,8 @@ Multiplies each year's proportions by its input sample size, sums the
 counts over years (for one fleet x type panel), and puts the total back
 on the proportion scale; joint-sex groups keep their shared
 normalization (females + males sum to 1). Pooling counts rather than
-averaging proportions is what stops a year with 20 otoliths carrying the
-weight of one with 2000.
+averaging proportions is what stops a year with 20 otoliths counting as
+much as one with 2000.
 
 ## Usage
 
@@ -18,7 +18,7 @@ weight of one with 2000.
 - d:
 
   One panel's rows from
-  [`.comp_resid_long()`](https://grantdadams.github.io/Rceattle/reference/dot-comp_resid_long.md).
+  [`.comp_resid_long()`](https://afsc-assessments.github.io/Rceattle/reference/dot-comp_resid_long.md).
 
 - endyr:
 
@@ -38,5 +38,5 @@ sample sizes `ISS` / `ESS`, and the sex-mirrored drawing columns
 The pooled count is a sum of independent draws, so its variance is the
 exact sum of the per-year variances the fleet's own likelihood assumes
 (the `Sd` column). The resulting interval treats the fitted proportions
-as known, so it is slightly narrower than one that carried the
-estimation uncertainty in `p_hat` as well.
+as known, so it is slightly narrower than one that held the estimation
+uncertainty in `p_hat` as well.

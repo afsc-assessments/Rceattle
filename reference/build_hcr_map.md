@@ -2,7 +2,7 @@
 
 Reads a data list and map to update the map argument based on the HCR
 specified in
-[`build_hcr`](https://grantdadams.github.io/Rceattle/reference/build_hcr.md)
+[`build_hcr`](https://afsc-assessments.github.io/Rceattle/reference/build_hcr.md)
 
 ## Usage
 
@@ -25,7 +25,7 @@ build_hcr_map(
 - map:
 
   a map object created from
-  [`build_map`](https://grantdadams.github.io/Rceattle/reference/build_map.md).
+  [`build_map`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md).
 
 - debug:
 

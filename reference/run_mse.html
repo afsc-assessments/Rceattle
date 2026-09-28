@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.33.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -36,12 +36,14 @@
     <li><a class="dropdown-item" href="../articles/stock-synthesis-conversion.html">Converting from Stock Synthesis</a></li>
     <li><h6 class="dropdown-header" data-toc-skip>--- Contributing ---</h6></li>
     <li><a class="dropdown-item" href="../articles/developer-guide.html">Developer guide</a></li>
+    <li><a class="dropdown-item" href="../articles/adding-a-selectivity-form.html">Adding a selectivity form</a></li>
+    <li><a class="dropdown-item" href="../cpp/index.html">C++ template reference</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
-<li class="nav-item"><a class="external-link nav-link" href="https://github.com/grantdadams/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/afsc-assessments/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
       </ul></div>
 
 
@@ -51,7 +53,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Run a management strategy evaluation</h1>
-      <small class="dont-index">Source: <a href="https://github.com/grantdadams/Rceattle/blob/main/R/10-run_mse.R" class="external-link"><code>R/10-run_mse.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/R/10-run_mse.R" class="external-link"><code>R/10-run_mse.R</code></a></small>
       <div class="d-none name"><code>run_mse.Rd</code></div>
     </div>
 
@@ -184,7 +186,7 @@ running under <code>R CMD check</code> (which sets
     <div class="section level2">
     <h2 id="assessment-schedule">Assessment schedule<a class="anchor" aria-label="anchor" href="#assessment-schedule"></a></h2>
     <p>A single <code>assessment_period</code> is a fixed cycle. A vector is the schedule
-itself, for a design whose years are not evenly spaced – one assessment
+itself, for a design whose years are not evenly spaced, one assessment
 missed inside an otherwise biennial cycle, for instance:</p>
 <p></p><div class="sourceCode"><pre><code><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a>biennial <span class="ot">&lt;-</span> <span class="fu">seq</span>(om<span class="sc">$</span>data_list<span class="sc">$</span>endyr <span class="sc">+</span> <span class="dv">2</span>, om<span class="sc">$</span>data_list<span class="sc">$</span>projyr, <span class="at">by =</span> <span class="dv">2</span>)</span>
 <span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="fu">run_mse</span>(om, em, <span class="at">assessment_period =</span> <span class="fu">setdiff</span>(biennial, <span class="dv">2031</span>))</span></code></pre><p></p></div>
@@ -241,7 +243,7 @@ a year the assessment schedule actually covers — from the operating
 model's terminal year to the last assessment, which is where catch is
 filled, not the whole projection.</p>
 <p>Note that this reduces catch, not ABC. Where realized catch sits well below
-ABC – GOA arrowtooth flounder, for one – reducing ABC changes removals only
+ABC, GOA arrowtooth flounder, for one, reducing ABC changes removals only
 to the extent the fishery attains it, while reducing catch changes them in
 full. Either scale the multiplier by recent attainment,
 <code>1 - (1 - mult) * attainment</code>, or report the unscaled result as an upper
@@ -253,8 +255,8 @@ bound on the effect of the reduction.</p>
 a warning naming the years. Those years are the projection, and the MSE sets
 their catch from the control rule; the likelihood never scored them either,
 since it fits only <code>Year &lt;= endyr</code>. This is what a workbook looks like when
-<code>endyr</code> has fallen behind the catch series – catch through 2023 with <code>endyr</code>
-still 2019 – and it is worth resolving before running the MSE, because
+<code>endyr</code> has fallen behind the catch series, catch through 2023 with <code>endyr</code>
+still 2019, and it is worth resolving before running the MSE, because
 conditioning the assessment on those years is a different question from
 projecting over them.</p>
     </div>

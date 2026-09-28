@@ -20,16 +20,16 @@ write_data(data_list, file = "Rceattle_data.xlsx")
 
 ## See also
 
-[`build_data()`](https://grantdadams.github.io/Rceattle/reference/build_data.md)
+[`build_data()`](https://afsc-assessments.github.io/Rceattle/reference/build_data.md)
 to assemble or edit a data list in R,
-[`read_data()`](https://grantdadams.github.io/Rceattle/reference/read_data.md)
+[`read_data()`](https://afsc-assessments.github.io/Rceattle/reference/read_data.md)
 to read one back. A
-[`model_config()`](https://grantdadams.github.io/Rceattle/reference/model_config.md)
+[`model_config()`](https://afsc-assessments.github.io/Rceattle/reference/model_config.md)
 slot is not written to the workbook and does not survive the round-trip
 (a warning is issued); persist it separately with
-[`save_config()`](https://grantdadams.github.io/Rceattle/reference/save_config.md)
+[`save_config()`](https://afsc-assessments.github.io/Rceattle/reference/save_config.md)
 /
-[`load_config()`](https://grantdadams.github.io/Rceattle/reference/load_config.md).
+[`load_config()`](https://afsc-assessments.github.io/Rceattle/reference/load_config.md).
 
 ## Examples
 

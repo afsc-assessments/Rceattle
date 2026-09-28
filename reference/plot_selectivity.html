@@ -13,7 +13,7 @@ the two gets one figure per dimension."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.33.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -42,12 +42,14 @@ the two gets one figure per dimension."></head><body>
     <li><a class="dropdown-item" href="../articles/stock-synthesis-conversion.html">Converting from Stock Synthesis</a></li>
     <li><h6 class="dropdown-header" data-toc-skip>--- Contributing ---</h6></li>
     <li><a class="dropdown-item" href="../articles/developer-guide.html">Developer guide</a></li>
+    <li><a class="dropdown-item" href="../articles/adding-a-selectivity-form.html">Adding a selectivity form</a></li>
+    <li><a class="dropdown-item" href="../cpp/index.html">C++ template reference</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
-<li class="nav-item"><a class="external-link nav-link" href="https://github.com/grantdadams/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/afsc-assessments/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
       </ul></div>
 
 
@@ -57,7 +59,7 @@ the two gets one figure per dimension."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Plot selectivity</h1>
-      <small class="dont-index">Source: <a href="https://github.com/grantdadams/Rceattle/blob/main/R/7-plot_ceattle.R" class="external-link"><code>R/7-plot_ceattle.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/R/7-plot_ceattle.R" class="external-link"><code>R/7-plot_ceattle.R</code></a></small>
       <div class="d-none name"><code>plot_selectivity.Rd</code></div>
     </div>
 
@@ -154,7 +156,7 @@ transparency, i.e. under <code>colour_by = "model"</code>.</p></dd>
 
 <dt id="arg-add-ci">add_ci<a class="anchor" aria-label="anchor" href="#arg-add-ci"></a></dt>
 <dd><p>Add a 95% confidence interval. Only available where the
-plotted quantity carries standard errors; warns and draws none otherwise.</p></dd>
+plotted quantity holds standard errors; warns and draws none otherwise.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -172,20 +174,20 @@ shown across all models, so the same year is the same shade everywhere and a
 short retrospective peel stops short of solid. <code>colour_by</code> overrides the
 choice either way, and <code>alpha</code> sets the faintest end.</p>
 <p>Line type separates the sexes, and <code>lty</code> supplies its values. Panels are
-fleets, so <code>spnames</code> does not label anything here – it only lets <code>species</code>
+fleets, so <code>spnames</code> does not label anything here, it only lets <code>species</code>
 select by name.</p>
     </div>
     <div class="section level2">
     <h2 id="confidence-intervals">Confidence intervals<a class="anchor" aria-label="anchor" href="#confidence-intervals"></a></h2>
     <p><code>add_ci = TRUE</code> draws <code>exp(log(sel) +/- 1.96 * sd)</code>, so the band is positive
 and right-skewed. It needs a fit run with <code>fit_control(selectivity_se = TRUE)</code>.</p>
-<p>Only estimated, age-based fleets carry one. A length-based fleet is drawn on
-<code>sel_at_length</code>, which is what was fitted and carries no error; a
+<p>Only estimated, age-based fleets hold one. A length-based fleet is drawn on
+<code>sel_at_length</code>, which is what was fitted and holds no error; a
 <code>Selectivity = "Fixed"</code> fleet estimates nothing; and no fleet gets a band
-below its first selected bin (<code>Bin_first_selected</code>, a 1-based bin ordinal –
+below its first selected bin (<code>Bin_first_selected</code>, a 1-based bin ordinal,
 not an absolute age), where selectivity is 0 by construction. A
 fleet mirroring another's <code>Selectivity_index</code> has no errors of its own and
-borrows its lead's, but only where the two curves agree – <code><a href="data_check.html">data_check()</a></code> only
+borrows its lead's, but only where the two curves agree, <code><a href="data_check.html">data_check()</a></code> only
 warns when a shared group differs in a shaping column such as <code>Sel_norm_bin</code>.</p>
 <p>Every year drawn gets its own band, so a time-varying fleet is dense. Pair it
 with <code>minyr</code> / <code>maxyr</code> on a single year, or use it on a time-invariant fleet.</p>

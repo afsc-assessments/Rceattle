@@ -1,11 +1,11 @@
 # Extract the run configuration from a fit, data list, or config object
 
 Returns the
-[`model_config()`](https://grantdadams.github.io/Rceattle/reference/model_config.md)
+[`model_config()`](https://afsc-assessments.github.io/Rceattle/reference/model_config.md)
 structure plus the estimation controls and
-[`fit_control()`](https://grantdadams.github.io/Rceattle/reference/fit_control.md)
+[`fit_control()`](https://afsc-assessments.github.io/Rceattle/reference/fit_control.md)
 bundle as a single `Rceattle_run_config`. Accepts a fitted Rceattle
-object, a data list carrying `$model_config`, an `Rceattle_run_config`,
+object, a data list holding `$model_config`, an `Rceattle_run_config`,
 or an `Rceattle_model_config`. Estimation controls and `fit_control`
 supplied via `...` override any found on the object.
 
@@ -34,9 +34,9 @@ An `Rceattle_run_config`.
 
 ## See also
 
-[`save_config()`](https://grantdadams.github.io/Rceattle/reference/save_config.md),
-[`load_config()`](https://grantdadams.github.io/Rceattle/reference/load_config.md),
-[`model_config()`](https://grantdadams.github.io/Rceattle/reference/model_config.md).
+[`save_config()`](https://afsc-assessments.github.io/Rceattle/reference/save_config.md),
+[`load_config()`](https://afsc-assessments.github.io/Rceattle/reference/load_config.md),
+[`model_config()`](https://afsc-assessments.github.io/Rceattle/reference/model_config.md).
 
 ## Examples
 

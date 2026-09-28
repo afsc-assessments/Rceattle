@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.33.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -53,6 +53,8 @@
     <li><a class="dropdown-item" href="../articles/stock-synthesis-conversion.html">Converting from Stock Synthesis</a></li>
     <li><h6 class="dropdown-header" data-toc-skip>--- Contributing ---</h6></li>
     <li><a class="dropdown-item" href="../articles/developer-guide.html">Developer guide</a></li>
+    <li><a class="dropdown-item" href="../articles/adding-a-selectivity-form.html">Adding a selectivity form</a></li>
+    <li><a class="dropdown-item" href="../cpp/index.html">C++ template reference</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
@@ -62,7 +64,7 @@
 <li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json">
 </form></li>
-<li class="nav-item"><a class="external-link nav-link" href="https://github.com/grantdadams/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/afsc-assessments/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
       </ul>
 </div>
 
@@ -81,7 +83,7 @@
 Adams</h4>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/grantdadams/Rceattle/blob/main/vignettes/hcrs-and-mses.Rmd" class="external-link"><code>vignettes/hcrs-and-mses.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/vignettes/hcrs-and-mses.Rmd" class="external-link"><code>vignettes/hcrs-and-mses.Rmd</code></a></small>
       <div class="d-none name"><code>hcrs-and-mses.Rmd</code></div>
     </div>
 
@@ -97,7 +99,7 @@ applies a harvest control rule (HCR), and the resulting catch feeds back
 into the OM. This example uses the northern rockfish assessment as the
 OM.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://grantdadams.github.io/Rceattle/">Rceattle</a></span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://afsc-assessments.github.io/Rceattle/">Rceattle</a></span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"NorthernRockfish2022"</span><span class="op">)</span></span>
 <span><span class="va">nrdata</span> <span class="op">&lt;-</span> <span class="va">NorthernRockfish2022</span></span>
 <span><span class="va">nrdata</span><span class="op">$</span><span class="va">fleet_control</span><span class="op">$</span><span class="va">Proj_F_proportion</span> <span class="op">&lt;-</span> <span class="fl">1</span></span>
@@ -179,9 +181,9 @@ projection year whose catch the control rule sets, so catch recorded
 past <code>endyr</code> is blanked to <code>NA</code> at setup and
 <code><a href="../reference/run_mse.html">run_mse()</a></code> warns and names the years.</p>
 <p>That warning almost always means <code>endyr</code> has fallen
-behind. A workbook can carry catch, index and composition data for years
-the model does not fit — the likelihood scores only
-<code>Year &lt;= endyr</code> — so the data are added and
+behind. A workbook can hold catch, index and composition data for years
+the model does not fit; the likelihood scores only
+<code>Year &lt;= endyr</code>, so the data are added and
 <code>endyr</code> is left where it was. Conditioning the assessment on
 those years and projecting over them are different questions, and the
 warning is where you choose. Move <code>endyr</code> up and refit both
@@ -219,7 +221,7 @@ you want to vary past-data realizations while holding the projection
 draws fixed.</li>
 </ul>
 <p>You do not need to call <code><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed()</a></code> before
-<code><a href="../reference/run_mse.html">run_mse()</a></code> — the <code>seed</code> arguments fully control
+<code><a href="../reference/run_mse.html">run_mse()</a></code>, the <code>seed</code> arguments fully control
 reproducibility. (You may still want <code><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed()</a></code> for
 plotting code that draws random colours or jitter.)</p>
 <p>Reproducibility holds <em>within</em> a package version, not across
@@ -260,7 +262,7 @@ the range of stock trajectories the strategy produces.</p>
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_depletionSSB.html">plot_depletionSSB</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">mse1</span><span class="op">$</span><span class="va">Sim_1</span><span class="op">$</span><span class="va">EM</span>,           <span class="co"># EMs</span></span>
 <span>    <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">mse1</span><span class="op">$</span><span class="va">Sim_1</span><span class="op">$</span><span class="va">OM</span>,      <span class="co"># OM</span></span>
-<span>         <span class="va">mse1</span><span class="op">$</span><span class="va">Sim_1</span><span class="op">$</span><span class="va">OM_no_F</span>  <span class="co"># OM w/ no fishing</span></span>
+<span>         <span class="va">mse1</span><span class="op">$</span><span class="va">Sim_1</span><span class="op">$</span><span class="va">OM_no_F</span>  <span class="co"># OM with no fishing after the original OM's endyr</span></span>
 <span>    <span class="op">)</span><span class="op">)</span>,    </span>
 <span>  line_col <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
 <span>    <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"grey"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">80</span>, <span class="fl">50</span>, length.out <span class="op">=</span> <span class="fl">15</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>,</span>
@@ -277,8 +279,8 @@ statistics for comparing strategies. It returns a <strong>list</strong>,
 because the metrics are computed on three different entities:
 <code>$species</code> (one row per species), <code>$fleet</code> (one
 row per fleet), and <code>$total</code> (a named vector across the whole
-system). <code>$meta</code> records what the summary was built from –
-the number of simulations, species and fleets, and the harvest control
+system). <code>$meta</code> records what the summary was built from, the
+number of simulations, species and fleets, and the harvest control
 rule.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">mse_summ</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/mse_summary.html">mse_summary</a></span><span class="op">(</span><span class="va">mse1</span><span class="op">)</span></span>
@@ -286,9 +288,9 @@ rule.</p>
 <span></span>
 <span><span class="fu">knitr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/kable.html" class="external-link">kable</a></span><span class="op">(</span><span class="va">mse_summ</span><span class="op">$</span><span class="va">species</span>, digits <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></span>
 <span><span class="fu">knitr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/kable.html" class="external-link">kable</a></span><span class="op">(</span><span class="va">mse_summ</span><span class="op">$</span><span class="va">fleet</span>, digits <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></span></code></pre></div>
-<p>Metric columns are named syntactically – <code>avg_catch</code>,
+<p>Metric columns are named syntactically, <code>avg_catch</code>,
 <code>catch_iav</code>, <code>ssb_rmse_terminal</code>,
-<code>om_p_overfishing</code>, <code>em_p_overfished</code> – with the
+<code>om_p_overfishing</code>, <code>em_p_overfished</code>, with the
 <code>om_</code> and <code>em_</code> prefixes separating what the
 operating model did from what the estimation model believed.
 <code>p_overfishing_false_pos</code> and its siblings are where the two
@@ -298,9 +300,9 @@ disagree.</p>
 <div class="section level2">
 <h2 id="alternative-scenarios">Alternative scenarios<a class="anchor" aria-label="anchor" href="#alternative-scenarios"></a>
 </h2>
-<p>The runs below vary one element of the strategy at a time — the
+<p>The runs below vary one element of the strategy at a time (the
 reference points, the survey frequency, the assessment interval, or the
-environment — so their performance statistics can be compared against
+environment) so their performance statistics can be compared against
 <code>mse1</code>.</p>
 <hr>
 <div class="section level3">
@@ -380,9 +382,9 @@ scenario.</p>
 </h3>
 <p>The scenarios above all set a <em>period</em>: an assessment every
 second or fourth year, for as long as the projection runs. A skipped
-assessment is a different thing — one gap in an otherwise regular cycle
-— and <code>assessment_period</code> also takes the schedule itself, as
-a vector of the years an assessment is completed.</p>
+assessment is a different thing (one gap in an otherwise regular cycle)
+and <code>assessment_period</code> also takes the schedule itself, as a
+vector of the years an assessment is completed.</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">biennial</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="va">om</span><span class="op">$</span><span class="va">data_list</span><span class="op">$</span><span class="va">endyr</span> <span class="op">+</span> <span class="fl">2</span>, <span class="va">om</span><span class="op">$</span><span class="va">data_list</span><span class="op">$</span><span class="va">projyr</span>, by <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></span>
 <span><span class="va">miss_yr</span>  <span class="op">&lt;-</span> <span class="va">biennial</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">ceiling</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">biennial</span><span class="op">)</span> <span class="op">/</span> <span class="fl">3</span><span class="op">)</span><span class="op">]</span></span>
@@ -406,7 +408,7 @@ species number, and any pair the table omits is multiplied by 1.</p>
 <p>Be careful which years those are. The assessment in year
 <code>Y</code> sets catch for <code>Y+1</code> onward, so a missed
 assessment leaves the <strong>two years after it</strong> on the
-previous assessment’s advice — not the missed year itself, which the
+previous assessment’s advice, not the missed year itself, which the
 previous assessment sets in the baseline too.</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">schedule</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sets.html" class="external-link">setdiff</a></span><span class="op">(</span><span class="va">biennial</span>, <span class="va">miss_yr</span><span class="op">)</span></span>
@@ -427,8 +429,8 @@ previous assessment sets in the baseline too.</p>
 <span>  catch_mult <span class="op">=</span> <span class="va">buffer</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p>Run these against a baseline that differs <em>only</em> in the
-schedule — same <code>om</code>, same <code>em</code>, same
-<code>seed</code> — and compare them as paired within-replicate
+schedule (same <code>om</code>, same <code>em</code>, same
+<code>seed</code>) and compare them as paired within-replicate
 differences.</p>
 <p>Two schedules on the same <code>seed</code> share their recruitment
 deviations, drawn once per replicate before the first assessment. Each
@@ -445,22 +447,22 @@ seed than the same year in a schedule that assessed it directly. Two
 schedules that differ in which years they assess realize different
 observation error in the years between, even where the stock is in the
 same state. The paired difference is therefore mostly, but not entirely,
-the schedule — size the replicate count with that in mind rather than
+the schedule, size the replicate count with that in mind rather than
 assuming all the noise has cancelled.</p>
-<p>Once two schedules genuinely diverge — different catch taken,
-different years surveyed — their draws diverge too. That is a real
+<p>Once two schedules genuinely diverge (different catch taken,
+different years surveyed) their draws diverge too. That is a real
 difference between the runs rather than noise, and no seeding scheme
 removes it.</p>
 <p>Make the last assessment year reach the projection horizon. Catch is
 filled only up to the last assessment, so a schedule that stops short
-leaves the trailing years at <code>NA</code> — and
+leaves the trailing years at <code>NA</code>, and
 <code><a href="../reference/mse_summary.html">mse_summary()</a></code> summarises over the whole projection,
 understating average catch, catch IAV and P(Closed) with nothing in the
 table to say so. A biennial cycle over an odd number of projection years
 lands here every time: <code>seq(2027, 2050, by = 2)</code> ends at 2049
 against a 2050 horizon. <code><a href="../reference/run_mse.html">run_mse()</a></code> warns when it
 happens.</p>
-<p>One caveat to carry into any write-up: <code>catch_mult</code>
+<p>One caveat to take into any write-up: <code>catch_mult</code>
 multiplies catch, not ABC. A real ABC reduction changes removals only to
 the extent the fishery attains ABC, and for a stock whose catch sits
 well below ABC it changes them hardly at all. Either scale the
@@ -535,7 +537,7 @@ over time while the EM keeps assuming stationary recruitment.</p>
 </h2>
 <p>Tagging each summary with an <code>MSE</code> label and stacking them
 puts the strategies side by side in one table. Stack the entity you want
-to compare on – here the per-species metrics – rather than the whole
+to compare on, here the per-species metrics, rather than the whole
 list.</p>
 <div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">stack_species</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span>, <span class="va">label</span><span class="op">)</span> <span class="op">{</span></span>

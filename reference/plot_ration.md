@@ -5,9 +5,9 @@ ration (kg/yr) multiplied by average numbers-at-age and summed over age,
 in million mt. This is how the model forms total consumption
 (`avgN_at_age * ration`, `predation.hpp`), so it is the consumption that
 generates the predation mortality in
-[`plot_m2_at_age_prop()`](https://grantdadams.github.io/Rceattle/reference/plot_m2_at_age_prop.md)
+[`plot_m2_at_age_prop()`](https://afsc-assessments.github.io/Rceattle/reference/plot_m2_at_age_prop.md)
 and the biomass in
-[`plot_b_eaten()`](https://grantdadams.github.io/Rceattle/reference/plot_b_eaten.md),
+[`plot_b_eaten()`](https://afsc-assessments.github.io/Rceattle/reference/plot_b_eaten.md),
 plus the other-food term.
 
 ## Usage
@@ -40,7 +40,7 @@ plot_ration(
 - Rceattle:
 
   A single
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   object or a list of them (overlaid).
 
 - file:
@@ -111,7 +111,7 @@ plot_ration(
 - add_ci:
 
   Add a 95% confidence interval. Only available where the plotted
-  quantity carries standard errors; warns and draws none otherwise.
+  quantity holds standard errors; warns and draws none otherwise.
 
 - top_adj:
 

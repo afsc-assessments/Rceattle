@@ -26,7 +26,7 @@ osa_diagnostics(osa, nsim = 10000, probs = c(0.025, 0.975), seed = 123)
 - osa:
 
   An `rceattle_osa` object from
-  [`osa_residuals()`](https://grantdadams.github.io/Rceattle/reference/osa_residuals.md),
+  [`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md),
   or a data frame with `residual` and (optionally) `type`/`fleet`
   columns.
 
@@ -43,7 +43,7 @@ osa_diagnostics(osa, nsim = 10000, probs = c(0.025, 0.975), seed = 123)
 
   Ignored from 5.29.0, as `nsim` is; the residuals themselves are
   randomized-quantile, so seed
-  [`osa_residuals()`](https://grantdadams.github.io/Rceattle/reference/osa_residuals.md)
+  [`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md)
   instead.
 
 ## Value
@@ -70,4 +70,4 @@ Stewart, I.J., and Monnahan, C.C. 2025. Can. J. Fish. Aquat. Sci.
 
 ## See also
 
-[`osa_residuals()`](https://grantdadams.github.io/Rceattle/reference/osa_residuals.md)
+[`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md)

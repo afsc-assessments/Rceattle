@@ -1,12 +1,12 @@
 # Helper to set map for Catchability parameters
 
 Maps catchability base parameters (`index_log_q`), time-varying
-deviations (`index_q_dev`), and environmental linkages (`index_q_beta`,
-`index_q_rho`) for every fleet that carries fitted `index_data` – a
-fishery with a CPUE series as much as a survey. A fleet with no index
-rows gets none of them, whatever its `Catchability` says, since a q with
-no index to inform it is a flat direction. Sharing overrides this:
-[`adjust_map_shared_params()`](https://grantdadams.github.io/Rceattle/reference/adjust_map_shared_params.md)
+deviations (`index_q_dev`), and environmental linkages (`index_q_beta`)
+for every fleet that holds fitted `index_data`, a fishery with a CPUE
+series as much as a survey. A fleet with no index rows gets none of
+them, whatever its `Catchability` says, since a q with no index to
+inform it is a flat direction. Sharing overrides this:
+[`adjust_map_shared_params()`](https://afsc-assessments.github.io/Rceattle/reference/adjust_map_shared_params.md)
 then copies the lead fleet's slice across each `Catchability_index`
 group.
 

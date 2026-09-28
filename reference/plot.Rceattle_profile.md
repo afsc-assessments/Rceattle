@@ -1,7 +1,7 @@
 # Plot method for a likelihood profile
 
 Shorthand for
-[`plot_profile()`](https://grantdadams.github.io/Rceattle/reference/plot_profile.md):
+[`plot_profile()`](https://afsc-assessments.github.io/Rceattle/reference/plot_profile.md):
 draws the likelihood components against the profiled parameter, with the
 total overlaid.
 
@@ -17,12 +17,12 @@ plot(x, ...)
 - x:
 
   An `"Rceattle_profile"` object from
-  [`profile.Rceattle()`](https://grantdadams.github.io/Rceattle/reference/profile.Rceattle.md).
+  [`profile.Rceattle()`](https://afsc-assessments.github.io/Rceattle/reference/profile.Rceattle.md).
 
 - ...:
 
   Passed to
-  [`plot_profile()`](https://grantdadams.github.io/Rceattle/reference/plot_profile.md).
+  [`plot_profile()`](https://afsc-assessments.github.io/Rceattle/reference/plot_profile.md).
 
 ## Value
 

@@ -1,11 +1,11 @@
 # 5. Single- vs. multi-species models
 
 The key switch between model types is `msmMode` in
-[`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md):
+[`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md):
 
 | `msmMode` | Predation mortality (M2)            |
 |-----------|-------------------------------------|
-| `0`       | Off — single-species; total M = M1  |
+| `0`       | Off, single-species; total M = M1   |
 | `1`       | Type II MSVPA (Holsman et al. 2015) |
 | `2`       | Type III MSVPA                      |
 
@@ -13,8 +13,8 @@ In single-species mode the model is a standard statistical catch-at-age
 model. In multi-species mode, a bioenergetics-based predation component
 (M2) is added to natural mortality so that predator abundance directly
 affects prey survival. The two modes share the same data format and most
-[`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
-arguments — switching between them is a one-line change.
+[`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
+arguments, switching between them is a one-line change.
 
 ## When to use each mode
 
@@ -66,7 +66,7 @@ ss_run <- fit_mod(
     phase        = TRUE,
     verbose      = 1))
 
-# Multi-species — start from single-species MLEs for stability
+# Multi-species, start from single-species MLEs for stability
 ms_run <- fit_mod(
   data_list    = BS2017MS,
   inits        = ss_run$estimated_params,  # warm start
@@ -149,13 +149,15 @@ of length `nspp`.
 | `2` | `"GammaWeight"` | Gamma suitability on prey weight-at-age | Yes |
 | `3` | `"LognormalLength"` | Log-normal suitability on prey length-at-age | Not yet |
 | `4` | `"LognormalWeight"` | Log-normal suitability on prey weight-at-age | Yes |
-| `5` | `"NormalLength"` | Normal suitability on prey length-at-age | Yes |
+| `5` | `"NormalLength"` | Normal suitability on prey length-at-age | Not yet |
 | `6` | `"NormalWeight"` | Normal suitability on prey weight-at-age | Yes |
 
-Values 1 and 3 are blocked at runtime pending validation of the
-growth-model integration. Use `suitMode = 0` (empirical) when diet
-composition data are available, or `suitMode = 2`/`4`/`5`/`6`
-(parametric) when they are not.
+Values 1, 3 and 5, every length-based mode, are blocked at runtime
+pending validation of the growth-model integration:
+[`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
+errors with “Length-based suitability (suitMode 1, 3, or 5) is not yet
+implemented”. Use `suitMode = 0` (empirical), or a weight-based mode:
+`2`, `4` or `6`.
 
 ## Comparing outputs
 
@@ -170,7 +172,7 @@ plot_ssb(Rceattle = mod_list, model_names = mod_names)
 plot_recruitment(Rceattle = mod_list, model_names = mod_names, add_ci = TRUE)
 plot_depletionSSB(Rceattle = mod_list, model_names = mod_names)
 
-# Mortality breakdown (M1 vs M2) — these accept model lists
+# Mortality breakdown (M1 vs M2), these accept model lists
 plot_m_at_age(Rceattle = mod_list, model_names = mod_names, age = 2)
 plot_m2_at_age_prop(Rceattle = mod_list, model_names = mod_names)
 
@@ -181,10 +183,10 @@ plot_mortality(ms_run)                    # M2-at-age, one line per year
 plot_mortality(ms_run, M2 = FALSE)        # M1-at-age instead
 plot_mortality(ms_run, type = "heatmap")  # the same series as an age x year tile
 
-# Predation (multi-species only) — these accept model lists
+# Predation (multi-species only), these accept model lists
 plot_b_eaten(Rceattle = mod_list, model_names = mod_names)
 plot_b_eaten_prop(Rceattle = mod_list, model_names = mod_names)
 ```
 
 For model averaging across single- and multi-species variants, see
-[`?model_average`](https://grantdadams.github.io/Rceattle/reference/model_average.md).
+[`?model_average`](https://afsc-assessments.github.io/Rceattle/reference/model_average.md).

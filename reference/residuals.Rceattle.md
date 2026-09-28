@@ -4,7 +4,7 @@ Returns a long-format data frame of residuals, following the convention
 of
 [`stats::residuals.glm()`](https://rdrr.io/r/stats/glm.summaries.html)
 where `type` selects the *kind* of residual. By default residuals are
-returned for every applicable data source – survey indices, fishery
+returned for every applicable data source, survey indices, fishery
 catches, age/length composition (`comp`), and conditional age-at-length
 (`caal`); use `source` to restrict to particular ones.
 
@@ -27,7 +27,7 @@ residuals(
 - object:
 
   An object of class `"Rceattle"` returned by
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md).
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md).
 
 - type:
 
@@ -52,14 +52,14 @@ residuals(
   Optional species code(s) to include (matched against the `Species`
   column). Default `NULL` keeps all species. Mirrors the `species`
   argument of
-  [`plot.rceattle_osa()`](https://grantdadams.github.io/Rceattle/reference/plot.rceattle_osa.md).
+  [`plot.rceattle_osa()`](https://afsc-assessments.github.io/Rceattle/reference/plot.rceattle_osa.md).
 
 - ...:
 
   Passed to
-  [`osa_residuals()`](https://grantdadams.github.io/Rceattle/reference/osa_residuals.md)
+  [`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md)
   (e.g. `method`, `seed`) when `type = "osa"`, or to
-  [`process_residuals()`](https://grantdadams.github.io/Rceattle/reference/process_residuals.md)
+  [`process_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/process_residuals.md)
   when `type = "process"`.
 
 ## Value
@@ -88,30 +88,32 @@ Residual kinds (`type`):
   realized observation log-SD \\\sigma\\ and the observation
   bias-adjustment flag \\b\\ (`bias_adjust_obs`, default 1). A
   natural-scale index fleet (`Index_distribution` `"MVN"`, `"MVNORM"`,
-  `"Normal"` or `"TruncatedNormal"`) carries an ABSOLUTE \\\sigma\\ and
-  is standardized as \\(o - \hat{o})/\sigma\\ instead. Two caveats
-  there: a covariance fleet gets its marginal residual, not the whitened
-  one (use `type = "osa"` for that), and `"TruncatedNormal"` is
-  standardized on the untruncated moments, so it is approximate where
-  \\\hat{o}/\sigma\\ is small enough for truncation to shift the mean.
-  For `comp` / `caal`, \\(p - \hat{p})/\sqrt{\hat{p}(1 - \hat{p})/N}\\
-  with input sample size N.
+  `"Normal"` or `"TruncatedNormal"`) holds an ABSOLUTE \\\sigma\\ and is
+  standardized as \\(o - \hat{o})/\sigma\\ instead. Two caveats there: a
+  covariance fleet gets its marginal residual, not the whitened one (use
+  `type = "osa"` for that), and `"TruncatedNormal"` is standardized on
+  the untruncated moments, so it is approximate where \\\hat{o}/\sigma\\
+  is small enough for truncation to shift the mean. For `comp` / `caal`,
+  \\(p - \hat{p})/\sqrt{\hat{p}(1 - \hat{p})/N}\\ with input sample size
+  N.
 
 - `"osa"`:
 
   One-step-ahead residuals via
-  [`osa_residuals()`](https://grantdadams.github.io/Rceattle/reference/osa_residuals.md),
+  [`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md),
   which builds the composition observation data on demand from any fit.
+  Pass its arguments through `...`; note that `method = "cdf"` forms no
+  conditional mean, so `Fitted` is `NA` for every row under it.
 
 - `"process"`:
 
   Process residuals via
-  [`process_residuals()`](https://grantdadams.github.io/Rceattle/reference/process_residuals.md)
+  [`process_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/process_residuals.md)
   for the model's random-effect deviations; `source` does not apply.
 
 Composition rows are returned in long form (one row per observation x
-age/length bin) and carry the `Age0_Length1` flag from `comp_data` (`0`
-age, `1` length); CAAL rows carry both the conditioning `Length` and the
+age/length bin) and hold the `Age0_Length1` flag from `comp_data` (`0`
+age, `1` length); CAAL rows hold both the conditioning `Length` and the
 age `Bin`.
 
 Where a fleet uses tail accumulation (`Comp_accum_young` /

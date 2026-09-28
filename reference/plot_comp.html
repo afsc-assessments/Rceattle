@@ -6,13 +6,13 @@ fleet x composition type:
 Pearson residual bubbles by year and bin, faceted by fleet (and,
 for joint-sex data, by sex); red = positive, blue = negative, sized by
 magnitude. The Pearson residual is
-the same form used by residuals.Rceattle() – standardized by the
+the same form used by residuals.Rceattle(), standardized by the
 variance the fleet's own likelihood assumes, so the weight column and any
 Dirichlet-multinomial overdispersion are already in the denominator.
-Annual composition – observed (shaded area) vs fitted (line)
+Annual composition: observed (shaded area) vs fitted (line)
 proportion at age / length, one panel per year. Joint-sex data are
 mirrored (females up, males down).
-Aggregated composition – observed vs fitted, counts pooled over
+Aggregated composition: observed vs fitted, counts pooled over
 the fitted hindcast years. The interval holds 95% of the data the model
 predicts (not a confidence interval on the mean), so observations outside
 it indicate misfit. Poor where the expected count is below about 10, and
@@ -28,13 +28,13 @@ fleet x composition type:
 Pearson residual bubbles by year and bin, faceted by fleet (and,
 for joint-sex data, by sex); red = positive, blue = negative, sized by
 magnitude. The Pearson residual is
-the same form used by residuals.Rceattle() – standardized by the
+the same form used by residuals.Rceattle(), standardized by the
 variance the fleet's own likelihood assumes, so the weight column and any
 Dirichlet-multinomial overdispersion are already in the denominator.
-Annual composition – observed (shaded area) vs fitted (line)
+Annual composition: observed (shaded area) vs fitted (line)
 proportion at age / length, one panel per year. Joint-sex data are
 mirrored (females up, males down).
-Aggregated composition – observed vs fitted, counts pooled over
+Aggregated composition: observed vs fitted, counts pooled over
 the fitted hindcast years. The interval holds 95% of the data the model
 predicts (not a confidence interval on the mean), so observations outside
 it indicate misfit. Poor where the expected count is below about 10, and
@@ -51,7 +51,7 @@ across gaps."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.33.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -80,12 +80,14 @@ across gaps."></head><body>
     <li><a class="dropdown-item" href="../articles/stock-synthesis-conversion.html">Converting from Stock Synthesis</a></li>
     <li><h6 class="dropdown-header" data-toc-skip>--- Contributing ---</h6></li>
     <li><a class="dropdown-item" href="../articles/developer-guide.html">Developer guide</a></li>
+    <li><a class="dropdown-item" href="../articles/adding-a-selectivity-form.html">Adding a selectivity form</a></li>
+    <li><a class="dropdown-item" href="../cpp/index.html">C++ template reference</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
-<li class="nav-item"><a class="external-link nav-link" href="https://github.com/grantdadams/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/afsc-assessments/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
       </ul></div>
 
 
@@ -95,7 +97,7 @@ across gaps."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Plot composition fits and residuals</h1>
-      <small class="dont-index">Source: <a href="https://github.com/grantdadams/Rceattle/blob/main/R/7-plot_comp.R" class="external-link"><code>R/7-plot_comp.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/R/7-plot_comp.R" class="external-link"><code>R/7-plot_comp.R</code></a></small>
       <div class="d-none name"><code>plot_comp.Rd</code></div>
     </div>
 
@@ -106,13 +108,13 @@ With the default <code>residual_type = "pearson"</code> three figures are produc
 fleet x composition type:</p><ul><li><p><strong>Pearson residual bubbles</strong> by year and bin, faceted by fleet (and,
 for joint-sex data, by sex); red = positive, blue = negative, sized by
 magnitude. The Pearson residual is
-the same form used by <code><a href="residuals.Rceattle.html">residuals.Rceattle()</a></code> – standardized by the
+the same form used by <code><a href="residuals.Rceattle.html">residuals.Rceattle()</a></code>, standardized by the
 variance the fleet's own likelihood assumes, so the weight column and any
 Dirichlet-multinomial overdispersion are already in the denominator.</p></li>
-<li><p><strong>Annual composition</strong> – observed (shaded area) vs fitted (line)
+<li><p><strong>Annual composition</strong>: observed (shaded area) vs fitted (line)
 proportion at age / length, one panel per year. Joint-sex data are
 mirrored (females up, males down).</p></li>
-<li><p><strong>Aggregated composition</strong> – observed vs fitted, counts pooled over
+<li><p><strong>Aggregated composition</strong>: observed vs fitted, counts pooled over
 the fitted hindcast years. The interval holds 95% of the data the model
 predicts (not a confidence interval on the mean), so observations outside
 it indicate misfit. Poor where the expected count is below about 10, and
@@ -179,7 +181,7 @@ argument of <code><a href="residuals.Rceattle.html">residuals.Rceattle()</a></co
 <dd><p><code>"pearson"</code> (default) for the ggplot2 Pearson-residual
 and composition-fit figures drawn here, or <code>"osa"</code> to instead draw the
 one-step-ahead residual diagnostics via <code><a href="osa_residuals.html">osa_residuals()</a></code> and
-<code><a href="plot.rceattle_osa.html">plot.rceattle_osa()</a></code> – a Q-Q plot (with SDNR / tail annotation) alongside
+<code><a href="plot.rceattle_osa.html">plot.rceattle_osa()</a></code>, a Q-Q plot (with SDNR / tail annotation) alongside
 signed OSA- and Pearson-residual bubbles. The <code>"osa"</code> path builds its
 observation data on demand, so it works with any fit.</p></dd>
 

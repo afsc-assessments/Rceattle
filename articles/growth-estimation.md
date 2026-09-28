@@ -5,7 +5,7 @@
 This vignette shows how to estimate growth with Rceattle’s built-in von
 Bertalanffy and Richards growth functions, and how to use the
 formula-driven
-[`linkage_spec()`](https://grantdadams.github.io/Rceattle/reference/linkage_spec.md)
+[`linkage_spec()`](https://afsc-assessments.github.io/Rceattle/reference/linkage_spec.md)
 API to add covariates and priors to growth parameters.
 
 The examples use the bundled `whamGrowthData` dataset, which supplies
@@ -32,13 +32,13 @@ whamGrowthData$fleet_control$Selectivity_dimension <- "Length"
 ## Build a growth model with linkages
 
 Growth linkages are built with
-[`build_growth()`](https://grantdadams.github.io/Rceattle/reference/build_growth.md)
+[`build_growth()`](https://afsc-assessments.github.io/Rceattle/reference/build_growth.md)
 and
-[`linkage_spec()`](https://grantdadams.github.io/Rceattle/reference/linkage_spec.md).
-A linkage can act on any von Bertalanffy parameter — `K`, `Linf`, or
-`L1` (natural-scale names; the default `link = "log"` keeps the
-underlying TMB parameter on the log scale) — and can carry priors on the
-linked coefficients.
+[`linkage_spec()`](https://afsc-assessments.github.io/Rceattle/reference/linkage_spec.md).
+A linkage can act on any von Bertalanffy parameter, `K`, `Linf`, or `L1`
+(natural-scale names; the default `link = "log"` keeps the underlying
+TMB parameter on the log scale), and can hold priors on the linked
+coefficients.
 
 ``` r
 
@@ -80,12 +80,12 @@ growth_spec <- build_growth(
 The `(Intercept)` prior is a prior on the base `Linf` value (natural
 scale, because the default log link is back-transformed inside the prior
 block). An intercept-bearing linkage replaces the base parameter and
-carries its level.
+holds its level.
 
 ### Time-varying growth
 
-The same grammar carries time variation, with a random-effect term on
-the right-hand side instead of (or alongside) a covariate:
+The same grammar holds time variation, with a random-effect term on the
+right-hand side instead of (or alongside) a covariate:
 
 ``` r
 
@@ -99,11 +99,11 @@ build_growth(
 ```
 
 This is the only route to time-varying growth. The `growth_re` switch
-that earlier versions carried in the `data_list` was never implemented —
+that earlier versions held in the `data_list` was never implemented,
 nothing consumed it, the deviation array was mapped off in every
-configuration, and the model gave it no density — so it is removed as of
+configuration, and the model gave it no density, so it is removed as of
 5.9.0 and setting it now raises a deprecation message. Unlike the
-switch, a random linkage carries a real density, so it is estimated,
+switch, a random linkage holds a real density, so it is estimated,
 reported in the linkage table, and redrawn by
 `sim_mod(process = "growth")`.
 
@@ -183,8 +183,8 @@ vbgf_prior_fit$opt$AIC
   or per-sex stratification.
 - The length-at-age SD endpoints `sd_L1` and `sd_Linf` are also linkage
   targets, so you can set `init` / `bounds` / `priors` on them. Only
-  intercept formulas (e.g. `~ 1`) are honored — the SDs do not vary by
+  intercept formulas (e.g. `~ 1`) are honored, the SDs do not vary by
   year, so slope terms have no effect. See the “Growth SD endpoints”
   section of
-  [`vignette("environmental-linkages-and-priors")`](https://grantdadams.github.io/Rceattle/articles/environmental-linkages-and-priors.md)
+  [`vignette("environmental-linkages-and-priors")`](https://afsc-assessments.github.io/Rceattle/articles/environmental-linkages-and-priors.md)
   for an example.

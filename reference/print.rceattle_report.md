@@ -14,7 +14,7 @@ print(x, ...)
 - x:
 
   An `"rceattle_report"` from
-  [`report_tables()`](https://grantdadams.github.io/Rceattle/reference/report_tables.md).
+  [`report_tables()`](https://afsc-assessments.github.io/Rceattle/reference/report_tables.md).
 
 - ...:
 

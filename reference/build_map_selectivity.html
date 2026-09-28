@@ -15,7 +15,7 @@ Selectivity in fleet_control of the data determines shape of selectivity curve:
 Parameters: sel_inf[1] = peak; sel_inf[2] = logit(right_floor) (right-tail floor, SS3 P6/end_logit);
 log_sel_slp[1] = log(sigma_asc); log_sel_slp[2] = log(sigma_desc).
 right_floor-&amp;gt;0: dome-shaped; right_floor-&amp;gt;1: logistic ascending only.
-N_sel_bins	Number of age/length bins to estimate non-parametric selectivity when Selectivity = 2 or 5. Not used otherwise
+N_sel_bins	Number of age/length bins to estimate for non-parametric and AR1 selectivity (Selectivity = 2, 5, 6, 7, 9, or 13). Not used otherwise
 Time_varying_sel	determines if time-varying selectivity should be estimated for logistic, double logistic selectivity,  descending logistic , non-parametric, or hake (Selectivity = 1, 2, 3, 4, or 5).
 0 = 'Off'
 1 = 'IID' penalized deviates given sel_sd_prior
@@ -38,7 +38,7 @@ Selectivity in fleet_control of the data determines shape of selectivity curve:
 Parameters: sel_inf[1] = peak; sel_inf[2] = logit(right_floor) (right-tail floor, SS3 P6/end_logit);
 log_sel_slp[1] = log(sigma_asc); log_sel_slp[2] = log(sigma_desc).
 right_floor-&amp;gt;0: dome-shaped; right_floor-&amp;gt;1: logistic ascending only.
-N_sel_bins	Number of age/length bins to estimate non-parametric selectivity when Selectivity = 2 or 5. Not used otherwise
+N_sel_bins	Number of age/length bins to estimate for non-parametric and AR1 selectivity (Selectivity = 2, 5, 6, 7, 9, or 13). Not used otherwise
 Time_varying_sel	determines if time-varying selectivity should be estimated for logistic, double logistic selectivity,  descending logistic , non-parametric, or hake (Selectivity = 1, 2, 3, 4, or 5).
 0 = 'Off'
 1 = 'IID' penalized deviates given sel_sd_prior
@@ -53,7 +53,7 @@ random_sel in fit_mod treats random deviates and random walk parameters as rando
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.33.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -82,12 +82,14 @@ random_sel in fit_mod treats random deviates and random walk parameters as rando
     <li><a class="dropdown-item" href="../articles/stock-synthesis-conversion.html">Converting from Stock Synthesis</a></li>
     <li><h6 class="dropdown-header" data-toc-skip>--- Contributing ---</h6></li>
     <li><a class="dropdown-item" href="../articles/developer-guide.html">Developer guide</a></li>
+    <li><a class="dropdown-item" href="../articles/adding-a-selectivity-form.html">Adding a selectivity form</a></li>
+    <li><a class="dropdown-item" href="../cpp/index.html">C++ template reference</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
-<li class="nav-item"><a class="external-link nav-link" href="https://github.com/grantdadams/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/afsc-assessments/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
       </ul></div>
 
 
@@ -97,7 +99,7 @@ random_sel in fit_mod treats random deviates and random walk parameters as rando
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Helper to set map for Selectivity parameters</h1>
-      <small class="dont-index">Source: <a href="https://github.com/grantdadams/Rceattle/blob/main/R/3-build_map.R" class="external-link"><code>R/3-build_map.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/R/3-build_map.R" class="external-link"><code>R/3-build_map.R</code></a></small>
       <div class="d-none name"><code>build_map_selectivity.Rd</code></div>
     </div>
 
@@ -118,7 +120,7 @@ and <code>Time_varying_sel</code> settings in <code>fleet_control</code>.</p>
 Parameters: <code>sel_inf[1]</code> = peak; <code>sel_inf[2]</code> = logit(right_floor) (right-tail floor, SS3 P6/end_logit);
 <code>log_sel_slp[1]</code> = log(sigma_asc); <code>log_sel_slp[2]</code> = log(sigma_desc).
 right_floor-&gt;0: dome-shaped; right_floor-&gt;1: logistic ascending only.</p>
-<p><code>N_sel_bins</code>	Number of age/length bins to estimate non-parametric selectivity when Selectivity = 2 or 5. Not used otherwise</p>
+<p><code>N_sel_bins</code>	Number of age/length bins to estimate for non-parametric and AR1 selectivity (Selectivity = 2, 5, 6, 7, 9, or 13). Not used otherwise</p>
 <p><code>Time_varying_sel</code>	determines if time-varying selectivity should be estimated for logistic, double logistic selectivity,  descending logistic , non-parametric, or hake (<code>Selectivity = 1, 2, 3, 4, or 5</code>).
 <code>0</code> = 'Off'
 <code>1</code> = 'IID' penalized deviates given <code>sel_sd_prior</code>

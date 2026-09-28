@@ -1,9 +1,9 @@
 # Print method for a jitter analysis
 
 Reports what the run was for: how many random starts reached the best
-optimum found. The objective values alone cannot say that –
-non-converged starts are dropped before the result is returned, so the
-count of returned fits is not the count attempted.
+optimum found. The objective values alone cannot say that, non-converged
+starts are dropped before the result is returned, so the count of
+returned fits is not the count attempted.
 
 ## Usage
 
@@ -17,7 +17,7 @@ print(x, tol = 0.01, ...)
 - x:
 
   A `"Rceattle_jitter"` object from
-  [`jitter()`](https://grantdadams.github.io/Rceattle/reference/jitter.md).
+  [`jitter()`](https://afsc-assessments.github.io/Rceattle/reference/jitter.md).
 
 - tol:
 

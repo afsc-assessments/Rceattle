@@ -43,7 +43,7 @@ applied.
 - `initMode_map`:
 
   Initial age-structure mode (`data_list$initMode`; see
-  [`fit_mod`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)).
+  [`fit_mod`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)).
 
 - `suitMode_map`:
 
@@ -52,4 +52,4 @@ applied.
 - `hcr_map`:
 
   Harvest control rule (see
-  [`build_hcr`](https://grantdadams.github.io/Rceattle/reference/build_hcr.md)).
+  [`build_hcr`](https://afsc-assessments.github.io/Rceattle/reference/build_hcr.md)).

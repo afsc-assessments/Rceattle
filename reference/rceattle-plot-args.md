@@ -2,26 +2,26 @@
 
 A common vocabulary, documented here once and inherited by the plotters
 that take it:
-[`plot_timeseries()`](https://grantdadams.github.io/Rceattle/reference/plot_timeseries.md)
+[`plot_timeseries()`](https://afsc-assessments.github.io/Rceattle/reference/plot_timeseries.md)
 and its wrappers
-([`plot_biomass()`](https://grantdadams.github.io/Rceattle/reference/plot_biomass.md),
-[`plot_ssb()`](https://grantdadams.github.io/Rceattle/reference/plot_ssb.md),
-[`plot_recruitment()`](https://grantdadams.github.io/Rceattle/reference/plot_recruitment.md),
+([`plot_biomass()`](https://afsc-assessments.github.io/Rceattle/reference/plot_biomass.md),
+[`plot_ssb()`](https://afsc-assessments.github.io/Rceattle/reference/plot_ssb.md),
+[`plot_recruitment()`](https://afsc-assessments.github.io/Rceattle/reference/plot_recruitment.md),
 the depletions,
-[`plot_exploitable_biomass()`](https://grantdadams.github.io/Rceattle/reference/plot_exploitable_biomass.md),
-[`plot_f()`](https://grantdadams.github.io/Rceattle/reference/plot_f.md)),
+[`plot_exploitable_biomass()`](https://afsc-assessments.github.io/Rceattle/reference/plot_exploitable_biomass.md),
+[`plot_f()`](https://afsc-assessments.github.io/Rceattle/reference/plot_f.md)),
 the predation plotters
-([`plot_b_eaten()`](https://grantdadams.github.io/Rceattle/reference/plot_b_eaten.md),
-[`plot_b_eaten_prop()`](https://grantdadams.github.io/Rceattle/reference/plot_b_eaten_prop.md),
-[`plot_m_at_age()`](https://grantdadams.github.io/Rceattle/reference/plot_m_at_age.md),
-[`plot_m2_at_age_prop()`](https://grantdadams.github.io/Rceattle/reference/plot_m2_at_age_prop.md),
-[`plot_ration()`](https://grantdadams.github.io/Rceattle/reference/plot_ration.md)),
+([`plot_b_eaten()`](https://afsc-assessments.github.io/Rceattle/reference/plot_b_eaten.md),
+[`plot_b_eaten_prop()`](https://afsc-assessments.github.io/Rceattle/reference/plot_b_eaten_prop.md),
+[`plot_m_at_age()`](https://afsc-assessments.github.io/Rceattle/reference/plot_m_at_age.md),
+[`plot_m2_at_age_prop()`](https://afsc-assessments.github.io/Rceattle/reference/plot_m2_at_age_prop.md),
+[`plot_ration()`](https://afsc-assessments.github.io/Rceattle/reference/plot_ration.md)),
 and
-[`plot_selectivity()`](https://grantdadams.github.io/Rceattle/reference/plot_selectivity.md).
+[`plot_selectivity()`](https://afsc-assessments.github.io/Rceattle/reference/plot_selectivity.md).
 Each argument means the same thing wherever it appears, but not every
-plotter takes every one – `incl_mean` is on the predation plotters,
-`add_ci` only where the quantity carries standard errors, and `alpha`
-only where the figure has a ribbon or a fan. The remaining `plot_*()`
+plotter takes every one, `incl_mean` is on the predation plotters,
+`add_ci` only where the quantity holds standard errors, and `alpha` only
+where the figure has a ribbon or a fan. The remaining `plot_*()`
 functions still take their own arguments; see each one's help.
 
 ## Arguments
@@ -29,7 +29,7 @@ functions still take their own arguments; see each one's help.
 - Rceattle:
 
   A single
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   object or a list of them (overlaid).
 
 - file:
@@ -76,7 +76,7 @@ functions still take their own arguments; see each one's help.
 - add_ci:
 
   Add a 95% confidence interval. Only available where the plotted
-  quantity carries standard errors; warns and draws none otherwise.
+  quantity holds standard errors; warns and draws none otherwise.
 
 - minyr, maxyr:
 
@@ -140,11 +140,11 @@ A `ggplot` object.
 ## How `line_col` and `lty` are applied
 
 They supply values for whichever **discrete variable the plot already
-encodes with that aesthetic**, matched in level order – which is not
+encodes with that aesthetic**, matched in level order, which is not
 always the model. Each function's help says what its own figure
 separates.
 
-Where colour encodes a continuous variable – the year fan in
-[`plot_selectivity()`](https://grantdadams.github.io/Rceattle/reference/plot_selectivity.md)
-– `line_col` supplies the ramp anchors instead: one colour draws the fan
+Where colour encodes a continuous variable, the year fan in
+[`plot_selectivity()`](https://afsc-assessments.github.io/Rceattle/reference/plot_selectivity.md),
+`line_col` supplies the ramp anchors instead: one colour draws the fan
 in that colour, several interpolate between them.

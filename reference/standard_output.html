@@ -13,7 +13,7 @@ used for SS3, BAM, WHAM and FIMS."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.33.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -42,12 +42,14 @@ used for SS3, BAM, WHAM and FIMS."></head><body>
     <li><a class="dropdown-item" href="../articles/stock-synthesis-conversion.html">Converting from Stock Synthesis</a></li>
     <li><h6 class="dropdown-header" data-toc-skip>--- Contributing ---</h6></li>
     <li><a class="dropdown-item" href="../articles/developer-guide.html">Developer guide</a></li>
+    <li><a class="dropdown-item" href="../articles/adding-a-selectivity-form.html">Adding a selectivity form</a></li>
+    <li><a class="dropdown-item" href="../cpp/index.html">C++ template reference</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
-<li class="nav-item"><a class="external-link nav-link" href="https://github.com/grantdadams/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/afsc-assessments/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
       </ul></div>
 
 
@@ -57,7 +59,7 @@ used for SS3, BAM, WHAM and FIMS."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Rceattle output in the NOAA standardized assessment format</h1>
-      <small class="dont-index">Source: <a href="https://github.com/grantdadams/Rceattle/blob/main/R/6-report_tables.R" class="external-link"><code>R/6-report_tables.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/R/6-report_tables.R" class="external-link"><code>R/6-report_tables.R</code></a></small>
       <div class="d-none name"><code>standard_output.Rd</code></div>
     </div>
 
@@ -106,7 +108,7 @@ standard has no name for keeps its Rceattle name, so nothing is silently
 dropped.</p>
 <p><strong>The standard has no species dimension.</strong> It describes one stock, so a
 multispecies CEATTLE fit cannot be represented in it as a whole. A <code>species</code>
-column is carried alongside the standard columns and <code>species</code> selects one
+column is held alongside the standard columns and <code>species</code> selects one
 stock; with several species in the fit and no selection, this errors rather
 than returning a frame in which two stocks' biomass share a year.</p>
 <p><code>era</code> follows the standard's own vocabulary: <code>"time"</code> for the hindcast the

@@ -32,7 +32,7 @@ data object without Excel* vignette). Capabilities include:
   `vcov`, `residuals`, `plot`)
 
 See `browseVignettes("Rceattle")` or the [package
-website](https://grantdadams.github.io/Rceattle/) for full
+website](https://afsc-assessments.github.io/Rceattle/) for full
 documentation.
 
 **Installation**
@@ -41,7 +41,7 @@ documentation.
 
 # Rceattle (pulls CRAN dependencies automatically)
 install.packages("remotes")
-remotes::install_github("grantdadams/Rceattle")
+remotes::install_github("afsc-assessments/Rceattle")
 
 # Optional: TMBhelper provides richer optimization diagnostics.
 # Rceattle falls back to plain nlminb + sdreport if it's not installed.
@@ -53,13 +53,13 @@ than tracking `main`, e.g.:
 
 ``` r
 
-remotes::install_github("grantdadams/Rceattle@4.3.0")
+remotes::install_github("afsc-assessments/Rceattle@5.43.0")
 ```
 
 The maintainer email in `DESCRIPTION` (`grant.adams@noaa.gov`) is the
 preferred contact for questions about the package; please open an
-[issue](https://github.com/grantdadams/Rceattle/issues) for bug reports
-and feature requests so the discussion is publicly searchable.
+[issue](https://github.com/afsc-assessments/Rceattle/issues) for bug
+reports and feature requests so the discussion is publicly searchable.
 
 **Getting started**
 
@@ -148,26 +148,26 @@ For a multispecies model, set `msmMode = 1`. See the package vignettes
 (`browseVignettes("Rceattle")`) for projections, alternative harvest
 control rules, MSE testing, model diagnostics, and non-Excel data
 construction. For deeper context, see the [onboarding
-document](https://github.com/grantdadams/Rceattle/wiki/Onboarding) and
-Wiki. The model can be updated following instructions
-[here](https://github.com/grantdadams/Rceattle/wiki/Workflow-for-updating-the-Rceattle).
+document](https://github.com/afsc-assessments/Rceattle/wiki/Onboarding)
+and Wiki. The model can be updated following instructions
+[here](https://github.com/afsc-assessments/Rceattle/wiki/Workflow-for-updating-the-Rceattle).
 
 **Examples** Additional code and function examples using data from the
 Bering Sea and Gulf of Alaska groundfish applications can be found in
 the
-[examples](https://github.com/grantdadams/Rceattle/tree/master/examples)
+[examples](https://github.com/afsc-assessments/Rceattle/tree/master/examples)
 folder and include: \* [Fitting single-species
-models](https://github.com/grantdadams/Rceattle/blob/master/examples/Fit_2018_GOA_single-species_models.R)
+models](https://github.com/afsc-assessments/Rceattle/blob/main/examples/Fit_2018_GOA_single-species_models.R)
 \* [Fitting multi-species
-models](https://github.com/grantdadams/Rceattle/blob/master/examples/Fit_2018_GOA_multi-species_model.R)
+models](https://github.com/afsc-assessments/Rceattle/blob/main/examples/Fit_2018_GOA_multi-species_model.R)
 \* [Estimating
-growth](https://github.com/grantdadams/Rceattle/blob/master/examples/Growth_estimation.R)
+growth](https://github.com/afsc-assessments/Rceattle/blob/main/examples/Growth_estimation.R)
 \* [Alternative HCRs and MSE
-testing](https://github.com/grantdadams/Rceattle/blob/master/examples/HCRs_and_MSE_testing.R)
+testing](https://github.com/afsc-assessments/Rceattle/blob/main/examples/HCRs_and_MSE_testing.R)
 \*
-[Simulation](https://github.com/grantdadams/Rceattle/blob/master/examples/Simulation_testing.R)
+[Simulation](https://github.com/afsc-assessments/Rceattle/blob/main/examples/Simulation_testing.R)
 \* [Model
-diagnostics](https://github.com/grantdadams/Rceattle/blob/master/examples/Model_diagnostics.R)
+diagnostics](https://github.com/afsc-assessments/Rceattle/blob/main/examples/Model_diagnostics.R)
 
 **References**
 
@@ -190,6 +190,18 @@ Wassermann, S. N., Adams, G. D., Haltuch, M. A., Kaplan, I. C.,
 Marshall, K. N., & Punt, A. E. (2025). Even low levels of cannibalism
 can bias population estimates for Pacific hake. ICES Journal of Marine
 Science, 82(1), fsae064.
+
+## Contributing
+
+Bug reports and pull requests are welcome.
+[CONTRIBUTING.md](https://afsc-assessments.github.io/Rceattle/CONTRIBUTING.md)
+covers the toolchain, how to run the tests, and the conventions a change
+is held to. Two articles go deeper: the [developer
+guide](https://afsc-assessments.github.io/Rceattle/articles/developer-guide.html)
+for the fit pipeline, the switch system and the column schema, and
+[adding a selectivity
+form](https://afsc-assessments.github.io/Rceattle/articles/adding-a-selectivity-form.html)
+for one extension traced end to end.
 
 ## Disclaimer
 

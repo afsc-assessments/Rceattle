@@ -39,7 +39,7 @@ From the SS data file (`hake_data.ss`) into the Rceattle Excel sheet
 ## Fleets
 
 From `#fleetinfo` in the SS data file into the Rceattle `fleet_control`
-sheet — one row per fleet:
+sheet, one row per fleet:
 
 | SS field | Rceattle (`fleet_control`) | Notes |
 |----|----|----|
@@ -62,7 +62,7 @@ SS catch data → Rceattle `catch_data` sheet:
 | `year` | `Year` |  |
 | `seas` | `Month` | Currently informational; Baranov is annual |
 | `fleet` | `Fleet_code` | Re-map if the codes differ from SS |
-| `catch` | `Catch` | Convert to mt – Rceattle works in mt and thousands of fish throughout (see [`?plot_timeseries`](https://grantdadams.github.io/Rceattle/reference/plot_timeseries.md)) |
+| `catch` | `Catch` | Convert to mt; Rceattle works in mt and thousands of fish throughout (see [`?plot_timeseries`](https://afsc-assessments.github.io/Rceattle/reference/plot_timeseries.md)) |
 | `catch_se` | `Log_sd` | Lognormal F-dev SD |
 
 ## Survey indices
@@ -128,10 +128,13 @@ zero-pad or accumulate at the upper age.
 For a two-sex conversion, `Sel_norm_scope` decides whether the
 normalization reference is pooled over the sexes (`"AcrossSexes"`, the
 default, which keeps relative sex-specific selectivity) or taken per sex
-(`"WithinSex"`). Note that Rceattle has no equivalent of the SS male
-apical-selectivity offset: relative sex selectivity is carried by the
-normalization scope and by joint (`comp_data$Sex = 3`) composition data,
-not by an offset parameter.
+(`"WithinSex"`). Note that Rceattle’s equivalent of the SS male
+apical-selectivity offset is the `apical` selectivity linkage parameter,
+added in 5.38.0: name the fleet and the sex that holds it, as the SS
+male-offset option does. The ratio is informed only by joint
+(`comp_data$Sex = 3`) composition data, so it is identified only over
+the years that hold it. Without such a linkage, relative sex selectivity
+is held by the normalization scope alone.
 
 `Part`, `Ageerr`, `Lbin_lo`, `Lbin_hi`, `CompressBins`, `CompError`,
 `ParmSelect`, and `minsamplesize` from SS do not have direct Rceattle
@@ -165,24 +168,24 @@ in-package list slot is `wt`).
 > every entry of the `maturity` sheet to `1`.
 
 If SS estimates weight-at-age (rather than reading it from data), copy
-from `wtatage_new.ss` instead — bearing in mind the estimates are
+from `wtatage_new.ss` instead, bearing in mind the estimates are
 conditional on the SS population dynamics and are therefore mildly
 circular when ported to Rceattle.
 
 ## Other inputs
 
-- `sex_ratio` sheet — typically `0.5` for all ages. Hake assessments use
+- `sex_ratio` sheet, typically `0.5` for all ages. Hake assessments use
   this convention.
-- `M1_base` sheet — values from the assessment document. To estimate M
+- `M1_base` sheet, values from the assessment document. To estimate M
   rather than fix it, configure `M1Fun = build_M1(M1_model = …)` on
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md).
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md).
   See vignette 0 §7 for the option table.
-- `age_trans_matrix` sheet — converts age-at-length to length-at-age.
-  Set every entry to `0` if the assessment has no length data; for
-  models with length comps, fill from the SS age-length transition.
-- `ration_data` and `diet_data` (multi-species only) — diet /
-  consumption inputs. SS does not provide these; derive externally if
-  fitting a multi-species CEATTLE.
+- `age_trans_matrix` sheet, converts age-at-length to length-at-age. Set
+  every entry to `0` if the assessment has no length data; for models
+  with length comps, fill from the SS age-length transition.
+- `ration_data` and `diet_data` (multi-species only), diet / consumption
+  inputs. SS does not provide these; derive externally if fitting a
+  multi-species CEATTLE.
 
 ## Verifying the conversion against SS
 
@@ -207,12 +210,12 @@ Dirichlet-multinomial for comps; not the SS lognormal-on-comp forms).
 ## See also
 
 - Vignette 6, [Building a data object without
-  Excel](https://grantdadams.github.io/Rceattle/articles/data-without-excel.md),
+  Excel](https://afsc-assessments.github.io/Rceattle/articles/data-without-excel.md),
   for the in-R structure of `data_list` (useful when scripting an SS →
   Rceattle conversion).
 - Vignette 0, [Model options and
-  functionality](https://grantdadams.github.io/Rceattle/articles/model-options-and-functionality.md),
+  functionality](https://afsc-assessments.github.io/Rceattle/articles/model-options-and-functionality.md),
   for the option tables referenced above.
 - Vignette 8, [Model
-  parameterizations](https://grantdadams.github.io/Rceattle/articles/model-parameterizations.md),
+  parameterizations](https://afsc-assessments.github.io/Rceattle/articles/model-parameterizations.md),
   for equation-level detail on selectivity, catchability, and predation.

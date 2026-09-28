@@ -32,7 +32,7 @@ plot_selectivity(
 - Rceattle:
 
   A single
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   object or a list of them (overlaid).
 
 - file:
@@ -93,7 +93,7 @@ plot_selectivity(
 - add_ci:
 
   Add a 95% confidence interval. Only available where the plotted
-  quantity carries standard errors; warns and draws none otherwise.
+  quantity holds standard errors; warns and draws none otherwise.
 
 ## Value
 
@@ -112,7 +112,7 @@ solid. `colour_by` overrides the choice either way, and `alpha` sets the
 faintest end.
 
 Line type separates the sexes, and `lty` supplies its values. Panels are
-fleets, so `spnames` does not label anything here – it only lets
+fleets, so `spnames` does not label anything here, it only lets
 `species` select by name.
 
 ## Confidence intervals
@@ -121,14 +121,14 @@ fleets, so `spnames` does not label anything here – it only lets
 positive and right-skewed. It needs a fit run with
 `fit_control(selectivity_se = TRUE)`.
 
-Only estimated, age-based fleets carry one. A length-based fleet is
-drawn on `sel_at_length`, which is what was fitted and carries no error;
-a `Selectivity = "Fixed"` fleet estimates nothing; and no fleet gets a
+Only estimated, age-based fleets hold one. A length-based fleet is drawn
+on `sel_at_length`, which is what was fitted and holds no error; a
+`Selectivity = "Fixed"` fleet estimates nothing; and no fleet gets a
 band below its first selected bin (`Bin_first_selected`, a 1-based bin
-ordinal – not an absolute age), where selectivity is 0 by construction.
-A fleet mirroring another's `Selectivity_index` has no errors of its own
-and borrows its lead's, but only where the two curves agree –
-[`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+ordinal, not an absolute age), where selectivity is 0 by construction. A
+fleet mirroring another's `Selectivity_index` has no errors of its own
+and borrows its lead's, but only where the two curves agree,
+[`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
 only warns when a shared group differs in a shaping column such as
 `Sel_norm_bin`.
 
@@ -143,6 +143,6 @@ level rather than measuring it: the bin it pins has a standard error of
 exactly 0 and the band widens away from it. On a penalized fit
 (`random_sel = FALSE`) the band is also conditional on the smoothing,
 and it is marginal rather than joint. See
-[`vignette("model-options-and-functionality")`](https://grantdadams.github.io/Rceattle/articles/model-options-and-functionality.md)
+[`vignette("model-options-and-functionality")`](https://afsc-assessments.github.io/Rceattle/articles/model-options-and-functionality.md)
 for both, and for the `estimateMode` that determines whether the fit
 reports an error at all.

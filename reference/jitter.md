@@ -26,7 +26,7 @@ jitter(
 - object:
 
   an Rceattle model fit using
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md).
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md).
 
 - njitter:
 
@@ -39,7 +39,7 @@ jitter(
 - phase:
 
   as in
-  [`fit_mod`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   default = FALSE. Jitters restart from perturbed *starting* values, so
   a model that needed phasing to fit its real data needs it here too;
   leave this at `FALSE` for such a model and the jitters end far from
@@ -63,14 +63,14 @@ jitter(
   [`TMB::sdreport`](https://rdrr.io/pkg/TMB/man/sdreport.html). Jitter
   compares objectives and point estimates across starts, so `FALSE` is
   faster with no effect on that comparison. Default `NULL` inherits the
-  input model's setting (`TRUE` only if it carries an `sdrep`).
+  input model's setting (`TRUE` only if it holds an `sdrep`).
 
 - timeout:
 
   elapsed-second limit per jitter, `Inf` (default) for none. A jitter is
   a deliberately perturbed start and the optimizer runs with no
   iteration cap, so this is the diagnostic most likely to send one
-  somewhere pathological and stall the whole run – a hang no convergence
+  somewhere pathological and stall the whole run, a hang no convergence
   check can catch, because the fit never returns. One that exceeds the
   limit is stopped, counted as non-converged and reported separately.
   Approximate: the limit is checked when control returns to R, so it
@@ -80,9 +80,9 @@ jitter(
 - fit_control:
 
   optional
-  [`fit_control()`](https://grantdadams.github.io/Rceattle/reference/fit_control.md)
+  [`fit_control()`](https://afsc-assessments.github.io/Rceattle/reference/fit_control.md)
   bundle for the refits. Only `phase` and `getsd` are read; see **What
-  [`fit_control()`](https://grantdadams.github.io/Rceattle/reference/fit_control.md)
+  [`fit_control()`](https://afsc-assessments.github.io/Rceattle/reference/fit_control.md)
   reaches**.
 
 - Rceattle:
@@ -94,7 +94,7 @@ jitter(
 
 a list of 1. `Rceattle_list`, the converged jitters, and 2. `nll`, their
 objective values. Non-converged (or timed-out) starts are dropped and
-reported in a message, so both can be shorter than `njitter` – and that
+reported in a message, so both can be shorter than `njitter`, and that
 count is itself the result, since the whole point is what fraction of
 random starts reach the same optimum.
 

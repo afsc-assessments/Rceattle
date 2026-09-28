@@ -5,7 +5,7 @@ Maps the growth parameters (`log_growth_pars`, `growth_log_sd`,
 mapped off and each growth function turns on the parameters it uses.
 
 Time-varying growth comes from the linkage grammar
-(`build_growth(linkages = )`), whose random effects carry their own
+(`build_growth(linkages = )`), whose random effects hold their own
 density and map.
 
 ## Usage

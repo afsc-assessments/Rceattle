@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.33.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -53,6 +53,8 @@
     <li><a class="dropdown-item" href="../articles/stock-synthesis-conversion.html">Converting from Stock Synthesis</a></li>
     <li><h6 class="dropdown-header" data-toc-skip>--- Contributing ---</h6></li>
     <li><a class="dropdown-item" href="../articles/developer-guide.html">Developer guide</a></li>
+    <li><a class="dropdown-item" href="../articles/adding-a-selectivity-form.html">Adding a selectivity form</a></li>
+    <li><a class="dropdown-item" href="../cpp/index.html">C++ template reference</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
@@ -62,7 +64,7 @@
 <li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json">
 </form></li>
-<li class="nav-item"><a class="external-link nav-link" href="https://github.com/grantdadams/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/afsc-assessments/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
       </ul>
 </div>
 
@@ -78,9 +80,9 @@
 
       <h1>6. Building a data object in R</h1>
             
-            <h4 data-toc-skip class="date">2026-09-14</h4>
+            <h4 data-toc-skip class="date">2026-09-28</h4>
       
-      <small class="dont-index">Source: <a href="https://github.com/grantdadams/Rceattle/blob/main/vignettes/data-without-excel.Rmd" class="external-link"><code>vignettes/data-without-excel.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/vignettes/data-without-excel.Rmd" class="external-link"><code>vignettes/data-without-excel.Rmd</code></a></small>
       <div class="d-none name"><code>data-without-excel.Rmd</code></div>
     </div>
 
@@ -88,7 +90,7 @@
     
 <p>Rceattle normally reads input data from an Excel workbook via
 <code><a href="../reference/read_data.html">read_data()</a></code>. The same data object can be built entirely in
-R as a named list — useful when:</p>
+R as a named list, useful when:</p>
 <ul>
 <li>Simulating data for testing or MSE operating models</li>
 <li>Generating inputs programmatically (e.g., multi-scenario loops or
@@ -117,7 +119,7 @@ model uses and default-fills the rest (via <code><a href="../reference/clean_dat
 so a single-species model does not need the predation, growth, or
 empirical-selectivity blocks. It has three combinable entry points:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://grantdadams.github.io/Rceattle/">Rceattle</a></span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://afsc-assessments.github.io/Rceattle/">Rceattle</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># 1. Copy-and-edit an existing data object (a bundled dataset, a read_data()</span></span>
 <span><span class="co">#    result, or a combine_data() result):</span></span>
@@ -134,8 +136,8 @@ empirical-selectivity blocks. It has three combinable entry points:</p>
 <span>                  comp_data <span class="op">=</span> <span class="va">ages</span><span class="op">)</span></span></code></pre></div>
 <p><code><a href="../reference/build_data.html">build_data()</a></code> checks each block name against the
 recognized schema, so a typo (<code>maturty</code>) or a case-slip
-(<code>Maturity</code>) is caught at construction with a suggestion —
-not much later inside a fit — and legacy names (<code>fsh_biom</code>,
+(<code>Maturity</code>) is caught at construction with a suggestion (not
+much later inside a fit) and legacy names (<code>fsh_biom</code>,
 <code>srv_biom</code>, <code>wt</code>, <code>pmature</code>,
 <code>Pyrs</code>) are mapped to their canonical equivalents. Printing
 the result shows an indented specification tree rather than the raw
@@ -149,8 +151,8 @@ list:</p>
 <code><a href="../reference/data_requirements.html">data_requirements()</a></code>: it reports, for a given configuration,
 which blocks are <strong>Required</strong>, <strong>Optional</strong>
 (used if supplied, otherwise default-filled), or
-<strong>Ignored</strong> (not consulted because the feature is off) —
-the exact conditions the fit-time validation enforces.</p>
+<strong>Ignored</strong> (not consulted because the feature is off), the
+exact conditions the fit-time validation enforces.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/data_requirements.html">data_requirements</a></span><span class="op">(</span>msmMode <span class="op">=</span> <span class="fl">0</span><span class="op">)</span>            <span class="co"># single-species: predation Ignored</span></span>
 <span><span class="fu"><a href="../reference/data_requirements.html">data_requirements</a></span><span class="op">(</span>msmMode <span class="op">=</span> <span class="fl">1</span><span class="op">)</span>            <span class="co"># multispecies: diet + bioenergetics Required</span></span>
@@ -212,7 +214,7 @@ omit any of these by leaving the field unset.</p>
 <h2 id="building-the-list-by-hand">Building the list by hand<a class="anchor" aria-label="anchor" href="#building-the-list-by-hand"></a>
 </h2>
 <p>The rest of this vignette assembles the list field by field. This is
-the machinery <code><a href="../reference/build_data.html">build_data()</a></code> wraps — useful when you are
+the machinery <code><a href="../reference/build_data.html">build_data()</a></code> wraps, useful when you are
 simulating data, generating inputs programmatically, or want to
 understand exactly what each block contains. Feel free to skip sections
 you don’t need.</p>
@@ -221,9 +223,9 @@ you don’t need.</p>
 <h2 id="setup">Setup<a class="anchor" aria-label="anchor" href="#setup"></a>
 </h2>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://grantdadams.github.io/Rceattle/">Rceattle</a></span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://afsc-assessments.github.io/Rceattle/">Rceattle</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Define core dimensions up front — these drive the size of all downstream arrays.</span></span>
+<span><span class="co"># Define core dimensions up front, these drive the size of all downstream arrays.</span></span>
 <span><span class="va">nspp</span>     <span class="op">&lt;-</span> <span class="fl">2</span>   <span class="co"># number of species (or stocks)</span></span>
 <span><span class="va">nages</span>    <span class="op">&lt;-</span> <span class="fl">10</span>  <span class="co"># maximum age classes (same for all species here)</span></span>
 <span><span class="va">nlengths</span> <span class="op">&lt;-</span> <span class="fl">20</span>  <span class="co"># number of length bins (for age-length keys / CAAL data)</span></span>
@@ -250,7 +252,7 @@ species and control which population model is used.</p>
 <span><span class="co">#        2 = sex-structured model (separate selectivity and mortality by sex)</span></span>
 <span><span class="va">simData</span><span class="op">$</span><span class="va">nsex</span>    <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fl">1</span>, <span class="va">nspp</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Calendar month of spawning — used to compute the fraction-of-year weight</span></span>
+<span><span class="co"># Calendar month of spawning, used to compute the fraction-of-year weight</span></span>
 <span><span class="co"># applied to spawning stock biomass (e.g., 6 = mid-year spawning)</span></span>
 <span><span class="va">simData</span><span class="op">$</span><span class="va">spawn_month</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fl">6</span>, <span class="va">nspp</span><span class="op">)</span></span>
 <span></span>
@@ -293,38 +295,38 @@ species and control which population model is used.</p>
 modeled. Multiple fleets can target the same species.</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Fleet_type:</span></span>
-<span><span class="co">#   "Fishery" -- contributes catch and catch-at-age/length composition data</span></span>
-<span><span class="co">#   "Survey"  -- contributes an abundance index and composition data</span></span>
-<span><span class="co">#   "Off"     -- fleet is present in the data but excluded from the likelihood</span></span>
+<span><span class="co">#   "Fishery", contributes catch and catch-at-age/length composition data</span></span>
+<span><span class="co">#   "Survey", contributes an abundance index and composition data</span></span>
+<span><span class="co">#   "Off", fleet is present in the data but excluded from the likelihood</span></span>
 <span></span>
-<span><span class="co"># Selectivity options (Selectivity column) — use the string name or integer code:</span></span>
-<span><span class="co">#   "Fixed"              (0) -- fixed at values in emp_sel; not estimated</span></span>
-<span><span class="co">#   "Logistic"           (1) -- two-parameter ascending logistic (a50, slope)</span></span>
-<span><span class="co">#   "NonParametric"      (2) -- freely estimated selectivity-at-age/length with smoothness penalty</span></span>
-<span><span class="co">#   "DoubleLogistic"     (3) -- ascending + descending dome-shaped logistic</span></span>
-<span><span class="co">#   "DescendingLogistic" (4) -- descending logistic only (dome-shaped for oldest ages)</span></span>
-<span><span class="co">#   "Hake"               (5) -- non-parametric selectivity à la Taylor et al. (Pacific hake)</span></span>
-<span><span class="co">#   "2DAR1"              (6) -- 2D autoregressive random effects (bin × year)</span></span>
-<span><span class="co">#   "3DAR1"              (7) -- 3D autoregressive random effects (bin × year × cohort)</span></span>
+<span><span class="co"># Selectivity options (Selectivity column), use the string name or integer code:</span></span>
+<span><span class="co">#   "Fixed"              (0), fixed at values in emp_sel; not estimated</span></span>
+<span><span class="co">#   "Logistic"           (1), two-parameter ascending logistic (a50, slope)</span></span>
+<span><span class="co">#   "NonParametric"      (2), freely estimated selectivity-at-age/length with smoothness penalty</span></span>
+<span><span class="co">#   "DoubleLogistic"     (3), ascending + descending dome-shaped logistic</span></span>
+<span><span class="co">#   "DescendingLogistic" (4), descending logistic only (dome-shaped for oldest ages)</span></span>
+<span><span class="co">#   "Hake"               (5), non-parametric selectivity à la Taylor et al. (Pacific hake)</span></span>
+<span><span class="co">#   "2DAR1"              (6), 2D autoregressive random effects (bin × year)</span></span>
+<span><span class="co">#   "3DAR1"              (7), 3D autoregressive random effects (bin × year × cohort)</span></span>
 <span><span class="co">#</span></span>
 <span><span class="co"># Selectivity_dimension: "Age" or "Length"</span></span>
 <span><span class="co">#   Length-based selectivity requires an age-to-length transition matrix (see below).</span></span>
 <span></span>
-<span><span class="co"># Catchability options (Catchability column) — use the string name or integer code:</span></span>
-<span><span class="co">#   "Fixed"                (0) -- Q fixed at Catchability_init; not estimated</span></span>
-<span><span class="co">#   "Estimated"            (1) -- freely estimated on log scale</span></span>
-<span><span class="co">#   "Estimated-with-prior" (2) -- estimated with a lognormal prior (Catchability_init, Catchability_prior_sd)</span></span>
-<span><span class="co">#   "Analytical"           (3) -- Ludwig &amp; Walters / Martell (1994) analytical Q</span></span>
-<span><span class="co">#   "PowerEquation"        (4) -- power-equation Q (habitat area scaling)</span></span>
-<span><span class="co">#   "Environmental"        (5) -- mu_q + X * beta, where X is a covariate in env_data</span></span>
-<span><span class="co">#   "AR1"                  (6) -- REMOVED in 5.12.0; data_check() errors. Use a q</span></span>
+<span><span class="co"># Catchability options (Catchability column), use the string name or integer code:</span></span>
+<span><span class="co">#   "Fixed"                (0), Q fixed at Catchability_init; not estimated</span></span>
+<span><span class="co">#   "Estimated"            (1), freely estimated on log scale</span></span>
+<span><span class="co">#   "Estimated-with-prior" (2), estimated with a lognormal prior (Catchability_init, Catchability_prior_sd)</span></span>
+<span><span class="co">#   "Analytical"           (3), Ludwig &amp; Walters / Martell (1994) analytical Q</span></span>
+<span><span class="co">#   "PowerEquation"        (4), power-equation Q (habitat area scaling)</span></span>
+<span><span class="co">#   "Environmental"        (5), mu_q + X * beta, where X is a covariate in env_data</span></span>
+<span><span class="co">#   "AR1"                  (6), REMOVED in 5.12.0; data_check() errors. Use a q</span></span>
 <span><span class="co">#                                  linkage with ar1(1 | Year) and observe = &lt;column&gt;</span></span>
-<span><span class="co">#   NA                         -- not applicable (use for fisheries without CPUE)</span></span>
+<span><span class="co">#   NA, not applicable (use for fisheries without CPUE)</span></span>
 <span></span>
 <span><span class="co"># Comp_distribution / CAAL_distribution options:</span></span>
-<span><span class="co">#   "Multinomial"           -- standard multinomial</span></span>
-<span><span class="co">#   "DirichletMultinomial"  -- overdispersed; estimates a concentration parameter</span></span>
-<span><span class="co">#   "MultinomialAFSC"       -- AFSC variant of multinomial (marginal age + length)</span></span>
+<span><span class="co">#   "Multinomial", standard multinomial</span></span>
+<span><span class="co">#   "DirichletMultinomial", overdispersed; estimates a concentration parameter</span></span>
+<span><span class="co">#   "MultinomialAFSC", AFSC variant of multinomial (marginal age + length)</span></span>
 <span></span>
 <span><span class="va">simData</span><span class="op">$</span><span class="va">fleet_control</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>  Fleet_name  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Survey"</span>, <span class="st">"Fishery"</span><span class="op">)</span>,</span>
@@ -346,7 +348,7 @@ modeled. Multiple fleets can target the same species.</p>
 <span>  <span class="co">#   0 / "Off" = time-invariant (default)</span></span>
 <span>  <span class="co">#   1 / "IID" = penalized log-normal deviates (SD fixed at Time_varying_sel_sd</span></span>
 <span>  <span class="co">#       unless random_sel = TRUE in fit_mod)</span></span>
-<span>  <span class="co">#   2 / "AR1" = AR(1) (not yet implemented)</span></span>
+<span>  <span class="co">#   2 / "AR1" = REMOVED in 5.16.0; data_check() errors on it</span></span>
 <span>  <span class="co">#   3 / "Block" = time blocks (specify via R-side mapping)</span></span>
 <span>  <span class="co">#   4 / "RandomWalk" = random walk</span></span>
 <span>  <span class="co">#   5 / "RandomWalkAscending" = random walk on ascending portion of double logistic</span></span>
@@ -356,8 +358,8 @@ modeled. Multiple fleets can target the same species.</p>
 <span>  Sel_norm_bin             <span class="op">=</span> <span class="st">"Off"</span>, <span class="co"># "Max", "Off", or a bin to normalize at</span></span>
 <span>  Sel_norm_bin_upper       <span class="op">=</span> <span class="st">"Off"</span>, <span class="co"># "Off", or the top of a bin range</span></span>
 <span>  <span class="co"># Two-sex models only: whether the normalization reference is pooled over the</span></span>
-<span>  <span class="co"># sexes ("AcrossSexes", default -- keeps relative sex selectivity) or taken per</span></span>
-<span>  <span class="co"># sex ("WithinSex" -- both sexes reach 1, only the shape differs).</span></span>
+<span>  <span class="co"># sexes ("AcrossSexes", default, keeps relative sex selectivity) or taken per</span></span>
+<span>  <span class="co"># sex ("WithinSex", both sexes reach 1, only the shape differs).</span></span>
 <span>  Sel_norm_scope           <span class="op">=</span> <span class="st">"AcrossSexes"</span>,</span>
 <span></span>
 <span>  <span class="co"># Composition likelihoods</span></span>
@@ -380,7 +382,7 @@ modeled. Multiple fleets can target the same species.</p>
 <span>  <span class="co">#   0 / "Off" = time-invariant</span></span>
 <span>  <span class="co">#   1 / "IID" = penalized log-normal deviates (SD fixed at Time_varying_q_sd</span></span>
 <span>  <span class="co">#       unless random_q = TRUE in fit_mod)</span></span>
-<span>  <span class="co">#   2 / "AR1" = AR(1) (not yet implemented)</span></span>
+<span>  <span class="co">#   2 / "AR1" = REMOVED in 5.16.0; data_check() errors on it</span></span>
 <span>  <span class="co">#   3 / "Block" = time blocks</span></span>
 <span>  <span class="co">#   4 / "RandomWalk" = random walk</span></span>
 <span>  Time_varying_q          <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="cn">NA</span><span class="op">)</span>, <span class="va">nspp</span><span class="op">)</span>,</span>
@@ -454,9 +456,9 @@ compositions, <code>1</code> for length compositions.
 <code>Sex = 0</code> for combined sex, <code>1</code> for females,
 <code>2</code> for males, <code>3</code> for joint female+male.
 Composition columns (<code>Comp_1</code>, <code>Comp_2</code>, …) can be
-raw counts or proportions — Rceattle normalizes internally.</p>
+raw counts or proportions; Rceattle normalizes internally.</p>
 <p>Skip this section entirely (don’t set <code>simData$comp_data</code>)
-if no composition data are available — <code><a href="../reference/clean_data.html">clean_data()</a></code> will
+if no composition data are available, <code><a href="../reference/clean_data.html">clean_data()</a></code> will
 fill it with an empty data.frame.</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">comp_matrix</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">nyrs</span> <span class="op">*</span> <span class="va">nspp</span> <span class="op">*</span> <span class="va">nages</span> <span class="op">*</span> <span class="fl">2</span><span class="op">)</span><span class="op">)</span>,</span>
@@ -594,7 +596,7 @@ recruitment.</p>
 <code class="sourceCode R"><span><span class="va">sex_matrix</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fl">0.5</span>, nrow <span class="op">=</span> <span class="va">nspp</span>, ncol <span class="op">=</span> <span class="va">nages</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">sex_matrix</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"Age"</span>, <span class="fl">1</span><span class="op">:</span><span class="va">nages</span><span class="op">)</span></span>
 <span><span class="va">simData</span><span class="op">$</span><span class="va">sex_ratio</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">cbind</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>Species <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="va">nspp</span><span class="op">)</span>, <span class="va">sex_matrix</span><span class="op">)</span></span></code></pre></div>
-<p>Where species carry different numbers of age bins,
+<p>Where species have different numbers of age bins,
 <code>maturity</code> and <code>sex_ratio</code> are as wide as the
 longest-lived species, and <strong>each row must be filled across its
 own species’ <code>nages</code></strong>. Columns past that are padding
@@ -606,7 +608,7 @@ spawner-per-recruit sums the same schedule. So a <code>maturity</code>
 gap leaves SSB <code>NA</code> for any species, and a
 <code>sex_ratio</code> gap does the same for a one-sex species. On a
 <strong>two-sex</strong> species <code>sex_ratio</code> reaches only
-spawner-per-recruit — so the model fits normally and the failure waits
+spawner-per-recruit, so the model fits normally and the failure waits
 until a harvest control rule asks for reference points.
 <code><a href="../reference/data_check.html">data_check()</a></code> names the table, the species and the missing
 ages.</p>
@@ -645,9 +647,6 @@ own selectivity (as in this example).</p>
 <li>
 <code>2</code> = numbers-at-age scaled by a single estimated scalar
 per species</li>
-<li>
-<code>3</code> = numbers-at-age scaled by age-specific estimated
-scalars per species</li>
 </ul>
 <p><strong>Required</strong> when <code>any(estDynamics &gt; 0)</code>.
 Skip if you’re estimating population dynamics from scratch (the default
@@ -682,9 +681,9 @@ and are referenced by column order.</p>
 <p>Skip this if no environmental covariates are used.
 <code><a href="../reference/clean_data.html">clean_data()</a></code> will fall back to a Year-only data.frame with
 no indices, and validation only complains when a feature actually needs
-one (env-q catchability, a consumption equation that reads a temperature
-– <code>Ceq</code> 1, 2 or 3 – or any env linkage). With no index to
-read, consumption uses the constant <code>fT = 1</code> of
+one (env-q catchability, a consumption equation that reads a
+temperature, <code>Ceq</code> 1, 2 or 3, or any env linkage). With no
+index to read, consumption uses the constant <code>fT = 1</code> of
 <code>Ceq = 4</code>. That is an error under
 <code>msmMode &gt; 0</code>, where consumption drives predation
 mortality, and a warning under single-species, where it reaches only the
@@ -704,7 +703,7 @@ single-species mode)<a class="anchor" aria-label="anchor" href="#multi-species-b
 compute predation mortality (M2) in multi-species mode. In
 single-species mode they reach only the reported <code>ration</code> and
 <code>consumption_at_age</code>, never the objective, and can be omitted
-entirely — Rceattle fills any missing scalars with safe defaults
+entirely; Rceattle fills any missing scalars with safe defaults
 (<code>Ceq = 4</code>, the constant form that reads no environmental
 index).</p>
 <p>In multi-species mode (<code>msmMode &gt; 0</code>)
@@ -767,7 +766,7 @@ for full details on each parameter.</p>
 <span><span class="co"># estimateMode: 0 = full fit (hindcast + projection)</span></span>
 <span><span class="co">#               1 = hindcast only</span></span>
 <span><span class="co">#               2 = projection only (fix parameters, run HCR)</span></span>
-<span><span class="co">#               3 = evaluate only (MakeADFun, no optimisation) -- useful for debugging</span></span>
+<span><span class="co">#               3 = evaluate only (MakeADFun, no optimisation), useful for debugging</span></span>
 <span><span class="co">#</span></span>
 <span><span class="co"># msmMode:      0 = single-species, 1 = Type II MSVPA, 2 = Type III MSVPA</span></span>
 <span><span class="co">#</span></span>
@@ -796,7 +795,7 @@ for full details on each parameter.</p>
 </h2>
 <p><code><a href="../reference/write_data.html">write_data()</a></code> exports the data list to an Excel workbook
 in the standard Rceattle template format, which can then be edited and
-re-read with <code><a href="../reference/read_data.html">read_data()</a></code> – so you can move between R-based
+re-read with <code><a href="../reference/read_data.html">read_data()</a></code>, so you can move between R-based
 and spreadsheet-based workflows.</p>
 <div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/write_data.html">write_data</a></span><span class="op">(</span><span class="va">simData</span>, file <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile</a></span><span class="op">(</span>fileext <span class="op">=</span> <span class="st">".xlsx"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
@@ -807,13 +806,18 @@ and spreadsheet-based workflows.</p>
 <p><code><a href="../reference/write_data.html">write_data()</a></code> stores the <em>data</em>; the model
 <em>structure</em> and estimation controls live in the
 <code><a href="../reference/fit_mod.html">fit_mod()</a></code> call (or in a <code><a href="../reference/model_config.html">model_config()</a></code> slot).
-<code><a href="../reference/save_config.html">save_config()</a></code> writes that full run configuration – the
+<code><a href="../reference/save_config.html">save_config()</a></code> writes that full run configuration, the
 <code><a href="../reference/model_config.html">model_config()</a></code> structure plus the estimation controls and
-<code><a href="../reference/fit_control.html">fit_control()</a></code> bundle – to a documented, git-diffable YAML
+<code><a href="../reference/fit_control.html">fit_control()</a></code> bundle, to a documented, git-diffable YAML
 file, so two assessment runs diff cleanly and a configuration can be
 archived alongside the data. <code><a href="../reference/load_config.html">load_config()</a></code> reads it back,
 and passing it as <code>fit_mod(config = ...)</code> reproduces the fit
-(filling only the arguments you did not pass explicitly):</p>
+(filling only the arguments you did not pass explicitly). The model
+structure is overlaid field by field: a field the config leaves at its
+default keeps what the data object holds, so a config built from
+<code><a href="../reference/model_config.html">model_config()</a></code> does not drop linkages attached with
+<code>build_data(model_config = )</code>, and a field both set
+differently is taken from the config with a warning:</p>
 <div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">cfg_file</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile</a></span><span class="op">(</span>fileext <span class="op">=</span> <span class="st">".yaml"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/save_config.html">save_config</a></span><span class="op">(</span><span class="fu"><a href="../reference/model_config.html">model_config</a></span><span class="op">(</span>msmMode <span class="op">=</span> <span class="fl">1</span>, initMode <span class="op">=</span> <span class="st">"OffsetEquilibrium"</span><span class="op">)</span>, <span class="va">cfg_file</span><span class="op">)</span></span>

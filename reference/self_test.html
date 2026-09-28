@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.33.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -36,12 +36,14 @@
     <li><a class="dropdown-item" href="../articles/stock-synthesis-conversion.html">Converting from Stock Synthesis</a></li>
     <li><h6 class="dropdown-header" data-toc-skip>--- Contributing ---</h6></li>
     <li><a class="dropdown-item" href="../articles/developer-guide.html">Developer guide</a></li>
+    <li><a class="dropdown-item" href="../articles/adding-a-selectivity-form.html">Adding a selectivity form</a></li>
+    <li><a class="dropdown-item" href="../cpp/index.html">C++ template reference</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
-<li class="nav-item"><a class="external-link nav-link" href="https://github.com/grantdadams/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/afsc-assessments/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
       </ul></div>
 
 
@@ -51,7 +53,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Self-test simulation analysis</h1>
-      <small class="dont-index">Source: <a href="https://github.com/grantdadams/Rceattle/blob/main/R/9-self_test.R" class="external-link"><code>R/9-self_test.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/R/9-self_test.R" class="external-link"><code>R/9-self_test.R</code></a></small>
       <div class="d-none name"><code>self_test.Rd</code></div>
     </div>
 
@@ -111,14 +113,14 @@ so results are reproducible under both sequential and parallel execution.</p></d
 <dd><p>whether each refit runs <code><a href="https://rdrr.io/pkg/TMB/man/sdreport.html" class="external-link">TMB::sdreport</a></code>. Self-test compares
 the refit point estimates to the operating model, so <code>FALSE</code> is faster
 with no effect on that comparison. Default <code>NULL</code> inherits the input
-model's setting (<code>TRUE</code> only if it carries an <code>sdrep</code>).</p></dd>
+model's setting (<code>TRUE</code> only if it holds an <code>sdrep</code>).</p></dd>
 
 
 <dt id="arg-phase">phase<a class="anchor" aria-label="anchor" href="#arg-phase"></a></dt>
 <dd><p>as in <code><a href="fit_mod.html">fit_mod</a></code>. Under the default
 <code>start = "initial"</code> each refit covers the same ground the original fit
 did, so a model that needed phasing to fit its real data needs it again for
-every simulated one – without it such a model's refits can end many orders
+every simulated one, without it such a model's refits can end many orders
 of magnitude from a zero gradient and be dropped as non-converged. Default
 <code>NULL</code> reads the setting <code><a href="fit_mod.html">fit_mod()</a></code> recorded on the source fit
 (<code>fit$run_config$fit_control$phase</code>), so a model fitted under the
@@ -132,8 +134,8 @@ from. <code>"initial"</code> (default) uses <code>initial_params</code>, the val
 original fit itself started from, so the estimator has to travel the same
 distance to the optimum on simulated data that it did on the real data.
 <code>"estimated"</code> starts from <code>estimated_params</code> instead: much faster
-and far more likely to converge, but the fixed effects – and, with
-<code>random_rec = TRUE</code>, the inner Laplace problem too – begin at the
+and far more likely to converge, but the fixed effects, and, with
+<code>random_rec = TRUE</code>, the inner Laplace problem too, begin at the
 generating values, so on a multimodal or weakly identified surface the
 optimizer never leaves the basin containing them and recovery is close to
 guaranteed by construction. Read it as optimistic about recovery, not
@@ -141,21 +143,21 @@ merely less powerful. (Nor is it a complete warm start: <code><a href="fit_mod.h
 resets <code>log_Ftarget</code>, <code>proj_F_prop</code>, and the stock-recruit
 \(\alpha\)/\(\beta\) from the model's own specification under either
 setting.) Non-identifiability shows up in the curvature and so is visible
-either way – via <code>$convergence</code>'s Hessian conditioning and
-estimability checks – it is <em>reachability</em> that a warm start stops
+either way, via <code>$convergence</code>'s Hessian conditioning and
+estimability checks, it is <em>reachability</em> that a warm start stops
 testing.</p></dd>
 
 
 <dt id="arg-debug">debug<a class="anchor" aria-label="anchor" href="#arg-debug"></a></dt>
 <dd><p>return every simulation rather than the converged ones. The
 dropped runs are the interesting ones when a self-test comes back short, and
-each carries its own <code>$convergence</code> diagnostics. See <strong>Value</strong>.</p></dd>
+each holds its own <code>$convergence</code> diagnostics. See <strong>Value</strong>.</p></dd>
 
 
 <dt id="arg-timeout">timeout<a class="anchor" aria-label="anchor" href="#arg-timeout"></a></dt>
 <dd><p>elapsed-second limit per simulation, <code>Inf</code> (default) for
 none. The optimizer runs with no iteration cap, so a replicate that wanders
-somewhere pathological can stall the whole run – a hang that no convergence
+somewhere pathological can stall the whole run, a hang that no convergence
 check can catch, because the fit never returns. One that exceeds the limit
 is stopped, counted as non-converged and reported separately. Approximate:
 the limit is checked when control returns to R, so it fires between the
@@ -165,9 +167,9 @@ optimizer's function evaluations rather than inside one.</p></dd>
 <dt id="arg-process">process<a class="anchor" aria-label="anchor" href="#arg-process"></a></dt>
 <dd><p>passed to <code><a href="sim_mod.html">sim_mod</a></code>. <code>FALSE</code> (default) keeps
 the fitted process deviations, so the test measures whether the estimator
-recovers its own parameters from new observations. Naming a process –
+recovers its own parameters from new observations. Naming a process,
 <code>"recruitment"</code>, <code>"M"</code>, <code>"growth"</code>, <code>"dynamics"</code>,
-<code>TRUE</code>, ... – redraws it too, so the test instead measures whether the
+<code>TRUE</code>, ..., redraws it too, so the test instead measures whether the
 estimator recovers a process it has not been shown. The deviations behind
 each replicate come back in <code>attr(result, "process_sim")</code>; see
 <code>Value</code>.</p></dd>
@@ -188,10 +190,10 @@ scripts keep working. Supplying both is an error.</p></dd>
     <p>A list of Rceattle models named <code>Sim_1</code>, <code>Sim_2</code>, ....
 By default only the converged simulations, renumbered contiguously; a
 message reports how many were dropped.</p>
-<p>The list carries class <code>"Rceattle_selftest"</code> and the number of
+<p>The list holds class <code>"Rceattle_selftest"</code> and the number of
 simulations attempted in <code>attr(, "nsim")</code>, so printing it reports the
 convergence rate; see <code><a href="print.Rceattle_selftest.html">print.Rceattle_selftest</a></code>. It is
-otherwise the list it always was – <code>sims[["Sim_1"]]</code>,
+otherwise the list it always was, <code>sims[["Sim_1"]]</code>,
 <code>length(sims)</code>, <code><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply()</a></code> and
 <code>plot_biomass(c(sims, list(fit)))</code> are all unchanged, and <code><a href="https://rdrr.io/r/base/c.html" class="external-link">c()</a></code>
 and <code>[</code> return a plain list of fits.</p>
@@ -202,12 +204,12 @@ Inspect a failure with <code>sims[[j]]$convergence</code>. A simulation whose
 refit errored outright is returned as the condition object rather than a
 model, so it cannot abort the run.</p>
 <p>When <code>process</code> redrew something, <code>attr(, "process_sim")</code> holds the
-deviations that generated each replicate's data – a list keyed by the same
+deviations that generated each replicate's data, a list keyed by the same
 <code>Sim_i</code> names, so <code>attr(x, "process_sim")[["Sim_1"]]</code> belongs to
 <code>x[["Sim_1"]]</code>, subset and renumbered alongside the models. Each entry
 is a named list of whichever of <code>rec_dev</code>, <code>init_dev</code>,
 <code>log_M1_dev</code> and <code>beta_linkage_re</code> were drawn, each with a
-same-shaped <code>_drawn</code> logical marking the cells the draw touched –
+same-shaped <code>_drawn</code> logical marking the cells the draw touched,
 restrict any recovery statistic to those, since the rest are fitted values
 (see <code><a href="sim_mod.html">sim_mod</a></code>). Compare estimates against these, not against
 the operating model: its fitted deviations are no longer what generated the
@@ -217,7 +219,7 @@ data.</p>
     <h2 id="interpreting-the-spread">Interpreting the spread<a class="anchor" aria-label="anchor" href="#interpreting-the-spread"></a></h2>
 
 
-<p><code><a href="sim_mod.html">sim_mod</a></code> redraws the observations only – indices, catch,
+<p><code><a href="sim_mod.html">sim_mod</a></code> redraws the observations only, indices, catch,
 compositions, CAAL and stomach contents. Some rows are deliberately left
 alone, and <code><a href="sim_mod.html">sim_mod</a></code> warns about each: a predator whose
 suitability is empirical rather than estimated has no predicted diet to draw
@@ -227,15 +229,14 @@ so recovery of whatever they inform is optimistic.</p>
 <p>By default it does not redraw recruitment, so with
 <code>random_rec = TRUE</code> every replicate shares the operating model's single
 recruitment realization, and that realization is its shrunk empirical-Bayes
-modes rather than a draw from N(0, sigmaR). Two consequences: the spread
-across replicates carries observation error only and is a lower bound on
+modes rather than a draw from N(0, sigmaR). Two consequences: the spread#' across replicates reflects observation error only and is a lower bound on
 estimation uncertainty in SSB and recruitment (do not read it against the
 model's own uncertainty bands, which include process error); and sigmaR is
 re-estimated from deviations that were shrunk toward zero the same way in
 every replicate, a downward bias that averaging over simulations does not
 remove. Pass <code>process = "recruitment"</code> (or <code>"dynamics"</code>, or
 <code>TRUE</code>) to redraw it and remove both, at the cost of asking a different
-question – see <code>process</code> above.</p>
+question, see <code>process</code> above.</p>
     </div>
 
     <div class="section level2">

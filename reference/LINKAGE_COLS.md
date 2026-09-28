@@ -1,9 +1,9 @@
 # Column schema for a linkage table
 
 Named character vector mapping column name -\> R type. Used by
-[`new_linkage_table()`](https://grantdadams.github.io/Rceattle/reference/new_linkage_table.md)
+[`new_linkage_table()`](https://afsc-assessments.github.io/Rceattle/reference/new_linkage_table.md)
 and
-[`validate_linkage_table()`](https://grantdadams.github.io/Rceattle/reference/validate_linkage_table.md).
+[`validate_linkage_table()`](https://afsc-assessments.github.io/Rceattle/reference/validate_linkage_table.md).
 
 ## Usage
 

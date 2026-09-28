@@ -13,13 +13,12 @@ encode_linkage_for_tmb(table, X)
 - table:
 
   an `Rceattle_linkage_table` (typically the output of
-  [`pool_linkages()`](https://grantdadams.github.io/Rceattle/reference/pool_linkages.md)).
+  `pool_linkages()`).
 
 - X:
 
-  the global design matrix from
-  [`pool_linkages()`](https://grantdadams.github.io/Rceattle/reference/pool_linkages.md)
-  (passed through unchanged so callers can stash it alongside).
+  the global design matrix from `pool_linkages()` (passed through
+  unchanged so callers can stash it alongside).
 
 ## Value
 

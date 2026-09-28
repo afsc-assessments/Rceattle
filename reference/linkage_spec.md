@@ -38,13 +38,13 @@ linkage_spec(
   target parameter name on the natural scale (e.g. `"alpha"`, `"M1"`,
   `"K"`). May be `NULL` when the spec is built inside a `build_*()` call
   that infers the parameter name from the enclosing list key (see
-  [`build_growth()`](https://grantdadams.github.io/Rceattle/reference/build_growth.md)).
+  [`build_growth()`](https://afsc-assessments.github.io/Rceattle/reference/build_growth.md)).
 
 - data:
 
   Optional data frame for formula validation; validation is performed at
   fit time inside
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md).
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md).
 
 - by:
 
@@ -52,10 +52,10 @@ linkage_spec(
   their own coefficients. Allowed names are `species`, `sex`, `age_bin`,
   and `fleet` (`fleet` for catchability and selectivity linkages).
   **When omitted, `by` defaults to the base stratum of whichever process
-  the spec is attached to** – `~fleet` for catchability, selectivity,
-  and the fleet composition weights (`theta_comp` / `theta_caal`), and
+  the spec is attached to**, `~fleet` for catchability, selectivity, and
+  the fleet composition weights (`theta_comp` / `theta_caal`), and
   `~species` for recruitment, M, growth, and the diet weight
-  (`theta_diet`) – so you rarely need to spell it out for the base case.
+  (`theta_diet`), so you rarely need to spell it out for the base case.
   Pass it explicitly to override: e.g. `~species + sex` for
   per-(species, sex) coefficients, or `NULL` to share a single
   coefficient across every stratum. An explicit `by` (including `NULL`)
@@ -67,14 +67,14 @@ linkage_spec(
   1-based species ids (`c(1L, 2L)`) or as species **names** matching
   `data_list$spnames` (`c("Pollock", "Cod")`). Names are matched
   exactly, after trimming whitespace, when the model is assembled in
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md);
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md);
   an unrecognized name is an error that lists the model's species. Give
-  ids or names, not a mix – R coerces `c(1, "Cod")` to `c("1", "Cod")`.
+  ids or names, not a mix, R coerces `c(1, "Cod")` to `c("1", "Cod")`.
   `NULL` (default) means every species in `strata$species` at
   materialization time. Use this to give different species different
   formulas, e.g. by registering multiple specs against the same
-  parameter – see
-  [`build_growth()`](https://grantdadams.github.io/Rceattle/reference/build_growth.md)
+  parameter, see
+  [`build_growth()`](https://afsc-assessments.github.io/Rceattle/reference/build_growth.md)
   for the multi-spec syntax.
 
 - sex:
@@ -83,8 +83,8 @@ linkage_spec(
   as integers (`1L` = female, `2L` = male) or as character strings
   (`"Females"`/`"Males"`, case-insensitive; `"female"`, `"male"`, `"f"`,
   `"m"` are also accepted). `NULL` (default) means every sex in
-  `strata$sex` at materialization time. Only meaningful when `by`
-  includes `sex`; otherwise the filter is a no-op. Use this to register
+  `strata$sex` at materialization time. `by` must include `sex` for it
+  to apply; otherwise it warns and has no effect. Use this to register
   separate specs per sex (e.g. one prior on females, another on males)
   against the same parameter.
 
@@ -95,25 +95,24 @@ linkage_spec(
   `fleet_control$Fleet_name` (`c("Shelikof", "Summer BT")`). Names are
   matched exactly, after trimming whitespace, when the model is
   assembled in
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md);
-  an unrecognized name – or one that is not unique in `fleet_control` –
-  is an error that lists the model's fleets. Prefer names: a
-  `Fleet_code` that is wrong but in range attaches the linkage to a
-  different fleet and still fits, whereas a misspelled name cannot. Give
-  ids or names, not a mix – R coerces `c(7, "Pollock")` to
-  `c("7", "Pollock")`. `NULL` (default) means every fleet in
-  `strata$fleet` at materialization time. Only meaningful when `by`
-  includes `fleet`; otherwise the filter is a no-op. Used by
-  catchability and selectivity linkages to give different fleets
-  different formulas.
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md);
+  an unrecognized name, or one that is not unique in `fleet_control`, is
+  an error that lists the model's fleets. Prefer names: a `Fleet_code`
+  that is wrong but in range attaches the linkage to a different fleet
+  and still fits, whereas a misspelled name cannot. Give ids or names,
+  not a mix, R coerces `c(7, "Pollock")` to `c("7", "Pollock")`. `NULL`
+  (default) means every fleet in `strata$fleet` at materialization time.
+  `by` must include `fleet` for it to apply; otherwise it warns and has
+  no effect. Used by catchability and selectivity linkages to give
+  different fleets different formulas.
 
 - link:
 
   link function relating the linear predictor to the natural-scale
   target parameter. One of `"log"` (default) or `"identity"`. With
-  `link = "log"`, `log(param) = X * beta` – slope contributions are
+  `link = "log"`, `log(param) = X * beta`, slope contributions are
   multiplicative on the natural-scale parameter. With
-  `link = "identity"`, `param = X * beta` – slope contributions are
+  `link = "identity"`, `param = X * beta`, slope contributions are
   additive on the natural scale. The linkage targets are estimated on
   the log scale, so `"log"` is the default.
 
@@ -131,12 +130,12 @@ linkage_spec(
 - priors:
 
   optional named list of
-  [Rceattle_priors](https://grantdadams.github.io/Rceattle/reference/Rceattle_priors.md)
+  [Rceattle_priors](https://afsc-assessments.github.io/Rceattle/reference/Rceattle_priors.md)
   objects, keyed by design-matrix column name. Inside this argument you
   may write `normal()`, `lognormal()`,
   [`gamma()`](https://rdrr.io/r/base/Special.html), or
   [`beta()`](https://rdrr.io/r/base/Special.html) directly, e.g.
-  `priors = list(temp = normal(0, 1))` – equivalent to
+  `priors = list(temp = normal(0, 1))`, equivalent to
   `priors = list(temp = prior_normal(0, 1))`.
 
 - re_group:
@@ -148,9 +147,9 @@ linkage_spec(
 
   optional integer estimation phase. Default `1L`; `0` fixes the
   coefficient at its `init`, which then holds over any `inits` given to
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   (an estimated intercept's `init` is only a starting value, and `inits`
-  win). Applies to **fixed-effect** rows only – the coefficients in
+  win). Applies to **fixed-effect** rows only, the coefficients in
   `beta_linkage`. A random-effect term's deviations are held in a
   separate vector that `est_phase` does not reach, so `est_phase < 1` on
   a formula containing one is an error rather than a silent no-op; drop
@@ -193,14 +192,14 @@ linkage_spec(
   single `TRUE`/`FALSE` (default `TRUE`): whether the random effect's
   deviations are integrated out by the Laplace approximation.
   `integrate = FALSE` instead estimates them as a **penalized fixed
-  effect** – the deviations stay in the objective as a plain penalty and
+  effect**, the deviations stay in the objective as a plain penalty and
   are reported with standard errors like any other fixed effect. This
   reproduces the ADMB/AMAK convention behind the legacy
   `Time_varying_sel` / `Time_varying_q` switches, which a
-  Laplace-integrated `rw()` cannot match (the marginal likelihood
-  carries a log-determinant term the penalized form has no counterpart
-  for). Permitted **only with a fixed SD** – `init = list(sigma = )` and
-  no `sigma` prior, plus a fixed `rho` for `ar1` – because estimating
+  Laplace-integrated `rw()` cannot match (the marginal likelihood holds
+  a log-determinant term the penalized form has no counterpart for).
+  Permitted **only with a fixed SD**, `init = list(sigma = )` and no
+  `sigma` prior, plus a fixed `rho` for `ar1`, because estimating
   deviations and their SD jointly as fixed effects is degenerate. Cannot
   be combined with `observe`: an observed latent state must stay
   integrated.
@@ -217,8 +216,8 @@ random-effect deviation SD and (for `ar1`) the correlation: e.g.
 `priors = list(rho = normal(0, 0.3))` places a prior on the correlation.
 `sigma` means different things by structure: for `rw()` it is the
 innovation (per-step) SD; for `ar1()` it is the marginal (stationary)
-SD. The two are not directly comparable across structures – see
-[`vignette("environmental-linkages-and-priors")`](https://grantdadams.github.io/Rceattle/articles/environmental-linkages-and-priors.md).
+SD. The two are not directly comparable across structures, see
+[`vignette("environmental-linkages-and-priors")`](https://afsc-assessments.github.io/Rceattle/articles/environmental-linkages-and-priors.md).
 
 ## Examples
 
@@ -256,7 +255,7 @@ linkage_spec(~ (1 | Year))
 #>   link:    log
 
 # A random walk estimated as a penalized fixed effect, which requires a
-# fixed SD -- the ADMB/AMAK convention behind the legacy Time_varying_*
+# fixed SD, the ADMB/AMAK convention behind the legacy Time_varying_*
 # switches.
 linkage_spec(~ rw(1 | Year), init = list(sigma = 0.05), integrate = FALSE)
 #> <Rceattle linkage spec>

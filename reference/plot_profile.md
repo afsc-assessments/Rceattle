@@ -3,7 +3,7 @@
 Draws each negative log-likelihood component against the profiled
 parameter, with the total overlaid, in the style of
 `r4ss::SSplotProfile()`. Where the curves disagree about which value of
-the parameter they prefer, the data sources are in conflict – which is
+the parameter they prefer, the data sources are in conflict, which is
 what the total on its own cannot show.
 
 ## Usage
@@ -33,7 +33,7 @@ plot_profile(
 - Rceattle_profile:
 
   A single `"Rceattle_profile"` from
-  [`profile.Rceattle()`](https://grantdadams.github.io/Rceattle/reference/profile.Rceattle.md),
+  [`profile.Rceattle()`](https://afsc-assessments.github.io/Rceattle/reference/profile.Rceattle.md),
   or a list of them to compare models in facets (e.g. the same profile
   run on two model configurations).
 
@@ -44,9 +44,9 @@ plot_profile(
 - weighted, relative, minfraction:
 
   Passed to
-  [`profile_components()`](https://grantdadams.github.io/Rceattle/reference/profile_components.md).
+  [`profile_components()`](https://afsc-assessments.github.io/Rceattle/reference/profile_components.md).
   `minfraction` drops a component moving less than that fraction of the
-  TOTAL's change over the grid – not an absolute number of objective
+  TOTAL's change over the grid, not an absolute number of objective
   units. It defaults to `0.01` here, as in `r4ss::SSplotProfile()`, so a
   total moving 60 units cuts at 0.6.
 
@@ -113,8 +113,8 @@ pulling against the rest.
 When one component dwarfs the others it sets the y axis and the rest
 flatten onto the bottom, so where *they* prefer the parameter cannot be
 read. `relative = "scaled"` puts every curve on 0 to 1 so the minima can
-be compared. It discards magnitude — a component moving 0.02 draws like
-one moving 40 — so raise `minfraction` with it. That filter runs on the
+be compared. It discards magnitude, a component moving 0.02 draws like
+one moving 40, so raise `minfraction` with it. That filter runs on the
 raw change, and is what keeps a barely-constrained component from
 drawing a confident-looking curve.
 
@@ -140,7 +140,7 @@ legend and in the palette, by how much each moves over the grid.
 Under `random_rec = TRUE` the total is the Laplace-approximated marginal
 likelihood while the components are the inner joint negative
 log-likelihood, so they will not sum;
-[`profile_components()`](https://grantdadams.github.io/Rceattle/reference/profile_components.md)
+[`profile_components()`](https://afsc-assessments.github.io/Rceattle/reference/profile_components.md)
 says so when they differ. The shapes are still comparable.
 
 ## References
@@ -151,11 +151,11 @@ assessments. Fisheries Research 239: 105924.
 
 ## See also
 
-[`profile_components()`](https://grantdadams.github.io/Rceattle/reference/profile_components.md)
+[`profile_components()`](https://afsc-assessments.github.io/Rceattle/reference/profile_components.md)
 for the same numbers as a data frame,
-[`profile.Rceattle()`](https://grantdadams.github.io/Rceattle/reference/profile.Rceattle.md)
+[`profile.Rceattle()`](https://afsc-assessments.github.io/Rceattle/reference/profile.Rceattle.md)
 to run the profile,
-[`print.Rceattle_profile()`](https://grantdadams.github.io/Rceattle/reference/print.Rceattle_profile.md)
+[`print.Rceattle_profile()`](https://afsc-assessments.github.io/Rceattle/reference/print.Rceattle_profile.md)
 for whether the grid brackets the minimum.
 
 ## Examples

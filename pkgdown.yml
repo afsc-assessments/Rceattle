@@ -2,6 +2,7 @@ pandoc: 3.8.3
 pkgdown: 2.2.1
 pkgdown_sha: ~
 articles:
+  articles/adding-a-selectivity-form: adding-a-selectivity-form.html
   data-without-excel: data-without-excel.html
   articles/developer-guide: developer-guide.html
   environmental-linkages-and-priors: environmental-linkages-and-priors.html
@@ -14,7 +15,7 @@ articles:
   projections-and-reference-points: projections-and-reference-points.html
   single-vs-multispecies: single-vs-multispecies.html
   stock-synthesis-conversion: stock-synthesis-conversion.html
-last_built: 2026-09-14T00:59Z
+last_built: 2026-09-28T14:05Z
 urls:
-  reference: https://grantdadams.github.io/Rceattle/reference
-  article: https://grantdadams.github.io/Rceattle/articles
+  reference: https://afsc-assessments.github.io/Rceattle/reference
+  article: https://afsc-assessments.github.io/Rceattle/articles

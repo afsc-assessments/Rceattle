@@ -1,12 +1,12 @@
 # Bundle the optimizer / sdreport / phasing controls for `fit_mod()`
 
-[`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
-carries roughly a dozen optimizer- and reporting-related arguments
+[`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
+holds roughly a dozen optimizer- and reporting-related arguments
 (`bias.correct`, `getsd`, `loopnum`, `newtonsteps`, ...). That is a lot
 of surface area when the user mostly cares about "what model am I
 fitting" rather than "how is it being fit." `fit_control()` collects
 those knobs into a single object so calls to
-[`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+[`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
 can stay focused on the model spec:
 
 ## Usage
@@ -51,7 +51,7 @@ fit_control(
 
   logical. Return the full Hessian of fixed and random effects. Default
   `TRUE` (matches
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   default).
 
 - getReportCovariance:
@@ -113,8 +113,8 @@ fit_control(
 
 - newtonsteps:
 
-  Integer. Number of extra Newton steps to take after optimization
-  (alternative to `loopnum`). Default `0`.
+  Integer. Number of extra unconstrained Newton steps to take after
+  optimization (alternative to `loopnum`). Default `0`.
 
 - phase:
 
@@ -152,10 +152,10 @@ A list of class `"Rceattle_fit_control"`.
     )
 
 Pass the result via the `fit_control` argument to
-[`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md).
+[`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md).
 When supplied, the values in the `fit_control` object override the
 corresponding individual arguments to
-[`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md).
+[`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md).
 Individual arguments are kept for backward compatibility.
 
 ## Selectivity standard errors
@@ -169,7 +169,7 @@ estimates no selectivity at all and reports none where it runs no
 `sdreport`. Use `estimateMode = "Hindcast"`, or `"Estimate"` with
 `projection_uncertainty = TRUE`, to get an error from a fit that
 estimated the curve.
-[`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+[`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
 warns before fitting in each of these cases.
 
 Off by default because the delta method forms a Jacobian of every
@@ -177,20 +177,19 @@ reported value against every parameter, so its cost is the product of
 the two: on `Atka2022` it adds 1,012 values against 584 parameters.
 
 The error is on the log scale, not the logit, because the non-parametric
-forms normalize to mean selectivity 1 rather than a maximum of 1 – 58%
-of `Atka2022`'s `sel_at_age` exceeds 1, to 3.06 – so a logit is
-undefined over most of the array.
+forms normalize to mean selectivity 1 rather than a maximum of 1, 58% of
+`Atka2022`'s `sel_at_age` exceeds 1, to 3.06, so a logit is undefined
+over most of the array.
 
 Rows cover estimated, age-based lead fleets only, and start at each
-fleet's first selected bin. Four kinds of cell hold a structural zero –
-a `Fixed` fleet's empirical curve, a length-based fleet's growth-matrix
-projection, a bin below `Bin_first_selected`, and array padding – and
-one `log(0) = -Inf` on the tape turns *every* quantity in the `sdreport`
-to `NaN`, biomass and SSB included. All four are identified from the
-data, so the reported set never depends on a parameter value; a value
-that underflows to zero is floored, so it cannot reintroduce the `-Inf`.
-See
-[`plot_selectivity()`](https://grantdadams.github.io/Rceattle/reference/plot_selectivity.md),
+fleet's first selected bin. Four kinds of cell hold a structural zero, a
+`Fixed` fleet's empirical curve, a length-based fleet's growth-matrix
+projection, a bin below `Bin_first_selected`, and array padding, and one
+`log(0) = -Inf` on the tape turns *every* quantity in the `sdreport` to
+`NaN`, biomass and SSB included. All four are identified from the data,
+so the reported set never depends on a parameter value; a value that
+underflows to zero is floored, so it cannot reintroduce the `-Inf`. See
+[`plot_selectivity()`](https://afsc-assessments.github.io/Rceattle/reference/plot_selectivity.md),
 which draws the interval.
 
 ## Examples

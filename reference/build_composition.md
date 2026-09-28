@@ -1,6 +1,6 @@
 # Composition-weighting specification
 
-Carries **priors** on the Dirichlet-multinomial composition-weighting
+Holds **priors** on the Dirichlet-multinomial composition-weighting
 overdispersion. The DM weight (the "theta" that scales the effective
 sample size) is otherwise an unpenalized free parameter; a linkage lets
 you put a prior on it through the same grammar as every other parameter.
@@ -38,7 +38,7 @@ build_composition(linkages = NULL)
 - linkages:
 
   Optional named list of
-  [`linkage_spec()`](https://grantdadams.github.io/Rceattle/reference/linkage_spec.md)
+  [`linkage_spec()`](https://afsc-assessments.github.io/Rceattle/reference/linkage_spec.md)
   objects keyed by `theta_comp` / `theta_caal` (per fleet by default,
   `by = ~ fleet`) or `theta_diet` (per predator by default,
   `by = ~ species`).
@@ -46,7 +46,7 @@ build_composition(linkages = NULL)
 ## Value
 
 A list of composition-weighting settings for
-[`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md).
+[`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md).
 
 ## Examples
 

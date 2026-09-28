@@ -13,7 +13,7 @@ a Stock Synthesis (SS) style plus-group correction."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.33.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -42,12 +42,14 @@ a Stock Synthesis (SS) style plus-group correction."></head><body>
     <li><a class="dropdown-item" href="../articles/stock-synthesis-conversion.html">Converting from Stock Synthesis</a></li>
     <li><h6 class="dropdown-header" data-toc-skip>--- Contributing ---</h6></li>
     <li><a class="dropdown-item" href="../articles/developer-guide.html">Developer guide</a></li>
+    <li><a class="dropdown-item" href="../articles/adding-a-selectivity-form.html">Adding a selectivity form</a></li>
+    <li><a class="dropdown-item" href="../cpp/index.html">C++ template reference</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
-<li class="nav-item"><a class="external-link nav-link" href="https://github.com/grantdadams/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/afsc-assessments/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
       </ul></div>
 
 
@@ -57,7 +59,7 @@ a Stock Synthesis (SS) style plus-group correction."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Generate Length-at-Age Transition Matrix</h1>
-      <small class="dont-index">Source: <a href="https://github.com/grantdadams/Rceattle/blob/main/R/8-sim_mod.R" class="external-link"><code>R/8-sim_mod.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/R/8-sim_mod.R" class="external-link"><code>R/8-sim_mod.R</code></a></small>
       <div class="d-none name"><code>get_growth_matrix_r.Rd</code></div>
     </div>
 
@@ -81,7 +83,8 @@ a Stock Synthesis (SS) style plus-group correction.</p>
 <span>  <span class="va">maxage_sp</span>,</span>
 <span>  <span class="va">growth_params_sp</span>,</span>
 <span>  <span class="va">growth_log_sd_sp</span>,</span>
-<span>  <span class="va">growth_model_sp</span></span>
+<span>  <span class="va">growth_model_sp</span>,</span>
+<span>  <span class="va">M_plus_sp</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -133,6 +136,10 @@ Log-SD of length: 1st param is SD at minage, 2nd param is SD at maxage.</p></dd>
 
 <dt id="arg-growth-model-sp">growth_model_sp<a class="anchor" aria-label="anchor" href="#arg-growth-model-sp"></a></dt>
 <dd><p>Integer. 1 = Von Bertalanffy, 2 = Richards.</p></dd>
+
+
+<dt id="arg-m-plus-sp">M_plus_sp<a class="anchor" aria-label="anchor" href="#arg-m-plus-sp"></a></dt>
+<dd><p>Numeric. Natural mortality at the oldest age (one value, or one per sex), which weights the ages pooled in the plus group by survival, as the template does.</p></dd>
 
 </dl></div>
     <div class="section level2">

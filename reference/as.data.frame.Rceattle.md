@@ -3,7 +3,7 @@
 Returns the model's derived population quantities in long form so that
 custom plots and post-processing don't have to walk the deeply nested
 `quantities` list or inherit the dimnames decisions in
-[`rename_output()`](https://grantdadams.github.io/Rceattle/reference/rename_output.md).
+[`rename_output()`](https://afsc-assessments.github.io/Rceattle/reference/rename_output.md).
 Two shapes are flattened into one tidy frame: species-by-year quantities
 (e.g. `biomass`, `ssb`, `R`, `F_spp`) and species-by-sex-by-age-by-year
 quantities (e.g. `N_at_age`, `biomass_at_age`, `M_at_age`). For the
@@ -30,7 +30,7 @@ as.data.frame(
 - x:
 
   An object of class `"Rceattle"` returned by
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md).
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md).
 
 - row.names, optional:
 
@@ -71,5 +71,5 @@ widen or narrow the band.
 
 A strictly positive series takes its interval on the log scale, so it is
 right-skewed and cannot reach zero. This is the same construction
-[`plot_timeseries()`](https://grantdadams.github.io/Rceattle/reference/plot_timeseries.md)
+[`plot_timeseries()`](https://afsc-assessments.github.io/Rceattle/reference/plot_timeseries.md)
 draws, so the table and the figure agree.

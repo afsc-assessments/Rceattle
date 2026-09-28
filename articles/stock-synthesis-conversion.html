@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.33.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -53,6 +53,8 @@
     <li><a class="dropdown-item" href="../articles/stock-synthesis-conversion.html">Converting from Stock Synthesis</a></li>
     <li><h6 class="dropdown-header" data-toc-skip>--- Contributing ---</h6></li>
     <li><a class="dropdown-item" href="../articles/developer-guide.html">Developer guide</a></li>
+    <li><a class="dropdown-item" href="../articles/adding-a-selectivity-form.html">Adding a selectivity form</a></li>
+    <li><a class="dropdown-item" href="../cpp/index.html">C++ template reference</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
@@ -62,7 +64,7 @@
 <li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json">
 </form></li>
-<li class="nav-item"><a class="external-link nav-link" href="https://github.com/grantdadams/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/afsc-assessments/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
       </ul>
 </div>
 
@@ -79,7 +81,7 @@
       <h1>7. Converting from Stock Synthesis</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/grantdadams/Rceattle/blob/main/vignettes/stock-synthesis-conversion.Rmd" class="external-link"><code>vignettes/stock-synthesis-conversion.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/vignettes/stock-synthesis-conversion.Rmd" class="external-link"><code>vignettes/stock-synthesis-conversion.Rmd</code></a></small>
       <div class="d-none name"><code>stock-synthesis-conversion.Rmd</code></div>
     </div>
 
@@ -166,7 +168,7 @@ Excel sheet <code>control</code>:</p>
 <h2 id="fleets">Fleets<a class="anchor" aria-label="anchor" href="#fleets"></a>
 </h2>
 <p>From <code>#fleetinfo</code> in the SS data file into the Rceattle
-<code>fleet_control</code> sheet — one row per fleet:</p>
+<code>fleet_control</code> sheet, one row per fleet:</p>
 <table class="table">
 <colgroup>
 <col width="33%">
@@ -246,8 +248,8 @@ documents every remaining column on <code>fleet_control</code>
 <tr class="even">
 <td><code>catch</code></td>
 <td><code>Catch</code></td>
-<td>Convert to mt – Rceattle works in mt and thousands of fish
-throughout (see <code><a href="../reference/plot_timeseries.html">?plot_timeseries</a></code>)</td>
+<td>Convert to mt; Rceattle works in mt and thousands of fish throughout
+(see <code><a href="../reference/plot_timeseries.html">?plot_timeseries</a></code>)</td>
 </tr>
 <tr class="odd">
 <td><code>catch_se</code></td>
@@ -470,10 +472,13 @@ the upper age.</p>
 the normalization reference is pooled over the sexes
 (<code>"AcrossSexes"</code>, the default, which keeps relative
 sex-specific selectivity) or taken per sex (<code>"WithinSex"</code>).
-Note that Rceattle has no equivalent of the SS male apical-selectivity
-offset: relative sex selectivity is carried by the normalization scope
-and by joint (<code>comp_data$Sex = 3</code>) composition data, not by
-an offset parameter.</p>
+Note that Rceattle’s equivalent of the SS male apical-selectivity offset
+is the <code>apical</code> selectivity linkage parameter, added in
+5.38.0: name the fleet and the sex that holds it, as the SS male-offset
+option does. The ratio is informed only by joint
+(<code>comp_data$Sex = 3</code>) composition data, so it is identified
+only over the years that hold it. Without such a linkage, relative sex
+selectivity is held by the normalization scope alone.</p>
 <p><code>Part</code>, <code>Ageerr</code>, <code>Lbin_lo</code>,
 <code>Lbin_hi</code>, <code>CompressBins</code>, <code>CompError</code>,
 <code>ParmSelect</code>, and <code>minsamplesize</code> from SS do not
@@ -515,7 +520,7 @@ already bakes maturity into a weight-at-age schedule, point
 <code>maturity</code> sheet to <code>1</code>.</p>
 </blockquote>
 <p>If SS estimates weight-at-age (rather than reading it from data),
-copy from <code>wtatage_new.ss</code> instead — bearing in mind the
+copy from <code>wtatage_new.ss</code> instead, bearing in mind the
 estimates are conditional on the SS population dynamics and are
 therefore mildly circular when ported to Rceattle.</p>
 </div>
@@ -524,21 +529,21 @@ therefore mildly circular when ported to Rceattle.</p>
 </h2>
 <ul>
 <li>
-<code>sex_ratio</code> sheet — typically <code>0.5</code> for all
+<code>sex_ratio</code> sheet, typically <code>0.5</code> for all
 ages. Hake assessments use this convention.</li>
 <li>
-<code>M1_base</code> sheet — values from the assessment document. To
+<code>M1_base</code> sheet, values from the assessment document. To
 estimate M rather than fix it, configure
 <code>M1Fun = build_M1(M1_model = …)</code> on <code><a href="../reference/fit_mod.html">fit_mod()</a></code>.
 See vignette 0 §7 for the option table.</li>
 <li>
-<code>age_trans_matrix</code> sheet — converts age-at-length to
+<code>age_trans_matrix</code> sheet, converts age-at-length to
 length-at-age. Set every entry to <code>0</code> if the assessment has
 no length data; for models with length comps, fill from the SS
 age-length transition.</li>
 <li>
 <code>ration_data</code> and <code>diet_data</code> (multi-species
-only) — diet / consumption inputs. SS does not provide these; derive
+only), diet / consumption inputs. SS does not provide these; derive
 externally if fitting a multi-species CEATTLE.</li>
 </ul>
 </div>

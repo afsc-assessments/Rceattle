@@ -14,12 +14,13 @@ print(x, n = 10, ...)
 - x:
 
   A `"summary.Rceattle"` object from
-  [`summary.Rceattle()`](https://grantdadams.github.io/Rceattle/reference/summary.Rceattle.md).
+  [`summary.Rceattle()`](https://afsc-assessments.github.io/Rceattle/reference/summary.Rceattle.md).
 
 - n:
 
-  Number of parameters to show, largest gradient-free standard error
-  first. Default 10; use `Inf` for all, or take `x$coefficients`.
+  Number of parameters to show, in
+  [`coef()`](https://rdrr.io/r/stats/coef.html) order. Default 10; use
+  `Inf` for all, or take `x$coefficients`.
 
 - ...:
 

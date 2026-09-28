@@ -40,7 +40,7 @@ om <- Rceattle::fit_mod(
 ### Fitting the estimation model (Tier 3 HCR)
 
 The `HCR = build_hcr()` argument to
-[`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+[`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
 sets the harvest control rule and its biological reference points
 (BRPs). Here we use the NPFMC Tier 3 rule: fishing at F40%, the maxFABC
 rate (an Amendment-56 SPR proxy for FMSY), with an F35% overfishing
@@ -48,7 +48,7 @@ limit (FOFL). Below the B40% target, F is ramped down linearly, reaching
 zero when spawning-stock biomass falls to `Alpha = 0.05` of that target.
 `Plimit = 0.2` is a separate shutoff: fishing stops when the stock is
 assessed as overfished relative to 20% of unfished SSB. See
-[`?build_hcr`](https://grantdadams.github.io/Rceattle/reference/build_hcr.md)
+[`?build_hcr`](https://afsc-assessments.github.io/Rceattle/reference/build_hcr.md)
 for the available rules and reference points.
 
 ``` r
@@ -81,7 +81,7 @@ em <- Rceattle::fit_mod(
 
 ### Running the MSE
 
-[`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+[`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
 runs the closed loop: it projects the OM, samples data on the schedule
 you specify, re-fits the EM every `assessment_period` years, and applies
 the EM’s HCR back to the OM. `nsim` sets the number of stochastic
@@ -97,12 +97,12 @@ Then check `endyr` against the catch series. The MSE takes over at
 `endyr + 1`, and every year after that is a projection year whose catch
 the control rule sets, so catch recorded past `endyr` is blanked to `NA`
 at setup and
-[`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+[`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
 warns and names the years.
 
 That warning almost always means `endyr` has fallen behind. A workbook
-can carry catch, index and composition data for years the model does not
-fit — the likelihood scores only `Year <= endyr` — so the data are added
+can hold catch, index and composition data for years the model does not
+fit; the likelihood scores only `Year <= endyr`, so the data are added
 and `endyr` is left where it was. Conditioning the assessment on those
 years and projecting over them are different questions, and the warning
 is where you choose. Move `endyr` up and refit both models to condition
@@ -122,14 +122,14 @@ mse1 <- run_mse(
 
 #### Reproducibility
 
-[`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+[`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
 accepts two seed arguments, both with default `seed = 666`:
 
 - `seed` controls the random draws *inside* each simulated trajectory
   (recruitment, observation error, composition resampling). Each
   simulation worker calls `set.seed(seed + sim)`, so simulation `1` uses
   seed `667`, simulation `2` uses `668`, and so on. Re-running the same
-  [`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+  [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
   call with the same `seed` reproduces the trajectory bit-for-bit.
 - `regenerate_seed` (defaults to `seed`) controls the optional
   `regenerate_past = TRUE` step that re-fits the EM to OM-simulated
@@ -138,17 +138,17 @@ accepts two seed arguments, both with default `seed = 666`:
 
 You do not need to call
 [`set.seed()`](https://rdrr.io/r/base/Random.html) before
-[`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
-— the `seed` arguments fully control reproducibility. (You may still
-want [`set.seed()`](https://rdrr.io/r/base/Random.html) for plotting
-code that draws random colours or jitter.)
+[`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md),
+the `seed` arguments fully control reproducibility. (You may still want
+[`set.seed()`](https://rdrr.io/r/base/Random.html) for plotting code
+that draws random colours or jitter.)
 
 Reproducibility holds *within* a package version, not across one. In
 5.9.0 the observation draws moved from R into the TMB model, which
 displaces the random-number stream, so a seeded
-[`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+[`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
 or
-[`self_test()`](https://grantdadams.github.io/Rceattle/reference/self_test.md)
+[`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md)
 will not reproduce a run from 5.8.x. 5.18.0 is the same kind of
 boundary: it seeds each assessment’s draw on its own year and stops
 shortening the operating model’s projection horizon. Both move the
@@ -188,7 +188,7 @@ plot_depletionSSB(lapply(mse1, function(x) x$OM))
 plot_depletionSSB(
   c(mse1$Sim_1$EM,           # EMs
     list(mse1$Sim_1$OM,      # OM
-         mse1$Sim_1$OM_no_F  # OM w/ no fishing
+         mse1$Sim_1$OM_no_F  # OM with no fishing after the original OM's endyr
     )),    
   line_col = c(
     paste0("grey", round(seq(80, 50, length.out = 15))),
@@ -201,12 +201,12 @@ plot_depletionSSB(
 
 ### Summary statistics
 
-[`mse_summary()`](https://grantdadams.github.io/Rceattle/reference/mse_summary.md)
+[`mse_summary()`](https://afsc-assessments.github.io/Rceattle/reference/mse_summary.md)
 reduces the trajectories to performance statistics for comparing
 strategies. It returns a **list**, because the metrics are computed on
 three different entities: `$species` (one row per species), `$fleet`
 (one row per fleet), and `$total` (a named vector across the whole
-system). `$meta` records what the summary was built from – the number of
+system). `$meta` records what the summary was built from, the number of
 simulations, species and fleets, and the harvest control rule.
 
 ``` r
@@ -218,8 +218,8 @@ knitr::kable(mse_summ$species, digits = 2)
 knitr::kable(mse_summ$fleet, digits = 2)
 ```
 
-Metric columns are named syntactically – `avg_catch`, `catch_iav`,
-`ssb_rmse_terminal`, `om_p_overfishing`, `em_p_overfished` – with the
+Metric columns are named syntactically, `avg_catch`, `catch_iav`,
+`ssb_rmse_terminal`, `om_p_overfishing`, `em_p_overfished`, with the
 `om_` and `em_` prefixes separating what the operating model did from
 what the estimation model believed. `p_overfishing_false_pos` and its
 siblings are where the two disagree.
@@ -228,9 +228,9 @@ siblings are where the two disagree.
 
 ## Alternative scenarios
 
-The runs below vary one element of the strategy at a time — the
-reference points, the survey frequency, the assessment interval, or the
-environment — so their performance statistics can be compared against
+The runs below vary one element of the strategy at a time (the reference
+points, the survey frequency, the assessment interval, or the
+environment) so their performance statistics can be compared against
 `mse1`.
 
 ------------------------------------------------------------------------
@@ -318,7 +318,7 @@ mse4 <- run_mse(
 
 The scenarios above all set a *period*: an assessment every second or
 fourth year, for as long as the projection runs. A skipped assessment is
-a different thing — one gap in an otherwise regular cycle — and
+a different thing (one gap in an otherwise regular cycle) and
 `assessment_period` also takes the schedule itself, as a vector of the
 years an assessment is completed.
 
@@ -348,7 +348,7 @@ number, and any pair the table omits is multiplied by 1.
 
 Be careful which years those are. The assessment in year `Y` sets catch
 for `Y+1` onward, so a missed assessment leaves the **two years after
-it** on the previous assessment’s advice — not the missed year itself,
+it** on the previous assessment’s advice, not the missed year itself,
 which the previous assessment sets in the baseline too.
 
 ``` r
@@ -372,8 +372,8 @@ mse7 <- run_mse(
 )
 ```
 
-Run these against a baseline that differs *only* in the schedule — same
-`om`, same `em`, same `seed` — and compare them as paired
+Run these against a baseline that differs *only* in the schedule (same
+`om`, same `em`, same `seed`) and compare them as paired
 within-replicate differences.
 
 Two schedules on the same `seed` share their recruitment deviations,
@@ -386,33 +386,33 @@ assessment after it.
 
 Common random numbers are not complete, though, and it is worth knowing
 where they stop. One
-[`sim_mod()`](https://grantdadams.github.io/Rceattle/reference/sim_mod.md)
+[`sim_mod()`](https://afsc-assessments.github.io/Rceattle/reference/sim_mod.md)
 call draws every year in the assessment interval under that assessment’s
 seed, so a year sitting *inside* a longer interval is drawn under a
 different seed than the same year in a schedule that assessed it
 directly. Two schedules that differ in which years they assess realize
 different observation error in the years between, even where the stock
 is in the same state. The paired difference is therefore mostly, but not
-entirely, the schedule — size the replicate count with that in mind
+entirely, the schedule, size the replicate count with that in mind
 rather than assuming all the noise has cancelled.
 
-Once two schedules genuinely diverge — different catch taken, different
-years surveyed — their draws diverge too. That is a real difference
+Once two schedules genuinely diverge (different catch taken, different
+years surveyed) their draws diverge too. That is a real difference
 between the runs rather than noise, and no seeding scheme removes it.
 
 Make the last assessment year reach the projection horizon. Catch is
 filled only up to the last assessment, so a schedule that stops short
-leaves the trailing years at `NA` — and
-[`mse_summary()`](https://grantdadams.github.io/Rceattle/reference/mse_summary.md)
+leaves the trailing years at `NA`, and
+[`mse_summary()`](https://afsc-assessments.github.io/Rceattle/reference/mse_summary.md)
 summarises over the whole projection, understating average catch, catch
 IAV and P(Closed) with nothing in the table to say so. A biennial cycle
 over an odd number of projection years lands here every time:
 `seq(2027, 2050, by = 2)` ends at 2049 against a 2050 horizon.
-[`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+[`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
 warns when it happens.
 
-One caveat to carry into any write-up: `catch_mult` multiplies catch,
-not ABC. A real ABC reduction changes removals only to the extent the
+One caveat to take into any write-up: `catch_mult` multiplies catch, not
+ABC. A real ABC reduction changes removals only to the extent the
 fishery attains ABC, and for a stock whose catch sits well below ABC it
 changes them hardly at all. Either scale the multiplier by recent
 attainment, `1 - (1 - mult) * attainment`, or report the unscaled result
@@ -486,7 +486,7 @@ mse5 <- run_mse(
 
 Tagging each summary with an `MSE` label and stacking them puts the
 strategies side by side in one table. Stack the entity you want to
-compare on – here the per-species metrics – rather than the whole list.
+compare on, here the per-species metrics, rather than the whole list.
 
 ``` r
 

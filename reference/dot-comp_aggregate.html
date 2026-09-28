@@ -3,11 +3,11 @@
 over years (for one fleet x type panel), and puts the total back on the
 proportion scale; joint-sex groups keep their shared normalization (females +
 males sum to 1). Pooling counts rather than averaging proportions is what
-stops a year with 20 otoliths carrying the weight of one with 2000."><meta property="og:description" content="Multiplies each year's proportions by its input sample size, sums the counts
+stops a year with 20 otoliths counting as much as one with 2000."><meta property="og:description" content="Multiplies each year's proportions by its input sample size, sums the counts
 over years (for one fleet x type panel), and puts the total back on the
 proportion scale; joint-sex groups keep their shared normalization (females +
 males sum to 1). Pooling counts rather than averaging proportions is what
-stops a year with 20 otoliths carrying the weight of one with 2000."></head><body>
+stops a year with 20 otoliths counting as much as one with 2000."></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -15,7 +15,7 @@ stops a year with 20 otoliths carrying the weight of one with 2000."></head><bod
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.33.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -44,12 +44,14 @@ stops a year with 20 otoliths carrying the weight of one with 2000."></head><bod
     <li><a class="dropdown-item" href="../articles/stock-synthesis-conversion.html">Converting from Stock Synthesis</a></li>
     <li><h6 class="dropdown-header" data-toc-skip>--- Contributing ---</h6></li>
     <li><a class="dropdown-item" href="../articles/developer-guide.html">Developer guide</a></li>
+    <li><a class="dropdown-item" href="../articles/adding-a-selectivity-form.html">Adding a selectivity form</a></li>
+    <li><a class="dropdown-item" href="../cpp/index.html">C++ template reference</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
-<li class="nav-item"><a class="external-link nav-link" href="https://github.com/grantdadams/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/afsc-assessments/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
       </ul></div>
 
 
@@ -59,7 +61,7 @@ stops a year with 20 otoliths carrying the weight of one with 2000."></head><bod
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Pool composition counts across the fitted hindcast years</h1>
-      <small class="dont-index">Source: <a href="https://github.com/grantdadams/Rceattle/blob/main/R/7-plot_comp.R" class="external-link"><code>R/7-plot_comp.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/R/7-plot_comp.R" class="external-link"><code>R/7-plot_comp.R</code></a></small>
       <div class="d-none name"><code>dot-comp_aggregate.Rd</code></div>
     </div>
 
@@ -68,7 +70,7 @@ stops a year with 20 otoliths carrying the weight of one with 2000."></head><bod
 over years (for one fleet x type panel), and puts the total back on the
 proportion scale; joint-sex groups keep their shared normalization (females +
 males sum to 1). Pooling counts rather than averaging proportions is what
-stops a year with 20 otoliths carrying the weight of one with 2000.</p>
+stops a year with 20 otoliths counting as much as one with 2000.</p>
     </div>
 
     <div class="section level2">
@@ -102,7 +104,7 @@ columns <code>y_obs</code>, <code>y_hat</code>, <code>y_lwr</code>, <code>y_upr<
     <p>The pooled count is a sum of independent draws, so its variance is the exact
 sum of the per-year variances the fleet's own likelihood assumes (the <code>Sd</code>
 column). The resulting interval treats the fitted proportions as known, so it
-is slightly narrower than one that carried the estimation uncertainty in
+is slightly narrower than one that held the estimation uncertainty in
 <code>p_hat</code> as well.</p>
     </div>
 

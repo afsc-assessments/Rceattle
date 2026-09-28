@@ -38,7 +38,7 @@ retrospective(
 - object:
 
   an Rceattle model fit using
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md).
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md).
 
 - peels:
 
@@ -68,8 +68,8 @@ retrospective(
   errors). Costs an extra model build per peel; see Details. Mohn's rho
   uses only point estimates, so `FALSE` is faster with no effect on rho.
   Default `NULL` inherits the input model's setting (`TRUE` if it was
-  fit with `getsd = TRUE`, i.e. carries an `sdrep`); the returned peel
-  models then carry standard errors only when `getsd` is `TRUE`.
+  fit with `getsd = TRUE`, i.e. holds an `sdrep`); the returned peel
+  models then hold standard errors only when `getsd` is `TRUE`.
 
 - phase:
 
@@ -82,9 +82,9 @@ retrospective(
 - fit_control:
 
   optional
-  [`fit_control()`](https://grantdadams.github.io/Rceattle/reference/fit_control.md)
+  [`fit_control()`](https://afsc-assessments.github.io/Rceattle/reference/fit_control.md)
   bundle for the refits. Only `phase` and `getsd` are read; see **What
-  [`fit_control()`](https://grantdadams.github.io/Rceattle/reference/fit_control.md)
+  [`fit_control()`](https://afsc-assessments.github.io/Rceattle/reference/fit_control.md)
   reaches**.
 
 - Rceattle:
@@ -100,7 +100,7 @@ each species.
 A peel that did not converge is dropped, so `Rceattle_list` can be
 shorter than `peels + 1` (a message reports how many). Each entry is
 named for its own terminal year (`Year_2017`, ...) rather than by
-position, so index it by name – `Rceattle_list[[3]]` is not necessarily
+position, so index it by name, `Rceattle_list[[3]]` is not necessarily
 the 3-year peel. With no peel left, Mohn's rho is `NaN` and the function
 warns.
 
@@ -110,15 +110,16 @@ draw it only as far as it was fit and the peels fan out.
 A peel still estimates the years it dropped. They are its retrospective
 forecast, fit to the observed catch with the survey and composition data
 withheld. Their recruitment deviation is the one
-[`sample_rec()`](https://grantdadams.github.io/Rceattle/reference/sample_rec.md)
+[`sample_rec()`](https://afsc-assessments.github.io/Rceattle/reference/sample_rec.md)
 sets with `sample_rec = FALSE`, computed from the peel's own fit; a
 penalty-form peel with no penalty years averages over its own years
-after the first, with a warning. Three years therefore matter, and each
-peel has all three:
+after the first (or over its one year, for a peel that keeps a single
+year), with a warning. Three years therefore matter, and each peel has
+all three:
 
 - `endyr`, `endyr_peel`:
 
-  the peel's terminal year – what it was fit through. Equal to each
+  the peel's terminal year, what it was fit through. Equal to each
   other.
 
 - `endyr_full`:
@@ -140,11 +141,11 @@ unpeeled model, rather than `(endyr_peel + 1):endyr_full`, which counts
 Mohn's rho is computed from `endyr_peel` and is unaffected by any of
 this.
 
-Catchability is estimated only for a fleet that carries fitted index
-rows (see
-[`build_map`](https://grantdadams.github.io/Rceattle/reference/build_map.md)),
+Catchability is estimated only for a fleet that holds fitted index rows
+(see
+[`build_map`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md)),
 and a peel moves `endyr`. A survey whose index observations all fall in
-the peeled-off years therefore has no q estimated in that peel – the
+the peeled-off years therefore has no q estimated in that peel, the
 parameter count is not constant across peels. That is deliberate: a q
 with no index to inform it is a flat direction in the likelihood. It
 does not affect Mohn's rho, which is computed from SSB, but it does mean

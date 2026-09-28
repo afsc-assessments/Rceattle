@@ -43,7 +43,7 @@ plot_timeseries(
 - Rceattle:
 
   A single
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   object or a list of them (overlaid).
 
 - output:
@@ -86,7 +86,7 @@ plot_timeseries(
 - add_ci:
 
   Add a 95% confidence interval. Only available where the plotted
-  quantity carries standard errors; warns and draws none otherwise.
+  quantity holds standard errors; warns and draws none otherwise.
 
 - lwd:
 
@@ -137,9 +137,9 @@ plot_timeseries(
 - mse:
 
   Is an MSE object from
-  [`load_mse`](https://grantdadams.github.io/Rceattle/reference/load_mse.md)
+  [`load_mse`](https://afsc-assessments.github.io/Rceattle/reference/load_mse.md)
   or
-  [`run_mse`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+  [`run_mse`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
 
 - OM:
 
@@ -161,9 +161,9 @@ plot_timeseries(
 
   Internal. `function(models, sp_sel)` returning per-species
   reference-point layers, added before the figure is saved. Supplied by
-  [`plot_f()`](https://grantdadams.github.io/Rceattle/reference/plot_f.md)
+  [`plot_f()`](https://afsc-assessments.github.io/Rceattle/reference/plot_f.md)
   and
-  [`plot_depletionSSB()`](https://grantdadams.github.io/Rceattle/reference/plot_depletionSSB.md)
+  [`plot_depletionSSB()`](https://afsc-assessments.github.io/Rceattle/reference/plot_depletionSSB.md)
   through `.ts_wrapper()`; `sp_sel` is the species resolution the panels
   were built from.
 
@@ -182,14 +182,14 @@ Returns and saves a figure with the population trajectory.
 
 ## Units
 
-The model carries numbers-at-age in **thousands** and weight-at-age in
+The model holds numbers-at-age in **thousands** and weight-at-age in
 **kg**, so every biomass series (`biomass`, `ssb`,
 `exploitable_biomass`) comes out of the model in **mt** and recruitment
 comes out in **thousands of fish**. For display these are divided by 1e6
 (million mt) and 1e3 (millions of recruits) respectively; depletion is a
-ratio and is not rescaled. Supply the model's inputs on that convention
-– catch and index in mt, weight-at-age in kg – or the axis labels will
-not describe what is plotted.
+ratio and is not rescaled. Supply the model's inputs on that convention,
+catch and index in mt, weight-at-age in kg, or the axis labels will not
+describe what is plotted.
 
 ## Confidence intervals
 
@@ -202,8 +202,8 @@ cross zero the way a symmetric natural-scale interval does for weak year
 classes and depleted stocks.
 
 `sd_log` comes from the model's own `log_biomass` / `log_ssb` / `log_R`
-where those are reported, and is otherwise recovered as `sd(x) / x` –
-the delta method's own identity, which matches the reported values to
+where those are reported, and is otherwise recovered as `sd(x) / x`, the
+delta method's own identity, which matches the reported values to
 machine precision. That covers `exploitable_biomass` and the two
 depletions, which cannot be reported on the log scale
 (`exploitable_biomass` is identically 0 without projection F), and

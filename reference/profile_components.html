@@ -23,7 +23,7 @@ yourself."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.33.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -52,12 +52,14 @@ yourself."></head><body>
     <li><a class="dropdown-item" href="../articles/stock-synthesis-conversion.html">Converting from Stock Synthesis</a></li>
     <li><h6 class="dropdown-header" data-toc-skip>--- Contributing ---</h6></li>
     <li><a class="dropdown-item" href="../articles/developer-guide.html">Developer guide</a></li>
+    <li><a class="dropdown-item" href="../articles/adding-a-selectivity-form.html">Adding a selectivity form</a></li>
+    <li><a class="dropdown-item" href="../cpp/index.html">C++ template reference</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
-<li class="nav-item"><a class="external-link nav-link" href="https://github.com/grantdadams/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/afsc-assessments/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
       </ul></div>
 
 
@@ -67,7 +69,7 @@ yourself."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Likelihood components along a profile</h1>
-      <small class="dont-index">Source: <a href="https://github.com/grantdadams/Rceattle/blob/main/R/9-profile.R" class="external-link"><code>R/9-profile.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/R/9-profile.R" class="external-link"><code>R/9-profile.R</code></a></small>
       <div class="d-none name"><code>profile_components.Rd</code></div>
     </div>
 
@@ -109,10 +111,10 @@ yourself.</p>
 the weighted components, since those are what moved the fit.
 <code>unweighted_jnll_comp</code> exists so Francis and McAllister-Ianelli can read a
 composition likelihood without its <code>Comp_weights</code> multiplier, so only the
-rows that carry such a multiplier are filled: composition, CAAL, stomach
+rows that hold such a multiplier are filled: composition, CAAL, stomach
 content and the two linkage rows. Every other row is zero there and is
 dropped as unfitted, so <code>weighted = FALSE</code> returns a much smaller set of
-series — the index, catch, selectivity, catchability and penalty
+series, the index, catch, selectivity, catchability and penalty
 components are absent, not flat.</p></dd>
 
 
@@ -159,18 +161,18 @@ also disables <code>minfraction</code>, which is defined against the total.</p><
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A data frame with one row per grid point per retained component:
-the profile's <code>grid</code> columns (<code>slot_1</code>, ...) carrying the value profiled
+the profile's <code>grid</code> columns (<code>slot_1</code>, ...) holding the value profiled
 over, then <code>fit</code> (grid row index), <code>component</code> (the <code>jnll_comp</code> row),
 <code>unit</code> (fleet or species name, <code>NA</code> for model-wide rows), <code>axis</code>
 (<code>"fleet"</code>, <code>"species"</code> or <code>"model"</code>), <code>series</code> (the plotting label), and
 <code>value</code> (the re-zeroed negative log-likelihood). Series are ordered by
 decreasing change over the grid, with <code>"Total"</code> first. The profile's
-<code>param</code>, <code>alias</code> and the <code>relative</code> used are carried as attributes.</p>
+<code>param</code>, <code>alias</code> and the <code>relative</code> used are held as attributes.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p><strong>Which cells are reported.</strong> <code>jnll_comp</code> is a component-by-column matrix
-whose columns mean different things on different rows – fleets on the data,
+whose columns mean different things on different rows, fleets on the data,
 selectivity and catchability rows, species on the priors, penalties and
 predation rows. Each cell is labelled from the axis its row uses, so a cell
 becomes e.g. <code>"Shelikof acoustic: Index data"</code>. The unit is dropped from the
@@ -209,11 +211,11 @@ profile.</p></div>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">comps</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   slot_1 fit component unit  axis series     value</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 1   0.20   1     Total &lt;NA&gt; model  Total 28.479708</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2   0.25   2     Total &lt;NA&gt; model  Total 23.399627</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3   0.30   3     Total &lt;NA&gt; model  Total 18.451669</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2   0.25   2     Total &lt;NA&gt; model  Total 23.399626</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3   0.30   3     Total &lt;NA&gt; model  Total 18.451668</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 4   0.35   4     Total &lt;NA&gt; model  Total 13.636791</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 5   0.40   5     Total &lt;NA&gt; model  Total  8.955937</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 6   0.45   6     Total &lt;NA&gt; model  Total  4.410035</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 6   0.45   6     Total &lt;NA&gt; model  Total  4.410034</span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 </code></pre></div>
     </div>

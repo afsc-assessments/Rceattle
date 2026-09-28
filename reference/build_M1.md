@@ -26,17 +26,17 @@ build_M1(
   Either an integer code or the equivalent string alias (both forms are
   accepted; the integer code is canonical):
 
-  - `0` / `"fixed"` – use the input `M1_base` (no estimation).
+  - `0` / `"fixed"`, use the input `M1_base` (no estimation).
 
-  - `1` / `"sex_age_invariant"` – estimate one `M1_{spp}`.
+  - `1` / `"sex_age_invariant"`, estimate one `M1_{spp}`.
 
-  - `2` / `"sex_specific"` – estimate `M1_{spp, sex}`.
+  - `2` / `"sex_specific"`, estimate `M1_{spp, sex}`.
 
-  - `3` / `"sex_age_specific"` – estimate `M1_{spp, sex, age}`.
+  - `3` / `"sex_age_specific"`, estimate `M1_{spp, sex, age}`.
 
-  - `4`, `5` – soft-deprecated env-driven codes; use the `linkages`
+  - `4`, `5`, soft-deprecated env-driven codes; use the `linkages`
     argument instead. See
-    [`vignette("environmental-linkages-and-priors")`](https://grantdadams.github.io/Rceattle/articles/environmental-linkages-and-priors.md).
+    [`vignette("environmental-linkages-and-priors")`](https://afsc-assessments.github.io/Rceattle/articles/environmental-linkages-and-priors.md).
 
 - M1_re:
 
@@ -75,12 +75,12 @@ build_M1(
   Soft-deprecated. Vector of column indices into `env_data` (excluding
   `Year`) for environmentally linked M1 when `M1_model %in% c(4, 5)`.
   Use the `linkages` argument instead; see
-  [`vignette("environmental-linkages-and-priors")`](https://grantdadams.github.io/Rceattle/articles/environmental-linkages-and-priors.md).
+  [`vignette("environmental-linkages-and-priors")`](https://afsc-assessments.github.io/Rceattle/articles/environmental-linkages-and-priors.md).
 
 - linkages:
 
   Optional named list of
-  [`linkage_spec()`](https://grantdadams.github.io/Rceattle/reference/linkage_spec.md)
+  [`linkage_spec()`](https://afsc-assessments.github.io/Rceattle/reference/linkage_spec.md)
   objects keyed by M parameter name (currently the only valid key is
   `"M1"`). Each spec describes how `M1` depends on environmental
   covariates and on stratifying factors (species, sex, age). The offset

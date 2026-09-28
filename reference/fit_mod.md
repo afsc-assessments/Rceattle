@@ -42,27 +42,27 @@ fit_mod(
 - data_list:
 
   A data list read in via
-  [`read_data`](https://grantdadams.github.io/Rceattle/reference/read_data.md)
+  [`read_data`](https://afsc-assessments.github.io/Rceattle/reference/read_data.md)
   or built directly in R; see
-  [`vignette("data-without-excel", package = "Rceattle")`](https://grantdadams.github.io/Rceattle/articles/data-without-excel.md).
+  [`vignette("data-without-excel", package = "Rceattle")`](https://afsc-assessments.github.io/Rceattle/articles/data-without-excel.md).
 
 - inits:
 
   (Optional) A named list of initial parameter values, as returned by
-  [`build_params`](https://grantdadams.github.io/Rceattle/reference/build_params.md)
+  [`build_params`](https://afsc-assessments.github.io/Rceattle/reference/build_params.md)
   or extracted from a previous fit (`model$estimated_params`). If
   `NULL`, parameters are initialized from scratch via
-  [`build_params`](https://grantdadams.github.io/Rceattle/reference/build_params.md).
+  [`build_params`](https://afsc-assessments.github.io/Rceattle/reference/build_params.md).
 
 - map:
 
   (Optional) A map object from
-  [`build_map`](https://grantdadams.github.io/Rceattle/reference/build_map.md).
+  [`build_map`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md).
 
 - bounds:
 
   (Optional) A bounds object from
-  [`build_bounds`](https://grantdadams.github.io/Rceattle/reference/build_bounds.md).
+  [`build_bounds`](https://afsc-assessments.github.io/Rceattle/reference/build_bounds.md).
 
 - file:
 
@@ -76,9 +76,9 @@ fit_mod(
   (`HCR`); `"Hindcast"` (1) = fit the hindcast only (no fitting
   BRPs/HCR/projection); `"Projection"` (2) = fit the BRPs/HCR/projection
   only, from the initial parameters in `inits`; `"DebugBuild"` (3) =
-  build through `MakeADFun` but not `nlminb` – the returned `obj`
-  carries the real objective and gradient, so `obj$fn()` / `obj$gr()`
-  are usable for diagnosing a model before committing to a fit;
+  build through `MakeADFun` but not `nlminb`, the returned `obj` holds
+  the real objective and gradient, so `obj$fn()` / `obj$gr()` are usable
+  for diagnosing a model before committing to a fit;
   `"DebugOptimize"` (4) = optimize with all parameters mapped out, so
   the objective is a placeholder (`dummy^2`), not a likelihood. Defaults
   to `"Estimate"`.
@@ -90,22 +90,22 @@ fit_mod(
 
 - random_q:
 
-  logical. If TRUE, treats annual catchability deviations as random
-  effects using the Laplace approximation, and estimates their standard
-  deviation rather than fixing it at `Time_varying_q_sd`. The default is
-  FALSE.
+  logical (default FALSE); if TRUE the `Time_varying_q` deviations are
+  integrated as random effects with one estimated sd per
+  `Catchability_index` group, not fixed at `Time_varying_q_sd` (linkage
+  random effects are integrated either way).
 
 - random_sel:
 
-  logical. If TRUE, treats annual selectivity deviations as random
-  effects using the Laplace approximation, and estimates their standard
-  deviation rather than fixing it at `Time_varying_sel_sd`. The default
-  is FALSE.
+  logical (default FALSE); if TRUE the `Time_varying_sel` deviations are
+  integrated as random effects with one estimated sd per
+  `Selectivity_index` group, not fixed at `Time_varying_sel_sd` (linkage
+  random effects are integrated either way).
 
 - HCR:
 
   HCR list object from
-  [`build_hcr`](https://grantdadams.github.io/Rceattle/reference/build_hcr.md)
+  [`build_hcr`](https://afsc-assessments.github.io/Rceattle/reference/build_hcr.md)
 
 - niter:
 
@@ -114,7 +114,7 @@ fit_mod(
 - recFun:
 
   The stock recruit-relationship parameterization from
-  [`build_srr`](https://grantdadams.github.io/Rceattle/reference/build_srr.md).
+  [`build_srr`](https://afsc-assessments.github.io/Rceattle/reference/build_srr.md).
 
 - M1Fun:
 
@@ -123,25 +123,25 @@ fit_mod(
 - growthFun:
 
   The weight-at-age parameterization from
-  [`build_growth`](https://grantdadams.github.io/Rceattle/reference/build_growth.md).
+  [`build_growth`](https://afsc-assessments.github.io/Rceattle/reference/build_growth.md).
 
 - qFun:
 
   Catchability specification from
-  [`build_catchability`](https://grantdadams.github.io/Rceattle/reference/build_catchability.md),
-  carrying any environmental linkages on q.
+  [`build_catchability`](https://afsc-assessments.github.io/Rceattle/reference/build_catchability.md),
+  holding any environmental linkages on q.
 
 - selFun:
 
   Selectivity specification from
-  [`build_selectivity`](https://grantdadams.github.io/Rceattle/reference/build_selectivity.md),
-  carrying any environmental linkages on selectivity parameters.
+  [`build_selectivity`](https://afsc-assessments.github.io/Rceattle/reference/build_selectivity.md),
+  holding any environmental linkages on selectivity parameters.
 
 - compFun:
 
   Composition-weighting specification from
-  [`build_composition`](https://grantdadams.github.io/Rceattle/reference/build_composition.md),
-  carrying any priors on the Dirichlet-multinomial weights.
+  [`build_composition`](https://afsc-assessments.github.io/Rceattle/reference/build_composition.md),
+  holding any priors on the Dirichlet-multinomial weights.
 
 - msmMode:
 
@@ -191,45 +191,43 @@ fit_mod(
 - fit_control:
 
   A list returned by
-  [`fit_control()`](https://grantdadams.github.io/Rceattle/reference/fit_control.md)
+  [`fit_control()`](https://afsc-assessments.github.io/Rceattle/reference/fit_control.md)
   that bundles the optimizer / sdreport / phasing knobs (`phase`,
   `bias.correct`, `getsd`, `getJointPrecision`, `getReportCovariance`,
   `use_gradient`, `rel_tol`, `loopnum`, `newtonsteps`, `TMBfilename`,
   `verbose`, `nlminb_control`). Defaults to
-  [`fit_control()`](https://grantdadams.github.io/Rceattle/reference/fit_control.md).
+  [`fit_control()`](https://afsc-assessments.github.io/Rceattle/reference/fit_control.md).
   See
-  [`fit_control()`](https://grantdadams.github.io/Rceattle/reference/fit_control.md)
+  [`fit_control()`](https://afsc-assessments.github.io/Rceattle/reference/fit_control.md)
   for the meaning and defaults of each field.
 
 - config:
 
   (Optional) An `Rceattle_run_config` from
-  [`load_config()`](https://grantdadams.github.io/Rceattle/reference/load_config.md)
-  (or
-  [`run_config()`](https://grantdadams.github.io/Rceattle/reference/run_config.md)).
-  Its stored `model_config` structure and estimation controls
-  (`estimateMode`, `random_rec`/`random_q`/`random_sel`, `suit_styr`/
-  `suit_endyr`, `fit_control`) overlay only the arguments the caller did
-  *not* pass – an explicit argument always wins. `NULL` (default)
-  applies no configuration. Example:
-  `fit_mod(data_list, config = load_config("run.yaml"))`.
+  [`load_config()`](https://afsc-assessments.github.io/Rceattle/reference/load_config.md)
+  or
+  [`run_config()`](https://afsc-assessments.github.io/Rceattle/reference/run_config.md)
+  whose stored settings overlay the ones you did not pass; `NULL`
+  (default) applies no configuration. See Details for what it overlays.
 
 - quiet_data_check:
 
   Drop the warnings the fit-time validation raises (errors still stop
   the fit). `FALSE` (default) for an ordinary fit. The diagnostic refits
-  –
-  [`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md),
-  [`jitter()`](https://grantdadams.github.io/Rceattle/reference/jitter.md),
-  [`self_test()`](https://grantdadams.github.io/Rceattle/reference/self_test.md),
+  ,
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md),
+  [`jitter()`](https://afsc-assessments.github.io/Rceattle/reference/jitter.md),
+  [`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md),
   [`profile()`](https://rdrr.io/r/stats/profile.html),
-  [`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md),
-  [`remove_F()`](https://grantdadams.github.io/Rceattle/reference/remove_F.md),
-  [`sample_rec()`](https://grantdadams.github.io/Rceattle/reference/sample_rec.md),
-  [`reweight_comps()`](https://grantdadams.github.io/Rceattle/reference/reweight_comps.md)
-  – set it, since they re-validate a `data_list` the caller has already
+  [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md),
+  [`remove_F()`](https://afsc-assessments.github.io/Rceattle/reference/remove_F.md),
+  [`sample_rec()`](https://afsc-assessments.github.io/Rceattle/reference/sample_rec.md),
+  [`reweight_comps()`](https://afsc-assessments.github.io/Rceattle/reference/reweight_comps.md),
+  set it, since they re-validate a `data_list` the caller has already
   fitted once and would otherwise repeat the same warnings per peel,
-  jitter, or MSE iteration. Convergence and TMB warnings are unaffected.
+  jitter, or MSE iteration. Also drops a linkage filter's "has no
+  effect" warning; a filter that drops its whole spec still warns.
+  Convergence and TMB warnings are unaffected.
 
 - ...:
 
@@ -238,7 +236,7 @@ fit_mod(
   `getJointPrecision`, `getReportCovariance`, `loopnum`, `newtonsteps`,
   `verbose`, `TMBfilename`). These are forwarded into `fit_control` with
   a deprecation warning; pass them via
-  [`fit_control()`](https://grantdadams.github.io/Rceattle/reference/fit_control.md)
+  [`fit_control()`](https://afsc-assessments.github.io/Rceattle/reference/fit_control.md)
   instead.
 
 ## Value
@@ -280,12 +278,27 @@ by setting `msmMode` with the following options:
 
 - 2\. MSVPA Holling Type III
 
-Values 3 through 9 (Kinzey & Punt 2009 functional responses – Holling
+Values 3 through 9 (Kinzey & Punt 2009 functional responses, Holling
 Type I/II/III, predator interference, predator preemption,
 Hassell-Varley, Ecosim) are blocked at runtime by
-[`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+[`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
 because the implementations have not been validated against the current
 parameter set. See `src/TMB/predation.hpp`.
+
+**What `config` overlays.** Two overlays happen, at different levels.
+The estimation controls (`estimateMode`, `random_rec` / `random_q` /
+`random_sel`, `suit_styr` / `suit_endyr`, `fit_control`) overlay only
+the arguments you did not pass, so an explicit argument always wins. The
+stored `model_config` is merged into the data object's **field by
+field**, not wholesale: only the fields the config actually set are
+imposed, and the data object keeps the rest. Since 5.36.0 a config built
+with
+[`model_config()`](https://afsc-assessments.github.io/Rceattle/reference/model_config.md)
+therefore no longer drops the linkages held on the data object, which it
+did when the whole structure was replaced. Where a field is set on both
+and the two disagree, the config's value is used and the difference is
+reported as a warning naming the field. A config written before that
+field record existed is treated as having set its non-default fields.
 
 ## Initial age structure
 
@@ -298,8 +311,8 @@ What `initMode` estimates, and from what:
 
 - `"Equilibrium"` (1):
 
-  Unfished (\\F\_{init} = 0\\) equilibrium age-structure, carried out
-  from \\R_0\\ and residual natural mortality \\M1\\.
+  Unfished (\\F\_{init} = 0\\) equilibrium age-structure, projected from
+  \\R_0\\ and residual natural mortality \\M1\\.
 
 - `"NonEquilibrium"` (2):
 
@@ -325,7 +338,7 @@ What `initMode` estimates, and from what:
   pollock convention.
 
 Modes 1 and 5 differ by exactly one term: both start from the initial
-equilibrium recruitment \\R\_{init}\\, but (1) carries it forward
+equilibrium recruitment \\R\_{init}\\, but (1) projects it forward
 unchanged while (5) seeds the first year with the realized recruitment
 `R_init * exp(rec_dev[1])`. On a stock whose first year was not average,
 that is not a small difference.

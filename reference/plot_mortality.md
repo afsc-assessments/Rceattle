@@ -2,8 +2,8 @@
 
 Mortality-at-age over the hindcast for one model: predation mortality
 (`M2`, the default) or residual natural mortality (`M1`). One component
-at a time, never their sum –
-[`plot_m_at_age()`](https://grantdadams.github.io/Rceattle/reference/plot_m_at_age.md)
+at a time, never their sum,
+[`plot_m_at_age()`](https://afsc-assessments.github.io/Rceattle/reference/plot_m_at_age.md)
 draws total M (M1 + M2) as a time series.
 
 ## Usage
@@ -33,7 +33,7 @@ plot_mortality(
 - Rceattle:
 
   A single
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   object. A list of more than one is an error; call it per model.
 
 - file:

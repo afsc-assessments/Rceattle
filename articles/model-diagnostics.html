@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.33.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -53,6 +53,8 @@
     <li><a class="dropdown-item" href="../articles/stock-synthesis-conversion.html">Converting from Stock Synthesis</a></li>
     <li><h6 class="dropdown-header" data-toc-skip>--- Contributing ---</h6></li>
     <li><a class="dropdown-item" href="../articles/developer-guide.html">Developer guide</a></li>
+    <li><a class="dropdown-item" href="../articles/adding-a-selectivity-form.html">Adding a selectivity form</a></li>
+    <li><a class="dropdown-item" href="../cpp/index.html">C++ template reference</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
@@ -62,7 +64,7 @@
 <li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json">
 </form></li>
-<li class="nav-item"><a class="external-link nav-link" href="https://github.com/grantdadams/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/afsc-assessments/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
       </ul>
 </div>
 
@@ -78,9 +80,9 @@
 
       <h1>3. Model diagnostics</h1>
             
-            <h4 data-toc-skip class="date">2026-09-14</h4>
+            <h4 data-toc-skip class="date">2026-09-28</h4>
       
-      <small class="dont-index">Source: <a href="https://github.com/grantdadams/Rceattle/blob/main/vignettes/model-diagnostics.Rmd" class="external-link"><code>vignettes/model-diagnostics.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/vignettes/model-diagnostics.Rmd" class="external-link"><code>vignettes/model-diagnostics.Rmd</code></a></small>
       <div class="d-none name"><code>model-diagnostics.Rmd</code></div>
     </div>
 
@@ -89,28 +91,28 @@
 <p>Rceattle provides a full set of model diagnostics:</p>
 <ul>
 <li>
-<strong>convergence diagnostics</strong> — attached automatically to
+<strong>convergence diagnostics</strong>: attached automatically to
 every fit</li>
 <li>
-<strong>S3 methods</strong> — <code><a href="https://rdrr.io/r/stats/residuals.html" class="external-link">residuals()</a></code>,
+<strong>S3 methods</strong>: <code><a href="https://rdrr.io/r/stats/residuals.html" class="external-link">residuals()</a></code>,
 <code><a href="https://rdrr.io/r/stats/logLik.html" class="external-link">logLik()</a></code>, and the like</li>
 <li>
-<strong>fit plots</strong> — compare predicted to observed data</li>
+<strong>fit plots</strong>: compare predicted to observed data</li>
 <li>
-<strong>retrospective analysis</strong> — peel off recent years to
+<strong>retrospective analysis</strong>: peel off recent years to
 detect systematic bias</li>
 <li>
-<strong>jitter testing</strong> — perturb starting values to check
+<strong>jitter testing</strong>: perturb starting values to check
 the optimizer found a global minimum</li>
 <li>
-<strong>self-testing</strong> (simulation–estimation) — check the
+<strong>self-testing</strong> (simulation–estimation), check the
 model recovers its own estimates from simulated data</li>
 <li>
-<strong>likelihood profiling</strong> — check how informative the
+<strong>likelihood profiling</strong>: check how informative the
 data are about a given parameter</li>
 </ul>
 <p><strong>They all report the same way.</strong> Printing any of them
-opens with one line — the object, an overall status, and a verdict —
+opens with one line (the object, an overall status, and a verdict)
 before the detail:</p>
 <pre><code>&lt;Rceattle convergence&gt;  status: OK
   all checks OK
@@ -140,18 +142,18 @@ before the detail:</p>
   sigmaR over 29 grid point(s); all converged
   minimum -log L : 1274.8831  at slot_1 = 1.5
   within 1.92 of the minimum : 1.3 to &gt;=1.5
-  the minimum is at a grid edge (slot_1), so the grid does not bracket it -- widen `values`</code></pre>
-<p>The severity words are the same four everywhere — <code>OK</code>,
-<code>NOTE</code>, <code>WARN</code>, <code>FAIL</code> — and the
-overall status is the worst present. The <strong>return values are
+  the minimum is at a grid edge (slot_1), so the grid does not bracket it, widen `values`</code></pre>
+<p>The severity words are the same four everywhere, <code>OK</code>,
+<code>NOTE</code>, <code>WARN</code>, <code>FAIL</code>, and the overall
+status is the worst present. The <strong>return values are
 unchanged</strong>: each object is still the data frame or list it
 always was, so <code>retro$mohns</code>, <code>jit$nll</code>,
 <code>diag$sdnr</code>, <code>prof$grid$slot_1</code> and
 <code>sims[["Sim_1"]]</code> index exactly as before, and
 <code>c(sims, list(fit))</code> still gives a plain list of fits to
 plot. Only the printing has an opinion.</p>
-<p>Four of these carry a threshold you can set.
-<code>print(retro, band = )</code> is Mohn’s rho threshold — the default
+<p>Four of these hold a threshold you can set.
+<code>print(retro, band = )</code> is Mohn’s rho threshold; the default
 <code>0.2</code> is the rule of thumb below, and Hurtado-Ferro et
 al. (2015) give asymmetric, life-history-dependent alternatives (−0.15
 to 0.20 long-lived, −0.22 to 0.30 short-lived), which is why it is an
@@ -160,22 +162,22 @@ be to count as having reached the same optimum.
 <code>print(sims, rate = )</code> is the fraction of simulations that
 must converge before a self-test counts as clean.
 <code>print(prof, cutoff = )</code> bounds the reported interval; the
-default 1.92 is the 95% profile-likelihood cutoff for one parameter —
+default 1.92 is the 95% profile-likelihood cutoff for one parameter,
 half the 0.95 quantile of a chi-square on one degree of freedom.</p>
 <p>Two of them report something the numbers alone cannot. A self-test
 drops its non-converged runs before returning, so the length of what
-comes back is not the number attempted — the header gives the rate
+comes back is not the number attempted; the header gives the rate
 against <code>nsim</code>, and the last line says what generated the
-replicates, since with processes held fixed the spread carries
-observation error only. A profile whose minimum sits at the first or
-last grid value has run out of grid rather than found the optimum; it
-plots as an ordinary curve, so the print says so and asks for a wider
+replicates, since with processes held fixed the spread holds observation
+error only. A profile whose minimum sits at the first or last grid value
+has run out of grid rather than found the optimum; it plots as an
+ordinary curve, so the print says so and asks for a wider
 <code>values</code>.</p>
 <div class="section level2">
 <h2 id="setup-and-plotting-data">Setup and plotting data<a class="anchor" aria-label="anchor" href="#setup-and-plotting-data"></a>
 </h2>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://grantdadams.github.io/Rceattle/">Rceattle</a></span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://afsc-assessments.github.io/Rceattle/">Rceattle</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Fit a single-species model for the 2022 Northern Rockfish assessment.</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"NorthernRockfish2022"</span><span class="op">)</span></span>
@@ -222,8 +224,8 @@ convergence checks and attaches the result as
 <code>status</code> is the worst severity present. Non-OK checks are
 reported via <code><a href="https://rdrr.io/r/base/message.html" class="external-link">message()</a></code> during the fit, and
 <code>print(model)</code> shows the overall status. A non-converged
-model is never turned into an error — the fit is always returned with
-its diagnostics attached, so you decide whether to trust it.</p>
+model is never turned into an error: the fit is always returned with its
+diagnostics attached, so you decide whether to trust it.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">model_1</span><span class="op">$</span><span class="va">convergence</span>            <span class="co"># overall status + any non-OK checks</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">model_1</span><span class="op">$</span><span class="va">convergence</span>, all <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>   <span class="co"># show every check, including OK ones</span></span></code></pre></div>
@@ -233,16 +235,43 @@ its diagnostics attached, so you decide whether to trust it.</p>
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/convergence_diagnostics.html">convergence_diagnostics</a></span><span class="op">(</span><span class="va">model_1</span><span class="op">)</span></span></code></pre></div>
 <p>The checks cover:</p>
 <ul>
-<li><p><strong><code>max_gradient</code></strong> — maximum absolute
-marginal gradient and the parameter carrying it (<code>WARN</code> &gt;
-1e-3, <code>FAIL</code> &gt; 1).</p></li>
-<li><p><strong><code>pdHess</code></strong> — whether the Hessian is
+<li><p><strong><code>max_gradient</code></strong>: maximum absolute
+marginal gradient and the parameter holding it (<code>WARN</code> &gt;
+1e-3, <code>FAIL</code> &gt; 1). When an <code>sdreport</code> of the
+same parameters is available, the message also says how far the
+estimates are from the optimum in standard errors. A quadratic
+approximation puts the optimum a Newton step
+<code>-cov.fixed %*% gradient</code> away, and each element is divided
+by its own standard error. That size is comparable across log, logit and
+natural-scale parameters, which the raw gradient is not: 0.02 means
+finishing the optimization would move no estimate by more than 2% of its
+standard error. The largest absolute value is in
+<code>$data$newton_step_se</code> and the signed vector, which says
+which way each estimate would move, in <code>$data$step_se</code>.
+Reported only; the severity is still read on the gradient.</p></li>
+<li><p><strong><code>pdHess</code></strong>: whether the Hessian is
 positive definite (<code>FAIL</code> if not).</p></li>
-<li><p><strong><code>sdreport_failed</code></strong> — <code>FAIL</code>
+<li><p><strong><code>sdreport_failed</code></strong>: <code>FAIL</code>
 when an <code>sdreport</code> was requested but the Hessian could not be
 inverted.</p></li>
+<li><p><strong><code>hessian_not_run</code></strong>: <code>NOTE</code>
+when the fit was made with <code>getsd = FALSE</code>, so
+<code>pdHess</code>, <code>hessian_conditioning</code>,
+<code>sdreport_failed</code> and <code>estimability</code> had nothing
+to read and never ran. It separates “every check passed” from “the
+strongest checks were skipped”; refit with <code>getsd = TRUE</code>
+before reading the status as convergence. Each refitting diagnostic
+resolves its own <code>getsd</code>, so <code><a href="../reference/run_mse.html">run_mse()</a></code>’s refits
+carry the note and a reweighted default fit does not.</p></li>
+<li><p><strong><code>zero_n_penalty</code></strong>: the “Zero n-at-age
+penalty” likelihood row is non-zero for a species: its numbers-at-age,
+Ricker intercept or (under an identity-link recruitment linkage)
+recruitment sat on the 0.001 floor, so the fit is of a floored model
+rather than the one specified. <code>WARN</code> when the
+root-sum-square excursion is under 1 (a thousand fish),
+<code>FAIL</code> above.</p></li>
 <li>
-<p><strong><code>hessian_conditioning</code></strong> — how much
+<p><strong><code>hessian_conditioning</code></strong>: how much
 better the data pin down some parameter combinations than others.
 Inverting the Hessian gives the covariance of the estimates;
 standardising it by the standard errors gives their correlation, whose
@@ -262,9 +291,9 @@ in those units. <code>WARN</code> above 1e6, <code>FAIL</code> above
 because the covariance condition number is not scale-invariant:
 <code>log_F</code> sits near -2 and <code>sel_inf</code> near 10, so
 rescaling a parameter would move it without changing the model.
-Standardising costs sensitivity — the same three models read 4.6e4,
-1.9e5 and 2.5e9 on the covariance against 2.0e4, 1.6e4 and 1.9e8 here —
-so a model that is merely badly scaled no longer trips the check. The
+Standardising costs sensitivity (the same three models read 4.6e4, 1.9e5
+and 2.5e9 on the covariance against 2.0e4, 1.6e4 and 1.9e8 here) so a
+model that is merely badly scaled no longer trips the check. The
 covariance number is still reported, as
 <code>covariance_condition_number</code>, for the numerical cost of
 inverting the Hessian; <code>pdHess</code> and
@@ -272,49 +301,80 @@ inverting the Hessian; <code>pdHess</code> and
 fails. The thresholds were held at 1e6/1e10 on three models:
 <code>BS2017SS</code> sits at 2.0e4, roughly 1.7 orders below
 <code>WARN</code>.</p>
-<p>The parameters carrying the top 90% of each block’s loading are then
+<p>The parameters holding the top 90% of each block’s loading are then
 named by fleet, bin and year, with a count: a ridge over ten years and
 one over a single year read differently. Complements
 <code><a href="https://rdrr.io/pkg/TMBhelper/man/check_estimability.html" class="external-link">TMBhelper::check_estimability</a></code>, which gives a per-parameter
 verdict, with a continuous severity and a direction.</p>
 </li>
-<li><p><strong><code>parameters_on_bounds</code></strong> — parameters
-that hit a configured <code><a href="../reference/build_bounds.html">build_bounds()</a></code> limit (often
-unidentified or mis-scaled).</p></li>
-<li><p><strong><code>variance_collapse</code></strong> — a deviation
+<li><p><strong><code>parameters_on_bounds</code></strong>: parameters
+that sit ON a configured <code><a href="../reference/build_bounds.html">build_bounds()</a></code> limit (often
+unidentified or mis-scaled). <code>WARN</code>: the edge of the
+plausible range is still a well-posed optimum.</p></li>
+<li><p><strong><code>parameters_outside_bounds</code></strong>:
+parameters PAST one, which is a different verdict and a
+<code>FAIL</code> – the optimizer returned a value the model declared
+implausible. <code><a href="../reference/fit_mod.html">fit_mod()</a></code> passes the bounds to
+<code>nlminb</code>, which respects them, but the Newton refinement
+<code>fit_control(newtonsteps)</code> asks for afterwards is
+unconstrained, so a parameter parked on a bound can be pushed through
+it. Refit with <code>newtonsteps = 0</code>, the default.</p></li>
+<li><p><strong><code>variance_collapse</code></strong>: a deviation
 standard deviation estimated to zero (<code>WARN</code> below 1e-3),
 meaning the process it governs is not varying: a model configured as
 time-varying has fitted something time-invariant. Covers the
 recruitment, selectivity, catchability, M1 and linkage random-effect
 standard deviations. <code>WARN</code> rather than <code>FAIL</code>
-because a variance at the boundary is a well-posed optimum — a verdict
-about the model, not the optimizer — and it can occur with a perfectly
+because a variance at the boundary is a well-posed optimum (a verdict
+about the model, not the optimizer) and it can occur with a perfectly
 clean gradient, which is the case nothing else catches.</p></li>
-<li><p><strong><code>phasing</code></strong> — phases that ended with a
+<li>
+<p><strong><code>stock_recruit</code></strong>: whether the fitted
+curve is one the data informed. In a single-species model it is read
+against the replacement line through steepness. Under predation
+steepness does not exist (it needs spawning biomass per recruit), so the
+curve is read over the observed SSB range instead: <code>WARN</code>
+when it is flat there (recruitment independent of SSB), linear (no
+density dependence), when a Ricker peaks below the lowest observed SSB,
+when log alpha or log beta sits at its +/-30 bound, or when a log-scale
+standard error exceeds</p>
+<ol start="10" style="list-style-type: decimal">
+<li>A curve held at its inputs is a <code>NOTE</code>.</li>
+</ol>
+</li>
+<li><p><strong><code>phasing</code></strong>: phases that ended with a
 high gradient, localizing which parameter block is hard to fit.</p></li>
-<li><p><strong><code>estimability</code></strong> — surfaces
+<li><p><strong><code>estimability</code></strong>: surfaces
 <code><a href="https://rdrr.io/pkg/TMBhelper/man/check_estimability.html" class="external-link">TMBhelper::check_estimability</a></code> when it ran.</p></li>
 </ul>
 <div class="section level3">
 <h3 id="naming-the-parameter-not-just-the-block">Naming the parameter, not just the block<a class="anchor" aria-label="anchor" href="#naming-the-parameter-not-just-the-block"></a>
 </h3>
 <p>TMB names every element of <code>obj$par</code> after its parameter
-block, so on their own <code>estimability</code>,
-<code>parameters_on_bounds</code> and <code>hessian_conditioning</code>
-could say <code>sel_coff_dev</code> was flagged but not which of its 392
-elements. Each now reports the fleet, sex, bin and year instead, from
-[<code><a href="../reference/parameter_index.html">parameter_index()</a></code>]:</p>
-<pre><code>[FAIL] estimability  49 non-identifiable fixed parameter(s)
-  sel_coff_dev  GOA_pollock_fishery, bins 1-8, 2013-2018  (41)</code></pre>
-<p>The three checks do not all count positions in the same vector.
-<code>estimability</code> and <code>parameters_on_bounds</code> are
-captured from the hindcast optimization;
+block, so on their own <code>max_gradient</code>,
+<code>estimability</code>, the two bounds checks and
+<code>hessian_conditioning</code> could say <code>sel_coff_dev</code>
+was flagged but not which of its 392 elements. Each now reports the
+fleet, sex, age, bin and year instead, from
+[<code><a href="../reference/parameter_index.html">parameter_index()</a></code>], and follows the block name with the
+quantity it estimates, from [<code><a href="../reference/parameter_dictionary.html">parameter_dictionary()</a></code>]:</p>
+<pre><code>  [WARN] max_gradient     Maximum absolute marginal gradient = 0.00222 on log_M1 (M1): Pollock, age 1.
+  [WARN] hessian_conditioning Condition number = 2.4e+06; loads on: log_F (F): 67% + rec_dev (recruitment deviations): 26%.
+  log_F (F)                        Hake_fishery, 38 years in 1980-2021  (38 of 44 parameters; 67% of the direction)
+  rec_dev (recruitment deviations) 24 years in 1981-2013  (24 of 44 parameters; 26% of the direction)</code></pre>
+<p>A scattered set of years or ages is counted against its span (“38
+years in 1980-2021”); a consecutive run prints as a range. The count in
+parentheses is how many of the block’s parameters carry 90% of its
+loading.</p>
+<p>The checks do not all count positions in the same vector.
+<code>max_gradient</code>, <code>estimability</code> and the two bounds
+checks are captured from the hindcast optimization;
 <code>hessian_conditioning</code> reads the <code>sdreport</code>, which
 under an estimating HCR belongs to the projection fit and holds only
 <code>log_Ftarget</code> / <code>log_Flimit</code>. Each check therefore
 verifies that the index describes the vector it is about to label, and
-prints block names alone when it does not — a coordinate naming the
-wrong parameter is worse than no coordinate.</p>
+prints block names alone when it does not: a coordinate naming the wrong
+parameter is worse than no coordinate.</p>
 <p><code><a href="../reference/parameter_index.html">parameter_index()</a></code> itself describes <code>fit$obj</code>,
 which under any HCR but <code>"NoFishing"</code> is that projection
 object. Pass a fit run with <code>estimateMode = "Hindcast"</code> to
@@ -342,7 +402,7 @@ and males below zero.</p>
 biomass; pass <code>log = TRUE</code> for the log scale.
 <code><a href="../reference/plot_indexresidual.html">plot_indexresidual()</a></code> plots the residuals as observed minus
 predicted, on whichever scale the fleet is fitted on (log for a
-<code>Lognormal</code> fleet, the natural scale for the others) — a
+<code>Lognormal</code> fleet, the natural scale for the others), a
 useful first check for time trends or heteroscedasticity. A positive
 residual means the survey saw more than the model predicted. These
 return <code>ggplot</code> objects.</p>
@@ -357,7 +417,7 @@ or fixed mean, annual deviations under <code>Time_varying_q</code>, an
 environmental regression, a <code>q</code> linkage such as
 <code>rw(1 | Year)</code>, and the closed-form <code>"Analytical"</code>
 value. A fleet with a time-invariant <code>q</code> draws a flat line.
-Hindcast years only — the model does not project catchability.</p>
+Hindcast years only, the model does not project catchability.</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_catchability.html">plot_catchability</a></span><span class="op">(</span><span class="va">model_1</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/plot_catchability.html">plot_catchability</a></span><span class="op">(</span><span class="va">model_1</span>, log <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
@@ -376,9 +436,9 @@ Hindcast years only — the model does not project catchability.</p>
 normal even when the model is correct: the age/length bins are
 correlated (more fish in one bin means fewer in another), and random
 effects induce correlation across years. They are at least standardized
-by the variance the fleet’s own likelihood assumes – the composition
+by the variance the fleet’s own likelihood assumes: the composition
 weight enters as an effective sample size under a multinomial, and a
-Dirichlet-multinomial’s overdispersion is in the denominator – so a
+Dirichlet-multinomial’s overdispersion is in the denominator, so a
 weighted or DM fleet is not inflated on that account alone.
 One-step-ahead (OSA) residuals remove both problems. Each observation is
 residualized conditional on the observations added before it,
@@ -387,11 +447,11 @@ the residuals are iid standard normal (Thygesen et al. 2017; Trijoulet
 et al. 2023). This makes them suitable for objective goodness-of-fit
 testing.</p>
 <p><code><a href="../reference/osa_residuals.html">osa_residuals()</a></code> computes them <em>post hoc</em> for any
-combination of the fitted data types – survey indices
+combination of the fitted data types, survey indices
 (<code>"index"</code>), fishery catch (<code>"catch"</code>), age/length
 composition (<code>"comp"</code>), conditional age-at-length
 (<code>"caal"</code>), predator diet (<code>"diet"</code>), and, where a
-linkage carries an observed state-space covariate, the covariate
+linkage holds an observed state-space covariate, the covariate
 observation itself (<code>"ecov"</code>). Composition data use the
 conditional binomial / beta-binomial decomposition. Because OSA
 re-optimizes the random effects for each observation it is expensive, so
@@ -399,8 +459,8 @@ run it on a converged fit (<code>estimateMode &lt; 3</code>). All
 sources are available from any fit; <code><a href="../reference/osa_residuals.html">osa_residuals()</a></code> builds
 the required observation data on demand and skips a requested source the
 model has no observations for (it errors only if <em>none</em> of them
-do). <code>"diet"</code> is the one source not in the default set – it
-applies only to multispecies models and can be slow – so pass
+do). <code>"diet"</code> is the one source not in the default set, it
+applies only to multispecies models and can be slow, so pass
 <code>source = "all"</code> to include it.</p>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Aggregate (catch + index) residuals</span></span>
@@ -418,9 +478,275 @@ applies only to multispecies models and can be slow – so pass
 <span><span class="co"># the data, like `type` in stats::residuals.glm()):</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/stats/residuals.html" class="external-link">residuals</a></span><span class="op">(</span><span class="va">model_1</span>, type <span class="op">=</span> <span class="st">"osa"</span>, source <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"index"</span>, <span class="st">"catch"</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Composition OSA residuals -- no special fit required</span></span>
+<span><span class="co"># Composition OSA residuals, no special fit required</span></span>
 <span><span class="fu"><a href="../reference/plot_comp.html">plot_comp</a></span><span class="op">(</span><span class="va">model_1</span>, residual_type <span class="op">=</span> <span class="st">"osa"</span><span class="op">)</span>              <span class="co"># Q-Q + signed bubbles</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/stats/residuals.html" class="external-link">residuals</a></span><span class="op">(</span><span class="va">model_1</span>, type <span class="op">=</span> <span class="st">"osa"</span>, source <span class="op">=</span> <span class="st">"comp"</span><span class="op">)</span></span></code></pre></div>
+<p>A triangle marks an outlier. On the OSA panel the cut is
+<code>qnorm(1 - 0.05 / (2 n))</code> for the panel’s <code>n</code>
+residuals, so under the model a panel shows 0.05 triangles on average
+whatever its size. The Pearson panel keeps <code>|resid| &gt; 3</code>:
+those residuals are sum-constrained and overdispersed, not N(0, 1).</p>
+<div class="section level3">
+<h3 id="choosing-the-one-step-ahead-method">Choosing the one-step-ahead method<a class="anchor" aria-label="anchor" href="#choosing-the-one-step-ahead-method"></a>
+</h3>
+<p><code>method</code> selects how the conditional distribution is read.
+The default, <code>"oneStepGaussianOffMode"</code> (WHAM’s and SAM’s),
+approximates it as Gaussian: the observation is treated as a free
+variable, the mode of the conditional density is found in that
+coordinate, and the observation is standardized against it.</p>
+<p><code>method = "cdf"</code> instead asks the model for the
+conditional CDF and returns <code>qnorm(F(x))</code>. For a composition
+bin the conditional is a binomial, written through the regularized
+incomplete beta so it is defined at the fractional counts composition
+data hold; for the aggregate series it is <code>pnorm</code>. On a
+fixed-effect model nothing is approximated; with random effects see
+below.</p>
+<p>The two do not agree on composition data, and the disagreement is
+measurable. Simulating observations from a fitted model and
+residualizing them at the parameters that generated them makes the right
+answer exactly standard normal, so the methods can be scored
+(<code>tools/verify/verify-osa-cdf.R</code>, BS2017SS, 20 replicates of
+4538 composition bins):</p>
+<table class="table">
+<colgroup>
+<col width="20%">
+<col width="20%">
+<col width="20%">
+<col width="20%">
+<col width="20%">
+</colgroup>
+<thead><tr class="header">
+<th>method</th>
+<th>mean</th>
+<th>sd</th>
+<th>lag-1 acf within a composition</th>
+<th>KS rejects</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td><code>oneStepGaussianOffMode</code></td>
+<td>+0.103</td>
+<td>0.918</td>
+<td>+0.060</td>
+<td>every replicate</td>
+</tr>
+<tr class="even">
+<td>
+<code>cdf</code>, <code>discrete = FALSE</code>
+</td>
+<td>+0.610</td>
+<td>1.262</td>
+<td>+0.434</td>
+<td>every replicate</td>
+</tr>
+<tr class="odd">
+<td>
+<code>cdf</code>, <code>discrete = TRUE</code>
+</td>
+<td>−0.007</td>
+<td>0.995</td>
+<td>+0.001</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>The null standard error on the autocorrelation is 0.015, so only the
+last row is consistent with the residuals being iid standard normal. A
+composition bin holds a count, so its conditional CDF is a step function
+and <code>qnorm(F(x))</code> inherits the step; the randomized quantile
+residual <code>qnorm(F(x) − U f(x))</code> (Dunn and Smyth 1996, as
+Trijoulet et al. 2023 prescribe) removes it. That is why
+<code>discrete</code> defaults to <code>TRUE</code> under
+<code>"cdf"</code>, and why <code>"cdf"</code> with
+<code>discrete = FALSE</code> is the worst of the three, not the best.
+On the aggregate index and catch series, which really are Gaussian, all
+three agree to 5e-5 wherever the 8.04 ceiling below does not bind.</p>
+<p>The step it randomizes over is the <strong>model’s</strong>, not the
+data’s: the counts the likelihood reads are
+<code>proportion × Sample_size</code>, so on a fleet whose sample size
+has been tuned they are not whole fish. That is the right choice: an OSA
+residual asks whether the observation is consistent with the model as
+specified, but it is worth knowing that a heavily down-weighted fleet is
+being residualized against a multinomial it was never sampled from.</p>
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">osa_cdf</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/osa_residuals.html">osa_residuals</a></span><span class="op">(</span><span class="va">model_1</span>, source <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"index"</span>, <span class="st">"comp"</span><span class="op">)</span>, method <span class="op">=</span> <span class="st">"cdf"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/osa_diagnostics.html">osa_diagnostics</a></span><span class="op">(</span><span class="va">osa_cdf</span><span class="op">)</span></span></code></pre></div>
+<p>Three things to know before switching:</p>
+<ul>
+<li><p><strong><code>predicted</code> is <code>NA</code> on every
+row.</strong> The method never forms a conditional mean, which is the
+point, under the Gaussian methods that mean is an expected bin count
+that can come back negative on a sparse bin, and the residual on those
+rows is then biased positive. Fitted values are in
+<code>model_1$quantities</code> and in
+<code>residuals(model_1, type = "pearson")</code>. (<code>sd</code> is
+<code>NA</code> under the default method as well; only
+<code>method = "oneStepGaussian"</code> returns one.)</p></li>
+<li><p><strong>A Dirichlet-multinomial fleet cannot use it.</strong> Its
+conditional is a beta-binomial, which has no closed-form CDF and cannot
+be summed at a fractional count. Those fleets are residualized with
+<code>"oneStepGaussianOffMode"</code>, announced in a message, and
+recorded in the object’s <code>method</code> attribute. Their
+<code>predicted</code> is blanked too, so the column keeps one meaning
+across the object.</p></li>
+<li>
+<p><strong><code>|residual|</code> is censored at 8.04, in both
+directions.</strong> The upper end is forced by double precision,
+<code>F</code> is recovered as <code>1/(1 + exp(.))</code>, which
+saturates at the last double below one. The lower end is not: that same
+expression takes a small <code>F</code> down to about 1e-308. It is
+censored to match anyway, because an asymmetric ceiling would show as a
+long left tail against a wall on the right, which is what skewness in
+the residuals looks like. The cost is real,
+<code><a href="../reference/osa_diagnostics.html">osa_diagnostics()</a></code> computes SDNR and the tail statistics on
+the censored values, so it bites hardest on a short series where one
+observation holds the statistic. <code><a href="../reference/osa_residuals.html">osa_residuals()</a></code> warns when
+any residual sits there. Which method to reach for then is measured, not
+obvious (<code>tools/verify/verify-osa-cdf-accuracy.R</code>, a 12-year
+survey with one observation multiplied by 200):</p>
+<table class="table">
+<thead><tr class="header">
+<th>method</th>
+<th>min</th>
+<th>max</th>
+<th>non-finite</th>
+<th>SDNR</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td><code>oneStepGaussianOffMode</code></td>
+<td>−11.77</td>
+<td>0.19</td>
+<td>1</td>
+<td><code>NA</code></td>
+</tr>
+<tr class="even">
+<td><code>oneStepGaussian</code></td>
+<td>−11.77</td>
+<td>38.98</td>
+<td>0</td>
+<td>12.89</td>
+</tr>
+<tr class="odd">
+<td><code>oneStepGeneric</code></td>
+<td>−3.95</td>
+<td>3.33</td>
+<td>0</td>
+<td>2.21</td>
+</tr>
+<tr class="even">
+<td><code>cdf</code></td>
+<td>−8.04</td>
+<td>8.04</td>
+<td>0</td>
+<td>4.59</td>
+</tr>
+</tbody>
+</table>
+<p>Only <code>"oneStepGaussian"</code> reports the uncensored value
+here: the package default returns <code>NaN</code> on that row, so its
+SDNR is unusable rather than merely large, and
+<code>"oneStepGeneric"</code> compresses the outlier harder than the
+ceiling does. The default’s failure is magnitude-dependent (at a ×20
+outlier it is finite and matches <code>"oneStepGaussian"</code>) so
+reach for that method specifically, and on the fleet in question: it
+costs an <code>nlminb</code> per observation.</p>
+</li>
+</ul>
+</div>
+<div class="section level3">
+<h3 id="with-random-effects-the-choice-reverses-for-the-aggregate-series">With random effects, the choice reverses for the aggregate
+series<a class="anchor" aria-label="anchor" href="#with-random-effects-the-choice-reverses-for-the-aggregate-series"></a>
+</h3>
+<p><code>"cdf"</code> is exact only on a fixed-effect model. With random
+effects <code>oneStepPredict()</code> integrates the CDF over the latent
+states by Laplace, and that integrand is a Gaussian times a sigmoid
+rather than a density, where, for a Gaussian observation, the Gaussian
+methods integrate a density and are exact. Measured against the exact
+Kalman innovations of a linear-Gaussian state space model, as the latent
+state becomes more informative relative to the observation (reproduced
+by <code>tools/verify/verify-osa-cdf-accuracy.R</code>):</p>
+<table class="table">
+<thead><tr class="header">
+<th>latent/observation sd</th>
+<th><code>fullGaussian</code></th>
+<th><code>oneStepGaussian</code></th>
+<th><code>cdf</code></th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td>0.56</td>
+<td>4e-16</td>
+<td>3e-14</td>
+<td>7e-04</td>
+</tr>
+<tr class="even">
+<td>1.12</td>
+<td>1e-15</td>
+<td>4e-14</td>
+<td>6e-03</td>
+</tr>
+<tr class="odd">
+<td>2.24</td>
+<td>1e-15</td>
+<td>3e-14</td>
+<td>4e-02</td>
+</tr>
+</tbody>
+</table>
+<p><strong>That is a result about a linear-Gaussian model, and it does
+not transfer wholesale.</strong> The Gaussian methods are exact when the
+one-step-ahead <em>predictive</em> is Gaussian, which needs the model to
+be linear in the random effects, and Rceattle’s index and catch are
+<code><a href="https://rdrr.io/r/base/Log.html" class="external-link">exp()</a></code> of cumulated log recruitment deviations pushed
+through the population dynamics. <code>fullGaussian</code> and
+<code>oneStepGaussian</code> cannot differ for a Gaussian conditional,
+so their disagreement measures the departure: on a 17-deviation fixture
+they differ by 0.091 on both index and catch, while <code>"cdf"</code>
+differs from <code>oneStepGaussian</code> by 0.017 on index. <strong>No
+method is exact for index or catch under random effects.</strong></p>
+<p><strong><code>"ecov"</code> is the exception, and there a Gaussian
+method is right.</strong> Its conditional (a Gaussian measurement of an
+AR1 latent, every other data term unconditional) genuinely is
+linear-Gaussian: the two Gaussian methods agree to 4e-14 on the QAR1
+fixture, while <code>"cdf"</code> sits 0.139 away, about a quarter of
+the residual sd. It does not reverse for compositions: their conditional
+is discrete and skewed, which is what the Gaussian methods get wrong,
+and by much more. Simulating from a 22-random-effect model with the
+recruitment deviations redrawn and residualizing at the generating
+parameters (1680 residuals), <code>oneStepGaussianOffMode</code> gives
+mean +0.513, sd 0.404 and KS rejection in every one of 120 replicates,
+against +0.006, sd 1.002 and 6 of 120, the nominal 5%, for
+<code>"cdf"</code> with <code>discrete = TRUE</code>.</p>
+<p>What limits <code>"cdf"</code> on compositions is the depth of the
+conditioning rather than the random effects themselves. On
+<code>BS2017SS</code> with <code>random_rec = TRUE</code> (159 random
+effects, 4538 composition bins) it returns 1879 non-finite residuals,
+against 0 for <code>"oneStepGaussianOffMode"</code> on the same fit, and
+takes hours; the same rows residualized on their own come back clean,
+and the 22-random-effect model above is residualized correctly. So try
+it, read the warning it issues, and where the residuals come back
+non-finite in bulk fall back to a Gaussian method for that source,
+remembering that its composition residuals are the under-dispersed ones
+in the comparison above.</p>
+<p>Both halves of that split are what the SAM authors do, in two
+packages. <code>stockassessment::residuals.sam()</code> names no method,
+so it takes <code>oneStepPredict()</code>’s
+<code>"oneStepGaussianOffMode"</code> default with
+<code>discrete = FALSE</code>, on a model that is random effects
+throughout, whose observations are Gaussian on the log scale. Their
+composition package <code>compResidual::resMulti()</code>, the
+implementation Trijoulet et al. (2023) cite, instead hardcodes
+<code>method = "cdf", discrete = TRUE</code>. Rceattle fits both kinds
+of data, so it makes the same choice per observation type inside one
+call rather than across two packages.</p>
+<p>One caveat that applies to every method:
+<code>Estimate_index_sd = "Analytical"</code> and the analytical
+<code>Catchability</code> forms concentrate their parameter out using
+<strong>all</strong> the observations, including the one being
+residualized, so the conditioning is not strictly one-step-ahead and the
+residuals are approximate.</p>
+</div>
 <div class="section level3">
 <h3 id="fleets-with-tail-accumulation">Fleets with tail accumulation<a class="anchor" aria-label="anchor" href="#fleets-with-tail-accumulation"></a>
 </h3>
@@ -445,7 +771,7 @@ the Pearson residuals and not in the OSA residuals.</p>
 (<code>plot_comp(model_1)</code>): systematic lack of fit here points to
 structural misspecification (e.g. the wrong selectivity shape). Counts
 are pooled across the fitted hindcast years, and the interval holds 95%
-of the data the model predicts – not a confidence interval on the mean –
+of the data the model predicts, not a confidence interval on the mean,
 so observations outside it are the ones to explain. The panel is
 annotated with the input sample size, the effective sample size the
 likelihood assumed (<code>ESS (likelihood)</code>), and the one this
@@ -460,10 +786,10 @@ effective-sample-size issue.</li>
 <li>
 <strong>Compare the lower/upper tail statistics</strong> to their
 null intervals: these localize departures to the tails of the residual
-distribution. They are reported as order statistics –
+distribution. They are reported as order statistics,
 <code>lower_r</code> / <code>upper_r</code> name which one, and
 <code>lower_p</code> / <code>upper_p</code> the nominal probability it
-sits at, which is near but not exactly 2.5% – against the exact
+sits at, which is near but not exactly 2.5%, against the exact
 <code>Beta(r, n - r + 1)</code> null. The statistic and its interval
 must come from the same estimator, so <code><a href="../reference/osa_diagnostics.html">osa_diagnostics()</a></code> no
 longer simulates and its <code>nsim</code> / <code>seed</code> arguments
@@ -473,8 +799,8 @@ those.</li>
 <li>
 <strong>Inspect Pearson bubble plots</strong>
 (<code>plot_comp(model_1)</code>, the default): patterns in the sign of
-residuals across age/year can identify <em>where</em> lack of fit occurs
-– Stewart and Monnahan recommend keeping these alongside OSA
+residuals across age/year can identify <em>where</em> lack of fit
+occurs, Stewart and Monnahan recommend keeping these alongside OSA
 residuals.</li>
 <li>
 <strong>Revise the model or data weighting</strong> where
@@ -485,14 +811,14 @@ diagnostics rather than as an accept/reject test.</li>
 one, <code><a href="../reference/reweight_comps.html">reweight_comps()</a></code> runs the McAllister-Ianelli (1997)
 tuning loop: it refits the model the way it was fitted, updating each
 fleet’s <code>Comp_weights</code> until the implied weights settle.</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">tuned</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/reweight_comps.html">reweight_comps</a></span><span class="op">(</span><span class="va">model_1</span>, n_iter <span class="op">=</span> <span class="fl">10</span>, tol <span class="op">=</span> <span class="fl">0.01</span><span class="op">)</span></span>
 <span><span class="va">tuned</span><span class="op">$</span><span class="va">reweight</span><span class="op">$</span><span class="va">history</span>    <span class="co"># weight per fleet, per iteration</span></span></code></pre></div>
 <p>Restrict it to particular fleets with <code>fleets =</code>, taking
 either <code>Fleet_code</code> values or names matching
-<code>fleet_control$Fleet_name</code> — give ids or names, not a mix,
+<code>fleet_control$Fleet_name</code>, give ids or names, not a mix,
 since R coerces <code>c(1, "Survey")</code> to character.</p>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">tuned</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/reweight_comps.html">reweight_comps</a></span><span class="op">(</span><span class="va">model_1</span>, fleets <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Survey_1"</span>, <span class="st">"Fishery_1"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <p>Only multinomial fleets are tuned. A Dirichlet-multinomial fleet
 estimates its own weight inside the likelihood, so tuning it externally
@@ -501,7 +827,7 @@ skipped.</p>
 <p>The alternatives are Francis (2011) reweighting, applied by hand, and
 estimating the weights directly with a Dirichlet-multinomial likelihood
 (<code>Comp_distribution = "DirichletMultinomial"</code>), which avoids
-the iteration entirely — note that under that likelihood
+the iteration entirely, note that under that likelihood
 <code>Comp_weights</code> is read as the <strong>log</strong> of the
 starting weight, so the model default of <code>1</code> is a starting
 weight of <em>e</em>, and a weight of 1 is written as
@@ -519,7 +845,7 @@ deviations (recruitment, initial abundance, catchability) against their
 process prior, drawing once from the joint posterior (SAM’s
 <code>procres</code>; Nielsen and Berg 2014). Under a correct process
 model these too are approximately iid standard normal.</p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">pr</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/process_residuals.html">process_residuals</a></span><span class="op">(</span><span class="va">model_1</span>, process <span class="op">=</span> <span class="st">"recruitment"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/osa_diagnostics.html">osa_diagnostics</a></span><span class="op">(</span><span class="va">pr</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">pr</span><span class="op">)</span></span>
@@ -535,7 +861,7 @@ model these too are approximately iid standard normal.</p>
 peel at a time and re-fits the model. Mohn’s rho summarizes how the
 terminal estimates shift across peels; for SSB, a rho outside ±0.2
 generally signals a problem worth investigating.</p>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">model_1_retro</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/retrospective.html">retrospective</a></span><span class="op">(</span><span class="va">model_1</span>, peels <span class="op">=</span> <span class="fl">5</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Mohn's rho for each quantity</span></span>
@@ -546,7 +872,7 @@ generally signals a problem worth investigating.</p>
 <span></span>
 <span><span class="co"># Include the projection period to see how the forecast changes</span></span>
 <span><span class="fu"><a href="../reference/plot_biomass.html">plot_biomass</a></span><span class="op">(</span><span class="va">model_1_retro</span><span class="op">$</span><span class="va">Rceattle_list</span>, incl_proj <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
-<p>Each peel carries its own terminal year as
+<p>Each peel holds its own terminal year as
 <code>data_list$endyr</code>, so the first plot draws every peel only as
 far as it was fit and the peels fan out.</p>
 <p>A peel still estimates the years it dropped: they are its
@@ -570,7 +896,7 @@ rule takes over after it, so each peel has three years:</p>
 <td>
 <code>endyr</code>, <code>endyr_peel</code>
 </td>
-<td>the peel’s terminal year — what it was fit through</td>
+<td>the peel’s terminal year, what it was fit through</td>
 </tr>
 <tr class="even">
 <td><code>endyr_full</code></td>
@@ -585,7 +911,7 @@ ends</td>
 </table>
 <p><code>incl_proj = TRUE</code> plots the forecast and projection
 years. Take the forecast years as
-<code>endyr_peel + seq_len(endyr_full - endyr_peel)</code> — empty for
+<code>endyr_peel + seq_len(endyr_full - endyr_peel)</code>, empty for
 the unpeeled model, where <code>(endyr_peel + 1):endyr_full</code> would
 count down instead.</p>
 <p>The <code><a href="../reference/retrospective.html">retrospective()</a></code> function returns a list with two
@@ -621,7 +947,7 @@ rho for years projected beyond each terminal peel, so a single call
 quantifies forecast skill alongside retrospective bias.</p>
 <p>A peel that did not converge is dropped and a message reports how
 many, so <code>Rceattle_list</code> can be shorter than
-<code>peels + 1</code>. Index it by name rather than position — with a
+<code>peels + 1</code>. Index it by name rather than position, with a
 peel missing, <code>Rceattle_list[[3]]</code> is not the 3-year peel. If
 no peel converges, Mohn’s rho is <code>NaN</code> and the call
 warns.</p>
@@ -634,7 +960,7 @@ starting values and checks whether the optimizer keeps returning the
 same minimum negative log-likelihood (NLL). A spread of NLL values
 across jitters points to multiple local minima, so the results should be
 treated with caution.</p>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">jitters</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/jitter.html">jitter</a></span><span class="op">(</span><span class="va">model_1</span>, njitter <span class="op">=</span> <span class="fl">10</span>, phase <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>  <span class="co"># default njitter = 50</span></span>
 <span></span>
 <span><span class="co"># Histogram of NLL differences relative to the best run</span></span>
@@ -642,7 +968,7 @@ treated with caution.</p>
 <span>     main <span class="op">=</span> <span class="st">"Jitter NLL spread (log scale)"</span>,</span>
 <span>     xlab <span class="op">=</span> <span class="st">"log(NLL - min NLL)"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Overlay biomass trajectories — tight overlap indicates a stable optimum</span></span>
+<span><span class="co"># Overlay biomass trajectories, tight overlap indicates a stable optimum</span></span>
 <span><span class="fu"><a href="../reference/plot_biomass.html">plot_biomass</a></span><span class="op">(</span><span class="va">jitters</span><span class="op">$</span><span class="va">Rceattle_list</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Number of runs that converged</span></span>
@@ -653,9 +979,9 @@ is well below <code>njitter</code>, convergence is fragile. Read that
 count as part of the result, not as a nuisance: the dropped starts are
 the ones that wandered off, so a jitter test that returns only its
 successes understates the spread.</p>
-<p>A run is dropped when its maximum absolute gradient exceeds 1 — the
+<p>A run is dropped when its maximum absolute gradient exceeds 1 (the
 same threshold <code><a href="../reference/convergence_diagnostics.html">convergence_diagnostics()</a></code> calls
-<code>FAIL</code> — or when an <code>sdreport</code> that was requested
+<code>FAIL</code>) or when an <code>sdreport</code> that was requested
 did not come back.</p>
 <p><code><a href="../reference/retrospective.html">retrospective()</a></code> and <code><a href="../reference/jitter.html">jitter()</a></code> both fit peels
 / starts in parallel by default. Pass <code>cores = 1</code> to force
@@ -667,18 +993,18 @@ sequential execution; otherwise the call uses a PSOCK cluster sized at
 <h2 id="self-test-simulationestimation">Self-test (simulation–estimation)<a class="anchor" aria-label="anchor" href="#self-test-simulationestimation"></a>
 </h2>
 <p><code><a href="../reference/self_test.html">self_test()</a></code> simulates <code>nsim</code> datasets from a
-fitted model — holding its estimated parameters fixed — and re-fits the
+fitted model (holding its estimated parameters fixed) and re-fits the
 model to each. If the refit estimates cluster around the values used to
 simulate them, the model is at least self-consistent: it can recover its
 own estimates from data it generated. Persistent bias or a wide spread
 in a quantity means the data are not informative about it.</p>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">sims</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/self_test.html">self_test</a></span><span class="op">(</span><span class="va">model_1</span>, nsim <span class="op">=</span> <span class="fl">10</span><span class="op">)</span>            <span class="co"># default nsim = 50</span></span>
 <span></span>
 <span><span class="co"># Number of simulations that converged (non-converged runs are dropped)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">sims</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Overlay biomass / SSB trajectories across simulations — the original fit's</span></span>
+<span><span class="co"># Overlay biomass / SSB trajectories across simulations, the original fit's</span></span>
 <span><span class="co"># trajectory should sit inside the spread of the refits.</span></span>
 <span><span class="fu"><a href="../reference/plot_biomass.html">plot_biomass</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">model_1</span><span class="op">)</span>, <span class="va">sims</span><span class="op">)</span>, model_names <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"fit"</span>, <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">sims</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/plot_ssb.html">plot_ssb</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">model_1</span><span class="op">)</span>, <span class="va">sims</span><span class="op">)</span>,     model_names <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"fit"</span>, <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">sims</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
@@ -686,16 +1012,16 @@ in a quantity means the data are not informative about it.</p>
 results are reproducible whether or not <code>cores &gt; 1</code>. Set
 <code>simulate = FALSE</code> to refit against the model’s
 <em>expected</em> values (no observation error) rather than draws from
-the observation likelihood — useful for confirming that the estimator
+the observation likelihood, useful for confirming that the estimator
 returns the generating parameters in the noise-free limit.
 <code>cores</code> behaves the same way as in
 <code><a href="../reference/retrospective.html">retrospective()</a></code> and <code><a href="../reference/jitter.html">jitter()</a></code>.</p>
 <p>Every refit starts from the fitted model’s <em>starting</em> values,
 not its estimates, so it covers the same ground the original fit did.
 <code>phase</code> therefore defaults to whatever the input model was
-fit with — pass <code>phase = TRUE</code> explicitly if you fit the
-model some other way and the refits are being dropped, since a model
-that needed phasing once needs it for every simulated data set too.
+fit with, pass <code>phase = TRUE</code> explicitly if you fit the model
+some other way and the refits are being dropped, since a model that
+needed phasing once needs it for every simulated data set too.
 <code>start = "estimated"</code> starts from the fitted estimates
 instead: much faster, but the optimizer then begins inside the basin
 containing the generating values and recovery is close to guaranteed by
@@ -703,18 +1029,18 @@ construction, so read it as optimistic about recovery rather than simply
 less powerful.</p>
 <p>Three things to keep in mind when reading the result. Non-converged
 refits are dropped and reported in a message, and they are dropped
-<em>because</em> they behaved badly — so the returned replicates are a
+<em>because</em> they behaved badly (so the returned replicates are a
 favourable subset, and any spread or bias computed over them (including
 <code><a href="../reference/compare_sim.html">compare_sim()</a></code>’s CV) understates the truth. By default only
 the observations are redrawn: every replicate shares the operating
 model’s single realization of recruitment and mortality, so the spread
-across replicates is observation error alone — a lower bound on
+across replicates is observation error alone) a lower bound on
 estimation uncertainty in SSB and recruitment, not comparable to the
 model’s own uncertainty bands.</p>
 <p>Third, watch for a truncation warning on a natural-scale index. A
 fleet with <code>Index_distribution = "Normal"</code>,
 <code>"MVN"</code> or <code>"MVNORM"</code> is drawn on the natural
-scale with an absolute sd, so a draw can come out negative — impossible
+scale with an absolute sd, so a draw can come out negative (impossible
 for an index, and rejected by <code><a href="../reference/data_check.html">data_check()</a></code>. Those draws are
 redrawn, which samples the fleet from a normal <em>truncated at
 zero</em> rather than the untruncated normal the likelihood maximises.
@@ -723,13 +1049,13 @@ observed at 0.70 with an absolute sd of 0.80 rejects a fifth of its
 draws and the truncated mean sits 39% above the untruncated one, so the
 self-test is measuring recovery against a data-generating process the
 estimator never assumed. <code><a href="../reference/sim_mod.html">sim_mod()</a></code> warns when any row puts
-more than 2% of its probability at or below zero —
+more than 2% of its probability at or below zero)
 <code>Phi(-mu/sd)</code>, read off the fit rather than counted from the
 draw, so it does not vary between replicates.</p>
 <p>The fix for a <code>Normal</code> fleet is
 <code>Index_distribution = "TruncatedNormal"</code>, which fits the
-truncated density — renormalized by <code>log Φ(µ/σ)</code> over the
-<code>(0, ∞)</code> the data can actually occupy — and draws from it by
+truncated density, renormalized by <code>log Φ(µ/σ)</code> over the
+<code>(0, ∞)</code> the data can actually occupy, and draws from it by
 inverse CDF. Draw and likelihood then agree exactly and no draw is ever
 rejected. <code>"Normal"</code> is kept untruncated because it
 reproduces the AMAK <code>avo_like</code> / <code>cpue_like</code> term
@@ -738,13 +1064,12 @@ and <code>"TruncatedNormal"</code> elsewhere.
 <code>MVN</code>/<code>MVNORM</code> have no such option: a multivariate
 normal truncated to the positive orthant has no closed-form sampler, so
 rejection is the only route and the gap stays. Either way the underlying
-issue is the same — an absolute sd that large relative to the index
-means the natural-scale normal was a poor observation model to begin
-with.</p>
+issue is the same, an absolute sd that large relative to the index means
+the natural-scale normal was a poor observation model to begin with.</p>
 <p><code>"TruncatedNormal"</code> OSA residuals need one thing said
 about them. The truncation constant is a function of the prediction, not
 of the observation, so it drops out of any method that reads the
-curvature of the density in the observation — including
+curvature of the density in the observation, including
 <code>oneStepPredict()</code>’s default
 <code>oneStepGaussianOffMode</code>, which would return the untruncated
 <code>(obs - µ)/σ</code>. <code><a href="../reference/osa_residuals.html">osa_residuals()</a></code> therefore
@@ -755,6 +1080,11 @@ mass: on a fleet predicting 100 with an absolute sd of 150, an
 observation exactly at the prediction moves from a residual of 0 to
 −0.44. You do not need to pass anything for this; <code>method</code> is
 overridden for those rows only.</p>
+<p>Under <code>method = "cdf"</code> none of that applies: the model
+supplies the truncated <code>F</code> in closed form, so the family is
+residualized in the main call, exactly, and the separate integration
+(with its cost and its occasional failure to converge on a
+random-effects model) is not needed.</p>
 <div class="section level3">
 <h3 id="redrawing-process-error">Redrawing process error<a class="anchor" aria-label="anchor" href="#redrawing-process-error"></a>
 </h3>
@@ -762,7 +1092,7 @@ overridden for those rows only.</p>
 (<code>FALSE</code>) asks whether the estimator recovers its own
 parameters from new observations; naming a process redraws that process
 too, and asks whether it recovers something it was not shown.</p>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Recruitment deviations redrawn as well as the observations</span></span>
 <span><span class="va">sims</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/self_test.html">self_test</a></span><span class="op">(</span><span class="va">model_1</span>, nsim <span class="op">=</span> <span class="fl">10</span>, process <span class="op">=</span> <span class="st">"recruitment"</span><span class="op">)</span></span>
 <span></span>
@@ -775,14 +1105,14 @@ deviations, since the initial numbers-at-age are recruitment from before
 random effects, and growth, catchability and selectivity are redrawn
 wherever they are written as a random linkage (see
 <code><a href="../articles/environmental-linkages-and-priors.html">vignette("environmental-linkages-and-priors")</a></code>). A process
-the model gives no distribution to — asking for M when
-<code>M1_re = 0</code>, say — is left alone and reported in a warning
+the model gives no distribution to (asking for M when
+<code>M1_re = 0</code>, say) is left alone and reported in a warning
 rather than silently returned unchanged.</p>
 <p>Recruitment has one such case worth knowing about. Under
-<code>srr_fun = 0</code> with <code>srr_pred_fun &gt; 0</code> — the
+<code>srr_fun = 0</code> with <code>srr_pred_fun &gt; 0</code> (the
 AMAK/Ianelli configuration, where recruitment is estimated annually and
 the stock-recruit curve is fitted as a <em>penalty</em> on those same
-deviations — the deviations are scored by two densities at once.</p>
+deviations) the deviations are scored by two densities at once.</p>
 <p>Two terms on one quantity do not compose into a distribution to draw
 from. Drawing at <code>R_sd</code> from the first alone ignores the
 second, and the second is not a density on the deviations alone either:
@@ -796,7 +1126,7 @@ deviations.</p>
 <p>The fitted deviations are no longer what generated the data, so the
 values that <em>did</em> come back attached to each replicate, each with
 a mask of the cells the draw touched:</p>
-<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">truth</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">sims</span>, <span class="st">"process_sim"</span><span class="op">)</span><span class="op">[[</span><span class="st">"Sim_1"</span><span class="op">]</span><span class="op">]</span></span>
 <span><span class="va">rec</span>   <span class="op">&lt;-</span> <span class="va">truth</span><span class="op">$</span><span class="va">rec_dev</span><span class="op">[</span><span class="va">truth</span><span class="op">$</span><span class="va">rec_dev_drawn</span><span class="op">]</span></span></code></pre></div>
 <p>Compare estimates against those, not against the operating model. The
@@ -809,7 +1139,7 @@ model, is not valid for <code>process</code>-drawn replicates.</p>
 <p>One caveat before reading a redrawn M as validation. On
 <code>BS2017SS</code> with a year-varying M random effect, refits
 recover the simulated deviations (correlation around 0.5, positive in
-every replicate) but recover their standard deviation poorly — roughly
+every replicate) but recover their standard deviation poorly, roughly
 70% low, and collapsing to zero in a third of replicates. That is the
 usual behaviour of a variance component estimated from little
 information, not a fault in the simulation, and a year-varying M is
@@ -819,7 +1149,7 @@ recovery rather than of variance recovery.</p>
 <p>When the returned list is shorter than <code>nsim</code>,
 <code>debug = TRUE</code> returns <em>every</em> simulation so the
 failures can be read directly rather than inferred:</p>
-<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">sims</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/self_test.html">self_test</a></span><span class="op">(</span><span class="va">model_1</span>, nsim <span class="op">=</span> <span class="fl">10</span>, debug <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">failed</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/which.html" class="external-link">which</a></span><span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">sims</span>, <span class="st">"converged"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
@@ -831,19 +1161,19 @@ failures can be read directly rather than inferred:</p>
 </h2>
 <p><code><a href="https://rdrr.io/r/stats/profile.html" class="external-link">profile()</a></code> re-fits the model across a grid of fixed
 values for a chosen parameter and returns the NLL surface. A flat
-profile means the data carry little information about the parameter; a
-minimum away from the MLE means the fit has not truly settled there. It
-supports the recruitment standard deviation, the stock–recruit
-parameters, and natural mortality.</p>
+profile means the data say little about the parameter; a minimum away
+from the MLE means the fit has not truly settled there. It supports the
+recruitment standard deviation, the stock–recruit parameters, and
+natural mortality.</p>
 <p>Specify the parameter with a natural-scale alias:
 <code>"sigmaR"</code> (recruitment standard deviation),
 <code>"M1"</code> (natural mortality), or the stock–recruit parameters
 <code>"R0"</code>, <code>"alpha"</code>, and <code>"beta"</code>.
 Aliases take natural-scale values directly. <code>slots</code> gives the
-cell(s) to profile — usually just the species index — and
+cell(s) to profile (usually just the species index) and
 <code>values</code> gives the grid of values for each. Supplying more
 than one slot profiles over the full grid of combinations.</p>
-<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># 1-D profile: sigmaR for species 1 (natural-scale alias)</span></span>
 <span><span class="va">prof_sigmaR</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/profile.html" class="external-link">profile</a></span><span class="op">(</span></span>
 <span>  fitted <span class="op">=</span> <span class="va">model_1</span>,</span>
@@ -876,13 +1206,13 @@ than one slot profiles over the full grid of combinations.</p>
 </h3>
 <p><code>slots</code> cross, so <em>k</em> slots give a
 <em>k</em>-dimensional profile. That is wrong for a parameter supplied
-as a vector — an empirical age-based M profiled over 13 values across
-ten ages would be <code>13^10</code> fits. <code>joint</code> puts every
+as a vector, an empirical age-based M profiled over 13 values across ten
+ages would be <code>13^10</code> fits. <code>joint</code> puts every
 named cell on <strong>one</strong> grid instead: <code>"multiply"</code>
 scales each cell’s current value, preserving the shape of the schedule
 (<code>1</code> is the fitted model), and <code>"add"</code> shifts it,
 preserving the increments (<code>0</code> is the fitted model).</p>
-<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">sp</span> <span class="op">&lt;-</span> <span class="fl">1</span></span>
 <span><span class="va">prof_M_all</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/profile.html" class="external-link">profile</a></span><span class="op">(</span></span>
 <span>  fitted <span class="op">=</span> <span class="va">model_1</span>,</span>
@@ -901,8 +1231,8 @@ preserving the increments (<code>0</code> is the fitted model).</p>
 <p><code>param = "q"</code> profiles a fleet’s base catchability, and
 <code>slots</code> takes a fleet name. Fleets sharing a
 <code>Catchability_index</code> share one q, so naming any member
-profiles the whole group — the others are added with a message.</p>
-<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
+profiles the whole group; the others are added with a message.</p>
+<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">prof_q</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/profile.html" class="external-link">profile</a></span><span class="op">(</span></span>
 <span>  fitted <span class="op">=</span> <span class="va">model_1</span>,</span>
 <span>  param  <span class="op">=</span> <span class="st">"q"</span>,</span>
@@ -911,7 +1241,7 @@ profiles the whole group — the others are added with a message.</p>
 <span><span class="op">)</span></span></code></pre></div>
 <p><code><a href="https://rdrr.io/r/stats/profile.html" class="external-link">profile()</a></code> returns <code>Rceattle_list</code> (one fit
 per grid row, <code>NULL</code> where the fit failed), <code>grid</code>
-(the user-scale value grid — a multiplier or offset under
+(the user-scale value grid, a multiplier or offset under
 <code>joint</code>), <code>nll</code> (joint NLL aligned with
 <code>grid</code>, <code>NA</code> for non-converged fits),
 <code>alias</code> (the natural-scale name you profiled under, if you
@@ -926,11 +1256,11 @@ behaves the same way as in the other diagnostic functions.</p>
 <h3 id="where-the-data-disagree">Where the data disagree<a class="anchor" aria-label="anchor" href="#where-the-data-disagree"></a>
 </h3>
 <p>The total says how well the data determine the parameter, not whether
-the data sources agree about it — a smooth quadratic total can be two
+the data sources agree about it, a smooth quadratic total can be two
 surveys pulling in opposite directions. <code><a href="../reference/plot_profile.html">plot_profile()</a></code>
 draws the components separately, in the layout
 <code>r4ss::SSplotProfile()</code> uses.</p>
-<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">prof_M</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/profile.html" class="external-link">profile</a></span><span class="op">(</span></span>
 <span>  fitted <span class="op">=</span> <span class="va">model_1</span>,</span>
 <span>  param  <span class="op">=</span> <span class="st">"M1"</span>,</span>
@@ -951,7 +1281,7 @@ minima can be compared directly; it discards magnitude, so raise
 <p><code><a href="../reference/profile_components.html">profile_components()</a></code> returns the same numbers, one row
 per grid point per component, each labelled with the fleet or species it
 belongs to.</p>
-<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">comps</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/profile_components.html">profile_components</a></span><span class="op">(</span><span class="va">prof_M</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">comps</span><span class="op">)</span></span></code></pre></div>
 <p>Under <code>random_rec = TRUE</code> the total is the
@@ -965,9 +1295,9 @@ what <code>weighted = FALSE</code> does and does not include.</p>
 <div class="section level2">
 <h2 id="comparing-runs">Comparing runs<a class="anchor" aria-label="anchor" href="#comparing-runs"></a>
 </h2>
-<p>Overlaying sensitivity runs is itself a useful diagnostic — large
+<p>Overlaying sensitivity runs is itself a useful diagnostic, large
 divergences in biomass or mortality deserve scrutiny.</p>
-<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb28"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">mod_list</span>  <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">model_1</span>, <span class="va">model_1_retro</span><span class="op">$</span><span class="va">Rceattle_list</span><span class="op">$</span><span class="va">Year_2019</span><span class="op">)</span></span>
 <span><span class="va">mod_names</span> <span class="op">&lt;-</span> <span class="fl">1</span><span class="op">:</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">mod_list</span><span class="op">)</span></span>
 <span></span>
@@ -979,10 +1309,10 @@ divergences in biomass or mortality deserve scrutiny.</p>
 <h2 id="collecting-it-into-report-tables">Collecting it into report tables<a class="anchor" aria-label="anchor" href="#collecting-it-into-report-tables"></a>
 </h2>
 <p>Everything above returns its own shape. <code><a href="../reference/report_tables.html">report_tables()</a></code>
-gathers them into one set of tidy tables — the fit, the likelihood
+gathers them into one set of tidy tables, the fit, the likelihood
 decomposition, the time series with uncertainty, the reference points,
 the fits to index and catch, and whichever diagnostics you pass it:</p>
-<div class="sourceCode" id="cb28"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb29"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">tabs</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/report_tables.html">report_tables</a></span><span class="op">(</span><span class="va">model_1</span>,</span>
 <span>                      retro <span class="op">=</span> <span class="va">model_1_retro</span>, jitter <span class="op">=</span> <span class="va">jitters</span>, osa <span class="op">=</span> <span class="va">osa</span><span class="op">)</span></span>
 <span><span class="va">tabs</span></span>
@@ -1001,7 +1331,7 @@ the reason, rather than as the value left in the array.
 </h2>
 <p>To average estimates across model variants, see
 <code><a href="../reference/model_average.html">?model_average</a></code>.</p>
-<div class="sourceCode" id="cb29"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb30"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">mod_avg</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/model_average.html">model_average</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">model_1</span>, <span class="va">model_1</span><span class="op">)</span>, weights <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>,<span class="fl">1</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/plot_biomass.html">plot_biomass</a></span><span class="op">(</span><span class="va">mod_avg</span><span class="op">)</span></span></code></pre></div>
 </div>

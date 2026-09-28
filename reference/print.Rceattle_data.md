@@ -1,10 +1,10 @@
 # Print method for an Rceattle data list
 
-Shows the model specification as an indented tree – dimensions, fleets
+Shows the model specification as an indented tree, dimensions, fleets
 and their selectivity / catchability forms, configured processes, active
 linkages, and any attached
-[`model_config()`](https://grantdadams.github.io/Rceattle/reference/model_config.md)
-– rather than dumping the full data list.
+[`model_config()`](https://afsc-assessments.github.io/Rceattle/reference/model_config.md),
+rather than dumping the full data list.
 
 ## Usage
 
@@ -21,16 +21,16 @@ summary(object, config = FALSE, ...)
 - x:
 
   An `"Rceattle_data"` object from
-  [`build_data()`](https://grantdadams.github.io/Rceattle/reference/build_data.md).
+  [`build_data()`](https://afsc-assessments.github.io/Rceattle/reference/build_data.md).
 
 - config:
 
   Show the attached
-  [`model_config()`](https://grantdadams.github.io/Rceattle/reference/model_config.md)
+  [`model_config()`](https://afsc-assessments.github.io/Rceattle/reference/model_config.md)
   block. Defaults to `TRUE` for
   [`print()`](https://rdrr.io/r/base/print.html) and `FALSE` for
   [`summary()`](https://rdrr.io/r/base/summary.html). Has no effect on
-  an object that carries no configuration.
+  an object that holds no configuration.
 
 - ...:
 

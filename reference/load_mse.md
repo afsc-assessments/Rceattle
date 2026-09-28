@@ -13,12 +13,12 @@ load_mse(dir = NULL, file = NULL, exclude = NULL, include_em = TRUE)
 - dir:
 
   Directory used to save files from
-  [`run_mse`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+  [`run_mse`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
 
 - file:
 
   file name used to save files from
-  [`run_mse`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+  [`run_mse`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
 
 - exclude:
 

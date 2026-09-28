@@ -1,17 +1,17 @@
 # Build an Rceattle data list in R
 
 Assemble (or edit) an Rceattle data list in R code rather than from an
-xlsx workbook. Supply only the data blocks a model uses – dimensions,
+xlsx workbook. Supply only the data blocks a model uses, dimensions,
 biology (`weight`, `maturity`, `sex_ratio`, `M1_base`), a
 `fleet_control`, and the observation tables (`catch_data`, `index_data`,
-`comp_data`, ...) – and the optional blocks a single-species model does
+`comp_data`, ...), and the optional blocks a single-species model does
 not need (`caal_data`, `emp_sel`, `diet_data`, ...) are default-filled
 by
-[`clean_data()`](https://grantdadams.github.io/Rceattle/reference/clean_data.md).
+[`clean_data()`](https://afsc-assessments.github.io/Rceattle/reference/clean_data.md).
 The result is the same bare list
-[`read_data()`](https://grantdadams.github.io/Rceattle/reference/read_data.md)
+[`read_data()`](https://afsc-assessments.github.io/Rceattle/reference/read_data.md)
 returns and round-trips through
-[`write_data()`](https://grantdadams.github.io/Rceattle/reference/write_data.md)
+[`write_data()`](https://afsc-assessments.github.io/Rceattle/reference/write_data.md)
 unchanged.
 
 ## Usage
@@ -29,7 +29,7 @@ build_data(base = NULL, file = NULL, ..., .check = TRUE)
 - file:
 
   Optional path to an Rceattle xlsx workbook; read via
-  [`read_data()`](https://grantdadams.github.io/Rceattle/reference/read_data.md)
+  [`read_data()`](https://afsc-assessments.github.io/Rceattle/reference/read_data.md)
   to form the starting object. Supply at most one of `base` / `file`.
 
 - ...:
@@ -46,24 +46,24 @@ build_data(base = NULL, file = NULL, ..., .check = TRUE)
 ## Value
 
 An Rceattle data list (a bare `list`, as from
-[`read_data()`](https://grantdadams.github.io/Rceattle/reference/read_data.md)).
+[`read_data()`](https://afsc-assessments.github.io/Rceattle/reference/read_data.md)).
 
 ## Details
 
 Three entry points, which may be combined:
 
-- **from blocks** – pass the elements as named arguments:
+- **from blocks**: pass the elements as named arguments:
   `build_data(nspp = 1, styr = 1977, ..., fleet_control = fc, catch_data = catch)`.
 
-- **from a file** – `build_data(file = "model.xlsx", projyr = 2060)`
+- **from a file**: `build_data(file = "model.xlsx", projyr = 2060)`
   reads the workbook via
-  [`read_data()`](https://grantdadams.github.io/Rceattle/reference/read_data.md),
+  [`read_data()`](https://afsc-assessments.github.io/Rceattle/reference/read_data.md),
   then applies the overrides.
 
-- **from an existing object** –
+- **from an existing object**:
   `build_data(base = BS2017SS, projyr = 2060)` starts from a data list
   (e.g. a bundled dataset or a
-  [`combine_data()`](https://grantdadams.github.io/Rceattle/reference/combine_data.md)
+  [`combine_data()`](https://afsc-assessments.github.io/Rceattle/reference/combine_data.md)
   result) and overrides the named blocks. This is the common
   copy-and-edit / combine-and-restamp workflow.
 
@@ -74,26 +74,26 @@ later in a fit. Legacy top-level names (`fsh_biom`, `srv_biom`, `wt`,
 `pmature`, `Pyrs`) are mapped to their canonical equivalents.
 
 Full validation runs at fit time, inside
-[`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md).
+[`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md).
 `build_data()` runs only a light presence pre-check (`.check = TRUE`) so
 a missing *required* block is reported at construction with a clear
 message. The pre-check reads an attached
-[`model_config()`](https://grantdadams.github.io/Rceattle/reference/model_config.md),
-so a configuration carried on the object is accounted for. Requirements
+[`model_config()`](https://afsc-assessments.github.io/Rceattle/reference/model_config.md),
+so a configuration held on the object is accounted for. Requirements
 that depend on fit-time settings passed directly to
-[`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+[`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
 and stored nowhere on the data list are not knowable here and are left
 to that fit-time validation; see
-[`data_requirements()`](https://grantdadams.github.io/Rceattle/reference/data_requirements.md)
+[`data_requirements()`](https://afsc-assessments.github.io/Rceattle/reference/data_requirements.md)
 to preview them.
 
 ## See also
 
-[`read_data()`](https://grantdadams.github.io/Rceattle/reference/read_data.md),
-[`clean_data()`](https://grantdadams.github.io/Rceattle/reference/clean_data.md),
-[`data_requirements()`](https://grantdadams.github.io/Rceattle/reference/data_requirements.md),
-[`combine_data()`](https://grantdadams.github.io/Rceattle/reference/combine_data.md),
-[`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md).
+[`read_data()`](https://afsc-assessments.github.io/Rceattle/reference/read_data.md),
+[`clean_data()`](https://afsc-assessments.github.io/Rceattle/reference/clean_data.md),
+[`data_requirements()`](https://afsc-assessments.github.io/Rceattle/reference/data_requirements.md),
+[`combine_data()`](https://afsc-assessments.github.io/Rceattle/reference/combine_data.md),
+[`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md).
 
 ## Examples
 

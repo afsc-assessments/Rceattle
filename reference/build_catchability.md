@@ -1,7 +1,7 @@
 # Catchability specification
 
-Carry environmental linkages on survey/index catchability `q`. The
-effect of an `env_data` covariate is written as a formula and can carry
+Holds environmental linkages on survey/index catchability `q`. The
+effect of an `env_data` covariate is written as a formula and can hold
 priors, bounds, and an estimation phase like any other linkage.
 
 ## Usage
@@ -15,17 +15,17 @@ build_catchability(linkages = NULL)
 - linkages:
 
   Optional named list of
-  [`linkage_spec()`](https://grantdadams.github.io/Rceattle/reference/linkage_spec.md)
+  [`linkage_spec()`](https://afsc-assessments.github.io/Rceattle/reference/linkage_spec.md)
   objects keyed by catchability parameter. The only parameter is `q`.
   Coefficients are per fleet by default (`by = ~ fleet`); use the
   `fleet` argument of
-  [`linkage_spec()`](https://grantdadams.github.io/Rceattle/reference/linkage_spec.md)
+  [`linkage_spec()`](https://afsc-assessments.github.io/Rceattle/reference/linkage_spec.md)
   to restrict a spec to particular fleets.
 
 ## Value
 
 A list of catchability settings for
-[`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md).
+[`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md).
 
 ## Examples
 

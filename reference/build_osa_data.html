@@ -6,16 +6,16 @@ OSA residuals require every observation that enters the likelihood to live in
 a single flat vector (obsvec) with a companion keep indicator. This
 function walks the already-built control/observation matrices and produces:
 
-obsvec – the flat vector of observations. Aggregate (catch and
+obsvec, the flat vector of observations. Aggregate (catch and
 index) observations are stored as log(observation) because their
 likelihood is lognormal; composition (comp) and conditional-age-at-length
 (caal) observations are stored as bin counts, (proportion + 1e-5) * N,
 matching exactly what the TMB likelihood forms during fitting.
-obs_ctl – a data frame with one row per element of obsvec,
+obs_ctl, a data frame with one row per element of obsvec,
 mapping each position back to its data type, fleet, species, year,
 age/length bin, etc., so residuals stay interpretable. R-side metadata
 only; removed before the data list is passed to TMB.
-*_obsvec_idx – per observation-row index vectors. For aggregate
+*_obsvec_idx, per observation-row index vectors. For aggregate
 series this is the 0-based obsvec position of each row; for composition
 and caal it is the 0-based obsvec position of the row's FIRST bin (the
 template reads the row's bins as obsvec.segment(start, n_bins)). -1
@@ -32,16 +32,16 @@ OSA residuals require every observation that enters the likelihood to live in
 a single flat vector (obsvec) with a companion keep indicator. This
 function walks the already-built control/observation matrices and produces:
 
-obsvec – the flat vector of observations. Aggregate (catch and
+obsvec, the flat vector of observations. Aggregate (catch and
 index) observations are stored as log(observation) because their
 likelihood is lognormal; composition (comp) and conditional-age-at-length
 (caal) observations are stored as bin counts, (proportion + 1e-5) * N,
 matching exactly what the TMB likelihood forms during fitting.
-obs_ctl – a data frame with one row per element of obsvec,
+obs_ctl, a data frame with one row per element of obsvec,
 mapping each position back to its data type, fleet, species, year,
 age/length bin, etc., so residuals stay interpretable. R-side metadata
 only; removed before the data list is passed to TMB.
-*_obsvec_idx – per observation-row index vectors. For aggregate
+*_obsvec_idx, per observation-row index vectors. For aggregate
 series this is the 0-based obsvec position of each row; for composition
 and caal it is the 0-based obsvec position of the row's FIRST bin (the
 template reads the row's bins as obsvec.segment(start, n_bins)). -1
@@ -59,7 +59,7 @@ catch and index, comp and caal composition, and predator diet composition."></he
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.33.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -88,12 +88,14 @@ catch and index, comp and caal composition, and predator diet composition."></he
     <li><a class="dropdown-item" href="../articles/stock-synthesis-conversion.html">Converting from Stock Synthesis</a></li>
     <li><h6 class="dropdown-header" data-toc-skip>--- Contributing ---</h6></li>
     <li><a class="dropdown-item" href="../articles/developer-guide.html">Developer guide</a></li>
+    <li><a class="dropdown-item" href="../articles/adding-a-selectivity-form.html">Adding a selectivity form</a></li>
+    <li><a class="dropdown-item" href="../cpp/index.html">C++ template reference</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
-<li class="nav-item"><a class="external-link nav-link" href="https://github.com/grantdadams/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/afsc-assessments/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
       </ul></div>
 
 
@@ -103,7 +105,7 @@ catch and index, comp and caal composition, and predator diet composition."></he
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Build the flat observation vector and metadata for OSA residuals</h1>
-      <small class="dont-index">Source: <a href="https://github.com/grantdadams/Rceattle/blob/main/R/0-osa_data.R" class="external-link"><code>R/0-osa_data.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/R/0-osa_data.R" class="external-link"><code>R/0-osa_data.R</code></a></small>
       <div class="d-none name"><code>build_osa_data.Rd</code></div>
     </div>
 
@@ -114,16 +116,16 @@ template needs to compute one-step-ahead (OSA) residuals via
 <p>OSA residuals require every observation that enters the likelihood to live in
 a single flat vector (<code>obsvec</code>) with a companion <code>keep</code> indicator. This
 function walks the already-built control/observation matrices and produces:</p>
-<ul><li><p><code>obsvec</code> – the flat vector of observations. Aggregate (catch and
+<ul><li><p><code>obsvec</code>, the flat vector of observations. Aggregate (catch and
 index) observations are stored as log(observation) because their
 likelihood is lognormal; composition (comp) and conditional-age-at-length
 (caal) observations are stored as bin counts, <code>(proportion + 1e-5) * N</code>,
 matching exactly what the TMB likelihood forms during fitting.</p></li>
-<li><p><code>obs_ctl</code> – a data frame with one row per element of <code>obsvec</code>,
+<li><p><code>obs_ctl</code>, a data frame with one row per element of <code>obsvec</code>,
 mapping each position back to its data type, fleet, species, year,
 age/length bin, etc., so residuals stay interpretable. R-side metadata
 only; removed before the data list is passed to TMB.</p></li>
-<li><p><code>*_obsvec_idx</code> – per observation-row index vectors. For aggregate
+<li><p><code>*_obsvec_idx</code>, per observation-row index vectors. For aggregate
 series this is the 0-based <code>obsvec</code> position of each row; for composition
 and caal it is the 0-based <code>obsvec</code> position of the row's FIRST bin (the
 template reads the row's bins as <code>obsvec.segment(start, n_bins)</code>). <code>-1</code>
@@ -153,7 +155,7 @@ already been built (and coerced to matrices) by <code><a href="rearrange_data.ht
 for every type (aggregate, composition, caal, and diet) so
 <code><a href="osa_residuals.html">osa_residuals()</a></code> can be computed. When <code>FALSE</code> (the default), only the
 aggregate index/catch entries the TMB template always reads are built and
-the (much larger) composition/caal/diet metadata is skipped – this is the
+the (much larger) composition/caal/diet metadata is skipped, this is the
 fast path for simulation testing (e.g. <code><a href="run_mse.html">run_mse()</a></code>), where the fitted
 objective is identical but OSA composition residuals are not produced.</p></dd>
 
@@ -166,7 +168,7 @@ objective is identical but OSA composition residuals are not produced.</p></dd>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>The composition proportion offset is read from <code>data_list$comp_offset</code>
-(defaulting to <code>1e-5</code>), so the comp/caal bin counts are <code>(proportion + comp_offset) * Neff</code> – the same offset the TMB likelihood applies when
+(defaulting to <code>1e-5</code>), so the comp/caal bin counts are <code>(proportion + comp_offset) * Neff</code>, the same offset the TMB likelihood applies when
 fitting. Set it via <code>fit_control(comp_offset = )</code> or on <code>data_list</code> directly.</p>
     </div>
 

@@ -11,5 +11,5 @@ new_linkage_table()
 ## Value
 
 An empty `data.frame` with the columns and types defined in
-[LINKAGE_COLS](https://grantdadams.github.io/Rceattle/reference/LINKAGE_COLS.md),
-carrying class `c("Rceattle_linkage_table", "data.frame")`.
+[LINKAGE_COLS](https://afsc-assessments.github.io/Rceattle/reference/LINKAGE_COLS.md),
+holding class `c("Rceattle_linkage_table", "data.frame")`.

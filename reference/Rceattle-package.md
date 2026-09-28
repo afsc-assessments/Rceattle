@@ -36,11 +36,11 @@ conditions and harvest rates.
 
 Useful links:
 
-- <https://grantdadams.github.io/Rceattle/>
+- <https://afsc-assessments.github.io/Rceattle/>
 
-- <https://github.com/grantdadams/Rceattle>
+- <https://github.com/afsc-assessments/Rceattle>
 
-- Report bugs at <https://github.com/grantdadams/Rceattle/issues>
+- Report bugs at <https://github.com/afsc-assessments/Rceattle/issues>
 
 ## Author
 

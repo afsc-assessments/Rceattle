@@ -65,7 +65,7 @@ linkage_row(
 - link:
 
   link function; one of
-  [LINKAGE_LINKS](https://grantdadams.github.io/Rceattle/reference/LINKAGE_PROCESSES.md).
+  [LINKAGE_LINKS](https://afsc-assessments.github.io/Rceattle/reference/LINKAGE_PROCESSES.md).
 
 - init:
 
@@ -78,7 +78,7 @@ linkage_row(
 - prior_family:
 
   one of
-  [PRIOR_FAMILIES](https://grantdadams.github.io/Rceattle/reference/PRIOR_FAMILIES.md).
+  [PRIOR_FAMILIES](https://afsc-assessments.github.io/Rceattle/reference/PRIOR_FAMILIES.md).
   `"none"` = no prior.
 
 - prior_p1, prior_p2:
@@ -101,12 +101,11 @@ linkage_row(
 
 - re_index, sigma_index, re_time:
 
-  random-effect registry fields filled by
-  [`pool_linkages()`](https://grantdadams.github.io/Rceattle/reference/pool_linkages.md);
-  `NA` on fixed rows. `re_index` is the 0-based slot in
-  `beta_linkage_re`, `sigma_index` the 0-based slot in
-  `log_sigma_linkage`, and `re_time` the numeric grouping value used to
-  order `rw()`/`ar1()` deviations in real elapsed time.
+  random-effect registry fields filled by `pool_linkages()`; `NA` on
+  fixed rows. `re_index` is the 0-based slot in `beta_linkage_re`,
+  `sigma_index` the 0-based slot in `log_sigma_linkage`, and `re_time`
+  the numeric grouping value used to order `rw()`/`ar1()` deviations in
+  real elapsed time.
 
 - re_sigma_init, re_sigma_prior_family, re_sigma_prior_p1,
   re_sigma_prior_p2:

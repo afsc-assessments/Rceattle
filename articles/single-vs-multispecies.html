@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.33.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -53,6 +53,8 @@
     <li><a class="dropdown-item" href="../articles/stock-synthesis-conversion.html">Converting from Stock Synthesis</a></li>
     <li><h6 class="dropdown-header" data-toc-skip>--- Contributing ---</h6></li>
     <li><a class="dropdown-item" href="../articles/developer-guide.html">Developer guide</a></li>
+    <li><a class="dropdown-item" href="../articles/adding-a-selectivity-form.html">Adding a selectivity form</a></li>
+    <li><a class="dropdown-item" href="../cpp/index.html">C++ template reference</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
@@ -62,7 +64,7 @@
 <li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json">
 </form></li>
-<li class="nav-item"><a class="external-link nav-link" href="https://github.com/grantdadams/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/afsc-assessments/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
       </ul>
 </div>
 
@@ -78,9 +80,9 @@
 
       <h1>5. Single- vs. multi-species models</h1>
             
-            <h4 data-toc-skip class="date">2026-09-14</h4>
+            <h4 data-toc-skip class="date">2026-09-28</h4>
       
-      <small class="dont-index">Source: <a href="https://github.com/grantdadams/Rceattle/blob/main/vignettes/single-vs-multispecies.Rmd" class="external-link"><code>vignettes/single-vs-multispecies.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/vignettes/single-vs-multispecies.Rmd" class="external-link"><code>vignettes/single-vs-multispecies.Rmd</code></a></small>
       <div class="d-none name"><code>single-vs-multispecies.Rmd</code></div>
     </div>
 
@@ -96,7 +98,7 @@
 <tbody>
 <tr class="odd">
 <td><code>0</code></td>
-<td>Off — single-species; total M = M1</td>
+<td>Off, single-species; total M = M1</td>
 </tr>
 <tr class="even">
 <td><code>1</code></td>
@@ -112,8 +114,8 @@
 catch-at-age model. In multi-species mode, a bioenergetics-based
 predation component (M2) is added to natural mortality so that predator
 abundance directly affects prey survival. The two modes share the same
-data format and most <code><a href="../reference/fit_mod.html">fit_mod()</a></code> arguments — switching
-between them is a one-line change.</p>
+data format and most <code><a href="../reference/fit_mod.html">fit_mod()</a></code> arguments, switching between
+them is a one-line change.</p>
 <div class="section level2">
 <h2 id="when-to-use-each-mode">When to use each mode<a class="anchor" aria-label="anchor" href="#when-to-use-each-mode"></a>
 </h2>
@@ -140,7 +142,7 @@ run.</p>
 <h2 id="bering-sea-example">Bering Sea example<a class="anchor" aria-label="anchor" href="#bering-sea-example"></a>
 </h2>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://grantdadams.github.io/Rceattle/">Rceattle</a></span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://afsc-assessments.github.io/Rceattle/">Rceattle</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># BS2017SS and BS2017MS use the same data structure but differ in M1_base:</span></span>
 <span><span class="co"># the multi-species dataset has lower residual mortality because some of</span></span>
@@ -164,7 +166,7 @@ run.</p>
 <span>    phase        <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>    verbose      <span class="op">=</span> <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Multi-species — start from single-species MLEs for stability</span></span>
+<span><span class="co"># Multi-species, start from single-species MLEs for stability</span></span>
 <span><span class="va">ms_run</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fit_mod.html">fit_mod</a></span><span class="op">(</span></span>
 <span>  data_list    <span class="op">=</span> <span class="va">BS2017MS</span>,</span>
 <span>  inits        <span class="op">=</span> <span class="va">ss_run</span><span class="op">$</span><span class="va">estimated_params</span>,  <span class="co"># warm start</span></span>
@@ -286,7 +288,7 @@ or a vector of length <code>nspp</code>.</p>
 <td><code>5</code></td>
 <td><code>"NormalLength"</code></td>
 <td>Normal suitability on prey length-at-age</td>
-<td align="center">Yes</td>
+<td align="center">Not yet</td>
 </tr>
 <tr class="odd">
 <td><code>6</code></td>
@@ -296,11 +298,12 @@ or a vector of length <code>nspp</code>.</p>
 </tr>
 </tbody>
 </table>
-<p>Values 1 and 3 are blocked at runtime pending validation of the
-growth-model integration. Use <code>suitMode = 0</code> (empirical) when
-diet composition data are available, or
-<code>suitMode = 2</code>/<code>4</code>/<code>5</code>/<code>6</code>
-(parametric) when they are not.</p>
+<p>Values 1, 3 and 5, every length-based mode, are blocked at runtime
+pending validation of the growth-model integration:
+<code><a href="../reference/data_check.html">data_check()</a></code> errors with “Length-based suitability
+(suitMode 1, 3, or 5) is not yet implemented”. Use
+<code>suitMode = 0</code> (empirical), or a weight-based mode:
+<code>2</code>, <code>4</code> or <code>6</code>.</p>
 </div>
 <div class="section level2">
 <h2 id="comparing-outputs">Comparing outputs<a class="anchor" aria-label="anchor" href="#comparing-outputs"></a>
@@ -315,7 +318,7 @@ diet composition data are available, or
 <span><span class="fu"><a href="../reference/plot_recruitment.html">plot_recruitment</a></span><span class="op">(</span>Rceattle <span class="op">=</span> <span class="va">mod_list</span>, model_names <span class="op">=</span> <span class="va">mod_names</span>, add_ci <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/plot_depletionSSB.html">plot_depletionSSB</a></span><span class="op">(</span>Rceattle <span class="op">=</span> <span class="va">mod_list</span>, model_names <span class="op">=</span> <span class="va">mod_names</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Mortality breakdown (M1 vs M2) — these accept model lists</span></span>
+<span><span class="co"># Mortality breakdown (M1 vs M2), these accept model lists</span></span>
 <span><span class="fu"><a href="../reference/plot_m_at_age.html">plot_m_at_age</a></span><span class="op">(</span>Rceattle <span class="op">=</span> <span class="va">mod_list</span>, model_names <span class="op">=</span> <span class="va">mod_names</span>, age <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/plot_m2_at_age_prop.html">plot_m2_at_age_prop</a></span><span class="op">(</span>Rceattle <span class="op">=</span> <span class="va">mod_list</span>, model_names <span class="op">=</span> <span class="va">mod_names</span><span class="op">)</span></span>
 <span></span>
@@ -326,7 +329,7 @@ diet composition data are available, or
 <span><span class="fu"><a href="../reference/plot_mortality.html">plot_mortality</a></span><span class="op">(</span><span class="va">ms_run</span>, M2 <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span>        <span class="co"># M1-at-age instead</span></span>
 <span><span class="fu"><a href="../reference/plot_mortality.html">plot_mortality</a></span><span class="op">(</span><span class="va">ms_run</span>, type <span class="op">=</span> <span class="st">"heatmap"</span><span class="op">)</span>  <span class="co"># the same series as an age x year tile</span></span>
 <span></span>
-<span><span class="co"># Predation (multi-species only) — these accept model lists</span></span>
+<span><span class="co"># Predation (multi-species only), these accept model lists</span></span>
 <span><span class="fu"><a href="../reference/plot_b_eaten.html">plot_b_eaten</a></span><span class="op">(</span>Rceattle <span class="op">=</span> <span class="va">mod_list</span>, model_names <span class="op">=</span> <span class="va">mod_names</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/plot_b_eaten_prop.html">plot_b_eaten_prop</a></span><span class="op">(</span>Rceattle <span class="op">=</span> <span class="va">mod_list</span>, model_names <span class="op">=</span> <span class="va">mod_names</span><span class="op">)</span></span></code></pre></div>
 <p>For model averaging across single- and multi-species variants, see

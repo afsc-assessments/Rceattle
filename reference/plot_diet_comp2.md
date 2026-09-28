@@ -2,7 +2,7 @@
 
 Diagnostic plots for diet-composition fits that adapt to how each
 predator-prey interaction is aggregated (see
-[`plot_diet_comp()`](https://grantdadams.github.io/Rceattle/reference/plot_diet_comp.md)
+[`plot_diet_comp()`](https://afsc-assessments.github.io/Rceattle/reference/plot_diet_comp.md)
 for the aggregation conventions):
 
 - prey-age aggregated (predator age resolved): line plot of observed vs
@@ -53,8 +53,8 @@ Invisibly returns a list of the printed plot objects.
 
 ## See also
 
-[`plot_diet_comp()`](https://grantdadams.github.io/Rceattle/reference/plot_diet_comp.md),
-[`plot_diet_comp1()`](https://grantdadams.github.io/Rceattle/reference/plot_diet_comp1.md)
+[`plot_diet_comp()`](https://afsc-assessments.github.io/Rceattle/reference/plot_diet_comp.md),
+[`plot_diet_comp1()`](https://afsc-assessments.github.io/Rceattle/reference/plot_diet_comp1.md)
 
 ## Examples
 

@@ -9,7 +9,7 @@ the colour/legend mapping always has labels.'></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.33.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -38,12 +38,14 @@ the colour/legend mapping always has labels.'></head><body>
     <li><a class="dropdown-item" href="../articles/stock-synthesis-conversion.html">Converting from Stock Synthesis</a></li>
     <li><h6 class="dropdown-header" data-toc-skip>--- Contributing ---</h6></li>
     <li><a class="dropdown-item" href="../articles/developer-guide.html">Developer guide</a></li>
+    <li><a class="dropdown-item" href="../articles/adding-a-selectivity-form.html">Adding a selectivity form</a></li>
+    <li><a class="dropdown-item" href="../cpp/index.html">C++ template reference</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
-<li class="nav-item"><a class="external-link nav-link" href="https://github.com/grantdadams/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/afsc-assessments/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
       </ul></div>
 
 
@@ -53,7 +55,7 @@ the colour/legend mapping always has labels.'></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Model display names for a list of fits</h1>
-      <small class="dont-index">Source: <a href="https://github.com/grantdadams/Rceattle/blob/main/R/7-plot_helpers.R" class="external-link"><code>R/7-plot_helpers.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/R/7-plot_helpers.R" class="external-link"><code>R/7-plot_helpers.R</code></a></small>
       <div class="d-none name"><code>dot-model_labels.Rd</code></div>
     </div>
 
@@ -81,8 +83,8 @@ the colour/legend mapping always has labels.</p>
 </dl></div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p><code>model_names</code> is often built as a <code><a href="https://rdrr.io/r/base/list.html" class="external-link">list()</a></code> – the package's own vignettes do
-– so it is flattened to character here. Left as a list it becomes a
+    <p><code>model_names</code> is often built as a <code><a href="https://rdrr.io/r/base/list.html" class="external-link">list()</a></code>, the package's own vignettes do
+, so it is flattened to character here. Left as a list it becomes a
 one-element list per model and the plot frame fails to bind.</p>
 <p>Too few names would be recycled, drawing two models as one series under one
 legend key, so that is a warning rather than a silent merge.</p>

@@ -23,7 +23,7 @@ realized recruitment applies the annual log deviation, \\R_y \cdot
 exp(R\_{dev,y})\\, as in the mean form. For numerical stability the
 Ricker \\\beta\_{srr}\\ is estimated on a scale divided by 1,000,000, so
 the fitted `beta` is 1e6 times the density-dependence coefficient in the
-equation above; `Bmsy_lim` (\\\approx 1/\beta\_{srr}\\) carries the same
+equation above; `Bmsy_lim` (\\\approx 1/\beta\_{srr}\\) holds the same
 scaling.
 
 When `srr_pred_fun > 0` and `srr_fun = 0` recruitment in the hindcast is
@@ -148,7 +148,7 @@ build_srr(
 - linkages:
 
   Named list of
-  [`linkage_spec()`](https://grantdadams.github.io/Rceattle/reference/linkage_spec.md)
+  [`linkage_spec()`](https://afsc-assessments.github.io/Rceattle/reference/linkage_spec.md)
   objects keyed by `"R0"`, `"alpha"` or `"beta"`: the recommended way to
   put a prior on, fix, or add an environmental effect to those
   parameters (see **Priors, fixed values and covariates**).
@@ -160,14 +160,14 @@ A `list` containing the stock recruitment relationship settings
 ## Priors, fixed values and covariates
 
 Use `linkages` for `R0`, alpha and beta. Each entry is a
-[`linkage_spec()`](https://grantdadams.github.io/Rceattle/reference/linkage_spec.md),
+[`linkage_spec()`](https://afsc-assessments.github.io/Rceattle/reference/linkage_spec.md),
 and an intercept-only formula (`~ 1`) acts on the parameter itself:
 
 - **Prior:**
   `` priors = list(`(Intercept)` = prior_lognormal(log(m), s)) `` is
   lognormal with mean `m` (median `m` when `bias_adjust_proc = FALSE`)
   and log-scale SD `s`;
-  [`prior_normal()`](https://grantdadams.github.io/Rceattle/reference/prior_normal.md)
+  [`prior_normal()`](https://afsc-assessments.github.io/Rceattle/reference/prior_normal.md)
   is normal on the natural scale.
 
 - **Fixed value:** `` init = list(`(Intercept)` = v), est_phase = 0 ``
@@ -178,7 +178,7 @@ and an intercept-only formula (`~ 1`) acts on the parameter itself:
 
 - **Environmental effect:** a covariate formula such as `~ temp` adds a
   log-scale effect by year; see
-  [`vignette("environmental-linkages-and-priors")`](https://grantdadams.github.io/Rceattle/articles/environmental-linkages-and-priors.md).
+  [`vignette("environmental-linkages-and-priors")`](https://afsc-assessments.github.io/Rceattle/articles/environmental-linkages-and-priors.md).
 
 A linkage on `R0` acts under mean recruitment, penalty form included.
 Under a curve fitted in the hindcast a single-species `R0` is derived
@@ -195,17 +195,20 @@ models.
 
 ## Starting values
 
-Alpha starts at `srr_prior` (default 4) wherever that is an alpha, and
-at \\e^3\\ otherwise; beta starts at 3. Neither knows the stock's scale.
-Set them with `srr_alpha_init` / `srr_beta_init` or a linkage `init`;
-supplying `srr_prior` as alpha's starting value is deprecated. \\\beta\\
-sets the density dependence in \\R = \alpha S / (1 + \beta S)\\, so it
-must be on the order of \\(\alpha - 1/\phi_0) / R_0\\ – typically
-\\10^{-3}\\ or smaller for a stock measured in tonnes; starting three
-orders of magnitude away drives predicted recruitment to near zero and
-the optimizer returns `NA/NaN gradient evaluation`. From a steepness
-\\h\\ and unfished spawning biomass per recruit \\\phi_0\\: \$\$\alpha =
-\frac{4h}{\phi_0 (1 - h)}, \qquad \beta = \frac{\alpha -
+Mean recruitment (`R0`) starts at \\e^9 = 8103\\ thousand fish; under a
+curve fitted in the hindcast of a multispecies model the same slot is
+the free initial recruitment level `R_init`, with the same start. Alpha
+starts at `srr_prior` (default 4) wherever that is an alpha, and at
+\\e^3\\ otherwise; beta starts at 3. None of them knows the stock's
+scale. Set them with `srr_alpha_init` / `srr_beta_init` or a linkage
+`init`; supplying `srr_prior` as alpha's starting value is deprecated.
+\\\beta\\ sets the density dependence in \\R = \alpha S / (1 + \beta
+S)\\, so it must be on the order of \\(\alpha - 1/\phi_0) / R_0\\,
+typically \\10^{-3}\\ or smaller for a stock measured in tonnes;
+starting three orders of magnitude away drives predicted recruitment to
+near zero and the optimizer returns `NA/NaN gradient evaluation`. From a
+steepness \\h\\ and unfished spawning biomass per recruit \\\phi_0\\:
+\$\$\alpha = \frac{4h}{\phi_0 (1 - h)}, \qquad \beta = \frac{\alpha -
 1/\phi_0}{R_0}.\$\$ Under predation, where \\\phi_0\\ is undefined, seed
 them from a curve fitted to an earlier fit's SSB-recruitment pairs.
 

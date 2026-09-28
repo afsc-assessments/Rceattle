@@ -5,8 +5,8 @@ plot_recruitment(), the depletions, plot_exploitable_biomass(),
 plot_f()), the predation plotters (plot_b_eaten(), plot_b_eaten_prop(),
 plot_m_at_age(), plot_m2_at_age_prop(), plot_ration()), and
 plot_selectivity(). Each argument means the same thing wherever it appears,
-but not every plotter takes every one – incl_mean is on the predation
-plotters, add_ci only where the quantity carries standard errors, and
+but not every plotter takes every one, incl_mean is on the predation
+plotters, add_ci only where the quantity holds standard errors, and
 alpha only where the figure has a ribbon or a fan. The remaining
 plot_*() functions still take their own arguments; see each one's help."><meta property="og:description" content="A common vocabulary, documented here once and inherited by the plotters that
 take it: plot_timeseries() and its wrappers (plot_biomass(), plot_ssb(),
@@ -14,8 +14,8 @@ plot_recruitment(), the depletions, plot_exploitable_biomass(),
 plot_f()), the predation plotters (plot_b_eaten(), plot_b_eaten_prop(),
 plot_m_at_age(), plot_m2_at_age_prop(), plot_ration()), and
 plot_selectivity(). Each argument means the same thing wherever it appears,
-but not every plotter takes every one – incl_mean is on the predation
-plotters, add_ci only where the quantity carries standard errors, and
+but not every plotter takes every one, incl_mean is on the predation
+plotters, add_ci only where the quantity holds standard errors, and
 alpha only where the figure has a ribbon or a fan. The remaining
 plot_*() functions still take their own arguments; see each one's help."></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -25,7 +25,7 @@ plot_*() functions still take their own arguments; see each one's help."></head>
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.33.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -54,12 +54,14 @@ plot_*() functions still take their own arguments; see each one's help."></head>
     <li><a class="dropdown-item" href="../articles/stock-synthesis-conversion.html">Converting from Stock Synthesis</a></li>
     <li><h6 class="dropdown-header" data-toc-skip>--- Contributing ---</h6></li>
     <li><a class="dropdown-item" href="../articles/developer-guide.html">Developer guide</a></li>
+    <li><a class="dropdown-item" href="../articles/adding-a-selectivity-form.html">Adding a selectivity form</a></li>
+    <li><a class="dropdown-item" href="../cpp/index.html">C++ template reference</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
-<li class="nav-item"><a class="external-link nav-link" href="https://github.com/grantdadams/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/afsc-assessments/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
       </ul></div>
 
 
@@ -69,7 +71,7 @@ plot_*() functions still take their own arguments; see each one's help."></head>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Shared plotting arguments</h1>
-      <small class="dont-index">Source: <a href="https://github.com/grantdadams/Rceattle/blob/main/R/7-plot_helpers.R" class="external-link"><code>R/7-plot_helpers.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/R/7-plot_helpers.R" class="external-link"><code>R/7-plot_helpers.R</code></a></small>
       <div class="d-none name"><code>rceattle-plot-args.Rd</code></div>
     </div>
 
@@ -80,8 +82,8 @@ take it: <code><a href="plot_timeseries.html">plot_timeseries()</a></code> and i
 <code><a href="plot_f.html">plot_f()</a></code>), the predation plotters (<code><a href="plot_b_eaten.html">plot_b_eaten()</a></code>, <code><a href="plot_b_eaten_prop.html">plot_b_eaten_prop()</a></code>,
 <code><a href="plot_m_at_age.html">plot_m_at_age()</a></code>, <code><a href="plot_m2_at_age_prop.html">plot_m2_at_age_prop()</a></code>, <code><a href="plot_ration.html">plot_ration()</a></code>), and
 <code><a href="plot_selectivity.html">plot_selectivity()</a></code>. Each argument means the same thing wherever it appears,
-but not every plotter takes every one – <code>incl_mean</code> is on the predation
-plotters, <code>add_ci</code> only where the quantity carries standard errors, and
+but not every plotter takes every one, <code>incl_mean</code> is on the predation
+plotters, <code>add_ci</code> only where the quantity holds standard errors, and
 <code>alpha</code> only where the figure has a ribbon or a fan. The remaining
 <code>plot_*()</code> functions still take their own arguments; see each one's help.</p>
     </div>
@@ -139,7 +141,7 @@ and 1.</p></dd>
 
 <dt id="arg-add-ci">add_ci<a class="anchor" aria-label="anchor" href="#arg-add-ci"></a></dt>
 <dd><p>Add a 95% confidence interval. Only available where the
-plotted quantity carries standard errors; warns and draws none otherwise.</p></dd>
+plotted quantity holds standard errors; warns and draws none otherwise.</p></dd>
 
 
 <dt id="arg-minyr-maxyr">minyr, maxyr<a class="anchor" aria-label="anchor" href="#arg-minyr-maxyr"></a></dt>
@@ -207,10 +209,10 @@ surface, which is no longer drawn.</p></dd>
 
 
 <p>They supply values for whichever <strong>discrete variable the plot already
-encodes with that aesthetic</strong>, matched in level order – which is not always
+encodes with that aesthetic</strong>, matched in level order, which is not always
 the model. Each function's help says what its own figure separates.</p>
-<p>Where colour encodes a continuous variable – the year fan in
-<code><a href="plot_selectivity.html">plot_selectivity()</a></code> – <code>line_col</code> supplies the ramp anchors instead: one
+<p>Where colour encodes a continuous variable, the year fan in
+<code><a href="plot_selectivity.html">plot_selectivity()</a></code>, <code>line_col</code> supplies the ramp anchors instead: one
 colour draws the fan in that colour, several interpolate between them.</p>
     </div>
 

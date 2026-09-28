@@ -1,5 +1,1442 @@
 # Changelog
 
+## Rceattle 5.45.0
+
+### A parameter past a bound is now its own verdict, at FAIL
+
+[`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
+passes
+[`build_bounds()`](https://afsc-assessments.github.io/Rceattle/reference/build_bounds.md)’s
+range to `nlminb`, which respects it. The Newton refinement that
+`fit_control(newtonsteps)` asks for afterwards does not: in both
+`.fit_tmb()` paths it is a plain unconstrained step, so a parameter
+`nlminb` parked on a bound can be pushed straight through it, and the
+value that comes back is the one saved in the fit.
+
+[`convergence_diagnostics()`](https://afsc-assessments.github.io/Rceattle/reference/convergence_diagnostics.md)
+reported that as `parameters_on_bounds` at `WARN`, whose message read
+“at a configured bound” – because the test `par <= lo + tol` is also
+true below `lo`. A value outside the range the model declared plausible
+now gets its own record, `parameters_outside_bounds`, at `FAIL`, naming
+the parameter and pointing at `newtonsteps`. A parameter genuinely
+sitting on a bound still reports `parameters_on_bounds` at `WARN` and is
+no longer double-counted. A tolerance band remains, scaled to each
+parameter’s declared range, so a value just inside `lo - tol` still
+reads as “at” the bound.
+
+**The `par > -900` filter is gone**, which is the substantive part: it
+hid any parameter that had diverged DOWNWARDS – a value at `-1e6`
+against a lower bound of `-10` drew no record at all – and that is the
+direction an unconstrained Newton step most plausibly takes. The `-999`
+sentinel it was there for (an unfished fleet-year in `log_F`, an
+`init_dev` above the plus group) is now matched by NAME and value
+instead. That skip is defensive rather than load-bearing: every `-999`
+slot is mapped out before the bounds vector is built, so none reaches
+this check on a fit built from scratch, but a warm start can carry one
+into a slot whose catch is now non-zero. An unnamed parameter vector
+keeps every element, rather than emptying both records.
+
+No fit changes. The Newton steps themselves are left alone in both paths
+– clamping the one in `.fit_tmb()`’s fallback was considered and
+rejected, because that path runs only when TMBhelper is absent, so
+neither the test suite nor the golden references reach it, and an
+unverifiable change to how a fit is computed is worse than a reported
+one. The diagnostic covers both paths.
+
+`newtonsteps` defaults to `0`, so no default fit is affected. Measured
+on a GOA Pacific cod bridge at `newtonsteps = 3`: a growth parameter
+returned at 5.08e-05 against a lower bound of 1e-3, with a maximum
+gradient of 0.263 and a Hessian that would not invert. At
+`newtonsteps = 0`, the same code and the same data, that parameter sat
+at 1.00e-03, on the bound, with a maximum gradient of 0.00246 and a
+clean `sdreport` – so the three steps bought 0.0017 nats of objective
+and cost the feasible region and the standard errors. The stale comment
+in `R/0-convergence.R` claiming optimization is unbounded in
+[`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
+is corrected.
+
+## Rceattle 5.44.0
+
+### A shared catchability now says when it starts somewhere no fleet asked for
+
+Fleets sharing a `Catchability_index` share ONE `index_log_q`, and TMB
+starts a shared parameter at the mean of its members’ starting values.
+`index_log_q` is `log(Catchability_init)`, so the group starts at the
+**geometric mean** of the members’ inits and no fleet keeps the value in
+its own row. That has always been the behaviour;
+[`vignette("model-options-and-functionality")`](https://afsc-assessments.github.io/Rceattle/articles/model-options-and-functionality.md)
+has described it correctly since 5.9.0, which corrected docs that said
+otherwise. Nothing said so at run time, though – unlike the deviation
+standard deviations, which
+[`build_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md)
+has warned about for some time.
+
+[`build_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md)
+now warns for the catchability itself, naming the group, the differing
+inits and the geometric mean it will start from. Two things the warning
+is careful about:
+
+- A member whose `Catchability_init` is blank, zero or negative seeds
+  the whole group at `NA` or `-Inf` rather than at any mean, and the
+  group cannot fit.
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
+  requires the column positive only on fleets that carry index rows, and
+  exempts `Analytical` / `AnalyticalArith` because they solve q from the
+  data – yet a fleet in either category still joins an estimated block.
+  The warning reports the non-finite start instead of naming a geometric
+  mean the fit will never reach.
+- `Catchability_init` is read twice. Under `Estimated-with-prior` the
+  lognormal q prior stays centred on the **lead** fleet’s value, so
+  differing inits there move the objective and not merely the starting
+  point. The warning says so, and only where a prior is actually scored.
+  Relatedly, a non-lead fleet’s `Catchability_prior_sd` is never read
+  either, which the vignette now states.
+
+`Catchability_init`’s schema entry now says it must be positive on a
+fleet sharing an estimated `Catchability_index` group too, not only on a
+fleet carrying index rows, and `Catchability_prior_sd`’s says only the
+lead’s is read. `inst/extdata/meta_data_names.xlsx` is regenerated from
+the schema accordingly.
+
+[`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)’s
+existing reports are unchanged: the analytical case, a `Fixed` lead
+leaving fleets on different inits, and a `Catchability` or
+`Time_varying_q` differing within a group. The gap was the ordinary case
+– forms agreeing, inits not, a q estimated for the group.
+
+No fit changes. This is a warning and a documentation fix.
+
+Why it is worth a warning rather than a note in a vignette: a shared q
+at the mean scales a survey’s whole predicted index by a constant
+factor, and no residual pattern distinguishes that from a real change in
+abundance. It was found on an SS3 bridge for GOA Pacific cod, where a
+fleet created by a converter kept a default init and dragged the
+survey’s q to `sqrt(1.4964) = 1.2233`. Measured on a forward pass –
+`estimateMode = 3`, so the objective is evaluated AT the starting values
+and the start IS the fitted value – that was 18% low across all 16 index
+observations and 6.23 nats, with the standard deviations right to 5e-07
+and both composition components agreeing to under 0.001. In a fit that
+estimates q the start matters less, though it still chooses which
+optimum is found.
+
+The internal helper `.warn_shared_dev_sd()` is now
+`.warn_shared_block_start()`, since it no longer reports only standard
+deviations.
+
+## Rceattle 5.43.0
+
+### Breaking changes
+
+- **The package moved to `afsc-assessments/Rceattle`, and every link
+  follows it.** `DESCRIPTION`’s `URL` and `BugReports`, `_pkgdown.yml`’s
+  `url` and navbar, the README’s install commands and badges,
+  [`?print.Rceattle`](https://afsc-assessments.github.io/Rceattle/reference/print.Rceattle.md)’s
+  install hint, `CONTRIBUTING.md`, `examples/Install_Rceattle.R` and two
+  vignettes all named `grantdadams`. GitHub redirects the repository
+  path, so the install commands kept working – but **the documented
+  website did not**: `https://grantdadams.github.io/Rceattle/` returns
+  404 and `https://afsc-assessments.github.io/Rceattle/` returns 200, so
+  `URL`, `_pkgdown.yml` and the README all pointed users at a dead page.
+  Pin `afsc-assessments/Rceattle@5.43.0`: a redirect is not a permanent
+  address, and it breaks the moment anything is created at the old path.
+
+- **An integer-coded `Fleet_type` no longer reads as estimated in
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md).**
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
+  is callable on a list straight from
+  [`read_data()`](https://afsc-assessments.github.io/Rceattle/reference/read_data.md),
+  where the switch columns are still the integer codes the workbook
+  stores – and every bundled data set that carries a `fleet_control`
+  stores them that way (`GOA2018SS` is `2, 2, 2, 2, 2, 2, 0, 1, ...`),
+  so the integer is the shipped representation. `0 != "Off"` coerces to
+  `"0" != "Off"`, which is `TRUE`, so an `Off` fleet read as estimated:
+  on `GOA2018SS` with fleet 7 given its own `Selectivity_index`, it was
+  named in the “estimated Selectivity but no `comp_data`” error, and is
+  not now. The subset reads the column through `.canon_switch()`, as the
+  same file already did eleven lines further down, rather than through a
+  fourth spelling of the test – `.canon_switch()` also resolves `" 0 "`,
+  `"0.0"` and `"00"`, which a `%in%` list does not.
+
+  **No fitted number moves.**
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md),
+  [`build_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md)
+  and
+  [`build_params()`](https://afsc-assessments.github.io/Rceattle/reference/build_params.md)
+  each call
+  [`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md)
+  first, and on the canonical strings the old and new readings are
+  [`identical()`](https://rdrr.io/r/base/identical.html) – asserted for
+  five bundled data sets. Only the un-canonicalized path changes.
+
+  The rest of the class is open, in `inst/dev/CLEANUP_BACKLOG.md`: the
+  schema types thirteen columns as `switch` with an `allowed` map, but
+  nothing enforces that at the boundary, so any comparison written
+  against the canonical spelling is wrong for a `fleet_control` that has
+  not been through
+  [`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md).
+  Those sites are unreachable today because their callers canonicalize
+  first; the fix is to enforce the schema once on entry rather than to
+  convert them one at a time.
+
+- **The distance-to-optimum report is withheld when the covariance
+  cannot carry it.** The Newton step measures the distance to a minimum
+  only if `cov.fixed` inverts a positive-definite Hessian. On a saddle
+  the step points away from one, so “reaching the optimum would move the
+  estimates by at most 0.0009 standard errors” read as reassurance
+  printed directly beside a failing `pdHess`. It is reported only when
+  `pdHess` is `TRUE`. Severity is still read on the gradient, so no fit
+  changes status – now asserted, where neither that claim nor the
+  laziness of the coordinate lookup had a test.
+
+  A negative variance no longer escapes as `NaNs produced`. Three sites
+  took `sqrt(diag(cov))` unguarded, in a battery documented never to
+  raise; they now share `.conv_se_from_cov()`. The callers already
+  dropped non-finite entries – it was the
+  [`sqrt()`](https://rdrr.io/r/base/MathFun.html) itself that warned.
+
+- **A negative variance reports no standard error, rather than
+  `sqrt(|variance|)`.**
+  [`summary()`](https://rdrr.io/r/base/summary.html) and
+  [`report_tables()`](https://afsc-assessments.github.io/Rceattle/reference/report_tables.md)’s
+  parameter table both took `sqrt(abs(diag(vcov(fit))))`.
+  [`vcov()`](https://rdrr.io/r/stats/vcov.html) is `sdreport()`’s
+  fixed-effect covariance with no `pdHess` gate, and an indefinite
+  Hessian inverts without being positive definite, so a variance can
+  come back below zero (demonstrated on an indefinite 2x2 Hessian; the
+  defect is reachable only where `pdHess` is `FALSE`):
+  [`abs()`](https://rdrr.io/r/base/MathFun.html) then printed a
+  plausible standard error, with no warning, in the table a SAFE
+  chapter’s executive summary is built from. Both now return `NA` for
+  that parameter and the real standard error for every other; the
+  `pdHess` check in
+  [`convergence_diagnostics()`](https://afsc-assessments.github.io/Rceattle/reference/convergence_diagnostics.md)
+  says why it is missing, and `print(summary())` says which of the two
+  reasons applies. A variance within rounding of zero (`-1e-18` on a
+  flat ridge) reports `0`, not `NA`: that is a direction the data barely
+  inform, not an indefinite Hessian.
+
+  `hessian_conditioning`’s coordinates line up again. The column width
+  was computed inside `.rce_par_summary()`, which
+  `.check_hessian_eigen()` calls once per block, so each line sized to
+  its own block name and the aligned output
+  [`vignette("model-diagnostics")`](https://afsc-assessments.github.io/Rceattle/articles/model-diagnostics.md)
+  illustrates was unreachable. The caller now passes one width, and the
+  vignette’s example is regenerated from the format
+  [`print()`](https://rdrr.io/r/base/print.html) emits rather than
+  hand-written.
+
+- **A blank `Fleet_type` is refused.** The column has no schema default,
+  so nothing filled it, and a blank one is not “unset, take the default”
+  – it is a fleet whose role in the likelihood nobody stated.
+  [`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md)
+  now stops, naming the fleet and the values to choose from, and
+  [`rearrange_data()`](https://afsc-assessments.github.io/Rceattle/reference/rearrange_data.md)
+  does the same: it is exported and reachable without
+  [`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md),
+  and a blank reaching it was handed to the template as `flt_type = NA`.
+
+  [`rearrange_data()`](https://afsc-assessments.github.io/Rceattle/reference/rearrange_data.md)
+  checks it **before** `convert_switches()`, which coerces the column to
+  integers: a blank and a value it cannot map both become `NA` there, so
+  a mistyped `Fleet_type` was reported as a blank cell. It now refuses,
+  by fleet and by value, any type outside the set `validate_switches()`
+  allows –
+  `Fleet_type could not be read for fleet(s) Bottom_trawl ('Fisherie')`.
+  That closes three codes the old check handed to the template: `3` (the
+  index takes the survey branch and the catch is dropped, and because
+  the predicted composition is only assigned for types 1 and 2 while the
+  composition likelihood is gated on `type > 0`, the comps are fit
+  against an all-zero prediction and accrue a `posfun` penalty), `-1`
+  (contributes nothing, **and** is eligible to lead its
+  `Selectivity_index` group, whose penalty is gated on `flt_type > 0`,
+  so the group’s shape and curvature penalty goes uncharged) and `2.7`
+  (truncated to `Survey`).
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
+  refuses all three, so no model that fits through
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
+  today is newly stopped. It is stricter than the converter in one
+  respect, deliberately: a padded or non-canonical spelling (`" 0 "`,
+  `"00"`, `"2.0"`) is refused here although `convert_switches()` could
+  resolve it, because the allowed set is the documented one. Write the
+  canonical name or the bare code.
+
+  `NA` was the damaging case, and the two halves of the package read it
+  differently. `Fleet_type != "Off"` is `NA` rather than `FALSE`, so
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)’s
+  estimated-selectivity subset kept an all-`NA` row and died inside its
+  `vapply` on `missing value where TRUE/FALSE needed`, naming no fleet
+  and no column – measured on `Atka2022` with `Fleet_type[1] <- NA` –
+  while
+  [`build_map_selectivity()`](https://afsc-assessments.github.io/Rceattle/reference/build_map_selectivity.md)
+  treated `NA` as estimated (`.on[is.na(.on)] <- TRUE`). An empty string
+  or whitespace already produced a correctly named error from
+  `validate_switches()`; those are refused here too, earlier and from
+  one rule, rather than because they were broken in the same way.
+
+- **A factor-valued `fleet_control` column is read by its labels, not
+  its level indices.** `read.csv(stringsAsFactors = TRUE)` factors every
+  column, and `convert_switches()` passed a factor straight to
+  [`as.integer()`](https://rdrr.io/r/base/integer.html), which returns
+  the level index rather than the code the label names.
+  [`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md)
+  -\> `revert_switches()` already resolved eight of the nine switch
+  columns, so for those the exposure is the exported
+  [`rearrange_data()`](https://afsc-assessments.github.io/Rceattle/reference/rearrange_data.md)
+  path, where `Fleet_type = factor(c("Off", "Survey"))` reached the
+  template as `1, 2` – the `Off` fleet fitted as a fishery, its catch
+  entering the likelihood while
+  [`build_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md),
+  which reads labels, pinned its parameters.
+
+  **`Time_varying_q` is the ninth, and it is not on that list**, so a
+  factor there reached the template by level index even through
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md):
+  a column of `factor("Off")` became `IID` (1), estimating time-varying
+  catchability deviations nobody asked for. **That is the one
+  configuration in this release whose fit moves**; refit any model whose
+  `fleet_control` was built through `read.csv(stringsAsFactors = TRUE)`.
+  Neither
+  [`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md)
+  nor `validate_switches()` refused it – both compare labels, so it
+  looked valid all the way down.
+
+  Factor columns are now resolved once, in
+  [`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md)
+  and again in `convert_switches()` for the
+  [`rearrange_data()`](https://afsc-assessments.github.io/Rceattle/reference/rearrange_data.md)
+  path. No bundled data set and no workbook or script in the four
+  consumer repositories supplies a factor (checked: 375 workbooks, 15
+  bundled `.rda`, and every
+  [`data.frame()`](https://rdrr.io/r/base/data.frame.html) /
+  [`read.csv()`](https://rdrr.io/r/utils/read.table.html) that builds a
+  `fleet_control`), and the package requires R \>= 4.1, where the
+  default is already `FALSE`.
+
+  Every spelling of a stated type – canonical name, integer code,
+  character code, and `Off` – is accepted exactly as before. No bundled
+  data set and none of the 183 consumer-repository workbooks carrying a
+  `Fleet_type` column has a blank one, so nothing that fits today stops
+  fitting.
+
+  Still open, and tracked in `inst/dev/CLEANUP_BACKLOG.md`: an
+  **integer-coded** `Fleet_type` read before
+  [`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md)
+  canonicalizes it reads as live at every bare `!= "Off"` comparison,
+  because `0 != "Off"` is `TRUE`. `validate_switches()` documents the
+  trap and canonicalizes first; fourteen other raw comparisons in `R/`
+  do not.
+
+### Convergence messages name the quantity and the coordinate
+
+- **`fit$convergence` names what a flagged parameter estimates.** The
+  `max_gradient` message, the `hessian_conditioning` loadings, and the
+  per-coordinate lines under `hessian_conditioning`,
+  `parameters_on_bounds` and `estimability` now follow each block name
+  with the natural-scale quantity from
+  [`parameter_dictionary()`](https://afsc-assessments.github.io/Rceattle/reference/parameter_dictionary.md):
+  `log_M1 (M1)`, `rec_dev (recruitment deviations)`, `log_F (F)`. The
+  block name stays first, since it is what `map` and the parameter list
+  are keyed on.
+- **`max_gradient` says where the largest gradient sits.** It gave the
+  block alone (`'log_M1'`); it now gives the species, fleet, sex, age or
+  year from
+  [`parameter_index()`](https://afsc-assessments.github.io/Rceattle/reference/parameter_index.md),
+  the way `estimability`, `parameters_on_bounds` and
+  `hessian_conditioning` already did. The coordinate is resolved only
+  when the check is not `OK`, so a clean fit still skips building the
+  index.
+- **`max_gradient` reports the distance to the optimum in standard
+  errors**, as `$data$newton_step_se` (the largest absolute value),
+  `$data$step_se` (the signed vector) and in the message. A quadratic
+  approximation puts the optimum a Newton step `-cov.fixed %*% gradient`
+  away; dividing each element by its standard error makes the size
+  comparable across log, logit and natural-scale parameters. It is
+  reported only when the `sdreport` describes the hindcast parameters
+  (not under an estimating HCR), and the severity is still read on the
+  gradient, so no fit changes status.
+- **Scattered years and ages read as a count against their span**: “38
+  years in 1980-2021” rather than “38 of 1980-2021”, and the
+  `hessian_conditioning` count reads “(38 of 44 parameters; 67% of the
+  direction)”.
+
+## Rceattle 5.42.1
+
+Found reviewing the release PR that carries 5.34.0 through 5.42.0
+([\#158](https://github.com/afsc-assessments/Rceattle/issues/158)), over
+several adversarial passes. Corrections to 5.42.0’s own guard, to the
+tests meant to hold it, and to documentation it left behind.
+
+### Bug fixes
+
+- **The negative-`Sel_curve_pen` refusal no longer skips a fleet whose
+  penalty the template does charge.** The check skipped any fleet that
+  followed another fleet’s `Selectivity_index`, on the grounds that a
+  shared block is penalized once, on its lead. But the template’s lead
+  (`flt_sel_lead`, built in
+  [`rearrange_data()`](https://afsc-assessments.github.io/Rceattle/reference/rearrange_data.md))
+  groups fleets by `Selectivity_index` **and** selectivity form, while
+  the rule the check borrowed – the one the parameter map shares on –
+  groups by the index alone. Two live fleets sharing an index with
+  different forms are therefore two groups to the template, each
+  charged, and the check called the second one a follower and passed
+  over it: a negative weight there reached `ceattle.cpp` and rewarded
+  the deviation it names, without bound, with
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
+  reporting clean. The check now reads the lead the same way the
+  template does. No bundled data set and no workbook in the consumer
+  repositories has a group of mixed form (every bundled `fleet_control`,
+  including the three carried inside fitted example objects, and 183
+  workbooks with a `fleet_control` sheet; the answer is the same read
+  raw or canonicalized through `sel_map`), so no existing model changes;
+  this closes the guard rather than moving a number.
+
+  The lead it builds also **fails closed on a `Selectivity` the template
+  cannot read.** `.canon_switch()` trims and
+  [`rearrange_data()`](https://afsc-assessments.github.io/Rceattle/reference/rearrange_data.md)’s
+  `.pull_int()` does not, so `" NonParametric"` resolves here and
+  reaches the template as `NA` – a group of its own there, with the
+  fleet leading and its weight charged. Such a value now gets a key of
+  its own here too, so the fleet leads and is checked.
+  [`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md)
+  normalizes the spelling before either is reached, so this is a guard
+  against a hand-built `fleet_control`, not a path a workbook takes.
+
+- **`test-docs-anchors.R` now checks the schema column that shipped the
+  stale code.** The guard added at 5.42.0, so that no schema description
+  names a selectivity code `sel_map` does not accept, matched only a
+  slash-separated run (`2/9/13`). Of the eight columns it names, four
+  matched nothing at all – including `Selectivity` itself, which
+  enumerates every code one per line and is the column form 14 was
+  advertised in. It now also reads a comma-or-`or` list, a per-line
+  `13 = ...` enumeration, and a code parenthesized after a form name,
+  quoted or not – `Sel_curve_pen1` writes `"type 2/9/13"` and
+  `LogisticPM (11)` in one sentence, so requiring the quotes missed 11
+  and would have missed a stale code in that position. All eight columns
+  now yield codes. It is a shape-matcher, not a parser: a code written
+  in a shape none of the four patterns covers (`14 - ...`,
+  `forms 2 and 14`) still slips, so it narrows the gap rather than
+  closing it.
+
+- **A refusal test that passed for the wrong reason.** The check that an
+  `apical` linkage is refused on an AR1 selectivity form matched the
+  string `"AR1"`, and `GOAatf` ships `Sel_curve_pen2 = 200` on the fleet
+  the fixture switches: on the AR1 forms that slot is a correlation, so
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
+  stopped first with its own out-of-range message, which also contains
+  `"AR1"`. Deleting the refusal left the suite green. The fixture now
+  zeroes that column and the assertion matches the apical clause, so
+  removing the refusal fails the test.
+
+- **`.rce_sel_pen_lead()`’s `Off` handling was untested.** Replacing its
+  `off` argument with `rep(FALSE, n)` left
+  `test-selectivity-penalty-sd.R` green, because the sign check has its
+  own independent `Off` skip. The file now pins that an `Off` fleet
+  never leads its group, that the next fleet leads instead, and that the
+  result is [`identical()`](https://rdrr.io/r/base/identical.html) to
+  the `flt_sel_lead` \`rearrange_data() hands the template for the same
+  table.
+
+### Documentation
+
+- `README.md`’s operational pinning example named 5.41.0, a version this
+  line never releases, so an assessor pinning a version for management
+  advice was sent to a reference `install_github()` can never resolve.
+  It now names the version this release tags. Like every version named
+  there it resolves only once that tag is pushed – checklist section 3,
+  and `TODO-pre-transfer.md` B5 says to re-check the line whenever the
+  version moves.
+
+- [`vignette("model-parameterizations")`](https://afsc-assessments.github.io/Rceattle/articles/model-parameterizations.md)
+  listed three cases the negative-weight refusal does not catch; there
+  are four. The fleet following another’s `Selectivity_index` was added
+  to the check and to `NEWS.md` at 5.42.0 but not to the reference
+  table.
+
+- `vignette("adding-a-selectivity-form")` said code 14 was free and the
+  next form should take 15, in a paragraph whose own rule is that a
+  retired code is not free. 14 was advertised as a second integrable
+  form in `meta_data_names.xlsx` – the template every workbook is built
+  from – before being collapsed into 13, so a `Selectivity` column
+  written in that window holds it. It is now listed with 10 and 12 as
+  taken. The same article named three R sites that key on the
+  selectivity form when there are at least eight, attributed two of them
+  to the wrong check, and described `.RCE_SEL_PEN_POSITIVE` as driving
+  the penalty-SD conversion; that conversion is a separate registry,
+  `.sd_specs`, which fails closed where `.RCE_SEL_PEN_POSITIVE` fails
+  open.
+
+- `vignette("developer-guide")` gave three switch-code facts the code
+  does not support: the `selectivity.hpp` dispatch list omitted the
+  Ianelli non-parametric form (2), which every bundled reference model
+  uses, and descending logistic (4); `sel_map` skips 10, 12 and 14, not
+  10 alone; and the `Sel_curve_pen1` / `Sel_curve_pen2` slot map omitted
+  form 13.
+
+- The 5.39.0 entry now says the stock-recruit bound is unconditional.
+  Predation is why it was added, and it sits under a predation heading,
+  but
+  [`build_bounds()`](https://afsc-assessments.github.io/Rceattle/reference/build_bounds.md)
+  applies +/-30 to every model.
+
+## Rceattle 5.42.0
+
+Found reviewing the 5.34.0-5.41.0 release (`# Rceattle 5.41.0` and the
+versions below it). The negative-weight defect is much older than that
+review: the one-sided shape penalty has had no sign branch since it
+landed in December 2024, and 4.10.0 added a second way in through
+`Sel_shape_dir`. 5.40.0 only extended it to the integrable forms.
+
+### Breaking changes
+
+- **A negative `Sel_curve_pen1`/`2`/`3` is refused wherever the template
+  reads it as a weight.** A penalty slot multiplies a squared deviation,
+  so a negative weight rewards the deviation it names instead of
+  penalizing it. Use a positive weight, or the matching `Sel_shape_sd` /
+  `Sel_curvature_sd` / `Sel_devmag_sd` column, which is a standard
+  deviation and cannot go negative. The one exemption is
+  `"NonParametricPM"` (9) under `Sel_shape_mode = "Directional"`, the
+  only branch in the template that reads a sign – there it switches the
+  penalty from the decreasing side to the increasing one rather than
+  negating it. That form’s `"Smooth"` mode applies the weight two-sided
+  and is refused like the rest. `"2DAR1"` (6) and `"3DAR1"` (7) reuse
+  these columns as AR1 correlations and are untouched.
+
+  Slot 3 is checked only on `"NonParametricPM"` (9) and `"LogisticPM"`
+  (11): `"NonParametric"` (2) and `"NonParametricIntegrable"` (13) also
+  estimate selectivity deviates, but score them with a Gaussian density
+  on `Time_varying_sel_sd`, so neither reads the slot. The rule
+  throughout is to refuse a weight only where the fleet’s own wiring
+  reaches it: the template gates the penalty block on
+  `flt_type(flt) > 0 && flt_sel_lead(flt) == 1`, so a
+  `Fleet_type = "Off"` fleet is skipped, and so is one that follows
+  another fleet’s `Selectivity_index` – the group is charged once, on
+  its lead. (**Narrowed in 5.42.1**: the template groups by
+  `Selectivity_index` *and* selectivity form, so only a follower sharing
+  the lead’s form is skipped. A follower with a different form leads its
+  own group, is charged, and is refused. Read that entry, not this
+  sentence, for the rule in force.)
+
+  Measured on `BS2017SS` fleet 1 (`NonParametric`, `N_sel_bins = 8`,
+  with the shipped `Sel_curve_pen2 = 12.5` active): ramping the fleet’s
+  `sel_coff` downward by a constant step per bin takes the
+  `JNLL_SEL_NONPARAM` row to -29, -122, -502 and -2032 at steps of 0.5,
+  1, 2 and 4, and the whole objective to -6.6e6 at a step of 256 –
+  quadratic, and falling without bound, while the composition likelihood
+  flattens and cannot counteract it. The row is exactly
+  `[Sel_curve_pen1 * (N_sel_bins - 1) + Sel_curve_pen2] * step^2` up to
+  a constant, so the **curvature penalty does bind** – on the single
+  second difference where the ramp meets the coefficient repeated past
+  `N_sel_bins` – and the objective diverges only once `|Sel_curve_pen1|`
+  exceeds `Sel_curve_pen2 / (N_sel_bins - 1)`, 1.79 here. A smaller
+  negative weight is merely anti-shrinking rather than divergent; it is
+  refused too, because rewarding a deviation is wrong at any magnitude.
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
+  now stops, naming the fleet, the slot and the standard-deviation
+  column that sets the same weight safely.
+
+- **`Sel_shape_dir = "Increasing"` is refused on every form but
+  `"NonParametricPM"` (9) under `Sel_shape_mode = "Directional"`.** It
+  used to negate `Sel_curve_pen1` on every non-parametric form.
+  `"NonParametric"` (2) and `"NonParametricIntegrable"` (13) have no
+  increasing-direction penalty at all – the template hard-codes
+  `max(d, 0)^2`, `d` being the log-selectivity drop from one bin to the
+  next – so `"Increasing"` never did what it said there; it fitted the
+  reward above. There is no like-for-like migration: only 9 in
+  `"Directional"` mode implements the direction, and it is not a drop-in
+  (it charges its average-selectivity term only when
+  `Sel_avgsel_pen > 0`, defaults its penalty range to
+  `Bin_first_selected` rather than the first bin, reads
+  `Sel_curve_pen3`, and refuses `Time_varying_sel = "IID"`). If you did
+  not mean an increasing penalty, drop the column – the default is
+  `"Decreasing"`. Unlike the sign check above, this one is not waived on
+  a `Fleet_type = "Off"` fleet: the direction states what the form can
+  express, and
+  [`write_data()`](https://afsc-assessments.github.io/Rceattle/reference/write_data.md)
+  persists the weight it sets.
+
+- **`Sel_devmag_sd` is refused on `"NonParametric"` (2) and
+  `"NonParametricIntegrable"` (13).** It writes `Sel_curve_pen3`, which
+  neither form reads: both estimate selectivity deviates, but score them
+  with a Gaussian density on `Time_varying_sel_sd`. The column was a
+  silent no-op on both.
+
+- **A negative `sel_curve_pen` carried in `inits` is refused too.**
+  `sel_curve_pen` is a parameter, not data, so `inits` from a stored fit
+  override the `Sel_curve_pen` columns. Without this a fit saved before
+  5.42.0 would keep its negative weight through
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md),
+  [`profile()`](https://rdrr.io/r/stats/profile.html),
+  [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
+  and
+  [`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md)
+  on a workbook the user had already corrected – measured at -3.81 on a
+  decreasing ramp and -28.99 at three times that ramp, with the column
+  reading a valid +20.
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
+  now applies the same rule to the parameter actually in use and names
+  `inits` as the source. This closes the **sign** only: a stored
+  `inits$sel_curve_pen` still supersedes an edited `Sel_curve_pen`
+  column at any magnitude, silently (a column retuned from 200 to 20
+  keeps 200 on a refit). That is tracked in
+  `inst/dev/CLEANUP_BACKLOG.md`.
+
+- **An `apical` selectivity linkage on a fleet with `Fleet_type = "Off"`
+  is refused.** No data are fit to such a fleet, so `log_sel_apical` was
+  a free parameter in a flat direction: a singular Hessian and a failed
+  `getsd` with nothing naming the cause. It was the only selectivity
+  parameter
+  [`build_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md)
+  freed without a `Fleet_type` gate.
+
+- **A selectivity *prior* on a fleet with `Fleet_type = "Off"` is
+  refused**, for the same reason:
+  [`build_map_selectivity()`](https://afsc-assessments.github.io/Rceattle/reference/build_map_selectivity.md)
+  maps that fleet’s `log_sel_slp` and `sel_inf` off, so the prior was
+  evaluated against a fixed value and added a constant to the objective
+  while constraining nothing. The apical linkage was given this gate
+  above; the prior path had been left without one.
+
+### Bug fixes
+
+- **The negative-weight refusal no longer fires on a slot the fleet’s
+  configuration makes inert.** `LogisticPM`’s slots 1 and 3 and
+  `"NonParametricPM"`’s slot 3 are charged on the time-varying deviates,
+  so under `Time_varying_sel = "Off"` the term is identically zero and
+  the weight is never read – verified by objectives bit-identical at
+  `+w`, `0` and `-w` on `BS2017SS`. A negative value there is inert
+  rather than wrong, and is now allowed; it is still refused once the
+  deviates are estimated. The slots charged on the base curve (1 and 2
+  on the non-parametric forms) are checked whatever `Time_varying_sel`
+  says.
+
+- **[`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
+  no longer requires `Sel_curve_pen2` on a time-varying `LogisticPM`
+  fleet.** The template says in as many words that
+  `sel_curve_pen(flt,1)` – the 0-based C++ spelling of the same column –
+  is unused in that branch, so the column was required and then ignored
+  – and the schema,
+  [`?BS2017SS`](https://afsc-assessments.github.io/Rceattle/reference/BS2017SS.md)
+  and
+  [`vignette("model-parameterizations")`](https://afsc-assessments.github.io/Rceattle/articles/model-parameterizations.md)
+  all say `LogisticPM` does not use it. The two weights it does read,
+  `Sel_curve_pen1` (the random walk on realized log-selectivity) and
+  `Sel_curve_pen3` (the walk on the age-1 deviates), are still required,
+  and the message now names what each one weights.
+
+- **An `apical` selectivity linkage is now refused on the fleets that
+  actually share a block, and allowed on the ones that do not.**
+  `Selectivity_index` is a group key, not a fleet code: the lead is the
+  group’s first fleet that is not `"Off"`, and a group of one shares
+  nothing. The check compared the key to `Fleet_code`, which both
+  refused offsets that were perfectly identifiable (`GOAatf` fleet 3 and
+  `GOA2018SS` fleet 11, each the sole member of its group, and
+  `GOA2018SS` fleet 9, the lead of the group `{9, 10}`) and, where a
+  group’s key equalled its *second* member’s code, let the follower
+  through:
+  [`build_map_selectivity()`](https://afsc-assessments.github.io/Rceattle/reference/build_map_selectivity.md)
+  freed the cell and
+  [`adjust_map_shared_params()`](https://afsc-assessments.github.io/Rceattle/reference/adjust_map_shared_params.md)
+  then mapped it off, pinning the offset at `exp(0) = 1` with the fit
+  converging and nothing reported. Both now follow
+  `.shared_block_lead()`, the rule the map itself applies, and the error
+  names the lead fleet. The same comparison governed selectivity
+  **priors** and is fixed with it. This tightens as well as loosens: a
+  fleet whose `Fleet_code` happened to equal its group’s key was always
+  allowed before, so an `apical` linkage or selectivity prior on one
+  that a lower-numbered fleet leads (group `{2, 5}` keyed 5, say) now
+  stops. That block was the lead’s, so the linkage was freeing nothing.
+
+- **[`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md)
+  records the `discrete = TRUE` method override.** A Gaussian method
+  cannot score a discrete observation, so those composition rows fall
+  back to `oneStepGeneric`. The fallback happened but was neither
+  announced nor written to the returned object’s `method` attribute, so
+  the attribute – and [`print()`](https://rdrr.io/r/base/print.html) –
+  named a method no composition row had used.
+
+- **The non-finite-residual messages now name the `"cdf"` limitation
+  where it applies.** Both the headline warning and
+  `.osa_retry_tail()`’s message sent the analyst to re-check convergence
+  and sample sizes without mentioning the measurement recorded in the
+  same file: on a random-effects fit with a large composition data set
+  the Laplace inner problem fails on the depth of conditioning, and the
+  retry recovers nothing (1879 before, 1879 after). Both now add that
+  reading, and only where it can hold – the headline warning shows it
+  under `method = "cdf"` on a fit with random effects, since a Gaussian
+  method returns every residual finite on the same fit. Convergence and
+  the sparsest compositions remain the first thing to check otherwise.
+
+- **[`plot()`](https://rdrr.io/r/graphics/plot.default.html) on an
+  `rceattle_osa` object warns when it drops residuals.** It filtered to
+  the finite ones and warned only when *every* residual was non-finite.
+  Under `method = "cdf"` the failures are a contiguous tail, so the
+  survivors are a time-biased subset – at the documented 1879-of-4538
+  loss the figure drew a clean Q-Q panel, with an SDNR annotation, and
+  said nothing.
+
+- **[`convergence_diagnostics()`](https://afsc-assessments.github.io/Rceattle/reference/convergence_diagnostics.md)
+  reports a `NOTE` under `getsd = FALSE`.** With no `sdreport` the
+  Hessian eigenvalue, `pdHess`, sdreport and estimability checks all
+  return nothing, and the battery reported `"OK"` –
+  `report_tables()$model$converged` then printed `OK` into a SAFE table.
+  Nothing distinguished “every check passed” from “the strongest checks
+  never ran”. The fit is unchanged. Only `estimateMode` `"Estimate"` and
+  `"Hindcast"` run the battery, and each refitting diagnostic resolves
+  its own `getsd`:
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md),
+  [`jitter()`](https://afsc-assessments.github.io/Rceattle/reference/jitter.md),
+  [`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md)
+  and [`profile()`](https://rdrr.io/r/stats/profile.html) follow whether
+  the source fit kept an `sdreport`; `reweight()` follows that fit’s
+  `fit_control$getsd`, so a default fit still reads `OK`;
+  [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
+  refits at `getsd = FALSE`, so an MSE’s estimation fits now read `NOTE`
+  – a status only, changing no result.
+
+- **The `"NonParametricPM"` (9) directional shape penalty now has a
+  limiting-case and specification check.** Nothing verified that
+  `Sel_shape_dir = "Increasing"` penalizes an increasing curve on the
+  one form that implements it; the existing tests covered the
+  `weight = 1/(2*sd^2)` arithmetic and one `"Decreasing"` fit. On a
+  strictly increasing curve the decreasing direction now charges 0 and
+  the increasing direction 5.6, mirrored on a strictly decreasing curve,
+  and all three shapes tested match the ADMB/AMAK `sel_like(1)`
+  one-sided SSQ recomputed from `sel_coff` to 1e-10, driven both through
+  `Sel_curve_pen1` and through the `Sel_shape_dir` column a user
+  actually writes. This is why the direction is refused elsewhere rather
+  than implemented there: on 9 it is now checked.
+
+### Documentation
+
+- The `estDynamics` list in
+  [`vignette("data-without-excel")`](https://afsc-assessments.github.io/Rceattle/articles/data-without-excel.md)
+  still offered code `3`, retired in 5.35.0 and refused by
+  [`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md)
+  since. The same file listed the codes correctly 344 lines earlier.
+
+- `Sel_shape_dir` is documented as `NonParametricPM`-only in the column
+  schema (which ships verbatim into `meta_data_names.xlsx`), in
+  [`?BS2017SS`](https://afsc-assessments.github.io/Rceattle/reference/BS2017SS.md)
+  and in
+  [`vignette("model-parameterizations")`](https://afsc-assessments.github.io/Rceattle/articles/model-parameterizations.md).
+  All three described the directional sign as working on every
+  non-parametric form.
+
+## Rceattle 5.41.0
+
+### One-step-ahead residuals from the conditional CDF
+
+- **`osa_residuals(method = "cdf")`.** The one-step-ahead residual is
+  defined through the conditional CDF, `qnorm(F(x))`, and is standard
+  normal by the probability integral transform whatever shape the
+  conditional has. Until now the model could not supply that CDF, so
+  only the Gaussian methods were available; those approximate the
+  conditional as normal and standardize the observation against its
+  conditional mode. The template now supplies it: the continuous
+  binomial `1 - I_p(x + 1, n - x)` for a composition bin, which is
+  defined at the fractional counts composition data hold, and `pnorm`
+  for the aggregate index, catch and covariate series
+  (`src/TMB/comp_osa.hpp`, gated by `keep.cdf_lower` / `keep.cdf_upper`
+  under a new `osa_mode = 2`). The fitted objective is untouched: the
+  gates are zero except inside a \[TMB::oneStepPredict()\] call, and the
+  terms are not even evaluated outside it.
+
+  **The composition residuals it returns are the only ones that pass a
+  self-test.** Residualizing simulated observations at the parameters
+  that generated them makes the answer exactly iid N(0, 1), so the
+  methods can be scored rather than argued about. On BS2017SS over 20
+  replicates of 4538 composition bins (`tools/verify/verify-osa-cdf.R`):
+
+  | method | mean | sd | lag-1 acf within a composition | KS rejects |
+  |----|----|----|----|----|
+  | `oneStepGaussianOffMode` | +0.103 | 0.918 | +0.060 | every replicate |
+  | `cdf`, `discrete = FALSE` | +0.610 | 1.262 | +0.434 | every replicate |
+  | `cdf`, `discrete = TRUE` | -0.007 | 0.995 | +0.001 | none |
+
+  The null standard error on the autocorrelation is 0.015. On the
+  aggregate series, which are genuinely Gaussian, all three agree to
+  5e-5 and all three pass.
+
+- **`discrete` now defaults per method:** `TRUE` under `"cdf"`, `FALSE`
+  otherwise, which is what every method that existed before this one
+  already did. The default changed from `FALSE` to `NULL` to express
+  that; passing `TRUE` or `FALSE` explicitly still does exactly what it
+  did, and `FALSE` under `"cdf"` now says in a message that those
+  composition residuals are biased up. It has to be `TRUE` under
+  `"cdf"`: a composition bin holds a count, so its conditional CDF is a
+  step function and `qnorm(F(x))` inherits the step, which is why the
+  middle row of the table above is the worst of the three rather than
+  the best. Randomizing over the step removes it:
+  `qnorm(F(x) - U f(x))`, Dunn and Smyth (1996), the construction
+  Trijoulet et al. (2023) prescribe. The randomization is drawn serially
+  under `seed` after the per-observation loop returns, so this method
+  stays bit-reproducible with `parallel = TRUE`, and
+  `attr(osa, "discrete")` records what was used.
+
+- **`predicted` is `NA` on every row under `method = "cdf"`.**
+  \[TMB::oneStepPredict()\] returns `Fx`, `px` and `nll` for this method
+  and no fitted value, and nothing is substituted: the Gaussian methods’
+  `predicted` is a conditional mode, and a marginal fitted value in its
+  place would give the column two meanings depending on `method`. The
+  Dirichlet-multinomial rows below run under a Gaussian method and are
+  blanked with the rest, so the column means one thing across the
+  object. Fitted values remain in `fit$quantities` and in
+  `residuals(fit, type = "pearson")`. (`sd` is `NA` under the package
+  default too: only `method = "oneStepGaussian"` ever returns one.)
+
+  This is also what resolves the negative composition `predicted` values
+  reported as issue
+  [\#108](https://github.com/afsc-assessments/Rceattle/issues/108) point
+  1: 404 of 4538 rows on BS2017SS, minimum -10.86, each with a
+  positive-biased residual. Under `"cdf"` no expected count is formed at
+  all. The Gaussian methods still report and warn about them, unchanged;
+  WHAM does the same thing on its own example, so this is not an
+  Rceattle defect.
+
+- **`Index_distribution = "TruncatedNormal"` is exact under `"cdf"`, in
+  the main call.** The template supplies the truncated CDF
+  `[Phi(z) - Phi(-m)] / Phi(m)` in closed form, so the family no longer
+  needs its own `"oneStepGeneric"` call over `(0, Inf)`. That removes
+  the numerical integration, its cost, its failure to converge on some
+  random-effects models (which fell back to an approximate spline), and
+  its side effect of moving the other fleets’ residuals.
+
+- **Known limitation: compositions at scale under random effects.** On a
+  random-effects model with a large composition data set,
+  `method = "cdf"` returns non-finite residuals in bulk and is very
+  slow. On `BS2017SS` with `random_rec = TRUE` (159 random effects, 4538
+  composition bins), **1879 of 4538 residuals are non-finite** against 0
+  for `"oneStepGaussianOffMode"` on the same fit. The failures are a
+  contiguous tail and the same rows come back clean when residualized on
+  their own, so it is the depth of the conditioning, not the
+  observations; redoing the tail on a fresh call recovers nothing. What
+  binds is that depth, not the presence of random effects: the same
+  method residualizes 1680 composition bins on a 22-random-effect model
+  correctly. **So try `"cdf"`, and when the warning reports non-finite
+  residuals in bulk, fall back to a Gaussian `method` for that source**,
+  taking its composition residuals as under-dispersed by about a factor
+  of two and a half (the numbers are in the bullet below). `"cdf"` is
+  sound on fixed-effect models, and on random-effects models for the
+  aggregate and covariate series.
+
+- **A Dirichlet-multinomial composition cannot use `"cdf"`** and is
+  residualized with `"oneStepGaussianOffMode"` instead, announced in a
+  message and recorded as `attr(osa, "method")["DirichletMultinomial"]`.
+  The conditional is a beta-binomial, which has no elementary CDF; the
+  reference implementation TMB ships
+  (`contrib/OSA_multivariate_dists-main/distr.hpp`) sums the pmf over
+  `0..floor(x)`, which is a step function of a fractional count and
+  costs `O(x)` beta functions per bin. This is said rather than
+  approximated quietly, because a missing CDF term does not fail loudly.
+  It makes both tails equal, giving `Fx = 0.5` and a residual of exactly
+  0 for every bin.
+
+- **`|residual|` is censored at 8.04 under `"cdf"`, in both directions,
+  and
+  [`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md)
+  warns when any residual sits there.** The upper end is forced: `Fx` is
+  recovered from `1 / (1 + exp(nlcdf.lower - nlcdf.upper))` in double
+  precision, which saturates at the last double below one, so nothing
+  reading a CDF can report past 8.21 on that side. The lower end is
+  *not* forced: that expression takes a small `F` down to about 1e-308,
+  a residual of -37. It is censored to match anyway, because an
+  asymmetric ceiling would show as a long left tail against a wall on
+  the right, which is what skewness in the residuals looks like. The
+  cost is real:
+  [`osa_diagnostics()`](https://afsc-assessments.github.io/Rceattle/reference/osa_diagnostics.md)
+  computes SDNR and the tail statistics on the censored values, and it
+  bites hardest on a short series where one observation drives the
+  statistic. Which method to reach for then is measured rather than
+  asserted (`tools/verify/verify-osa-cdf-accuracy.R`, a 12-year survey
+  with one observation multiplied by 200): `"oneStepGaussian"` reports
+  it uncensored at 38.98 (SDNR 12.89), `"cdf"` censors to 8.04 (SDNR
+  4.59), `"oneStepGeneric"` compresses it to 3.33 (SDNR 2.21), and the
+  package default `"oneStepGaussianOffMode"` returns `NaN` there, making
+  its SDNR unusable rather than merely large. That last failure is
+  magnitude-dependent: at a x20 outlier the default is finite and
+  matches `"oneStepGaussian"`, so **reach for `"oneStepGaussian"`
+  specifically**, not for “a Gaussian method”, and on the fleet in
+  question rather than a whole composition source, since it costs an
+  `nlminb` per observation. The template shrinks the CDF away from 0 and
+  1 by four machine epsilons rather than one, so the ceiling does not
+  land on that recovery’s rounding tie, which produced 6 infinite
+  residuals on BS2017SS.
+
+- **`"cdf"` is exact only without random effects, and the recommendation
+  splits by data type there.** With random effects
+  \[TMB::oneStepPredict()\] integrates the CDF over the latent states by
+  Laplace, and that integrand is a Gaussian times a sigmoid rather than
+  a density. Against the exact Kalman innovations of a linear-Gaussian
+  state space model, `fullGaussian` and `oneStepGaussian` are exact to
+  machine precision while `"cdf"` errs by 7e-4 to 4e-2 as the latent
+  state becomes more informative. **That is a result about a
+  LINEAR-Gaussian model and does not transfer wholesale**: the Gaussian
+  methods are exact when the one-step-ahead predictive is Gaussian,
+  which needs the model to be linear in the random effects, and
+  Rceattle’s index and catch are
+  [`exp()`](https://rdrr.io/r/base/Log.html) of cumulated log
+  recruitment deviations through the population dynamics. `fullGaussian`
+  and `oneStepGaussian` cannot differ for a Gaussian conditional, and on
+  a 17-deviation fixture they differ by 0.091 on both index and catch,
+  where `"cdf"` differs from `oneStepGaussian` by 0.017 on index, so
+  **no method is exact for index or catch under random effects** and
+  this release does not claim one. **`"ecov"` is the exception**: its
+  conditional genuinely is linear-Gaussian, the two Gaussian methods
+  agree there to 4e-14, and `"cdf"` sits 0.139 away, about a quarter of
+  the residual sd, so prefer a Gaussian method for that source. It does
+  not reverse for compositions, whose conditional is discrete and
+  skewed, exactly what the Gaussian methods get wrong, and by much more.
+  Simulating from a 22-random-effect model with the recruitment
+  deviations redrawn (1680 residuals): `oneStepGaussianOffMode` gives
+  mean +0.513, sd 0.404 and KS rejection in 120 of 120 replicates;
+  `"cdf"` with `discrete = TRUE` gives mean +0.006, sd 1.002 and 6 of
+  120, the nominal 5%.
+
+  Both halves of that split are what the SAM authors do across two
+  packages. `stockassessment::residuals.sam()` takes the Gaussian
+  default with `discrete = FALSE`, their composition package
+  `compResidual::resMulti()` hardcodes
+  `method = "cdf", discrete = TRUE`. Rceattle fits both kinds of data,
+  so it chooses per observation type inside one call
+  ([`vignette("model-diagnostics")`](https://afsc-assessments.github.io/Rceattle/articles/model-diagnostics.md)).
+
+- **Every \[TMB::oneStepPredict()\] call now conditions on the
+  observations that precede its group** (`conditional =`), instead of
+  discarding them. The composition and aggregate rows must be split into
+  separate calls under `"cdf"` because they need different `discrete`
+  settings, and without this the split zeroed the aggregate data terms
+  while the compositions were residualized, which on a random-effects
+  model moved the composition residuals by up to 0.99 on a
+  21-random-effect fixture. It also improves the pre-existing
+  `"TruncatedNormal"` split. Fixed-effect models are unaffected, and
+  `verify-refit-like.R` is bit-identical.
+
+### Ease of use
+
+- **[`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md)
+  says when composition residuals are taken at the default method.** The
+  default is biased on composition data by the scoring table in
+  [`?osa_residuals`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md),
+  and stays the default because `"cdf"` returns non-finite residuals in
+  bulk on a deeply nested random-effects model. Naming any method, the
+  default included, is taken as a choice and stays silent.
+- **The install commands in the README and
+  [`?print.Rceattle`](https://afsc-assessments.github.io/Rceattle/reference/print.Rceattle.md)
+  work as written.** The version pin pointed at 4.3.0 and the tag
+  convention was documented as `@vX.Y.Z`; releases since 5.0.0 are
+  tagged bare. The example links pointed at `blob/master`, and there is
+  no `master` branch.
+- **[`print()`](https://rdrr.io/r/base/print.html) on a `model_config`
+  lists the fields it imposes.** `fit_mod(config = )` overlays only the
+  fields the config set, so this is what a config will change on a data
+  object, readable before fitting rather than from the warnings the fit
+  raises.
+
+## Rceattle 5.40.0
+
+### New features
+
+- **A non-parametric selectivity form whose deviations integrate.**
+  `NonParametric` charges its shape penalties on each year’s realized
+  curve, so under `random_sel = TRUE` the density the Laplace
+  approximation integrates is tilted and the reported deviation SD is
+  not the SD of the deviations;
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
+  refuses that combination, and the random-walk mode for its own reason
+  (`inst/dev/TODO-selectivity.md`).
+  `Selectivity = "NonParametricIntegrable"` (code 13) keeps
+  `NonParametric` and `NonParametricPM` exactly as they are and adds the
+  missing density: it is the Ianelli base curve with the decreasing,
+  curvature and average-selectivity penalties charged once on the base
+  coefficients, and the deviations scored by `dnorm(0, sel_dev_sd)` on
+  the estimated bins, so `random_sel = TRUE` estimates the SD from a
+  complete density.
+
+  `Time_varying_sel` picks the structure, as it does for
+  `NonParametric`: `"Off"` estimates no deviations, `"IID"` gives
+  independent annual deviations, and `"RandomWalk"` gives increments
+  from the base curve with the start-year increment fixed at 0. Under
+  `"Off"` the form reproduces the `NonParametric` objective to the last
+  digit, at any `Bin_first_selected`. It reads no `Sel_cap_bin`, and
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)’s
+  refusals name it as the alternative. The per-year mean of a year’s
+  deviations is removed by the curve’s centring, so the data never see
+  it: under `random_sel = TRUE` it integrates out exactly, under
+  `random_sel = FALSE` those directions are pure prior.
+
+- **A non-parametric fleet’s coefficients below `Bin_first_selected` are
+  held at 0.** They are mapped off, but the curve reads them: each year
+  is centred by the log mean over every bin, so a value there shifted
+  the whole curve while no density scored it. `inits` from a fit with a
+  lower `Bin_first_selected` hold such values: 0.9 in those cells moved
+  `Atka2022`’s fishery objective by 704 nats and year-1 selectivity by
+  0.21. This affected `NonParametric` (2) and the new form 13.
+  `NonParametricPM` (9) was never affected, because its branch already
+  zeroed those cells before centring, so no `NonParametricPM` fit needs
+  revisiting. A fit started from the build defaults, the golden fits
+  included, is unchanged.
+
+- **What the estimated SD is worth.**
+  `tools/verify/verify-sim-recovery-np-integrable.R` draws deviates at a
+  known SD on `Atka2022`’s fishery (multinomial age compositions, input
+  sample sizes 2 to 236), simulates the observations and refits with
+  `random_sel = TRUE`. The estimate is biased low: 0.24 to 0.26 against
+  a true 0.35 across two runs of eight and ten replicates, every
+  replicate below the truth (reported SE on the log scale 0.12), 13% low
+  at 0.70, and 9% low at 0.35 with the sample sizes multiplied by ten.
+  Every scored cell has its density and no estimated cell is unscored
+  (checked cell by cell), so this is the Laplace marginal likelihood’s
+  known downward bias for variance components on small multinomial
+  samples (Breslow and Lin 1995), not a scoring defect. Read the
+  reported SD as a lower bound on the process SD unless the compositions
+  are well sampled; MCMC through `tmbstan` on the fitted object removes
+  the approximation.
+
+## Rceattle 5.39.0
+
+### Stock-recruit curves under predation
+
+- **Alpha and beta are bounded at +/-30 on the log scale.** Under
+  predation nothing ties a stock-recruit curve to an equilibrium, and on
+  a flat ridge log alpha has reached 702, next to the double-precision
+  limit; +/-30 is 13 orders of magnitude either side of any stock’s
+  scale, so it never binds a determined estimate. A linkage bound on
+  alpha or beta overrides it. Predation is the reason the bound was
+  added, but the bound itself is unconditional:
+  [`build_bounds()`](https://afsc-assessments.github.io/Rceattle/reference/build_bounds.md)
+  applies it to every model, single-species included, and the refit stop
+  below reaches any fit whose `rec_pars` sit outside it, estimated or
+  fixed. **A fit saved on the old unbounded ridge, with log alpha or log
+  beta beyond +/-30, no longer refits**:
+  [`build_bounds()`](https://afsc-assessments.github.io/Rceattle/reference/build_bounds.md)
+  stops because its starting values are outside the bounds, which takes
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md),
+  [`profile()`](https://rdrr.io/r/stats/profile.html) and
+  [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
+  on that fit with it. The error names the block and says so. Restart
+  such a fit from values on the stock’s scale
+  (`build_srr(srr_alpha_init =, srr_beta_init =)`); the curve it came
+  from was the degenerate one this release exists to report.
+- **The convergence battery now reads the curve under predation instead
+  of skipping it.** Steepness needs spawning biomass per recruit, which
+  is undefined under `msmMode > 0`, so `check_convergence()` returned a
+  NOTE without looking at the curve, and the flat Pacific hake curve
+  passed. It now reports a WARN when the curve is flat over the observed
+  SSB range (Beverton-Holt predicted/asymptote above 0.9 at the lowest
+  SSB), linear (below 0.1 at the highest; for Ricker, a
+  density-dependence factor above 0.9), when a Ricker peaks below the
+  lowest observed SSB, when log alpha or log beta sits at the overflow
+  bound, or (with `getsd = TRUE`) when a log-scale standard error
+  exceeds 10; the record holds alpha, beta, their standard errors and
+  the density dependence at both ends of the SSB range per species. A
+  curve held at its inputs is a NOTE, not a warning. The hindcast
+  standard errors it reads are now kept in the fit’s convergence
+  snapshot, since under an estimating HCR `fit$sdrep` is the
+  projection’s.
+- **Simulation recovery.** `tools/verify/verify-sim-recovery-srr-msm.R`
+  imposes a Beverton-Holt curve with its bend inside the observed SSB
+  range on the two-species fixture (fished with a strong pulse, SSB
+  spanning about 7x) and refits it from the true values after redrawing
+  the observations and the recruitment process; a `dispersed` option
+  starts a log unit away. Over 30 replicates from the truth, species 2
+  recovers cleanly (log alpha 2.51 against a true 2.55, empirical SD
+  0.19, mean reported SE 0.20; log beta -5.64 against -5.66); species 1,
+  whose recruitment is noisier, recovers in the replicates that converge
+  and runs to the ridge in those that do not. From dispersed starts
+  species 2 still recovers (2.58 against 2.54) and species 1 reaches the
+  ridge in half the replicates, which is the behaviour the new check
+  reports.
+- Tests:
+  [`sample_rec()`](https://afsc-assessments.github.io/Rceattle/reference/sample_rec.md)
+  projects the mean multiplier at both draw sites
+  (`test-functions-sample-rec-agreement.R`); one fitted Ianelli case
+  under predation; the degenerate-curve check on both ridges and both
+  forms.
+  [`?build_srr`](https://afsc-assessments.github.io/Rceattle/reference/build_srr.md)
+  says what the `R0` slot starts at under a multispecies curve.
+
+## Rceattle 5.38.0
+
+### New features
+
+- **A per-sex apical selectivity offset.** Fishing mortality is one
+  `log_F` per fleet and year shared by the sexes, so a sex difference in
+  F can only come from selectivity, and no form had a height parameter:
+  the logistic family and `DoubleNormal` peak at 1 for every sex, the
+  non-parametric forms re-centre each sex, `Hake` normalizes each sex by
+  its own maximum. The new selectivity linkage parameter `apical` (base
+  block `log_sel_apical`, `[n_fleets, nsex]`, log scale) multiplies one
+  sex’s whole curve by `exp(log_sel_apical)`, applied after the form and
+  before the shared normalizer, so it works for every estimated form.
+  Name the fleet and the sex that holds it, as Stock Synthesis’s
+  male-offset option does:
+  `build_selectivity(linkages = list(apical = linkage_spec(~ 1, by = ~ fleet + sex, fleet = 3, sex = "male", priors = list(intercept = lognormal(0, 0.5)))))`.
+  The multiplier equals the ratio of the sexes’ peak heights only where
+  their shapes peak equally (the logistic family on an age axis); for a
+  dome with sex-specific shape it is the pointwise multiplier on that
+  sex’s curve. Only the male:female contrast is identified (the common
+  level is `log_F`), so
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
+  refuses an `apical` linkage that names no fleet, no sex or both sexes,
+  one on a one-sex species, a `Fixed` or AR1 fleet, a mirror fleet, one
+  with `link = "identity"`, and one on a fleet whose
+  `Sel_norm_scope = "WithinSex"` normalization would divide the offset
+  out. The contrast is informed only by joint compositions
+  (`comp_data$Sex = 3`), and
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
+  warns when the named fleet has none and the offset has no prior, since
+  nothing then informs the ratio. Naming `fleet` and `sex` is enough:
+  `by` defaults to `~ fleet + sex` for this parameter. The multiplier is
+  compiled into the template only when a linkage names it, so every
+  existing model keeps its AD tape and the golden fits are unchanged;
+  `inits` and a stored `map` from an older fit are filled with the block
+  fixed at 0, so saved fits still refit.
+  `tools/verify/verify-sim-recovery-apical.R` is the simulation-recovery
+  harness: on `GOAatf`’s fishery with a true log offset of 0.693, 120
+  replicates give a mean of 0.685 (empirical SD 0.28, mean reported SE
+  0.35), so the estimate is unbiased and its standard error
+  conservative.
+
+## Rceattle 5.37.0
+
+### Breaking changes
+
+- **The dead QAR1 catchability path is removed.** `Catchability = "AR1"`
+  has been refused since 5.12.0 and the live form is a q linkage
+  (`ar1(1 | Year)` with `observe`), but two template blocks keyed on the
+  retired code stayed: one that overwrote `index_q` (discarding the
+  linkage offsets) and its AR1 density, plus the `index_q_rho` parameter
+  only they read. Both blocks and the parameter are gone; `index_q_rho`
+  drops out of
+  [`parameter_dictionary()`](https://afsc-assessments.github.io/Rceattle/reference/parameter_dictionary.md),
+  [`set_phases()`](https://afsc-assessments.github.io/Rceattle/reference/set_phases.md)
+  and the map. An older fit’s `inits` and stored `map` naming it are
+  accepted (the block is dropped as retired), and a stored `map` sizing
+  `log_pop_scalar` by age (before 5.35.0) is collapsed as `inits`
+  already were, levels included, so a map that estimated an age-specific
+  scalar collapses to one per species rather than stopping in TMB, so
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md),
+  [`profile()`](https://rdrr.io/r/stats/profile.html) and
+  [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
+  on a saved fit still run. A `map` name the model has no parameter for
+  is dropped with a warning (a retired block is dropped silently), so a
+  misspelling no longer fixes nothing; a `map` missing a parameter the
+  model has stops with a message naming it, where TMB used to fail on
+  the template read; a map level no cell holds is dropped rather than
+  becoming a parameter without a start value; and a `map` that estimated
+  an age-specific `log_pop_scalar` warns that only the first age is
+  kept. A script that sets `inits$index_q_rho` keeps running, with that
+  assignment now inert. No reachable fit changes; the golden fits are
+  unchanged.
+
+### Documentation
+
+- **A contributor path.** `CONTRIBUTING.md` (setup, tests, branches,
+  what a pull request owes) replaces the branch table and commit
+  convention in the developer guide. A new article, *Adding a
+  selectivity form*, traces `Selectivity = "DoubleNormal"` through every
+  file, fits it on `GOApollock`, and shows what the drift guards report
+  on a half-finished form; `test-docs-anchors.R` checks every path,
+  function and code it quotes. The C++ template is now published as a
+  Doxygen reference from the site’s Contributing menu (`Doxyfile`, built
+  by `pkgdown.yaml`); the growth header’s equations render, and stale
+  `@param` names in the growth, selectivity and predation headers are
+  corrected. The forms table no longer calls the double normal
+  six-parameter: it estimates four (peak, two widths, right-tail floor).
+  Two defects the trace found are recorded in
+  `inst/dev/CLEANUP_BACKLOG.md`, not fixed here: a `DoubleNormal` fleet
+  with `Time_varying_sel = "RandomWalkAscending"` silently drops its
+  deviates, and the form’s default starting values describe a flat curve
+  the optimizer does not leave.
+
+## Rceattle 5.36.0
+
+### Results change
+
+- **`fit_mod(config =)` overlays only the fields the config set.** It
+  replaced `data_list$model_config` wholesale, so a config from
+  [`model_config()`](https://afsc-assessments.github.io/Rceattle/reference/model_config.md)
+  or
+  [`load_config()`](https://afsc-assessments.github.io/Rceattle/reference/load_config.md)
+  silently dropped every linkage attached with
+  `build_data(model_config = )` (57 random effects to 0 on a GOAatf
+  survey `rw(1 | Year)` fit). Now only the fields the config set,
+  defaults included, replace the data’s, with a warning where they
+  differ (a `build_*()` field compared as
+  [`save_config()`](https://afsc-assessments.github.io/Rceattle/reference/save_config.md)
+  writes it). A config saved from a fit sets every field, so it still
+  reproduces that fit. A script that relied on the wholesale reset must
+  name every field it means to set.
+
+### Bug fixes
+
+- **A `species =`, `sex =` or `fleet =` filter on a linkage spec now
+  warns when it does nothing**: when `by` does not include the term, and
+  when it matches none of the model’s levels (the whole spec was
+  dropped, so a male M prior on a one-sex species vanished silently).
+  Refits stay quiet.
+- **OSA outlier symbols no longer scale with the panel’s size.** A fixed
+  `|resid| > 3` expected 13.5 flags in a 5,000-residual panel and 0.3 in
+  a 100-residual one. The OSA panel now flags above
+  `qnorm(1 - 0.05 / (2 n))` (Bonferroni per panel), so under the model a
+  panel expects 0.05 flags whatever its size. The Pearson panel keeps 3:
+  those residuals are not N(0, 1).
+
+### Documentation
+
+- [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
+  and
+  [`run_config()`](https://afsc-assessments.github.io/Rceattle/reference/run_config.md)
+  say what `random_sel` and `random_q` gate: the `Time_varying_*`
+  deviations only, with one estimated sd per `Selectivity_index` group;
+  linkage random effects integrate regardless.
+- [`build_srr()`](https://afsc-assessments.github.io/Rceattle/reference/build_srr.md)’s
+  starting values name the `exp(9)` mean recruitment start.
+- [`build_osa_data()`](https://afsc-assessments.github.io/Rceattle/reference/build_osa_data.md)’s
+  note on `comp_offset` names its three fill sites.
+
+## Rceattle 5.35.0
+
+### Results change
+
+- **The plus group’s mean length is weighted by the species’ own natural
+  mortality.** Under parametric growth (`growth_model > 0`) the ages
+  pooled in the plus group were weighted by survival at a hard-coded M =
+  0.2 whatever the species’ M; they now use the base M1 at the oldest
+  age (fixed or estimated, without year-varying offsets). This is still
+  survival at M, not at total mortality: fishing and predation are
+  excluded, so a heavily fished or preyed plus group is still somewhat
+  too long. With `M1_model > 0` the plus group’s length and weight now
+  depend on the estimated M1. Length, weight and spawning biomass of the
+  plus group move for every parametric-growth fit whose M is not 0.2: on
+  the 2024 GOA Pacific cod model at its starting values (M = 0.49) the
+  plus-group mean length goes from 99.89 to 98.80 cm, its weight from
+  12.28 to 11.48 kg, and first-year female spawning biomass down 0.66%;
+  refitted, its objective goes from 6416.12 to 6415.82 and terminal
+  female spawning biomass from 48,360 to 48,219 t (-0.29%). Empirical
+  weight-at-age fits, and so the golden references, are unchanged.
+
+### Breaking changes
+
+None of the refused configurations below fitted the model it described,
+so this release stays a minor version.
+
+- **`estDynamics = 3` (`"FixedScaledByAge"`) is retired.** It never
+  estimated an age-specific multiplier on the input numbers-at-age:
+  [`build_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md)
+  freed only the first age’s scalar under predation and none in
+  single-species mode, so every such fit was the `estDynamics = 2`
+  model. Measured on the fixed-numbers fixture, codes 2 and 3 both gave
+  objective 222899009.1243875 with one free scalar.
+  [`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md)
+  now refuses the code and names `2`; rebuild a stored fit with
+  `estDynamics = 2`, unchanged. `log_pop_scalar` and the reported
+  `pop_scalar` are one value per species: a script reading
+  `quantities$pop_scalar[sp, 1]` now reads `pop_scalar[sp]` (the GOA
+  CEATTLE figure scripts are updated), and
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
+  collapses an older fit’s matrix in `inits` to its first column. The
+  multiplier is estimated only under predation (`msmMode > 0`); in
+  single-species mode nothing informs it, so `2` fits as `1`, which the
+  schema,
+  [`?BS2017SS`](https://afsc-assessments.github.io/Rceattle/reference/BS2017SS.md)
+  and
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
+  now say.
+- **A recruitment linkage on a species with input numbers-at-age
+  (`estDynamics > 0`) is refused.** Its recruitment is read from
+  `NByageFixed` and `rec_pars` is fixed, so the linkage fitted nothing:
+  on the fixed-numbers fixture an intercept prior added 486.98 nats to
+  the objective (and so to AIC) with no free parameter, and a covariate
+  slope was a free parameter with a zero gradient, which leaves the
+  Hessian singular. A spec with no `species =` expands to one row per
+  species, so it is refused too; the message names the estimated species
+  to put in `species = c(...)`.
+- **`random_sel = TRUE` is refused for `Selectivity = "NonParametric"`
+  with `Time_varying_sel = "IID"` at every `Sel_curve_pen` setting.**
+  Until now `Sel_curve_pen1 = 0` lifted the refusal, but the
+  average-selectivity penalty is always charged on each year’s realized
+  curve and does not scale with the deviation sd, so the sd that fit
+  reported was the sd of a tilted density (about 5% of the precision low
+  at sd 0.35, more as the sd grows). Fit with `random_sel = FALSE`, the
+  penalized AMAK formulation. (From 5.40.0 the integrable form
+  `NonParametricIntegrable` takes `random_sel = TRUE` instead; this
+  refusal does not apply to it.)
+
+### Bug fixes
+
+- **A non-positive stock-recruit curve no longer gives a NaN
+  objective.** An identity-link offset on alpha, beta or R0 can drive
+  the curve to or below zero; on the single-species fixture an alpha
+  offset of -100 per unit covariate gave `R_hat` of -89 and a NaN
+  objective, stock-recruit penalty and dynamic B0 under Beverton-Holt,
+  and a NaN `log(alpha * SPR0)` in `R_hat` and steepness under Ricker.
+  When the model has an identity-link recruitment linkage, hindcast
+  recruitment, R0, R_init, the penalty curve, `R_hat` (first year
+  included) and the Ricker log arguments are kept positive by `posfun()`
+  (a 0.001 barrier: a badly negative curve returns a value well below
+  0.001, not one fish) with the excursion charged to the “Zero n-at-age
+  penalty” row, and
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
+  warns on the offset. Projected recruitment and the recruitment behind
+  SB0 and dynamic B0 are not yet floored and can still be negative under
+  such a linkage (`inst/dev/TODO-srr-multispecies.md` item 14); check
+  those series. Without such a linkage the template is exactly as
+  before, so no existing fit moves.
+- **The “Zero n-at-age penalty” row was a running total across cells and
+  species.** The accumulator behind the numbers-at-age floor (and the
+  Ricker intercept floor) was reset once per iteration, so each cell
+  added every earlier excursion in every species: with species 1’s log
+  R0 at -20 on BS2017SS, species 2’s row read 1.4e-3 from a parameter it
+  does not share, and species 1’s own value was inflated by its cell
+  count. Each floor now adds its own excursion only. Zero for every fit
+  that never touches a floor (the golden fits are unchanged); a fit that
+  does gets a smaller, per-species penalty.
+- **`check_convergence()` reports a non-zero or non-finite “Zero
+  n-at-age penalty” row**, naming the species and the root-sum-square
+  excursion below the floor (WARN under 1, FAIL above or when the row is
+  not finite; thousands of fish for numbers and recruitment, unitless
+  for the Ricker intercept): a fit whose numbers-at-age, Ricker
+  intercept or recruitment sat on the 0.001 floor is not the model as
+  specified, and nothing else showed it.
+- **A factor switch fitted as its level index.** `.map_switch()` passed
+  a factor through (`read.csv(stringsAsFactors = TRUE)`), and every
+  downstream comparison against an integer code was FALSE rather than an
+  error, so `srr_est_mode = factor("LognormalPrior")` fitted as code 1
+  with the prior dropped. Factors and numeric-looking strings now
+  resolve to the code they name, and a numeric-looking string outside
+  the map (`"99"`) is an error, as an unknown name is.
+- **Editing `Time_varying_sel_sd` or `Time_varying_q_sd` and refitting
+  from `inits` was a silent no-op.** The columns are read on a fresh
+  build only;
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
+  now warns, as it does for `Comp_weights`, unless `random_sel` /
+  `random_q` estimates the sd.
+- **A species with input numbers-at-age reports its input recruits as
+  `R`, and `NA` for its stock-recruit quantities.** Its `rec_pars` are
+  fixed, so `R`, `R0`, `R_init`, `avg_R`, `steepness` and `SPR0` held
+  the
+  [`build_params()`](https://afsc-assessments.github.io/Rceattle/reference/build_params.md)
+  placeholder (`R0 = exp(9)`, a flat 8103 that neither the model nor the
+  user set); in single-species mode the equilibrium `SB0` and `B0` were
+  built on it, and with `DynamicHCR = FALSE` the depletions divided by
+  it. `R` is now the first-age input numbers (`NByageFixed` times
+  `pop_scalar`, sexes summed) in the years `NByageFixed` covers and `NA`
+  in any other (a year with no row holds zeros), with no confidence
+  band; the rest are `NA`, and
+  [`plot_stock_recruit()`](https://afsc-assessments.github.io/Rceattle/reference/plot_stock_recruit.md)
+  draws its points but no curve.
+  [`sample_rec()`](https://afsc-assessments.github.io/Rceattle/reference/sample_rec.md)
+  and
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md)
+  skip such a species (its `rec_dev` is mapped out). Under
+  `DynamicHCR = TRUE` the depletions are the input numbers relative to
+  themselves and stay reported; under predation `MSSB0` replaces `SB0`.
+- **[`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
+  says when `Sel_norm_scope` is not read.** On a two-sex `Hake` or
+  `LogisticPM` fleet the column changed nothing, without saying so
+  (measured identical to every digit on GOAatf fleet 3). Neither form
+  goes through the shared normalizer, for different reasons: `Hake`
+  normalizes each sex to its own maximum in its own block, while
+  `LogisticPM` does not normalize at all and reuses `Sel_norm_bin` as a
+  penalty bin range. The notice names the reason that applies, and the
+  schema and the vignette say it too.
+- [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md)’s
+  note on a penalty-form peel with no penalty years now covers a peel
+  that keeps a single year.
+
+## Rceattle 5.34.0
+
+### Results change
+
+- **Multispecies `ConstantF` projects at the input F.** The multispecies
+  projection loop in
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
+  reset every species’ `log_Ftarget` to 0, so a `ConstantF` run under
+  predation projected each species at F = 1 whatever `Ftarget` was,
+  including a `ConstantF` estimation model refit inside
+  [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md).
+  Projected catch, SSB and depletion change for those runs; with
+  `HCRorder > 1`, so do later species’ multispecies SB0. A single
+  `Ftarget` now recycles to every species, as
+  [`?build_hcr`](https://afsc-assessments.github.io/Rceattle/reference/build_hcr.md)
+  documents (with more than one species it stopped with a map-size
+  error), and a missing or negative `Ftarget` under `ConstantF` is an
+  error. An `Ftarget` of 0 is stored as log F = -999, the value
+  [`build_params()`](https://afsc-assessments.github.io/Rceattle/reference/build_params.md)
+  gives a fleet with no catch, not as -Inf; the projection was already
+  unfished, only the stored parameter changes. A single-species
+  projection under a rule that estimates `Ftarget` starts it at log F =
+  0 when `inits` hold that no-fishing value, as the multispecies loop
+  already did; before, inits from a `ConstantF` fit with `Ftarget = 0`
+  left the rule’s `Ftarget` at 0, where its gradient is exactly 0.
+
+- **Projected `F_flt` and `F_flt_age` are indexed by fleet, fisheries
+  only.** The projection wrote `F_flt` by species index, so a fishery’s
+  row reported another species’ F, and survey rows took `NA` times F or
+  a full share of F. Both are reported quantities only, so no fit
+  changes. Hindcast rows were already correct.
+
+- **A species with input numbers-at-age (`estDynamics > 0`) is projected
+  at F = 0 and takes no harvest control rule.**
+  [`build_hcr_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_hcr_map.md)
+  already left its `log_Ftarget` / `log_Flimit` unestimated and the
+  reference-point penalties already skipped it, but the projection still
+  fished it at those start values (F = 1 under most rules). Its
+  projected catch is now 0. Its numbers are input, but a fixed species
+  with a fishery now has a higher within-year mean abundance in the
+  projection, which changes predation mortality on and by it, and its
+  own SSB changes when `spawn_month > 0`.
+
+  `Ftarget`, `Flimit`, `SPRtarget`, `SPRlimit`, `SBF` and `DynamicSBF`,
+  all set by that unestimated F, are `NA` in `fit$quantities`;
+  [`report_tables()`](https://afsc-assessments.github.io/Rceattle/reference/report_tables.md)
+  blanks the five it reports with that reason, and
+  [`plot_f()`](https://afsc-assessments.github.io/Rceattle/reference/plot_f.md)
+  draws no `Ftarget` or `Flimit` line for the species.
+  [`mse_summary()`](https://afsc-assessments.github.io/Rceattle/reference/mse_summary.md)
+  reports the species’ `P(Fy > Flimit)` metrics, and the
+  `P(SSB < SSBlimit)` metrics that read `SBF`, as `NA`; a fixed species
+  with a fishery reports catch IAV and P(Closed) as `NA`, like an
+  unfished one. Its depletion is still reported.
+
+  In the four-species hake model this is arrowtooth, sablefish and
+  California sea lions; none has a fishery and `spawn_month` is 0, so
+  its dynamics and catches do not change, but its summary reports `NA`
+  where it reported 0.
+
+- **[`mse_summary()`](https://afsc-assessments.github.io/Rceattle/reference/mse_summary.md)
+  takes multispecies dynamic depletion from the operating model’s
+  `DynamicSB0`**, as it already did for single-species models.
+  `om_terminal_dynamic_sb0` and `om_terminal_depletion_dynamic` were
+  read from the no-fishing refit (`OM_no_F`). Dynamic SB0 is the OM’s
+  own history with no fishing: the stock-recruit curve, the realized
+  recruitment deviations and the predation suitability fitted in the
+  hindcast. On the Pacific hake MSE (`MSE_yr2024.R`, Beverton-Holt
+  operating model, two simulations) hake’s terminal dynamic depletion
+  goes from 0.99 to 0.78.
+
+- **[`remove_F()`](https://afsc-assessments.github.io/Rceattle/reference/remove_F.md)
+  sets F to 0 from the year after `endyr` by default**, not from the
+  year after the latest `suit_endyr`. When the suitability window ended
+  before `endyr` it removed fishing inside the hindcast: on the hake
+  MSE, 2020–2023 of a 2023 hindcast. A new `styr` argument gives the
+  first year fished at F = 0; under predation it must fall after the
+  empirical-suitability window (the `suit_endyr` of every predator with
+  `suitMode = 0` and non-zero fitted suitability), since removing
+  fishing inside it would change the suitability the model was fit with.
+  As before, the projection is unfished whatever harvest control rule
+  the model was fit under, so `styr` can be no later than the year after
+  `endyr`.
+  [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
+  now builds `OM_no_F` with no fishing after the original operating
+  model’s terminal year, so it matches the OM through that year. The
+  `OM no F: SSB Collapse` and `OM: SSB Collapse from F` metrics change
+  for runs whose suitability window ended before `endyr`; an MSE saved
+  under 5.33.0 keeps its old `OM_no_F`, so rerun
+  [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
+  to update them.
+
 ## Rceattle 5.33.0
 
 ### Breaking changes
@@ -8,7 +1445,7 @@ None of the refused configurations below fitted the model it described,
 so this release stays a minor version. Stored fits with them no longer
 refit.
 
-- **[`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+- **[`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   refuses an `R0` linkage under a stock-recruit curve fitted in the
   hindcast.** Beverton-Holt and Ricker recruitment read only alpha, beta
   and SSB, so in a single-species model `R0` is derived from them and
@@ -20,7 +1457,7 @@ refit.
   with the `R0` linkage.
 - **A stored fit with `srr_est_mode = "BetaPrior"` on a Ricker curve
   does not refit**;
-  [`build_srr()`](https://grantdadams.github.io/Rceattle/reference/build_srr.md)
+  [`build_srr()`](https://afsc-assessments.github.io/Rceattle/reference/build_srr.md)
   has refused the pair since 5.30.0. The prior is on Beverton-Holt
   steepness and never applied to a Ricker curve. Rebuild with
   `srr_est_mode = "Estimated"`, the model it fitted.
@@ -29,12 +1466,12 @@ refit.
   value. Keep the linkage alone.
 - **A stored fit with stock-recruit penalty years outside the hindcast
   no longer refits** (see Bug fixes). Rebuild with the model’s full
-  [`build_srr()`](https://grantdadams.github.io/Rceattle/reference/build_srr.md)
+  [`build_srr()`](https://afsc-assessments.github.io/Rceattle/reference/build_srr.md)
   call, with the penalty years inside `styr` to `endyr`:
   `build_srr(srr_hat_endyr = )` on its own resets the curve and its
   priors to the defaults (mean recruitment, `srr_pred_fun = 0`), which
   drops the penalty.
-  [`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md)
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md)
   still runs when only `srr_hat_endyr` is past `endyr`, truncating it to
   each peel.
 - **A stored fit with a Ricker `srr_est_mode = "LognormalPrior"` and an
@@ -57,7 +1494,7 @@ refit.
 
 - **Alpha priors, fixed values and starting values outside a linkage.**
   Each still works and warns once from
-  [`build_srr()`](https://grantdadams.github.io/Rceattle/reference/build_srr.md);
+  [`build_srr()`](https://afsc-assessments.github.io/Rceattle/reference/build_srr.md);
   refits are silent.
   - `srr_est_mode = "Fixed"`: use
     `` linkages = list(alpha = linkage_spec(~ 1, est_phase = 0, init = list(`(Intercept)` = <alpha>))) ``.
@@ -87,7 +1524,7 @@ refit.
   centre (`inst/dev/TRAPS.md`). The Ianelli penalty with centred
   deviations has no input to shift. A value between 0 and 1 gives priors
   a centre that is neither the mean nor the median. This applies to
-  [`prior_lognormal()`](https://grantdadams.github.io/Rceattle/reference/prior_lognormal.md)
+  [`prior_lognormal()`](https://afsc-assessments.github.io/Rceattle/reference/prior_lognormal.md)
   in every linkage (intercepts, slopes and random-effect SDs), the
   Ricker alpha prior (`srr_est_mode = "LognormalPrior"`) and the
   catchability prior (`Catchability = "Estimated-with-prior"`). The
@@ -131,7 +1568,7 @@ refit.
 
 - For a single-species curve fitted in the hindcast,
   `sample_rec(sample_rec = FALSE)` and
-  [`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md)
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md)
   now set the projected recruitment deviation to the hindcast’s mean
   deviation from the curve, `log(mean(exp(rec_dev)))`, which equals the
   multispecies form’s `log(mean(R / R_hat))`. They used
@@ -143,14 +1580,14 @@ refit.
   `run_mse(sample_rec = FALSE)`, retrospective forecasts, and dynamic
   reference points in projection years (and projected F under
   `DynamicHCR = TRUE`). In the model
-  [`sample_rec()`](https://grantdadams.github.io/Rceattle/reference/sample_rec.md)
+  [`sample_rec()`](https://afsc-assessments.github.io/Rceattle/reference/sample_rec.md)
   returns, projected recruitment changes only with
   `proj_mean_rec = FALSE`.
-  [`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)’s
+  [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)’s
   default, `sample_rec = TRUE`, is unchanged.
 
 - `sample_rec(sample_rec = FALSE)` and
-  [`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md)
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md)
   now set the projected recruitment deviation for the Ianelli penalty
   form (`srr_fun = 0` with a curve in `srr_pred_fun`) to
   `log(mean(R / R_hat))` over the penalty years (`srr_hat_styr` to
@@ -160,13 +1597,13 @@ refit.
   `bias_adjust_proc` is. The deviation sets recruitment in a
   retrospective’s peeled years and, under `run_mse(sample_rec = FALSE)`,
   in the operating model’s added years. In the model
-  [`sample_rec()`](https://grantdadams.github.io/Rceattle/reference/sample_rec.md)
+  [`sample_rec()`](https://afsc-assessments.github.io/Rceattle/reference/sample_rec.md)
   returns, the dynamic reference points (`DynamicB0`, `DynamicSB0`,
   `DynamicSBF`) always change; projected recruitment changes only with
   `proj_mean_rec = FALSE`; and projected F changes only under HCRs 5, 6
   and 7, through projected SSB with `proj_mean_rec = FALSE` and through
   the dynamic reference points with `DynamicHCR = TRUE`.
-  [`sample_rec()`](https://grantdadams.github.io/Rceattle/reference/sample_rec.md)
+  [`sample_rec()`](https://afsc-assessments.github.io/Rceattle/reference/sample_rec.md)
   stops if no penalty years fall in the hindcast; a retrospective peel
   that ends before the penalty years uses its own years instead, with a
   warning.
@@ -204,7 +1641,7 @@ refit.
   dynamic runs use the suitability fitted in the hindcast. `DynamicB0`,
   `DynamicSB0` and `DynamicSBF` change for every penalty-form model
   (`srr_fun = 0` with a curve in `srr_pred_fun`), and so does
-  [`mse_summary()`](https://grantdadams.github.io/Rceattle/reference/mse_summary.md)’s
+  [`mse_summary()`](https://afsc-assessments.github.io/Rceattle/reference/mse_summary.md)’s
   dynamic depletion for a single-species penalty-form operating model.
   With `DynamicHCR = TRUE` so do the projections, the HCR 3 target, and
   `biomass_depletion` and `ssb_depletion`. Models with a curve fitted in
@@ -212,14 +1649,14 @@ refit.
 
 - **A linkage intercept fixed at its `init` (`est_phase = 0`) holds that
   value when
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   is given `inits`.** The init was applied only to freshly built
   parameters, so a warm start kept the `inits` value and mapped it off:
   a refit at alpha = 500 warm-started from a fit at 1170 stayed at 1170.
   It also wins over `srr_alpha_init`. This applies to every process with
   an intercept linkage (recruitment, M, q, selectivity, growth). Refits
   through
-  [`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md),
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md),
   [`profile()`](https://rdrr.io/r/stats/profile.html) and the other
   diagnostics keep their fitted, or profiled, value, and skip the
   `srr_prior`, `srr_alpha_init` and `srr_beta_init` starting values too;
@@ -229,18 +1666,18 @@ refit.
   at the init: use [`profile()`](https://rdrr.io/r/stats/profile.html),
   or give the loop’s linkage `est_phase = 1`. On a fit with
   `srr_alpha_init` or `srr_beta_init`,
-  [`jitter()`](https://grantdadams.github.io/Rceattle/reference/jitter.md)
+  [`jitter()`](https://afsc-assessments.github.io/Rceattle/reference/jitter.md)
   and
-  [`self_test()`](https://grantdadams.github.io/Rceattle/reference/self_test.md)
+  [`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md)
   now perturb alpha and beta (they were reset after jittering), and
   retrospective peels start from the fitted alpha.
 
 - **Stock-recruit penalty years must lie in the hindcast.**
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   refuses `srr_hat_styr < styr` and `srr_hat_endyr > endyr` under the
   Ianelli penalty. Past `endyr` the penalty applied to projected
   recruitment (BS2017SS, `endyr + 5`: objective +1,215), and
-  [`sample_rec()`](https://grantdadams.github.io/Rceattle/reference/sample_rec.md)
+  [`sample_rec()`](https://afsc-assessments.github.io/Rceattle/reference/sample_rec.md)
   averaged over different years than the template. A stored
   `srr_hat_endyr` is kept when `endyr` is lowered; Breaking changes
   gives the rebuild.
@@ -255,20 +1692,20 @@ refit.
   estimates a covariate or random effect. An intercept-only linkage
   still counts as fixed.
 
-- [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+- [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   resolves a string `msmMode` (e.g. `"SingleSpecies"`) before its
   multispecies stock-recruit checks; `"SingleSpecies" > 0` is TRUE in R.
 
 ### Documentation
 
-- [`?build_srr`](https://grantdadams.github.io/Rceattle/reference/build_srr.md):
+- [`?build_srr`](https://afsc-assessments.github.io/Rceattle/reference/build_srr.md):
   a linkage on `R0` acts under mean recruitment only. Under a curve
   fitted in the hindcast a single-species `R0` linkage is refused; in a
   multispecies model only an intercept-only one is accepted, as the
   initial recruitment level. The “Starting values” section gave alpha’s
   default start as `e^3`; it is `srr_prior` (default 4) wherever that is
   an alpha.
-- [`?linkage_spec`](https://grantdadams.github.io/Rceattle/reference/linkage_spec.md):
+- [`?linkage_spec`](https://afsc-assessments.github.io/Rceattle/reference/linkage_spec.md):
   an intercept’s `init` is on the parameter’s natural scale, a slope’s
   on the link scale.
 
@@ -276,13 +1713,13 @@ refit.
 
 ### Documentation
 
-- **[`?build_srr`](https://grantdadams.github.io/Rceattle/reference/build_srr.md)
+- **[`?build_srr`](https://afsc-assessments.github.io/Rceattle/reference/build_srr.md)
   now leads with `linkages` for priors, fixed values and covariates on
   `R0`, alpha and beta.** An intercept-only
-  [`linkage_spec()`](https://grantdadams.github.io/Rceattle/reference/linkage_spec.md)
+  [`linkage_spec()`](https://afsc-assessments.github.io/Rceattle/reference/linkage_spec.md)
   acts on the parameter itself: a prior
-  ([`prior_lognormal()`](https://grantdadams.github.io/Rceattle/reference/prior_lognormal.md),
-  [`prior_normal()`](https://grantdadams.github.io/Rceattle/reference/prior_normal.md)),
+  ([`prior_lognormal()`](https://afsc-assessments.github.io/Rceattle/reference/prior_lognormal.md),
+  [`prior_normal()`](https://afsc-assessments.github.io/Rceattle/reference/prior_normal.md)),
   a fixed value (`init` with `est_phase = 0`), or one species
   (`species =`). For a Ricker curve the lognormal linkage prior on alpha
   gives the same objective as `srr_est_mode = "LognormalPrior"`.
@@ -293,7 +1730,7 @@ refit.
   value; it is replaced. The linkages vignette’s Recruitment section
   gains the same recipes.
 
-- [`?linkage_spec`](https://grantdadams.github.io/Rceattle/reference/linkage_spec.md):
+- [`?linkage_spec`](https://afsc-assessments.github.io/Rceattle/reference/linkage_spec.md):
   `init` is a named list, not a numeric vector. The old example,
   `c(...)`, is refused by the function.
 
@@ -304,29 +1741,29 @@ refit.
 - **`srr_fun` / `srr_pred_fun` codes 1, 3 and 5, and `srr_indices`, are
   now errors.** These were the environment-driven stock-recruit forms.
   4.4.0 removed their environmental term from the template, but
-  [`build_srr()`](https://grantdadams.github.io/Rceattle/reference/build_srr.md)
+  [`build_srr()`](https://afsc-assessments.github.io/Rceattle/reference/build_srr.md)
   kept accepting them with only a soft-deprecation warning. A model
   built with them was fitted without its covariate and reported nothing
   wrong: its objective and parameter count were identical to the
   non-environmental model’s. The 4.4.0 entry below, which says they
   “continue to work”, was wrong.
 
-  [`build_srr()`](https://grantdadams.github.io/Rceattle/reference/build_srr.md)
+  [`build_srr()`](https://afsc-assessments.github.io/Rceattle/reference/build_srr.md)
   now stops and names the linkage that replaces them: `srr_fun = 0` with
   `linkages = list(R0 = linkage_spec(~ <covariate>))` for code 1, and
   `srr_fun` 2 or 4 with an `alpha` linkage for 3 or 5. `srr_indices = k`
   meant the k-th `env_data` column after `Year`. A fit made with code 1,
   3 or 5 still refits, through
-  [`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md),
-  [`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md),
+  [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
   and the other refitting diagnostics, as code 0, 2 or 4; that is the
   model it actually fitted.
-  [`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+  [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
   shows the warning, but
-  [`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md),
-  [`jitter()`](https://grantdadams.github.io/Rceattle/reference/jitter.md),
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md),
+  [`jitter()`](https://afsc-assessments.github.io/Rceattle/reference/jitter.md),
   [`profile()`](https://rdrr.io/r/stats/profile.html) and
-  [`self_test()`](https://grantdadams.github.io/Rceattle/reference/self_test.md)
+  [`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md)
   suppress it. The one exception is `srr_fun = 0` with
   `srr_pred_fun = 1`, which scored the penalty around mean recruitment:
   it refits without that penalty, so its objective changes. A code
@@ -354,7 +1791,7 @@ refit.
   the Ricker positivity penalty on `alpha * SPR0 - 1` (which added to
   the objective at every evaluation) is skipped, and
   `sample_rec(sample_rec = FALSE)` and
-  [`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md)
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md)
   scale the projection by the mean ratio of recruitment to the curve,
   since there is no unfished recruitment to scale against.
   Single-species fits are unchanged.
@@ -365,7 +1802,7 @@ refit.
 
 - **A multispecies model can have a stock-recruit curve as a recruitment
   penalty.**
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   refused every Beverton-Holt or Ricker curve under `msmMode > 0`
   (5.12.0), including the Ianelli configuration
   (`build_srr(srr_fun = "mean", srr_pred_fun = "BevertonHolt")`). That
@@ -385,11 +1822,11 @@ refit.
 
   Under predation the penalty curve’s first-year `R_hat` is `R_init`,
   where it was `-Inf`;
-  [`sim_mod()`](https://grantdadams.github.io/Rceattle/reference/sim_mod.md)
+  [`sim_mod()`](https://afsc-assessments.github.io/Rceattle/reference/sim_mod.md)
   and
-  [`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md)
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md)
   take `log(R_hat)` over that year. `steepness` is reported as 0, and
-  [`convergence_diagnostics()`](https://grantdadams.github.io/Rceattle/reference/convergence_diagnostics.md)
+  [`convergence_diagnostics()`](https://afsc-assessments.github.io/Rceattle/reference/convergence_diagnostics.md)
   records a NOTE rather than testing the curve against the replacement
   line. No earlier fit changes.
 
@@ -402,11 +1839,11 @@ refit.
   scalar is never estimated, so no estimate changes; only the objective
   changes, by a constant.
 
-- [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+- [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   warns when a supplied `map` fixes both stock-recruit parameters while
   the curve still shapes recruitment, as a map reused from a
   mean-recruitment fit does.
-  [`build_srr()`](https://grantdadams.github.io/Rceattle/reference/build_srr.md)
+  [`build_srr()`](https://afsc-assessments.github.io/Rceattle/reference/build_srr.md)
   stops on `srr_est_mode = "BetaPrior"` with a Ricker curve, which has
   no Ricker form and was estimated with no prior, and warns when
   `Bmsy_lim` is given for a non-Ricker curve, where it is ignored.
@@ -441,7 +1878,7 @@ refit.
   (`ceattle.cpp:3758`). The reported residual was therefore `1/sqrt(w)`
   times the right one: too small on an upweighted fleet, too large on a
   downweighted one, and
-  [`reweight_comps()`](https://grantdadams.github.io/Rceattle/reference/reweight_comps.md)
+  [`reweight_comps()`](https://afsc-assessments.github.io/Rceattle/reference/reweight_comps.md)
   routinely tunes either way. Under a Dirichlet-multinomial the
   proportions are additionally overdispersed by `(n + conc)/(1 + conc)`,
   so a DM fleet’s residuals were inflated and read as systematic misfit
@@ -472,7 +1909,7 @@ refit.
 
   Each switch is also read through its deprecated spellings
   (`Comp_loglike`, `CAAL_loglike`, `Diet_loglike`).
-  [`switch_check()`](https://grantdadams.github.io/Rceattle/reference/switch_check.md)
+  [`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md)
   upgrades those in place when a model is built, but a fit **saved**
   before a rename still carries the old name, and
   [`residuals()`](https://rdrr.io/r/stats/residuals.html) runs on the
@@ -483,12 +1920,12 @@ refit.
   This moves Pearson residuals on essentially every fit. It does not
   move any likelihood, parameter estimate or reference point –
   [`residuals()`](https://rdrr.io/r/stats/residuals.html),
-  [`plot_comp()`](https://grantdadams.github.io/Rceattle/reference/plot_comp.md)
+  [`plot_comp()`](https://afsc-assessments.github.io/Rceattle/reference/plot_comp.md)
   and the Pearson panel of
-  [`plot.rceattle_osa()`](https://grantdadams.github.io/Rceattle/reference/plot.rceattle_osa.md)
+  [`plot.rceattle_osa()`](https://afsc-assessments.github.io/Rceattle/reference/plot.rceattle_osa.md)
   are the only outputs affected. Index and catch residuals are untouched
   (they have no composition family), and
-  [`report_tables()`](https://grantdadams.github.io/Rceattle/reference/report_tables.md)
+  [`report_tables()`](https://afsc-assessments.github.io/Rceattle/reference/report_tables.md)
   reads only those. `test-likelihood-pearson-effective-n.R` checks the
   variance by simulation – data drawn under the family the likelihood
   assumes must return residuals with `sd = 1` – rather than by restating
@@ -496,7 +1933,7 @@ refit.
 
 - **The OSA tail statistics and their null intervals now come from one
   estimator.**
-  [`osa_diagnostics()`](https://grantdadams.github.io/Rceattle/reference/osa_diagnostics.md)
+  [`osa_diagnostics()`](https://afsc-assessments.github.io/Rceattle/reference/osa_diagnostics.md)
   reported [`quantile()`](https://rdrr.io/r/stats/quantile.html)’s
   type-7 interpolated tail against a *simulated* null. Both sides are
   now the `r`-th order statistic, whose exact distribution is
@@ -509,7 +1946,7 @@ refit.
 
   The reported tail is now genuinely the `r`-th order statistic rather
   than “the 2.5% quantile”, so
-  [`osa_diagnostics()`](https://grantdadams.github.io/Rceattle/reference/osa_diagnostics.md)
+  [`osa_diagnostics()`](https://afsc-assessments.github.io/Rceattle/reference/osa_diagnostics.md)
   gains `lower_r` / `upper_r` and `lower_p` / `upper_p` naming which
   order statistic was used and the nominal probability it sits at. Short
   series are handled: `r` is clamped to `[1, n]`, without which
@@ -522,14 +1959,14 @@ refit.
   log-likelihood by zero, so the fleet is not fit and has no effective
   sample size. The residual divided by it anyway, giving `sd = Inf` and
   a residual of exactly `0` in every bin –
-  [`plot_comp()`](https://grantdadams.github.io/Rceattle/reference/plot_comp.md)
+  [`plot_comp()`](https://afsc-assessments.github.io/Rceattle/reference/plot_comp.md)
   drew a fleet the model never saw as a perfect fit. Those rows are now
   `NA`. A Dirichlet-multinomial reads the same column as a log, so `0`
   there is a weight of 1 and is unaffected.
 
 - **Diet Pearson residuals group by `stomach_id` where the data carry
   it.** The grouping was read off `fit$data_list`, which is the
-  pre-[`rearrange_data()`](https://grantdadams.github.io/Rceattle/reference/rearrange_data.md)
+  pre-[`rearrange_data()`](https://afsc-assessments.github.io/Rceattle/reference/rearrange_data.md)
   list and never holds that element, so the predator/sex/age/year
   fallback ran even when the table had an id. Where a dataset holds more
   than one stomach per predator-age-year, that pooled them into one
@@ -543,16 +1980,16 @@ refit.
   supplied. The tail null intervals are exact, so nothing in that
   function simulates. Note the OSA residuals themselves remain
   randomized-quantile residuals: pass a seed to
-  [`osa_residuals()`](https://grantdadams.github.io/Rceattle/reference/osa_residuals.md)
+  [`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md)
   to control those.
 
 ### Plotting
 
 - **OSA and Pearson residual bubbles are drawn on a fixed `[0, 6]` size
   scale** in both
-  [`plot.rceattle_osa()`](https://grantdadams.github.io/Rceattle/reference/plot.rceattle_osa.md)
+  [`plot.rceattle_osa()`](https://afsc-assessments.github.io/Rceattle/reference/plot.rceattle_osa.md)
   and
-  [`plot_comp()`](https://grantdadams.github.io/Rceattle/reference/plot_comp.md),
+  [`plot_comp()`](https://afsc-assessments.github.io/Rceattle/reference/plot_comp.md),
   so two figures can be compared by eye – a free scale made a
   well-fitting fleet and a badly-fitting one look alike, and the two
   figures scaled the same residuals differently. Residuals beyond 6 are
@@ -568,11 +2005,11 @@ refit.
 - **The OSA Q-Q panels annotate the tail statistics** and their exact
   null intervals in the lower right, alongside SDNR in the upper left,
   following `afscOSA`.
-  [`plot.rceattle_osa()`](https://grantdadams.github.io/Rceattle/reference/plot.rceattle_osa.md)
+  [`plot.rceattle_osa()`](https://afsc-assessments.github.io/Rceattle/reference/plot.rceattle_osa.md)
   gains `add_sdnr_ci` and `add_qq_quantiles` (both `TRUE`) to suppress
   either annotation.
 
-- **[`plot_comp()`](https://grantdadams.github.io/Rceattle/reference/plot_comp.md)’s
+- **[`plot_comp()`](https://afsc-assessments.github.io/Rceattle/reference/plot_comp.md)’s
   aggregated composition pools counts across years** rather than
   averaging proportions, so a year with 20 otoliths no longer carries
   the same weight as one with 2000, and gains a 95% interval and the
@@ -598,12 +2035,12 @@ refit.
   as readily as a multinomial weight. `ESS (McAllister-Ianelli)` is the
   tuning target this fit’s own residuals imply, the harmonic mean across
   years
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   already computes, which is the unbiased scale to average a ratio
   estimator on (averaging `Neff` directly runs about 50% high).
   Labelling either one “ESS” alone invited it to be read as the other.
   The McAllister-Ianelli line is drawn on multinomial fleets only:
-  [`reweight_comps()`](https://grantdadams.github.io/Rceattle/reference/reweight_comps.md)
+  [`reweight_comps()`](https://afsc-assessments.github.io/Rceattle/reference/reweight_comps.md)
   names and skips a Dirichlet-multinomial fleet, because it estimates
   its own weight inside the likelihood, so printing an external tuning
   target beside one would invite the adjustment the package refuses to
@@ -611,7 +2048,7 @@ refit.
 
   The effective sample size belongs to the observation, so it is summed
   over `(fleet, species, sex, year)` –
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)’s
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)’s
   own uniqueness key – not over years. A fleet may record a female-only
   and a male-only row in the same year, which are two observations;
   pooling them would report half the effective sample size beside an
@@ -646,7 +2083,7 @@ refit.
 ### Documentation
 
 - **Which selectivity forms can give the two sexes different levels.**
-  [`vignette("model-options-and-functionality")`](https://grantdadams.github.io/Rceattle/articles/model-options-and-functionality.md)
+  [`vignette("model-options-and-functionality")`](https://afsc-assessments.github.io/Rceattle/articles/model-options-and-functionality.md)
   described `Sel_norm_bin` and `Sel_norm_scope` as though they decided
   whether males and females could be selected at different levels, and
   its `"Max"` / `"AcrossSexes"` row promised that “one sex peaks at 1,
@@ -669,7 +2106,7 @@ refit.
 - **A per-sex selectivity linkage no longer fixes the other sex too.**
   When a linkage supplies the base level – a fixed intercept
   (`est_phase = 0`), or a slope-only formula –
-  [`build_map()`](https://grantdadams.github.io/Rceattle/reference/build_map.md)
+  [`build_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md)
   masks the base parameter it replaces. The selectivity branch masked it
   across **every** sex of the fleet, so a linkage stratified on one sex
   (`by = ~ fleet + sex, sex = 2`) also fixed the other sex’s inflection
@@ -698,7 +2135,7 @@ refit.
   age. It now also accepts `Max`, `Off` (or `None`), and `All` on a
   `LogisticPM` fleet, where the column is a penalty age-range rather
   than a normalization reference. Matching is case-insensitive, and
-  [`switch_check()`](https://grantdadams.github.io/Rceattle/reference/switch_check.md)
+  [`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md)
   writes the word back, so a saved workbook says what it does.
   `Sel_norm_bin_upper` takes `Off` the same way.
 
@@ -708,12 +2145,12 @@ refit.
 
 - **A normalization bin the fleet is not selected over is now an
   error.** Previously
-  [`switch_check()`](https://grantdadams.github.io/Rceattle/reference/switch_check.md)
+  [`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md)
   silently *overwrote* it: anything above `nages` was clamped to
   `nages`, which is a bin count used as a ceiling for an absolute age,
   so on a `minage = 3` stock ages 11 and 12 were valid and became 10.
   The clamp also ran before
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md),
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md),
   so nothing downstream could see the original value. The bounds are now
   the fleet’s own selected range – below `Bin_first_selected` the curve
   is zeroed, so a reference taken there divides by nothing – and a value
@@ -726,9 +2163,9 @@ refit.
 
 - **An unreadable value is refused rather than read as “do not
   normalize”.**
-  [`rearrange_data()`](https://grantdadams.github.io/Rceattle/reference/rearrange_data.md)
+  [`rearrange_data()`](https://afsc-assessments.github.io/Rceattle/reference/rearrange_data.md)
   is exported and does not always run behind
-  [`switch_check()`](https://grantdadams.github.io/Rceattle/reference/switch_check.md),
+  [`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md),
   so it checks the column itself; a typo such as `Maxx` used to resolve
   to blank and silently turn normalization off.
 
@@ -739,7 +2176,7 @@ refit.
   by position (row `r` is model year `styr + r - 1`), so a row before
   `styr` shifts every later row and feeds the wrong covariate to
   consumption and, under multispecies, to predation mortality.
-  [`rearrange_data()`](https://grantdadams.github.io/Rceattle/reference/rearrange_data.md)
+  [`rearrange_data()`](https://afsc-assessments.github.io/Rceattle/reference/rearrange_data.md)
   has dropped such rows from `env_index` since 5.25.0, so a fit without
   a linkage already tolerated them; a fit with one stopped in
   `.check_env_data_years()` with “env_data\$Year must start at the model
@@ -828,7 +2265,7 @@ refit.
   **The error belongs to whichever `sdreport` the fit ends on**, which
   is not always the fit that estimated the curve. Under
   `estimateMode = "Estimate"` with an estimating HCR,
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   re-optimizes the projection with every hindcast parameter mapped off,
   so the standard error of every selectivity comes back exactly 0. Use
   `estimateMode = "Hindcast"`, or
@@ -836,7 +2273,7 @@ refit.
   `estimateMode = "Projection"` estimates no selectivity at all, and
   `projection_uncertainty` cannot change that, because
   `build_map(debug = TRUE)` has already mapped the hindcast off.
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   warns on each of these before fitting, and warns again if
   `getsd = FALSE` leaves nothing to report.
 
@@ -852,7 +2289,7 @@ refit.
   A fleet mirroring another’s `Selectivity_index` reports no rows of its
   own, so it borrows its lead’s band, but only where the two curves
   agree:
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   merely warns when a shared group differs in a shaping column, and a
   differing `Sel_norm_bin` alone rescales the curve. Every year drawn
   gets its own band, so pair `add_ci` with `minyr` / `maxyr` on a
@@ -865,21 +2302,21 @@ refit.
 
 ### Bug fixes
 
-- **[`build_map()`](https://grantdadams.github.io/Rceattle/reference/build_map.md)
+- **[`build_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md)
   names the column and fleet when a switch reaches it as `NA`.**
   `Selectivity` or `Time_varying_sel` arriving unset on an active fleet
   failed at the first `==` against it, with “missing value where
   TRUE/FALSE needed” and no indication of which column or fleet. The
   message names
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md),
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md),
   which is the validator –
-  [`build_map()`](https://grantdadams.github.io/Rceattle/reference/build_map.md)
+  [`build_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md)
   already calls
-  [`switch_check()`](https://grantdadams.github.io/Rceattle/reference/switch_check.md),
+  [`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md),
   and that canonicalizes rather than validates. It keeps the validator’s
   exemption: a fleet that is `Off` may leave both unset, which now also
   survives
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)’s
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)’s
   own selectivity-form checks and the random-effects sigma loop, neither
   of which was gated on `Fleet_type`. `Catchability`, where `NA` is
   legal on any fleet, is no longer compared as though it were a string.
@@ -891,7 +2328,7 @@ refit.
   is what an AR1 fleet already has, so it is not a conflict. Same class
   of guard as the `"Hake"` fix in 5.3.0.
 
-- **[`report_tables()`](https://grantdadams.github.io/Rceattle/reference/report_tables.md)
+- **[`report_tables()`](https://afsc-assessments.github.io/Rceattle/reference/report_tables.md)
   names its objectives for what they are.** `model` gains `marginal_nll`
   / `joint_nll` in place of `marginal_objective` / `joint_objective`,
   and `jitter` gains `best_nll` / `worst_nll` / `nll_range` in place of
@@ -903,7 +2340,7 @@ refit.
   [`nlminb()`](https://rdrr.io/r/stats/nlminb.html)’s own name and is
   unchanged.
 
-- **[`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+- **[`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   no longer prints the “Model did not converge” banner.** It fired when
   an `sdreport` was requested and did not return, which is a Hessian
   that would not invert – not an optimizer that failed to converge, and
@@ -913,7 +2350,7 @@ refit.
   well. `fit$identified` is unchanged.
 
 - **Two long-standing `R CMD check --as-cran` warnings are cleared.**
-  [`print.rceattle_report()`](https://grantdadams.github.io/Rceattle/reference/print.rceattle_report.md)’s
+  [`print.rceattle_report()`](https://afsc-assessments.github.io/Rceattle/reference/print.rceattle_report.md)’s
   box-drawing glyphs are written as `\u2514\u2500` / `\u251c\u2500`
   escapes, so the R code is ASCII and the package is portable – the
   printed tree is byte-identical. `tibble` is declared in `Suggests`,
@@ -921,7 +2358,7 @@ refit.
   versions. CI runs `error-on: "error"`, so neither had ever failed a
   build.
 
-- **[`quantity_dictionary()`](https://grantdadams.github.io/Rceattle/reference/quantity_dictionary.md)
+- **[`quantity_dictionary()`](https://afsc-assessments.github.io/Rceattle/reference/quantity_dictionary.md)
   described `sel_at_age` as “normalized to a maximum of one”.** It is
   normalized per `Sel_norm_bin`, which for the non-parametric forms –
   the default – is a mean of one, so values above one are ordinary. It
@@ -934,7 +2371,7 @@ refit.
 
 ### New features
 
-- **[`parameter_index()`](https://grantdadams.github.io/Rceattle/reference/parameter_index.md)
+- **[`parameter_index()`](https://afsc-assessments.github.io/Rceattle/reference/parameter_index.md)
   locates every estimated parameter in the model’s own coordinates.**
   TMB names each element of `obj$par` after its parameter block, so a
   diagnostic could report that `sel_coff_dev` was non-identifiable but
@@ -942,7 +2379,7 @@ refit.
   with `species`, `fleet`, `sex`, `age`, `bin`, `year` and `slot`
   columns plus a rendered `label`. Recovered through TMB’s own
   `parList()`, so it tracks
-  [`build_map()`](https://grantdadams.github.io/Rceattle/reference/build_map.md)
+  [`build_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md)
   exactly: mapped-off parameters are absent, and fleets sharing a
   `Selectivity_index` or `Catchability_index` appear once, with
   `n_cells` counting the cells they drive. An axis constant across the
@@ -959,7 +2396,7 @@ refit.
   It describes `fit$obj`, which under `estimateMode = "Estimate"` with
   any HCR but `"NoFishing"` is the *projection* object – `log_Ftarget`
   and `log_Flimit` alone, since
-  [`build_hcr_map()`](https://grantdadams.github.io/Rceattle/reference/build_hcr_map.md)
+  [`build_hcr_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_hcr_map.md)
   maps every hindcast parameter off. Pass a fit run with
   `estimateMode = "Hindcast"` to browse the hindcast parameters.
 
@@ -979,7 +2416,7 @@ refit.
   `estimability` and `parameters_on_bounds` are captured at the hindcast
   optimization, while `hessian_conditioning` reads the `sdreport`, which
   under an estimating HCR belongs to the projection fit.
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   now stores the hindcast index alongside the hindcast parameter vector,
   and each check verifies that the index it uses names that vector
   before labelling anything – a coordinate naming the wrong parameter is
@@ -1018,7 +2455,7 @@ refit.
   numbering them.
 
 - **Three
-  [`parameter_dictionary()`](https://grantdadams.github.io/Rceattle/reference/parameter_dictionary.md)
+  [`parameter_dictionary()`](https://afsc-assessments.github.io/Rceattle/reference/parameter_dictionary.md)
   dimensions were wrong.** `log_F` declared `[n_fsh, nyrs]` against an
   `[n_flt, nyrs_hind]` array; `log_pop_scalar` `[nspp, nyrs]` against an
   age axis; `M1_dev_log_sd` `[nspp, nsex, 2]` against `[nspp, nsex]`
@@ -1026,7 +2463,7 @@ refit.
   `test-schema-parameter-index.R` now checks every block’s declared rank
   *and* extent against the built array.
 
-- **[`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+- **[`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   no longer prints the `check_estimability` table at `verbose = 1`.** It
   is one row per parameter, each named after its block, and the
   convergence record now carries the same verdict by coordinate. Still
@@ -1052,10 +2489,10 @@ refit.
 
   The comparison is made beside each optimization rather than at the
   end.
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   rebuilds the TMB object for the projection, and again under
   `projection_uncertainty = TRUE`, without re-optimizing, and
-  [`build_hcr_map()`](https://grantdadams.github.io/Rceattle/reference/build_hcr_map.md)
+  [`build_hcr_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_hcr_map.md)
   maps every hindcast parameter off, so those rebuilds disagree with
   `opt` on which parameters are random. Comparing across a rebuild is
   the same units mismatch: on a `BS2017SS` fit with one `~ (1 | Year)`
@@ -1132,7 +2569,7 @@ one file in the sibling repositories does
 - **The non-parametric shape penalty cannot read past the last bin.**
   Its pairs are `(bin, bin + 1)`, so the left bin cannot be the last
   one, but
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   bounds `Sel_pen_last_bin` by the number of bins. Set to the final bin,
   the penalty read one bin beyond the curve – an entry that exists
   because the selectivity arrays are sized by the widest species, but
@@ -1143,14 +2580,14 @@ one file in the sibling repositories does
   al. 1983), 2 (Kitchell et al. 1977) and 3 (Thornton and Lessem 1979)
   each read `env_index`, which `ceattle.cpp` evaluates for every species
   on every fit, but
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   only guarded `Ceq > 1` and described 1 as temperature-independent.
   With no covariate column that read went outside the matrix – observed
   both segfaulting and returning plausible numbers on different runs,
   the model being built without bounds checking. Consumption now falls
   back to the constant `fT = 1` of `Ceq = 4` where there is no column to
   read.
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   errors on it under multispecies, where consumption drives predation
   mortality and so the fit, and warns under single-species, where the
   predation section does not run and `fT` reaches only the reported
@@ -1172,7 +2609,7 @@ one file in the sibling repositories does
   them – `env_data` starts at its `styr` of 1980 – so the MSE and
   predation reference objectives are unchanged. A repeated `Year`, which
   sits inside the range and so survived the filter, is now refused by
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   and de-duplicated before the model sees it.
 
 - **An integer `Time_varying_sel` on a non-parametric fleet is a mode
@@ -1186,11 +2623,11 @@ one file in the sibling repositories does
   triggered by an empty `Sel_curve_pen1`, which is what actually
   distinguishes the old format.
 
-- **[`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+- **[`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   refuses a non-parametric fleet whose `Bin_first_selected` is above its
   `N_sel_bins`**, which left it with no estimated coefficients at all.
 
-- **[`convergence_diagnostics()`](https://grantdadams.github.io/Rceattle/reference/convergence_diagnostics.md)
+- **[`convergence_diagnostics()`](https://afsc-assessments.github.io/Rceattle/reference/convergence_diagnostics.md)
   reports a variance parameter estimated to zero.** A deviation standard
   deviation at the floor means the process it governs is not varying: a
   model configured as time-varying has fitted something time-invariant.
@@ -1234,7 +2671,7 @@ one file in the sibling repositories does
 
 - **A deprecated column name is no longer silently discarded when its
   canonical name is also present.**
-  [`read_data()`](https://grantdadams.github.io/Rceattle/reference/read_data.md)
+  [`read_data()`](https://afsc-assessments.github.io/Rceattle/reference/read_data.md)
   canonicalises `fleet_control`, so a script that then assigns a
   deprecated name creates the old column beside the new one – and the
   upgrade deleted it and kept the canonical value, behind a routine
@@ -1252,7 +2689,7 @@ one file in the sibling repositories does
   across the sibling assessment repositories stops on it, at exactly
   such a setting: the Jack mackerel 2024 bridging script assigns
   `Sel_sd_prior = 0.35` on four fisheries after
-  [`read_data()`](https://grantdadams.github.io/Rceattle/reference/read_data.md)
+  [`read_data()`](https://afsc-assessments.github.io/Rceattle/reference/read_data.md)
   has canonicalised the workbook’s own value of 40 to
   `Time_varying_sel_sd`, so the model was fitting effectively free
   deviations where the script asked for penalized ones. The fix is to
@@ -1261,7 +2698,7 @@ one file in the sibling repositories does
 
 ### New features
 
-- **[`plot_catchability()`](https://grantdadams.github.io/Rceattle/reference/plot_catchability.md)**
+- **[`plot_catchability()`](https://afsc-assessments.github.io/Rceattle/reference/plot_catchability.md)**
   draws fitted survey catchability by year, faceted by fleet, for every
   fleet with `index_data` – a fishery with a CPUE series as much as a
   survey. It reads `quantities$index_q`, the realized `q` the model
@@ -1290,7 +2727,7 @@ one file in the sibling repositories does
 
 ### Bug fixes
 
-- **[`standard_output()`](https://grantdadams.github.io/Rceattle/reference/standard_output.md)
+- **[`standard_output()`](https://afsc-assessments.github.io/Rceattle/reference/standard_output.md)
   spells the length-bin column `length_bins`, and emits `beg_mid`.** The
   schema `stockplotr` and `asar` read is the 34 columns of
   `stockplotr::example_data`; `convert_output()` spells it `len_bins`
@@ -1300,23 +2737,23 @@ one file in the sibling repositories does
   `test-report-tables.R` now checks the emitted names against that
   package rather than against the constant itself.
 
-- **[`report_tables()`](https://grantdadams.github.io/Rceattle/reference/report_tables.md)
+- **[`report_tables()`](https://afsc-assessments.github.io/Rceattle/reference/report_tables.md)
   reports convergence from the hindcast fit.** `max_gradient` and
   `pdHess` came from `$opt` and `$sdrep`, which the harvest-control-rule
   projection re-optimizes and overwrites, with a fallback to a bare
   `obj$gr()` evaluated at whatever parameter vector was left in place.
   Both now read the `.conv_hindcast` snapshot \[fit_mod()\] takes before
   the projection – the same source
-  [`convergence_diagnostics()`](https://grantdadams.github.io/Rceattle/reference/convergence_diagnostics.md)
+  [`convergence_diagnostics()`](https://afsc-assessments.github.io/Rceattle/reference/convergence_diagnostics.md)
   uses – so a maximum gradient quoted in an executive summary describes
   the assessment.
 
 - **The reference-point gating reads a harvest control rule held as an
   integer.**
-  [`build_hcr_map()`](https://grantdadams.github.io/Rceattle/reference/build_hcr_map.md)
+  [`build_hcr_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_hcr_map.md)
   matches `HCR` by name, so a `data_list` holding the integer code
   matched no rule and
-  [`report_tables()`](https://grantdadams.github.io/Rceattle/reference/report_tables.md)
+  [`report_tables()`](https://afsc-assessments.github.io/Rceattle/reference/report_tables.md)
   reported `NA` for an F40% that was estimated, with a `basis` saying it
   was not. `HCR` is normalized before the lookup.
 
@@ -1393,12 +2830,12 @@ one file in the sibling repositories does
   objective are unchanged for a one-sex species, and for a two-sex
   species on neither route.
 
-- **[`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+- **[`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   validates `nsex`.** The model has exactly two sex schedules – index 0
   (females, or the single combined sex) and index 1 (males) – and reads
   `nsex` straight into loop bounds and array dimensions, so a value
   outside `{1, 2}` was a silent out-of-range read, and an `NA` aborted
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   with R’s “missing value where TRUE/FALSE needed”, naming no table.
   `nsex` is now checked for length and value, and the `M1_base` /
   `weight` / `ration_data` sex-consistency checks look it up by the
@@ -1406,7 +2843,7 @@ one file in the sibling repositories does
   or short `nsex` is reported alongside every other error instead of
   thrown or silently recycled.
 
-- **[`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+- **[`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   no longer demands a full `sex_ratio` schedule for a two-sex species.**
   Every remaining use of `sex_ratio` on a two-sex species is
   `sex_ratio(sp, 0)` — the age-1 recruitment split — so requiring values
@@ -1418,7 +2855,7 @@ one file in the sibling repositories does
 
 ### Reading a fitted model
 
-- **[`quantity_dictionary()`](https://grantdadams.github.io/Rceattle/reference/quantity_dictionary.md)
+- **[`quantity_dictionary()`](https://afsc-assessments.github.io/Rceattle/reference/quantity_dictionary.md)
   says what every reported quantity is.** `fit$quantities` holds 99
   derived quantities under the model’s own abbreviated names, and
   nothing said what they meant, what units they were in, or which had a
@@ -1447,7 +2884,7 @@ one file in the sibling repositories does
   under `msmMode = 0` and is **exactly zero on a multispecies fit**,
   which reads as an estimate of zero unless you know.
 
-- **[`report_tables()`](https://grantdadams.github.io/Rceattle/reference/report_tables.md)
+- **[`report_tables()`](https://afsc-assessments.github.io/Rceattle/reference/report_tables.md)
   collects what an assessment reports into one set of tables.**
   Previously the likelihood decomposition, the time series with
   uncertainty, the reference points, the fits, Mohn’s rho, the jitter
@@ -1472,7 +2909,7 @@ one file in the sibling repositories does
   under the model’s own harvest control rule is in `timeseries` with
   `era = "fore"`.
 
-- **[`report_tables()`](https://grantdadams.github.io/Rceattle/reference/report_tables.md)
+- **[`report_tables()`](https://afsc-assessments.github.io/Rceattle/reference/report_tables.md)
   gains a `parameters` section, and reports both objectives.** Asked for
   directly: where are sigma_R, the estimates of M, and the likelihood
   values? `parameters` joins
@@ -1494,9 +2931,9 @@ one file in the sibling repositories does
   against 816.99. Reporting only one made the two tables look
   inconsistent.
 
-- **[`standard_output()`](https://grantdadams.github.io/Rceattle/reference/standard_output.md)
+- **[`standard_output()`](https://afsc-assessments.github.io/Rceattle/reference/standard_output.md)
   emits the NOAA standardized assessment format.** Relabels
-  [`report_tables()`](https://grantdadams.github.io/Rceattle/reference/report_tables.md)
+  [`report_tables()`](https://afsc-assessments.github.io/Rceattle/reference/report_tables.md)
   output into the schema that the `stockplotr` and `asar` packages
   consume, so Rceattle results can be plotted and written into a report
   by the same tooling used for SS3, BAM, WHAM and FIMS. Names are
@@ -1517,7 +2954,7 @@ one file in the sibling repositories does
   fleets, one two-sex stock, a live `sdreport`, and its real
   retrospective, jitter and OSA objects), not only against the package
   fixtures.
-  [`quantity_dictionary()`](https://grantdadams.github.io/Rceattle/reference/quantity_dictionary.md)
+  [`quantity_dictionary()`](https://afsc-assessments.github.io/Rceattle/reference/quantity_dictionary.md)
   covers exactly the 99 quantities both its single- and multi-species
   fits report.
 
@@ -1531,14 +2968,14 @@ one file in the sibling repositories does
     projected fishery. Unestimated they sit at `exp(0) = 1`, so the GOA
     assessment reported a target F of **1.0/yr**. The gating is taken
     from
-    [`build_hcr_map()`](https://grantdadams.github.io/Rceattle/reference/build_hcr_map.md)
+    [`build_hcr_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_hcr_map.md)
     rather than by reading the HCR switch a second time; the fit’s own
     `map` cannot be used, because
-    [`build_map()`](https://grantdadams.github.io/Rceattle/reference/build_map.md)
+    [`build_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md)
     sets both to `NA` in the hindcast map whatever the HCR.
   - Under `msmMode > 0`, `SB0` / `B0` are overwritten by the `MSSB0` /
     `MSB0` inputs, which stand at a 999 mt placeholder until
-    [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+    [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
     derives them. `B_target = Ptarget * SB0` was therefore reported as
     **399.6 mt** against a true scale of 1e5-1e6 mt. `MSSB0_derived` is
     the flag that distinguishes a placeholder from a genuinely derived
@@ -1554,7 +2991,7 @@ one file in the sibling repositories does
   and `osa` pair with `object` by name whatever the order; an unnamed
   list is paired positionally and says so; a name that is not a model
   name is an error. That last one catches passing a single model’s
-  [`osa_residuals()`](https://grantdadams.github.io/Rceattle/reference/osa_residuals.md)
+  [`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md)
   result stored as a list of parts (`index` / `catch` / `comp`), which
   would otherwise be attributed one part per model.
 
@@ -1574,7 +3011,7 @@ one file in the sibling repositories does
 
 ### Reading a fitted model
 
-- **[`parameter_dictionary()`](https://grantdadams.github.io/Rceattle/reference/parameter_dictionary.md)
+- **[`parameter_dictionary()`](https://afsc-assessments.github.io/Rceattle/reference/parameter_dictionary.md)
   is now exported.** CEATTLE’s parameter vector uses transformed,
   abbreviated names (`log_M1`, `R_log_sd`, `index_log_q`), and the table
   explaining them existed only as an internal object with `@noRd`, so it
@@ -1594,7 +3031,7 @@ one file in the sibling repositories does
   warns, so passing every name from a fit still works when that fit
   carries parameters from a branch the dictionary predates.
   `test-schema-parameter-dictionary.R` asserts that every parameter
-  [`build_params()`](https://grantdadams.github.io/Rceattle/reference/build_params.md)
+  [`build_params()`](https://afsc-assessments.github.io/Rceattle/reference/build_params.md)
   creates is documented, so the table cannot silently fall behind the
   model.
 
@@ -1606,7 +3043,7 @@ one file in the sibling repositories does
   keeps the inner `opt` — where `AIC` never lived — so the slot silently
   disappears. Without TMBhelper the plain `nlminb` fallback has no `AIC`
   either. `AIC(fit)` works in every case, because
-  [`logLik.Rceattle()`](https://grantdadams.github.io/Rceattle/reference/logLik.Rceattle.md)
+  [`logLik.Rceattle()`](https://afsc-assessments.github.io/Rceattle/reference/logLik.Rceattle.md)
   builds it from `opt$objective` and `length(opt$par)`, both of which
   survive all three paths. The vignette does not execute by default and
   `test-vignette-api.R` checks call signatures rather than return
@@ -1630,7 +3067,7 @@ one file in the sibling repositories does
 
 ### Diagnostics
 
-- **[`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md)
+- **[`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md)
   warns when a peel is dropped, and the object remembers how many were
   asked for.** Mohn’s rho is averaged over the peels that survive, so a
   drop changes a number that gets reported — but it was announced by a
@@ -1640,9 +3077,9 @@ one file in the sibling repositories does
   carries `$peels_requested`, and
   [`print()`](https://rdrr.io/r/base/print.html) reads “3 of 5 peel(s)”
   with a `NOTE` and says what rho was averaged over.
-  [`jitter()`](https://grantdadams.github.io/Rceattle/reference/jitter.md)
+  [`jitter()`](https://afsc-assessments.github.io/Rceattle/reference/jitter.md)
   and
-  [`self_test()`](https://grantdadams.github.io/Rceattle/reference/self_test.md)
+  [`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md)
   still message.
 
   Worth knowing: `getsd = TRUE` also turns on the non-positive-definite
@@ -1669,7 +3106,7 @@ one file in the sibling repositories does
   carried on `data_list` and read back by `.refit_like()`, so a peel,
   jitter or MSE refit inherits how the model was fitted rather than
   taking
-  [`fit_control()`](https://grantdadams.github.io/Rceattle/reference/fit_control.md)’s
+  [`fit_control()`](https://afsc-assessments.github.io/Rceattle/reference/fit_control.md)’s
   `FALSE` default — the failure the bias-adjustment flags already guard
   against. Under an HCR it decides whether a fit reports 6 free
   parameters and no hindcast uncertainty, or 316 and real errors.
@@ -1744,15 +3181,15 @@ one file in the sibling repositories does
 
 ### Bug fixes
 
-- **[`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+- **[`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
   no longer expands a time-invariant `weight` or `ration_data` series
   into the projection.** A series supplied at `Year 0` is time-invariant
   —
-  [`rearrange_data()`](https://grantdadams.github.io/Rceattle/reference/rearrange_data.md)
+  [`rearrange_data()`](https://afsc-assessments.github.io/Rceattle/reference/rearrange_data.md)
   fills every hindcast year from the single row — so it needs no
   projection rows. Expanding it replaced one legal row with a series
   naming the projection years and no year before them, and
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   reads any index carrying more than one year as time-varying and
   requires it to span `styr..endyr`. The first assessment advances
   `endyr`, the check runs, and the operating-model refit dies with
@@ -1761,7 +3198,7 @@ one file in the sibling repositories does
 
   recorded as a bare `"OM"` failure with the message discarded, so every
   simulation returned `use_sim = FALSE` and
-  [`mse_summary()`](https://grantdadams.github.io/Rceattle/reference/mse_summary.md)
+  [`mse_summary()`](https://afsc-assessments.github.io/Rceattle/reference/mse_summary.md)
   had nothing to summarise. Hit on a Pacific hake MSE whose workbook
   supplies weight indices 4–6 at `Year 0`; a workbook that dates every
   weight row never reached it. Both expansions now skip a group whose
@@ -1773,19 +3210,19 @@ one file in the sibling repositories does
   before `endyr`, so a series running past its own terminal year
   projected a value the hindcast never fitted — not the terminal
   hindcast year
-  [`?run_mse`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+  [`?run_mse`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
   documents holding. And it added a row for every projection year
   without checking whether one was already there:
-  [`rearrange_data()`](https://grantdadams.github.io/Rceattle/reference/rearrange_data.md)
+  [`rearrange_data()`](https://afsc-assessments.github.io/Rceattle/reference/rearrange_data.md)
   assigns row by row into the weight array, so the appended duplicate
   sorted last and its value silently replaced the observation. A
   workbook with catch and weight through 2023 against `endyr` 2019 hit
   both, losing four years of weight-at-age.
-  [`clean_data()`](https://grantdadams.github.io/Rceattle/reference/clean_data.md)
+  [`clean_data()`](https://afsc-assessments.github.io/Rceattle/reference/clean_data.md)
   already skips an already-present projection year for catch, and the
   `NByageFixed` expansion beside this one does the same.
 
-- **[`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+- **[`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
   refuses an operating and estimation model whose terminal or projection
   years disagree.** The assessment loop takes the row positions of the
   catch rows to fill from the estimation model’s table and indexes the
@@ -1795,7 +3232,7 @@ one file in the sibling repositories does
   run completed either way — catch advice that is wrong without looking
   wrong. The requirement was always there; now it is checked.
 
-- **[`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+- **[`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
   no longer skips every assessment whose year already carries catch.**
   The fill that hands the control rule’s advice to the operating model
   selects projection rows on `is.na(Catch)`. A projection year arriving
@@ -1810,7 +3247,7 @@ one file in the sibling repositories does
   catch series. On a Pacific hake MSE workbook carrying catch through
   2023 with `endyr` still 2019, four of six assessments (2020–2023) ran
   that way, because
-  [`clean_data()`](https://grantdadams.github.io/Rceattle/reference/clean_data.md)
+  [`clean_data()`](https://afsc-assessments.github.io/Rceattle/reference/clean_data.md)
   creates an `NA` projection row only for a year with no row already —
   leaving 2024 and 2025 as the only fillable years. Nothing in the run
   reported it.
@@ -1839,9 +3276,9 @@ one file in the sibling repositories does
 
 ### Diagnostics
 
-- **[`profile_components()`](https://grantdadams.github.io/Rceattle/reference/profile_components.md)
+- **[`profile_components()`](https://afsc-assessments.github.io/Rceattle/reference/profile_components.md)
   and
-  [`plot_profile()`](https://grantdadams.github.io/Rceattle/reference/plot_profile.md):
+  [`plot_profile()`](https://afsc-assessments.github.io/Rceattle/reference/plot_profile.md):
   read a profile for conflict, not just for precision.**
   [`profile()`](https://rdrr.io/r/stats/profile.html) returned the total
   negative log-likelihood, which answers how well the data determine a
@@ -1849,7 +3286,7 @@ one file in the sibling repositories does
   well-behaved total can be two surveys pulling in opposite directions,
   and nothing in the total says so.
 
-  [`profile_components()`](https://grantdadams.github.io/Rceattle/reference/profile_components.md)
+  [`profile_components()`](https://afsc-assessments.github.io/Rceattle/reference/profile_components.md)
   pulls `quantities$jnll_comp` out of every grid fit and returns it as
   one long data frame — one row per grid point per component, each cell
   labelled with the fleet or species it belongs to. That labelling is
@@ -1858,7 +3295,7 @@ one file in the sibling repositories does
   and predation rows, so a cell read off the wrong axis would attribute
   a survey’s likelihood to a species.
 
-  [`plot_profile()`](https://grantdadams.github.io/Rceattle/reference/plot_profile.md)
+  [`plot_profile()`](https://afsc-assessments.github.io/Rceattle/reference/plot_profile.md)
   draws it, following `r4ss::SSplotProfile()`: change in negative
   log-likelihood on the y axis, every series re-zeroed at its own
   minimum with a point marking it, the total overlaid in black, and
@@ -1872,7 +3309,7 @@ one file in the sibling repositories does
   Under `random_rec = TRUE` the total is the Laplace-approximated
   marginal likelihood while the components are the inner joint negative
   log-likelihood; they will not sum, and
-  [`profile_components()`](https://grantdadams.github.io/Rceattle/reference/profile_components.md)
+  [`profile_components()`](https://afsc-assessments.github.io/Rceattle/reference/profile_components.md)
   says so rather than reconciling them.
 
 - **The QAR1 process error is reported as a deviate, not as a prior.**
@@ -1883,7 +3320,7 @@ one file in the sibling repositories does
   **No fit moves**: the objective is `jnll_comp.sum()`, so relocating a
   term between rows leaves it bit-identical, and the branch is in any
   case unreachable —
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   refuses `Catchability = 6` and the live QAR1 form is a q linkage,
   `ar1(1 | Year)` with `observe`, which scores under “Linkage random
   effects”. Fixed rather than left in place because a component profile
@@ -1909,20 +3346,20 @@ one file in the sibling repositories does
 
 ### Diagnostics
 
-- **[`self_test()`](https://grantdadams.github.io/Rceattle/reference/self_test.md)
+- **[`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md)
   and [`profile()`](https://rdrr.io/r/stats/profile.html) join the
   display contract.** 5.16.0 gave
-  [`convergence_diagnostics()`](https://grantdadams.github.io/Rceattle/reference/convergence_diagnostics.md),
-  [`osa_diagnostics()`](https://grantdadams.github.io/Rceattle/reference/osa_diagnostics.md),
-  [`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md)
+  [`convergence_diagnostics()`](https://afsc-assessments.github.io/Rceattle/reference/convergence_diagnostics.md),
+  [`osa_diagnostics()`](https://afsc-assessments.github.io/Rceattle/reference/osa_diagnostics.md),
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md)
   and
-  [`jitter()`](https://grantdadams.github.io/Rceattle/reference/jitter.md)
+  [`jitter()`](https://afsc-assessments.github.io/Rceattle/reference/jitter.md)
   one way of reporting — an overall status in the same four words, a
   one-line verdict, then a compact table. These two were left out, so
-  [`vignette("model-diagnostics")`](https://grantdadams.github.io/Rceattle/articles/model-diagnostics.md)
+  [`vignette("model-diagnostics")`](https://afsc-assessments.github.io/Rceattle/articles/model-diagnostics.md)
   claimed a contract the family did not all keep.
 
-  [`self_test()`](https://grantdadams.github.io/Rceattle/reference/self_test.md)
+  [`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md)
   now reports the fraction of simulations that reached an optimum, which
   the returned list could not say on its own: non-converged runs are
   dropped before it is returned, so the number of fits returned is not
@@ -1947,9 +3384,9 @@ one file in the sibling repositories does
   were: `sims[["Sim_1"]]`, `length(sims)`, `prof$grid$slot_1` and
   `prof$nll - min(prof$nll)` all index as before, `c(sims, list(fit))`
   and `sims[i]` return a plain list of fits, and
-  [`plot_biomass()`](https://grantdadams.github.io/Rceattle/reference/plot_biomass.md)
+  [`plot_biomass()`](https://afsc-assessments.github.io/Rceattle/reference/plot_biomass.md)
   and
-  [`compare_sim()`](https://grantdadams.github.io/Rceattle/reference/compare_sim.md)
+  [`compare_sim()`](https://afsc-assessments.github.io/Rceattle/reference/compare_sim.md)
   are unaffected. Only [`class()`](https://rdrr.io/r/base/class.html)
   gains an entry and [`print()`](https://rdrr.io/r/base/print.html) gets
   an opinion.
@@ -1966,12 +3403,12 @@ one file in the sibling repositories does
 ### Bug fixes
 
 - **A `maturity` or `sex_ratio` held as a matrix no longer aborts
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md).**
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md).**
   The per-species age-coverage check added in 5.19.0 read the `Species`
   column with `$`, which on a matrix is an error rather than `NULL`: the
   check died with `$ operator is invalid for atomic vectors` and took
   every error accumulated before it with it.
-  [`read_data()`](https://grantdadams.github.io/Rceattle/reference/read_data.md)
+  [`read_data()`](https://afsc-assessments.github.io/Rceattle/reference/read_data.md)
   returns both tables as data frames, but a hand-built `data_list` may
   hold either as a matrix, and every other check tolerated one. Read by
   column name now.
@@ -1996,11 +3433,11 @@ one file in the sibling repositories does
 
 ### Documentation
 
-- [`vignette("hcrs-and-mses")`](https://grantdadams.github.io/Rceattle/articles/hcrs-and-mses.md)
+- [`vignette("hcrs-and-mses")`](https://afsc-assessments.github.io/Rceattle/articles/hcrs-and-mses.md)
   attributed the per-fleet `Index_distribution` index draw to 5.13.0; it
   landed in **5.9.0**. It also had 5.13.0 breaking reproducibility for
   every seeded
-  [`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md),
+  [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md),
   where it breaks it for two kinds of run — one using a scalar `cap`,
   and one whose control rule reads reference points from an estimated
   stock-recruit curve. Both the vignette and the 5.13.0 `NEWS.md` entry
@@ -2019,7 +3456,7 @@ one file in the sibling repositories does
 
 ### Bug fixes
 
-- **[`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+- **[`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   checks `maturity` and `sex_ratio` age coverage per species, not only
   against the widest one.** The existing checks compare the table’s
   column count with `max(nages)`, so a table wide enough for the
@@ -2052,13 +3489,13 @@ one file in the sibling repositories does
   bundled datasets in `test-data-check-age-coverage.R`.
 
   Rows are read by **position**, since
-  [`rearrange_data()`](https://grantdadams.github.io/Rceattle/reference/rearrange_data.md)
+  [`rearrange_data()`](https://afsc-assessments.github.io/Rceattle/reference/rearrange_data.md)
   drops the `Species` column and hands the model a matrix whose row *i*
   is species *i*. A `Species` column that disagrees with the row order,
   and a table with fewer rows than species, are both reported.
 
 - **An `NA` in `nages` no longer aborts
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md).**
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md).**
   Six age-coverage comparisons (`weight`, `ration_data`, `age_error`,
   `maturity`/`sex_ratio` widths, `NByageFixed`, CAAL columns) evaluated
   `any(... < nages)` or `max(nages)` without `na.rm`, so a single `NA`
@@ -2076,25 +3513,25 @@ one file in the sibling repositories does
   had grown past 1,500 characters — `Catchability` and
   `Catchability_index` the longest. Each now gives what the column
   means, its allowed values and its default, then points at
-  [`vignette("model-options-and-functionality")`](https://grantdadams.github.io/Rceattle/articles/model-options-and-functionality.md),
+  [`vignette("model-options-and-functionality")`](https://afsc-assessments.github.io/Rceattle/articles/model-options-and-functionality.md),
   which already carried the sharing rules and the lead-fleet resolution
   in full. No allowed value, default or switch code was dropped, and
   `inst/extdata/meta_data_names.xlsx` is regenerated from the schema.
   The same trim is applied to the matching
-  [`?BS2017SS`](https://grantdadams.github.io/Rceattle/reference/BS2017SS.md)
+  [`?BS2017SS`](https://afsc-assessments.github.io/Rceattle/reference/BS2017SS.md)
   field dictionary in `R/data.R`.
 
 - **“The template” is called “the model” in user-facing text.** It is
   TMB build jargon for `ceattle.cpp`, and it collided with the *Excel*
   template
-  [`write_template()`](https://grantdadams.github.io/Rceattle/reference/write_template.md)
+  [`write_template()`](https://afsc-assessments.github.io/Rceattle/reference/write_template.md)
   writes — two different objects under one word, in help pages and error
   messages.
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   and
-  [`sim_mod()`](https://grantdadams.github.io/Rceattle/reference/sim_mod.md)’s
+  [`sim_mod()`](https://afsc-assessments.github.io/Rceattle/reference/sim_mod.md)’s
   messages, the vignettes and the roxygen now say “the model”;
-  [`write_template()`](https://grantdadams.github.io/Rceattle/reference/write_template.md)’s
+  [`write_template()`](https://afsc-assessments.github.io/Rceattle/reference/write_template.md)’s
   own documentation still says “template”, meaning the workbook.
 
 - Code comments state current behaviour rather than what an earlier
@@ -2116,7 +3553,7 @@ one file in the sibling repositories does
 ### MSE
 
 - **Two
-  [`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+  [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
   schedules run on the same `seed` are now on common random numbers**,
   so a paired comparison of two assessment schedules measures the
   schedules. Each assessment’s observation draws are seeded on its own
@@ -2127,13 +3564,13 @@ one file in the sibling repositories does
   remainder is optimizer noise.
 
   **Common random numbers are still incomplete.** One
-  [`sim_mod()`](https://grantdadams.github.io/Rceattle/reference/sim_mod.md)
+  [`sim_mod()`](https://afsc-assessments.github.io/Rceattle/reference/sim_mod.md)
   call draws every year in an assessment interval under that
   assessment’s seed, so a year sitting inside a longer interval is drawn
   under a different seed than the same year in a schedule that assessed
   it directly.
-  [`?run_mse`](https://grantdadams.github.io/Rceattle/reference/run_mse.md),
-  [`vignette("hcrs-and-mses")`](https://grantdadams.github.io/Rceattle/articles/hcrs-and-mses.md)
+  [`?run_mse`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md),
+  [`vignette("hcrs-and-mses")`](https://afsc-assessments.github.io/Rceattle/articles/hcrs-and-mses.md)
   and `inst/dev/TODO-mse-horizon.md` say so.
 
   **Every seeded `run_mse(simulate_data = TRUE)` result changes.** Runs
@@ -2152,7 +3589,7 @@ one file in the sibling repositories does
 
 ### Performance
 
-- **[`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+- **[`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
   no longer refits the operating model on a shortened horizon.** That
   saving was 9% on a Bering Sea multispecies MSE projecting to 2040; it
   goes because the shortened horizon was what made the draw count depend
@@ -2186,7 +3623,7 @@ one file in the sibling repositories does
 - **A schedule that stops short of the projection horizon now warns.**
   Catch is filled only up to the last assessment, so trailing years keep
   the `NA` their projection rows were created with, while
-  [`mse_summary()`](https://grantdadams.github.io/Rceattle/reference/mse_summary.md)
+  [`mse_summary()`](https://afsc-assessments.github.io/Rceattle/reference/mse_summary.md)
   summarises over the whole projection — understating `Average Catch`,
   `Catch IAV` and `P(Closed)` with nothing in the table to say so. A
   biennial cycle over an odd number of projection years lands here every
@@ -2222,9 +3659,9 @@ one file in the sibling repositories does
   for one — reducing ABC changes removals only to the extent the fishery
   attains it. Scale by recent attainment, `1 - (1 - mult) * attainment`,
   or report the result as an upper bound.
-  [`?run_mse`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+  [`?run_mse`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
   and
-  [`vignette("hcrs-and-mses")`](https://grantdadams.github.io/Rceattle/articles/hcrs-and-mses.md)
+  [`vignette("hcrs-and-mses")`](https://afsc-assessments.github.io/Rceattle/articles/hcrs-and-mses.md)
   carry the caveat.
 
 - No stored MSE result changes. `assessment_period = 1` and a scalar
@@ -2238,11 +3675,11 @@ one file in the sibling repositories does
 
 ### Documentation
 
-- [`vignette("hcrs-and-mses")`](https://grantdadams.github.io/Rceattle/articles/hcrs-and-mses.md)
+- [`vignette("hcrs-and-mses")`](https://afsc-assessments.github.io/Rceattle/articles/hcrs-and-mses.md)
   gains a worked missed-assessment scenario, and its reproducibility
   section now names **5.13.0** alongside 5.9.0. Both moved the
   random-number stream, so a seeded
-  [`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+  [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
   reproduces across neither.
 
 ## Rceattle 5.16.0
@@ -2263,7 +3700,7 @@ one file in the sibling repositories does
 
 - **`Time_varying_sel = "AR1"` and `Time_varying_q = "AR1"` (value `2`)
   are removed.**
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   errors on them, naming the fleet and the replacement.
 
   Neither was ever an AR1: the model scored value `2` with the same
@@ -2298,13 +3735,13 @@ one file in the sibling repositories does
 
 - **The unfished-reference placeholder is recognised by a flag, not by
   its value.**
-  [`mse_summary()`](https://grantdadams.github.io/Rceattle/reference/mse_summary.md)
+  [`mse_summary()`](https://afsc-assessments.github.io/Rceattle/reference/mse_summary.md)
   compared the reported `SB0` to the 999 mt placeholder — a float
   equality test that would also null a legitimately derived 999 mt, and
   that was blind to a workbook supplying its own `MSSB0`.
-  [`clean_data()`](https://grantdadams.github.io/Rceattle/reference/clean_data.md)
+  [`clean_data()`](https://afsc-assessments.github.io/Rceattle/reference/clean_data.md)
   now seeds a per-species `MSSB0_derived`, which
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   sets where it projects under no fishing. A fit saved before the flag
   existed falls back to the value test.
 
@@ -2318,7 +3755,7 @@ one file in the sibling repositories does
 
 - **`Time_varying_sel_sd` is validated, as `Time_varying_q_sd` already
   was.**
-  [`build_params()`](https://grantdadams.github.io/Rceattle/reference/build_params.md)
+  [`build_params()`](https://afsc-assessments.github.io/Rceattle/reference/build_params.md)
   takes its log, so a blank or non-positive value gave a non-finite
   objective from inside `MakeADFun`, naming neither the fleet nor the
   column.
@@ -2351,13 +3788,13 @@ one file in the sibling repositories does
   draw it.
 
 - **The diagnostics share one display contract.**
-  [`osa_diagnostics()`](https://grantdadams.github.io/Rceattle/reference/osa_diagnostics.md),
-  [`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md),
-  [`jitter()`](https://grantdadams.github.io/Rceattle/reference/jitter.md)
+  [`osa_diagnostics()`](https://afsc-assessments.github.io/Rceattle/reference/osa_diagnostics.md),
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md),
+  [`jitter()`](https://afsc-assessments.github.io/Rceattle/reference/jitter.md)
   and
-  [`mse_summary()`](https://grantdadams.github.io/Rceattle/reference/mse_summary.md)
+  [`mse_summary()`](https://afsc-assessments.github.io/Rceattle/reference/mse_summary.md)
   now open with the header
-  [`convergence_diagnostics()`](https://grantdadams.github.io/Rceattle/reference/convergence_diagnostics.md)
+  [`convergence_diagnostics()`](https://afsc-assessments.github.io/Rceattle/reference/convergence_diagnostics.md)
   uses — the object, a status, and a one-line verdict — before the
   detail.
 
@@ -2366,19 +3803,19 @@ one file in the sibling repositories does
   [`class()`](https://rdrr.io/r/base/class.html) gains an entry and
   [`print()`](https://rdrr.io/r/base/print.html) gets an opinion.
 
-  - [`osa_diagnostics()`](https://grantdadams.github.io/Rceattle/reference/osa_diagnostics.md)
+  - [`osa_diagnostics()`](https://afsc-assessments.github.io/Rceattle/reference/osa_diagnostics.md)
     leads with how many sources failed and the overall SDNR against its
     null interval, then a severity-tagged line per source, worst first.
-  - [`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md)
+  - [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md)
     judges the terminal peel against `print(retro, band = )`, default
     `+/- 0.2`. Forecast-skill peels are reported but not judged: a rho
     over a forecast horizon is not the quantity that rule was calibrated
     on.
-  - [`jitter()`](https://grantdadams.github.io/Rceattle/reference/jitter.md)
+  - [`jitter()`](https://afsc-assessments.github.io/Rceattle/reference/jitter.md)
     gains `njitter`, so the fraction of starts reaching the best optimum
     has a knowable denominator — non-converged starts are dropped, so
     the count of returned fits is not the count attempted.
-  - [`mse_summary()`](https://grantdadams.github.io/Rceattle/reference/mse_summary.md)
+  - [`mse_summary()`](https://afsc-assessments.github.io/Rceattle/reference/mse_summary.md)
     reports its four blocks and their dimensions, and says that
     [`as.data.frame()`](https://rdrr.io/r/base/as.data.frame.html) on
     the whole object will not work.
@@ -2413,7 +3850,7 @@ one file in the sibling repositories does
   across four vignettes stayed unexecuted in the one job built to
   execute them, including the OSA and process-residual workflows and
   three
-  [`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+  [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
   variants. Exactly one chunk keeps an explicit `eval = FALSE`, the
   install block, and says so.
 
@@ -2422,12 +3859,12 @@ one file in the sibling repositories does
   weekly job’s timeout went from 120 to 180 minutes, since a timeout
   loses every vignette’s result rather than one.
 
-- **[`?mse_summary`](https://grantdadams.github.io/Rceattle/reference/mse_summary.md)
+- **[`?mse_summary`](https://afsc-assessments.github.io/Rceattle/reference/mse_summary.md)
   says when `om_terminal_depletion` is `NA`** — any multispecies run
   without a harvest control rule, which derives no unfished reference.
   Points at `om_terminal_depletion_dynamic`, which is unaffected.
 
-- **[`vignette("model-parameterizations")`](https://grantdadams.github.io/Rceattle/articles/model-parameterizations.md)
+- **[`vignette("model-parameterizations")`](https://afsc-assessments.github.io/Rceattle/articles/model-parameterizations.md)
   gives the fishery index predictor.** It still showed the survey
   snapshot for CPUE, which 5.9.0 replaced for a fishery with the
   year-average `N̄ = N (1 − e^{−Z}) / Z`. The predictor is now split by
@@ -2443,7 +3880,7 @@ one file in the sibling repositories does
   now name what actually does that, `fit_mod(random_sel = TRUE)`.
 
 - **Three switch-table rows in
-  [`vignette("model-options-and-functionality")`](https://grantdadams.github.io/Rceattle/articles/model-options-and-functionality.md)
+  [`vignette("model-options-and-functionality")`](https://afsc-assessments.github.io/Rceattle/articles/model-options-and-functionality.md)
   no longer break their table.** A `|` inside a table cell is a column
   separator even inside a code span, so `linkage_spec(~ ar1(1 | Year))`
   rendered a spurious fourth column. The replacement code moved out of
@@ -2452,13 +3889,13 @@ one file in the sibling repositories does
   `test-vignette-api.R` parses only the R chunks, and pandoc renders a
   ragged row without complaint.
 
-- **[`vignette("introduction")`](https://grantdadams.github.io/Rceattle/articles/introduction.md)
+- **[`vignette("introduction")`](https://afsc-assessments.github.io/Rceattle/articles/introduction.md)
   plots SSB depletion where it says it does.** The “SSB depletion”
   example called
-  [`plot_depletion()`](https://grantdadams.github.io/Rceattle/reference/plot_depletion.md)
+  [`plot_depletion()`](https://afsc-assessments.github.io/Rceattle/reference/plot_depletion.md)
   — biomass depletion, the same call as the line above it — so the two
   examples drew identical figures under different labels. It calls
-  [`plot_depletionSSB()`](https://grantdadams.github.io/Rceattle/reference/plot_depletionSSB.md)
+  [`plot_depletionSSB()`](https://afsc-assessments.github.io/Rceattle/reference/plot_depletionSSB.md)
   now.
 
 - The `Time_varying_sel` soft-deprecation message now names
@@ -2505,27 +3942,27 @@ one file in the sibling repositories does
   returned object.** Under `msmMode > 0` the model discards its own
   equilibrium SB0 and reads the `MSSB0` `DATA_VECTOR` instead, so
   `ssb_depletion` is `ssb / MSSB0`. No workbook can supply it —
-  [`clean_data()`](https://grantdadams.github.io/Rceattle/reference/clean_data.md)
+  [`clean_data()`](https://afsc-assessments.github.io/Rceattle/reference/clean_data.md)
   seeds it at a 999 mt placeholder and
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   derives the real value by projecting under no fishing. That derived
   value was written only into the reorganized copy the projection refits
   from, so the **returned** `data_list` kept the 999, and everything
   that refits from a fitted object — `.refit_like()`,
-  [`remove_F()`](https://grantdadams.github.io/Rceattle/reference/remove_F.md),
+  [`remove_F()`](https://afsc-assessments.github.io/Rceattle/reference/remove_F.md),
   and every
-  [`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+  [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
   projection — re-entered the model with the placeholder.
 
   **Any multispecies refit carrying a harvest control rule moves.**
   `SB0` is not only the depletion denominator: it is also the HCR
   threshold and the `posfun` floor on `ssb_depletion - Plimit`, so a
   refit was comparing spawning biomass against 999 mt. A single
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   call was already correct — the fit itself used the derived value — so
   `/golden-check` is bit-identical and no hindcast changes.
 
-- **[`mse_summary()`](https://grantdadams.github.io/Rceattle/reference/mse_summary.md)
+- **[`mse_summary()`](https://afsc-assessments.github.io/Rceattle/reference/mse_summary.md)
   no longer reports SSB/999 as a terminal depletion.** An unfished
   reference is only derived for a run carrying a harvest control rule,
   so under `HCR = "NoFishing"` `MSSB0` is still the placeholder. The
@@ -2546,10 +3983,10 @@ one file in the sibling repositories does
 ### Documentation
 
 - **Two misspellings corrected where they described a switch value.**
-  [`vignette("model-parameterizations")`](https://grantdadams.github.io/Rceattle/articles/model-parameterizations.md)
+  [`vignette("model-parameterizations")`](https://afsc-assessments.github.io/Rceattle/articles/model-parameterizations.md)
   wrote “specificed” for the `Time_varying_sel = 3` block form in three
   places, and both that vignette and
-  [`build_map_selectivity()`](https://grantdadams.github.io/Rceattle/reference/build_map_selectivity.md)
+  [`build_map_selectivity()`](https://afsc-assessments.github.io/Rceattle/reference/build_map_selectivity.md)
   wrote “selecitivty” for the `Selectivity = "NonParametric"` form of
   Ianelli et al. (2018). Text only; no switch, default or fit changes.
 
@@ -2586,7 +4023,7 @@ one file in the sibling repositories does
   held on the log scale, so the group starts at the **geometric mean**
   of their `Time_varying_sel_sd` — a value none of the rows asks for,
   reached in silence.
-  [`build_map()`](https://grantdadams.github.io/Rceattle/reference/build_map.md)
+  [`build_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md)
   now warns once per group, naming its fleets, their differing values
   and the geometric mean the group starts from, and does the same for
   `Time_varying_q_sd` across a shared `Catchability_index`. Both read
@@ -2594,7 +4031,7 @@ one file in the sibling repositories does
   estimated: with it fixed, or on an `Off` fleet, each fleet keeps its
   own value and there is nothing to report. No fit changes.
 
-- **[`rearrange_data()`](https://grantdadams.github.io/Rceattle/reference/rearrange_data.md)
+- **[`rearrange_data()`](https://afsc-assessments.github.io/Rceattle/reference/rearrange_data.md)
   no longer iterates once over an empty `age_error`.** The loop used
   `1:nrow()`, which runs for `i = 1` and then `i = 0` on a frame with no
   rows. It is [`seq_len()`](https://rdrr.io/r/base/seq.html) now. No
@@ -2625,13 +4062,13 @@ one file in the sibling repositories does
   stays.
 
 - **Four stale or incorrect source comments corrected**, in
-  [`build_params()`](https://grantdadams.github.io/Rceattle/reference/build_params.md),
-  [`clean_data()`](https://grantdadams.github.io/Rceattle/reference/clean_data.md),
+  [`build_params()`](https://afsc-assessments.github.io/Rceattle/reference/build_params.md),
+  [`clean_data()`](https://afsc-assessments.github.io/Rceattle/reference/clean_data.md),
   the model’s fishing-mortality section, and the two shared-parameter
   blocks in
-  [`build_map()`](https://grantdadams.github.io/Rceattle/reference/build_map.md)
+  [`build_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md)
   that still claimed
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   suppresses their warnings. Documented in
   `inst/dev/CLEANUP_BACKLOG.md`.
 
@@ -2751,7 +4188,7 @@ one file in the sibling repositories does
 
 - **A scalar `cap` is now an annual ceiling, not an assessment-interval
   one.**
-  [`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+  [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
   filled catch for every year of the assessment interval and then tested
   the cap against the sum over all of them, so at
   `assessment_period = 2` a one-year cap was applied to a two-year
@@ -2778,7 +4215,7 @@ one file in the sibling repositories does
   unaffected. The species-specific vector form of `cap` was always per
   row and is untouched.
 
-- **[`mse_summary()`](https://grantdadams.github.io/Rceattle/reference/mse_summary.md)
+- **[`mse_summary()`](https://afsc-assessments.github.io/Rceattle/reference/mse_summary.md)
   scored HCR 2 against a hardcoded depletion.** The estimation model’s
   `P(SSB < SSBlimit)` used a literal `0.5 * 0.35` under HCR 2, on the
   depletion scale, while the operating-model arm scored the same rule as
@@ -2797,28 +4234,28 @@ one file in the sibling repositories does
   run.
 
 - **A reproducibility boundary, for two kinds of run.** A seeded
-  [`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+  [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
   from 5.12.0 does not reproduce here if it used a scalar `cap` — the
   rewrite above changes the catch taken, cap binding or not — or if its
   control rule read reference points from an estimated stock-recruit
   curve, which the `NByage0` / `SB0` fix above moves. A run with neither
   is unaffected by this release. That is unlike 5.9.0 and 5.18.0, which
   move the random stream for every seeded run;
-  [`vignette("hcrs-and-mses")`](https://grantdadams.github.io/Rceattle/articles/hcrs-and-mses.md)
+  [`vignette("hcrs-and-mses")`](https://afsc-assessments.github.io/Rceattle/articles/hcrs-and-mses.md)
   lists all three.
 
 ### Other changes
 
-- **[`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+- **[`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   no longer suppresses every warning
-  [`build_map()`](https://grantdadams.github.io/Rceattle/reference/build_map.md)
+  [`build_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md)
   raises.** The suppression hid messages that exist to be seen – an M1
   model asking for sex-specific mortality on a single-sex species, a
   `Time_varying_sel` the selectivity form ignores, a Laplace request the
   map cannot honour. Each changes what is estimated. They are now
   de-duplicated and passed through, so a retrospective or MSE that
   re-enters
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   once per peel or simulation prints each distinct warning once rather
   than hundreds of times.
 
@@ -2826,7 +4263,7 @@ one file in the sibling repositories does
   `Time_varying_sel = "Block"`,** instead of producing a NaN objective.
   Selectivity blocks are fixed effects — one slope and inflection per
   block, with no penalty — but
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   added the block parameters to TMB’s `random` regardless, and the model
   scores selectivity deviates only under `"IID"`, `"RandomWalk"` and
   `"RandomWalkAscending"`. They were integrated against no density, with
@@ -2845,7 +4282,7 @@ one file in the sibling repositories does
 
 - **A Beverton-Holt or Ricker stock-recruit curve can no longer be
   combined with `msmMode > 0`.**
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   now refuses it. Those curves anchor steepness, `R0` and `R_init` on
   spawning biomass per recruit, and SPR is not defined under predation:
   total mortality carries `M2`, which scales with predator abundance, so
@@ -2877,7 +4314,7 @@ one file in the sibling repositories does
   `"Increasing"`, `"increasing"` and `"-1"` (the ADMB sign convention).
   `Selectivity_dimension` accepts only `"Age"` and `"Length"`, the only
   values
-  [`rearrange_data()`](https://grantdadams.github.io/Rceattle/reference/rearrange_data.md)
+  [`rearrange_data()`](https://afsc-assessments.github.io/Rceattle/reference/rearrange_data.md)
   matches.
 
   A blank `Selectivity_dimension` cell takes the schema default
@@ -2892,7 +4329,7 @@ one file in the sibling repositories does
   Pre-flighted over every workbook in the ecosystem: **196** carry a
   `fleet_control` sheet and not one value the new check rejects.
 
-- **[`write_data()`](https://grantdadams.github.io/Rceattle/reference/write_data.md)
+- **[`write_data()`](https://afsc-assessments.github.io/Rceattle/reference/write_data.md)
   writes `fleet_control` in schema column order**, as the control and
   bioenergetics sheets already did. Values are unchanged and
   round-tripping is identical; only the column order in the workbook
@@ -2903,7 +4340,7 @@ one file in the sibling repositories does
 
 - **`Catchability = "AR1"` (the QAR1 form of Rogers et al. 2024) is now
   an error.** It never worked.
-  [`build_map()`](https://grantdadams.github.io/Rceattle/reference/build_map.md)
+  [`build_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md)
   gates the log-q deviates on
   `Time_varying_q %in% c("IID", "AR1", "RandomWalk")`, but under this
   form `Time_varying_q` holds an `env_data` column index rather than a
@@ -2937,7 +4374,7 @@ one file in the sibling repositories does
   a worked example: it runs exactly this form.
 
   The schema marks the code removed too, so
-  [`?BS2017SS`](https://grantdadams.github.io/Rceattle/reference/BS2017SS.md)
+  [`?BS2017SS`](https://afsc-assessments.github.io/Rceattle/reference/BS2017SS.md)
   and the workbook meta sheet say so before a model is built rather than
   only at fit time.
 
@@ -2950,7 +4387,7 @@ one file in the sibling repositories does
 - **`Estimate_catch_sd = "Analytical"` now works.** The option was
   documented in the schema, accepted by `validate_switches()`, and
   treated as a real mode by
-  [`build_map()`](https://grantdadams.github.io/Rceattle/reference/build_map.md)
+  [`build_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md)
   (which maps `catch_log_sd` out) – but the model’s dispatch had only
   cases 0 and 1, so a model using it passed every R-side check and then
   died inside the fit with `Invalid 'Estimate_sigma_catch'`. It is now
@@ -2987,19 +4424,19 @@ one file in the sibling repositories does
 
 - **A fishery asking for an analytical catch sd with nothing to estimate
   it from is now refused by
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)**,
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)**,
   as is the index equivalent. With no fitted positive observation the sd
   is undefined, and it used to fall through as 0 – which the likelihood
   never reads, but the reported `index_sd` / `catch_sd` and the
-  [`sim_mod()`](https://grantdadams.github.io/Rceattle/reference/sim_mod.md)
+  [`sim_mod()`](https://afsc-assessments.github.io/Rceattle/reference/sim_mod.md)
   draw both do, and `rnorm(mean, 0)` is a deterministic observation. A
   zero-catch year is legal input, so this is reachable on the catch
   side; on the index side
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   already refused a non-positive observation, and the matching guard
   added to the index estimator is parity rather than a live fix.
 
-- **[`write_data()`](https://grantdadams.github.io/Rceattle/reference/write_data.md)
+- **[`write_data()`](https://afsc-assessments.github.io/Rceattle/reference/write_data.md)
   no longer fails on a workbook that predates a control or bioenergetics
   switch.** Both sheets were assembled from the full schema object list
   – the control sheet by [`rbind()`](https://rdrr.io/r/base/cbind.html),
@@ -3009,9 +4446,9 @@ one file in the sibling repositories does
   `number of items to replace is not a multiple of replacement length`.
   The live Pacific hake workbook hits this: it predates `alpha_wt_len` /
   `beta_wt_len`, so
-  [`read_data()`](https://grantdadams.github.io/Rceattle/reference/read_data.md)
+  [`read_data()`](https://afsc-assessments.github.io/Rceattle/reference/read_data.md)
   then
-  [`write_data()`](https://grantdadams.github.io/Rceattle/reference/write_data.md)
+  [`write_data()`](https://afsc-assessments.github.io/Rceattle/reference/write_data.md)
   could not round-trip it. Both sheets now write the objects the
   `data_list` actually carries, in schema order, as `fleet_control`
   already did.
@@ -3019,12 +4456,12 @@ one file in the sibling repositories does
   Absent objects are dropped rather than written at their schema
   default: the default belongs to the model, and baking one into a
   workbook would turn a value
-  [`switch_check()`](https://grantdadams.github.io/Rceattle/reference/switch_check.md)
+  [`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md)
   announces at fit time into one the file asserts. Keying the
   bioenergetics rows by name also retires the duplicate row-order list
   that had to be kept in sync with the schema by hand.
 
-- **[`switch_check()`](https://grantdadams.github.io/Rceattle/reference/switch_check.md)
+- **[`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md)
   accepted the selectivity spelling `"Non-parametric"` while
   `validate_switches()` rejected it**, so a model written that way
   loaded, was normalised to nothing, and then failed its own data check.
@@ -3032,13 +4469,13 @@ one file in the sibling repositories does
 
 ### New features
 
-- **[`write_template()`](https://grantdadams.github.io/Rceattle/reference/write_template.md)
+- **[`write_template()`](https://afsc-assessments.github.io/Rceattle/reference/write_template.md)
   writes every column the schema defines.** The hand-written list had
   fallen 14 columns behind, and a column missing from the template is
   how a user never learns an option exists. The penalty weights
   `Sel_curve_pen1/2/3` are deliberately left blank rather than seeded
   with their schema default of 0:
-  [`switch_check()`](https://grantdadams.github.io/Rceattle/reference/switch_check.md)
+  [`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md)
   converts `Sel_shape_sd` / `Sel_curvature_sd` / `Sel_devmag_sd` into a
   weight only where the raw weight is still blank, so a seeded 0 would
   silently disable that interface and leave a non-parametric fit with no
@@ -3046,7 +4483,7 @@ one file in the sibling repositories does
 
 - **The model-level switches have one table**,
   `.rce_model_switch_schema()`, and the comments
-  [`save_config()`](https://grantdadams.github.io/Rceattle/reference/save_config.md)
+  [`save_config()`](https://afsc-assessments.github.io/Rceattle/reference/save_config.md)
   writes are projected from it. `estimateMode`’s `DebugOptimize` was a
   real mode the comments never mentioned, and `msmMode` was described in
   prose naming none of its canonical values. Each comment now gives the
@@ -3074,7 +4511,7 @@ one file in the sibling repositories does
   before, so an API break in a vignette was invisible until a user
   copied the code. That is how `hcrs-and-mses.Rmd` kept calling
   [`knitr::kable()`](https://rdrr.io/pkg/knitr/man/kable.html) on
-  [`mse_summary()`](https://grantdadams.github.io/Rceattle/reference/mse_summary.md)
+  [`mse_summary()`](https://afsc-assessments.github.io/Rceattle/reference/mse_summary.md)
   for several releases after it started returning a list; that code is
   fixed, and the per-entity structure (`$species`, `$fleet`, `$total`,
   `$meta`) is now explained.
@@ -3094,29 +4531,29 @@ one file in the sibling repositories does
 
 - `reweight_comps(fleets =)` is documented, as is the log scale
   `Comp_weights` takes under a Dirichlet-multinomial.
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)’s
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)’s
   `initMode` moves from an 849-character `@param` into an **Initial age
   structure** section, and `suitMode` / `avgnMode` now say “declared but
   not implemented” in one voice rather than three. Examples added to
-  [`build_srr()`](https://grantdadams.github.io/Rceattle/reference/build_srr.md),
-  [`build_hcr()`](https://grantdadams.github.io/Rceattle/reference/build_hcr.md),
-  [`mse_summary()`](https://grantdadams.github.io/Rceattle/reference/mse_summary.md),
-  [`sim_mod()`](https://grantdadams.github.io/Rceattle/reference/sim_mod.md),
-  [`model_average()`](https://grantdadams.github.io/Rceattle/reference/model_average.md),
-  [`osa_residuals()`](https://grantdadams.github.io/Rceattle/reference/osa_residuals.md)
+  [`build_srr()`](https://afsc-assessments.github.io/Rceattle/reference/build_srr.md),
+  [`build_hcr()`](https://afsc-assessments.github.io/Rceattle/reference/build_hcr.md),
+  [`mse_summary()`](https://afsc-assessments.github.io/Rceattle/reference/mse_summary.md),
+  [`sim_mod()`](https://afsc-assessments.github.io/Rceattle/reference/sim_mod.md),
+  [`model_average()`](https://afsc-assessments.github.io/Rceattle/reference/model_average.md),
+  [`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md)
   and
-  [`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md).
+  [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md).
 
 - The vignettes and
-  [`build_data()`](https://grantdadams.github.io/Rceattle/reference/build_data.md)’s
+  [`build_data()`](https://afsc-assessments.github.io/Rceattle/reference/build_data.md)’s
   help no longer tell users to call
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md),
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md),
   which is internal; they point at `build_data(.check = TRUE)`.
 
 ### Internal
 
 - Removed `flt_sel_ind`.
-  [`rearrange_data()`](https://grantdadams.github.io/Rceattle/reference/rearrange_data.md)
+  [`rearrange_data()`](https://afsc-assessments.github.io/Rceattle/reference/rearrange_data.md)
   computed it from `Fleet_code` on every fit and nothing read it – it
   was declared in no `DATA_` object and referenced nowhere in the
   package or the assessment repos.
@@ -3136,7 +4573,7 @@ one file in the sibling repositories does
 
 - `.rce_config_schema()` reads `estimateMode_map` and `msmMode_map`
   instead of hardcoding them, so the comments
-  [`save_config()`](https://grantdadams.github.io/Rceattle/reference/save_config.md)
+  [`save_config()`](https://afsc-assessments.github.io/Rceattle/reference/save_config.md)
   writes list every valid value. `estimateMode` was missing
   `DebugOptimize`.
 
@@ -3146,24 +4583,24 @@ one file in the sibling repositories does
 
 - **The diagnostics all take the fitted model as `object`.** The same
   argument was previously spelled `Rceattle` in
-  [`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md),
-  [`jitter()`](https://grantdadams.github.io/Rceattle/reference/jitter.md),
-  [`self_test()`](https://grantdadams.github.io/Rceattle/reference/self_test.md),
-  [`sim_mod()`](https://grantdadams.github.io/Rceattle/reference/sim_mod.md),
-  [`sample_rec()`](https://grantdadams.github.io/Rceattle/reference/sample_rec.md),
-  [`remove_F()`](https://grantdadams.github.io/Rceattle/reference/remove_F.md)
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md),
+  [`jitter()`](https://afsc-assessments.github.io/Rceattle/reference/jitter.md),
+  [`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md),
+  [`sim_mod()`](https://afsc-assessments.github.io/Rceattle/reference/sim_mod.md),
+  [`sample_rec()`](https://afsc-assessments.github.io/Rceattle/reference/sample_rec.md),
+  [`remove_F()`](https://afsc-assessments.github.io/Rceattle/reference/remove_F.md)
   and
-  [`model_average()`](https://grantdadams.github.io/Rceattle/reference/model_average.md),
+  [`model_average()`](https://afsc-assessments.github.io/Rceattle/reference/model_average.md),
   and `fit` in
-  [`reweight_comps()`](https://grantdadams.github.io/Rceattle/reference/reweight_comps.md),
-  [`osa_residuals()`](https://grantdadams.github.io/Rceattle/reference/osa_residuals.md)
+  [`reweight_comps()`](https://afsc-assessments.github.io/Rceattle/reference/reweight_comps.md),
+  [`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md)
   and
-  [`process_residuals()`](https://grantdadams.github.io/Rceattle/reference/process_residuals.md)
+  [`process_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/process_residuals.md)
   – so which name to use depended on which diagnostic you reached for,
   and `Rceattle` collided with the package name
   (`Rceattle::retrospective(Rceattle = mod)`). All ten now take
   `object`, matching
-  [`convergence_diagnostics()`](https://grantdadams.github.io/Rceattle/reference/convergence_diagnostics.md)
+  [`convergence_diagnostics()`](https://afsc-assessments.github.io/Rceattle/reference/convergence_diagnostics.md)
   and R’s own
   [`summary()`](https://rdrr.io/r/base/summary.html)/[`coef()`](https://rdrr.io/r/stats/coef.html)/[`vcov()`](https://rdrr.io/r/stats/vcov.html)
   methods.
@@ -3185,20 +4622,20 @@ one file in the sibling repositories does
   names because they take an MSE result and a simulation set, not a
   fitted model.
 
-- **[`sim_mod()`](https://grantdadams.github.io/Rceattle/reference/sim_mod.md),
-  [`sample_rec()`](https://grantdadams.github.io/Rceattle/reference/sample_rec.md),
-  [`remove_F()`](https://grantdadams.github.io/Rceattle/reference/remove_F.md)
+- **[`sim_mod()`](https://afsc-assessments.github.io/Rceattle/reference/sim_mod.md),
+  [`sample_rec()`](https://afsc-assessments.github.io/Rceattle/reference/sample_rec.md),
+  [`remove_F()`](https://afsc-assessments.github.io/Rceattle/reference/remove_F.md)
   and
-  [`model_average()`](https://grantdadams.github.io/Rceattle/reference/model_average.md)
+  [`model_average()`](https://afsc-assessments.github.io/Rceattle/reference/model_average.md)
   now say what is wrong when they are given something that is not a
   fitted model.** They previously failed further in with
   `argument is of length zero` or `invalid 'type' (list) of argument`.
 
-- **[`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+- **[`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   reports a composition weight of 1 on a Dirichlet-multinomial fleet.**
   That likelihood reads `Comp_weights`, `CAAL_weights` and
   `Diet_comp_weights` as the LOG of the starting weight, so the value
-  [`write_template()`](https://grantdadams.github.io/Rceattle/reference/write_template.md)
+  [`write_template()`](https://afsc-assessments.github.io/Rceattle/reference/write_template.md)
   seeds (1) is a starting weight of e, and a weight of 1 is written
   as 0. A model built from the model and switched to a
   Dirichlet-multinomial previously started at e with nothing saying so.
@@ -3206,15 +4643,15 @@ one file in the sibling repositories does
   Off fleets and fleets carrying no composition data are skipped. It
   fires once per fit, and the diagnostic refits suppress it the way they
   already suppress
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md).
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md).
   No value and no fit changes – this is a message.
 
-- **[`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md),
-  [`jitter()`](https://grantdadams.github.io/Rceattle/reference/jitter.md)
+- **[`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md),
+  [`jitter()`](https://afsc-assessments.github.io/Rceattle/reference/jitter.md)
   and
-  [`self_test()`](https://grantdadams.github.io/Rceattle/reference/self_test.md)
+  [`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md)
   accept `fit_control = fit_control(...)`,** matching
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md).
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md).
   Only `phase` and `getsd` are read, because those are what these
   diagnostics forward to each refit; setting any other field is an error
   rather than a silent no-op. Supplying it replaces the defaults they
@@ -3223,33 +4660,33 @@ one file in the sibling repositories does
 
   Which fields you asked for is read from what you **set** – named in
   the
-  [`fit_control()`](https://grantdadams.github.io/Rceattle/reference/fit_control.md)
+  [`fit_control()`](https://afsc-assessments.github.io/Rceattle/reference/fit_control.md)
   call, or assigned to afterwards (`ctl$getsd <- TRUE`) – not from
   whether the value differs from a default. So
   `fit_control(getsd = TRUE)` and `fit_control(phase = FALSE)` do what
   they say even though `TRUE` and `FALSE` are those fields’ defaults. A
   field you never touch keeps the diagnostic’s own default, which is not
   always
-  [`fit_control()`](https://grantdadams.github.io/Rceattle/reference/fit_control.md)’s:
-  [`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md)
+  [`fit_control()`](https://afsc-assessments.github.io/Rceattle/reference/fit_control.md)’s:
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md)
   phases its peels where
-  [`fit_control()`](https://grantdadams.github.io/Rceattle/reference/fit_control.md)
+  [`fit_control()`](https://afsc-assessments.github.io/Rceattle/reference/fit_control.md)
   does not, so `fit_control(getsd = FALSE)` asks about standard errors
   and cannot also flatten Mohn’s rho.
 
 - **`?rceattle-refit-args` documents the vocabulary
-  [`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md),
-  [`jitter()`](https://grantdadams.github.io/Rceattle/reference/jitter.md)
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md),
+  [`jitter()`](https://afsc-assessments.github.io/Rceattle/reference/jitter.md)
   and
-  [`self_test()`](https://grantdadams.github.io/Rceattle/reference/self_test.md)
+  [`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md)
   share** – `object`, `cores`, `fit_control`, and what
-  [`fit_control()`](https://grantdadams.github.io/Rceattle/reference/fit_control.md)
+  [`fit_control()`](https://afsc-assessments.github.io/Rceattle/reference/fit_control.md)
   reaches through a refit – the way `?rceattle-plot-args` already does
   for the plotters. `phase`, `getsd` and `timeout` stay on each
   function, because their defaults and what they mean for that
   diagnostic differ.
 
-- **[`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md)
+- **[`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md)
   takes `phase`,** the value it previously fixed internally. The default
   is `TRUE`, which is what it always used: a peel restarts from the
   unpeeled fit’s starting values with a year removed, so without phasing
@@ -3257,7 +4694,7 @@ one file in the sibling repositories does
   and Mohn’s rho is biased towards zero. No peel changes unless you set
   it.
 
-- **[`?jitter`](https://grantdadams.github.io/Rceattle/reference/jitter.md)
+- **[`?jitter`](https://afsc-assessments.github.io/Rceattle/reference/jitter.md)
   now records that attaching Rceattle masks
   [`base::jitter()`](https://rdrr.io/r/base/jitter.html).** The function
   keeps its name; call
@@ -3267,10 +4704,10 @@ one file in the sibling repositories does
 ### Bug fixes
 
 - **A parallel
-  [`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md),
-  [`jitter()`](https://grantdadams.github.io/Rceattle/reference/jitter.md)
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md),
+  [`jitter()`](https://afsc-assessments.github.io/Rceattle/reference/jitter.md)
   or
-  [`self_test()`](https://grantdadams.github.io/Rceattle/reference/self_test.md)
+  [`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md)
   called under the deprecated `Rceattle =` name no longer sends the
   fitted model to each Windows worker twice.** The PSOCK path exports
   the caller’s whole frame, and both argument names were bound to the
@@ -3284,10 +4721,10 @@ one file in the sibling repositories does
   in 6.0.0. (5.11.0 and 5.12.0 are both unreleased on this line, so the
   silent grace period has not yet reached a user; the warning moves with
   it.)
-- [`rearrange_dat()`](https://grantdadams.github.io/Rceattle/reference/rearrange_data.md)
+- [`rearrange_dat()`](https://afsc-assessments.github.io/Rceattle/reference/rearrange_data.md)
   now names its removal version (6.0.0) rather than deprecating
   open-endedly. Use
-  [`rearrange_data()`](https://grantdadams.github.io/Rceattle/reference/rearrange_data.md).
+  [`rearrange_data()`](https://afsc-assessments.github.io/Rceattle/reference/rearrange_data.md).
 
 ## Rceattle 5.10.0
 
@@ -3295,32 +4732,32 @@ one file in the sibling repositories does
 
 - **The timeseries, predation and selectivity plotters now share one set
   of arguments, and use them.** Only
-  [`plot_timeseries()`](https://grantdadams.github.io/Rceattle/reference/plot_timeseries.md)
+  [`plot_timeseries()`](https://afsc-assessments.github.io/Rceattle/reference/plot_timeseries.md)
   ever honoured `line_col`, `lwd`, `lty` and `alpha`; the others
   declared them and ignored them, so colours and line widths silently
   did nothing. They are now resolved in one place, documented once in
-  [`?"rceattle-plot-args"`](https://grantdadams.github.io/Rceattle/reference/rceattle-plot-args.md),
+  [`?"rceattle-plot-args"`](https://afsc-assessments.github.io/Rceattle/reference/rceattle-plot-args.md),
   and applied consistently. `line_col` accepts colour names, hex codes,
   or base-graphics palette indices (`line_col = 1`), and supplies the
   palette for whichever variable the figure maps to colour; on
-  [`plot_selectivity()`](https://grantdadams.github.io/Rceattle/reference/plot_selectivity.md)’s
+  [`plot_selectivity()`](https://afsc-assessments.github.io/Rceattle/reference/plot_selectivity.md)’s
   year fan it gives the ramp anchors instead. `lwd` keeps the
   base-graphics scale, where the default `3` is a standard-weight line.
   The remaining plotters –
-  [`plot_mortality()`](https://grantdadams.github.io/Rceattle/reference/plot_mortality.md),
-  [`plot_maturity()`](https://grantdadams.github.io/Rceattle/reference/plot_maturity.md),
-  [`plot_comp()`](https://grantdadams.github.io/Rceattle/reference/plot_comp.md),
-  [`plot_data()`](https://grantdadams.github.io/Rceattle/reference/plot_data.md),
-  [`plot_stock_recruit()`](https://grantdadams.github.io/Rceattle/reference/plot_stock_recruit.md),
+  [`plot_mortality()`](https://afsc-assessments.github.io/Rceattle/reference/plot_mortality.md),
+  [`plot_maturity()`](https://afsc-assessments.github.io/Rceattle/reference/plot_maturity.md),
+  [`plot_comp()`](https://afsc-assessments.github.io/Rceattle/reference/plot_comp.md),
+  [`plot_data()`](https://afsc-assessments.github.io/Rceattle/reference/plot_data.md),
+  [`plot_stock_recruit()`](https://afsc-assessments.github.io/Rceattle/reference/plot_stock_recruit.md),
   the index, catch and diet families – still take their own arguments.
 
 - **The predation plotters honour the shared arguments.**
-  [`plot_b_eaten()`](https://grantdadams.github.io/Rceattle/reference/plot_b_eaten.md),
-  [`plot_b_eaten_prop()`](https://grantdadams.github.io/Rceattle/reference/plot_b_eaten_prop.md),
-  [`plot_m_at_age()`](https://grantdadams.github.io/Rceattle/reference/plot_m_at_age.md),
-  [`plot_m2_at_age_prop()`](https://grantdadams.github.io/Rceattle/reference/plot_m2_at_age_prop.md)
+  [`plot_b_eaten()`](https://afsc-assessments.github.io/Rceattle/reference/plot_b_eaten.md),
+  [`plot_b_eaten_prop()`](https://afsc-assessments.github.io/Rceattle/reference/plot_b_eaten_prop.md),
+  [`plot_m_at_age()`](https://afsc-assessments.github.io/Rceattle/reference/plot_m_at_age.md),
+  [`plot_m2_at_age_prop()`](https://afsc-assessments.github.io/Rceattle/reference/plot_m2_at_age_prop.md)
   and
-  [`plot_ration()`](https://grantdadams.github.io/Rceattle/reference/plot_ration.md)
+  [`plot_ration()`](https://afsc-assessments.github.io/Rceattle/reference/plot_ration.md)
   now use `line_col`, `lwd`, `lty`, `minyr`, `maxyr` and `incl_mean`
   (and `alpha`, where the figure has a ribbon), all of which they
   previously declared and ignored. They also accept `maxyr`, `lty`,
@@ -3331,13 +4768,13 @@ one file in the sibling repositories does
 
   `line_col` and `lty` follow the figure, not the model: colour
   separates predators in
-  [`plot_b_eaten_prop()`](https://grantdadams.github.io/Rceattle/reference/plot_b_eaten_prop.md)
+  [`plot_b_eaten_prop()`](https://afsc-assessments.github.io/Rceattle/reference/plot_b_eaten_prop.md)
   and
-  [`plot_m2_at_age_prop()`](https://grantdadams.github.io/Rceattle/reference/plot_m2_at_age_prop.md),
+  [`plot_m2_at_age_prop()`](https://afsc-assessments.github.io/Rceattle/reference/plot_m2_at_age_prop.md),
   and line type separates the sexes in
-  [`plot_ration()`](https://grantdadams.github.io/Rceattle/reference/plot_ration.md)
+  [`plot_ration()`](https://afsc-assessments.github.io/Rceattle/reference/plot_ration.md)
   and
-  [`plot_m_at_age()`](https://grantdadams.github.io/Rceattle/reference/plot_m_at_age.md).
+  [`plot_m_at_age()`](https://afsc-assessments.github.io/Rceattle/reference/plot_m_at_age.md).
   Each function’s help says which. Too few colours are recycled, now
   with a warning naming what they coloured, and a varying `lty` whose
   key has one level warns rather than being dropped in silence.
@@ -3349,7 +4786,7 @@ one file in the sibling repositories does
   argument was silently doing nothing. It now warns once and draws no
   ribbon.
 
-- **[`plot_selectivity()`](https://grantdadams.github.io/Rceattle/reference/plot_selectivity.md)
+- **[`plot_selectivity()`](https://afsc-assessments.github.io/Rceattle/reference/plot_selectivity.md)
   draws every model, on the right dimension, and uses its arguments.**
   It previously read only the first fit, so a list of models silently
   lost all but one; `model_names`, `line_col`, `lwd` and `species` were
@@ -3364,7 +4801,7 @@ one file in the sibling repositories does
   `colour_by` forces either.
 
 - **Length-based fleets are drawn on length bins.**
-  [`plot_selectivity()`](https://grantdadams.github.io/Rceattle/reference/plot_selectivity.md)
+  [`plot_selectivity()`](https://afsc-assessments.github.io/Rceattle/reference/plot_selectivity.md)
   read `sel_at_age` for every fleet and labelled the axis “Age”, so a
   fleet whose `Selectivity_dimension` is `"Length"` showed the
   growth-matrix conversion of its curve rather than the curve that was
@@ -3377,17 +4814,17 @@ one file in the sibling repositories does
   order given – and `spnames` labels. Several plotters previously read
   `species` as display labels; a character vector giving one label per
   species is still read that way, with a message.
-  [`plot_timeseries()`](https://grantdadams.github.io/Rceattle/reference/plot_timeseries.md)
+  [`plot_timeseries()`](https://afsc-assessments.github.io/Rceattle/reference/plot_timeseries.md)
   and its wrappers
-  ([`plot_biomass()`](https://grantdadams.github.io/Rceattle/reference/plot_biomass.md),
-  [`plot_ssb()`](https://grantdadams.github.io/Rceattle/reference/plot_ssb.md),
-  [`plot_recruitment()`](https://grantdadams.github.io/Rceattle/reference/plot_recruitment.md),
+  ([`plot_biomass()`](https://afsc-assessments.github.io/Rceattle/reference/plot_biomass.md),
+  [`plot_ssb()`](https://afsc-assessments.github.io/Rceattle/reference/plot_ssb.md),
+  [`plot_recruitment()`](https://afsc-assessments.github.io/Rceattle/reference/plot_recruitment.md),
   the depletions,
-  [`plot_exploitable_biomass()`](https://grantdadams.github.io/Rceattle/reference/plot_exploitable_biomass.md),
-  [`plot_f()`](https://grantdadams.github.io/Rceattle/reference/plot_f.md))
+  [`plot_exploitable_biomass()`](https://afsc-assessments.github.io/Rceattle/reference/plot_exploitable_biomass.md),
+  [`plot_f()`](https://afsc-assessments.github.io/Rceattle/reference/plot_f.md))
   gained selection by name.
 
-- **[`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+- **[`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   warns when `diet_data` does not cover every age of an
   empirical-suitability predator.** Under `suitMode = 0` suitability is
   read straight out of the diet data, so an age with no diet row is
@@ -3411,7 +4848,7 @@ Three predation plotters drew quantities that did not match their axis
 labels. All are corrected, so figures regenerated from them will differ
 from earlier runs of the same model.
 
-- **[`plot_m2_at_age_prop()`](https://grantdadams.github.io/Rceattle/reference/plot_m2_at_age_prop.md)
+- **[`plot_m2_at_age_prop()`](https://afsc-assessments.github.io/Rceattle/reference/plot_m2_at_age_prop.md)
   draws a share, not a contribution.** `M2_prop` holds each predator’s
   contribution to M2, which sums over predators to `M2_at_age`, so the
   plotted “proportion” reached 1564 on `BS2017MS`. The contributions are
@@ -3420,7 +4857,7 @@ from earlier runs of the same model.
   predation in a year leaves them undefined and draws nothing. The y
   axis reads “Share of M2 at age `<age>` by predator”.
 
-- **[`plot_ration()`](https://grantdadams.github.io/Rceattle/reference/plot_ration.md)
+- **[`plot_ration()`](https://afsc-assessments.github.io/Rceattle/reference/plot_ration.md)
   multiplies the ration by average numbers-at-age, not biomass-at-age.**
   `consumption_at_age` is one fish’s annual ration in kg and
   numbers-at-age are in thousands, so the product is mt – the way the
@@ -3429,15 +4866,15 @@ from earlier runs of the same model.
   by weight-at-age, so “million mt” described nothing it computed.
   Average numbers rather than start-of-year numbers, so the series
   reconciles with
-  [`plot_b_eaten()`](https://grantdadams.github.io/Rceattle/reference/plot_b_eaten.md);
+  [`plot_b_eaten()`](https://afsc-assessments.github.io/Rceattle/reference/plot_b_eaten.md);
   under the default `avgnMode = 0`, `N_at_age` would overstate it by
   `1 / ((1 - exp(-Z)) / Z)`. On a fitted `BS2017MS` the first year drops
   38.3% for pollock, 20.1% for cod and 13.5% for arrowtooth flounder.
 
-- **[`plot_b_eaten()`](https://grantdadams.github.io/Rceattle/reference/plot_b_eaten.md)
+- **[`plot_b_eaten()`](https://afsc-assessments.github.io/Rceattle/reference/plot_b_eaten.md)
   is in million mt.** It plotted `B_eaten_as_prey` in the mt the model
   reports it in, while
-  [`plot_b_eaten_prop()`](https://grantdadams.github.io/Rceattle/reference/plot_b_eaten_prop.md)
+  [`plot_b_eaten_prop()`](https://afsc-assessments.github.io/Rceattle/reference/plot_b_eaten_prop.md)
   – the same quantity broken down by predator – was in million mt, so
   the two could not be read side by side. Both are now in million mt,
   the display unit the timeseries plotters use. `p$data` moves by the
@@ -3491,13 +4928,13 @@ from earlier runs of the same model.
   which declared them and ignored them, and
   `plot_timeseries(save = TRUE)` writes the same window it plots.
 
-- [`plot_f()`](https://grantdadams.github.io/Rceattle/reference/plot_f.md)
+- [`plot_f()`](https://afsc-assessments.github.io/Rceattle/reference/plot_f.md)
   keys its Ftarget and Flimit reference lines to the species it drew. It
   indexed `Ftarget` and the facet labels with the raw `species`
   argument, which works for indices but gives an `NA` facet key for a
   name – on the same argument that newly accepts names.
 
-- [`plot_depletionSSB()`](https://grantdadams.github.io/Rceattle/reference/plot_depletionSSB.md)
+- [`plot_depletionSSB()`](https://afsc-assessments.github.io/Rceattle/reference/plot_depletionSSB.md)
   draws the Ptarget and Plimit lines of **one** model, per species. The
   two were collected into a models-by-species matrix and then subset
   with the species indices, which flattens column-major: on a two-model
@@ -3507,12 +4944,12 @@ from earlier runs of the same model.
   which is why it went unseen. The values now come from the first model.
 
 - A single `lty` reaches the figures that map line type themselves –
-  [`plot_ration()`](https://grantdadams.github.io/Rceattle/reference/plot_ration.md),
-  [`plot_m_at_age()`](https://grantdadams.github.io/Rceattle/reference/plot_m_at_age.md),
-  [`plot_b_eaten_prop()`](https://grantdadams.github.io/Rceattle/reference/plot_b_eaten_prop.md),
-  [`plot_m2_at_age_prop()`](https://grantdadams.github.io/Rceattle/reference/plot_m2_at_age_prop.md)
+  [`plot_ration()`](https://afsc-assessments.github.io/Rceattle/reference/plot_ration.md),
+  [`plot_m_at_age()`](https://afsc-assessments.github.io/Rceattle/reference/plot_m_at_age.md),
+  [`plot_b_eaten_prop()`](https://afsc-assessments.github.io/Rceattle/reference/plot_b_eaten_prop.md),
+  [`plot_m2_at_age_prop()`](https://afsc-assessments.github.io/Rceattle/reference/plot_m2_at_age_prop.md)
   and
-  [`plot_selectivity()`](https://grantdadams.github.io/Rceattle/reference/plot_selectivity.md).
+  [`plot_selectivity()`](https://afsc-assessments.github.io/Rceattle/reference/plot_selectivity.md).
   It is applied to every level of whatever the figure keys line type on,
   and warns when that key has more than one level, since they are then
   drawn alike. The default `lty = 1` leaves the figure’s own line types
@@ -3522,7 +4959,7 @@ from earlier runs of the same model.
   first model’s. On a retrospective peel the answer otherwise depended
   on the order of the list.
 
-- [`plot_m2_at_age_prop()`](https://grantdadams.github.io/Rceattle/reference/plot_m2_at_age_prop.md)
+- [`plot_m2_at_age_prop()`](https://afsc-assessments.github.io/Rceattle/reference/plot_m2_at_age_prop.md)
   orders its prey panels the way `species` asked for, like the other
   plotters, instead of alphabetically.
 
@@ -3539,7 +4976,7 @@ from earlier runs of the same model.
 - The pkgdown site builds again. `simulate.Rceattle` (added in 5.9.0)
   was not in `_pkgdown.yml`, and pkgdown stops on a documented topic
   missing from its reference index.
-  [`?"rceattle-plot-args"`](https://grantdadams.github.io/Rceattle/reference/rceattle-plot-args.md)
+  [`?"rceattle-plot-args"`](https://afsc-assessments.github.io/Rceattle/reference/rceattle-plot-args.md)
   is listed there too, so the topic the plotter help and the vignettes
   point at has a page on the site.
 
@@ -3564,7 +5001,7 @@ from earlier runs of the same model.
   species therefore now draws the species that have it instead of
   failing.
 
-- [`plot_selectivity()`](https://grantdadams.github.io/Rceattle/reference/plot_selectivity.md)’s
+- [`plot_selectivity()`](https://afsc-assessments.github.io/Rceattle/reference/plot_selectivity.md)’s
   `species` used to be an ignored label argument whose default was
   `c("Walleye pollock", "Pacific cod", "Arrowtooth flounder")`. It now
   selects. Passing species names that only partly match the model’s own
@@ -3577,24 +5014,24 @@ from earlier runs of the same model.
 - `plot_timeseries(save = TRUE)` needs a `file` stem, and stops without
   one. It previously wrote to a file called `NULL_...csv`.
 
-- [`plot_f()`](https://grantdadams.github.io/Rceattle/reference/plot_f.md)
+- [`plot_f()`](https://afsc-assessments.github.io/Rceattle/reference/plot_f.md)
   is now built by the same factory as the other timeseries plotters, so
   it takes their full argument list – it gains `lty`, `save`,
   `reference`, `legend.pos` and `ylab`, none of which it accepted
   before.
-  [`plot_timeseries()`](https://grantdadams.github.io/Rceattle/reference/plot_timeseries.md)
+  [`plot_timeseries()`](https://afsc-assessments.github.io/Rceattle/reference/plot_timeseries.md)
   gains two internal arguments, `ref_lines` and `suffix`, which the
   factory uses to attach the F and depletion reference points; the
   reference-point layers are consequently later in `p$layers` on the
   depletion plots than they were. The rendered figures are unchanged.
 
-- [`plot_selectivity()`](https://grantdadams.github.io/Rceattle/reference/plot_selectivity.md)’s
+- [`plot_selectivity()`](https://afsc-assessments.github.io/Rceattle/reference/plot_selectivity.md)’s
   `p$data` names the x variable `Bin`, not `Age`, and carries a
   `Dimension` column (`"Age"` or `"Length"`); the column holds an age or
   a length-bin ordinal depending on the fleet, so it is no longer named
   for one of them. It also gains a `Model` column, now that every model
   is drawn.
-  [`plot_b_eaten()`](https://grantdadams.github.io/Rceattle/reference/plot_b_eaten.md)’s
+  [`plot_b_eaten()`](https://afsc-assessments.github.io/Rceattle/reference/plot_b_eaten.md)’s
   `value` column is in million mt (see above).
 
 ### Dependencies
@@ -3610,12 +5047,12 @@ from earlier runs of the same model.
   (under each fleet’s own `Index_distribution`, including the correlated
   `MVN`/`MVNORM` draw), total catch, age/length compositions,
   conditional age-at-length, and, for the first time, stomach contents.
-  [`sim_mod()`](https://grantdadams.github.io/Rceattle/reference/sim_mod.md)
+  [`sim_mod()`](https://afsc-assessments.github.io/Rceattle/reference/sim_mod.md)
   no longer re-implements any observation model in R, so the draw and
   the density cannot be changed on one side only. The two copies had
   diverged: every survey was drawn as independent lognormal whatever its
   `Index_distribution`, and diet was not drawn at all, so a multispecies
-  [`self_test()`](https://grantdadams.github.io/Rceattle/reference/self_test.md)
+  [`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md)
   recovered suitability from stomachs that never varied.
 
   Compositions and CAAL are drawn in raw bin space, before tail
@@ -3628,7 +5065,7 @@ from earlier runs of the same model.
   multinomial families (`N * weight`), and through the concentration for
   the Dirichlet-multinomial. **The old R draw used the nominal
   `Sample_size` regardless of the weight**, so a
-  [`self_test()`](https://grantdadams.github.io/Rceattle/reference/self_test.md)
+  [`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md)
   on a re-weighted model was handed data more informative than the
   estimator treats them as being. **Any model with a composition weight
   other than 1 gives a different self-test.**
@@ -3637,7 +5074,7 @@ from earlier runs of the same model.
   comes back empty, with `Sample_size` dropped to zero. Rows the model
   cannot draw — a predator under empirical suitability, a covariance
   fleet outside its fitted window — keep their observed values.
-  [`sim_mod()`](https://grantdadams.github.io/Rceattle/reference/sim_mod.md)
+  [`sim_mod()`](https://afsc-assessments.github.io/Rceattle/reference/sim_mod.md)
   warns for each case.
 
   Simulated quantities are reported under names ending `_sim`
@@ -3645,17 +5082,17 @@ from earlier runs of the same model.
   `diet_obs_sim`), since TMB never clears its report environment.
 
   **This changes results.** A seeded
-  [`self_test()`](https://grantdadams.github.io/Rceattle/reference/self_test.md)
+  [`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md)
   or `run_mse(simulate_data = TRUE)` will differ from earlier releases:
   the draws moved into `obj$simulate()` and the random-number stream
   moved with them. Simulating is also slower, since it evaluates the
   compiled model rather than reading `$quantities`.
 
-- **[`sim_mod()`](https://grantdadams.github.io/Rceattle/reference/sim_mod.md)
+- **[`sim_mod()`](https://afsc-assessments.github.io/Rceattle/reference/sim_mod.md)
   can redraw process error as well as observations, via the new
   `process` argument.** Observations are always drawn; process error is
   a choice, because redrawing it changes what
-  [`self_test()`](https://grantdadams.github.io/Rceattle/reference/self_test.md)
+  [`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md)
   measures — from recovering parameters to recovering a process. Pass
   `"recruitment"`, `"M"`, `"growth"`, `"catchability"` or
   `"selectivity"`, the groupings `"dynamics"` or `"observation"`, or
@@ -3677,7 +5114,7 @@ from earlier runs of the same model.
   not against the source model’s fitted deviations, which would report
   bias by construction. Each deviation arrives with a same-shaped
   `_drawn` logical marking the cells the draw touched.
-  [`compare_sim()`](https://grantdadams.github.io/Rceattle/reference/compare_sim.md)
+  [`compare_sim()`](https://afsc-assessments.github.io/Rceattle/reference/compare_sim.md)
   compares against the operating model and is therefore not valid for
   `process`-drawn replicates.
 
@@ -3688,7 +5125,7 @@ from earlier runs of the same model.
   natural-scale family whose simulator and likelihood are the same
   distribution: `"Normal"` and the covariance families have to redraw
   the non-positive draws
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   would refuse, which samples from a truncated normal while the
   likelihood scores an untruncated one. Prefer it unless an exact ADMB
   comparison is needed — `"Normal"` is unchanged and still reproduces
@@ -3696,9 +5133,9 @@ from earlier runs of the same model.
 
 - **`TruncatedNormal` is registered as a natural-scale family in the
   diagnostics**, so `residuals(type = "pearson")`,
-  [`plot_index()`](https://grantdadams.github.io/Rceattle/reference/plot_index.md)’s
+  [`plot_index()`](https://afsc-assessments.github.io/Rceattle/reference/plot_index.md)’s
   observation interval and
-  [`plot_indexresidual()`](https://grantdadams.github.io/Rceattle/reference/plot_indexresidual.md)
+  [`plot_indexresidual()`](https://afsc-assessments.github.io/Rceattle/reference/plot_indexresidual.md)
   give it the natural-scale treatment. A test enumerates
   `index_distribution_map`, so a future family that misses the predicate
   fails in the suite rather than in a residual plot.
@@ -3712,17 +5149,17 @@ from earlier runs of the same model.
   than draws.
 
 - **`self_test(process = )`** passes through to
-  [`sim_mod()`](https://grantdadams.github.io/Rceattle/reference/sim_mod.md),
+  [`sim_mod()`](https://afsc-assessments.github.io/Rceattle/reference/sim_mod.md),
   so a self-test can ask whether the estimator recovers a process it was
   not shown. Each replicate’s true deviations are returned as
   `attr(result, "process_sim")[[k]]`.
 
-- **[`sim_mod()`](https://grantdadams.github.io/Rceattle/reference/sim_mod.md)
+- **[`sim_mod()`](https://afsc-assessments.github.io/Rceattle/reference/sim_mod.md)
   warns when a simulated observation is one the model cannot be refit
   on.** A non-finite or negative draw would otherwise be rejected by
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   and counted by
-  [`self_test()`](https://grantdadams.github.io/Rceattle/reference/self_test.md)
+  [`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md)
   as a convergence problem rather than a data one. The usual cause is a
   fleet whose observation standard deviation never got a value.
 
@@ -3742,7 +5179,7 @@ from earlier runs of the same model.
 
 - **A fishery carrying `index_data` now gets an estimable
   catchability.** The model has always fitted such a row, but
-  [`build_map_catchability()`](https://grantdadams.github.io/Rceattle/reference/build_map_catchability.md)
+  [`build_map_catchability()`](https://afsc-assessments.github.io/Rceattle/reference/build_map_catchability.md)
   entered its block only for `Fleet_type == "Survey"`, so a fishery’s
   `index_log_q`, `index_q_dev` and `index_log_sd` stayed mapped out and
   `Catchability = "Estimated"` did nothing.
@@ -3771,7 +5208,7 @@ from earlier runs of the same model.
 
   This affects trend as well as scale, so catchability cannot absorb it;
   the size over a range of Z is tabulated in
-  [`vignette("model-options-and-functionality")`](https://grantdadams.github.io/Rceattle/articles/model-options-and-functionality.md).
+  [`vignette("model-options-and-functionality")`](https://afsc-assessments.github.io/Rceattle/articles/model-options-and-functionality.md).
   Stock Synthesis splits the same way on its per-fleet survey timing.
 
   Only a fishery carrying `index_data` is affected, so `/golden-check`
@@ -3783,12 +5220,12 @@ from earlier runs of the same model.
 - **`sim_mod(simulate = TRUE)` no longer works on an averaged model.**
   Simulating evaluates the compiled model, so it needs one. A fit whose
   `$obj` was dropped is rebuilt from its `data_list` and estimates.
-  [`model_average()`](https://grantdadams.github.io/Rceattle/reference/model_average.md)
+  [`model_average()`](https://afsc-assessments.github.io/Rceattle/reference/model_average.md)
   output cannot be rebuilt — its `quantities` are an average over
   models, so there is no parameter vector to draw around. Simulate from
   one of the underlying fits. `sim_mod(simulate = FALSE)` is unaffected.
 
-- **[`sim_mod()`](https://grantdadams.github.io/Rceattle/reference/sim_mod.md)
+- **[`sim_mod()`](https://afsc-assessments.github.io/Rceattle/reference/sim_mod.md)
   errors instead of recycling when `catch_data` no longer lines up with
   the fitted model.** The write-back is a row-position copy, and the old
   draw passed mismatched vectors to
@@ -3804,13 +5241,13 @@ from earlier runs of the same model.
   leaves every fit bit-identical. A `data_list` still carrying either
   name gets a deprecation message. Time-varying growth goes through
   `build_growth(linkages = )`.
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   drops retired parameter blocks from `inits`, so warm starts from older
   fits keep working.
 
 ### Bug fixes
 
-- **[`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+- **[`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   requires the catchability columns each switch actually reads** —
   `Index_sd` under `Estimate_index_sd = "Estimated"`,
   `Catchability_prior_sd` under `Estimated-with-prior` and `AR1`,
@@ -3820,16 +5257,16 @@ from earlier runs of the same model.
   built, so a blank or non-positive entry gave a non-finite objective
   reported by TMB, naming neither the fleet nor the column. Each
   condition matches
-  [`build_map()`](https://grantdadams.github.io/Rceattle/reference/build_map.md)’s
+  [`build_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md)’s
   own gate, so settings that read no starting value are not asked for
   one.
 
-- **[`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+- **[`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   requires the catchability settings wherever an index is fitted.**
   `Catchability`, `Catchability_init` and `Estimate_index_sd` have no
   schema default, so on a fishery they arrived `NA` and the fit died
   inside
-  [`build_map()`](https://grantdadams.github.io/Rceattle/reference/build_map.md).
+  [`build_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md).
   The error now names the fleet and the column. Those configurations did
   not run before either.
 
@@ -3839,15 +5276,15 @@ from earlier runs of the same model.
   numbers cannot sit on a fleet whose catch is in weight.
 
 - **A missing `Ceq` is reported instead of crashing
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md).**
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md).**
 
-- **[`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+- **[`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   reports fleets that share a `Selectivity_index` but disagree on the
   columns that shape the curve**, which are read per fleet and so do not
   give one shared curve despite the shared parameter block. A blank
   counts as a value: an empty `Sel_norm_bin` means “do not normalize”.
 
-- **[`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+- **[`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   reports a shared `Catchability_index` that does not share a
   catchability.** `Analytical` and `AnalyticalArith` solve q from each
   fleet’s own index observations, bypassing the group parameter, so it
@@ -3867,19 +5304,19 @@ from earlier runs of the same model.
   `Catchability = "Estimated"`.
 
 - **The diagnostic refits no longer repeat
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)’s
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)’s
   warnings**, which describe the `data_list` and would otherwise appear
   per peel, jitter or MSE iteration.
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   gains `quiet_data_check` (default `FALSE`), set by every refit. Errors
   still stop the fit.
 
 - **A fishery’s index now appears in the index diagnostics.**
-  [`plot_index()`](https://grantdadams.github.io/Rceattle/reference/plot_index.md)
+  [`plot_index()`](https://afsc-assessments.github.io/Rceattle/reference/plot_index.md)
   selected `Fleet_type == "Survey"`; both it and
-  [`plot_indexresidual()`](https://grantdadams.github.io/Rceattle/reference/plot_indexresidual.md)
+  [`plot_indexresidual()`](https://afsc-assessments.github.io/Rceattle/reference/plot_indexresidual.md)
   now select the fleets carrying `index_data`.
-  [`plot_indexresidual()`](https://grantdadams.github.io/Rceattle/reference/plot_indexresidual.md)
+  [`plot_indexresidual()`](https://afsc-assessments.github.io/Rceattle/reference/plot_indexresidual.md)
   previously applied no fleet filter at all, so it also drew residuals
   for `Off` fleets — `GOA2018SS` fleet 7 has nine such rows.
 
@@ -3893,16 +5330,16 @@ from earlier runs of the same model.
     large constant for every row of a natural-scale fleet (about `+75`
     for an absolute sd of 150, whatever the fit). It now standardizes as
     `(obs - hat) / sigma`.
-  - [`plot_index()`](https://grantdadams.github.io/Rceattle/reference/plot_index.md)
+  - [`plot_index()`](https://afsc-assessments.github.io/Rceattle/reference/plot_index.md)
     drew its observation interval with
     [`qlnorm()`](https://rdrr.io/r/stats/Lognormal.html), giving bands
     like `[0, 1e130]`. Natural-scale fleets now get
     `obs +/- 1.96 * sigma`, clamped at zero.
-  - [`plot_indexresidual()`](https://grantdadams.github.io/Rceattle/reference/plot_indexresidual.md)
+  - [`plot_indexresidual()`](https://afsc-assessments.github.io/Rceattle/reference/plot_indexresidual.md)
     now uses the plain difference where the fleet is fitted on the
     natural scale, labelled `"Index residual"`.
 
-- **[`plot_indexresidual()`](https://grantdadams.github.io/Rceattle/reference/plot_indexresidual.md)
+- **[`plot_indexresidual()`](https://afsc-assessments.github.io/Rceattle/reference/plot_indexresidual.md)
   plotted the negative of a residual.** It drew `predicted - observed`
   while [`residuals()`](https://rdrr.io/r/stats/residuals.html) returns
   `observed - predicted`. Both are now `observed - predicted`, the usual
@@ -3916,7 +5353,7 @@ from earlier runs of the same model.
   Walters 1994) is accumulated from squared *log* residuals. `Normal`
   and `TruncatedNormal` read it as an absolute value, so the likelihood
   was evaluated on the wrong scale —
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   now refuses that combination. `MVN` and `MVNORM` score through
   `index_cov` and never read the scalar sd, so their fits are
   unaffected, but the diagnostics divide by it, so those warn rather
@@ -3927,7 +5364,7 @@ from earlier runs of the same model.
   observation, so it drops out of any method reading the curvature of
   the density in the observation — including `oneStepPredict()`’s
   default.
-  [`osa_residuals()`](https://grantdadams.github.io/Rceattle/reference/osa_residuals.md)
+  [`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md)
   now residualizes this family in its own call with
   `method = "oneStepGeneric"` and a range starting at zero. The
   correction is the size of the truncated mass: on a fleet predicting
@@ -3937,7 +5374,7 @@ from earlier runs of the same model.
   `tests/testthat/test-likelihood-index-truncated-normal.R`.
 
   Three consequences, all in
-  [`?osa_residuals`](https://grantdadams.github.io/Rceattle/reference/osa_residuals.md):
+  [`?osa_residuals`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md):
   exact integration does not always converge on a random-effects model,
   in which case the fleet falls back to TMB’s spline approximation with
   a warning; `sd` is `NA` for the group and `predicted` is the truncated
@@ -3945,12 +5382,12 @@ from earlier runs of the same model.
   fleets’ residuals on a random-effects model — a different conditioning
   sequence, not a wrong value. `attr(x, "method")` records what ran.
 
-- **[`compare_sim()`](https://grantdadams.github.io/Rceattle/reference/compare_sim.md)
+- **[`compare_sim()`](https://afsc-assessments.github.io/Rceattle/reference/compare_sim.md)
   warns when it is handed `process`-drawn replicates**, since every
   statistic it reports is a deviation from `operating_mod`, which is the
   truth only when the replicates redrew the observations alone.
 
-- **[`osa_residuals()`](https://grantdadams.github.io/Rceattle/reference/osa_residuals.md)
+- **[`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md)
   reported `observed = NA` for any group residualized with
   `oneStepGeneric`.** Affected the discrete composition path as well as
   the new truncated one.
@@ -3978,7 +5415,7 @@ from earlier runs of the same model.
   3D-AR1 form was already bin/year/cohort.
 
   **Most fits do not move.** Both correlations start at 0 and
-  [`TMBphase()`](https://grantdadams.github.io/Rceattle/reference/TMBphase.md)
+  [`TMBphase()`](https://afsc-assessments.github.io/Rceattle/reference/TMBphase.md)
   holds them there, so SSB, F and reference points are unchanged and
   only the two reported estimates exchange names. A fit moves only where
   the two differ as *starting* values — for selectivity, unequal
@@ -3988,9 +5425,9 @@ from earlier runs of the same model.
   from an older fit carry `M1_rho` and `sel_curve_pen` under the
   previous convention, so a refit starts from a mirrored point. That
   covers
-  [`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md),
-  [`jitter()`](https://grantdadams.github.io/Rceattle/reference/jitter.md),
-  [`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md),
+  [`jitter()`](https://afsc-assessments.github.io/Rceattle/reference/jitter.md),
+  [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
   and any two-stage bootstrap. Refit from `inits = NULL`, or transpose
   the two slots, if the starting values differ.
 
@@ -3998,7 +5435,7 @@ from earlier runs of the same model.
   predicted proportions.** `comp_hat` rows are normalized to sum to one,
   so a row with `Sample_size = 0` was returned as noise-free proportions
   — indistinguishable from a real full-weight composition.
-  [`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+  [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
   reaches this state directly, so the next assessment would have been
   handed a perfectly-observed composition for a year that was never
   sampled. Such a row now comes back empty.
@@ -4018,7 +5455,7 @@ from earlier runs of the same model.
   distribution to draw from, so `self_test(process = "recruitment")`
   would have measured recovery against a process the model does not
   assume. The deviations are left at their fitted values and
-  [`sim_mod()`](https://grantdadams.github.io/Rceattle/reference/sim_mod.md)
+  [`sim_mod()`](https://afsc-assessments.github.io/Rceattle/reference/sim_mod.md)
   says why; a random linkage on a recruitment parameter is a separate
   latent and is still drawn.
 
@@ -4026,7 +5463,7 @@ from earlier runs of the same model.
   index.** The rejection loop tested its budget before testing the draw,
   so exhausting the budget wrote out whatever had last been drawn.
 
-- **[`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+- **[`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   rejects a `diet_data` that is not sorted by `stomach_id`.** The diet
   likelihood walks `diet_ctl` with a single forward cursor, so the ids
   have to run 0, 1, 2, … in order and with no gaps. Out of that order
@@ -4034,14 +5471,14 @@ from earlier runs of the same model.
   objective: re-sorting a cleaned `BS2017MS` diet table by predator age
   leaves **3 of its 45 stomachs** in the fit, and reversing the rows
   leaves 1.
-  [`clean_data()`](https://grantdadams.github.io/Rceattle/reference/clean_data.md)
+  [`clean_data()`](https://afsc-assessments.github.io/Rceattle/reference/clean_data.md)
   sorts by `stomach_id`; this catches a hand-built or re-sorted table.
 
-- **[`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+- **[`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   allows a stomach summing to 1 within floating-point tolerance**
   (`> 1 + 1e-12` rather than `> 1`). Real excesses are still rejected.
 
-- **[`sim_mod()`](https://grantdadams.github.io/Rceattle/reference/sim_mod.md)
+- **[`sim_mod()`](https://afsc-assessments.github.io/Rceattle/reference/sim_mod.md)
   sizes the truncation warning correctly, per family.** For the
   independent `"Normal"` family the warning reports the gap as
   `P(draw <= 0) = Phi(-mu/sd)` on the worst row. The previous test
@@ -4058,7 +5495,7 @@ from earlier runs of the same model.
   term owes its simulator, the `*_sim` reporting convention, and the two
   registries a new or retired parameter block has to be added to.
 
-- [`vignette("model-diagnostics")`](https://grantdadams.github.io/Rceattle/articles/model-diagnostics.md)
+- [`vignette("model-diagnostics")`](https://afsc-assessments.github.io/Rceattle/articles/model-diagnostics.md)
   documents `process =`, the natural-scale index families, and what a
   redrawn M can and cannot be read as. On `BS2017SS` with a year-varying
   M random effect, refits recover the simulated deviations (correlation
@@ -4068,12 +5505,12 @@ from earlier runs of the same model.
   little information, not a fault in the simulation;
   `tools/verify/verify-sim-recovery-M.R` reproduces the numbers.
 
-- [`vignette("model-options-and-functionality")`](https://grantdadams.github.io/Rceattle/articles/model-options-and-functionality.md)
+- [`vignette("model-options-and-functionality")`](https://afsc-assessments.github.io/Rceattle/articles/model-options-and-functionality.md)
   records which `Sel_curve_pen` slot is which correlation under the AR1
   selectivity forms, and the estimability caveat on `M1_re = 3` / `6`.
-  [`vignette("growth-estimation")`](https://grantdadams.github.io/Rceattle/articles/growth-estimation.md)
+  [`vignette("growth-estimation")`](https://afsc-assessments.github.io/Rceattle/articles/growth-estimation.md)
   gains a time-varying growth section.
-  [`vignette("hcrs-and-mses")`](https://grantdadams.github.io/Rceattle/articles/hcrs-and-mses.md)
+  [`vignette("hcrs-and-mses")`](https://afsc-assessments.github.io/Rceattle/articles/hcrs-and-mses.md)
   notes that seeded MSE results are not comparable across 5.8.x to
   5.9.0.
 
@@ -4112,7 +5549,7 @@ release notes describe what actually shipped. No code changes.
   cannot carry priors, bounds or an estimation phase. Use a catchability
   linkage instead:
   `build_catchability(linkages = list(q = linkage_spec(~ temp, by = ~ fleet)))`.
-  [`switch_check()`](https://grantdadams.github.io/Rceattle/reference/switch_check.md)
+  [`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md)
   now names the affected fleets.
 
 ### Known issues
@@ -4159,7 +5596,7 @@ release notes describe what actually shipped. No code changes.
   is `NA` and nothing is normalized. **The one behaviour change** is a
   *two-sex* fleet normalizing at a *named bin*: it previously used a
   per-sex reference and now pools, and
-  [`switch_check()`](https://grantdadams.github.io/Rceattle/reference/switch_check.md)
+  [`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md)
   emits a message naming the fix (set `Sel_norm_scope = "WithinSex"`)
   when it sees that configuration. Max-normalized fleets – including the
   operational arrowtooth configuration – already pooled and are
@@ -4168,7 +5605,7 @@ release notes describe what actually shipped. No code changes.
 - **Biomass, SSB and recruitment confidence intervals are now taken on
   the log scale.** The model ADREPORTs `log_biomass` and `log_R`
   alongside the existing `log_ssb`, and
-  [`plot_timeseries()`](https://grantdadams.github.io/Rceattle/reference/plot_timeseries.md)
+  [`plot_timeseries()`](https://afsc-assessments.github.io/Rceattle/reference/plot_timeseries.md)
   builds `exp(log(x) +/- 1.92 * sd_log)` from the delta-method SD of
   `log(x)` whenever a model reports one. `sdreport()` linearizes once
   about the MLE, so its SD is exact only for a linear function of the
@@ -4195,7 +5632,7 @@ release notes describe what actually shipped. No code changes.
   noise on an aggregate, and wrong on SSB, which is mature females
   rather than the minage+ stock.
 
-- **[`plot_exploitable_biomass()`](https://grantdadams.github.io/Rceattle/reference/plot_exploitable_biomass.md)
+- **[`plot_exploitable_biomass()`](https://afsc-assessments.github.io/Rceattle/reference/plot_exploitable_biomass.md)
   and the two depletion plotters accept `add_ci = TRUE`, on the log
   scale.** `exploitable_biomass`, `ssb_depletion` and
   `biomass_depletion` are now ADREPORTed, so an interval can be computed
@@ -4225,7 +5662,7 @@ release notes describe what actually shipped. No code changes.
 - **`as.data.frame(fit)` and the plotters now report the same
   interval.** The extractor still built a symmetric natural-scale
   interval for `biomass`, `ssb` and `R` while
-  [`plot_biomass()`](https://grantdadams.github.io/Rceattle/reference/plot_biomass.md)
+  [`plot_biomass()`](https://afsc-assessments.github.io/Rceattle/reference/plot_biomass.md)
   drew the log-scale one, and it returned `NA` standard errors for
   `exploitable_biomass` and the two depletions – the three series this
   release just ADREPORTed. Both paths now go through one helper. The
@@ -4242,11 +5679,11 @@ release notes describe what actually shipped. No code changes.
   `plot_f(add_ci = TRUE)` no longer warns on every fit about standard
   errors `F_spp` can never have.
 
-- **[`rearrange_data()`](https://grantdadams.github.io/Rceattle/reference/rearrange_data.md)
+- **[`rearrange_data()`](https://afsc-assessments.github.io/Rceattle/reference/rearrange_data.md)
   and
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   work again on a `fleet_control` that has not been through
-  [`switch_check()`](https://grantdadams.github.io/Rceattle/reference/switch_check.md).**
+  [`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md).**
   `Sel_norm_scope` was read with no missing-column guard, so a data list
   read straight from a workbook failed with a cryptic “column not
   found”. It and `Index_distribution` are now filled from the column
@@ -4268,7 +5705,7 @@ release notes describe what actually shipped. No code changes.
 - **Diet defaults are announced only when the model reads them**, so a
   single-species fit no longer reports settings it never uses.
 
-- **[`model_config()`](https://grantdadams.github.io/Rceattle/reference/model_config.md)
+- **[`model_config()`](https://afsc-assessments.github.io/Rceattle/reference/model_config.md)
   names the mistake when handed a `data_list`.** It takes model
   settings, not data, but almost every other entry point takes a
   `data_list` first – so `model_config(my_data)` bound the list to
@@ -4284,26 +5721,26 @@ release notes describe what actually shipped. No code changes.
   rendered an invisible ribbon – no error, no warning, just a missing
   interval. That is how the three plotters above hid their missing
   `ADREPORT`.
-  [`plot_timeseries()`](https://grantdadams.github.io/Rceattle/reference/plot_timeseries.md)
+  [`plot_timeseries()`](https://afsc-assessments.github.io/Rceattle/reference/plot_timeseries.md)
   now says which series and which model lacks standard errors.
 
 - **Recruitment was plotted 1000x too high, and the stock-recruit panel
   1000x too low.** The model carries numbers-at-age in thousands and
   weight-at-age in kg, so biomass comes out in mt and recruitment in
   thousands of fish.
-  [`plot_recruitment()`](https://grantdadams.github.io/Rceattle/reference/plot_recruitment.md)
+  [`plot_recruitment()`](https://afsc-assessments.github.io/Rceattle/reference/plot_recruitment.md)
   never applied the matching `/1e3`, plotting thousands of recruits
   under an axis reading “Age-1 recruits (million)”, while
-  [`plot_stock_recruit()`](https://grantdadams.github.io/Rceattle/reference/plot_stock_recruit.md)
+  [`plot_stock_recruit()`](https://afsc-assessments.github.io/Rceattle/reference/plot_stock_recruit.md)
   divided by `1e6` under an axis reading “Recruitment (millions)” – so
   the two panels disagreed with each other by a factor of a million.
   Both now plot millions of recruits.
-  [`plot_exploitable_biomass()`](https://grantdadams.github.io/Rceattle/reference/plot_exploitable_biomass.md)
+  [`plot_exploitable_biomass()`](https://afsc-assessments.github.io/Rceattle/reference/plot_exploitable_biomass.md)
   was labelled “million mt” with no rescaling applied at all and is now
   divided by `1e6` like the other biomass series. Divisors and axis
   units are now held in one table (`.RCE_TS_RESCALE` / `.rce_ts_ylab()`)
   that
-  [`plot_stock_recruit()`](https://grantdadams.github.io/Rceattle/reference/plot_stock_recruit.md)
+  [`plot_stock_recruit()`](https://afsc-assessments.github.io/Rceattle/reference/plot_stock_recruit.md)
   reads too, and are asserted against each other in the test suite.
   **Any figure or number read off these three plotters needs
   regenerating.** Model results are unchanged – this is display-only.
@@ -4319,7 +5756,7 @@ release notes describe what actually shipped. No code changes.
   rows each sum to 1 and carry no sex-ratio information, and
   `Selectivity = "Hake"` always normalizes within sex regardless of
   either column. New “Sex structure and relative selectivity” section in
-  [`vignette("model-options-and-functionality")`](https://grantdadams.github.io/Rceattle/articles/model-options-and-functionality.md),
+  [`vignette("model-options-and-functionality")`](https://afsc-assessments.github.io/Rceattle/articles/model-options-and-functionality.md),
   with the details on the `Sel_norm_bin` and `Sel_norm_scope` field
   dictionary entries.
 
@@ -4328,7 +5765,7 @@ release notes describe what actually shipped. No code changes.
   `index_data` / `catch_data` / `Observation_units` field dictionary
   entries and the Stock Synthesis catch-conversion table all said kg.
   Section 12 of
-  [`vignette("model-options-and-functionality")`](https://grantdadams.github.io/Rceattle/articles/model-options-and-functionality.md)
+  [`vignette("model-options-and-functionality")`](https://afsc-assessments.github.io/Rceattle/articles/model-options-and-functionality.md)
   now covers the display units, `ylab` and the log-scale intervals, and
   names the discrete palette correctly (Okabe-Ito, not viridis).
 
@@ -4341,13 +5778,13 @@ release notes describe what actually shipped. No code changes.
   model; sex is set per observation on `comp_data$Sex`. Retained only so
   older workbooks still read.
 
-- [`vignette("model-parameterizations")`](https://grantdadams.github.io/Rceattle/articles/model-parameterizations.md)
+- [`vignette("model-parameterizations")`](https://afsc-assessments.github.io/Rceattle/articles/model-parameterizations.md)
   no longer claims the model is fit to sex-ratio data. There is no
   sex-ratio likelihood component – the text described the ADMB
   implementation. Sex-ratio information enters through joint composition
   data.
 
-- [`plot_timeseries()`](https://grantdadams.github.io/Rceattle/reference/plot_timeseries.md)
+- [`plot_timeseries()`](https://afsc-assessments.github.io/Rceattle/reference/plot_timeseries.md)
   documents the unit convention it assumes: numbers-at-age in thousands
   and weight-at-age in kg, hence biomass in mt and recruitment in
   thousands of fish.
@@ -4368,7 +5805,7 @@ release notes describe what actually shipped. No code changes.
   canonical name; a workbook on disk still reads fine, since the aliases
   are upgraded on read.
 
-- **[`mse_summary()`](https://grantdadams.github.io/Rceattle/reference/mse_summary.md)’s
+- **[`mse_summary()`](https://afsc-assessments.github.io/Rceattle/reference/mse_summary.md)’s
   metric columns now have syntactic names.** They were display strings
   held together by `check.names = FALSE`, so reading one meant
   `summ$species[["OM: Terminal SSB Depletion (Dynamic)"]]`. They are now
@@ -4386,39 +5823,39 @@ release notes describe what actually shipped. No code changes.
   `attr(summ$species, "labels")`. `Species`, `Fleet_code` and
   `Fleet_name` are unchanged. Values are unchanged. Done in the same
   release as the per-entity reshape so
-  [`mse_summary()`](https://grantdadams.github.io/Rceattle/reference/mse_summary.md)
+  [`mse_summary()`](https://afsc-assessments.github.io/Rceattle/reference/mse_summary.md)
   breaks once rather than twice; no script in `Rceattle-models` or
   `GOA-ATF-ESP` reads a metric by name.
 
-- **[`data_requirements()`](https://grantdadams.github.io/Rceattle/reference/data_requirements.md)
+- **[`data_requirements()`](https://afsc-assessments.github.io/Rceattle/reference/data_requirements.md)
   argument `selectivity` is now `Selectivity`, and `index_distribution`
   is now `Index_distribution`.** They stand in for the `fleet_control`
   columns of those names, and the rest of the package’s arguments
   already mirror their source exactly (`estDynamics`, `Ceq`,
   `growth_model`, and
-  [`model_config()`](https://grantdadams.github.io/Rceattle/reference/model_config.md)’s
+  [`model_config()`](https://afsc-assessments.github.io/Rceattle/reference/model_config.md)’s
   mirror of
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)).
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)).
   No deprecation path:
-  [`data_requirements()`](https://grantdadams.github.io/Rceattle/reference/data_requirements.md)
+  [`data_requirements()`](https://afsc-assessments.github.io/Rceattle/reference/data_requirements.md)
   is new in this release line and has never been on a released version.
 
 ### Bug fixes
 
-- **[`self_test()`](https://grantdadams.github.io/Rceattle/reference/self_test.md)
+- **[`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md)
   no longer fails on every replicate for a model with a natural-scale
   survey index.**
-  [`sim_mod()`](https://grantdadams.github.io/Rceattle/reference/sim_mod.md)
+  [`sim_mod()`](https://afsc-assessments.github.io/Rceattle/reference/sim_mod.md)
   drew `Normal` and `MVN` index observations from the untruncated
   natural-scale normal, so a fleet with an absolute sd near its index –
   an AVO-type index with sd 0.25-0.80 against observations from 0.70 –
   drew non-positive most replicates.
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   rejects those, so the refit failed and the replicate was counted *not
   converged*, reading as a convergence problem rather than a simulation
   one. Non-positive draws are now redrawn, correlated fleets jointly. On
   EBS pollock
-  [`self_test()`](https://grantdadams.github.io/Rceattle/reference/self_test.md)
+  [`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md)
   goes from 0 of 50 replicates to all of them, recovering SSB with a
   median bias of -0.4%.
 
@@ -4437,61 +5874,61 @@ release notes describe what actually shipped. No code changes.
   random numbers, shifting that replicate’s comps and catch and every
   later replicate in a seeded loop.
 
-- **[`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+- **[`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   no longer errors on a `data_list` that carries no `HCR`.** `HCR` is a
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   argument, not a data field, so a list read straight from a workbook
   has none. `NULL %in% ...` is `logical(0)`; `TRUE && logical(0)` is
   `NA` and `x & logical(0)` is `logical(0)`, so
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   died with `missing value where TRUE/FALSE needed` and
   `validate_switches()` with `argument is of length zero`.
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   sets `HCR` before checking and was unaffected.
 
-- **[`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+- **[`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
   no longer errors when a survey fleet has `NA` `Proj_F_proportion`.**
   The check that some fleet takes projected F summed the column without
   `na.rm`, so the `NA` that fleets taking no catch legitimately carry
   made the sum `NA` and the `if` failed with
   `missing value where TRUE/FALSE needed` before the MSE started.
 
-- **[`plot_indexresidual()`](https://grantdadams.github.io/Rceattle/reference/plot_indexresidual.md)
+- **[`plot_indexresidual()`](https://afsc-assessments.github.io/Rceattle/reference/plot_indexresidual.md)
   now honours `incl_proj`.** The argument was accepted and then ignored,
   so projection years were always plotted – the opposite of its
   documented default, and of
-  [`plot_index()`](https://grantdadams.github.io/Rceattle/reference/plot_index.md)
+  [`plot_index()`](https://afsc-assessments.github.io/Rceattle/reference/plot_index.md)
   /
-  [`plot_catch()`](https://grantdadams.github.io/Rceattle/reference/plot_catch.md).
+  [`plot_catch()`](https://afsc-assessments.github.io/Rceattle/reference/plot_catch.md).
   A projection row’s “observation” is whatever placeholder its workbook
   carries (the roll-forward scripts in `Rceattle-models` write 99999),
   which drew as an enormous spurious residual. **This removes rows from
   the default output** for any model whose `index_data` runs past
   `endyr`; pass `incl_proj = TRUE` to keep them. No bundled dataset has
   such rows –
-  [`clean_data()`](https://grantdadams.github.io/Rceattle/reference/clean_data.md)
+  [`clean_data()`](https://afsc-assessments.github.io/Rceattle/reference/clean_data.md)
   extends `catch_data` to the projection horizon but not `index_data`,
   and
-  [`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+  [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
   marks its projection index rows with a negative `Year`, which was
   already filtered – so in practice this bites only workbooks that carry
   their own. Applies to the default `residual_type = "pearson"`; the
   `"osa"` path returns
-  [`osa_residuals()`](https://grantdadams.github.io/Rceattle/reference/osa_residuals.md)
+  [`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md)
   directly and takes none of the plot arguments.
 
 - **`plot_catch(incl_proj = TRUE)` no longer errors on projection
   rows.**
-  [`clean_data()`](https://grantdadams.github.io/Rceattle/reference/clean_data.md)
+  [`clean_data()`](https://afsc-assessments.github.io/Rceattle/reference/clean_data.md)
   gives projection years an `NA` catch, and the lognormal error-bar mask
   in `.fleet_fit_df()` passed that `NA` to a subscript. The mask now
   excludes `NA` observations, and those rows draw the fitted line with
   no error bar, as non-positive observations already did.
-  [`plot_index()`](https://grantdadams.github.io/Rceattle/reference/plot_index.md)
+  [`plot_index()`](https://afsc-assessments.github.io/Rceattle/reference/plot_index.md)
   shares the code path and is fixed with it, though only a workbook that
   supplies `NA` index observations can reach it.
 
-- **[`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+- **[`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   now warns when CAAL data sit on a fleet whose `Selectivity_dimension`
   is not `"Length"`.** Conditional age-at-length is the age composition
   within a length bin, so the model predicts it from
@@ -4509,7 +5946,7 @@ release notes describe what actually shipped. No code changes.
   errored, and this should tighten to match once configurations have
   been checked.
 
-- **[`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+- **[`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   now rejects a `diet_data` that is not sorted by `stomach_id`.** The
   TMB diet likelihood walks `diet_ctl` with a single forward cursor,
   taking stomach *i*’s prey as the rows where `stomach_id == i`, so the
@@ -4518,11 +5955,11 @@ release notes describe what actually shipped. No code changes.
   likelihood with no warning and a lower objective: re-sorting a cleaned
   `BS2017MS` diet table by predator age leaves 3 of its 45 stomachs in
   the fit, and reversing the rows leaves 1.
-  [`clean_data()`](https://grantdadams.github.io/Rceattle/reference/clean_data.md)
+  [`clean_data()`](https://afsc-assessments.github.io/Rceattle/reference/clean_data.md)
   sorts by `stomach_id`, so anything that came through it already
   satisfies this; the check catches a hand-built or re-sorted table.
 
-- **[`mse_summary()`](https://grantdadams.github.io/Rceattle/reference/mse_summary.md)
+- **[`mse_summary()`](https://afsc-assessments.github.io/Rceattle/reference/mse_summary.md)
   now reports the catch metrics for a species that has no fishery.** A
   multispecies model can carry a predator purely for its consumption –
   arrowtooth and sablefish in the hake model do exactly this – and such
@@ -4542,7 +5979,7 @@ release notes describe what actually shipped. No code changes.
 
 ### Documentation
 
-- **[`?osa_residuals`](https://grantdadams.github.io/Rceattle/reference/osa_residuals.md)
+- **[`?osa_residuals`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md)
   now explains the negative composition `predicted` values it warns
   about**, in a new section: why a numerical conditional mean overshoots
   below zero on a near-empty bin, that it follows the *bin’s* count
@@ -4561,7 +5998,7 @@ release notes describe what actually shipped. No code changes.
 
 - Fixed two doubled words in user-facing text: “the The Pacific Fishery
   Management Council” in
-  [`?build_hcr`](https://grantdadams.github.io/Rceattle/reference/build_hcr.md),
+  [`?build_hcr`](https://afsc-assessments.github.io/Rceattle/reference/build_hcr.md),
   and “the the diet” in the `diet_data` schema description, which is
   written verbatim into the bundled `meta_data_names.xlsx` (regenerated
   to match).
@@ -4576,17 +6013,17 @@ release notes describe what actually shipped. No code changes.
   [`suppressMessages()`](https://rdrr.io/r/base/message.html) cannot
   catch, so it appeared whatever `verbose` said – one row per fixed
   parameter, repeated for every refit a
-  [`self_test()`](https://grantdadams.github.io/Rceattle/reference/self_test.md),
-  [`jitter()`](https://grantdadams.github.io/Rceattle/reference/jitter.md)
+  [`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md),
+  [`jitter()`](https://afsc-assessments.github.io/Rceattle/reference/jitter.md)
   or
-  [`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md)
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md)
   run makes. It and the “Model did not converge” banner now appear only
   under `verbose > 0`. The verdict is unchanged on `fit$identified` and
   in `fit$convergence`.
 
 - **A covariance (`MVN`/`MVNORM`) survey `Sigma` that is symmetric but
   not positive definite is now caught by
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md).**
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md).**
   The covariance index likelihood factorizes `Sigma`, so symmetry is not
   enough. An indefinite or singular matrix used to clear every check –
   presence, squareness, dimension, symmetry – and then fail inside the
@@ -4596,7 +6033,7 @@ release notes describe what actually shipped. No code changes.
 
 - **An `index_cov` entry for a fleet that is not using the covariance
   likelihood now warns.** It was ignored in both
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   and the internal aligner, so supplying a covariance but leaving
   `Index_distribution` unset gave a silent lognormal fit with no
   indication the matrix had been dropped. Entries keyed by either
@@ -4651,18 +6088,18 @@ release notes describe what actually shipped. No code changes.
 
 ### Bug fixes
 
-- **[`self_test()`](https://grantdadams.github.io/Rceattle/reference/self_test.md)
+- **[`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md)
   can now phase its refits, and inherits the setting by default.** Every
   refit starts from the source model’s *starting* values, so it covers
   the same ground the original fit did – but
-  [`self_test()`](https://grantdadams.github.io/Rceattle/reference/self_test.md)
+  [`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md)
   had no way to phase it.
-  [`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md)
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md)
   fixes `phase = TRUE` (“phasing, or the parameters dont wanna move”)
   and
-  [`jitter()`](https://grantdadams.github.io/Rceattle/reference/jitter.md)
+  [`jitter()`](https://afsc-assessments.github.io/Rceattle/reference/jitter.md)
   exposes the argument;
-  [`self_test()`](https://grantdadams.github.io/Rceattle/reference/self_test.md)
+  [`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md)
   took `.refit_like()`’s `phase = FALSE` default with no argument to
   change it. A model that needed phasing to fit its real data therefore
   had to reach the same optimum in one unphased pass for every simulated
@@ -4673,16 +6110,16 @@ release notes describe what actually shipped. No code changes.
   non-positive-definite path below – under `getsd = FALSE` the old gate
   would have returned all six and counted them as converged.) `phase`
   reads the setting
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   recorded on the source fit, so a model fitted under the package
   default is still refitted unphased; pass `phase = TRUE` for a model
   that needs phasing but was not fitted with it.
 
 - **The re-fitting diagnostics’ convergence gate now tests the
   gradient.**
-  [`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md),
-  [`jitter()`](https://grantdadams.github.io/Rceattle/reference/jitter.md),
-  [`self_test()`](https://grantdadams.github.io/Rceattle/reference/self_test.md)
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md),
+  [`jitter()`](https://afsc-assessments.github.io/Rceattle/reference/jitter.md),
+  [`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md)
   and [`profile()`](https://rdrr.io/r/stats/profile.html) each drop the
   runs that did not converge, by comparing `opt$Convergence_check`
   against the string
@@ -4700,17 +6137,17 @@ release notes describe what actually shipped. No code changes.
   the two gradient verdicts, neither of which the comparison matched.)
   Both paths now go through one gate that reads the hindcast maximum
   gradient, using
-  [`convergence_diagnostics()`](https://grantdadams.github.io/Rceattle/reference/convergence_diagnostics.md)’s
+  [`convergence_diagnostics()`](https://afsc-assessments.github.io/Rceattle/reference/convergence_diagnostics.md)’s
   own FAIL threshold. Because the gate can now actually drop, all three
   report how many runs they dropped rather than returning a thinned list
   in silence – for
-  [`jitter()`](https://grantdadams.github.io/Rceattle/reference/jitter.md)
+  [`jitter()`](https://afsc-assessments.github.io/Rceattle/reference/jitter.md)
   and
-  [`self_test()`](https://grantdadams.github.io/Rceattle/reference/self_test.md)
+  [`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md)
   a thinned list is a biased sample, since the failures are exactly the
   runs that would have shown the spread.
 
-- **[`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md)
+- **[`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md)
   survives a dropped peel.** It named its output
   `Year_(endyr - peels):endyr` – always `peels + 1` labels – and looped
   `1:(length(mod_list) - 1)`, both of which assume every peel converged.
@@ -4722,7 +6159,7 @@ release notes describe what actually shipped. No code changes.
   so a dropped peel leaves a gap rather than shifting every later label
   onto the wrong model.
 
-- **[`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md)
+- **[`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md)
   now judges the peeled hindcast, not just the F refit.** Each peel fits
   twice: the peeled hindcast, then a refit with only the peeled years’
   `log_F` free. Only the second was gated, and its gradient says nothing
@@ -4736,45 +6173,45 @@ release notes describe what actually shipped. No code changes.
   hands back `list(opt = , h = )` rather than the estimates, so
   `fit$opt$objective`, `$max_gradient` and `$Convergence_check` were all
   `NULL`.
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   now unwraps it, keeps the Hessian as `$hessian`, and records the
   verdict `fit_tmb()` gives when `sdreport` reports `pdHess = FALSE`.
   `fit$sdrep` stays `NULL`, so the `sdreport_failed` diagnostic is
   unaffected. A no-op for every converged fit.
 
-- **[`data_requirements()`](https://grantdadams.github.io/Rceattle/reference/data_requirements.md)
+- **[`data_requirements()`](https://afsc-assessments.github.io/Rceattle/reference/data_requirements.md)
   and
-  [`build_data()`](https://grantdadams.github.io/Rceattle/reference/build_data.md)’s
+  [`build_data()`](https://afsc-assessments.github.io/Rceattle/reference/build_data.md)’s
   pre-check read an attached
-  [`model_config()`](https://grantdadams.github.io/Rceattle/reference/model_config.md).**
+  [`model_config()`](https://afsc-assessments.github.io/Rceattle/reference/model_config.md).**
   They classified from the top-level switches only, so an object
   carrying `model_config(msmMode = 1)` reported the predation inputs as
   Ignored while [`print()`](https://rdrr.io/r/base/print.html) on the
   same object showed it as multispecies.
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   resolves the configuration onto the data list, and the requirement
   layer now sees the same thing. The overlay covers what
-  [`model_config()`](https://grantdadams.github.io/Rceattle/reference/model_config.md)
+  [`model_config()`](https://afsc-assessments.github.io/Rceattle/reference/model_config.md)
   carries: `estDynamics` and `Ceq` have no field there, so `NByageFixed`
   and the bioenergetics inputs still classify from the top-level slots.
 
 - **The pre-check classifies an integer-coded `fleet_control`.** It runs
   before
-  [`switch_check()`](https://grantdadams.github.io/Rceattle/reference/switch_check.md),
+  [`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md),
   so a `Selectivity` still holding the code `0` never matched the string
   `"Fixed"` and `emp_sel` was not required. The predicates now accept
   the code, the canonical string, and the numeric-looking string a
   workbook read can leave behind.
 
 - **A mistyped mode switch is caught before the fit, not after it.**
-  [`model_config()`](https://grantdadams.github.io/Rceattle/reference/model_config.md)
+  [`model_config()`](https://afsc-assessments.github.io/Rceattle/reference/model_config.md)
   validates `initMode`, `avgnMode` and `suitMode` against the switch
   maps, and
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   checks them before doing any work.
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   rebuilds a
-  [`model_config()`](https://grantdadams.github.io/Rceattle/reference/model_config.md)
+  [`model_config()`](https://afsc-assessments.github.io/Rceattle/reference/model_config.md)
   after the optimization to record the run configuration, so validating
   only there meant `avgnMode = 3` – a switch the model never reads –
   threw away a converged fit and its `sdreport`. That call is now
@@ -4782,10 +6219,10 @@ release notes describe what actually shipped. No code changes.
   caller a fit. The checks accept a per-species vector and an integer
   code, since `.refit_like()` feeds resolved values back.
 
-- **[`run_config()`](https://grantdadams.github.io/Rceattle/reference/run_config.md)
+- **[`run_config()`](https://afsc-assessments.github.io/Rceattle/reference/run_config.md)
   errors on an unrecognized field** instead of silently dropping it,
   naming the valid set and pointing at
-  [`fit_control()`](https://grantdadams.github.io/Rceattle/reference/fit_control.md),
+  [`fit_control()`](https://afsc-assessments.github.io/Rceattle/reference/fit_control.md),
   where the mistake usually belongs – `run_config(fit, getsd = FALSE)`
   was a no-op. Names are validated, not values.
 
@@ -4809,17 +6246,17 @@ release notes describe what actually shipped. No code changes.
   `print(dat, config = FALSE)` give the other behavior. An object with
   no configuration prints identically either way.
 
-- **[`read_data()`](https://grantdadams.github.io/Rceattle/reference/read_data.md),
-  [`clean_data()`](https://grantdadams.github.io/Rceattle/reference/clean_data.md)
+- **[`read_data()`](https://afsc-assessments.github.io/Rceattle/reference/read_data.md),
+  [`clean_data()`](https://afsc-assessments.github.io/Rceattle/reference/clean_data.md)
   and
-  [`combine_data()`](https://grantdadams.github.io/Rceattle/reference/combine_data.md)
+  [`combine_data()`](https://afsc-assessments.github.io/Rceattle/reference/combine_data.md)
   return an `"Rceattle_data"` object.** A data list keeps its spec-tree
   printer through a
-  [`write_data()`](https://grantdadams.github.io/Rceattle/reference/write_data.md)
+  [`write_data()`](https://afsc-assessments.github.io/Rceattle/reference/write_data.md)
   /
-  [`read_data()`](https://grantdadams.github.io/Rceattle/reference/read_data.md)
+  [`read_data()`](https://afsc-assessments.github.io/Rceattle/reference/read_data.md)
   round trip instead of only when it came from
-  [`build_data()`](https://grantdadams.github.io/Rceattle/reference/build_data.md).
+  [`build_data()`](https://afsc-assessments.github.io/Rceattle/reference/build_data.md).
   The visible consequence is that these now print an indented
   specification tree at the prompt rather than dumping the ~40-element
   list. The tag is inert: every consumer treats the object as a plain
@@ -4834,20 +6271,20 @@ release notes describe what actually shipped. No code changes.
 ### Documentation
 
 - Runnable examples for
-  [`linkage_spec()`](https://grantdadams.github.io/Rceattle/reference/linkage_spec.md),
-  [`write_template()`](https://grantdadams.github.io/Rceattle/reference/write_template.md),
-  [`load_config()`](https://grantdadams.github.io/Rceattle/reference/load_config.md)
+  [`linkage_spec()`](https://afsc-assessments.github.io/Rceattle/reference/linkage_spec.md),
+  [`write_template()`](https://afsc-assessments.github.io/Rceattle/reference/write_template.md),
+  [`load_config()`](https://afsc-assessments.github.io/Rceattle/reference/load_config.md)
   and
-  [`run_config()`](https://grantdadams.github.io/Rceattle/reference/run_config.md),
+  [`run_config()`](https://afsc-assessments.github.io/Rceattle/reference/run_config.md),
   none of which had one.
-  [`linkage_spec()`](https://grantdadams.github.io/Rceattle/reference/linkage_spec.md)
+  [`linkage_spec()`](https://afsc-assessments.github.io/Rceattle/reference/linkage_spec.md)
   is the entry point to the whole linkage grammar; its examples show the
   covariate, per-year, penalized random walk and intercept-prior forms.
 
-- [`reweight_comps()`](https://grantdadams.github.io/Rceattle/reference/reweight_comps.md)
+- [`reweight_comps()`](https://afsc-assessments.github.io/Rceattle/reference/reweight_comps.md)
   is in the reference index (its absence aborted the pkgdown build), is
   referenced from the composition-diagnostics workflow in
-  [`vignette("model-diagnostics")`](https://grantdadams.github.io/Rceattle/articles/model-diagnostics.md),
+  [`vignette("model-diagnostics")`](https://afsc-assessments.github.io/Rceattle/articles/model-diagnostics.md),
   and cites Francis (2011) as the alternative.
   `examples/McAllister-Ianelli-reweighting.R` now uses it rather than
   teaching a hand-rolled tuning loop.
@@ -4858,7 +6295,7 @@ release notes describe what actually shipped. No code changes.
   it.
 
 - **A failed parallel OSA loop no longer crashes the R session.**
-  [`osa_residuals()`](https://grantdadams.github.io/Rceattle/reference/osa_residuals.md)
+  [`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md)
   runs the one-step-ahead loop in parallel by default, via forking, and
   retried serially if that failed – but reusing the object the failed
   attempt had used, which ended the session with “An irrecoverable
@@ -4878,7 +6315,7 @@ release notes describe what actually shipped. No code changes.
   has failed. `parallel = FALSE` avoids the attempt entirely.
 
 - **A negative expected composition count now warns** (issue
-  [\#108](https://github.com/grantdadams/Rceattle/issues/108)).
+  [\#108](https://github.com/afsc-assessments/Rceattle/issues/108)).
   `predicted` is an expected bin count and cannot be negative, but it
   goes slightly negative where a bin holds almost no fish: compositions
   enter as counts (`(proportion + comp_offset) * N`), and the
@@ -4900,8 +6337,8 @@ release notes describe what actually shipped. No code changes.
 
 - **OSA residuals on an accumulated composition are labelled by the age
   they represent** (reported as issue
-  [\#108](https://github.com/grantdadams/Rceattle/issues/108)). Tail
-  accumulation folds the tails into a boundary bin, so a fleet with
+  [\#108](https://github.com/afsc-assessments/Rceattle/issues/108)).
+  Tail accumulation folds the tails into a boundary bin, so a fleet with
   `Comp_accum_young = 3` on a 10-age model is fit on 8 bins – but those
   were numbered 1 to 8, which labels the boundary residual “age 1” when
   it stands for ages 1-3 combined and puts every other bin two ages out.
@@ -4920,7 +6357,7 @@ release notes describe what actually shipped. No code changes.
   separately, and the boundary bin’s observed proportion excluded the
   tail it had absorbed. Both the composition and the `"pearson"`
   attribute of
-  [`osa_residuals()`](https://grantdadams.github.io/Rceattle/reference/osa_residuals.md)
+  [`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md)
   now fold first, so the Pearson and OSA views of a fleet describe the
   same bins. The residual formula is unchanged, and a fleet without
   accumulation is bit-identical. A new `Accumulated` column marks the
@@ -4928,7 +6365,8 @@ release notes describe what actually shipped. No code changes.
 
 - **[`residuals()`](https://rdrr.io/r/stats/residuals.html) no longer
   returns composition residuals for observations the model did not fit**
-  (issue [\#108](https://github.com/grantdadams/Rceattle/issues/108)). A
+  (issue
+  [\#108](https://github.com/afsc-assessments/Rceattle/issues/108)). A
   row with `Sample_size` 0 enters no likelihood – the TMB guard is
   `Neff > 0` – but the Pearson path reported one anyway, so a diagnostic
   plot showed residuals for data the model never used. On the 2025 GOA
@@ -4938,18 +6376,18 @@ release notes describe what actually shipped. No code changes.
   rule now on both, for `comp` and `caal`.
 
 - **The `"pearson"` attribute of an
-  [`osa_residuals()`](https://grantdadams.github.io/Rceattle/reference/osa_residuals.md)
+  [`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md)
   result uses the same column names as the result itself.** It came from
   [`residuals()`](https://rdrr.io/r/stats/residuals.html), which names
   columns in the data-sheet style (`Fleet_code`, `Year`, `Observed`), so
   one object carried two conventions and a reader had to know which half
   they were holding. Shared names do not mean a shared scale, and
-  [`?osa_residuals`](https://grantdadams.github.io/Rceattle/reference/osa_residuals.md)
+  [`?osa_residuals`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md)
   now says so: the attribute’s `observed`/`predicted` are proportions
   with the sample size alongside, since composition Pearson residuals
   are defined on proportions, where the OSA columns carry bin counts.
 
-- **[`sim_mod()`](https://grantdadams.github.io/Rceattle/reference/sim_mod.md)
+- **[`sim_mod()`](https://afsc-assessments.github.io/Rceattle/reference/sim_mod.md)
   draws the survey index under the fleet’s own `Index_distribution`.**
   Every fleet was drawn as an independent lognormal whatever it was set
   to, so an `MVN`/`MVNORM` survey was simulated on the wrong scale and
@@ -4957,23 +6395,23 @@ release notes describe what actually shipped. No code changes.
   absolute sd of 20 and correlation 0.6 came back with a log-scale sd of
   0.1 and no correlation. `Normal` was likewise drawn on the log scale.
   Nothing errored, so
-  [`self_test()`](https://grantdadams.github.io/Rceattle/reference/self_test.md)
+  [`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md)
   reported recovery against a data-generating process the likelihood
   never assumed. **Affects
-  [`self_test()`](https://grantdadams.github.io/Rceattle/reference/self_test.md),
-  [`jitter()`](https://grantdadams.github.io/Rceattle/reference/jitter.md)
+  [`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md),
+  [`jitter()`](https://afsc-assessments.github.io/Rceattle/reference/jitter.md)
   and `run_mse(simulate_data = TRUE)` for MVN/MVNORM/Normal surveys
   only** – all-lognormal models draw exactly as before. A natural-scale
   draw can come out non-positive, which
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   rejects; that now warns, since otherwise the refit simply fails and
   the run is reported as not converged.
 
 - **A parallel worker that dies no longer aborts
-  [`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md),
-  [`jitter()`](https://grantdadams.github.io/Rceattle/reference/jitter.md)
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md),
+  [`jitter()`](https://afsc-assessments.github.io/Rceattle/reference/jitter.md)
   or
-  [`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md).**
+  [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md).**
   Each worker fits whole models, so running several at once can exhaust
   memory and the machine kills one. The call then stopped with
   `Error in unserialize(node$con) : error reading from connection`,
@@ -4985,7 +6423,7 @@ release notes describe what actually shipped. No code changes.
   hit this on one and not the other.
 
 - **Each
-  [`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md)
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md)
   peel reports its own terminal year, so the peels show up in a plot.**
   Every peel carried the terminal year of the unpeeled model, and plots
   take their year axis from it, so each peel was drawn across the full
@@ -4999,7 +6437,7 @@ release notes describe what actually shipped. No code changes.
   `incl_proj = TRUE` plots those years, and `data_list$endyr_full` gives
   the unpeeled terminal year where they end.
 
-- **[`?osa_residuals`](https://grantdadams.github.io/Rceattle/reference/osa_residuals.md)
+- **[`?osa_residuals`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md)
   no longer carries a broken link to
   [`parallel::mclapply()`](https://rdrr.io/r/parallel/mclapply.html).**
   The `parallel` argument’s cross-reference had been generated with a
@@ -5027,7 +6465,7 @@ numbers.*
   configuration, because there it is the mean-recruitment level rather
   than a value the penalty curve implies.
 
-- **[`build_srr()`](https://grantdadams.github.io/Rceattle/reference/build_srr.md)
+- **[`build_srr()`](https://afsc-assessments.github.io/Rceattle/reference/build_srr.md)
   warns when a steepness is passed as `srr_est_mode = 0`’s .**
   `srr_prior` means steepness for `srr_est_mode` 2 and 3 but for mode 0.
   Since 5.5.0 fixes at that value under the Ianelli configuration, a
@@ -5070,7 +6508,7 @@ numbers.*
   `initMode = "FreeParams"` (0).** `ceattle.cpp` applies the
   initial-deviate density `dnorm(init_dev, -sigma^2/2, R_sd)` only when
   `initMode > 1 && initMode != 5`, but
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   added `init_dev` to the Laplace random block whenever any element was
   free. Under mode 0 that made the approximation integrate over an
   improper (flat) prior rather than estimate the initial age structure
@@ -5085,7 +6523,7 @@ numbers.*
   `random_rec = FALSE`), so nothing in practice changes; refit if you do
   use it.
 
-- **[`build_params()`](https://grantdadams.github.io/Rceattle/reference/build_params.md)
+- **[`build_params()`](https://afsc-assessments.github.io/Rceattle/reference/build_params.md)
   no longer seeds the stock-recruit from `srr_prior` when `srr_prior` is
   a steepness.** `srr_prior` is not the same quantity for every curve:
   for Ricker it is a prior on , but for Beverton-Holt it is a prior on
@@ -5105,7 +6543,7 @@ numbers.*
 
 - **Removed the spurious “alpha was not initialized to `srr_prior`”
   message.**
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   copies `recFun$srr_prior` into the `data_list` only after the caller
   has already built parameters, so the message fired on the documented
   workflow and was not actionable.
@@ -5135,19 +6573,19 @@ numbers.*
 
 - **`srr_est_mode = 0` (“fix alpha to prior mean”) now works for
   Beverton-Holt.** The gate in
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   was Ricker-only, so a Beverton-Holt fit that supplied `inits` – the
   normal warm-start workflow – had mapped out by
-  [`build_map()`](https://grantdadams.github.io/Rceattle/reference/build_map.md)
+  [`build_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md)
   but never set to the prior mean, leaving it pinned at
-  [`build_params()`](https://grantdadams.github.io/Rceattle/reference/build_params.md)’
+  [`build_params()`](https://afsc-assessments.github.io/Rceattle/reference/build_params.md)’
   placeholder .
-  [`build_params()`](https://grantdadams.github.io/Rceattle/reference/build_params.md)
+  [`build_params()`](https://afsc-assessments.github.io/Rceattle/reference/build_params.md)
   and
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   now share one rule (`.srr_prior_is_alpha()`) so the two paths cannot
   disagree.
-  [`build_map()`](https://grantdadams.github.io/Rceattle/reference/build_map.md)
+  [`build_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md)
   now keys the mapping on `srr_pred_fun`, the curve belongs to, so
   `srr_est_mode = 0` also fixes it under the Ianelli configuration.
   stays keyed on `srr_fun` and remains estimated there. No model in the
@@ -5155,22 +6593,22 @@ numbers.*
 
 - **`srr_alpha_init` / `srr_beta_init` survive a refit.**
   `.refit_like()`, which backs
-  [`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md),
-  [`jitter()`](https://grantdadams.github.io/Rceattle/reference/jitter.md),
-  [`self_test()`](https://grantdadams.github.io/Rceattle/reference/self_test.md),
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md),
+  [`jitter()`](https://afsc-assessments.github.io/Rceattle/reference/jitter.md),
+  [`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md),
   [`profile()`](https://rdrr.io/r/stats/profile.html),
-  [`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md),
-  [`remove_F()`](https://grantdadams.github.io/Rceattle/reference/remove_F.md),
-  [`sample_rec()`](https://grantdadams.github.io/Rceattle/reference/sample_rec.md)
+  [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md),
+  [`remove_F()`](https://afsc-assessments.github.io/Rceattle/reference/remove_F.md),
+  [`sample_rec()`](https://afsc-assessments.github.io/Rceattle/reference/sample_rec.md)
   and
-  [`reweight_comps()`](https://grantdadams.github.io/Rceattle/reference/reweight_comps.md),
+  [`reweight_comps()`](https://afsc-assessments.github.io/Rceattle/reference/reweight_comps.md),
   rebuilds the stock-recruit specification from the stored `data_list`
   and now carries both starting values through. Note they override a
   supplied `inits`, so warm-starting from a previous fit’s
   `estimated_params` restarts / at the specified values rather than the
   fitted ones; leave them `NULL` to warm-start from the fit.
 
-- **[`build_srr()`](https://grantdadams.github.io/Rceattle/reference/build_srr.md)
+- **[`build_srr()`](https://afsc-assessments.github.io/Rceattle/reference/build_srr.md)
   validates the steepness prior instead of failing silently.** For a
   Beverton-Holt curve, `srr_est_mode` 2 and 3 put the prior on
   steepness, so `srr_prior` must lie in (0, 1) – this is now checked.
@@ -5188,9 +6626,9 @@ numbers.*
   `proj_F_prop`, `log_Ftarget`, `log_M1` and the stock-recruit alpha /
   beta, so it reported values no fit ever used. This was not only
   cosmetic:
-  [`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md)
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md)
   and
-  [`jitter()`](https://grantdadams.github.io/Rceattle/reference/jitter.md)
+  [`jitter()`](https://afsc-assessments.github.io/Rceattle/reference/jitter.md)
   reuse `initial_params` as their refit starting values
   (`R/9-retro_and_jitter.R`). Those overrides are deterministic
   functions of the `data_list` / `HCR` and are re-applied on every
@@ -5246,9 +6684,9 @@ numbers.*
   ```
 
   Permitted only with a fixed SD, and rejected with `observe =`. See
-  [`?linkage_spec`](https://grantdadams.github.io/Rceattle/reference/linkage_spec.md)
+  [`?linkage_spec`](https://afsc-assessments.github.io/Rceattle/reference/linkage_spec.md)
   for the restrictions and
-  [`vignette("environmental-linkages-and-priors")`](https://grantdadams.github.io/Rceattle/articles/environmental-linkages-and-priors.md)
+  [`vignette("environmental-linkages-and-priors")`](https://afsc-assessments.github.io/Rceattle/articles/environmental-linkages-and-priors.md)
   for when to prefer it.
 
 - **The linkage table records where each deviation is stored
@@ -5264,7 +6702,7 @@ numbers.*
 
 ### Bug fixes
 
-- **[`osa_residuals()`](https://grantdadams.github.io/Rceattle/reference/osa_residuals.md)
+- **[`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md)
   falls back to serial when the parallel loop fails.**
   `TMB::oneStepPredict(parallel = TRUE)` forks via `mclapply`, and on
   some model/observation combinations a worker aborts rather than
@@ -5281,11 +6719,11 @@ numbers.*
   rejected.** A Logistic fleet has no descending limb and a
   DescendingLogistic fleet no ascending one, so those slots never reach
   selectivity-at-age – they sit at their
-  [`build_params()`](https://grantdadams.github.io/Rceattle/reference/build_params.md)
+  [`build_params()`](https://afsc-assessments.github.io/Rceattle/reference/build_params.md)
   defaults. A prior on them was still added to the objective, shifting
   the reported likelihood by a constant that moved with an unrelated
   default while doing nothing to the fit.
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   now names the fleet and parameter and says which limb to prior
   instead. This is how a reconciliation against another model picks up
   an unexplained offset: on the GOA pollock bridge it was worth 13.19
@@ -5293,12 +6731,12 @@ numbers.*
 
 - **Parameter bounds are applied to the parameter they were written
   for.**
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   assembled `lower`/`upper` in
-  [`build_params()`](https://grantdadams.github.io/Rceattle/reference/build_params.md)’s
+  [`build_params()`](https://afsc-assessments.github.io/Rceattle/reference/build_params.md)’s
   parameter order, but TMB orders `obj$par` by the sequence the
   `PARAMETER_*` macros appear in the template – and
-  [`build_params()`](https://grantdadams.github.io/Rceattle/reference/build_params.md)
+  [`build_params()`](https://afsc-assessments.github.io/Rceattle/reference/build_params.md)
   lists the linkage coefficients after `log_F` while `ceattle.cpp`
   declares them before it. Both vectors have the same length either way,
   so nothing downstream could notice: the box constraints landed on the
@@ -5330,7 +6768,7 @@ entries were folded into this section.*
 
 ### New features
 
-- **[`reweight_comps()`](https://grantdadams.github.io/Rceattle/reference/reweight_comps.md)
+- **[`reweight_comps()`](https://afsc-assessments.github.io/Rceattle/reference/reweight_comps.md)
   runs the iterative McAllister-Ianelli tuning loop.** Every fit reports
   the implied weights in `fleet_control$Comp_weights_mcallister`, but
   tuning on them has meant copying them across and refitting by hand,
@@ -5373,7 +6811,7 @@ entries were folded into this section.*
   and a fleet that mirrors another’s selectivity or catchability, where
   the value would be overwritten by the fleet leading the shared block.
 
-- **[`osa_residuals()`](https://grantdadams.github.io/Rceattle/reference/osa_residuals.md)
+- **[`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md)
   gains an `"ecov"` source** for the state-space covariate of a QAR1
   catchability (`build_catchability(..., observe=)`, Rogers et
   al. 2024). It one-step-ahead residualizes the covariate observation
@@ -5382,10 +6820,10 @@ entries were folded into this section.*
   first and against its own series, as in WHAM’s `make_osa_residuals()`;
   the fit itself is unchanged. The AR1 latent is zero-mean, so
   standardize the covariate –
-  [`build_catchability()`](https://grantdadams.github.io/Rceattle/reference/build_catchability.md)
+  [`build_catchability()`](https://afsc-assessments.github.io/Rceattle/reference/build_catchability.md)
   warns otherwise.
 
-- **[`linkage_spec()`](https://grantdadams.github.io/Rceattle/reference/linkage_spec.md)
+- **[`linkage_spec()`](https://afsc-assessments.github.io/Rceattle/reference/linkage_spec.md)
   selects species and fleets by name.** `species =` now accepts species
   names matching `data_list$spnames`, and `fleet =` accepts fleet names
   matching `fleet_control$Fleet_name`, in place of 1-based ids:
@@ -5398,20 +6836,20 @@ entries were folded into this section.*
 
   Ids continue to work unchanged. Names are resolved when the model is
   assembled in
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md);
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md);
   an unrecognized name – or one that is not unique in `fleet_control` –
   errors and lists the model’s own names, whereas a `Fleet_code` that is
   wrong but in range silently attaches the linkage to a different fleet
   and still fits. Matching is exact after trimming whitespace, and a
   misspelled name is rejected even when the corresponding filter would
   be a no-op. Named specs round-trip through
-  [`save_config()`](https://grantdadams.github.io/Rceattle/reference/save_config.md)
+  [`save_config()`](https://afsc-assessments.github.io/Rceattle/reference/save_config.md)
   /
-  [`load_config()`](https://grantdadams.github.io/Rceattle/reference/load_config.md).
+  [`load_config()`](https://afsc-assessments.github.io/Rceattle/reference/load_config.md).
 
 ### Performance
 
-- **[`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+- **[`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
   refits the operating model only as far ahead as the next assessment
   needs.** Between assessments the operating model has to reach one
   assessment step past its terminal year – far enough for the
@@ -5427,7 +6865,7 @@ entries were folded into this section.*
   **A run with `simulate_data = TRUE` will not reproduce results
   generated before this version**, because the operating model carries
   fewer projection rows while the refit runs and
-  [`sim_mod()`](https://grantdadams.github.io/Rceattle/reference/sim_mod.md)
+  [`sim_mod()`](https://afsc-assessments.github.io/Rceattle/reference/sim_mod.md)
   therefore draws a different number of random values. Runs remain fully
   reproducible from a given `seed` within a version. With
   `simulate_data = FALSE` results are unchanged to the bit.
@@ -5467,13 +6905,13 @@ entries were folded into this section.*
   `test-golden-regression.R` asserts convergence alongside each pinned
   value. Note this certifies convergence, not uniqueness – use a jitter
   or multi-start check for that.
-  [`fit_control()`](https://grantdadams.github.io/Rceattle/reference/fit_control.md)’s
+  [`fit_control()`](https://afsc-assessments.github.io/Rceattle/reference/fit_control.md)’s
   `newtonsteps = 0` default is unchanged; this affects the reference
   recipe only, not any user fit.
 
-- **[`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md)
+- **[`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md)
   and
-  [`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+  [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
   run again on a model with an observed (state-space covariate)
   linkage.** The map for the QAR1 observation SD (`log_obs_sd_linkage`)
   was stored as a factor, where every other entry of `mapList` is a raw
@@ -5486,23 +6924,23 @@ entries were folded into this section.*
   changes: the map TMB receives is identical.
 
 - **A diagnostic refit keeps the source model’s bias adjustment.**
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   resets `data_list`’s `bias_adjust_obs` / `bias_adjust_proc` and then
   re-applies the values from
-  [`fit_control()`](https://grantdadams.github.io/Rceattle/reference/fit_control.md),
+  [`fit_control()`](https://afsc-assessments.github.io/Rceattle/reference/fit_control.md),
   whose defaults are `TRUE`. `.refit_like()` built a fresh
-  [`fit_control()`](https://grantdadams.github.io/Rceattle/reference/fit_control.md),
+  [`fit_control()`](https://afsc-assessments.github.io/Rceattle/reference/fit_control.md),
   so a model fitted with bias adjustment off refitted with it back on –
   worth ~880 jnll units on `BS2017SS`. Bias adjustment defines the
   likelihood rather than the optimizer, so this made
-  [`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md),
-  [`jitter()`](https://grantdadams.github.io/Rceattle/reference/jitter.md),
-  [`self_test()`](https://grantdadams.github.io/Rceattle/reference/self_test.md),
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md),
+  [`jitter()`](https://afsc-assessments.github.io/Rceattle/reference/jitter.md),
+  [`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md),
   [`profile()`](https://rdrr.io/r/stats/profile.html),
-  [`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md),
-  [`remove_F()`](https://grantdadams.github.io/Rceattle/reference/remove_F.md)
+  [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md),
+  [`remove_F()`](https://afsc-assessments.github.io/Rceattle/reference/remove_F.md)
   and
-  [`sample_rec()`](https://grantdadams.github.io/Rceattle/reference/sample_rec.md)
+  [`sample_rec()`](https://afsc-assessments.github.io/Rceattle/reference/sample_rec.md)
   compare two different objectives: a Mohn’s rho or a jitter spread
   computed this way was not measuring what it reported. The resolved
   settings are now recovered from the `data_list`, which covers every
@@ -5521,7 +6959,7 @@ entries were folded into this section.*
   Refitting such a model through any of these diagnostics is not
   supported.
 
-- **[`sim_mod()`](https://grantdadams.github.io/Rceattle/reference/sim_mod.md)
+- **[`sim_mod()`](https://afsc-assessments.github.io/Rceattle/reference/sim_mod.md)
   simulates with the model’s own observation bias adjustment.** It
   hardcoded the `-sigma^2/2` offset on the simulated index and catch,
   which agreed with the estimator only because a refit used to force
@@ -5530,16 +6968,16 @@ entries were folded into this section.*
   simulated with the offset and then fitted by a likelihood expecting
   none – a systematic bias in scale, and so in catchability, that no
   number of simulations averages away.
-  [`self_test()`](https://grantdadams.github.io/Rceattle/reference/self_test.md)
+  [`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md)
   and `run_mse(simulate_data = TRUE)` on such a model would report that
   artifact as estimation error. The simulator now reads the flag the
   same way
-  [`residuals.Rceattle()`](https://grantdadams.github.io/Rceattle/reference/residuals.Rceattle.md)
+  [`residuals.Rceattle()`](https://afsc-assessments.github.io/Rceattle/reference/residuals.Rceattle.md)
   already did. Models on the default bias adjustment are unaffected.
 
 - **A simulation whose unfished reference run fails keeps an `OM_no_F`
   entry.**
-  [`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+  [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
   assigned the failure result with `sim_list$OM_no_F <- NULL`, which
   *removes* a list element rather than setting it to `NULL`, so the
   simulation came back without the name at all.
@@ -5550,7 +6988,7 @@ entries were folded into this section.*
 
 - **A failed re-assessment now stops its simulation instead of being
   absorbed.** When an estimation-model refit failed,
-  [`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+  [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
   could not assign to `em_use`, so it still held the *previous* year’s
   assessment; the guard that followed tested `is.null(em_use)`, which
   such a failure never produces. The simulation carried on, stored that
@@ -5563,14 +7001,14 @@ entries were folded into this section.*
 
 - **A simulation whose unfished reference run fails is no longer counted
   as “did not collapse”.**
-  [`remove_F()`](https://grantdadams.github.io/Rceattle/reference/remove_F.md)
+  [`remove_F()`](https://afsc-assessments.github.io/Rceattle/reference/remove_F.md)
   is a separate fit and can fail on its own. The simulation is kept,
   since its assessments are the catch-advice record, but `OM_no_F` is
   then `NULL` – and `sum(NULL < 1000) > 0` is `FALSE` in R, so
-  [`mse_summary()`](https://grantdadams.github.io/Rceattle/reference/mse_summary.md)
+  [`mse_summary()`](https://afsc-assessments.github.io/Rceattle/reference/mse_summary.md)
   scored it as a non-collapse while keeping it in the denominator.
   Because
-  [`remove_F()`](https://grantdadams.github.io/Rceattle/reference/remove_F.md)
+  [`remove_F()`](https://afsc-assessments.github.io/Rceattle/reference/remove_F.md)
   fails preferentially at low stock sizes, that biased the collapse
   metrics low, in the direction that flatters a harvest rule. Such
   simulations are now excluded from the `OM no F` and
@@ -5587,7 +7025,7 @@ entries were folded into this section.*
 
 - **`sampling_period` is now honoured per fleet when more than one year
   advances per assessment.**
-  [`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+  [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
   selected the newly sampled rows by testing the year set and the fleet
   set separately, which is the same as matching fleet-year pairs only
   while `years_include` spans a single year. With
@@ -5605,30 +7043,30 @@ entries were folded into this section.*
 - **`sample_rec(update_model = TRUE)` works on models carrying
   catchability, selectivity, or composition linkages.** `.refit_like()`
   reconstructs the
-  [`build_catchability()`](https://grantdadams.github.io/Rceattle/reference/build_catchability.md)
+  [`build_catchability()`](https://afsc-assessments.github.io/Rceattle/reference/build_catchability.md)
   /
-  [`build_selectivity()`](https://grantdadams.github.io/Rceattle/reference/build_selectivity.md)
+  [`build_selectivity()`](https://afsc-assessments.github.io/Rceattle/reference/build_selectivity.md)
   /
-  [`build_composition()`](https://grantdadams.github.io/Rceattle/reference/build_composition.md)
+  [`build_composition()`](https://afsc-assessments.github.io/Rceattle/reference/build_composition.md)
   specifications from the source model, but
-  [`sample_rec()`](https://grantdadams.github.io/Rceattle/reference/sample_rec.md)
+  [`sample_rec()`](https://afsc-assessments.github.io/Rceattle/reference/sample_rec.md)
   still re-invoked
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   through its own hand-written copy of that block, and so omitted all
   three. Because
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   treats those arguments as the source of truth for `q_linkages` /
   `sel_linkages` / `comp_linkages`, the rebuilt model had no linkage
   table and therefore no `beta_linkage` parameters, which no longer
   matched the parameters carried over from the source model. The `inits`
   check in
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   caught that and stopped with a length-mismatch error, so
   `sample_rec(update_model = TRUE)` failed outright on any model using
   an environmental linkage or a prior on catchability, on a selectivity
   parameter, or on a Dirichlet-multinomial composition weight — it did
   not return quietly wrong dynamics.
-  [`sample_rec()`](https://grantdadams.github.io/Rceattle/reference/sample_rec.md)
+  [`sample_rec()`](https://afsc-assessments.github.io/Rceattle/reference/sample_rec.md)
   now routes through `.refit_like()` like every other refit.
 
   Routing through `.refit_like()` also means
@@ -5647,7 +7085,7 @@ entries were folded into this section.*
 
 - **The diet Dirichlet-multinomial weight is no longer estimated where
   there is no diet likelihood.**
-  [`build_map()`](https://grantdadams.github.io/Rceattle/reference/build_map.md)
+  [`build_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md)
   freed `diet_comp_weights` for any predator with
   `Diet_distribution = "DirichletMultinomial"` whenever `msmMode > 0`,
   but the model only fits the diet composition for predators with
@@ -5670,27 +7108,27 @@ entries were folded into this section.*
   Such priors are now dropped with a message. The linkage rows
   themselves are kept, so `beta_linkage` keeps its length and `inits`
   remain portable between fits that share one `compFun`.
-  [`linkage_spec()`](https://grantdadams.github.io/Rceattle/reference/linkage_spec.md)
+  [`linkage_spec()`](https://afsc-assessments.github.io/Rceattle/reference/linkage_spec.md)
   still errors up front on a prior that can never apply to the data at
   hand (a non-DM `Comp_distribution` / `Diet_distribution`).
 
 - **`Hake` selectivity no longer warns about a valid
   `Time_varying_sel = 0`.**
-  [`build_map_selectivity()`](https://grantdadams.github.io/Rceattle/reference/build_map_selectivity.md)
+  [`build_map_selectivity()`](https://afsc-assessments.github.io/Rceattle/reference/build_map_selectivity.md)
   warned “Time_varying_sel for fleet N is not compatible … Current
   value: Off” on every fleet that was not `"IID"` – including `"Off"`
   (0), which its own message and
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   both list as valid for the `"Hake"` (Taylor et al. 2014) form. Because
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   wraps
-  [`build_map()`](https://grantdadams.github.io/Rceattle/reference/build_map.md)
+  [`build_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md)
   in [`suppressWarnings()`](https://rdrr.io/r/base/warning.html), the
   spurious warning surfaced only in the callers that build the map
   directly, notably
-  [`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+  [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
   and
-  [`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md),
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md),
   where it appeared once per iteration. The map itself was always
   correct (no coefficient deviates are estimated for `"Off"`), so fits
   are unchanged. The warning now fires only for a mode the `"Hake"` form
@@ -5699,19 +7137,19 @@ entries were folded into this section.*
 
 - **The diagnostic refit paths preserve catchability / selectivity /
   composition linkages.** `.refit_like()` – the engine behind
-  [`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md),
-  [`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md),
-  [`jitter()`](https://grantdadams.github.io/Rceattle/reference/jitter.md),
-  [`self_test()`](https://grantdadams.github.io/Rceattle/reference/self_test.md),
+  [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md),
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md),
+  [`jitter()`](https://afsc-assessments.github.io/Rceattle/reference/jitter.md),
+  [`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md),
   [`profile()`](https://rdrr.io/r/stats/profile.html), and
-  [`remove_F()`](https://grantdadams.github.io/Rceattle/reference/remove_F.md)
+  [`remove_F()`](https://afsc-assessments.github.io/Rceattle/reference/remove_F.md)
   – rebuilt the recruitment, M1, and growth specifications from the
   source model but silently dropped the
-  [`build_catchability()`](https://grantdadams.github.io/Rceattle/reference/build_catchability.md)
+  [`build_catchability()`](https://afsc-assessments.github.io/Rceattle/reference/build_catchability.md)
   /
-  [`build_selectivity()`](https://grantdadams.github.io/Rceattle/reference/build_selectivity.md)
+  [`build_selectivity()`](https://afsc-assessments.github.io/Rceattle/reference/build_selectivity.md)
   /
-  [`build_composition()`](https://grantdadams.github.io/Rceattle/reference/build_composition.md)
+  [`build_composition()`](https://afsc-assessments.github.io/Rceattle/reference/build_composition.md)
   linkages. On a model using any of them (e.g. a Dirichlet-multinomial
   composition-weight prior), the reconstructed model lacked the
   linkages’ `beta_linkage` parameters while the warm-start values still
@@ -5722,7 +7160,7 @@ entries were folded into this section.*
   `sel_linkages` / `comp_linkages`), so these models run through the MSE
   / retrospective / jitter loops.
 
-- **[`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+- **[`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
   extends the selectivity-deviation parameters at the model’s own sex
   dimension.** The projection-year extension of `log_sel_slp_dev` /
   `sel_inf_dev` / `sel_coff_dev` hardcoded the sex dimension to 2, which
@@ -5730,12 +7168,12 @@ entries were folded into this section.*
   second sex and produced a warm-start whose length disagreed with the
   parameter template. Now taken from the fitted arrays (`max_sex`).
 
-- **[`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+- **[`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   raises a clear error instead of crashing on mismatched `inits`.** When
   the supplied `inits` omit a parameter the model declares, or any
   parameter’s length disagrees with the model implied by `data_list` (a
   dropped linkage, or a warm start not extended to a later `endyr`),
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   now stops with a message naming the parameter and its lengths, rather
   than letting
   [`TMB::MakeADFun()`](https://rdrr.io/pkg/TMB/man/MakeADFun.html)
@@ -5748,17 +7186,17 @@ entries were folded into this section.*
   / retrospective / jitter refits instead of silently reverting to fixed
   effects.
 
-- **[`build_params()`](https://grantdadams.github.io/Rceattle/reference/build_params.md)
+- **[`build_params()`](https://afsc-assessments.github.io/Rceattle/reference/build_params.md)
   no longer pads `init_dev` behind a string comparison.** The `-999`
   padding of the unused `init_dev` columns was partly gated on
   `initMode > 0`, evaluated against the canonical `initMode` *string*
   that
-  [`switch_check()`](https://grantdadams.github.io/Rceattle/reference/switch_check.md)
+  [`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md)
   has already resolved — `"FreeParams" > "0"` is `TRUE`, so the gate was
   always open. The padding is unconditional now, which is what the C++
   requires (every mode reads only columns `1:(nages - 1)`). No fit
   changes:
-  [`build_params()`](https://grantdadams.github.io/Rceattle/reference/build_params.md)
+  [`build_params()`](https://afsc-assessments.github.io/Rceattle/reference/build_params.md)
   is bit-identical for all six modes on `BS2017SS` and `BS2017MS`, from
   both string and integer input. This was the only place whose behavior
   depended on the lexicographic value of a switch alias, so an alias
@@ -5768,7 +7206,7 @@ entries were folded into this section.*
 
 - **Composition weights now warm-start from `inits` like every other
   parameter.**
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   re-read `comp_weights`, `caal_weights` and `diet_comp_weights` from
   their `fleet_control` columns on every fit, even when `inits` was
   supplied, so a weight handed to a refit was discarded. These are
@@ -5786,10 +7224,10 @@ entries were folded into this section.*
   fitting `BS2017SS` with DM composition puts the weights between -0.6
   and 12.7 (log scale), starting from the default column value of 1.
   **Results therefore move for any DM model** under every
-  [`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md),
-  [`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md),
-  [`jitter()`](https://grantdadams.github.io/Rceattle/reference/jitter.md),
-  [`self_test()`](https://grantdadams.github.io/Rceattle/reference/self_test.md)
+  [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md),
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md),
+  [`jitter()`](https://afsc-assessments.github.io/Rceattle/reference/jitter.md),
+  [`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md)
   and [`profile()`](https://rdrr.io/r/stats/profile.html) refit, each of
   which previously discarded the fitted estimate and restarted from the
   column.
@@ -5799,22 +7237,22 @@ entries were folded into this section.*
   or set the parameter the fit actually reads –
   `inits$comp_weights[flt] <- w` (likewise `caal_weights` /
   `diet_comp_weights`) – which is what
-  [`reweight_comps()`](https://grantdadams.github.io/Rceattle/reference/reweight_comps.md)
+  [`reweight_comps()`](https://afsc-assessments.github.io/Rceattle/reference/reweight_comps.md)
   does.
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   now warns when supplied `inits` disagree with the columns, so an edit
   that would once have taken effect silently is no longer silent.
 
 - **A simulation that does not run to completion now returns only a
   marker.**
-  [`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+  [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
   previously returned the partially advanced operating and estimation
   models alongside `use_sim = FALSE`. Those models describe a state the
   simulation never reached, and nothing downstream filtered on
   `use_sim`, so they could be averaged into performance metrics as
   though the simulation had finished. A failed simulation is now
   `list(use_sim = FALSE, failure = ...)` with no models attached, and
-  [`mse_summary()`](https://grantdadams.github.io/Rceattle/reference/mse_summary.md)
+  [`mse_summary()`](https://afsc-assessments.github.io/Rceattle/reference/mse_summary.md)
   drops such simulations up front with a warning naming them, or errors
   if none completed. Code that reached into `mse$Sim_n$OM`, `$EM` or
   `$OM_no_F` without checking `use_sim` should now check it – filter
@@ -5827,12 +7265,12 @@ entries were folded into this section.*
   clarity.** No code or model behavior changed.
 
 - **Four help pages that disagreed with the code were corrected.**
-  [`jitter()`](https://grantdadams.github.io/Rceattle/reference/jitter.md)
+  [`jitter()`](https://afsc-assessments.github.io/Rceattle/reference/jitter.md)
   now states that starting values are perturbed around the model’s
   initial (pre-fit) parameters, not the fitted values; the
-  [`build_params()`](https://grantdadams.github.io/Rceattle/reference/build_params.md)
+  [`build_params()`](https://afsc-assessments.github.io/Rceattle/reference/build_params.md)
   and
-  [`TMBphase()`](https://grantdadams.github.io/Rceattle/reference/TMBphase.md)
+  [`TMBphase()`](https://afsc-assessments.github.io/Rceattle/reference/TMBphase.md)
   `@return` descriptions were fixed (they had described a map object and
   standard errors respectively); and a mislabeled comment now correctly
   attributes the time-varying survey catchability SD.
@@ -5875,7 +7313,7 @@ entries were folded into this section.*
 
 ### New features
 
-- **[`linkage_spec()`](https://grantdadams.github.io/Rceattle/reference/linkage_spec.md)
+- **[`linkage_spec()`](https://afsc-assessments.github.io/Rceattle/reference/linkage_spec.md)
   fills in `by` from the process it is attached to.** Omitting `by` now
   defaults to the base stratum of the process – `~ fleet` for
   catchability, selectivity, and the fleet composition weights
@@ -5893,7 +7331,7 @@ entries were folded into this section.*
   mirrored selectivity fleets unless a fleet is named. Restrict a
   covariate or prior to the fleets you mean with the `fleet` argument.
   When `by` is omitted on a catchability/selectivity linkage,
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   now prints a one-time message noting that it spans every eligible
   fleet, so the per-fleet expansion is not a surprise.
 
@@ -5947,22 +7385,22 @@ entries were folded into this section.*
   `ceattle_v01_11.cpp`), and its compiled DLL is `ceattle`. Internal
   rename only – the model and results are unchanged (the four reference
   models stay bit-identical), and
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   loads the renamed DLL automatically. A fit built with a custom
   `fit_control(TMBfilename = ...)` is unaffected. Caveat: an object
   fitted by an earlier version stores `TMBfilename = "ceattle_v01_11"`,
   so re-running
-  [`osa_residuals()`](https://grantdadams.github.io/Rceattle/reference/osa_residuals.md)
+  [`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md)
   on such a saved fit needs it re-fit under this version first (the old
   DLL name is no longer built).
 
 ### Documentation
 
 - Moved the
-  [`?build_selectivity`](https://grantdadams.github.io/Rceattle/reference/build_selectivity.md)
+  [`?build_selectivity`](https://afsc-assessments.github.io/Rceattle/reference/build_selectivity.md)
   prior example into `@examples` (it previously rendered a broken
   `\verb{}`); corrected the
-  [`?build_hcr`](https://grantdadams.github.io/Rceattle/reference/build_hcr.md)
+  [`?build_hcr`](https://afsc-assessments.github.io/Rceattle/reference/build_hcr.md)
   PFMC notation to use the normal quantile
   [`qnorm()`](https://rdrr.io/r/stats/Normal.html) rather than `Phi`
   (which denotes the CDF); and regrouped the 4.10.0 linkage additions
@@ -5991,7 +7429,7 @@ entries were folded into this section.*
 ### New features
 
 - **OSA residuals now support every survey-index likelihood family.**
-  [`osa_residuals()`](https://grantdadams.github.io/Rceattle/reference/osa_residuals.md)
+  [`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md)
   previously produced one-step-ahead residuals only for the lognormal
   IID index (`Index_distribution` `"Lognormal"`). It now covers all
   families: natural-scale `"Normal"` residualizes as an independent
@@ -6007,7 +7445,7 @@ entries were folded into this section.*
   observation vector).
 
 - **String aliases for the
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   mode switches.** `estimateMode` and `msmMode` now accept readable
   names alongside their integer codes: `estimateMode = "Estimate"` (0),
   `"Hindcast"` (1), `"Projection"` (2), `"DebugBuild"` (3),
@@ -6021,9 +7459,9 @@ entries were folded into this section.*
 
 - **OSA residuals no longer silently mis-residualize non-lognormal index
   fleets.**
-  [`osa_residuals()`](https://grantdadams.github.io/Rceattle/reference/osa_residuals.md)
+  [`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md)
   /
-  [`build_osa_data()`](https://grantdadams.github.io/Rceattle/reference/build_osa_data.md)
+  [`build_osa_data()`](https://afsc-assessments.github.io/Rceattle/reference/build_osa_data.md)
   previously laid MVN-covariance (`Index_distribution` “MVN”/“MVNORM”)
   and natural-scale “Normal” survey observations into the one-step-ahead
   observation vector as if they were independent lognormals, even though
@@ -6041,11 +7479,11 @@ entries were folded into this section.*
 - **OSA residuals now support composition tail accumulation.** When a
   fleet folds its age/length composition tails via `Comp_accum_young` /
   `Comp_accum_old` (AFSC `ac_yng`/`ac_old`),
-  [`osa_residuals()`](https://grantdadams.github.io/Rceattle/reference/osa_residuals.md)
+  [`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md)
   now residualizes the folded composition that was actually fit – one
   residual per fitted (folded) bin per sex block, rather than refusing
   the combination.
-  [`build_osa_data()`](https://grantdadams.github.io/Rceattle/reference/build_osa_data.md)
+  [`build_osa_data()`](https://afsc-assessments.github.io/Rceattle/reference/build_osa_data.md)
   applies the same per-sex-block young/old fold to the OSA observation
   vector, so the one-step-ahead decomposition matches the fitted
   composition likelihood bin-for-bin. Fleets without accumulation are
@@ -6058,7 +7496,7 @@ were folded into this section.*
 
 ### Breaking changes
 
-- **[`mse_summary()`](https://grantdadams.github.io/Rceattle/reference/mse_summary.md)
+- **[`mse_summary()`](https://afsc-assessments.github.io/Rceattle/reference/mse_summary.md)
   now returns a per-entity list instead of one stacked data.frame.** The
   result is `list(species, fleet, total, meta)`: `species` (one row per
   species, keyed by `Species`) holds the conservation/status metrics;
@@ -6077,13 +7515,13 @@ were folded into this section.*
   now `Ftarget * Fmult`. Only affects projections with `Fmult != 1` (the
   default `Fmult = 1` is unchanged).
 - Corrected the documented reference-point formulas in
-  [`?build_hcr`](https://grantdadams.github.io/Rceattle/reference/build_hcr.md):
+  [`?build_hcr`](https://afsc-assessments.github.io/Rceattle/reference/build_hcr.md):
   the SESSF (Tier 1) and NPFMC (Tier 3) fishing-mortality ramps and the
   PFMC 40-10 buffer (the normal quantile function, not the CDF).
 - Restored
-  [`plot_logindex()`](https://grantdadams.github.io/Rceattle/reference/plot_logindex.md)
+  [`plot_logindex()`](https://afsc-assessments.github.io/Rceattle/reference/plot_logindex.md)
   as a deprecated shim for `plot_index(log = TRUE)`. It forwards to
-  [`plot_index()`](https://grantdadams.github.io/Rceattle/reference/plot_index.md)
+  [`plot_index()`](https://afsc-assessments.github.io/Rceattle/reference/plot_index.md)
   with a [`.Deprecated()`](https://rdrr.io/r/base/Deprecated.html)
   notice.
 
@@ -6096,7 +7534,7 @@ were folded into this section.*
   prior releases); `"SS3"` instead interpolates it by length like any
   interior age. Per-species (scalar or length-`nspp`), round-trips
   through
-  [`save_config()`](https://grantdadams.github.io/Rceattle/reference/save_config.md)/[`load_config()`](https://grantdadams.github.io/Rceattle/reference/load_config.md),
+  [`save_config()`](https://afsc-assessments.github.io/Rceattle/reference/save_config.md)/[`load_config()`](https://afsc-assessments.github.io/Rceattle/reference/load_config.md),
   and affects only `growth_model > 0` fits. Existing models are
   bit-identical under the default.
 
@@ -6111,7 +7549,7 @@ were folded into this section.*
 
 - `model_average(uncertainty = TRUE)` no longer opens a plot device
   partway through the computation. A stray
-  [`plot_ssb()`](https://grantdadams.github.io/Rceattle/reference/plot_ssb.md)
+  [`plot_ssb()`](https://afsc-assessments.github.io/Rceattle/reference/plot_ssb.md)
   call fired before the averaged `sdrep$sd` was populated, so it drew
   stale, pre-averaging confidence intervals as an unrequested side
   effect; the averaged object it returns is unchanged.
@@ -6121,12 +7559,12 @@ were folded into this section.*
 ### New features
 
 - **Save / load a run configuration
-  ([`save_config()`](https://grantdadams.github.io/Rceattle/reference/save_config.md)
+  ([`save_config()`](https://afsc-assessments.github.io/Rceattle/reference/save_config.md)
   /
-  [`load_config()`](https://grantdadams.github.io/Rceattle/reference/load_config.md)).**
+  [`load_config()`](https://afsc-assessments.github.io/Rceattle/reference/load_config.md)).**
   A full run configuration – the \[model_config()\] structure plus the
   estimation controls and
-  [`fit_control()`](https://grantdadams.github.io/Rceattle/reference/fit_control.md)
+  [`fit_control()`](https://afsc-assessments.github.io/Rceattle/reference/fit_control.md)
   bundle – round-trips to a documented, git-diffable YAML file (each
   field carries its doc string as a comment; fields at their default are
   omitted so two runs diff to only their real differences). Apply a
@@ -6147,22 +7585,22 @@ were folded into this section.*
   composition dimension; leaving them unset (or `young = 1` / `old` at
   the last bin) applies no accumulation, so every existing model is
   bit-identical.
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   rejects out-of-range or inverted (`young > old`) bins, and OSA
   residuals are not available for a fleet with active accumulation (the
   residuals are built on the un-accumulated bins).
 
 ### Bug fixes
 
-- **[`self_test()`](https://grantdadams.github.io/Rceattle/reference/self_test.md)
+- **[`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md)
   no longer errors with `object 'getsd' not found`.** Its per-simulation
   refit closure referenced a `getsd` value that the function – unlike
-  [`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md),
-  [`jitter()`](https://grantdadams.github.io/Rceattle/reference/jitter.md),
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md),
+  [`jitter()`](https://afsc-assessments.github.io/Rceattle/reference/jitter.md),
   and [`profile()`](https://rdrr.io/r/stats/profile.html) – never
   defined, so every simulation died on both the sequential and the
   parallel-cluster path.
-  [`self_test()`](https://grantdadams.github.io/Rceattle/reference/self_test.md)
+  [`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md)
   now takes a `getsd` argument (default `NULL`, inheriting the input
   model’s setting) like its sibling functions.
 
@@ -6187,31 +7625,31 @@ were folded into this section.*
   `Comp_weights_mcallister` (the old name is still written for
   downstream readers).
 
-- **[`write_template()`](https://grantdadams.github.io/Rceattle/reference/write_template.md).**
+- **[`write_template()`](https://afsc-assessments.github.io/Rceattle/reference/write_template.md).**
   A new export that writes a minimal, structurally complete
   single-species starter workbook on the canonical column names; it
   round-trips through
-  [`read_data()`](https://grantdadams.github.io/Rceattle/reference/read_data.md)
+  [`read_data()`](https://afsc-assessments.github.io/Rceattle/reference/read_data.md)
   and builds under `fit_mod(estimateMode = 3)`.
 
 - **Single-source workbook schema.** The column dictionary now lives
   once in the package (`R/0-column_schema.R`) and drives
-  [`switch_check()`](https://grantdadams.github.io/Rceattle/reference/switch_check.md)
+  [`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md)
   defaults,
-  [`write_data()`](https://grantdadams.github.io/Rceattle/reference/write_data.md)
+  [`write_data()`](https://afsc-assessments.github.io/Rceattle/reference/write_data.md)
   object order, the embedded `meta_data` documentation sheet, and the
   roxygen field dictionary, which are kept in sync by guard tests. ~16
   previously used-but-undocumented columns are now documented.
 
 ### Bug fixes
 
-- **[`read_data()`](https://grantdadams.github.io/Rceattle/reference/read_data.md)
+- **[`read_data()`](https://afsc-assessments.github.io/Rceattle/reference/read_data.md)
   names the offending sheet or cell instead of failing cryptically.** A
   required sheet (`control`, `fleet_control`) is named when absent, and
   optional sheets are skipped, so a minimal single-species workbook
   reads cleanly. A non-numeric cell in the control or bioenergetics rows
   is named rather than silently becoming `NA`.
-  [`rearrange_data()`](https://grantdadams.github.io/Rceattle/reference/rearrange_data.md)
+  [`rearrange_data()`](https://afsc-assessments.github.io/Rceattle/reference/rearrange_data.md)
   likewise fails clearly on a malformed `fleet_control` rather than via
   a cryptic `dplyr` error.
 
@@ -6251,7 +7689,7 @@ were folded into this section.*
 
 - **Per-predator suitability reference years** (`suit_styr` /
   `suit_endyr`). These
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   arguments (and the underlying `data_list` fields) now accept a vector
   of length `nspp` so each predator can average its suitability over a
   different set of years — e.g. a California Current model with hake
@@ -6263,34 +7701,34 @@ were folded into this section.*
   suitability-averaging and stomach-content prediction loops index them
   by predator.
 
-- **[`plot_diet_comp2()`](https://grantdadams.github.io/Rceattle/reference/plot_diet_comp2.md)
+- **[`plot_diet_comp2()`](https://afsc-assessments.github.io/Rceattle/reference/plot_diet_comp2.md)
   and
-  [`plot_diet_comp1()`](https://grantdadams.github.io/Rceattle/reference/plot_diet_comp1.md).**
-  [`plot_diet_comp2()`](https://grantdadams.github.io/Rceattle/reference/plot_diet_comp2.md)
+  [`plot_diet_comp1()`](https://afsc-assessments.github.io/Rceattle/reference/plot_diet_comp1.md).**
+  [`plot_diet_comp2()`](https://afsc-assessments.github.io/Rceattle/reference/plot_diet_comp2.md)
   adds aggregation-aware diet-composition diagnostics (line plots when
   prey- or predator-age is aggregated, dodged bars when both are, bubble
   grids when fully disaggregated), built on
   `residuals(source = "diet")`.
-  [`plot_diet_comp1()`](https://grantdadams.github.io/Rceattle/reference/plot_diet_comp1.md)
+  [`plot_diet_comp1()`](https://afsc-assessments.github.io/Rceattle/reference/plot_diet_comp1.md)
   is an alias of
-  [`plot_diet_comp()`](https://grantdadams.github.io/Rceattle/reference/plot_diet_comp.md)
+  [`plot_diet_comp()`](https://afsc-assessments.github.io/Rceattle/reference/plot_diet_comp.md)
   (the bubble/grid diagnostic).
 
 ### Bug fixes
 
-- **[`read_data()`](https://grantdadams.github.io/Rceattle/reference/read_data.md)
+- **[`read_data()`](https://afsc-assessments.github.io/Rceattle/reference/read_data.md)
   tolerates trailing empty age columns in `NByageFixed`.** Older writers
   pad the fixed numbers-at-age sheet to a wider age range than
   `max(nages)`; the all-`NA` trailing columns are now dropped on read
   instead of tripping the
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   column-count validation.
 
 - **Parallel workers now run the in-session package.**
-  [`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md),
-  [`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md),
+  [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md),
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md),
   and
-  [`jitter()`](https://grantdadams.github.io/Rceattle/reference/jitter.md)
+  [`jitter()`](https://afsc-assessments.github.io/Rceattle/reference/jitter.md)
   use a FORK cluster on non-Windows platforms, so workers run the
   parent’s loaded namespace via copy-on-write. This fixes silently
   running a stale *installed* package on the workers during
@@ -6320,22 +7758,22 @@ were folded into this section.*
   (`log_sigma_linkage`). The density is reported in the new `jnll_comp`
   row *“Linkage random effects”*. The deviation SD is routed through the
   same
-  [`linkage_spec()`](https://grantdadams.github.io/Rceattle/reference/linkage_spec.md)
+  [`linkage_spec()`](https://afsc-assessments.github.io/Rceattle/reference/linkage_spec.md)
   arguments as every other parameter: `init = list(sigma = v)` **fixes**
   it at an input value (reproducing the legacy `Time_varying_*_sd_prior`
   fixed input), and `priors = list(sigma = lognormal(...))` places a
   **prior** on it and estimates it — the first prior on a deviation SD
   anywhere in the model.
 
-- **[`data_requirements()`](https://grantdadams.github.io/Rceattle/reference/data_requirements.md)
+- **[`data_requirements()`](https://afsc-assessments.github.io/Rceattle/reference/data_requirements.md)
   — see which inputs a model configuration needs.** A new exported
   reader reports, for a given model spec, which top-level data inputs
   are **Required**, **Optional** (used if supplied, otherwise
   default-filled by
-  [`clean_data()`](https://grantdadams.github.io/Rceattle/reference/clean_data.md)),
+  [`clean_data()`](https://afsc-assessments.github.io/Rceattle/reference/clean_data.md)),
   or **Ignored** (not consulted because the feature is switched off) —
   the same conditions
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   enforces at fit time, surfaced up front instead of buried in the
   validator:
 
@@ -6348,19 +7786,19 @@ were folded into this section.*
   It accepts either an existing (possibly partial) data list or the
   convenience switch arguments; an explicit switch argument overrides
   the data list’s stored value (matching
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   precedence). Internally,
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)’s
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)’s
   conditional presence-requirement gates were refactored to consume one
   declarative requirement table, so the reader and the validator can
   never drift apart.
 
-- **[`build_data()`](https://grantdadams.github.io/Rceattle/reference/build_data.md)
+- **[`build_data()`](https://afsc-assessments.github.io/Rceattle/reference/build_data.md)
   — assemble a data list in R.** A code-first constructor complementing
-  [`read_data()`](https://grantdadams.github.io/Rceattle/reference/read_data.md):
+  [`read_data()`](https://afsc-assessments.github.io/Rceattle/reference/read_data.md):
   supply only the blocks a model uses and the optional blocks a
   single-species model does not need are default-filled by
-  [`clean_data()`](https://grantdadams.github.io/Rceattle/reference/clean_data.md).
+  [`clean_data()`](https://afsc-assessments.github.io/Rceattle/reference/clean_data.md).
   Three combinable entry points cover the workflows real assessments
   use:
 
@@ -6377,21 +7815,21 @@ were folded into this section.*
   surfacing later in a fit; legacy names (`fsh_biom`, `srv_biom`, `wt`,
   `pmature`, `Pyrs`) are mapped to their canonical equivalents.
   Validation is deferred to
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   at fit time (one source of truth);
-  [`build_data()`](https://grantdadams.github.io/Rceattle/reference/build_data.md)
+  [`build_data()`](https://afsc-assessments.github.io/Rceattle/reference/build_data.md)
   runs only a light presence pre-check so a missing required block is
   reported early. The result is the same bare list
-  [`read_data()`](https://grantdadams.github.io/Rceattle/reference/read_data.md)
+  [`read_data()`](https://afsc-assessments.github.io/Rceattle/reference/read_data.md)
   returns and round-trips through
-  [`write_data()`](https://grantdadams.github.io/Rceattle/reference/write_data.md)
+  [`write_data()`](https://afsc-assessments.github.io/Rceattle/reference/write_data.md)
   unchanged — a `build_data(base = X)` object fits bit-identically to
   `X`.
 
-- **[`model_config()`](https://grantdadams.github.io/Rceattle/reference/model_config.md)
+- **[`model_config()`](https://afsc-assessments.github.io/Rceattle/reference/model_config.md)
   — a model configuration that travels with the data.** The
   model-structure arguments of
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   (`msmMode`, `initMode`, the HCR and the `build_*()` process
   specifications) can now be bundled into a slot on the data list, so a
   data object records how it is meant to be fit:
@@ -6402,10 +7840,10 @@ were folded into this section.*
   fit_mod(dat)                     # fits as multispecies without passing msmMode
   ```
 
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)’s
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)’s
   signature and defaults are unchanged; when a data list carries a
   `model_config`,
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   reads each field only for arguments the caller did **not** pass
   (detected with [`missing()`](https://rdrr.io/r/base/missing.html)),
   and an explicitly-passed argument always overrides the slot. With no
@@ -6414,18 +7852,18 @@ were folded into this section.*
   overrides the slot, so omit the argument to let the configuration take
   effect. The slot is code-side structure, not a workbook sheet, so it
   does not persist through a
-  [`write_data()`](https://grantdadams.github.io/Rceattle/reference/write_data.md)/[`read_data()`](https://grantdadams.github.io/Rceattle/reference/read_data.md)
+  [`write_data()`](https://afsc-assessments.github.io/Rceattle/reference/write_data.md)/[`read_data()`](https://afsc-assessments.github.io/Rceattle/reference/read_data.md)
   round-trip (a warning fires).
 
 - **Spec-tree [`print()`](https://rdrr.io/r/base/print.html) /
   [`summary()`](https://rdrr.io/r/base/summary.html) for data objects
   and fits.** A
-  [`build_data()`](https://grantdadams.github.io/Rceattle/reference/build_data.md)
+  [`build_data()`](https://afsc-assessments.github.io/Rceattle/reference/build_data.md)
   object now carries the class `"Rceattle_data"` and prints as an
   indented specification tree — dimensions → fleets (with their
   selectivity / catchability forms and mirroring) → configured processes
   → active linkages → any attached
-  [`model_config()`](https://grantdadams.github.io/Rceattle/reference/model_config.md)
+  [`model_config()`](https://afsc-assessments.github.io/Rceattle/reference/model_config.md)
   — instead of dumping the ~40-element list. The same tree is shown by
   [`print()`](https://rdrr.io/r/base/print.html) on a fitted model above
   its fit statistics, so “read 600 lines of switch tables” becomes “read
@@ -6467,11 +7905,11 @@ were folded into this section.*
   positive fixed `obs_sd`.
 
 - **Priors on Dirichlet-multinomial data weights
-  ([`build_composition()`](https://grantdadams.github.io/Rceattle/reference/build_composition.md)).**
+  ([`build_composition()`](https://afsc-assessments.github.io/Rceattle/reference/build_composition.md)).**
   The DM likelihood self-tunes each composition dataset’s effective
   sample size, but that weight can be poorly identified when a fleet has
   few comp years. A new
-  [`build_composition()`](https://grantdadams.github.io/Rceattle/reference/build_composition.md)
+  [`build_composition()`](https://afsc-assessments.github.io/Rceattle/reference/build_composition.md)
   linkage attaches a prior to the DM weight, keeping the implied
   effective sample size in a believable range without reverting to
   Francis / McAllister–Ianelli hand-tuning:
@@ -6527,7 +7965,7 @@ were folded into this section.*
   `"Decreasing"`/`"Increasing"` for the directional sign),
   `Sel_curvature_sd`, and `Sel_devmag_sd`. Each penalty is a Gaussian
   SSQ, so
-  [`switch_check()`](https://grantdadams.github.io/Rceattle/reference/switch_check.md)
+  [`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md)
   converts `weight = 1/(2*sd^2)`. Legacy `Sel_curve_pen` values are
   never overwritten (existing models are bit-identical); a fleet
   supplying the SD columns fits equivalently. `Sel_shape_sd` /
@@ -6541,9 +7979,9 @@ were folded into this section.*
   CIE review’s “rename options to improve interpretability”
   (e.g. *constant → not estimated*), integer-only switches now also
   accept self-explanatory strings, resolved by
-  [`switch_check()`](https://grantdadams.github.io/Rceattle/reference/switch_check.md)
+  [`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md)
   (or
-  [`build_srr()`](https://grantdadams.github.io/Rceattle/reference/build_srr.md))
+  [`build_srr()`](https://afsc-assessments.github.io/Rceattle/reference/build_srr.md))
   to the same integer codes (so fits are identical). New aliases follow
   a consistent convention — the not-estimated value is `"Fixed"`,
   estimated is `"Estimated"`:
@@ -6553,7 +7991,7 @@ were folded into this section.*
   - `Estimate_index_sd` / `Estimate_catch_sd`: `"Fixed"` (0) /
     `"Estimated"` (1) / `"Analytical"` (2);
   - `srr_est_mode` (via
-    [`build_srr()`](https://grantdadams.github.io/Rceattle/reference/build_srr.md)):
+    [`build_srr()`](https://afsc-assessments.github.io/Rceattle/reference/build_srr.md)):
     `"Fixed"` (0) / `"Estimated"` (1) / `"LognormalPrior"` (2) /
     `"BetaPrior"` (3);
   - `suitMode`: the documented string map (`"Empirical"`,
@@ -6564,7 +8002,7 @@ were folded into this section.*
 
 - **`M1_re = 6` (separable age × year 2D-AR1 on M) now estimates its
   correlations.** A gate bug in
-  [`build_map()`](https://grantdadams.github.io/Rceattle/reference/build_map.md)
+  [`build_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md)
   (`if(M1_re_model == 5)` inside a block reachable only when the mode is
   3 or 6) plus a reference to an undefined index left mode 6’s age and
   year AR1 correlations unmapped, so the separable AR1 silently
@@ -6579,17 +8017,17 @@ were folded into this section.*
   alias existed, so a data list carrying `est_M1` was silently ignored —
   it fell through to the `M1_model` default with no warning. `est_M1` is
   now folded into `M1_model` in
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   (before the
-  [`build_M1()`](https://grantdadams.github.io/Rceattle/reference/build_M1.md)
+  [`build_M1()`](https://afsc-assessments.github.io/Rceattle/reference/build_M1.md)
   reconciliation),
-  [`switch_check()`](https://grantdadams.github.io/Rceattle/reference/switch_check.md),
+  [`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md),
   and
-  [`combine_data()`](https://grantdadams.github.io/Rceattle/reference/combine_data.md),
+  [`combine_data()`](https://afsc-assessments.github.io/Rceattle/reference/combine_data.md),
   with a deprecation message. As with `M1_model`, the value set on the
   data list is a default that an explicit `build_M1(M1_model = ...)`
   argument overrides — but a data-list value that differs from the
-  [`build_M1()`](https://grantdadams.github.io/Rceattle/reference/build_M1.md)
+  [`build_M1()`](https://afsc-assessments.github.io/Rceattle/reference/build_M1.md)
   setting now *warns* rather than being dropped silently. The
   recommended way to request M1 estimation remains
   `fit_mod(..., M1Fun = build_M1(M1_model = ...))`. The dictionary now
@@ -6613,7 +8051,7 @@ were folded into this section.*
   `index_data`/`catch_data` are read only for
   `Time_varying_{sel,q} = "Block"`; every other configuration (including
   the random-effect linkages) ignores them.
-  [`clean_data()`](https://grantdadams.github.io/Rceattle/reference/clean_data.md)
+  [`clean_data()`](https://afsc-assessments.github.io/Rceattle/reference/clean_data.md)
   now default-fills a missing `Selectivity_block` with `1` (a single
   block), so you need only supply it for Block-mode fleets. `Q_block`
   was never read (q time-blocking reuses `Selectivity_block`) —
@@ -6623,14 +8061,14 @@ were folded into this section.*
 
 - **`Time_varying_q`, `Time_varying_sel`, and `M1_re` are
   soft-deprecated in favor of random-effect linkages.**
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   now warns (naming the fleets/species and the grammar equivalent) when
   a model uses these legacy time-variation switches, pointing at
-  [`build_catchability()`](https://grantdadams.github.io/Rceattle/reference/build_catchability.md)
+  [`build_catchability()`](https://afsc-assessments.github.io/Rceattle/reference/build_catchability.md)
   /
-  [`build_selectivity()`](https://grantdadams.github.io/Rceattle/reference/build_selectivity.md)
+  [`build_selectivity()`](https://afsc-assessments.github.io/Rceattle/reference/build_selectivity.md)
   /
-  [`build_M1()`](https://grantdadams.github.io/Rceattle/reference/build_M1.md)
+  [`build_M1()`](https://afsc-assessments.github.io/Rceattle/reference/build_M1.md)
   with `(1 | Year)` / `rw(1 | Year)` / `ar1(1 | Year)` — which
   additionally allow a prior on, or free estimation of, the deviation
   SD. **The legacy switches still fit with their exact numerics** (they
@@ -6645,9 +8083,9 @@ were folded into this section.*
   values, not priors (the prior on q lives in `Q_sd_prior`), so the
   names misled. As with the other renames, the old names are accepted
   and upgraded in place by
-  [`switch_check()`](https://grantdadams.github.io/Rceattle/reference/switch_check.md)
+  [`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md)
   /
-  [`read_data()`](https://grantdadams.github.io/Rceattle/reference/read_data.md),
+  [`read_data()`](https://afsc-assessments.github.io/Rceattle/reference/read_data.md),
   and the bundled datasets were regenerated — existing scripts keep
   fitting identically.
 
@@ -6657,9 +8095,9 @@ were folded into this section.*
   time-varying deviate SD, not a prior on it (no density is placed on
   the SD), so the `_prior` suffix was misleading. The old names are
   still accepted —
-  [`switch_check()`](https://grantdadams.github.io/Rceattle/reference/switch_check.md)
+  [`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md)
   and
-  [`read_data()`](https://grantdadams.github.io/Rceattle/reference/read_data.md)
+  [`read_data()`](https://afsc-assessments.github.io/Rceattle/reference/read_data.md)
   upgrade them in place with a one-time message — so existing data
   lists, saved xlsx files, and the bundled example datasets keep fitting
   identically. Update scripts to the new names at your convenience.
@@ -6670,7 +8108,7 @@ were folded into this section.*
 
 - **Environmental linkages on catchability and selectivity.** The
   formula-driven linkage grammar
-  ([`linkage_spec()`](https://grantdadams.github.io/Rceattle/reference/linkage_spec.md))
+  ([`linkage_spec()`](https://afsc-assessments.github.io/Rceattle/reference/linkage_spec.md))
   now extends to survey catchability and to the parametric selectivity
   forms, both indexed by a new `fleet` stratum (`by = ~ fleet`):
 
@@ -6692,15 +8130,15 @@ were folded into this section.*
   the non-parametric `coff` errors at fit time naming the fleet, rather
   than being estimated to no effect.
 
-- **[`build_catchability()`](https://grantdadams.github.io/Rceattle/reference/build_catchability.md)
+- **[`build_catchability()`](https://afsc-assessments.github.io/Rceattle/reference/build_catchability.md)
   and
-  [`build_selectivity()`](https://grantdadams.github.io/Rceattle/reference/build_selectivity.md)**
+  [`build_selectivity()`](https://afsc-assessments.github.io/Rceattle/reference/build_selectivity.md)**
   exported, mirroring
-  [`build_growth()`](https://grantdadams.github.io/Rceattle/reference/build_growth.md)
+  [`build_growth()`](https://afsc-assessments.github.io/Rceattle/reference/build_growth.md)
   /
-  [`build_M1()`](https://grantdadams.github.io/Rceattle/reference/build_M1.md)
+  [`build_M1()`](https://afsc-assessments.github.io/Rceattle/reference/build_M1.md)
   /
-  [`build_srr()`](https://grantdadams.github.io/Rceattle/reference/build_srr.md),
+  [`build_srr()`](https://afsc-assessments.github.io/Rceattle/reference/build_srr.md),
   each carrying a `linkages` argument for its process.
 
 - Linkage formulas are now parsed with the **`reformulas`** package
@@ -6765,7 +8203,7 @@ were folded into this section.*
 
 - **Mohn’s rho was computed from the wrong row for forecast years beyond
   the terminal year.**
-  [`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md)
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md)
   accumulated relative error into `mohns[ind, ]` while reading from
   `mohns[j, ]`; the two indices coincide only at forecast year 0, so
   retrospective bias was wrong for every additional forecast year. The
@@ -6774,13 +8212,13 @@ were folded into this section.*
 
 - **Projection-year conditional age-at-length was missing from every
   MSE.**
-  [`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+  [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
   built `proj_caal` and then appended a different object (`proj_comp`)
   to a non-existent `proj_caal` field instead of appending the CAAL rows
   to `caal_data`. When the composition branch had not run, `proj_comp`
   did not exist at all.
 
-- **[`sim_mod()`](https://grantdadams.github.io/Rceattle/reference/sim_mod.md)
+- **[`sim_mod()`](https://afsc-assessments.github.io/Rceattle/reference/sim_mod.md)
   reproduced the previous observation’s draw instead of simulating.**
   The CAAL branch tested `Comp_loglike` (rather than `CAAL_loglike`)
   against integer codes, and neither the composition nor the CAAL branch
@@ -6789,36 +8227,36 @@ were folded into this section.*
   value from the previous row. Unrecognised likelihood codes now raise
   an error rather than falling through.
 
-- **[`sample_rec()`](https://grantdadams.github.io/Rceattle/reference/sample_rec.md)
+- **[`sample_rec()`](https://afsc-assessments.github.io/Rceattle/reference/sample_rec.md)
   and retrospective forecasts produced `NaN` recruitment deviations.**
   Both took [`log()`](https://rdrr.io/r/base/Log.html) of the mean of
   `log(R) - log(R_hat)`, a log-scale quantity centred near zero whose
   mean is routinely negative. The trend adjustment is now applied
   additively on the log scale, matching the sibling sampling branch.
 
-- **[`combine_data()`](https://grantdadams.github.io/Rceattle/reference/combine_data.md)
+- **[`combine_data()`](https://afsc-assessments.github.io/Rceattle/reference/combine_data.md)
   discarded merged environmental data** (it assigned the merge to its
   input rather than to the returned object) and appended two `NA`-named
   elements by iterating past the end of its column-name vector.
 
-- **[`read_data()`](https://grantdadams.github.io/Rceattle/reference/read_data.md)
+- **[`read_data()`](https://afsc-assessments.github.io/Rceattle/reference/read_data.md)
   overwrote a user-supplied `fleet_control$Month`** with zero. The guard
   was inverted relative to its own message, so per-fleet survey months
   set in the workbook were silently reset.
 
-- **[`build_hcr_map()`](https://grantdadams.github.io/Rceattle/reference/build_hcr_map.md)
+- **[`build_hcr_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_hcr_map.md)
   disabled SPR reference points too eagerly.** It turned off
   `Ftarget`/`Flimit` when *any* fishery for a species had zero
   `proj_F_prop`, though its comment and message both describe the
   all-zero case.
 
-- **[`set_phases()`](https://grantdadams.github.io/Rceattle/reference/set_phases.md)
+- **[`set_phases()`](https://afsc-assessments.github.io/Rceattle/reference/set_phases.md)
   declared `log_M1` twice**, misaligning the positional
   phase-to-parameter pairing in
-  [`TMBphase()`](https://grantdadams.github.io/Rceattle/reference/TMBphase.md)
+  [`TMBphase()`](https://afsc-assessments.github.io/Rceattle/reference/TMBphase.md)
   for every subsequent parameter.
 
-- **[`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+- **[`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   could fail with `object 'opt' not found`** for `estimateMode = 2`
   combined with `HCR = "NoFishing"`.
 
@@ -6828,7 +8266,7 @@ were folded into this section.*
   [`as.integer()`](https://rdrr.io/r/base/integer.html) and became `NA`,
   both in `fleet_control` itself and in the `index_varying_q` vector
   passed to TMB.
-  [`process_residuals()`](https://grantdadams.github.io/Rceattle/reference/process_residuals.md)
+  [`process_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/process_residuals.md)
   tests that vector against a mode code, so the `NA` silently poisoned a
   branch rather than failing.
 
@@ -6850,16 +8288,16 @@ were folded into this section.*
   peak was absent. Now folded with `max2()`, matching the neighbouring
   single-bin normalisation.
 
-- **[`plot_form()`](https://grantdadams.github.io/Rceattle/reference/plot_form.md)
+- **[`plot_form()`](https://afsc-assessments.github.io/Rceattle/reference/plot_form.md)
   errored on every call.** It plots the Kinzey & Punt (2009) functional
   responses, whose parameters (`logH_1`, `logH_1a`, `logH_1b`, `logH_2`,
   `logH_3`, `H_4`) are commented out in the TMB template,
-  [`build_params()`](https://grantdadams.github.io/Rceattle/reference/build_params.md),
-  [`build_map()`](https://grantdadams.github.io/Rceattle/reference/build_map.md)
+  [`build_params()`](https://afsc-assessments.github.io/Rceattle/reference/build_params.md),
+  [`build_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md)
   and
-  [`build_bounds()`](https://grantdadams.github.io/Rceattle/reference/build_bounds.md),
+  [`build_bounds()`](https://afsc-assessments.github.io/Rceattle/reference/build_bounds.md),
   and whose modes (`msmMode` 3-9)
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   blocks. `params$logH_1` was therefore always `NULL` and the first line
   failed with “non-numeric argument to mathematical function”. The
   function remains exported but now raises a clear message naming the
@@ -6890,12 +8328,12 @@ were folded into this section.*
   counting from a fixed position.** `comp_data` and `caal_data` begin
   with identifying columns (fleet, species, sex, year, sample size)
   followed by the observed proportion at each age or length bin.
-  [`sim_mod()`](https://grantdadams.github.io/Rceattle/reference/sim_mod.md)
+  [`sim_mod()`](https://afsc-assessments.github.io/Rceattle/reference/sim_mod.md)
   located those proportions by a fixed offset (`[, 9:ncol(x)]`,
   `[, 7:ncol(x)]`), so adding or reordering an identifying column would
   have written simulated values into the wrong columns without any
   error. Both tables now resolve the proportion columns by name, as
-  [`rearrange_data()`](https://grantdadams.github.io/Rceattle/reference/rearrange_data.md)
+  [`rearrange_data()`](https://afsc-assessments.github.io/Rceattle/reference/rearrange_data.md)
   already did.
 
 - **Added an internal parameter dictionary**
@@ -6975,21 +8413,21 @@ were folded into this section.*
   series; observed points + error bars + predicted line for index/catch
   fits; year-coloured at-age curves for selectivity and mortality
   surfaces).
-- [`plot_index()`](https://grantdadams.github.io/Rceattle/reference/plot_index.md)
+- [`plot_index()`](https://afsc-assessments.github.io/Rceattle/reference/plot_index.md)
   gains a `log` argument for the log-scale survey-index fit.
 - The time-series plotters
-  ([`plot_biomass()`](https://grantdadams.github.io/Rceattle/reference/plot_biomass.md),
-  [`plot_ssb()`](https://grantdadams.github.io/Rceattle/reference/plot_ssb.md),
-  [`plot_recruitment()`](https://grantdadams.github.io/Rceattle/reference/plot_recruitment.md),
+  ([`plot_biomass()`](https://afsc-assessments.github.io/Rceattle/reference/plot_biomass.md),
+  [`plot_ssb()`](https://afsc-assessments.github.io/Rceattle/reference/plot_ssb.md),
+  [`plot_recruitment()`](https://afsc-assessments.github.io/Rceattle/reference/plot_recruitment.md),
   and the other
-  [`plot_timeseries()`](https://grantdadams.github.io/Rceattle/reference/plot_timeseries.md)
+  [`plot_timeseries()`](https://afsc-assessments.github.io/Rceattle/reference/plot_timeseries.md)
   wrappers) again honour user-supplied `line_col`, `lwd`, and `lty`:
   pass a colour, line width, and/or line type per model to override the
   defaults
   (e.g. `plot_biomass(list(m1, m2), line_col = c("black", "red"), lty = c(1, 2))`).
   `lwd` keeps the base-graphics convention where the default (3) renders
   as a standard-weight line.
-- [`plot_stock_recruit()`](https://grantdadams.github.io/Rceattle/reference/plot_stock_recruit.md)
+- [`plot_stock_recruit()`](https://afsc-assessments.github.io/Rceattle/reference/plot_stock_recruit.md)
   adds a 95% data ellipse of the SSB–recruitment cloud (`add_ci`,
   default `TRUE`).
 - The test suite is reorganised into a flat, navigable `tests/testthat/`
@@ -7003,7 +8441,7 @@ were folded into this section.*
   that only called them for the side effect still work (the object
   prints); scripts that depended on the base-graphics device state or on
   a `NULL` return may need updating.
-- [`plot_logindex()`](https://grantdadams.github.io/Rceattle/reference/plot_logindex.md)
+- [`plot_logindex()`](https://afsc-assessments.github.io/Rceattle/reference/plot_logindex.md)
   has been **removed**; use `plot_index(..., log = TRUE)`.
 - The `gplots` and `oce` dependencies have been dropped (no longer
   used).
@@ -7013,7 +8451,7 @@ were folded into this section.*
   coefficient deviations on `Time_varying_sel = "IID"`; it now requires
   `"RandomWalk"` (matching the random-walk structure the penalty
   implements) and rejects `"IID"` with an error at
-  [`build_map()`](https://grantdadams.github.io/Rceattle/reference/build_map.md).
+  [`build_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md).
   A model using `NonParametric` + `IID` must switch to `RandomWalk`.
 - **A selectivity shared across fleets is now penalized once.** When two
   or more fleets share a `Selectivity_index` *and* selectivity type (a
@@ -7030,7 +8468,7 @@ were folded into this section.*
   parameter, making the Hessian singular.** The arithmetic-mean
   analytical q solves q from the data (like the geometric
   `"Analytical"`), so its `index_log_q` is never used — but
-  [`build_map()`](https://grantdadams.github.io/Rceattle/reference/build_map.md)
+  [`build_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md)
   excluded only `"Analytical"` from estimation, so the `AnalyticalArith`
   fleet’s `index_log_q` was still freed. That parameter never entered
   the objective, leaving a zero-gradient flat direction that prevented
@@ -7050,7 +8488,7 @@ were folded into this section.*
   implemented.** It was accepted as a valid switch, but the power
   coefficient (`index_q_pow`) is not built as a parameter and the model
   does not apply it, so the fleet silently got a plain estimated q.
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   now errors, matching how length-based `suitMode` values are handled.
 - **`flt_sel_lead` could put the selectivity penalty on an `Off`
   fleet.** The lead was the first fleet in a `Selectivity_index` group
@@ -7060,7 +8498,7 @@ were folded into this section.*
   *estimated* fleet in the group, matching the map donor.
 - **A mirrored group led by an `Off` fleet stopped estimating
   selectivity and catchability.**
-  [`adjust_map_shared_params()`](https://grantdadams.github.io/Rceattle/reference/adjust_map_shared_params.md)
+  [`adjust_map_shared_params()`](https://afsc-assessments.github.io/Rceattle/reference/adjust_map_shared_params.md)
   copied the first sharing fleet’s map slice onto the rest. When that
   fleet was `Fleet_type = "Off"` its slice is all `NA`, so every fleet
   sharing the index silently had its selectivity / catchability
@@ -7073,16 +8511,16 @@ were folded into this section.*
   first-observation year across each `Selectivity_index` group, but a
   value the user sets directly was used per fleet. Since fleets sharing
   an index share one deviation block,
-  [`adjust_map_shared_params()`](https://grantdadams.github.io/Rceattle/reference/adjust_map_shared_params.md)
+  [`adjust_map_shared_params()`](https://afsc-assessments.github.io/Rceattle/reference/adjust_map_shared_params.md)
   then overwrote the mirrored fleet’s mask with the lead fleet’s, so
   whichever fleet appeared first governed the group: when that fleet
   started later, a sharing fleet with earlier data silently lost those
   deviations (12 years in a 1982/1994 pair). `Sel_start_year` now
   resolves to the group minimum for both the map mask and the model’s
   penalty anchor, however it was set.
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   warns when a mirrored group has differing `Sel_start_year`, and
-  [`build_map()`](https://grantdadams.github.io/Rceattle/reference/build_map.md)
+  [`build_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md)
   warns when `Bin_first_selected` or `N_sel_bins` differ within a group
   (those are likewise taken from the lead fleet). Unmirrored fleets and
   derived defaults are unchanged.
@@ -7090,7 +8528,7 @@ were folded into this section.*
   number.** It is used directly as the fleet slot of the per-fleet
   parameter and map arrays, which are built in `fleet_control` row
   order; a mismatch silently attached parameters to the wrong fleet.
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   now rejects it, and the remaining places that read a `fleet_control`
   column by `Fleet_code` instead of row index were corrected.
 - **Selectivity bin columns were converted to model indices using the
@@ -7118,27 +8556,27 @@ were folded into this section.*
   year range changed.** An `index_cov` (MVN/MVNORM) Sigma is
   positionally keyed to a fleet’s fitted survey observations, so any
   workflow that changes that set — a
-  [`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md)
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md)
   peel, an `endyr` / `styr` subset, or a
-  [`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+  [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
   assessment step that appends survey observations — left the Sigma at
   its original dimension and tripped
-  [`rearrange_data()`](https://grantdadams.github.io/Rceattle/reference/rearrange_data.md)’s
+  [`rearrange_data()`](https://afsc-assessments.github.io/Rceattle/reference/rearrange_data.md)’s
   dimension check
   (`"N x N but the fleet has M fitted survey observations"`).
-  [`clean_data()`](https://grantdadams.github.io/Rceattle/reference/clean_data.md)
+  [`clean_data()`](https://afsc-assessments.github.io/Rceattle/reference/clean_data.md)
   now tags each Sigma with its fitted years the first time it is seen
   and, on every subsequent pass, re-keys it to the current fitted set:
   retained years keep their full covariance block, and new
   (future/simulated) years are added as an independent diagonal block
   with variance `(Observation * Log_sd)^2`. Because every re-fit routes
   through
-  [`clean_data()`](https://grantdadams.github.io/Rceattle/reference/clean_data.md),
+  [`clean_data()`](https://afsc-assessments.github.io/Rceattle/reference/clean_data.md),
   retrospective, MSE, and jitter now all work with covariance-survey
   models; fresh fits and non-MVN fleets are numerically unchanged.
 - **Time-varying selectivity deviations were estimated before a fleet
   had any data.**
-  [`build_map()`](https://grantdadams.github.io/Rceattle/reference/build_map.md)
+  [`build_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md)
   never consulted `fleet_control$Sel_start_year`, so a fleet with
   time-varying (`"RandomWalk"`) selectivity had deviations estimated
   across *every* hindcast year — including years before its first
@@ -7162,7 +8600,7 @@ were folded into this section.*
   a late-starting survey would silently carry unidentified deviations.
   The default is derived from `catch_data` / `index_data` / `comp_data`
   / `caal_data`, consistent with how
-  [`switch_check()`](https://grantdadams.github.io/Rceattle/reference/switch_check.md)
+  [`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md)
   already auto-`"Off"`s fleets with no observations. Fleets sharing a
   `Selectivity_index` share one selectivity curve, so the start year is
   the *earliest* first-observation year across the whole group: a fleet
@@ -7175,7 +8613,7 @@ were folded into this section.*
   `Sel_start_year = styr`.
 - **`LogisticPM` selectivity started with an unusable age-1
   selectivity.**
-  [`build_params()`](https://grantdadams.github.io/Rceattle/reference/build_params.md)
+  [`build_params()`](https://afsc-assessments.github.io/Rceattle/reference/build_params.md)
   initializes `sel_inf[2]` to `10`, which is correct for its usual
   meaning (the descending-limb inflection *age*), but `LogisticPM`
   (type 11) repurposes that slot as the free first-bin (age-1)
@@ -7187,26 +8625,26 @@ were folded into this section.*
   `sel_inf`; when it was not selected the bad value was silently masked
   by the zeroed first bin. `sel_inf[2]` now defaults to `0` (age-1
   selectivity = 1) for `LogisticPM` fleets.
-- [`plot_maturity()`](https://grantdadams.github.io/Rceattle/reference/plot_maturity.md)
+- [`plot_maturity()`](https://afsc-assessments.github.io/Rceattle/reference/plot_maturity.md)
   read a non-existent `pmature` field and errored on real fits; it now
   reads `data_list$maturity`.
-- [`plot_ration()`](https://grantdadams.github.io/Rceattle/reference/plot_ration.md)
+- [`plot_ration()`](https://afsc-assessments.github.io/Rceattle/reference/plot_ration.md)
   failed for single-sex models (a dropped array dimension); the sex
   dimension is now indexed explicitly.
-- [`plot_stock_recruit()`](https://grantdadams.github.io/Rceattle/reference/plot_stock_recruit.md)
+- [`plot_stock_recruit()`](https://afsc-assessments.github.io/Rceattle/reference/plot_stock_recruit.md)
   drew the mean-recruitment reference line a factor of 1e6 too high
   (recruitment points are in millions but the line was not scaled),
   which under ggplot’s free y-scale collapsed the SSB–recruitment cloud
   to the axis; the line is now scaled to match the points.
-- [`plot_index()`](https://grantdadams.github.io/Rceattle/reference/plot_index.md),
-  [`plot_catch()`](https://grantdadams.github.io/Rceattle/reference/plot_catch.md),
+- [`plot_index()`](https://afsc-assessments.github.io/Rceattle/reference/plot_index.md),
+  [`plot_catch()`](https://afsc-assessments.github.io/Rceattle/reference/plot_catch.md),
   and
-  [`plot_indexresidual()`](https://grantdadams.github.io/Rceattle/reference/plot_indexresidual.md)
+  [`plot_indexresidual()`](https://afsc-assessments.github.io/Rceattle/reference/plot_indexresidual.md)
   drew prediction-only rows (`Year < 0`, excluded from the likelihood)
   as if they were fitted observations; these rows are now omitted.
 - `plot_mortality(M2 = TRUE)` labelled the y-axis “M1 + M2” while
   plotting M2; the label now reads “M2”.
-- [`osa_residuals()`](https://grantdadams.github.io/Rceattle/reference/osa_residuals.md)
+- [`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md)
   now includes fleet in the one-step-ahead conditioning order (source,
   year, **fleet**, then bin), making the sequence fully deterministic
   when several fleets report in the same year. Previously the
@@ -7222,7 +8660,7 @@ were folded into this section.*
 
 ### New features
 
-- [`osa_residuals()`](https://grantdadams.github.io/Rceattle/reference/osa_residuals.md)
+- [`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md)
   now builds the composition / conditional-age-at-length / diet
   one-step-ahead observation data on demand, so OSA residuals can be
   computed from any fit. Previously the composition OSA data had to be
@@ -7233,12 +8671,12 @@ were folded into this section.*
   unaffected.
 
 - **Breaking:** the `osa` argument to
-  [`fit_control()`](https://grantdadams.github.io/Rceattle/reference/fit_control.md)
+  [`fit_control()`](https://afsc-assessments.github.io/Rceattle/reference/fit_control.md)
   has been removed; it is no longer needed (see above), and passing it
   now raises an “unused argument” error. The `$osa` element is no longer
   stored on fitted `Rceattle` objects.
 
-- [`fit_control()`](https://grantdadams.github.io/Rceattle/reference/fit_control.md)
+- [`fit_control()`](https://afsc-assessments.github.io/Rceattle/reference/fit_control.md)
   gains `bias_adjust_obs` and `bias_adjust_proc` (both default `TRUE`)
   to toggle the lognormal bias correction (`-sigma^2/2`) applied to the
   observation (index / catch) and process (recruitment, initial
@@ -7250,7 +8688,7 @@ were folded into this section.*
 
 - Added one-step-ahead (OSA) residuals for model validation via the new
   exported
-  [`osa_residuals()`](https://grantdadams.github.io/Rceattle/reference/osa_residuals.md)
+  [`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md)
   (Thygesen et al. 2017; Trijoulet et al. 2023). Unlike Pearson
   residuals, OSA residuals are iid standard normal under a correctly
   specified model even for correlated composition data. All fitted
@@ -7269,7 +8707,7 @@ were folded into this section.*
   composition as discrete (randomized quantile residuals; Dunn and
   Smyth 1996) while the aggregate series stay continuous.
 
-- [`fit_control()`](https://grantdadams.github.io/Rceattle/reference/fit_control.md)
+- [`fit_control()`](https://afsc-assessments.github.io/Rceattle/reference/fit_control.md)
   gains `comp_offset`, the small proportion offset added to the observed
   and predicted age/length composition, conditional-age-at-length, and
   predator diet (stomach-content) bins before the multinomial /
@@ -7280,15 +8718,15 @@ were folded into this section.*
   CEATTLE value, which avoids `log(0)` for empty bins); set
   `comp_offset = 0` for a standard WHAM-style multinomial. The value is
   stored on `data_list$comp_offset` (filled by
-  [`switch_check()`](https://grantdadams.github.io/Rceattle/reference/switch_check.md)),
+  [`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md)),
   so internal re-fits (projections,
-  [`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md),
-  [`jitter()`](https://grantdadams.github.io/Rceattle/reference/jitter.md),
-  [`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md))
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md),
+  [`jitter()`](https://afsc-assessments.github.io/Rceattle/reference/jitter.md),
+  [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md))
   inherit it; `fit_control(comp_offset = ...)` overrides the stored
   value.
 
-- [`osa_residuals()`](https://grantdadams.github.io/Rceattle/reference/osa_residuals.md)
+- [`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md)
   gains a `parallel` argument (default `TRUE`) that computes the
   per-observation one-step-ahead loop with
   [`parallel::mclapply()`](https://rdrr.io/r/parallel/mclapply.html) – a
@@ -7299,7 +8737,7 @@ were folded into this section.*
   reproducible given `seed`.
 
 - Added
-  [`osa_diagnostics()`](https://grantdadams.github.io/Rceattle/reference/osa_diagnostics.md)
+  [`osa_diagnostics()`](https://afsc-assessments.github.io/Rceattle/reference/osa_diagnostics.md)
   for the Stewart and Monnahan (2025) statistical diagnostics – the
   standard deviation of the normalized residuals (SDNR) and the
   lower/upper tail statistics, each with its standard-normal null
@@ -7318,12 +8756,12 @@ were folded into this section.*
   [`residuals()`](https://rdrr.io/r/stats/residuals.html)), and
   `combine = FALSE` to draw the age and length composition as separate
   figures.
-  [`osa_residuals()`](https://grantdadams.github.io/Rceattle/reference/osa_residuals.md)
+  [`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md)
   now also carries a `fleet_name` column and (for composition) the
   matching Pearson residuals.
 
 - Added
-  [`process_residuals()`](https://grantdadams.github.io/Rceattle/reference/process_residuals.md)
+  [`process_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/process_residuals.md)
   for SAM-style process residuals on the model’s random-effect
   deviations (recruitment, initial abundance, and catchability),
   validating the process model as a complement to the observation
@@ -7331,13 +8769,13 @@ were folded into this section.*
 
 - [`residuals()`](https://rdrr.io/r/stats/residuals.html) gains
   `type = "osa"` and `type = "process"`;
-  [`plot_comp()`](https://grantdadams.github.io/Rceattle/reference/plot_comp.md)
+  [`plot_comp()`](https://afsc-assessments.github.io/Rceattle/reference/plot_comp.md)
   and
-  [`plot_indexresidual()`](https://grantdadams.github.io/Rceattle/reference/plot_indexresidual.md)
+  [`plot_indexresidual()`](https://afsc-assessments.github.io/Rceattle/reference/plot_indexresidual.md)
   gain a `residual_type = "osa"` option that draws the OSA diagnostics
   through the familiar plotting functions.
 
-- [`plot_comp()`](https://grantdadams.github.io/Rceattle/reference/plot_comp.md)
+- [`plot_comp()`](https://afsc-assessments.github.io/Rceattle/reference/plot_comp.md)
   was re-implemented in ggplot2 for a consistent look with the OSA
   plots: composition Pearson-residual bubbles plus observed-vs-fitted
   annual and aggregated composition figures. The observed area and
@@ -7357,17 +8795,17 @@ were folded into this section.*
 ### API
 
 - `projection_uncertainty` moved from
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   into
-  [`fit_control()`](https://grantdadams.github.io/Rceattle/reference/fit_control.md),
+  [`fit_control()`](https://afsc-assessments.github.io/Rceattle/reference/fit_control.md),
   consolidating it with the other optimizer / reporting controls.
   Passing it directly to
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   still works but emits a deprecation warning and forwards the value
   into
-  [`fit_control()`](https://grantdadams.github.io/Rceattle/reference/fit_control.md)
+  [`fit_control()`](https://afsc-assessments.github.io/Rceattle/reference/fit_control.md)
   – the same backward-compatible path used by the other former
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   control arguments (`phase`, `getsd`, …).
 - [`residuals()`](https://rdrr.io/r/stats/residuals.html) now follows
   the
@@ -7381,17 +8819,17 @@ were folded into this section.*
   aggregate index/catch series (standardized by the realized observation
   log-SD) and for predator diet via `source = "diet"` (returned on its
   own in a predator/prey schema);
-  [`plot_diet_comp()`](https://grantdadams.github.io/Rceattle/reference/plot_diet_comp.md)
+  [`plot_diet_comp()`](https://afsc-assessments.github.io/Rceattle/reference/plot_diet_comp.md)
   now draws its diet residuals from this single
   [`residuals()`](https://rdrr.io/r/stats/residuals.html) path. `type`
   selects the residual kind only; data sources are selected with
   `source`.
 - The `source` argument is shared across
   [`residuals()`](https://rdrr.io/r/stats/residuals.html),
-  [`osa_residuals()`](https://grantdadams.github.io/Rceattle/reference/osa_residuals.md),
+  [`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md),
   and [`plot()`](https://rdrr.io/r/graphics/plot.default.html) (it
   replaces the earlier `types` argument of
-  [`osa_residuals()`](https://grantdadams.github.io/Rceattle/reference/osa_residuals.md)),
+  [`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md)),
   accepting `"index"`, `"catch"`, `"comp"`, `"caal"`, `"diet"`, and
   `"all"`, so the three entry points select data sources with one
   consistent vocabulary.
@@ -7429,16 +8867,16 @@ were folded into this section.*
 
 - Added a general post-fit convergence diagnostics framework via the new
   exported
-  [`convergence_diagnostics()`](https://grantdadams.github.io/Rceattle/reference/convergence_diagnostics.md)
+  [`convergence_diagnostics()`](https://afsc-assessments.github.io/Rceattle/reference/convergence_diagnostics.md)
   function. It runs a battery of checks covering the optimizer gradient,
   Hessian positive-definiteness and conditioning, parameters on bounds,
   phasing, and parameter estimability, and returns a structured
   `"Rceattle_convergence"` object whose `status` reflects the worst
   severity found (`"OK"`, `"NOTE"`, `"WARN"`, or `"FAIL"`).
-- [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+- [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   now runs the convergence battery automatically and attaches the result
   as `fit$convergence`;
-  [`convergence_diagnostics()`](https://grantdadams.github.io/Rceattle/reference/convergence_diagnostics.md)
+  [`convergence_diagnostics()`](https://afsc-assessments.github.io/Rceattle/reference/convergence_diagnostics.md)
   can also be called directly to re-run it on any fit.
 - Added a model-diagnostics vignette section and accompanying unit tests
   for the new framework.
@@ -7467,41 +8905,41 @@ The pre-fit pipeline files in `R/` were reorganised so they are easier
 to navigate. None of these changes alter model output.
 
 - **File prefixes now follow execution order.**
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   runs its stages as
-  [`clean_data()`](https://grantdadams.github.io/Rceattle/reference/clean_data.md)
+  [`clean_data()`](https://afsc-assessments.github.io/Rceattle/reference/clean_data.md)
   -\>
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   -\>
-  [`build_params()`](https://grantdadams.github.io/Rceattle/reference/build_params.md)
+  [`build_params()`](https://afsc-assessments.github.io/Rceattle/reference/build_params.md)
   -\>
-  [`build_map()`](https://grantdadams.github.io/Rceattle/reference/build_map.md)
+  [`build_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md)
   -\>
-  [`build_bounds()`](https://grantdadams.github.io/Rceattle/reference/build_bounds.md)
+  [`build_bounds()`](https://afsc-assessments.github.io/Rceattle/reference/build_bounds.md)
   -\>
-  [`rearrange_data()`](https://grantdadams.github.io/Rceattle/reference/rearrange_data.md)
+  [`rearrange_data()`](https://afsc-assessments.github.io/Rceattle/reference/rearrange_data.md)
   -\> fit -\>
-  [`rename_output()`](https://grantdadams.github.io/Rceattle/reference/rename_output.md),
+  [`rename_output()`](https://afsc-assessments.github.io/Rceattle/reference/rename_output.md),
   so the files were renumbered to match (`data_check` is now `1-`,
   `build_params` `2-`, `build_map` `3-`, `build_parameter_bounds` `4-`).
   A pipeline map was added to the top of
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md).
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md).
 - **Switch lifecycle consolidated** into a single `R/0-switches.R`: the
   string\<-\>integer maps (formerly `0-constants.R`) plus
-  [`switch_check()`](https://grantdadams.github.io/Rceattle/reference/switch_check.md),
+  [`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md),
   `revert_switches()`, `validate_switches()`, and `convert_switches()`,
   with a header documenting the order in which they run.
 - **HCR helpers co-located.**
-  [`build_hcr_map()`](https://grantdadams.github.io/Rceattle/reference/build_hcr_map.md)
+  [`build_hcr_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_hcr_map.md)
   moved into `R/0-build_hcr.R` alongside
-  [`build_hcr()`](https://grantdadams.github.io/Rceattle/reference/build_hcr.md)
+  [`build_hcr()`](https://afsc-assessments.github.io/Rceattle/reference/build_hcr.md)
   (the separate `2-build_hcr_map.R` was removed).
 
 ### Rename / deprecation
 
-- [`rearrange_dat()`](https://grantdadams.github.io/Rceattle/reference/rearrange_data.md)
+- [`rearrange_dat()`](https://afsc-assessments.github.io/Rceattle/reference/rearrange_data.md)
   is renamed
-  **[`rearrange_data()`](https://grantdadams.github.io/Rceattle/reference/rearrange_data.md)**.
+  **[`rearrange_data()`](https://afsc-assessments.github.io/Rceattle/reference/rearrange_data.md)**.
   The old name still works as a deprecated alias (emits a one-time
   [`.Deprecated()`](https://rdrr.io/r/base/Deprecated.html) warning) and
   will be removed in a future release.
@@ -7516,9 +8954,9 @@ to navigate. None of these changes alter model output.
 ### Internal / R CMD check
 
 - Removed `Rceattle:::` self-references in
-  [`build_bounds()`](https://grantdadams.github.io/Rceattle/reference/build_bounds.md)
+  [`build_bounds()`](https://afsc-assessments.github.io/Rceattle/reference/build_bounds.md)
   (a package should not use `:::` for its own objects).
-- [`profile.Rceattle()`](https://grantdadams.github.io/Rceattle/reference/profile.Rceattle.md)
+- [`profile.Rceattle()`](https://afsc-assessments.github.io/Rceattle/reference/profile.Rceattle.md)
   gained `...` for S3 consistency with the
   [`stats::profile`](https://rdrr.io/r/stats/profile.html) generic.
 
@@ -7558,7 +8996,7 @@ S3 class.
   multiplicatively on the natural scale (additive on the log scale);
   `link = "identity"` applies it additively on the natural scale.
 - **Per-species VB anchor age**:
-  [`build_growth()`](https://grantdadams.github.io/Rceattle/reference/build_growth.md)
+  [`build_growth()`](https://afsc-assessments.github.io/Rceattle/reference/build_growth.md)
   gains a `growth_age_L1` argument (scalar or length-`nspp` vector) for
   the age at which mean length equals `L1`. Matches SS3’s
   `Growth_Age_for_L1`. Default `NA` inherits `data_list$growth_age_L1`
@@ -7566,7 +9004,7 @@ S3 class.
   models pick up an SS3-consistent half-year anchor while `minage >= 1`
   models stay backwards-compatible.
 - **Self-test simulation**: New
-  [`self_test()`](https://grantdadams.github.io/Rceattle/reference/self_test.md)
+  [`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md)
   simulates `nsim` datasets from a fitted model and re-fits the model to
   each simulated dataset, returning the list of refits. Runs in parallel
   by default (PSOCK cluster, capped at 2 cores under `R CMD check`) with
@@ -7583,23 +9021,23 @@ S3 class.
   the `rec_pars` aliases) auto-fill the column, so `slots` only needs
   the species index. `slots` defaults to species 1 with a warning. Fits
   run in parallel on the same PSOCK harness as
-  [`jitter()`](https://grantdadams.github.io/Rceattle/reference/jitter.md)
+  [`jitter()`](https://afsc-assessments.github.io/Rceattle/reference/jitter.md)
   /
-  [`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md)
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md)
   /
-  [`self_test()`](https://grantdadams.github.io/Rceattle/reference/self_test.md).
+  [`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md).
 - **Parallel
-  [`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md)
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md)
   and
-  [`jitter()`](https://grantdadams.github.io/Rceattle/reference/jitter.md)**:
+  [`jitter()`](https://afsc-assessments.github.io/Rceattle/reference/jitter.md)**:
   Both diagnostics now run their independent peels / starts on a PSOCK
   cluster (same approach as
-  [`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)).
+  [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)).
   New `cores` argument on each (default `parallel::detectCores() - 6`,
   capped at 2 when `_R_CHECK_LIMIT_CORES_` is set); pass `cores = 1` to
   force sequential execution.
 - **Standard errors in
-  [`as.data.frame.Rceattle()`](https://grantdadams.github.io/Rceattle/reference/as.data.frame.Rceattle.md)**:
+  [`as.data.frame.Rceattle()`](https://afsc-assessments.github.io/Rceattle/reference/as.data.frame.Rceattle.md)**:
   The tidy long-format frame now carries a `se` column alongside `value`
   / `lwr` / `upr`, populated from the TMB `sdreport` for any
   `ADREPORT`’d quantity. Set to `NA` for non-ADREPORT’d quantities and
@@ -7608,7 +9046,7 @@ S3 class.
 ### Bug fixes
 
 - **SRR logic**: Fixed a bug in
-  [`build_srr()`](https://grantdadams.github.io/Rceattle/reference/build_srr.md)
+  [`build_srr()`](https://afsc-assessments.github.io/Rceattle/reference/build_srr.md)
   where the `Bmsy_lim` penalty was incorrectly disabled for current
   Ricker implementations due to an index mismatch.
 - **Selectivity RW prior scaling**: Corrected the random walk prior
@@ -7616,7 +9054,7 @@ S3 class.
   multipliers for both ascending and descending limb slope/SD
   parameters.
 - **`last_par` returned wrong vector**: Fixed
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   so the value stored on the returned fit is the optimizer’s last
   parameter vector rather than a stale prior reference, removing the
   need for the surrounding [`try()`](https://rdrr.io/r/base/try.html)
@@ -7642,36 +9080,36 @@ S3 class.
   plus-group convention consistent across von Bertalanffy and Richards
   growth and across both builders; expect a small numerical change in
   `length_sd` at the oldest age relative to prior versions.
-- **[`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+- **[`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   bounds ordering**:
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   now indexes parameter bounds by name rather than positional order when
   assembling `L` / `U` for `nlminb`. Previously, when `map$mapFactor`
   and `bounds$lower` were not in identical order, parameters could be
   paired with another parameter’s bounds, producing silently wrong
   constraints. `start_par` is now also subset by name with
   `drop = FALSE`.
-- **[`mse_summary()`](https://grantdadams.github.io/Rceattle/reference/mse_summary.md)
+- **[`mse_summary()`](https://afsc-assessments.github.io/Rceattle/reference/mse_summary.md)
   Tier-3 Flimit**: The internal `flimit_tier3_fun()` returned `Flimit`
   (its argument) instead of the depletion-adjusted `tier3_flimit` it had
   just computed, so the Tier-3 (HCR = 5) branch of P(F \> Flimit)
   reduced to the base-Flimit check. Now returns the adjusted vector.
-- **[`mse_summary()`](https://grantdadams.github.io/Rceattle/reference/mse_summary.md)
+- **[`mse_summary()`](https://afsc-assessments.github.io/Rceattle/reference/mse_summary.md)
   HCR coercion**: `HCR` is now normalized to its integer code before
   downstream comparisons (`HCR == 5`, etc.).
-  [`build_hcr()`](https://grantdadams.github.io/Rceattle/reference/build_hcr.md)
+  [`build_hcr()`](https://afsc-assessments.github.io/Rceattle/reference/build_hcr.md)
   accepts either an integer or a string alias (e.g. `"NPFMC"`);
-  [`mse_summary()`](https://grantdadams.github.io/Rceattle/reference/mse_summary.md)
+  [`mse_summary()`](https://afsc-assessments.github.io/Rceattle/reference/mse_summary.md)
   previously assumed integer form and silently produced wrong status
   flags when fits carried the string form.
-- **[`mse_summary()`](https://grantdadams.github.io/Rceattle/reference/mse_summary.md)
+- **[`mse_summary()`](https://afsc-assessments.github.io/Rceattle/reference/mse_summary.md)
   OM status at assessment years**: P(F \> Flimit) and P(SSB \< SSBlimit)
   are now reported for the OM evaluated at the same assessment years as
   the EM (previously only the EM’s perceived status was returned), and
   the SSB-limit threshold dispatch is consolidated in one helper so the
   Tier-3 / Category-1 / dynamic-vs-static cases stay aligned across the
   EM and OM paths.
-- **[`clean_data()`](https://grantdadams.github.io/Rceattle/reference/clean_data.md)
+- **[`clean_data()`](https://afsc-assessments.github.io/Rceattle/reference/clean_data.md)
   inactive-fleet handling**: The auto-Off branch no longer nulls out
   `proj_F_prop` and `Catchability` on fleets it flips to `"Off"`. The
   downstream TMB code already ignores those columns for off fleets, and
@@ -7681,11 +9119,11 @@ S3 class.
   branches of `build_map_*()`. The previous name was a leftover from the
   index-data path and shadowed nothing, but read as if it referred to
   biomass-observation years.
-- **[`plot_index()`](https://grantdadams.github.io/Rceattle/reference/plot_index.md)
+- **[`plot_index()`](https://afsc-assessments.github.io/Rceattle/reference/plot_index.md)
   /
-  [`plot_catch()`](https://grantdadams.github.io/Rceattle/reference/plot_catch.md)
+  [`plot_catch()`](https://afsc-assessments.github.io/Rceattle/reference/plot_catch.md)
   /
-  [`plot_logindex()`](https://grantdadams.github.io/Rceattle/reference/plot_logindex.md)
+  [`plot_logindex()`](https://afsc-assessments.github.io/Rceattle/reference/plot_logindex.md)
   warnings**: Wrapped the internal `gplots::plotCI()` calls in
   [`suppressWarnings()`](https://rdrr.io/r/base/warning.html) so
   plotting a fit no longer prints the recurring
@@ -7695,7 +9133,7 @@ S3 class.
 ### Data checks
 
 - **Empirical growth + CAAL**:
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   now errors when `growth_model == 0` (empirical weight-at-age) is
   combined with non-empty `caal_data` for a given species. The C++
   growth matrix is not populated from the age-transition matrix in the
@@ -7707,27 +9145,27 @@ S3 class.
   data, mark the fleet as `Selectivity = "Fixed"` with `emp_sel`, or set
   `Fleet_type = "Off"`.
 - **Auto-Off inactive fleets**:
-  [`clean_data()`](https://grantdadams.github.io/Rceattle/reference/clean_data.md)
+  [`clean_data()`](https://afsc-assessments.github.io/Rceattle/reference/clean_data.md)
   automatically flips `Fleet_type` to `"Off"` for fleets that carry no
   catch or index observations, preventing the optimizer from drifting on
   unconstrained selectivity / catchability blocks.
 - **`minage` guard**:
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   errors when any species has `minage < 0`.
 
 ### Documentation
 
 - Added
-  [`vignette("environmental-linkages-and-priors")`](https://grantdadams.github.io/Rceattle/articles/environmental-linkages-and-priors.md)
+  [`vignette("environmental-linkages-and-priors")`](https://afsc-assessments.github.io/Rceattle/articles/environmental-linkages-and-priors.md)
   (and updated `_pkgdown.yml`) to cover the new linkage intercept
   behavior, link-function semantics, growth SD endpoints, and Double
   Normal selectivity.
 - Updated all cross-references in
-  [`build_srr()`](https://grantdadams.github.io/Rceattle/reference/build_srr.md)
+  [`build_srr()`](https://afsc-assessments.github.io/Rceattle/reference/build_srr.md)
   /
-  [`build_M1()`](https://grantdadams.github.io/Rceattle/reference/build_M1.md)
+  [`build_M1()`](https://afsc-assessments.github.io/Rceattle/reference/build_M1.md)
   /
-  [`build_growth()`](https://grantdadams.github.io/Rceattle/reference/build_growth.md)
+  [`build_growth()`](https://afsc-assessments.github.io/Rceattle/reference/build_growth.md)
   (deprecation warnings, soft-deprecated arg docs, and the
   [`vignette()`](https://rdrr.io/r/utils/vignette.html) pointers in the
   model-options vignette) from the old `environmental-linkages` slug to
@@ -7795,7 +9233,7 @@ parameter level themselves. Instead:
 
 For slope-only formulas (`~ 0 + temp`) the behaviour is unchanged: the
 base parameter is still mapped NA at its
-[`build_params()`](https://grantdadams.github.io/Rceattle/reference/build_params.md)
+[`build_params()`](https://afsc-assessments.github.io/Rceattle/reference/build_params.md)
 default, and the linkage row carries the year-by-year offset.
 
 #### Recruitment offset semantics
@@ -7816,7 +9254,7 @@ get clean log-linear behaviour without surprise offsets.
 - New `init_supplied` (logical) column on `Rceattle_linkage_table`
   tracks whether the user explicitly supplied an `init` for that row.
   Used by
-  [`build_params()`](https://grantdadams.github.io/Rceattle/reference/build_params.md)
+  [`build_params()`](https://afsc-assessments.github.io/Rceattle/reference/build_params.md)
   to decide whether to push a base-parameter init.
 - New `linkage_is_intercept` IVECTOR in the TMB encoding (set from
   `design_col == "(Intercept)"`) used by the slot-19 prior dispatch to
@@ -7840,7 +9278,7 @@ derived population quantities into a long data.frame with columns
 `year, species, sex, age, quantity, value, lwr, upr` so that custom
 plotting and post-processing don’t have to walk the nested `quantities`
 list or rely on the dimnames decisions in
-[`rename_output()`](https://grantdadams.github.io/Rceattle/reference/rename_output.md).
+[`rename_output()`](https://afsc-assessments.github.io/Rceattle/reference/rename_output.md).
 Two shapes are supported and combined into one frame:
 
 - **Species-by-year** (default `which`): `biomass`, `ssb`, `R`,
@@ -7865,22 +9303,22 @@ The `ci_level` argument (default `0.95`) controls width.
 
 Continuing the Phase A work from 4.2.0, three more classes of inputs
 that were previously required as non-NULL can now be omitted, with
-[`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+[`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
 enforcing them only when the model actually needs them:
 
 - **Phase B: bioenergetics scalars.** `Ceq`, `Cindex`, `Pvalue`, `fday`,
   `CA`, `CB`, `Qc`, `Tco`, `Tcm`, `Tcl`, `CK1`, `CK4` may be `NULL` in
   single-species mode.
-  [`switch_check()`](https://grantdadams.github.io/Rceattle/reference/switch_check.md)
+  [`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md)
   fills them with safe sentinels so TMB’s length-`nspp` `DATA_VECTOR`
   requirements are satisfied. When `msmMode > 0` the scalars are
   required;
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   reports which ones are missing or wrong-length in a single grouped
   error.
 
 - **Phase C: `env_data`.** May be `NULL`.
-  [`clean_data()`](https://grantdadams.github.io/Rceattle/reference/clean_data.md)
+  [`clean_data()`](https://afsc-assessments.github.io/Rceattle/reference/clean_data.md)
   defaults it to a Year-only `data.frame(Year = styr:projyr)` with zero
   indices. Existing checks still error when a feature actually needs an
   index (env-dependent catchability, temperature-dependent consumption,
@@ -7901,10 +9339,10 @@ Several fields in `data_list` that were previously required as non-NULL
 data.frames are now truly optional. Users who do not need composition
 data, conditional age-at-length, empirical selectivity, fixed
 numbers-at-age, ration data, or diet data can omit them entirely;
-[`clean_data()`](https://grantdadams.github.io/Rceattle/reference/clean_data.md)
+[`clean_data()`](https://afsc-assessments.github.io/Rceattle/reference/clean_data.md)
 default-fills the missing fields with empty data.frames that carry the
 metadata columns the downstream code expects, and
-[`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+[`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
 enforces the field only under the conditions where the model actually
 needs it.
 
@@ -7914,7 +9352,7 @@ needs it.
   `any(growth_model > 0)`; `NByageFixed` when `any(estDynamics > 0)`;
   `diet_data` when `msmMode > 0`).
 
-- **[`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+- **[`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   reorganisation.** The validation function has been reorganised into
   eight topical sections (top-level scalars; per-species dimensions;
   biology; fleet control; observation tables; diet & predation;
@@ -7928,8 +9366,8 @@ needs it.
 
 - **`transpose_fleet_control()` removed.** The deprecated long-format
   fleet_control transposer has been removed from
-  [`clean_data()`](https://grantdadams.github.io/Rceattle/reference/clean_data.md),
-  [`read_data()`](https://grantdadams.github.io/Rceattle/reference/read_data.md),
+  [`clean_data()`](https://afsc-assessments.github.io/Rceattle/reference/clean_data.md),
+  [`read_data()`](https://afsc-assessments.github.io/Rceattle/reference/read_data.md),
   and the package namespace.
 
 ## Rceattle 4.1.0
@@ -7939,16 +9377,16 @@ needs it.
 A new long-format **linkage table** lets users express how process
 parameters depend on environmental covariates and on stratifying factors
 (species, sex, age) through a single formula-driven helper,
-[`linkage_spec()`](https://grantdadams.github.io/Rceattle/reference/linkage_spec.md).
+[`linkage_spec()`](https://afsc-assessments.github.io/Rceattle/reference/linkage_spec.md).
 Each row of the table corresponds to exactly one estimated coefficient.
-[`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+[`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
 pools every spec into a shared design matrix `X` and a per-row parameter
 vector `beta_linkage`; the TMB template iterates the table once and
 accumulates per-process offsets on the linear predictor of the
 underlying parameter.
 
 - **New constructor:
-  [`linkage_spec()`](https://grantdadams.github.io/Rceattle/reference/linkage_spec.md).**
+  [`linkage_spec()`](https://afsc-assessments.github.io/Rceattle/reference/linkage_spec.md).**
   Captures
   `(formula, by, species, link, init, bounds, priors, est_phase)` for
   one process parameter. Anything
@@ -7963,10 +9401,10 @@ underlying parameter.
   there’s no duplication when species share covariates.
 
 - **Priors.** First-class via
-  [`prior_normal()`](https://grantdadams.github.io/Rceattle/reference/prior_normal.md),
-  [`prior_lognormal()`](https://grantdadams.github.io/Rceattle/reference/prior_lognormal.md),
-  [`prior_gamma()`](https://grantdadams.github.io/Rceattle/reference/prior_gamma.md),
-  [`prior_beta()`](https://grantdadams.github.io/Rceattle/reference/prior_beta.md).
+  [`prior_normal()`](https://afsc-assessments.github.io/Rceattle/reference/prior_normal.md),
+  [`prior_lognormal()`](https://afsc-assessments.github.io/Rceattle/reference/prior_lognormal.md),
+  [`prior_gamma()`](https://afsc-assessments.github.io/Rceattle/reference/prior_gamma.md),
+  [`prior_beta()`](https://afsc-assessments.github.io/Rceattle/reference/prior_beta.md).
   The same constructors are available unprefixed (`normal()` /
   `lognormal()` / …) **only inside** the `priors = ...` argument via a
   private NSE data mask, so user code stays close to mathematical
@@ -7982,7 +9420,7 @@ underlying parameter.
 
 - **Growth** (von Bertalanffy / Richards) is the first process fully
   wired to the new pipeline.
-  [`build_growth()`](https://grantdadams.github.io/Rceattle/reference/build_growth.md)
+  [`build_growth()`](https://afsc-assessments.github.io/Rceattle/reference/build_growth.md)
   gains a `linkages` argument and a string-named `fun` (`"empirical"` /
   `"vonBertalanffy"` / `"Richards"`); integer codes still work
   (`fun = 1` is shorthand for `fun = "vonBertalanffy"`) so existing
@@ -8016,12 +9454,12 @@ underlying parameter.
   formulas, basis-expansion formulas, and the underlying pipeline.
 
 - **Natural mortality** is the second process wired to the pipeline.
-  [`build_M1()`](https://grantdadams.github.io/Rceattle/reference/build_M1.md)
+  [`build_M1()`](https://afsc-assessments.github.io/Rceattle/reference/build_M1.md)
   gains a `linkages` argument keyed by `log_M1`; the offset is added on
   the log scale to `log_M1` inside the `M1_at_age` compute. A row’s
   `age_bin == NA` broadcasts the offset across ages; specific values pin
   it to that age slice.
-  [`build_M1()`](https://grantdadams.github.io/Rceattle/reference/build_M1.md)
+  [`build_M1()`](https://afsc-assessments.github.io/Rceattle/reference/build_M1.md)
   also gains string-form acceptance for `M1_model` and `M1_re` (parity
   with `build_growth(fun)`):
 
@@ -8057,7 +9495,7 @@ underlying parameter.
   error messages keyed by `priors$<col>$<species>[$<sex>]` paths.
 
 - **Default `by = ~ species`.**
-  [`linkage_spec()`](https://grantdadams.github.io/Rceattle/reference/linkage_spec.md)
+  [`linkage_spec()`](https://afsc-assessments.github.io/Rceattle/reference/linkage_spec.md)
   now defaults the `by` argument to `~ species`, so each linkage
   produces one coefficient per species without the user having to spell
   it out. Pass `~ species + sex` for per-(species, sex) coefficients, or
@@ -8066,7 +9504,7 @@ underlying parameter.
   use case where each stock has its own environmental sensitivity.
 
 - **Recruitment** is the third process wired to the pipeline.
-  [`build_srr()`](https://grantdadams.github.io/Rceattle/reference/build_srr.md)
+  [`build_srr()`](https://afsc-assessments.github.io/Rceattle/reference/build_srr.md)
   gains a `linkages` argument keyed by `log_R0`, `log_alpha`, or
   `log_beta`; the offset is added on the log scale to the corresponding
   parameter at every recruitment compute call site (hindcast, BRPs,
@@ -8099,7 +9537,7 @@ underlying parameter.
   `growth + M + recruitment` composition.
 
 - **Soft deprecation in
-  [`build_M1()`](https://grantdadams.github.io/Rceattle/reference/build_M1.md).**
+  [`build_M1()`](https://afsc-assessments.github.io/Rceattle/reference/build_M1.md).**
   The legacy column-index argument `M1_indices` and the env-driven
   structural integer codes `M1_model %in% c(4, 5)` are subsumed by the
   new `linkages = list(log_M1 = ...)` argument. Both still work for one
@@ -8155,22 +9593,22 @@ one-time warnings pointing users at the linkage table. They will be
 **R-side cleanup**:
 
 - Remove `srr_indices` and `M1_indices` arguments from
-  [`build_srr()`](https://grantdadams.github.io/Rceattle/reference/build_srr.md)
+  [`build_srr()`](https://afsc-assessments.github.io/Rceattle/reference/build_srr.md)
   and
-  [`build_M1()`](https://grantdadams.github.io/Rceattle/reference/build_M1.md).
+  [`build_M1()`](https://afsc-assessments.github.io/Rceattle/reference/build_M1.md).
 - Reject `srr_fun %in% c(1, 3, 5)` and `M1_model %in% c(4, 5)` as
   unknown integer values in `.coerce_srr_fun()` and `.coerce_M1_arg()`
   (drop the `.SRR_DEPRECATED_FUNS` / `.M1_DEPRECATED_MODELS` constants).
 - Remove the [`suppressWarnings()`](https://rdrr.io/r/base/warning.html)
   wrappers around internal
-  [`build_srr()`](https://grantdadams.github.io/Rceattle/reference/build_srr.md)
+  [`build_srr()`](https://afsc-assessments.github.io/Rceattle/reference/build_srr.md)
   /
-  [`build_M1()`](https://grantdadams.github.io/Rceattle/reference/build_M1.md)
+  [`build_M1()`](https://afsc-assessments.github.io/Rceattle/reference/build_M1.md)
   re-callers in
-  [`sim_mod()`](https://grantdadams.github.io/Rceattle/reference/sim_mod.md),
-  [`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md),
-  [`jitter()`](https://grantdadams.github.io/Rceattle/reference/jitter.md),
-  [`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md),
+  [`sim_mod()`](https://afsc-assessments.github.io/Rceattle/reference/sim_mod.md),
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md),
+  [`jitter()`](https://afsc-assessments.github.io/Rceattle/reference/jitter.md),
+  [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md),
   `project_no_F()`.
 
 ## Rceattle 4.0.3
@@ -8178,10 +9616,10 @@ one-time warnings pointing users at the linkage table. They will be
 ### API
 
 - New
-  [`fit_control()`](https://grantdadams.github.io/Rceattle/reference/fit_control.md)
+  [`fit_control()`](https://afsc-assessments.github.io/Rceattle/reference/fit_control.md)
   constructor bundles the optimizer / sdreport / phasing knobs that
   previously cluttered
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)’s
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)’s
   signature (`phase`, `getsd`, `bias.correct`, `use_gradient`,
   `rel_tol`, `loopnum`, `newtonsteps`, `getJointPrecision`,
   `getReportCovariance`, `verbose`, `TMBfilename`, `nlminb_control`).
@@ -8196,21 +9634,21 @@ one-time warnings pointing users at the linkage table. They will be
   )
   ```
 
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)’s
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)’s
   visible argument list shrinks from ~33 to ~22 args, so calls now read
   as model spec rather than a pile of optimizer flags.
 
-- [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+- [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   emits a deprecation warning if any of the legacy control args are
   passed directly and forwards them into `fit_control` for the duration
   of the deprecation window. Truly unknown arguments still error with
   `Unused arguments to fit_mod(): ...` (no silent drops).
 
 - Internal callers
-  ([`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md),
-  [`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md),
-  [`jitter()`](https://grantdadams.github.io/Rceattle/reference/jitter.md),
-  [`sim_mod()`](https://grantdadams.github.io/Rceattle/reference/sim_mod.md),
+  ([`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md),
+  [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md),
+  [`jitter()`](https://afsc-assessments.github.io/Rceattle/reference/jitter.md),
+  [`sim_mod()`](https://afsc-assessments.github.io/Rceattle/reference/sim_mod.md),
   `project_no_F()`) now wrap their control args in `fit_control(...)`
   rather than passing them positionally.
 
@@ -8229,7 +9667,7 @@ one-time warnings pointing users at the linkage table. They will be
   \[stats::BIC()\] does not work — use AIC or domain-specific
   information criteria.
 
-- [`plot.Rceattle()`](https://grantdadams.github.io/Rceattle/reference/plot.Rceattle.md)
+- [`plot.Rceattle()`](https://afsc-assessments.github.io/Rceattle/reference/plot.Rceattle.md)
   is a thin dispatcher: `plot(fit, what = "biomass")` / `"ssb"` /
   `"recruitment"` / `"depletion"` / `"index"` / `"catch"` /
   `"selectivity"` / `"mortality"` / `"data"`. `...` is forwarded to the
@@ -8270,7 +9708,7 @@ one-time warnings pointing users at the linkage table. They will be
 
 ### Bug fixes
 
-- [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+- [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   now stops with a clear message if a user requests `msmMode = 3:9`
   (Kinzey & Punt 2009 functional responses – Holling I/II/III, predator
   interference, predator preemption, Hassell-Varley, Ecosim). Those code
@@ -8290,7 +9728,7 @@ one-time warnings pointing users at the linkage table. They will be
   [`tidyr::pivot_wider`](https://tidyr.tidyverse.org/reference/pivot_wider.html)
   arguments with quoted strings (tidyselect 1.2.0 deprecation).
 - `examples/Georges_bank_example.R` now calls
-  [`plot_mortality()`](https://grantdadams.github.io/Rceattle/reference/plot_mortality.md)
+  [`plot_mortality()`](https://afsc-assessments.github.io/Rceattle/reference/plot_mortality.md)
   instead of the long-removed `plot_mort()`.
 - `_pkgdown.yml` “Get started” / overview navbar links now point at the
   actual generated `articles/Rceattle-overview.html` (was
@@ -8337,9 +9775,9 @@ one-time warnings pointing users at the linkage table. They will be
 
 ### Parallelism
 
-- [`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+- [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
   and
-  [`check_mse()`](https://grantdadams.github.io/Rceattle/reference/check_mse.md)
+  [`check_mse()`](https://afsc-assessments.github.io/Rceattle/reference/check_mse.md)
   now use
   [`parallel::parLapply`](https://rdrr.io/r/parallel/clusterApply.html)
   on a PSOCK cluster instead of `foreach::foreach(...) %dopar%`.
@@ -8350,7 +9788,7 @@ one-time warnings pointing users at the linkage table. They will be
     formatting. PSOCK workers are clean R processes with no captured
     promise chains, so the issue does not occur.
   - PSOCK clusters work identically on Windows and macOS/Linux.
-  - [`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+  - [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
     gains a `cores` argument (default `NULL` picks
     `parallel::detectCores() - 6`); both functions cap at 2 cores when
     `_R_CHECK_LIMIT_CORES_` is set so they comply with CRAN’s R CMD
@@ -8378,19 +9816,19 @@ one-time warnings pointing users at the linkage table. They will be
 
 ### API
 
-- [`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+- [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
   no longer has `om = ms_run`, `em = ss_run` defaults. Both arguments
   are now required and validated as objects of class `"Rceattle"` before
   the MSE loop runs. Calling
-  [`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+  [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
   with no arguments previously produced a confusing “object ‘ms_run’ not
   found” error; it now stops with a clear message.
 
 ### New methods
 
-- [`print.Rceattle()`](https://grantdadams.github.io/Rceattle/reference/print.Rceattle.md)
+- [`print.Rceattle()`](https://afsc-assessments.github.io/Rceattle/reference/print.Rceattle.md)
   and
-  [`summary.Rceattle()`](https://grantdadams.github.io/Rceattle/reference/summary.Rceattle.md).
+  [`summary.Rceattle()`](https://afsc-assessments.github.io/Rceattle/reference/summary.Rceattle.md).
   Auto-printing a fit inside knitr / RStudio / R Markdown previously
   dumped tens of MB of nested data and could trigger deep recursion
   errors during vignette rendering.
@@ -8448,7 +9886,7 @@ log.
 - Conditional age-at-length (CAAL) data path, with `CAAL_loglike` /
   `CAAL_weights` controls in `fleet_control`. CAAL data also flow
   through
-  [`sim_mod()`](https://grantdadams.github.io/Rceattle/reference/sim_mod.md)
+  [`sim_mod()`](https://afsc-assessments.github.io/Rceattle/reference/sim_mod.md)
   for simulation testing.
 - `Diet_loglike` switch on the bioenergetics control sheet selects
   between multinomial (0) and Dirichlet-multinomial (1) for diet
@@ -8467,9 +9905,9 @@ log.
   environmental index, after Rogers et al. (2024) for the GOA pollock
   model. Environmental q-link (`Catchability = 5`) also exposed.
 - Internal growth model. See
-  [`build_growth()`](https://grantdadams.github.io/Rceattle/reference/build_growth.md)
+  [`build_growth()`](https://afsc-assessments.github.io/Rceattle/reference/build_growth.md)
   and the `growthFun` argument to
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md).
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md).
   `alpha_wt_len` / `beta_wt_len` added to the data control sheet.
   Length-based suitability (`suitMode = 1` / `2` / `3` / `4` / `5` /
   `6`) wired through to use the estimated growth model. Comparison with
@@ -8485,12 +9923,12 @@ log.
   `srr_est_mode = 3`.
 - M1 random effects with optional environmental linkage; `M_prior` /
   `M_prior_sd` priors carried through
-  [`build_M1()`](https://grantdadams.github.io/Rceattle/reference/build_M1.md).
-- [`remove_F()`](https://grantdadams.github.io/Rceattle/reference/remove_F.md)
+  [`build_M1()`](https://afsc-assessments.github.io/Rceattle/reference/build_M1.md).
+- [`remove_F()`](https://afsc-assessments.github.io/Rceattle/reference/remove_F.md)
   function returns a fitted model with F set to 0 – used internally for
   dynamic reference point calculation.
 - `DynamicHCR = TRUE` in
-  [`build_hcr()`](https://grantdadams.github.io/Rceattle/reference/build_hcr.md)
+  [`build_hcr()`](https://afsc-assessments.github.io/Rceattle/reference/build_hcr.md)
   to switch from static to dynamic SB0 reference points.
 - CMSY harvest control rule (`HCR = 1`): maximize joint catch across
   species, optionally constrained to keep depletion above `Plimit`.
@@ -8499,18 +9937,18 @@ log.
 - SESSF Tier 1 HCR (`HCR = 7`).
 - Iterative multi-species HCRs: `HCRorder` controls the order in which
   species F is solved (e.g. predators before prey) inside
-  [`build_hcr()`](https://grantdadams.github.io/Rceattle/reference/build_hcr.md).
+  [`build_hcr()`](https://afsc-assessments.github.io/Rceattle/reference/build_hcr.md).
 
 ### New features – MSE and projection
 
-- [`run_mse()`](https://grantdadams.github.io/Rceattle/reference/run_mse.md)
+- [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
   now writes per-simulation `.rds` files when `dir` is specified, for
   streaming-friendly long runs.
-  [`load_mse()`](https://grantdadams.github.io/Rceattle/reference/load_mse.md)
+  [`load_mse()`](https://afsc-assessments.github.io/Rceattle/reference/load_mse.md)
   reads those back.
-- [`check_mse()`](https://grantdadams.github.io/Rceattle/reference/check_mse.md)
+- [`check_mse()`](https://afsc-assessments.github.io/Rceattle/reference/check_mse.md)
   validates which OM/EM simulations converged.
-- [`mse_summary()`](https://grantdadams.github.io/Rceattle/reference/mse_summary.md)
+- [`mse_summary()`](https://afsc-assessments.github.io/Rceattle/reference/mse_summary.md)
   produces a per-fleet performance-metric table (mean catch, IAV,
   P(closed), MSE on SSB, P(F \> Flimit), P(SSB \< SSBlimit), terminal
   depletion, …).
@@ -8524,17 +9962,17 @@ log.
 
 ### New features – diagnostics and tooling
 
-- [`jitter()`](https://grantdadams.github.io/Rceattle/reference/jitter.md)
+- [`jitter()`](https://afsc-assessments.github.io/Rceattle/reference/jitter.md)
   function to perturb starting values and re-fit, for
   global-vs-local-minimum diagnostics.
-- [`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md)
+- [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md)
   peels with optional `nyrs_forecast`.
-- [`model_average()`](https://grantdadams.github.io/Rceattle/reference/model_average.md)
+- [`model_average()`](https://afsc-assessments.github.io/Rceattle/reference/model_average.md)
   for averaging derived quantities across multiple fitted models, with
   optional bootstrap uncertainty.
-- [`compare_sim()`](https://grantdadams.github.io/Rceattle/reference/compare_sim.md)
+- [`compare_sim()`](https://afsc-assessments.github.io/Rceattle/reference/compare_sim.md)
   and
-  [`sim_mod()`](https://grantdadams.github.io/Rceattle/reference/sim_mod.md)
+  [`sim_mod()`](https://afsc-assessments.github.io/Rceattle/reference/sim_mod.md)
   for parametric simulation testing.
 - `McAllister-Ianelli-reweighting.R` example for composition
   reweighting.
@@ -8543,7 +9981,7 @@ log.
 - `Selectivity = "Fixed"` (`= 0`) for empirically supplied selectivity
   blocks via the `emp_sel` data sheet.
 - `TMBfilename` argument to
-  [`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
   to point at an alternate `.cpp` during development.
 
 ### Behavior changes
@@ -8560,7 +9998,7 @@ log.
   and `N_sel_bins`).
 - Age-error and age-transition matrices are now dimension-checked
   against `nages` at
-  [`data_check()`](https://grantdadams.github.io/Rceattle/reference/data_check.md)
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   time.
 
 ## Rceattle 4.0.0

@@ -14,7 +14,7 @@ build_bounds(param_list = NULL, data_list)
 - param_list:
 
   Parameter list object built from
-  [`build_params`](https://grantdadams.github.io/Rceattle/reference/build_params.md)
+  [`build_params`](https://afsc-assessments.github.io/Rceattle/reference/build_params.md)
 
 - data_list:
 

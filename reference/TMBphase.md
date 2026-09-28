@@ -47,7 +47,7 @@ TMBphase(
 
   Tagged list assigning each named parameter its integer phase (as
   returned by
-  [`set_phases()`](https://grantdadams.github.io/Rceattle/reference/set_phases.md)).
+  [`set_phases()`](https://afsc-assessments.github.io/Rceattle/reference/set_phases.md)).
 
 - model_name:
 

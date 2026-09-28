@@ -42,7 +42,7 @@ has help available via `?`. The workflow is:
 # executing it in CI would reinstall mid-render.
 # Rceattle (pulls CRAN dependencies automatically; e.g. TMB, Matrix, dplyr)
 install.packages("remotes")
-remotes::install_github("grantdadams/Rceattle")
+remotes::install_github("afsc-assessments/Rceattle")
 
 # Optional: TMBhelper provides richer optimization diagnostics.
 # Rceattle falls back to plain nlminb + sdreport if it's not installed.
@@ -81,7 +81,7 @@ mydata <- Rceattle::read_data( file = "BS2017SS.xlsx")
 
 A description of the inputs and file structure can be found on the first
 sheet (`meta_data`) and the associated help function
-[`?BS2017SS`](https://grantdadams.github.io/Rceattle/reference/BS2017SS.md).
+[`?BS2017SS`](https://afsc-assessments.github.io/Rceattle/reference/BS2017SS.md).
 
 ## 3. Fit models
 
@@ -178,7 +178,7 @@ summary(model_5)
 
 ## 4. Reading the fitted object
 
-[`fit_mod()`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+[`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
 returns an object of class `Rceattle`. Rather than reaching into it by
 hand, most of what you need is reachable through standard S3 methods:
 
@@ -187,7 +187,7 @@ hand, most of what you need is reachable through standard S3 methods:
 summary(model_1)        # reference points, likelihood, convergence
 coef(model_1)           # estimated parameters
 head(vcov(model_1))     # covariance matrix (NULL when getsd = FALSE)
-logLik(model_1)         # log-likelihood, carrying its degrees of freedom
+logLik(model_1)         # log-likelihood, holding its degrees of freedom
 AIC(model_1)            # so stats::AIC() works
 head(residuals(model_1))
 head(as.data.frame(model_1))
@@ -198,26 +198,26 @@ head(as.data.frame(model_1))
 [`profile()`](https://rdrr.io/r/stats/profile.html) dispatch on the fit
 too, and the diagnostics return their own classes with
 [`print()`](https://rdrr.io/r/base/print.html) methods that summarize
-the result —
-[`retrospective()`](https://grantdadams.github.io/Rceattle/reference/retrospective.md)
+the result,
+[`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md)
 gives an `Rceattle_retro`,
-[`jitter()`](https://grantdadams.github.io/Rceattle/reference/jitter.md)
+[`jitter()`](https://afsc-assessments.github.io/Rceattle/reference/jitter.md)
 an `Rceattle_jitter`,
-[`self_test()`](https://grantdadams.github.io/Rceattle/reference/self_test.md)
+[`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md)
 an `Rceattle_selftest`,
 [`profile()`](https://rdrr.io/r/stats/profile.html) an
 `Rceattle_profile`, and
-[`osa_residuals()`](https://grantdadams.github.io/Rceattle/reference/osa_residuals.md)
+[`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md)
 an `rceattle_osa`. A data list read by
-[`read_data()`](https://grantdadams.github.io/Rceattle/reference/read_data.md)
+[`read_data()`](https://afsc-assessments.github.io/Rceattle/reference/read_data.md)
 is an `Rceattle_data`, which also prints and summarizes.
 
 The numbers themselves live in two places. Derived quantities on their
-natural scale are in `fit$quantities` — biomass, `ssb`, `N_at_age`,
+natural scale are in `fit$quantities`, biomass, `ssb`, `N_at_age`,
 `M_at_age`, `sel_at_age`, reference points and the likelihood
 components. The parameters the optimizer actually estimated are in
 `fit$estimated_params`, mostly on a log scale, under abbreviated names.
-[`parameter_dictionary()`](https://grantdadams.github.io/Rceattle/reference/parameter_dictionary.md)
+[`parameter_dictionary()`](https://afsc-assessments.github.io/Rceattle/reference/parameter_dictionary.md)
 explains those names:
 
 ``` r
@@ -230,8 +230,8 @@ Anything beginning `log_`, or ending `_log_sd`, needs
 [`exp()`](https://rdrr.io/r/base/Log.html) to reach the quantity named
 in the dictionary’s `natural` column.
 
-[`quantity_dictionary()`](https://grantdadams.github.io/Rceattle/reference/quantity_dictionary.md)
-does the same job for the reported quantities — what each one means, the
+[`quantity_dictionary()`](https://afsc-assessments.github.io/Rceattle/reference/quantity_dictionary.md)
+does the same job for the reported quantities, what each one means, the
 units it is in, its dimensions, and whether `sdreport()` gives it a
 standard error:
 
@@ -240,7 +240,7 @@ standard error:
 quantity_dictionary("ssb_depletion")
 quantity_dictionary(process = "reference_points")
 
-# Everything that carries a standard error
+# Everything that holds a standard error
 dict <- quantity_dictionary()
 dict[dict$se, c("quantity", "units")]
 ```
@@ -250,7 +250,7 @@ fish** and weight-at-age is **kg**, so their product is **mt**. Two
 things worth reading off the dictionary before using a quantity. `ssb`
 is *female* spawning-stock biomass, and every per-recruit reference
 point (`SPR0`, `SPRlimit`, `SPRtarget`) is defined only in
-single-species mode — on a multispecies fit the model leaves them at
+single-species mode, on a multispecies fit the model leaves them at
 zero, which is not an estimate of zero.
 
 ## 5. Compare models
@@ -271,12 +271,12 @@ model_1$quantities$jnll_comp    # Negative log-likelihood components
 sapply(list(model_2, model_3, model_5), AIC)
 ```
 
-[`report_tables()`](https://grantdadams.github.io/Rceattle/reference/report_tables.md)
-collects the quantities an assessment reports — the fit and its
+[`report_tables()`](https://afsc-assessments.github.io/Rceattle/reference/report_tables.md)
+collects the quantities an assessment reports, the fit and its
 likelihood decomposition, the time series with uncertainty, the
-reference points, and the fits to index and catch — into one set of tidy
-tables. Every table carries a `model` column, so several fits stack for
-a like-for-like comparison:
+reference points, and the fits to index and catch, into one set of tidy
+tables. Every table holds a `model` column, so several fits stack for a
+like-for-like comparison:
 
 ``` r
 
@@ -296,7 +296,7 @@ the number the model happens to hold.
 
 Diagnostics are attached rather than computed: a retrospective or a
 jitter is tens to hundreds of refits, so
-[`report_tables()`](https://grantdadams.github.io/Rceattle/reference/report_tables.md)
+[`report_tables()`](https://afsc-assessments.github.io/Rceattle/reference/report_tables.md)
 never runs one on your behalf. Pass them in once you have them, and the
 matching sections appear:
 
@@ -305,7 +305,7 @@ matching sections appear:
 report_tables(model_1, retro = model_1_retro, osa = osa_residuals(model_1))
 ```
 
-[`standard_output()`](https://grantdadams.github.io/Rceattle/reference/standard_output.md)
+[`standard_output()`](https://afsc-assessments.github.io/Rceattle/reference/standard_output.md)
 relabels the result into the NOAA standardized assessment output that
 the `stockplotr` and `asar` packages read, so Rceattle results can be
 plotted and written into a report by the same tooling used for SS3, BAM,
@@ -356,7 +356,7 @@ plot_ssb(model_list, model_names = model_names, incl_proj = TRUE, add_ci = TRUE)
 # Biomass depletion (total biomass / B0)
 plot_depletion(model_list, model_names = model_names, incl_proj = FALSE, add_ci = FALSE)
 
-# SSB depletion (female spawning biomass / SB0) -- the quantity a Tier 3 HCR
+# SSB depletion (female spawning biomass / SB0), the quantity a Tier 3 HCR
 # compares against B40%
 plot_depletionSSB(model_list, model_names = model_names, incl_proj = FALSE, add_ci = FALSE)
 ```
@@ -365,7 +365,7 @@ Diagnostic plots cover selectivity, composition fits, index fits, and
 catch fits. Composition plots take a single model; selectivity, index
 and catch plots take one or more.
 
-Each fleet is drawn on the dimension its selectivity was estimated on –
+Each fleet is drawn on the dimension its selectivity was estimated on,
 age, or length bin for a fleet whose `Selectivity_dimension` is
 `"Length"`. With one model, colour is the year, so time-varying
 selectivity reads as a fan. With several, colour separates the models

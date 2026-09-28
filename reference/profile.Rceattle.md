@@ -3,8 +3,8 @@
 Re-fits an Rceattle model while holding selected cells of a parameter
 fixed at user-specified values. Supports profiling a single cell (e.g.
 `R_log_sd[species = 1]`) and arbitrary N-dimensional cross-profiles over
-multiple cells – e.g. `log_M1[1, 1, 1]` and `log_M1[1, 2, 1]` jointly,
-to profile residual M for males against females. For each grid point the
+multiple cells, e.g. `log_M1[1, 1, 1]` and `log_M1[1, 2, 1]` jointly, to
+profile residual M for males against females. For each grid point the
 targeted cells are fixed in the TMB map and the remaining parameters are
 re-estimated; the result is a grid of Rceattle models for downstream NLL
 surfaces.
@@ -31,7 +31,7 @@ profile(
 - fitted:
 
   an Rceattle model fit using
-  [`fit_mod`](https://grantdadams.github.io/Rceattle/reference/fit_mod.md)
+  [`fit_mod`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
 
 - param:
 
@@ -74,7 +74,7 @@ profile(
 
   A list whose entries are integer index vectors, one entry per cell to
   fix. Each entry's length must equal the number of dimensions of the
-  resolved parameter – 1 for vectors (`R_log_sd`), 2 for matrices
+  resolved parameter, 1 for vectors (`R_log_sd`), 2 for matrices
   (`rec_pars`), 3 for 3-D arrays (`log_M1`). When using the
   `"R0"`/`"alpha"`/`"beta"` aliases, supply only the species index
   (length 1); the column is filled in from the alias. E.g.
@@ -115,7 +115,7 @@ profile(
   [`TMB::sdreport`](https://rdrr.io/pkg/TMB/man/sdreport.html). The
   profile reads only the objective (`nll`), so `FALSE` is faster with no
   effect on the profile. Default `NULL` inherits the input model's
-  setting (`TRUE` only if it carries an `sdrep`).
+  setting (`TRUE` only if it holds an `sdrep`).
 
 - joint:
 
@@ -195,9 +195,9 @@ A list with elements:
   [`print()`](https://rdrr.io/r/base/print.html) can say that `grid`
   holds a multiplier or an offset rather than a parameter value.
 
-Carries class `"Rceattle_profile"`, so printing it reports whether the
-grid brackets the minimum; see
-[`print.Rceattle_profile`](https://grantdadams.github.io/Rceattle/reference/print.Rceattle_profile.md).
+Has class `"Rceattle_profile"`, so printing it reports whether the grid
+brackets the minimum; see
+[`print.Rceattle_profile`](https://afsc-assessments.github.io/Rceattle/reference/print.Rceattle_profile.md).
 Every element indexes exactly as before.
 
 ## Examples
@@ -213,13 +213,13 @@ ss_run <- fit_mod(data_list = BS2017SS,
 #> Warning: Passing ‘phase’, ‘verbose’ directly to fit_mod() is deprecated and will be removed in a future release. Bundle these into fit_control() instead, e.g. fit_control(phase = ..., verbose = ...). Forwarding for now.
 #> `age_trans_matrix` data does not span range of age for species 1 will fill with 0s
 
-# 1-D profile of sigmaR for species 1 (alias form -- natural scale)
+# 1-D profile of sigmaR for species 1 (alias form, natural scale)
 p1 <- profile(ss_run,
     param  = "sigmaR",
     slots  = list(1),
     values = list(seq(0.1, 1.5, by = 0.1)))
 
-# Equivalent raw form (log scale -- user does the transform)
+# Equivalent raw form (log scale, user does the transform)
 p1_raw <- profile(ss_run,
     param     = "R_log_sd",
     slots     = list(1),

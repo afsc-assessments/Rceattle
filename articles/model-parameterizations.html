@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.33.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -53,6 +53,8 @@
     <li><a class="dropdown-item" href="../articles/stock-synthesis-conversion.html">Converting from Stock Synthesis</a></li>
     <li><h6 class="dropdown-header" data-toc-skip>--- Contributing ---</h6></li>
     <li><a class="dropdown-item" href="../articles/developer-guide.html">Developer guide</a></li>
+    <li><a class="dropdown-item" href="../articles/adding-a-selectivity-form.html">Adding a selectivity form</a></li>
+    <li><a class="dropdown-item" href="../cpp/index.html">C++ template reference</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
@@ -62,7 +64,7 @@
 <li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json">
 </form></li>
-<li class="nav-item"><a class="external-link nav-link" href="https://github.com/grantdadams/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/afsc-assessments/Rceattle" aria-label="GitHub"><span class="fa fab fa-github"></span></a></li>
       </ul>
 </div>
 
@@ -79,7 +81,7 @@
       <h1>8. Model parameterizations</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/grantdadams/Rceattle/blob/main/vignettes/model-parameterizations.Rmd" class="external-link"><code>vignettes/model-parameterizations.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/vignettes/model-parameterizations.Rmd" class="external-link"><code>vignettes/model-parameterizations.Rmd</code></a></small>
       <div class="d-none name"><code>model-parameterizations.Rmd</code></div>
     </div>
 
@@ -238,7 +240,7 @@ use for each species for ft to scale max consumption: 1 = Exponential
 (Stewart et al 1983), 2 = Temperature-dependence for warm-water species
 (Kitchell et al 1977; sensu Holsman et al 2015), 3 = temperature
 dependence for cool and cold-water species (Thornton and Lessem 1979); 4
-= temperature function held constant at 1.0 — bypasses bioenergetics and
+= temperature function held constant at 1.0, bypasses bioenergetics and
 uses <code>ration_data</code> as direct empirical annual ration input
 (set <code>CA = 1</code>, <code>fday = 1</code>,
 <code>CB = 0</code>)</li>
@@ -401,7 +403,7 @@ is not read for a fishery’s index rows. The model keys this on
 <code>Fleet_type</code>; there is no column to set. The distinction
 moves trend as well as scale, so a constant
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>q</mi><annotation encoding="application/x-tex">q</annotation></semantics></math>
-cannot absorb it — at <code>Month = 6</code>,
+cannot absorb it, at <code>Month = 6</code>,
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>e</mi><mrow><mi>−</mi><mi>Z</mi><mi>/</mi><mn>2</mn></mrow></msup><annotation encoding="application/x-tex">e^{-Z/2}</annotation></semantics></math>
 approximates
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>N</mi><mo accent="true">‾</mo></mover><mi>/</mi><mi>N</mi></mrow><annotation encoding="application/x-tex">\bar{N}/N</annotation></semantics></math>
@@ -438,15 +440,22 @@ the fleet: 0 or <code>"Fixed"</code> = empirical selectivity provided in
 <code>"DoubleLogistic"</code>; 4 or <code>"DescendingLogistic"</code>; 5
 or <code>"Hake"</code>, non-parametric sensu Taylor et al 2014; 6 or
 <code>"2DAR1"</code> for bin by year; 7 or <code>"3DAR1"</code> sensu
-Cheng et al (2025); 8 or <code>"DoubleNormal"</code>, the six-parameter
-Stock Synthesis pattern 24; 9 or <code>"NonParametricPM"</code>, Ianelli
-non-parametric with the ADMB AMAK (<code>"pm"</code>) penalty; 11 or
-<code>"LogisticPM"</code>, the AMAK logistic with a free age-1
-selectivity. There is no 10 — the integer codes are frozen, because
-renumbering one would silently reinterpret every saved config and every
-fitted <code>.rds</code> that carries it. Whether a form is age- or
-length-based is set by <code>Selectivity_dimension</code>, not by the
-code.</li>
+Cheng et al (2025); 8 or <code>"DoubleNormal"</code>, a four-parameter
+double normal (peak, ascending and descending widths, and a right-tail
+floor); this is the Stock Synthesis pattern 24 shape without its
+initial-selectivity and plateau-width parameters; 9 or
+<code>"NonParametricPM"</code>, Ianelli non-parametric with the ADMB
+AMAK (<code>"pm"</code>) penalty; 11 or <code>"LogisticPM"</code>, the
+AMAK logistic with a free age-1 selectivity; 13 or
+<code>"NonParametricIntegrable"</code>, the Ianelli base curve whose
+deviations have a proper density and so integrate under
+<code>random_sel</code> (<code>Time_varying_sel</code> picks the
+structure: <code>"Off"</code>, <code>"IID"</code> or
+<code>"RandomWalk"</code>). There is no 10, 12 or 14; the integer codes
+are frozen, because renumbering one would silently reinterpret every
+saved config and every fitted <code>.rds</code> that holds it. Whether a
+form is age- or length-based is set by
+<code>Selectivity_dimension</code>, not by the code.</li>
 <li>
 <code>N_sel_bins</code>: Number of age or length bins (per
 <code>Selectivity_dimension</code>) to estimate for non-parametric and
@@ -466,8 +475,8 @@ estimated under <code>fit_mod(random_sel = TRUE)</code>; 3 or
 <code>"RandomWalk"</code> = random walk following Dorn; 5 or
 <code>"RandomWalkAscending"</code> = random walk on ascending portion of
 double logistic only. Value 2 (<code>"AR1"</code>) was <strong>removed
-in 5.16.0</strong> — it was never an AR1, and an autocorrelated
-deviation is now a selectivity linkage,
+in 5.16.0</strong>: it was never an AR1, and an autocorrelated deviation
+is now a selectivity linkage,
 <code>linkage_spec(~ ar1(1 | Year))</code>. The switch as a whole is
 soft-deprecated in favour of that grammar.</li>
 <li>
@@ -475,7 +484,7 @@ soft-deprecated in favour of that grammar.</li>
 selectivity deviates. With <code>random_sel = FALSE</code> in
 <code><a href="../reference/fit_mod.html">fit_mod()</a></code> it is fixed at this value, per fleet. With
 <code>random_sel = TRUE</code> the deviates are integrated out and this
-sd is <em>estimated</em>, so the value here is only a starting value —
+sd is <em>estimated</em>, so the value here is only a starting value,
 and fleets sharing a <code>Selectivity_index</code> share one estimated
 sd, started at the geometric mean of theirs.
 <code>Time_varying_q_sd</code> is the catchability equivalent, under
@@ -484,6 +493,116 @@ sd, started at the geometric mean of theirs.
 <code>Bin_first_selected</code>: Age/length bin at which selectivity
 is non-zero. Selectivity before this age will be set to 0.</li>
 </ul>
+<div class="section level4">
+<h4 id="selectivity-penalty-weights">Selectivity penalty weights<a class="anchor" aria-label="anchor" href="#selectivity-penalty-weights"></a>
+</h4>
+<p><code>Sel_curve_pen1/2/3</code> are penalty <em>weights</em>. Each
+penalty is a Gaussian sum-of-squares
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">weight</mtext><mo>⋅</mo><msup><mi>x</mi><mn>2</mn></msup><mo>=</mo><msup><mi>x</mi><mn>2</mn></msup><mi>/</mi><mo stretchy="false" form="prefix">(</mo><mn>2</mn><msup><mi>σ</mi><mn>2</mn></msup><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\text{weight}\cdot x^2 = x^2 / (2\sigma^2)</annotation></semantics></math>),
+so you may instead supply a <strong>standard deviation</strong> and let
+<code><a href="../reference/switch_check.html">switch_check()</a></code> convert it with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">weight</mtext><mo>=</mo><mn>1</mn><mi>/</mi><mo stretchy="false" form="prefix">(</mo><mn>2</mn><msup><mi>σ</mi><mn>2</mn></msup><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\text{weight} = 1/(2\sigma^2)</annotation></semantics></math>.
+Supplying an SD sets the matching <code>Sel_curve_pen</code> column; a
+<code>Sel_curve_pen</code> you set directly is never overwritten.</p>
+<p>Which form reads which slot, and what it charges:</p>
+<table style="width:100%;" class="table">
+<colgroup>
+<col width="14%">
+<col width="14%">
+<col width="14%">
+<col width="14%">
+<col width="14%">
+<col width="14%">
+<col width="14%">
+</colgroup>
+<thead><tr class="header">
+<th>Slot</th>
+<th>SD column</th>
+<th>Reads the sign?</th>
+<th>
+<code>NonParametric</code> (2)</th>
+<th>
+<code>NonParametricPM</code> (9)</th>
+<th>
+<code>NonParametricIntegrable</code> (13)</th>
+<th>
+<code>LogisticPM</code> (11)</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td><code>Sel_curve_pen1</code></td>
+<td><code>Sel_shape_sd</code></td>
+<td>only on 9 under <code>Sel_shape_mode = "Directional"</code>
+</td>
+<td>shape, on the realized curve</td>
+<td>shape, on the realized curve</td>
+<td>shape, on the base curve</td>
+<td>random walk on realized log-selectivity</td>
+</tr>
+<tr class="even">
+<td><code>Sel_curve_pen2</code></td>
+<td><code>Sel_curvature_sd</code></td>
+<td>no</td>
+<td>2nd-difference curvature, on the realized curve</td>
+<td>2nd-difference curvature, on the realized curve</td>
+<td>2nd-difference curvature, on the base curve</td>
+<td>not read</td>
+</tr>
+<tr class="odd">
+<td><code>Sel_curve_pen3</code></td>
+<td><code>Sel_devmag_sd</code></td>
+<td>no</td>
+<td>not read</td>
+<td>deviation magnitude</td>
+<td>not read</td>
+<td>random walk on the age-1 deviates</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Realized or base.</strong> Forms 2 and 9 charge the shape and
+curvature penalties on the <em>realized</em> curve, accumulated over
+sexes and years (form 2 under <code>"IID"</code> or
+<code>"RandomWalk"</code>, form 9 from <code>Sel_start_year</code> under
+<code>"RandomWalk"</code>; 9 refuses <code>"IID"</code>). Form 13
+charges them once per sex on the <em>base</em> coefficients. The same
+weight therefore bites harder on a time-varying 2 or 9 – retune rather
+than copy one across forms.</p>
+<p>Three points that decide whether a value you set does anything:</p>
+<ul>
+<li>
+<strong>The direction.</strong>
+<code>Sel_shape_dir = "Increasing"</code> is implemented only by
+<code>NonParametricPM</code> (9) under
+<code>Sel_shape_mode = "Directional"</code>, where the template switches
+the one-sided penalty from the decreasing side to the increasing one.
+Everywhere else – including 9 under <code>"Smooth"</code>, which is
+two-sided – the weight is applied as written, so
+<code>"Increasing"</code> is refused rather than silently negating
+it.</li>
+<li>
+<strong>The sign.</strong> A weight multiplies a squared deviation,
+so a negative one <em>rewards</em> that deviation.
+<code><a href="../reference/data_check.html">data_check()</a></code> refuses a negative <code>Sel_curve_pen</code>
+wherever the template reads it as a weight – which leaves four cases it
+does not refuse: the directional case above, a
+<code>Fleet_type = "Off"</code> fleet (charged no selectivity penalty at
+all), a fleet that follows another’s <code>Selectivity_index</code>
+<em>and</em> shares its selectivity form (the group’s penalty is charged
+once, on the lead), and a slot charged on deviates the fleet does not
+estimate, per the next point.</li>
+<li>
+<strong>Whether the deviates exist.</strong> The three cells above
+marked as random walks or deviation magnitude are charged on the
+time-varying deviates, so under <code>Time_varying_sel = "Off"</code>
+they are identically zero and the weight is never read. Forms 2 and 13
+do estimate deviates, but score them with a Gaussian density on
+<code>Time_varying_sel_sd</code>, which is why they never read slot
+3.</li>
+</ul>
+<p>The 2D/3D-AR1 forms (6/7) reuse <code>Sel_curve_pen1/2/3</code> for
+logit-scale correlations, not weights, and keep those columns. The
+<code>Hake</code> form (5) reads no <code>Sel_curve_pen</code> slot.</p>
+</div>
 <div class="section level4">
 <h4 id="fixed-selectivity">Fixed selectivity<a class="anchor" aria-label="anchor" href="#fixed-selectivity"></a>
 </h4>
@@ -497,26 +616,9 @@ selectivity-at-age in the <code>emp_sel</code> data.</p>
 <code>N_sel_bins = 6</code>, <code>Sel_curve_pen1 = 12.5</code>,
 <code>Sel_curve_pen2 = 200</code>, and
 <code>Bin_first_selected = 1</code></p>
-<p>The <code>Sel_curve_pen1/2/3</code> are penalty <em>weights</em>.
-Each penalty is a Gaussian sum-of-squares
-(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">weight</mtext><mo>⋅</mo><msup><mi>x</mi><mn>2</mn></msup><mo>=</mo><msup><mi>x</mi><mn>2</mn></msup><mi>/</mi><mo stretchy="false" form="prefix">(</mo><mn>2</mn><msup><mi>σ</mi><mn>2</mn></msup><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\text{weight}\cdot x^2 = x^2 / (2\sigma^2)</annotation></semantics></math>),
-so you may instead supply them as <strong>standard deviations</strong> —
-<code>Sel_shape_sd</code> (with
-<code>Sel_shape_dir = "Decreasing"</code>/<code>"Increasing"</code> for
-the directional sign), <code>Sel_curvature_sd</code>, and
-<code>Sel_devmag_sd</code> — which are converted to the weights via
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">weight</mtext><mo>=</mo><mn>1</mn><mi>/</mi><mo stretchy="false" form="prefix">(</mo><mn>2</mn><msup><mi>σ</mi><mn>2</mn></msup><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\text{weight} = 1/(2\sigma^2)</annotation></semantics></math>.
-Supplying an SD sets the matching <code>Sel_curve_pen</code> column; a
-<code>Sel_curve_pen</code> value you provide directly is never
-overwritten. <code>Sel_shape_sd</code> and <code>Sel_devmag_sd</code>
-apply to both <code>NonParametric</code> (2/9) and
-<code>LogisticPM</code> (11); <code>Sel_curvature_sd</code> is
-<code>NonParametric</code>-only (LogisticPM does not use
-<code>Sel_curve_pen2</code>). LogisticPM’s shape penalty is two-sided,
-so its weight is always positive
-(<code>Sel_shape_dir = "Increasing"</code> is rejected there). The
-2D/3D-AR1 forms reuse <code>Sel_curve_pen</code> for logit-scale
-correlations and keep those columns.</p>
+<p>See <strong>Selectivity penalty weights</strong> above for
+<code>Sel_curve_pen1/2/3</code> and the standard-deviation columns that
+set them.</p>
 <p>Equation:
 <math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mi>e</mi><msub><mi>l</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>s</mi><mi>a</mi></mrow></msub><mo>=</mo><msup><mi>e</mi><msub><mi>ϕ</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>s</mi><mi>a</mi></mrow></msub></msup></mrow><annotation encoding="application/x-tex">sel_{f_i sa}=e^{\phi_{f_isa}}</annotation></semantics></math></p>
 </div>
@@ -540,7 +642,7 @@ or other desired value.</p>
 Penalized likelihood: <code>Time_varying_sel = 1</code>
 <math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ϕ</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>s</mi><mi>y</mi></mrow></msub><mo>∼</mo><mi>N</mi><mo stretchy="false" form="prefix">(</mo><mn>0</mn><mo>,</mo><msubsup><mi>σ</mi><msub><mi>f</mi><mi>i</mi></msub><mi>ϕ</mi></msubsup><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\phi_{f_i sy} \sim N(0,\sigma^{\phi}_{f_i}) </annotation></semantics></math>
 Random effect: <code>Time_varying_sel = 1</code> with
-<code>fit_mod(random_sel = TRUE)</code> – the deviations are integrated
+<code>fit_mod(random_sel = TRUE)</code>: the deviations are integrated
 out by the Laplace approximation and
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mover><mi>σ</mi><mo accent="true">̂</mo></mover><msub><mi>f</mi><mi>i</mi></msub><mi>ϕ</mi></msubsup><annotation encoding="application/x-tex">\hat\sigma^{\phi}_{f_i}</annotation></semantics></math>
 is estimated rather than fixed at <code>Time_varying_sel_sd</code>
@@ -568,7 +670,7 @@ time-varying parameters)<a class="anchor" aria-label="anchor" href="#time-varyin
 <p>Penalized likelihood: <code>Time_varying_sel = 1</code>
 <math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ϕ</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>s</mi><mi>y</mi></mrow></msub><mo>∼</mo><mi>N</mi><mo stretchy="false" form="prefix">(</mo><mn>0</mn><mo>,</mo><msubsup><mi>σ</mi><msub><mi>f</mi><mi>i</mi></msub><mi>ϕ</mi></msubsup><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\phi_{f_i sy} \sim N(0,\sigma^{\phi}_{f_i}) </annotation></semantics></math>
 Random effect: <code>Time_varying_sel = 1</code> with
-<code>fit_mod(random_sel = TRUE)</code> – the deviations are integrated
+<code>fit_mod(random_sel = TRUE)</code>: the deviations are integrated
 out by the Laplace approximation and
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mover><mi>σ</mi><mo accent="true">̂</mo></mover><msub><mi>f</mi><mi>i</mi></msub><mi>ϕ</mi></msubsup><annotation encoding="application/x-tex">\hat\sigma^{\phi}_{f_i}</annotation></semantics></math>
 is estimated rather than fixed at <code>Time_varying_sel_sd</code>
@@ -610,7 +712,7 @@ parameters)<a class="anchor" aria-label="anchor" href="#time-varying-double-logi
 <p>Penalized likelihood: <code>Time_varying_sel = 1</code>
 <math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ϕ</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>s</mi><mi>y</mi></mrow></msub><mo>∼</mo><mi>N</mi><mo stretchy="false" form="prefix">(</mo><mn>0</mn><mo>,</mo><msubsup><mi>σ</mi><msub><mi>f</mi><mi>i</mi></msub><mi>ϕ</mi></msubsup><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\phi_{f_i sy} \sim N(0,\sigma^{\phi}_{f_i}) </annotation></semantics></math>
 Random effect: <code>Time_varying_sel = 1</code> with
-<code>fit_mod(random_sel = TRUE)</code> – the deviations are integrated
+<code>fit_mod(random_sel = TRUE)</code>: the deviations are integrated
 out by the Laplace approximation and
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mover><mi>σ</mi><mo accent="true">̂</mo></mover><msub><mi>f</mi><mi>i</mi></msub><mi>ϕ</mi></msubsup><annotation encoding="application/x-tex">\hat\sigma^{\phi}_{f_i}</annotation></semantics></math>
 is estimated rather than fixed at <code>Time_varying_sel_sd</code>
@@ -665,7 +767,7 @@ estimated standard deviation
 <p>Penalized likelihood: <code>Time_varying_sel = 1</code>
 <math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ϕ</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>s</mi><mi>y</mi></mrow></msub><mo>∼</mo><mi>N</mi><mo stretchy="false" form="prefix">(</mo><mn>0</mn><mo>,</mo><msubsup><mi>σ</mi><msub><mi>f</mi><mi>i</mi></msub><mi>ϕ</mi></msubsup><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\phi_{f_i sy} \sim N(0,\sigma^{\phi}_{f_i}) </annotation></semantics></math>
 Random effect: <code>Time_varying_sel = 1</code> with
-<code>fit_mod(random_sel = TRUE)</code> – the deviations are integrated
+<code>fit_mod(random_sel = TRUE)</code>: the deviations are integrated
 out by the Laplace approximation and
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mover><mi>σ</mi><mo accent="true">̂</mo></mover><msub><mi>f</mi><mi>i</mi></msub><mi>ϕ</mi></msubsup><annotation encoding="application/x-tex">\hat\sigma^{\phi}_{f_i}</annotation></semantics></math>
 is estimated rather than fixed at <code>Time_varying_sel_sd</code>
@@ -703,11 +805,11 @@ dnorm(log_q, log(Catchability_init) - bias_adjust_proc * sd^2/2,
 sd)</li>
 <li>
 <code>Time_varying_q</code> Whether a time-varying q should be
-estimated. 0 = no, 1 = penalized deviate, 2 = random effect, 3 = time
-blocks with no penalty; 4 = random walk from mean following Dorn 2018
-(dnorm(q_y - q_y-1, 0, sigma). If Catchability = 5, this determines the
-environmental index to be used in the equation log(q_y) = q_mu + beta *
-index_y</li>
+estimated. 0 = no, 1 = penalized deviate, 2 = AR1 (REMOVED in 5.16.0;
+<code><a href="../reference/data_check.html">data_check()</a></code> errors), 3 = time blocks with no penalty; 4 =
+random walk from mean following Dorn 2018 (dnorm(q_y - q_y-1, 0, sigma).
+If Catchability = 5, this determines the environmental index to be used
+in the equation log(q_y) = q_mu + beta * index_y</li>
 <li>
 <code>Time_varying_q_sd</code> The sd to use for the random walk of
 time varying q if set to 1</li>
@@ -758,12 +860,10 @@ time-invariant standard error of the survey:
 random effects</em></p>
 <p>NOTE: If <code>Catchability = 2</code> a prior will be put on mean
 catchability as above. <code>Catchability %in% c(1:2)</code> and
-<code>Time_varying_q %in% c(1:2)</code>
+<code>Time_varying_q %in% c(1, 4)</code>
 <math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mi>q</mi><mo accent="true">̂</mo></mover><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>y</mi></mrow></msub><mo>=</mo><msup><mi>e</mi><mrow><msub><mover><mi>q</mi><mo accent="true">‾</mo></mover><msub><mi>f</mi><mi>i</mi></msub></msub><mo>+</mo><msub><mi>ω</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>y</mi></mrow></msub></mrow></msup></mrow><annotation encoding="application/x-tex">\hat{q}_{f_iy} = e^{\bar{q}_{f_i}+ \omega_{f_iy}}</annotation></semantics></math><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ω</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>y</mi></mrow></msub><mo>∼</mo><mi>N</mi><mo stretchy="false" form="prefix">(</mo><mn>0</mn><mo>,</mo></mrow><annotation encoding="application/x-tex">\omega_{f_iy} \sim N(0,</annotation></semantics></math><code>Time_varying_q_sd</code><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo stretchy="false" form="postfix">)</mo><annotation encoding="application/x-tex">)</annotation></semantics></math>
-where <code>Time_varying_q_sd</code> is either fixed
-<code>Time_varying_q = 1</code> or estimated
-<code>Time_varying_q = 2</code> &amp; <code>random_q = TRUE</code> in
-</p>
+where <code>Time_varying_q_sd</code> is either fixed, or estimated with
+<code>random_q = TRUE</code> in <code><a href="../reference/fit_mod.html">fit_mod()</a></code></p>
 <p><em>Catchability time-blocks</em></p>
 <p><code>Catchability %in% c(1:2)</code>,
 <code>Time_varying_q = 3</code> where the blocks are based on the blocks

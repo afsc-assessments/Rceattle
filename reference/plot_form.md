@@ -14,7 +14,7 @@ plot_form(params = NULL, pred = 1, pred_age = 1, prey = 1, msmMode = 3)
 - params:
 
   Parameter list object from
-  [`build_params`](https://grantdadams.github.io/Rceattle/reference/build_params.md)
+  [`build_params`](https://afsc-assessments.github.io/Rceattle/reference/build_params.md)
   or `Rceattle`
 
 - pred:

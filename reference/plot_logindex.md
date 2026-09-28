@@ -14,7 +14,7 @@ plot_logindex(...)
 - ...:
 
   Passed through to
-  [`plot_index()`](https://grantdadams.github.io/Rceattle/reference/plot_index.md).
+  [`plot_index()`](https://afsc-assessments.github.io/Rceattle/reference/plot_index.md).
 
 ## Value
 
