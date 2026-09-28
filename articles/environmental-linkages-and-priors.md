@@ -928,6 +928,13 @@ build_selectivity(linkages = list(
                         priors = list(intercept = lognormal(0, 0.5)))))
 ```
 
+It adds to the form rather than replacing part of it: the form’s own
+parameters are estimated separately for each sex already, so a two-sex
+`Logistic` fleet estimates a slope and an inflection per sex **plus**
+this multiplier, and the named sex’s curve has three parameters to the
+reference sex’s two. An SS male offset usually ties the male shape to
+the female’s; this does not.
+
 The multiplier equals the ratio of the sexes’ peak heights only where
 their shapes peak equally, which the logistic family does on an age
 axis; for a dome with sex-specific shape it is the pointwise multiplier,

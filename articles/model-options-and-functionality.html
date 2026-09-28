@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -83,7 +83,7 @@
 Adams</h4>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.45.1/vignettes/model-options-and-functionality.Rmd" class="external-link"><code>vignettes/model-options-and-functionality.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/vignettes/model-options-and-functionality.Rmd" class="external-link"><code>vignettes/model-options-and-functionality.Rmd</code></a></small>
       <div class="d-none name"><code>model-options-and-functionality.Rmd</code></div>
     </div>
 
@@ -896,6 +896,21 @@ own parameters</td>
 multiplier to any estimated form, so a “none” here means the shape
 cannot hold the difference, not that the model cannot. The multiplier is
 applied after the form’s own centring or normalization.</p>
+<p><strong>The form’s own parameters are already per sex, and stay that
+way.</strong> Each sex gets its own copy: a two-sex
+<code>Logistic</code> fleet estimates a slope and an inflection for
+each. An <code>apical</code> linkage adds a height on top of two
+already-free shapes, so that fleet estimates five parameters – slope and
+inflection per sex, plus one multiplier on the sex named. This is where
+the Stock Synthesis analogy stops. An SS male offset is usually an
+offset from the female <em>shape</em>, so the shape is shared and one
+parameter carries the sex difference; here both shapes stay free and the
+offset carries only the height. The distinction matters when the sexes’
+compositions are thin: each shape is informed by every row for that sex,
+but the height is informed only by the joint-sex rows
+(<code>Sex = 3</code>). Sharing a shape across the sexes is not a switch
+today – it needs a hand-edited <code>map</code> that points one sex’s
+cells at the other’s.</p>
 <p>Measured on <code>GOAatf</code>’s two-sex fishery, as the ratio of
 male to female maximum selectivity: <code>Logistic</code> 1.00,
 <code>DoubleLogistic</code> 1.97, <code>2DAR1</code> 4.53. The same

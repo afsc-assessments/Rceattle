@@ -1,5 +1,27 @@
 # Changelog
 
+## Rceattle 5.45.2
+
+### Documentation
+
+- **The two-sex selectivity vignettes now say what an `apical` linkage
+  adds to, not just what it does.** Both described the multiplier
+  correctly and both likened it to Stock Synthesis’s male-offset option,
+  without saying that the form’s own parameters are estimated separately
+  for each sex and stay that way. A two-sex `Logistic` fleet with an
+  `apical` linkage estimates **five** selectivity parameters – a slope
+  and an inflection per sex, plus one multiplier on the sex named – so
+  the named sex’s curve has three parameters to the reference sex’s two.
+  An SS male offset is usually an offset from the female *shape*, so
+  there the shape is shared and one parameter carries the sex
+  difference; here both shapes stay free and the offset carries only the
+  height. That distinction decides what the parameterization is worth
+  when the sexes’ compositions are thin, since each shape is informed by
+  every row for that sex while the height is informed only by the
+  joint-sex rows (`Sex = 3`). Sharing a shape across the sexes is not a
+  switch: it needs a hand-edited `map`, which the vignette now says
+  rather than leaving the reader to infer it from the SS comparison.
+
 ## Rceattle 5.45.1
 
 ### The golden check no longer asks which local minimum the machine found

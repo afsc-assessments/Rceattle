@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -53,9 +53,17 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.45.1/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="5.45.2" id="rceattle-5452">Rceattle 5.45.2<a class="anchor" aria-label="anchor" href="#rceattle-5452"></a></h2>
+<div class="section level3">
+<h3 id="documentation-5-45-2">Documentation<a class="anchor" aria-label="anchor" href="#documentation-5-45-2"></a></h3>
+<ul><li>
+<strong>The two-sex selectivity vignettes now say what an <code>apical</code> linkage adds to, not just what it does.</strong> Both described the multiplier correctly and both likened it to Stock Synthesis’s male-offset option, without saying that the form’s own parameters are estimated separately for each sex and stay that way. A two-sex <code>Logistic</code> fleet with an <code>apical</code> linkage estimates <strong>five</strong> selectivity parameters – a slope and an inflection per sex, plus one multiplier on the sex named – so the named sex’s curve has three parameters to the reference sex’s two. An SS male offset is usually an offset from the female <em>shape</em>, so there the shape is shared and one parameter carries the sex difference; here both shapes stay free and the offset carries only the height. That distinction decides what the parameterization is worth when the sexes’ compositions are thin, since each shape is informed by every row for that sex while the height is informed only by the joint-sex rows (<code>Sex = 3</code>). Sharing a shape across the sexes is not a switch: it needs a hand-edited <code>map</code>, which the vignette now says rather than leaving the reader to infer it from the SS comparison.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="5.45.1" id="rceattle-5451">Rceattle 5.45.1<a class="anchor" aria-label="anchor" href="#rceattle-5451"></a></h2>
 <div class="section level3">
