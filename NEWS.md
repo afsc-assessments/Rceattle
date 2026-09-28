@@ -12,6 +12,67 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.45.1
+
+## The golden check no longer asks which local minimum the machine found
+
+`test-golden-regression.R` re-fit its four reference models and compared the
+objective. That answered two questions at once: whether the likelihood had
+changed, which is what a golden check is for, and whether a cold phased
+optimization reaches the lower of two minima on this machine, which has a
+platform-dependent answer. `goa_ss` has a second local minimum 52.9 units up, a
+one-ULP change in a single `log_F` gradient element is enough for `nlminb` to
+reach it, and `goa_ms` inherits the basin through its warm start -- so the two
+GOA references moved together on the CI runners while reproducing exactly on
+local macOS. `deep-checks`, the only job that runs this file, was red on `main`
+for weeks over a summation order, which is the gate a release leans on.
+
+The likelihood is now evaluated **at** the reference parameters, which removes
+the optimizer from the gate: the parameters are committed as
+`tests/testthat/fixtures/golden-reference.rds` (28 KB) and
+`fit_mod(estimateMode = 3)` builds the object and evaluates without optimizing.
+A change to the model moves the objective; a change to the optimizer's path
+cannot. The check still asserts the reference is a stationary point, so a pin
+cannot drift to a number that merely reproduces somewhere flat.
+
+The fixture pins the parameters and the objective at the SAME point, which is
+not free: `newtonsteps` moves `opt$par` and `opt$objective`, while
+`estimated_params` and `quantities` stay at TMB's `last.par.best`. On `goa_ss`
+those are 2.3e-08 apart in parameter space -- 9.1e-12 in objective, and a
+gradient of 3.2e-06 rather than 1.3e-11. Pinning from one point (the polished
+one) makes the reproduction exact and leaves the gradient gate its margin.
+
+Measured at 5.45.1: all four reproduce their pinned objective to 7e-12 absolute,
+which is the rounding of the 15-digit literal itself and not a model difference,
+at gradients between 1.3e-11 and 5.0e-11 against a 1e-8 threshold. The
+multispecies pair was the open question, since predation iterates inside
+`fit_mod()`, and the iteration reaches the same state from the reference
+parameters. The objective gate is 1e-10 relative, about 1e-06 nats. That is not
+a hundredfold gain in sensitivity over the 1e-6 it replaces -- the old gate's
+real discrimination floor on the GOA pair was the 52.9-nat basin gap, 4e-03
+relative. What this buys is determinism. A 0.01 shift in the objective fails it,
+verified by mutating `jnll` in the template and reverting.
+
+The cold-start fits move to `tools/verify/verify-golden-cold-start.R`. They are
+a harness rather than a test because their failure mode is the platform-dependent
+one this change exists to remove: whether the higher minimum is as well polished
+as the lower one is **unmeasured**, so a gradient assertion there could fail for
+a reason that is not a regression. The harness asserts the direction that cannot
+flake -- a cold fit must not land BELOW the reference, which is a likelihood
+change and not a basin lottery -- and reports the rest.
+
+**What this gives up**: an edit confined to the optimization path no longer fails
+the gate. A phase order, a starting value or a bound that is inactive at the
+reference can now move a cold fit into the other basin with the gate green. Run
+the cold-start harness when touching those.
+
+Regenerate the fixture with `tools/verify/regenerate-golden-reference.R`, and
+only when a model change is intended. The script refuses to write a reference
+whose gradient is above 1e-4.
+
+`/golden-check` and the `deep-checks` failure message describe the new meaning.
+No package code changed: this is the test harness, a fixture and documentation.
+
 # Rceattle 5.45.0
 
 ## A parameter past a bound is now its own verdict, at FAIL
