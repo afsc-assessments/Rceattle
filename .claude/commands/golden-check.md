@@ -6,13 +6,27 @@ Verify that a numeric-touching change is behavior-preserving: fit the four refer
 (Bering Sea + Gulf of Alaska, each single- and multi-species) and compare against a stored
 snapshot.
 
-**Prefer the committed `tests/testthat/test-golden-regression.R`.** It pins the same four
-objectives, additionally asserts each is a *converged* optimum rather than merely a
-reproducible number, and carries `skip_on_cran()` / `skip_on_covr()`. Note it also runs a
-second, larger "golden reference by configuration" block, so it is heavier than these four fits. Run it with
-`NOT_CRAN=true`. Use the recipe below when that test fails and you need to see *which*
-quantity moved -- it diffs full fit objects (`par`, `jnll_comp`, SSB, R), not just the
-objective.
+**Prefer the committed `tests/testthat/test-golden-regression.R`.** Since 5.45.1 it pins the
+four objectives by **evaluating the likelihood at the reference parameters**
+(`tests/testthat/fixtures/golden-reference.rds`, `estimateMode = 3`) rather than by
+re-optimizing, so the gate answers "is this the same likelihood" and not "which of
+`goa_ss`'s two minima did this machine reach". It also asserts the reference is still a
+stationary point, and carries `skip_on_cran()` / `skip_on_covr()`, plus a second, larger
+"golden reference by configuration" block that does still fit. Run it with `NOT_CRAN=true`.
+The four objectives are literals in the test file; the fixture holds only the parameters they
+were measured at, so a re-pin is visible as changed text in a diff.
+
+**Cold starts moved to `tools/verify/verify-golden-cold-start.R`.** The gate no longer covers a
+change confined to the optimization path -- a phase order, a starting value, a bound inactive at
+the reference -- so run that harness when touching those. It asserts only that a cold fit does
+not land BELOW the reference; a fit ~52.9 above on `goa_ss` is the documented second minimum.
+
+Use the recipe below when that test fails and you need to see *which* quantity moved -- it
+diffs full fit objects (`par`, `jnll_comp`, SSB, R), not just the objective. **Regenerate
+the fixture only when a model change is intended**, with
+`Rscript tools/verify/regenerate-golden-reference.R`, and say in the commit which reference
+moved and by how much; re-running it after an unintended change launders the regression this
+check exists to catch.
 
 Scratch snapshot path for that diff: `dev/golden-ref.rds` (gitignored; create `dev/` if
 missing).

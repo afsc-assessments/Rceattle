@@ -89,6 +89,13 @@ jobs:
         run: |
           Rscript -e '
             pkgload::load_all(".", quiet = TRUE)
+            # .fit_tmb() uses TMBhelper::fit_tmb when installed and a plain
+            # nlminb + Newton fallback otherwise -- a different optimizer, which
+            # is a far bigger difference than a summation order. It is a
+            # Suggests with a GitHub Remotes entry, so record what this runner
+            # actually got.
+            cat("TMBhelper installed:",
+                requireNamespace("TMBhelper", quietly = TRUE), "\n")
             res <- testthat::test_file("tests/testthat/test-golden-regression.R",
                                        reporter = "summary")
             df <- as.data.frame(res)
@@ -99,8 +106,14 @@ jobs:
             if (sum(df$passed) == 0)
               stop("golden regression ran no assertions -- it was skipped, ",
                    "which is the failure mode this job exists to prevent")
+            # And assert on the GATE by name: the file holds six other tests, so
+            # a whole-file count stays positive while the one test that pins the
+            # likelihood is skipped.
+            gate <- df[df$test == "the likelihood at the reference parameters is unchanged", ]
+            if (nrow(gate) != 1 || sum(gate$passed) == 0)
+              stop("the likelihood gate did not run -- it is the point of this job")
             if (sum(df$failed) > 0 || sum(df$error) > 0)
-              stop("golden regression failed: a reference fit moved")'
+              stop("golden regression failed: the likelihood at the reference parameters moved")'
         shell: bash
 
   suite:
