@@ -158,10 +158,10 @@ void calculate_parametric_suitability(array<Type> &suitability,
  * It first computes the ratio of stomach proportion to available prey biomass (stom_div_bio).
  * It then normalizes this ratio across all included prey and "other food" to determine suitability.
  * The suitability is averaged over a specified reference period (suit_styr to suit_endyr)
- * and held constant across all years.
+ * and held constant across all years. Two working arrays are allocated inside:
+ * suma_suit, the sum of stom_div_bio over prey, and diet_prop_sum, the sum of
+ * diet proportions, each [nspp, max_sex, max_age, nyrs].
  *
- * @param suma_suit            Array updated with the sum of stom_div_bio [nspp, max_sex, max_age, nyrs].
- * @param diet_prop_sum        Array updated with the sum of diet proportions [nspp, max_sex, max_age, nyrs].
  * @param stom_div_bio         Array updated with the ratio of diet proportion to biomass [nspp*max_sex, nspp*max_sex, max_age, max_age, nyrs].
  * @param suitability          Array updated with the final calculated suitability [nspp*max_sex, nspp*max_sex, max_age, max_age, nyrs].
  * @param suit_other           Array updated with the remaining suitability for "other food" [nspp, max_sex, max_age, nyrs].

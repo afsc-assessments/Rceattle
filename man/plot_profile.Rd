@@ -31,7 +31,7 @@ the same profile run on two model configurations).}
 
 \item{weighted, relative, minfraction}{Passed to \code{\link[=profile_components]{profile_components()}}.
 \code{minfraction} drops a component moving less than that fraction of the
-TOTAL's change over the grid -- not an absolute number of objective units.
+TOTAL's change over the grid, not an absolute number of objective units.
 It defaults to \code{0.01} here, as in \code{r4ss::SSplotProfile()}, so a total
 moving 60 units cuts at 0.6.}
 
@@ -71,7 +71,7 @@ behind the figure can be read back off it.
 Draws each negative log-likelihood component against the
 profiled parameter, with the total overlaid, in the style of
 \code{r4ss::SSplotProfile()}. Where the curves disagree about which value of the
-parameter they prefer, the data sources are in conflict -- which is what
+parameter they prefer, the data sources are in conflict, which is what
 the total on its own cannot show.
 }
 \details{
@@ -85,8 +85,8 @@ rest.
 When one component dwarfs the others it sets the y axis and the rest flatten
 onto the bottom, so where \emph{they} prefer the parameter cannot be read.
 \code{relative = "scaled"} puts every curve on 0 to 1 so the minima can be
-compared. It discards magnitude — a component moving 0.02 draws like one
-moving 40 — so raise \code{minfraction} with it. That filter runs on the raw
+compared. It discards magnitude, a component moving 0.02 draws like one
+moving 40, so raise \code{minfraction} with it. That filter runs on the raw
 change, and is what keeps a barely-constrained component from drawing a
 confident-looking curve.
 

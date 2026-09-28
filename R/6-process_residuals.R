@@ -3,13 +3,13 @@
 #' @description
 #' One-sample process residuals for the model's random-effect (or penalized)
 #' process deviations, in the style of SAM's `procres()` (Nielsen and Berg
-#' 2014). They validate the *process* model -- whether the deviations behave like
-#' their assumed iid normal process -- a complement to the observation-based
+#' 2014). They validate the *process* model, whether the deviations behave like
+#' their assumed iid normal process, a complement to the observation-based
 #' [osa_residuals()].
 #'
-#' Each set of deviations carries a Gaussian process prior in the model. The
-#' posterior *mode* of the deviations is shrunk toward that prior, so -- following
-#' SAM -- a single draw is taken from the joint posterior of the deviations (from
+#' Each set of deviations holds a Gaussian process prior in the model. The
+#' posterior *mode* of the deviations is shrunk toward that prior, so, following
+#' SAM, a single draw is taken from the joint posterior of the deviations (from
 #' the joint precision when they are random effects, or the fixed-effect
 #' covariance when they are penalized fixed effects) and standardized by the
 #' process standard deviation. Under a correctly specified process these are
@@ -30,7 +30,7 @@
 #' prior the marginal-SD standardization ignores the prior correlation, so those
 #' residuals are approximate and a warning is emitted.
 #'
-#' @param object A fitted `Rceattle` model. The targeted deviations must be estimated -- as random effects (e.g. `random_rec = TRUE`) or as penalized fixed effects -- with a usable covariance.
+#' @param object A fitted `Rceattle` model. The targeted deviations must be estimated, as random effects (e.g. `random_rec = TRUE`) or as penalized fixed effects, with a usable covariance.
 #' @param fit deprecated name for `object`, still accepted so existing
 #'   scripts keep working. Supplying both is an error.
 #' @param process One of `"recruitment"`, `"initial"`, `"catchability"`, or
@@ -161,8 +161,8 @@ process_residuals <- function(object = NULL,
 
 #' Prior mean/SD and labels for the estimated elements of a deviation parameter
 #'
-#' Maps the estimated (non-fixed) elements of `par_name` -- in the column-major
-#' order used by TMB and the covariance matrices -- to their species/fleet,
+#' Maps the estimated (non-fixed) elements of `par_name`, in the column-major
+#' order used by TMB and the covariance matrices, to their species/fleet,
 #' year/age labels, and the process prior mean and SD.
 #' @keywords internal
 .process_prior_spec <- function(fit, process, par_name, n) {
@@ -200,19 +200,16 @@ process_residuals <- function(object = NULL,
     flt  <- ai[, 1]
     # The (mean 0, marginal SD) standardization below is exact only for the iid
     # catchability deviate prior (Time_varying_q = 1 or 2). Warn when an involved
-    # fleet uses a correlated prior -- random walk (index_varying_q == 4) or AR1
-    # (est_index_q == 6) -- because ignoring the prior correlation makes those
-    # residuals approximate.
+    # fleet uses a random walk (index_varying_q == 4), because ignoring the prior
+    # correlation makes those residuals approximate.
     ivq  <- obj$env$data$index_varying_q
-    eqd  <- obj$env$data$est_index_q
     uflt <- unique(flt)
     corr <- rep(FALSE, length(uflt))
     if (!is.null(ivq)) corr <- corr | (ivq[uflt] %in% 4L)
-    if (!is.null(eqd)) corr <- corr | (eqd[uflt] %in% 6L)
     if (any(corr, na.rm = TRUE)) {
       warning("process = 'catchability': index fleet(s) ",
               paste(uflt[which(corr)], collapse = ", "),
-              " use a correlated catchability deviate prior (random walk or AR1); ",
+              " use a random-walk catchability deviate prior; ",
               "their residuals standardize by the marginal SD and are therefore ",
               "approximate. They are exact only for the iid prior ",
               "(Time_varying_q = 1 or 2).", call. = FALSE)

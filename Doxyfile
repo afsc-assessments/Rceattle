@@ -1,0 +1,51 @@
+# Doxygen configuration for the C++ template under src/TMB/.
+# Built by .github/workflows/pkgdown.yaml after the pkgdown site, into docs/cpp/,
+# and linked from the site's Contributing menu. Run locally with `doxygen Doxyfile`.
+# Every tag not listed here keeps Doxygen's default.
+
+PROJECT_NAME           = "Rceattle C++ template"
+PROJECT_BRIEF          = "The CEATTLE likelihood: src/TMB/ceattle.cpp and its headers"
+OUTPUT_DIRECTORY       = docs
+HTML_OUTPUT            = cpp
+GENERATE_LATEX         = NO
+
+INPUT                  = src/TMB
+FILE_PATTERNS          = *.cpp *.hpp
+RECURSIVE              = NO
+EXCLUDE                = src/TMB/Dev src/TMB/Depricated
+
+# Every function appears, documented or not, so the reference is a complete index
+# of the template; undocumented ones show their signature and source only.
+EXTRACT_ALL            = YES
+EXTRACT_STATIC         = YES
+WARN_IF_UNDOCUMENTED   = NO
+# A @param naming an argument the function does not have is still warned about:
+# that is documentation drift. A missing @param on a 40-argument function is not.
+WARN_IF_INCOMPLETE_DOC = NO
+QUIET                  = YES
+
+# The headers are commented in the Javadoc style (/** @brief ... */); a first
+# sentence without @brief still becomes the summary line.
+JAVADOC_AUTOBRIEF      = YES
+
+# Equations (\f$ ... \f$) render in the browser through MathJax.
+USE_MATHJAX            = YES
+MATHJAX_VERSION        = MathJax_3
+
+# The source is the reference: link every entity to its lines, comments kept.
+SOURCE_BROWSER         = YES
+STRIP_CODE_COMMENTS    = NO
+REFERENCED_BY_RELATION = YES
+REFERENCES_RELATION    = YES
+
+# TMB's DATA_* / PARAMETER_* macros expand to declarations; leave them unexpanded
+# so the objective function's inputs read as written in the template.
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = NO
+HAVE_DOT               = NO
+
+# TMB declares objective_function; without its header Doxygen cannot attach the
+# operator() body to a class, and one warning ("documented symbol
+# 'objective_function::operator()' was not declared") is expected. The template
+# is read through ceattle.cpp's source page.
+EXCLUDE_SYMBOLS        = objective_function*

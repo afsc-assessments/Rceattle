@@ -9,7 +9,7 @@ install.packages("TMB", type = "source")
 # Try "TMB::runExample(all = TRUE)" to confirm TMB compiles on your machine.
 
 # 2. Install Rceattle. CRAN dependencies are pulled automatically.
-devtools::install_github("grantdadams/Rceattle", build_vignettes = TRUE)
+devtools::install_github("afsc-assessments/Rceattle", build_vignettes = TRUE)
 
 # 3. (Optional) TMBhelper provides richer optimization diagnostics.
 # Rceattle uses it transparently if present, otherwise falls back to plain

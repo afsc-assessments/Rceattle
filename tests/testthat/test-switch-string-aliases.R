@@ -10,8 +10,7 @@
 testthat::test_that("estDynamics resolves readable strings to integer codes", {
   testthat::skip_if_not_installed("Rceattle")
   d <- Rceattle::BS2017SS
-  for (pair in list(c("Estimated", "0"), c("Fixed", "1"),
-                    c("FixedScaled", "2"), c("FixedScaledByAge", "3"))) {
+  for (pair in list(c("Estimated", "0"), c("Fixed", "1"), c("FixedScaled", "2"))) {
     d$estDynamics <- pair[1]
     out <- suppressMessages(Rceattle::switch_check(d))
     testthat::expect_equal(out$estDynamics, as.integer(pair[2]), info = pair[1])

@@ -18,7 +18,7 @@ Updated \code{map_list}.
 \description{
 Maps the base parameter (\code{rec_pars}, \code{log_M1},
 \code{log_growth_pars}) out of estimation only for stratum groups
-whose linkage formula carries \emph{no} intercept. With an intercept
+whose linkage formula holds \emph{no} intercept. With an intercept
 in the formula (\code{~ 1}, \code{~ temp}, ...) and a nonzero \code{est_phase} the
 base parameter holds the level and stays estimable; the linkage
 \code{(Intercept)} row is fixed at 0 instead. When an intercept row has

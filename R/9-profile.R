@@ -3,7 +3,7 @@
 #' @description Re-fits an Rceattle model while holding selected cells of a
 #'   parameter fixed at user-specified values. Supports profiling a single
 #'   cell (e.g. \code{R_log_sd[species = 1]}) and arbitrary N-dimensional
-#'   cross-profiles over multiple cells -- e.g. \code{log_M1[1, 1, 1]} and
+#'   cross-profiles over multiple cells, e.g. \code{log_M1[1, 1, 1]} and
 #'   \code{log_M1[1, 2, 1]} jointly, to profile residual M for males against
 #'   females. For each grid point the targeted cells are fixed in the TMB
 #'   map and the remaining parameters are re-estimated; the result is a
@@ -38,7 +38,7 @@
 #'   }
 #' @param slots A list whose entries are integer index vectors, one entry
 #'   per cell to fix. Each entry's length must equal the number of
-#'   dimensions of the resolved parameter -- 1 for vectors
+#'   dimensions of the resolved parameter, 1 for vectors
 #'   (\code{R_log_sd}), 2 for matrices (\code{rec_pars}), 3 for 3-D arrays
 #'   (\code{log_M1}). When using the \code{"R0"}/\code{"alpha"}/\code{"beta"}
 #'   aliases, supply only the species index (length 1); the column is
@@ -87,7 +87,7 @@
 #' @param getsd whether each grid fit runs \code{TMB::sdreport}. The profile
 #'   reads only the objective (\code{nll}), so \code{FALSE} is faster with no
 #'   effect on the profile. Default \code{NULL} inherits the input model's
-#'   setting (\code{TRUE} only if it carries an \code{sdrep}).
+#'   setting (\code{TRUE} only if it holds an \code{sdrep}).
 #' @param ... Unused; present for consistency with the \code{stats::profile}
 #'   generic.
 #'
@@ -116,7 +116,7 @@
 #'       parameter value.}
 #'   }
 #'
-#'   Carries class \code{"Rceattle_profile"}, so printing it reports whether the
+#'   Has class \code{"Rceattle_profile"}, so printing it reports whether the
 #'   grid brackets the minimum; see \code{\link{print.Rceattle_profile}}. Every
 #'   element indexes exactly as before.
 #'
@@ -129,13 +129,13 @@
 #'     msmMode = 0, avgnMode = 0,
 #'     phase = FALSE, verbose = 0)
 #'
-#' # 1-D profile of sigmaR for species 1 (alias form -- natural scale)
+#' # 1-D profile of sigmaR for species 1 (alias form, natural scale)
 #' p1 <- profile(ss_run,
 #'     param  = "sigmaR",
 #'     slots  = list(1),
 #'     values = list(seq(0.1, 1.5, by = 0.1)))
 #'
-#' # Equivalent raw form (log scale -- user does the transform)
+#' # Equivalent raw form (log scale, user does the transform)
 #' p1_raw <- profile(ss_run,
 #'     param     = "R_log_sd",
 #'     slots     = list(1),
@@ -551,7 +551,7 @@ profile.Rceattle <- function(fitted = NULL,
 #'
 #' @description Reports whether the grid actually brackets the minimum. A
 #' profile whose lowest point is its first or last grid value has not found the
-#' optimum -- it has run out of grid -- and the curve drawn from it understates
+#' optimum, it has run out of grid, and the curve drawn from it understates
 #' how far the parameter can move. That is the failure the numbers alone hide,
 #' since a partial profile plots as a perfectly ordinary line.
 #'
@@ -561,12 +561,12 @@ profile.Rceattle <- function(fitted = NULL,
 #' the default 1.92 is \eqn{\chi^2_1(0.95)/2}. It is read off the grid, so it is
 #' no finer than the spacing of `values`, and it is reported as open on either
 #' side the grid does not close. It is also referenced to the best GRID point
-#' rather than to the unconstrained MLE, which the object does not carry: the
+#' rather than to the unconstrained MLE, which the object does not hold: the
 #' grid minimum sits at or above the MLE, so the interval errs wide. And it is
-#' reported as a range, so a profile with a second basin -- or a failed point
-#' inside the range -- is called out as not contiguous rather than left to read
+#' reported as a range, so a profile with a second basin, or a failed point
+#' inside the range, is called out as not contiguous rather than left to read
 #' as one interval. No interval is given for a cross-profile over
-#' two or more cells -- the cutoff would be \eqn{\chi^2_k(0.95)/2} and the region
+#' two or more cells, the cutoff would be \eqn{\chi^2_k(0.95)/2} and the region
 #' is not an interval.
 #'
 #' Under `random_rec = TRUE` the objective is the Laplace-approximated marginal
@@ -717,7 +717,7 @@ print.Rceattle_profile <- function(x, cutoff = 1.92, ...) {
 #'
 #' @details
 #' **Which cells are reported.** `jnll_comp` is a component-by-column matrix
-#' whose columns mean different things on different rows -- fleets on the data,
+#' whose columns mean different things on different rows, fleets on the data,
 #' selectivity and catchability rows, species on the priors, penalties and
 #' predation rows. Each cell is labelled from the axis its row uses, so a cell
 #' becomes e.g. `"Shelikof acoustic: Index data"`. The unit is dropped from the
@@ -742,10 +742,10 @@ print.Rceattle_profile <- function(x, cutoff = 1.92, ...) {
 #'   the weighted components, since those are what moved the fit.
 #'   `unweighted_jnll_comp` exists so Francis and McAllister-Ianelli can read a
 #'   composition likelihood without its `Comp_weights` multiplier, so only the
-#'   rows that carry such a multiplier are filled: composition, CAAL, stomach
+#'   rows that hold such a multiplier are filled: composition, CAAL, stomach
 #'   content and the two linkage rows. Every other row is zero there and is
 #'   dropped as unfitted, so `weighted = FALSE` returns a much smaller set of
-#'   series — the index, catch, selectivity, catchability and penalty
+#'   series, the index, catch, selectivity, catchability and penalty
 #'   components are absent, not flat.
 #' @param relative How to place each series on the y axis.
 #'   \describe{
@@ -774,13 +774,13 @@ print.Rceattle_profile <- function(x, cutoff = 1.92, ...) {
 #'   also disables `minfraction`, which is defined against the total.
 #'
 #' @return A data frame with one row per grid point per retained component:
-#'   the profile's `grid` columns (`slot_1`, ...) carrying the value profiled
+#'   the profile's `grid` columns (`slot_1`, ...) holding the value profiled
 #'   over, then `fit` (grid row index), `component` (the `jnll_comp` row),
 #'   `unit` (fleet or species name, `NA` for model-wide rows), `axis`
 #'   (`"fleet"`, `"species"` or `"model"`), `series` (the plotting label), and
 #'   `value` (the re-zeroed negative log-likelihood). Series are ordered by
 #'   decreasing change over the grid, with `"Total"` first. The profile's
-#'   `param`, `alias` and the `relative` used are carried as attributes.
+#'   `param`, `alias` and the `relative` used are held as attributes.
 #'
 #' @seealso [plot_profile()] to draw it, [profile.Rceattle()] to produce the
 #'   profile.

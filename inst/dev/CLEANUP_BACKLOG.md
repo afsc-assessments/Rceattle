@@ -1,6 +1,6 @@
 # Cleanup backlog
 
-The 72 `TODO` / `FIXME` markers in the source, triaged. **Add to this file; don't fix these
+The `TODO` / `FIXME` markers in the source, triaged. **Add to this file; don't fix these
 unasked.** Fix the one in the file you were already asked to touch, in the same commit.
 
 **Cite the marker text, not a line number.** These references have gone stale three times --
@@ -11,13 +11,43 @@ Three tiers: a **known defect** is a wrong answer waiting for the right input an
 GitHub issue; a **design note** is a wish, not a bug; `TODO(review)` is a deliberate convention
 marking a judgement call for Grant, and is never resolved by an agent.
 
-62 remain as of 5.29.0. Counts by area: `src/TMB/ceattle.cpp` 24 ·
+57 remain as of 5.41.0 (this file's own consolidation removed the 58th, a bare
+`# TODO update` in `R/8-sim_mod.R`). Counts by area: `src/TMB/ceattle.cpp` 23 ·
 `src/TMB/predation.hpp` 5 · `src/TMB/Dev/caal.hpp` 5 · `R/10-run_mse.R` 4 ·
-`src/TMB/growth.hpp` 3 · `R/3-build_map.R` 3 · `R/9-retro_and_jitter.R` 3 ·
-`R/0-rceattle_class.R` 3 · rest 1–2. Re-derive with
+`R/3-build_map.R` 3 · `R/9-retro_and_jitter.R` 3 · `R/0-rceattle_class.R` 3 ·
+`src/TMB/growth.hpp` 2 · rest 1–2. Re-derive with
 `grep -rnE 'TODO|FIXME' R/ src/TMB/ | grep -v 'todo <-' | grep -v 'TODO-'` -- the `-E` is
 needed for the alternation, the first filter drops a variable in `R/6-process_residuals.R`, and
 the second drops pointers to `inst/dev/TODO-*.md` notes, which are not markers.
+
+
+## How to work one
+
+Absorbed from `BACKLOG-PLAN.md`, which this file replaces.
+
+1. **Reproduce first, in a test that fails.** The marker names the triggering input; build the
+   fixture that reaches it. A fix whose test passes before the fix is not a test.
+2. **Check what actually covers it.** `/golden-check` will be green either way for almost every
+   item here -- none of the four reference models reaches these inputs. Use `/verify` to pick the
+   right `tools/verify/*.R` harness, and remember no harness reaches
+   `sample_rec(update_model = TRUE)`, `reweight_comps()`, or any figure.
+3. **For a C++ change**, recompile before testing (`pkgload::load_all(".")`) and run the suite
+   serially (`TESTTHAT_PARALLEL=false`). Golden is required even when you expect no movement.
+4. **Adversarially review the diff before committing.** Across this work every review found
+   something real, including two changes that moved fitted numbers and would otherwise have
+   shipped.
+5. **NEWS + `DESCRIPTION` + the affected vignette, same commit.** `/doc-sync` checks it.
+6. **Move the item to "Deliberately not changed" or delete it** -- a backlog that only grows
+   stops being read.
+
+**The tiers are not a priority order.** Sequence by who is exposed: a defect a live assessment
+can reach outranks a tidier one a fixture cannot. Two of these produce a wrong number rather
+than an error, which is the failure mode this package cannot afford, and they come first
+whatever tier they sit in.
+
+**A Tier 0 claim is a claim about behaviour, so check it against the code, not just the
+comment.** One entry named the wrong switch (`Time_varying_q` instead of `Catchability`) for a
+whole session, and the source comment goes out of its way to warn about that confusion.
 
 ---
 
@@ -34,10 +64,18 @@ a fit. None carries a source marker.
 
 | Where | Condition | Consequence |
 |---|---|---|
-| `R/3-build_map.R` (`# Age-independent scalar`) | **Open.** `estDynamics = 3` in a multispecies model (`msmMode > 0`) | Gated on `estDynamics[sp] == 2 \| msmMode != 0`, so under `msmMode > 0` columns 2..`nages` of `log_pop_scalar` are mapped out for every species, and the age-specific scalar of `estDynamics = 3` is never estimated (it stays `exp(init)`, 1 without `inits`). Gating on `estDynamics[sp] == 2` alone is safe for codes 0-2. Check the Hessian before freeing them: they are informed only through predation and that species' index. The `# Age-dependent scalar` branch has the same `\|` but maps only padding beyond `nages`, which is harmless. |
-| `R/3-build_map.R` (`# Don't estimate the scalar`) | **Open, question for Grant.** `msmMode = 0` | Every column is mapped out, so `estDynamics` 2 and 3 behave as 1 in single-species models. The 5.30.0 NEWS says so; the schema and `?BS2017SS` do not. |
+| ~~`R/3-build_map.R` (`# Age-independent scalar`)~~ | ~~`estDynamics = 3` in a multispecies model (`msmMode > 0`)~~ | **Resolved in 5.35.0**: code 3 is retired (it always fitted as 2) and `log_pop_scalar` is one value per species. `test-switches-estdynamics-retired.R`. Original note: Gated on `estDynamics[sp] == 2 \| msmMode != 0`, so under `msmMode > 0` columns 2..`nages` of `log_pop_scalar` are mapped out for every species, and the age-specific scalar of `estDynamics = 3` is never estimated (it stays `exp(init)`, 1 without `inits`). Gating on `estDynamics[sp] == 2` alone is safe for codes 0-2. Check the Hessian before freeing them: they are informed only through predation and that species' index. The `# Age-dependent scalar` branch has the same `\|` but maps only padding beyond `nages`, which is harmless. |
+| ~~`R/3-build_map.R` (`# Don't estimate the scalar`)~~ | ~~`msmMode = 0`~~ | **Resolved in 5.35.0**: the schema, `?BS2017SS` and `data_check()` now say `estDynamics = 2` fits as 1 in single-species mode. Whether to merge the two codes there is in `SIMPLIFY-LOG.md`. |
 | ~~`JNLL_Q_PRIOR` against a q linkage intercept prior~~ | ~~`Catchability = "Estimated-with-prior"` plus a q linkage `(Intercept)` prior on the same fleet~~ | **Resolved in 5.33.0**: both penalized that fleet's log q, so the prior counted twice. `.check_q_linkage_support()` now refuses the pair, taking fleet 1 for a row with no fleet, as the template does. `test-linkage-double-prior-guards.R`. |
 | ~~`JNLL_M_PRIOR` against an M1 linkage intercept prior~~ | ~~`M1_use_prior = TRUE` with `M2_use_prior = FALSE`, plus an M1 linkage `(Intercept)` prior~~ | **Resolved in 5.33.0**: both penalized that species' log M1. `.check_M_linkage_prior()`, run from `fit_mod()`, now refuses the pair, taking species 1 for a row with no species. `test-linkage-double-prior-guards.R`. |
+| `R/3-build_map.R` (`if (sel_type == "DoubleNormal")`) | **Open** (found tracing the form for `adding-a-selectivity-form.Rmd`, 2026-09-16). `Selectivity = "DoubleNormal"` with `Time_varying_sel = "RandomWalkAscending"` (5), or any `Time_varying_sel` the branch does not name | The branch handles `IID`, `AR1`, `RandomWalk` and `Block` only, and `data_check()` restricts `Time_varying_sel` per form for NonParametric, NonParametricPM, Hake and LogisticPM but not DoubleNormal, so the deviates are silently mapped out and a static curve fits where the workbook asked for a time-varying one. Measured on `GOApollock` with the fishery (shipped `DoubleLogistic` + `RandomWalkAscending`, 316 parameters) switched to `DoubleNormal`: 220 parameters, no message. Refuse the combination in `data_check()` next to the per-form checks, or implement the ascending-only walk for the peak and ascending width. |
+| `R/2-build_params.R` (`sel_inf` starting values) | **Open** (found 2026-09-16, same trace). `Selectivity = "DoubleNormal"` fitted from the default starting values | DoubleNormal reuses the logistic slots, so its peak starts at `sel_inf[1] = 0` (below the first age) and its right-tail floor at `sel_inf[2] = 10` on the logit scale (a floor of 1): the starting curve is flat at 1 for every age, the ascending width has no gradient, and the optimizer stays on that ridge. `GOApollock` fishery, static selectivity, phased fit: objective 3085.98 with selectivity 1.000 at every age from the defaults, against 914.10 (AIC 2268 vs the double-logistic's 2276) from `inits` with the peak at age 4, a logit floor of 0 and widths of 2 ages. `test-selectivity-double-normal.R` sets its own starts, which is why the suite does not see this. The only form-specific start in `build_params()` is LogisticPM's; add DoubleNormal's (peak mid-range, floor near 0). |
+| `ceattle.cpp` 5.13 (`SIMULATE PROCESS ERROR`) | **Open** (found 2026-09-17 while adding `NonParametricIntegrable`). `sim_mod(process = "selectivity")` on any fleet whose `Time_varying_sel` deviates are scored in `JNLL_SEL_DEV` (`sel_coff_dev`, `log_sel_slp_dev`, `sel_inf_dev`; forms 1, 2, 3, 5, 8, 13) | Slot 4 of `simulate_state` is only consumed by the linkage random effects (5.12b): the `Time_varying_sel` deviates have no `SIMULATE` draw beside their density, so a "redraw selectivity" request keeps the fitted deviates and a self-test measures recovery of those deviates, not of the process. `tools/verify/verify-sim-recovery-np-integrable.R` draws them in R instead. Add the draws in 5.13 gated on `simulate_state(4)`, per form (iid about 0 for IID; increments for the walks), and report them as `*_sim` for `attr(x, "process_sim")`. |
+| `R/0-column_schema.R` (`type = "switch"`) not enforced at the boundary | **Open** (found reviewing the 5.34.0-5.43.0 release, #158). Any `fleet_control` that has not been through `switch_check()` -- `data_check()` is callable on one, and `rearrange_data()` is exported | The schema types **thirteen** columns as `switch` with an `allowed` map (`Fleet_type`, `Selectivity`, `Time_varying_sel`, `Catchability`, `Comp_distribution`, `estDynamics`, ...), but nothing applies those maps on entry, so every comparison written against the canonical spelling is wrong on the integer form the workbook stores -- and every bundled data set stores the integer form. `0 != "Off"` is `TRUE`; `0 == "Off"` is `FALSE`; `0 != "Fishery"` is `TRUE`. The `Fleet_type` half of one line was fixed at 5.43.0 (`est_sel_flts`). **Its `Selectivity` half is still raw, on the same line, and still has a demonstrated effect** (measured reviewing the 5.43.0 delta, #158): `R/1-data_check.R:1255` reads `fc$Selectivity != "Fixed"`, and `0 != "Fixed"` is `TRUE`, so on raw `GOA2018SS` fleets 4 and 5 -- `Selectivity = 0` (Fixed), each on its own `Selectivity_index`, no comp or CAAL rows at `Year > 0` -- are still named by "estimated Selectivity but no comp_data". Canonicalizing both columns names nobody. Note before fixing it: those two fleets are what satisfies the positive control in `test-switches-fleet-type-integer-off.R`, so that assertion needs a fleet with a genuinely estimated form and no comps. The other sites are unreachable **only because their callers canonicalize first**, which is a property of the call graph, not of the code: `R/3-build_map.R:1425` (`flt_off <- Fleet_type == "Off"`) picks the DONOR ROW for a shared selectivity block and its own comment says getting it wrong "would silently stop estimating their selectivity/catchability"; `R/3-build_map.R:1570` maps out comp/CAAL weights the same way; `R/2-build_params.R:157` and `R/3-build_map.R:1554` use `!= "Fishery"`, which is TRUE for every fleet on an integer column. **Fix the class, not the instances:** canonicalize every schema `switch` column once at `data_check()`'s entry through its declared `allowed` map. That changes which errors fire for raw workbooks across thirteen columns, so it wants its own PR and a golden run. Converting sites one at a time was tried and rejected in #158: it left one file with two conventions and installed a third resolver disagreeing with `.canon_switch()` on `" 0 "`, `"0.0"` and `"00"`. |
+| ~~`R/1-data_check.R` (`est_sel_flts <- ...`)~~ / `Fleet_type` read raw | ~~An `NA` `Fleet_type`~~ / **Open:** an integer-coded `Fleet_type` (`0` for Off) read before `switch_check()` canonicalizes | **The NA half is resolved in 5.43.0**: `switch_check()` now refuses a blank `Fleet_type`, naming the fleet, before anything reads the column, so the all-`NA` row that killed `data_check()`'s `vapply` with `missing value where TRUE/FALSE needed` cannot form. `test-switches-fleet-type-blank.R`. **The integer half is open**: `0 != "Off"` coerces to `"0" != "Off"`, which is `TRUE`, so a fleet the workbook marks Off reads as LIVE at every bare `!= "Off"` comparison on a `fleet_control` that has not been through `switch_check()` -- `data_check()` is callable on one, and `validate_switches()` says so in as many words and canonicalizes via `.canon_switch()` first. The remaining raw comparisons do not. Audit them with `grep -n '!= "Off"' R/` and route each through `.canon_switch()` or `%in% c(0, "0", "Off")`. |
+| `.group_lead()` (`R/5-rearrange_data.R`) | **Open** (found reviewing the 5.34.0-5.42.1 release, #158). A fleet with an NA `Selectivity_index` | `data_check()` accepts NA there and the column has no schema default, but `.group_lead()` is fed `paste(Selectivity_index, form)`, which turns NA into the string `"NA"` -- so its own `lead[is.na(key)] <- 1L` guard is dead code, and two NA-index fleets sharing a form are grouped together with only the first leading. Measured on `BS2017SS` with `Selectivity_index[1:2] <- NA`: `data_check()` passes, `flt_sel_lead` is `1,0,1,...`, yet `.shared_block_lead()` returns NA for fleet 2, so fleet 2 estimates its OWN `sel_coff` block whose shape and curvature penalty is never charged -- the mirror image of the double-penalty row above. Either give `Selectivity_index` a schema default of `Fleet_code`, or refuse NA in `data_check()`. |
+| `rearrange_data()` `flt_type` (`.off`) | **Open, low** (same review). `Fleet_type` held as a factor rather than a canonical string or integer | `rearrange_data()` computes `.off <- flt_type == 0` on the factor's LEVEL INDICES, so an `"Off"` fleet reads as non-zero and can lead its group, while every R-side check reads it correctly through `.canon_switch()`. The two then disagree about which fleet is the lead. `switch_check()` converts the column before either is reached, so this needs a hand-built `fleet_control`; the fix is to canonicalize in `rearrange_data()` as well. |
+| `adjust_map_shared_params()` vs `flt_sel_lead` | **Open** (found reviewing the 5.34.0-5.42.1 release, #158). Two live fleets sharing a `Selectivity_index` with **different** `Selectivity` forms | The map shares one `sel_coff` block across the group (`adjust_map_shared_params()` keys on the index alone), while the template makes them two penalty groups (`flt_sel_lead` keys on index AND form) and sets the lead flag on both -- so the single shared block is charged its shape and curvature penalty **twice**, once per fleet. `data_check()` only warns about a mixed-form group (the `.sel_shaping_cols` check), so the configuration fits. No bundled data set and no consumer-repo workbook has one (11 data sets, 375 workbooks, 183 with a `fleet_control` sheet), so nothing measures it today. The 5.42.1 fix to the negative-weight guard (`.rce_sel_pen_lead()`) made the guard agree with the template but did not reconcile the two grouping rules; see `TRAPS.md`, "Shared parameter blocks". Decide which rule is right and make the other follow it, or refuse a mixed-form group outright. |
 | `srr_terms_on` | **Open, low.** A recruitment linkage intercept prior on an `estDynamics > 0` species | The gate covers the stock-recruit prior and the curve penalty, not the linkage-prior loop. `rec_pars` is mapped out for such a species, so the prior only adds a constant: it moves the objective and `JNLL_LINKAGE_PRIOR` (likelihood tables, AIC), but no estimate. Not yet checked: slope rows on such a species, which `build_map_fixed_natage()` does not map out. |
 | `// Input SB0 (if running in multi-species mode)` | **Open.** `msmMode = 0` with `estDynamics > 0` | Equilibrium `SB0`/`SBF` are still built on placeholder recruitment; from 5.30.0 only the dynamic runs keep the input numbers. HCRs 5, 6 and 7 read `SB0` when `DynamicHCR = FALSE` (5 also reads `SBF`), and with `DynamicHCR = FALSE` `ssb_depletion` and `biomass_depletion` divide by `SB0` and `B0` under every HCR. Projected numbers come from `NByageFixed` and are right; the reported depletion, and F and catch advice under those HCRs, are not. |
 | `ceattle.cpp` (`Type R_curve = calculate_recruitment(`) | **Open, low** (found in a later review, 2026-09-13). Ianelli form with an identity-link linkage offset on alpha or beta that drives the curve to zero or below in a year before `srr_mse_switchyr` | The dynamic-B0 deviation `log R - log R_curve` is then NaN, and the recursion carries it into `DynamicSB0` for every later year; under `DynamicHCR = TRUE` it reaches depletion, the HCR and the objective. In penalty years the stock-recruit penalty is already NaN, so this is new only outside `srr_hat_styr`..`srr_hat_endyr`. Guard the curve with `posfun()`, or refuse identity-link offsets that can make it non-positive. |
@@ -69,6 +107,13 @@ from what its FIXME claimed. Add new rows above it.
 Not bugs, but they bound what the model can be asked. Worth documenting in a vignette rather
 than fixing.
 
+- **An observation the R inclusion set keeps but the template skips returns a residual of
+  exactly 0 under `method = "cdf"`, where a Gaussian method returns `NaN`.** A row scored by
+  neither density nor CDF leaves `nlcdf.lower == nlcdf.upper`, so `oneStepPredict()` recovers
+  `F = 0.5`. The two inclusion sets are built independently — `build_osa_data()` in R, the
+  `pos >= 0` and year/type conditions in `ceattle.cpp` — and agree for every fitted row today.
+  A future divergence would show as a clean-looking zero rather than a visible gap. A REPORTed
+  count of CDF-scored positions, asserted in R against the residual count, would make it loud.
 - **Forecast growth is ignored** by the retrospective and MSE projection paths
   (`ignores forecasted growth`, twice in `R/9-retro_and_jitter.R`, once in `R/10-run_mse.R`) —
   the terminal-year growth is carried forward.
@@ -77,10 +122,11 @@ than fixing.
 - **`ration_data` is sized for the hindcast only** (`R/5-rearrange_data.R`,
   `Change for forecast`).
 - **SPR reference points**: `sex_ratio` is an input rather than estimated for two-sex models,
-  and the M used is the terminal-year value (`src/TMB/ceattle.cpp`, `rates for a reference point
-  are the terminal hindcast year's`). The `sex_ratio` marker went in 5.24.1, when SPR was
-  corrected to apply only the recruitment split `sex_ratio(sp, 0)` to a two-sex species
-  (`female_split`); the ratio itself is still read from data.
+  and the M used is the terminal-year value. **Neither has a marker** -- `rates for a reference
+  point are the terminal hindcast year's` (`src/TMB/ceattle.cpp:1595`) is an ordinary comment, so
+  the grep recipe above will not find it, and no `TODO`/`FIXME` mentions `sex_ratio` at all.
+  5.24.1 corrected SPR to apply only the recruitment split `sex_ratio(sp, 0)` to a two-sex
+  species (`female_split`, `ceattle.cpp:1605`); the ratio itself is still read from data.
 - **Linkage random-effect priors are penalties, not proper densities** (`src/TMB/ceattle.cpp`,
   `FIXME(jacobian)`, twice). The sigma and rho priors sit on the natural scale without the
   Jacobian of the `log` / `rho_trans` transform. Fine as a penalty under maximum likelihood;
@@ -91,6 +137,142 @@ than fixing.
 
 Cleared in 5.14.0 except where noted. As in Tier 0, three of these were not what their marker
 said, so each struck row records what it actually turned out to be.
+
+Found reviewing the 5.34.0-5.41.0 release (PR #158) and recorded rather than fixed. The
+three defects that review found are fixed in 5.42.0; these are what it left:
+
+- **`log_sel_apical` is unbounded.** `build_parameter_bounds()` gives it the default
+  `+-Inf`, while `.check_sel_apical_rows()` only *warns* when a fleet has neither
+  joint-sex composition nor a prior -- i.e. when nothing informs the sexes' ratio and the
+  estimate is "whatever the optimizer leaves". That is the flat ridge `rec_pars[, 2:3]`
+  got `+-30` for in 5.39.0. A `+-10` bound costs nothing: `exp(10)` is already absurd for
+  a selectivity multiplier. So the package now bounds some blocks and not this one --
+  the same inconsistency the `log_Ftarget` note above records.
+
+- **Four shape-penalty columns are form-9-only and silently inert on forms 2 and 13.**
+  `Sel_shape_mode`, `Sel_pen_first_bin`, `Sel_pen_last_bin` and `Sel_avgsel_pen` are read
+  only inside `if(flt_sel_type(flt) == 9)` in `ceattle.cpp`, but `data_check()`
+  range-validates all four on every fleet and the schema `doc` strings -- which ship
+  verbatim into `meta_data_names.xlsx` -- say "non-parametric" without qualification. A
+  user narrowing the shape penalty on a `NonParametricIntegrable` fleet gets the full
+  range with no message. 5.40.0 added `test-selectivity-norm-scope-inert-forms.R` for
+  exactly this class on `Sel_norm_scope`; these four are owed the same treatment.
+  (5.42.0 fixed the fifth member of the set, `Sel_devmag_sd`, because that one was being
+  actively converted rather than merely accepted.)
+
+- **`.check_stock_recruit_msm()` reports a false clean when `spnames` is `NULL`.** It
+  falls back to `paste0("Species", seq_len(...))` while `parameter_index()` falls back to
+  `as.character(idx)` -- `"1"`, `"2"`. The two disagree, so `pos_of()` matches nothing for
+  every species, `fixed_curve()` returns `TRUE`, and the check reports "Stock-recruit
+  curve held at its inputs for Species1; nothing to check" on a curve that is in fact
+  being estimated. One fallback should call the other.
+
+- **The Dirichlet-multinomial OSA fallback is announced with `message()`.** Substituting
+  a method documented as failing the package's own KS self-test on composition data is
+  the most consequential of the four announcements in `osa_residuals()`, and it is the
+  only one that is not a `warning()`. A `message()` is erased by `suppressMessages()`, by
+  a knitr chunk with `message = FALSE` (how the vignettes and most assessment scripts
+  run), and by any log that keeps only warnings.
+
+- **`discrete = TRUE` feeds fractional composition counts into TMB's integer lattice.**
+  Counts enter as `(proportion + comp_offset) * N` with `comp_offset = 1e-5`, so none is
+  an integer, while TMB's `discrete = TRUE` path replaces `integrate()` with a sum over
+  `ceiling(lower):floor(upper)`. For `obs = 10.001` the observation's own mass is in
+  neither tail sum and the mass at 11 is dropped, yet `px` is still the density at the
+  fractional `obs`. It returns a finite, plausible residual rather than erroring.
+  Pre-existing; 5.41.0 re-documented and re-defaulted around it.
+
+- **`.rce_sel_norm_code(allow_all = )` is called two ways.** `R/0-build_selectivity.R`
+  passes `allow_all = TRUE` unconditionally; `R/1-data_check.R` passes
+  `fc$Selectivity[rows] %in% c(11, "LogisticPM")`. The two therefore disagree on what
+  counts as "normalization is on" for a non-`LogisticPM` fleet, which can flip the
+  `WithinSex` apical refusal the wrong way. They should share one rule.
+
+- **The non-parametric form set is a literal in five places** (`R/6-fit_mod.R`,
+  `R/1-data_check.R` twice, `R/3-build_map.R`, `R/0-switches.R`) with no predicate on
+  `sel_map`. All five are correct today, and a sixth site omits
+  `NonParametricIntegrable` deliberately. But 5.40.0 -> 5.41.0 churned this set twice
+  inside one release, and the `fit_mod()` copy failing silently would mean coefficients
+  below `Bin_first_selected` quietly stop being held at 0 -- a selectivity change, so an
+  SSB change. 5.42.0 added `.RCE_SEL_PEN_POSITIVE` beside `sel_map` as a start; the form
+  sets themselves are still literals.
+
+- **A warm start silently overrides a changed `Sel_curve_pen` column.** `sel_curve_pen` is a
+  `PARAMETER_MATRIX` mapped off, not a `DATA_` object, so its value comes from `inits` when
+  `inits` are supplied and from the `Sel_curve_pen1/2/3` columns only otherwise. Editing the
+  column and refitting from a stored fit therefore keeps the OLD weight, with no message.
+  Found building the form-9 directional test in 5.42.0, where setting the column to -20 while
+  passing `inits` produced the +20 penalty. 5.42.0's `fit_mod()` guard closes the SIGN only;
+  the magnitude is still silently overridden, measured on `BS2017SS` fleet 1 with the column
+  reading +20 throughout: `JNLL_SEL_NONPARAM` is 52.96 from the column and 464.39 when
+  `inits$sel_curve_pen[flt, 1]` is 200, with no message. This is the same class as the known
+  `Time_varying_sel_sd`-inert-on-a-warm-start trap in `TRAPS.md`, and the fix is the same
+  shape: either reseed the parameter from the column in `fit_mod()`, or warn when they
+  disagree. Note this also bounds the blast radius of the sign defect 5.42.0 fixed -- a
+  refit from a stored fit kept whatever weight was taped.
+
+- **`Sel_shape_dir = "Increasing"` has no FITTED recovery check.** 5.42.0 closed the
+  specification half: `test-selectivity-penalty-sd.R` pins the limiting cases (a strictly
+  increasing curve charges 0 under `"Decreasing"` and the mirror under `"Increasing"`)
+  and matches three shapes against the ADMB/AMAK `sel_like(1)` SSQ recomputed from
+  `sel_coff`, driven through the `Sel_shape_dir` column itself. What is still open is
+  simulation self-consistency: nobody has simulated from an increasing-selectivity stock
+  and checked the penalized fit returns that shape. That gap is why 5.42.0 refused the
+  direction on the forms that do not read the sign rather than teaching them the branch
+  `"NonParametricPM"` (9) has.
+
+Found during the 5.34.0-5.41.0 batch and recorded rather than fixed:
+
+- **An estimated `log_Ftarget` is a single unbounded `nlminb` start.** The single-species
+  projection starts it at its `inits` value with no bounds (`R/4-build_parameter_bounds.R`
+  mentions it nowhere). 5.34.0 resets a no-fishing start (-999 or non-finite) to 0, but a large
+  start also sticks: NPFMC on `make_test_data()` from `log_Ftarget = 3` (F = 20) stays at 20.08
+  with objective 83886.99, against 83877.42 from 0. The realistic route in is a stored `CMSY` or
+  `ConstantFSSB` fit with a large estimated `Ftarget` handed on as `inits`. Bound it, or start
+  every estimated `log_Ftarget` at 0 as the multispecies loop already does. Note 5.39.0 bounded
+  `rec_pars[, 2:3]`, so this file now bounds some blocks and not this one.
+- **`run_mse(regenerate_past = TRUE)`'s average-F refit never runs on the string path.**
+  `R/10-run_mse.R:647` tests `em$data_list$HCR == 2`, but the rule reaches it under its name
+  (`"ConstantF"`) there, so the branch is dead. `.normalize_hcr()`'s own comment says either
+  form may be stored depending on the processing path, so it is dead on that path rather than
+  universally; `.normalize_hcr()` (`R/10-mse_summary.R`) is the existing way to compare either
+  spelling. If it is revived, `Ftarget` needs a full per-species vector: `avg_F$avg_F` covers
+  only species with a fleet in `fleet_control`, and `extend_length()` stops on any other length.
+- **Three tests read as guards and never run.** Each calls `testthat::skip()` unconditionally,
+  so a full `NOT_CRAN=true` suite reports them as skips among 9,506 passing assertions and
+  nobody notices. Found running the release suite 2026-09-21.
+  - `test-dynamics-multi-spp-model.R:119`, "Equilibrium MSVPA suitability dynamics match" --
+    the only one with a stated reason, inline: a minor unexplained difference, possibly bias in
+    diet weighting, where the old EBS CEATTLE still matches. **That is an open numerical
+    discrepancy against the reference implementation and it is recorded nowhere else.**
+  - `test-dynamics-fit-sanity-model.R:5`, "key quantities match baseline" -- no reason given.
+  - `test-data-input-validation.R:4` -- no reason given, and it also carries `skip_on_cran()`,
+    so it is doubly inert.
+  Either restore them or delete them; a skipped test that names a baseline is worse than no
+  test, because the suite reports a guard that is not guarding.
+
+- **`run_mse()` carries every deviation array into the projection except `log_M1_dev`.** The
+  carry is commented out at `R/10-run_mse.R:901` for the operating model, under the
+  `#FIXME - simulate` marker, and again at `:1126` for the estimation model's refit, so a model
+  with `M1_re` projects at zero M deviation. Carry the terminal year, as `index_q_dev` is.
+- **`fit_mod(initMode =)` overwrites `data_list$initMode` unconditionally** (the argument
+  defaults to `"NonEquilibrium"` at `R/6-fit_mod.R:185` and is written to the data list at
+  `:424`), so the data object's own `initMode` field is never read. `BS2017MS$initMode = 1` has
+  therefore never reached the golden `ms` fit. A `model_config` slot on the data IS read, since
+  5.36.0 (`:385`) -- it is the bare field that is not. Also in `TRAPS.md`.
+  **`random_sel` has the same shape** and is worth knowing before anyone attempts the "one
+  object carries every switch" simplification: `fit_mod()` writes `data_list$random_sel` from
+  its own argument at `R/6-fit_mod.R:420`, so setting the field on the data object is silently
+  ignored. A `config` slot is read first (`:369`), as for `initMode`.
+- **The AMAK selectivity start is not the package's** (`src/TMB/ceattle.cpp:4073`,
+  `FIXME: AMAK starts at nbins/2`). A formulation divergence, not a defect; record it where a
+  bridging exercise will find it.
+- **Two places name selectivity codes that no form uses.** The shared normalizer's gate is
+  `sel_type != 5 && sel_type != 12 && sel_type != 11` (`src/TMB/selectivity.hpp:74`) though
+  `sel_map` has no 12, and the invalid-`Selectivity` error offers `range(sel_map)` as the allowed
+  set (`R/0-switches.R:1326`), i.e. "0:14", which includes the unused 10 and 12. Neither is a
+  defect -- `switch_check()` refuses a fleet carrying 10 or 12 -- but the gate reads as though
+  three forms normalize per sex when two do, and the error names codes it would reject.
 
 - ~~**Split `R/0-build_srr_and_M.R`**~~ — **Done in 5.14.0**, but not as described. The file was
   1,497 lines and **52** top-level objects, not 29, and the three-way srr/M1/growth split named
@@ -127,7 +309,7 @@ said, so each struck row records what it actually turned out to be.
   intuition to unlearn: TMB's `updateMap()` collapses a shared parameter with
   `tapply(par, map, mean)`, and this one is held on the log scale, so the group starts at the
   **geometric mean** of its estimated members' values — `sqrt(0.3 * 0.7) = 0.4583` for a
-  two-fleet group at 0.3 and 0.7, a value neither row asks for. `.warn_shared_dev_sd()` reports
+  two-fleet group at 0.3 and 0.7, a value neither row asks for. `.warn_shared_block_start()` reports
   it, once per group, and runs at the END of `build_map()`: `build_map_f_and_data_weights()`
   maps the parameter out for `Off` fleets and `build_map_fixed_natage()` for a fixed-dynamics
   species, both after the sharing pass, so a check placed inside
@@ -139,7 +321,7 @@ said, so each struck row records what it actually turned out to be.
   `random_q` integrated the catchability deviates out and left their sd fixed at
   `Time_varying_q_sd`. Now symmetric, so `random_q = TRUE` estimates it — **and any fit using that
   flag moves.** With the sd estimable the shared-group copy is meaningful, so a shared
-  `Catchability_index` goes through the same `.warn_shared_dev_sd()` check, on the same
+  `Catchability_index` goes through the same `.warn_shared_block_start()` check, on the same
   geometric-mean footing described in the row above.
 
   Caveat, measured rather than assumed: on a 40-year index with the observation sd FIXED and q
@@ -175,7 +357,8 @@ Still open. No user-visible consequence; do them opportunistically.
   with the dynamics fitted against it. The derivation above the marker already quantifies the
   current approximation at ~1.5% trend error over F 0.05–0.8, against −29% to +33% for the
   snapshot it replaced.
-- The `logH_*` / `H_4` / `log_gam_*` markers belong to the stubbed Kinzey-Punt predation forms
+- The `logH_*` and `log_gam_*` markers belong to the stubbed Kinzey-Punt predation forms
+  (`H_4` is NOT one: it is a plain declaration comment inside the commented-out block)
   (`msmMode` 3–9) and the gamma predator selectivity. They are pinned as stubbed in
   `tests/testthat/test-schema-registries.R`; leave them until that work is picked up.
 - `src/TMB/ceattle.cpp` (`penalize every selectivity deviation rather than a sub-range`) —
@@ -185,9 +368,10 @@ Still open. No user-visible consequence; do them opportunistically.
   coefficients through that year and pins the random walk's level in `build_map()`, and
   `Sel_pen_first_bin` / `Sel_pen_last_bin` bound the shape penalty, not the deviation penalty.
   Moves every fit with penalized deviations, so it needs `/golden-check`.
-- `R/0-osa_data.R` (`switch_check() does not run`) — the comment above it says `comp_offset` is
-  filled by `switch_check()`; on the exported `rearrange_data()` path it and the
-  `bias_adjust_*` scalars are filled in `build_osa_data()`. Reword only; no behaviour.
+- ~~`R/0-osa_data.R:80` — the comment names only `switch_check()` as what fills
+  `comp_offset`.~~ **Resolved in 5.36.0**: it names all three fill sites (`:79`-`:82`). Never a
+  marker, so it never appeared in the counts above; the similar-sounding
+  `switch_check() does not run` sits at `R/5-rearrange_data.R:202` and is about `Sel_norm_bin`.
 
 - ~~**Single-species hindcast-curve projection double-counts the SSB drop.**~~ **Resolved in
   5.33.0**: `sample_rec(sample_rec = FALSE)` and `retrospective()` take the hindcast's mean
@@ -201,8 +385,9 @@ Still open. No user-visible consequence; do them opportunistically.
   the hake operating model the curve sat at about 1.5 × R0 there, so no-fishing recruitment ran
   about 1.5 times too high; hake dynamic SB0 falls to 0.60-0.83 of its old value.
   `test-dynamics-dynamic-b0-ianelli.R` checks dynamic B0 equals the hindcast with F near zero.
-- **`.map_switch()` passes a factor through**, so a factor `srr_est_mode` skips `build_srr()`'s
-  checks and fits as its level code.
+- ~~**`.map_switch()` passes a factor through**, so a factor `srr_est_mode` skips
+  `build_srr()`'s checks and fits as its level code.~~ **Resolved in 5.35.0**: it coerces a
+  factor to character first (`R/0-switches.R:378`), with a comment naming this failure.
 - **The refit warning for retired srr codes is hidden** by the `suppressWarnings()` wrapped
   around `.refit_like()` in `retrospective()`, `jitter()`, `profile()` and `self_test()`.
 - **A one-year retrospective peel** averages over that year, though its warning says "after the
@@ -232,6 +417,15 @@ under "Deliberately not changed".
   ConstantFSSB tunes realized SSB against SB0, CMSY reads depletion, and `mse_summary()` reads SBF
   only when `msmMode == 0`. Allowing HCR 5 in multispecies mode would make this a defect;
   `test-switches-hcr-multispecies.R` pins the refusal.
+  **Measured, so the size is known before anyone reopens it** (`BS2017MS`, `estimateMode = 4`):
+  pointing `NByageF` at `M_at_age_dBF` moves `SBF` by 5.27, and pointing `NByage0` at
+  `M_at_age_dB0` moves summed `NByage0` by 16808.7. The scope is six new arrays and six new
+  solver parameters inside the `iter` loop. Settle what the reference point should MEAN under
+  predation before writing any of it -- an unfished equilibrium whose M2 comes from a fished
+  projection is not one definition or the other. **The proposed answer**, for whoever picks it
+  up: `NByage0` is not a strict equilibrium anyway (mean recruitment and terminal-year weights,
+  but year-specific M1 and R0), so "equilibrium M2" here means dynamic-B0 without the
+  recruitment deviations.
 - **Non-parametric growth** is declared and calls `error("not yet implemented")`.
 - **The `msmMode` 3–9 Kinzey-Punt branches are not declared at all** -- the whole block in
   `predation.hpp` is inside a `/* ... */`, so there is no dispatch, live or erroring. The live

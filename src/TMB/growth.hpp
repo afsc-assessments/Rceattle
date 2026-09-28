@@ -8,34 +8,36 @@
  * integrated weight-at-age for a single species.
  *
  * @section math_models Mathematical Models:
- * 1. Mean Length-at-Age ($L_a$) — anchored at $L(a_{L1}) = l_1$:
- *    - Von Bertalanffy (Model 1): $L_a = L_{\infty} + (l_1 - L_{\infty}) \cdot e^{-K(a - a_{L1})}$
- *    - Richards (Model 2): $L_a = [L_{\infty}^m + (l_1^m - L_{\infty}^m) \cdot e^{-K(a - a_{L1})}]^{1/m}$
- *    - For year > 0, a cohort recursion advances $L_{a, y}$ from $L_{a-1, y-1}$
+ * 1. Mean Length-at-Age (\f$L_a\f$) — anchored at \f$L(a_{L1}) = l_1\f$:
+ *    - Von Bertalanffy (Model 1): \f$L_a = L_{\infty} + (l_1 - L_{\infty}) \cdot e^{-K(a - a_{L1})}\f$
+ *    - Richards (Model 2): \f$L_a = [L_{\infty}^m + (l_1^m - L_{\infty}^m) \cdot e^{-K(a - a_{L1})}]^{1/m}\f$
+ *    - For year > 0, a cohort recursion advances \f$L_{a, y}\f$ from \f$L_{a-1, y-1}\f$
  *      using lag-year parameters. At the cohort boundary (current_age ==
- *      age_L1_ceil) the closed-form anchor at $l_1$ is used; `age_L1_safe`
- *      keeps this anchor at $l_1$ for both minage > 0 and minage = 0.
- *    - Linear ramp from Lmin_sp at age 0 to $l_1$ at age_L1 applies when
+ *      age_L1_ceil) the closed-form anchor at \f$l_1\f$ is used; `age_L1_safe`
+ *      keeps this anchor at \f$l_1\f$ for both minage > 0 and minage = 0.
+ *    - Linear ramp from Lmin_sp at age 0 to \f$l_1\f$ at age_L1 applies when
  *      current_age <= age_L1 (only reachable for minage > 0).
  *
- * 2. Weight-at-Age ($W_a$):
+ * 2. Weight-at-Age (\f$W_a\f$):
  *    Integrated across length to account for Jensen's Inequality:
- *    $W_a = \sum_{ln} P(ln | a) \cdot \alpha \cdot L_{mid}^{\beta}$
+ *    \f$W_a = \sum_{ln} P(ln | a) \cdot \alpha \cdot L_{mid}^{\beta}\f$
  *    Bin midpoints are computed per-bin to support non-uniform length bins;
  *    the length plus-group is extended by half the final interior bin width.
  *
  * @section logic Biological Logic:
  * - **Temporal Resolution**: Jan-1 (month = 0).
- * - **Plus-Age Group**: Oldest age class is corrected via a static
- *   $\exp(-0.2 \cdot a)$-weighted mean of $[current\_size, ..., L_{\infty}]$
- *   over $a = 0..nages$. This is the WHAM static analogue of SS3's
- *   N-at-age-weighted recruitment correction at the season transition.
- * - **SD-at-Age**: For current_age <= age_L1, SD = $e^{sd_0}$. Otherwise
- *   linear interpolation in length between SD($l_1$) = $e^{sd_0}$ and
- *   SD($L_{\infty}$) = $e^{sd_1}$, with the plus group pinned to the upper
- *   anchor $e^{sd_1}$ (WHAM-style; identical in estimate_growth_within_yr()).
+ * - **Plus-Age Group**: Oldest age class is corrected via a survival-weighted
+ *   mean of \f$[current\_size, ..., L_{\infty}]\f$ over \f$a = 0..nages\f$, with
+ *   weights \f$\exp(-M_1 a)\f$ at the species' base natural mortality at the oldest
+ *   age (`log_M1`). This is the static analogue of SS3's N-at-age-weighted
+ *   recruitment correction at the season transition.
+ * - **SD-at-Age**: For current_age <= age_L1, SD = \f$e^{sd_0}\f$. Otherwise
+ *   linear interpolation in length between SD(\f$l_1\f$) = \f$e^{sd_0}\f$ and
+ *   SD(\f$L_{\infty}\f$) = \f$e^{sd_1}\f$. The plus group is pinned to \f$e^{sd_1}\f$
+ *   under `growth_sd_style == 1` (WHAM) and interpolated like every other age
+ *   under `growth_sd_style == 2` (SS3), as in estimate_growth_within_yr().
  * - **Size Transition**: Converts mean length and SD into a probability
- *   matrix $P(\text{Length} | \text{Age})$ via `pnorm`. First length bin is
+ *   matrix \f$P(\text{Length} | \text{Age})\f$ via `pnorm`. First length bin is
  *   a minus-group; last length bin is a plus-group.
  *
  * @param wtind Weight index slot to write into.
@@ -48,7 +50,7 @@
  *                widths may be non-uniform.
  * @param growth_parameters 4D array of time-varying growth parameters (K, L1, Linf, m).
  * @param growth_log_sd 3D array of log-scale SDs (index 0 = SD at L1, index 1 = SD at Linf).
- * @param weight_length_pars Matrix of length-weight parameters ($\alpha$, $\beta$).
+ * @param weight_length_pars Matrix of length-weight parameters (\f$\alpha\f$, \f$\beta\f$).
  *
  * @note Outputs are passed by reference.
  * @param length_hat [Output] 4D array filled with mean length-at-age.
@@ -72,6 +74,7 @@ void estimate_growth(
     array<Type>& growth_parameters,
     array<Type>& growth_log_sd,
     matrix<Type>& weight_length_pars,
+    array<Type>& log_M1,         // Base natural mortality at age [nspp, nsex, nages], log scale
     array<Type> &length_hat,     // Modified by reference
     array<Type> &growth_matrix,  // Modified by reference
     array<Type> &weight_hat      // Modified by reference
@@ -194,14 +197,17 @@ void estimate_growth(
 
 
         // 2. Plus-Group Correction (Oldest Age Only) ---
+        // Ages pooled in the plus group, weighted by survival at the oldest-age base
+        // M1 (not Z: F and predation are excluded), lengths interpolated to L-infinity.
         if(growth_model(sp) < 3 && age == (nages(sp) - 1)) {
           Type current_size = length_hat(wtind,  sex, age, yr);
           Type temp_n = 0, temp_sum = 0, weight_a = 1.0;
           Type diff = linf - current_size;
+          Type surv = exp(-exp(log_M1(sp, sex, nages(sp) - 1)));
           for(int a = 0; a <= nages(sp); a++) {
             temp_sum += weight_a * (current_size + (Type(a) / Type(nages(sp))) * diff);
             temp_n += weight_a;
-            weight_a *= exp(-0.2); //FIXME: update mortality?
+            weight_a *= surv;
           }
           length_hat(wtind,  sex, age, yr) = temp_sum / temp_n;
         }
@@ -277,18 +283,18 @@ void estimate_growth(
 /**
  * @brief Integrated Predator Growth, Size-Transition, and Weight-at-Age Module at Month X.
  *
- * @section math_models Mathematical Models:
- * 1. Mean Length-at-Age ($L_a$):
+ * @section math_models_within Mathematical Models:
+ * 1. Mean Length-at-Age (\f$L_a\f$):
  *    Advances the Jan-1 length stored at id_pop forward by fracyr of growth.
- *    - Von Bertalanffy (Model 1): $L_a = L_{\infty} + (L_{a, jan1} - L_{\infty}) \cdot e^{-K \cdot fracyr}$
- *    - Richards (Model 2): $L_a = [L_{\infty}^m + (L_{a, jan1}^m - L_{\infty}^m) \cdot e^{-K \cdot fracyr}]^{1/m}$
+ *    - Von Bertalanffy (Model 1): \f$L_a = L_{\infty} + (L_{a, jan1} - L_{\infty}) \cdot e^{-K \cdot fracyr}\f$
+ *    - Richards (Model 2): \f$L_a = [L_{\infty}^m + (L_{a, jan1}^m - L_{\infty}^m) \cdot e^{-K \cdot fracyr}]^{1/m}\f$
  *    - Linear growth is applied for ages < minage (current_age <= age_L1).
  *
- * 2. Weight-at-Age ($W_a$):
+ * 2. Weight-at-Age (\f$W_a\f$):
  *    Calculated via integration across the length distribution to account for Jensen's Inequality:
- *    $W_a = \sum_{ln} P(ln | a) \cdot \alpha \cdot L_{mid}^{\beta}$
+ *    \f$W_a = \sum_{ln} P(ln | a) \cdot \alpha \cdot L_{mid}^{\beta}\f$
  *
- * @section logic Biological Logic:
+ * @section logic_within Biological Logic:
  * - **Temporal Resolution**: Incorporates `fracyr` to allow within-year (seasonal)
  *   growth and differentiability for time-varying parameters.
  * - **Plus Group**: Advanced by within-year growth identically to other ages
@@ -296,10 +302,11 @@ void estimate_growth(
  *   into the plus group is applied at every year boundary by `estimate_growth()`
  *   (month 0), so `id_pop` already carries the corrected Jan-1 length.
  * - **SD-at-Age**: Length-based linear interpolation between `SD(l1)` and
- *   `SD(linf)` above `age_L1`, with the plus group pinned to `SD(linf)` =
- *   `exp(sd_Linf)` (matching WHAM and `estimate_growth()`).
+ *   `SD(linf)` above `age_L1`. The plus group is pinned to `SD(linf)` =
+ *   `exp(sd_Linf)` under `growth_sd_style == 1` (WHAM) and interpolated like
+ *   every other age under `growth_sd_style == 2` (SS3), as in `estimate_growth()`.
  * - **Size Transition**: Converts mean length and SD into a probability matrix
- *   $P(\text{Length} | \text{Age})$ using a cumulative normal distribution (`pnorm`).
+ *   \f$P(\text{Length} | \text{Age})\f$ using a cumulative normal distribution (`pnorm`).
  *   The first length bin is a minus-group on length; the last is a plus-group.
  *
  * @param wtind Weight index for population/fleet.
@@ -313,7 +320,7 @@ void estimate_growth(
  *                widths may be non-uniform.
  * @param growth_parameters 4D array of time-varying growth parameters (K, L1, Linf, m).
  * @param growth_log_sd 3D array of log-scale SDs (index 0 = SD at L1, index 1 = SD at Linf).
- * @param weight_length_pars Matrix of length-weight parameters ($\alpha$, $\beta$).
+ * @param weight_length_pars Matrix of length-weight parameters (\f$\alpha\f$, \f$\beta\f$).
  *
  * @note Outputs are passed by reference.
  * @param length_hat [Output] 4D array filled with mean length-at-age.
@@ -513,15 +520,18 @@ void estimate_growth_within_yr(
 
 /**
  * @brief Calculates population and fleet-specific weight-at-age.
- * * This function populates the weight_hat array based on either empirical data
+ *
+ * This function populates the weight_hat array based on either empirical data
  * (growth_model == 0) or estimated growth parameters (growth_model > 0).
  * It handles both hindcast and projection years by carrying over the last
  * hindcast year's empirical data.
- * * @param weight_hat [ref] 4D array to store calculated weights (wt_index, sex, age, year)
+ *
+ * @param weight_hat [ref] 4D array to store calculated weights (wt_index, sex, age, year)
  * @param length_hat [ref] 4D array for estimated lengths
  * @param growth_matrix [ref] 5D array for age-length transition matrices
- * @param weight Empirical weight data array
+ * @param weight_obs Empirical weight-at-age input (wt_index, sex, age, year), kg
  * @param growth_model Integer vector indicating growth type (0=empirical, >0=estimated)
+ * @param growth_sd_style Per species, plus-group SD-at-age: 1 = pinned to exp(sd_Linf) (WHAM), 2 = interpolated by length (SS3)
  * @param nspp Number of species
  * @param nyrs Total number of years (hindcast + projection)
  * @param nyrs_hind Number of hindcast years
@@ -563,7 +573,8 @@ void calculate_weight(
     matrix<Type>& lengths,
     array<Type>& growth_parameters,
     array<Type>& growth_log_sd,
-    matrix<Type> weight_length_pars
+    matrix<Type> weight_length_pars,
+    array<Type>& log_M1
 ) {
   int yr_ind;
   int wt_idx_pop;
@@ -614,6 +625,7 @@ void calculate_weight(
         growth_parameters,
         growth_log_sd,
         weight_length_pars,
+        log_M1,
         length_hat,     // Pass by reference
         growth_matrix,  // Pass by reference
         weight_hat      // Pass by reference

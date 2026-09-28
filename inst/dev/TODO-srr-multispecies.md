@@ -1,7 +1,30 @@
 # TODO: stock-recruit curves in multispecies models
 
-Status: **open**. Opened 2026-09-11 with 5.30.0 (`35fbc19b`) and 5.31.0, after
-two adversarial reviews of each.
+Status: **open**, pruned 2026-09-20 after 5.39.0 closed items 3 and 4.
+Opened 2026-09-11 with 5.30.0 (`35fbc19b`) and 5.31.0, after
+two adversarial reviews of each. **5.39.0 closed items 3 (bounds), 4, 9 (the
+harness) and the tests of 12**: `rec_pars[, 2:3]` are bounded at +/-30 (log);
+`.check_stock_recruit_msm()` reads the curve over the observed SSB range (flat /
+linear ridge, Ricker peak below the data, bound, standard error);
+`tools/verify/verify-sim-recovery-srr-msm.R` is the recovery harness. The Ricker
+criteria (density-dependence factor above 0.9 at the highest SSB = linear; peak
+`1e6 / beta` below the lowest SSB = every observation on the descending limb)
+were chosen without a reviewer; revisit if a real Ricker fit trips them wrongly.
+
+**Item 2 was attempted in 5.39.0 and reverted.** Decaying the initial ages with
+`M_at_age(..., 0)` (M1 + lagged M2) inside the predation iterations makes year-1
+N and year-1 M2 mutually dependent: M2 is consumption over prey numbers, so a
+smaller initial N raises M2, which shrinks the next iteration's initial N. On
+`BS2017MS` from default starts the year-1 numbers of pollock ages 2-3 fell from
+8020 / 5940 to 3e-25 / 3e-28 by `niter = 2` and the objective was `Inf` at
+`niter = 10`; the golden `ms` fit (warm-started, `niter = 5`) happened to
+converge, to 10231.72 against 10267.25. It also changes the initial structure of
+`Equilibrium` and `OffsetEquilibrium`, whose `init_dev` is mapped off, and breaks
+the equivalence tests against the R simulator and CEATTLE classic, both of which
+decay with M1 only. A stable form needs M2 for the pre-`styr` years that does
+not feed back through the initial numbers: an M2 taken from the M1-only initial
+structure and held (a one-shot correction), or a switch that reads a
+user-supplied pre-`styr` M2. Either is a design decision, not a patch.
 
 Spawning biomass per recruit (SPR) is undefined under predation: total mortality
 carries M2, which scales with predator abundance, so the template leaves `SPR0`
@@ -69,13 +92,23 @@ penalty, so these objectives cannot be compared with 5.33.0 fits.
 2. **NonEquilibrium decays the initial ages with M1 only**, so under predation
    the initial deviations absorb the missing M2. Hake's mean `init_dev` is −1.6,
    against age-1 M2 of 0.81 plus σ²/2 of 0.77.
-   - Decaying with `M_at_age(..., 0)` (M1 plus year-1 M2) under `msmMode > 0`
-     would fix it. It is a starting age structure, not a reference point, so it
-     stays SPR-free.
-   - It moves every multispecies NonEquilibrium fit, including the hake
-     baseline (2663.8053181057). Re-record baselines.
-3. **Anchor the curve.** Under predation nothing ties alpha and beta to an
-   equilibrium, so they run to the flat ridge.
+   - **Built and measured during 5.39.0, then REVERTED.** Decaying with
+     `M_at_age(..., 0)` moved the golden multispecies fits as expected (`ms` to
+     10231.72, `goa_ms` to 12915.74), but year-1 numbers and M2 feed back across
+     the predation iterations: `BS2017MS` from its default starts reached an
+     infinite objective at `niter = 10`. It also breaks the CEATTLE-classic and
+     R-simulator equivalence tests, which decay with M1.
+   - So the fix needs a stable formulation, not just the substitution: either
+     hold year-1 M2 at the previous iteration's value, or converge the initial
+     age structure inside the iteration. Whoever picks this up should start from
+     the divergence, not from the substitution.
+3. **Anchor the curve — bounds done in 5.39.0.** Under predation nothing ties
+   alpha and beta to an equilibrium, so they run to the flat ridge.
+   `rec_pars[, 2:3]` now carries a default `[-30, 30]` on the log scale, applied
+   before the linkage override so a user bound still wins. It is an overflow
+   guard, not an anchor: Ricker's beta is divided by 1e6 in the template, so the
+   two forms sit 13.8 log units apart and no tighter default is defensible. A
+   prior through a linkage remains the documented way to anchor a curve.
    - On the 2-species fixture log alpha reached 702, next to double-precision
      overflow at 709.8, and a 1-peel retrospective failed with NaN gradients.
      Holding alpha at its single-species value cost 2.5 nats.
@@ -84,12 +117,13 @@ penalty, so these objectives cannot be compared with 5.33.0 fits.
      - bounds on `rec_pars[, 2:3]`;
      - an alpha prior through a linkage as the documented configuration;
      - item 4's diagnostic.
-4. **Add an SPR-free degenerate-curve check to `.check_stock_recruit()`.** Under
-   predation it returns a NOTE before it looks at alpha or beta, so the flat
-   hake curve passes. Check:
-   - the predicted/asymptote ratio across the observed SSB range;
-   - alpha or beta at a boundary, or with NaN standard errors;
-   - optionally, a clearly labelled M1-only steepness as a diagnostic.
+4. **Done in 5.39.0: the degenerate-curve check.** `.check_stock_recruit_msm()`
+   reports a flat or linear Beverton-Holt, a linear or descending-limb Ricker, a
+   parameter at the 5.39.0 bound, and a standard error above 10, reading the
+   hindcast `sdreport` through `fit$.conv_hindcast` — under an estimating HCR
+   `fit$sdrep` is the projection's and reports 0 rather than NaN. It ships with
+   the bounds deliberately: a bound without it converts a loud ridge into a fit
+   that looks converged.
 5. **Projected-deviation conventions: done in 5.33.0.** The Ianelli branch now
    projects `log(mean(R / R_hat))` over the penalty years, and its
    penalty is mean-centred under `bias_adjust_proc`. The median form ran hake
@@ -160,3 +194,17 @@ penalty, so these objectives cannot be compared with 5.33.0 fits.
 
     Document what the Ianelli penalty fits: recruitment centred halfway between
     the mean and the curve, at half the variance.
+14. **Recruitment floor under an identity-link offset (5.35.0) is incomplete.**
+    An identity-link offset adds to R0, alpha and Beta on the natural scale
+    (`ceattle.cpp` 5.6), so it can make them non-positive. 5.35.0 floors hindcast
+    R, R_hat, the penalty curve and the derived year-0 R0/R_init (under
+    `rec_floor_on`), but not:
+    - the equilibrium recursion `NByage0`/`NByageF` (6.6), so SB0, SBF and B0,
+      and the depletion reference HCRs 5 and 6 read, can go negative;
+    - dynamic-B0 recruitment `N_at_age_dB0`/`dBF` (6.6);
+    - projected recruitment (6.8).
+
+    Each spot carries a `TODO` in the template. Flooring dynamic-B0 recruitment
+    has moved fits before, so run `/golden-check` and the hake MSE after the change.
+    `test-recruitment-curve-floor.R` asserts only `is.finite(DynamicSB0)`, which
+    a negative value passes; assert `> 0` on R0, SB0 and DynamicSB0 with the fix.

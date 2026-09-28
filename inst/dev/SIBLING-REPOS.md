@@ -1,7 +1,7 @@
 # The sibling assessment repos
 
-`../Rceattle-models` and `../GOA-ATF-ESP` are live consumers of this package's API. A breaking
-change here breaks scripts that produce federal catch advice.
+The repos below are live consumers of this package's API, and this is the one list of them. A
+breaking change here breaks scripts that produce federal catch advice.
 
 - **`../Rceattle-models`** — EBS/GOA pollock, sablefish, arrowtooth, plaice, POP, hake.
 - **`../GOA-ATF-ESP`** — GOA arrowtooth and its multispecies (cannibalism) run: **the only live
@@ -9,6 +9,8 @@ change here breaks scripts that produce federal catch advice.
 - **`../Climate_MSE`** — GOA climate-linked multispecies MSE: pollock, arrowtooth and cod, with
   SSP126/245/585 operating models. Brought to the current API on 2026-09-11 but **not yet refit**;
   see its section below.
+- **`../GOA-multispecies-assessment`** — the GOA multispecies assessment; `run_all.R` and
+  `R/02_fit_models.R` call `Rceattle::` directly.
 - **Ignore `EBS_CEATTLE_TMB`** — a vendored fork, not a consumer.
 
 Fitted `*.rds` are ~50 MB each. Keep them out of git.
@@ -16,7 +18,7 @@ Fitted `*.rds` are ~50 MB each. Keep them out of git.
 ## Sweeping
 
 ```
-grep -rn "<symbol>" --include=*.R "../Rceattle-models" "../GOA-ATF-ESP" "../Climate_MSE"
+grep -rn "<symbol>" --include=*.R "../Rceattle-models" "../GOA-ATF-ESP" "../Climate_MSE" "../GOA-multispecies-assessment"
 ```
 
 ### `Climate_MSE`
@@ -31,7 +33,8 @@ set, so `fit_mod()` stops on them as `inits`; rerun the fit script first.
 Two data checks that 2024 Rceattle did not have also refused its workbook, and the scripts now
 handle both after `read_data()`. `Pcod_spawn_srv` and `Pcod_seine_srv` estimated selectivity with
 no composition data, so they are turned off. 252 of 4,096 `diet_data` rows carried cod at ages
-11–12 against a cod model of ages 1–10; `fold_diet_plus_group()` folds them into age 10.
+11–12 against a cod model of ages 1–10; Climate_MSE's own helper `fold_diet_plus_group()`
+(`R/Functions/` there, sourced per script -- it is not an Rceattle export) folds them into age 10.
 
 The port had to catch three silent changes. Any 2024-era script carries the same risk:
 
@@ -105,6 +108,24 @@ positive-definite Hessian. The 5.32.1 column is measured on dev `cff500c7`.
 | MSVPA, estimated M | 2140.4295989555 | 2137.4433306648 |
 | estimated suitability | 2267.4725502601 | 2260.7063099168 |
 
+**Those four are STALE against the script as it stands.** `MSE_yr2024.R` changed on 2026-09-15
+(`bc9596e`, Rceattle-models): it added lognormal intercept priors and an M prior to the existing
+fits and appended an Ianelli Beverton-Holt section, so the script now fits different models than
+it did when the table above was recorded on 2026-09-11. No input data changed. Re-measured
+2026-09-21 on the current script, running it twice against different package versions:
+
+| Fit (in script order) | 5.41.0 | 5.33.0 |
+|---|---|---|
+| single-species | 2440.0942 | 2440.0942 |
+| single-species + category-1 HCR | 2440.6633 | 2440.6633 |
+| MSVPA, estimated M | 2447.0049 | 2447.0049 |
+| estimated suitability | 2669.3776 | 2669.3776 |
+
+All six fits the script reports, not just these four, agree to every digit printed, and neither
+run errored. **So 5.34.0-5.41.0 moved nothing here**; the gap against the older table is the
+script, and a reader comparing to it would see a 300-nat regression that does not exist.
+Re-record against whichever script revision you ran, and say which.
+
 Re-run on 5.25.0 (2026-09-01), against that day's references (stage 2 2134.4713926593, stage 4
 2260.7063099135): stages 1, 3 and 4 bit-identical, and stage 2 higher
 by 1.8e-06 (8.3e-10 relative, below the optimizer's own tolerance). Stage 2 is the only one that
@@ -169,9 +190,18 @@ Traps:
   `as.data.frame()` on it errors -- that is the caller's bug, not a broken MSE.
 
 - The pollock scripts' `Data/` paths are relative to the **project** root, not the year folder.
-- **The ATF script cannot be sourced straight through on any version** — it references three
-  objects it never assigns (`:364`, `:480`, `:570`, the last gating the whole final figure
-  block). This is a property of the script, not of your change.
+- **`../GOA-multispecies-assessment` runs entirely off saved fits.** `R/03`–`R/07` load
+  `models/GOA_26_mod_list.RData` rather than refitting, so a breaking change surfaces there as a
+  script error, not as a moved number, and the saved objects can lag the package. Fits are
+  ~1 min each; `run_all.R` rebuilds them from `R/02`. Its `R/07_figures_tables.R` renders every
+  figure the chapter uses, so it is a cheap end-to-end check of the `plot_*()` surface: source it
+  and confirm the manifest it prints reports no new skips.
+- **The ATF entry point is small and the sourcing caveat below is stale.**
+  `2026 assessment w HCR projection.R` is 68 lines, so the three unassigned-object line numbers
+  this note used to carry (`:364`, `:480`, `:570`) cannot refer to it; in the 2025 fallback
+  `Run_2025_ceattle.R` the objects at those lines are all assigned earlier in the same file.
+  Whatever revision that described is gone. Re-derive against the script you actually run before
+  repeating the claim.
 - Its `file =` arguments write **into the assessment repo**. Run it from a sandbox that
   symlinks `Data/`.
 - Force plots through `ggplot2::ggplot_build()`. A figure that assembles but cannot render is

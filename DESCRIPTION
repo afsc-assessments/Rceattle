@@ -1,6 +1,6 @@
 Package: Rceattle
 Title: Fits the Multispecies Assessment Model (CEATTLE) Using TMB
-Version: 5.33.0
+Version: 5.45.0
 Authors@R:
     person(given = "Grant",
            family = "Adams",
@@ -16,8 +16,8 @@ Description: Implements the CEATTLE model using Template Model Builder
     used as inputs to the CEATTLE model to evaluate how predation
     mortality, recruitment, and survival of three target species change
     under historical climate conditions and harvest rates.
-URL: https://grantdadams.github.io/Rceattle/, https://github.com/grantdadams/Rceattle
-BugReports: https://github.com/grantdadams/Rceattle/issues
+URL: https://afsc-assessments.github.io/Rceattle/, https://github.com/afsc-assessments/Rceattle
+BugReports: https://github.com/afsc-assessments/Rceattle/issues
 License: GPL (>= 2)
 Encoding: UTF-8
 LazyData: true

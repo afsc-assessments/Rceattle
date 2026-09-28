@@ -30,18 +30,20 @@ testthat::test_that("sex filter that excludes everything yields zero rows", {
     by      = ~ species + sex,
     sex     = 99L
   )
-  rows <- Rceattle:::materialize_linkage(
-    spec, process = "M",
-    env_data = env,
-    strata   = list(species = 1:2, sex = 1:2)
-  )
+  # Since 5.36.0 a filter that matches nothing says so, since the whole spec drops.
+  testthat::expect_warning(
+    rows <- Rceattle:::materialize_linkage(
+      spec, process = "M",
+      env_data = env,
+      strata   = list(species = 1:2, sex = 1:2)),
+    "`sex = 99` on the natural mortality linkage for `M1` matches none")
   testthat::expect_equal(nrow(rows), 0L)
   testthat::expect_setequal(attr(rows, "design_colnames"),
                             c("(Intercept)", "temp"))
 })
 
 
-testthat::test_that("sex filter is a no-op when `by` does not include sex", {
+testthat::test_that("sex filter warns, and has no effect, when `by` does not include sex", {
   env <- data.frame(Year = 2000:2002, temp = 1:3)
   spec <- Rceattle::linkage_spec(
     formula = ~ temp,
@@ -49,11 +51,12 @@ testthat::test_that("sex filter is a no-op when `by` does not include sex", {
     by      = ~ species,
     sex     = 1L
   )
-  rows <- Rceattle:::materialize_linkage(
-    spec, process = "growth",
-    env_data = env,
-    strata   = list(species = 1:2)
-  )
+  testthat::expect_warning(
+    rows <- Rceattle:::materialize_linkage(
+      spec, process = "growth",
+      env_data = env,
+      strata   = list(species = 1:2)),
+    "`sex =` on the growth linkage for `K` has no effect")
   # 2 design cols x 2 species -> 4 rows; sex column is NA throughout.
   testthat::expect_equal(nrow(rows), 4L)
   testthat::expect_true(all(is.na(rows$sex)))

@@ -113,4 +113,23 @@ testthat::test_that("*_LINKAGE_PARAMS stays in sync with LINKAGE_PARAM_CODES", {
     Rceattle:::RECRUITMENT_LINKAGE_PARAMS,
     names(Rceattle:::LINKAGE_PARAM_CODES$recruitment)
   )
+  testthat::expect_setequal(
+    Rceattle:::SEL_LINKAGE_PARAMS,
+    names(Rceattle:::LINKAGE_PARAM_CODES$sel)
+  )
+})
+
+
+testthat::test_that("the selectivity param codes match the template's consume sites", {
+  # linkage.hpp routes each code to a tensor; ceattle.cpp's prior re-target
+  # reads the same codes. A code added on one side only is silent at fit time.
+  src <- testthat::test_path("..", "..", "src", "TMB")
+  testthat::skip_if(!dir.exists(src), "src/TMB not available")
+  lk <- paste(readLines(file.path(src, "linkage.hpp"), warn = FALSE), collapse = "\n")
+  codes <- sort(unique(unname(Rceattle:::LINKAGE_PARAM_CODES$sel)))
+  testthat::expect_equal(codes, 0:5)
+  for (k in codes) {
+    testthat::expect_match(lk, paste0("param == ", k, "\\b"), perl = TRUE,
+                           info = paste("sel code", k, "has no consume site in linkage.hpp"))
+  }
 })

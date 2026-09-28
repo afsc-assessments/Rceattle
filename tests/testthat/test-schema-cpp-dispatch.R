@@ -81,7 +81,11 @@ test_that("every C++ dispatch branch matches the R map that selects it", {
   # var = the C++ switch; values = what R can encode; exemptions carry a reason,
   # and the reason is why the exemption is allowed to exist at all.
   spec <- list(
-    list(var = "sel_type", values = sel_map,
+    # The selectivity switch dispatches on `sel_case`, not `sel_type`:
+    # NonParametricIntegrable (13) picks its construction from Time_varying_sel,
+    # so the case is computed just above the switch. Every user-selectable code
+    # still reaches it unchanged; the one internal label is pinned below.
+    list(var = "sel_case", values = sel_map,
          map_only = c(Fixed = 0),
          map_only_why = "Fixed selectivity is applied before the dispatch, not by it",
          cpp_only = integer(0), cpp_only_why = character(0)),
@@ -285,4 +289,31 @@ test_that("every renamed template input is either a schema tmb_target or pinned"
 
   # And the exemption may not quietly outlive the thing it exempts.
   testthat::expect_setequal(intersect(not_a_column, built), not_a_column)
+})
+
+
+# The selectivity switch carries one label the dispatch scan above cannot see,
+# because that scan reads integer `case` literals and this one is named. It is
+# the internal construction NonParametricIntegrable (13) uses when its
+# deviations are a random walk. Pin it here: it must exist, it must be negative
+# so it can never collide with a Selectivity code, and no user-facing map may
+# offer it.
+testthat::test_that("the internal selectivity dispatch label is out of the user's range", {
+  dir <- c("src/TMB", testthat::test_path("..", "..", "src", "TMB"))
+  dir <- dir[dir.exists(dir)]
+  testthat::skip_if(length(dir) == 0, "src/TMB not available")
+  sel <- paste(readLines(file.path(dir[1], "selectivity.hpp"), warn = FALSE),
+               collapse = "\n")
+
+  testthat::expect_match(sel, "switch (sel_case)", fixed = TRUE)
+  testthat::expect_match(sel, "case SEL_CASE_NP_INTEGRABLE_WALK:", fixed = TRUE)
+
+  val <- sub(".*SEL_CASE_NP_INTEGRABLE_WALK\\s*=\\s*(-?\\d+).*", "\\1",
+             regmatches(sel, regexpr("SEL_CASE_NP_INTEGRABLE_WALK\\s*=\\s*-?\\d+", sel)))
+  testthat::expect_lt(as.integer(val), 0L)
+  testthat::expect_false(as.integer(val) %in% as.integer(sel_map))
+
+  # It is reached only from Selectivity 13 under the random-walk mode.
+  testthat::expect_match(
+    sel, "sel_type == 13 && flt_varying_sel(flt) == 4", fixed = TRUE)
 })

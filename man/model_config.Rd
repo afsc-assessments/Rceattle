@@ -50,18 +50,18 @@ An object of class \code{"Rceattle_model_config"} (a named list) to be
 stored as \code{data_list$model_config}.
 }
 \description{
-Bundles the model-structure arguments of \code{\link[=fit_mod]{fit_mod()}} -- predation mode,
+Bundles the model-structure arguments of \code{\link[=fit_mod]{fit_mod()}}, predation mode,
 initialization, harvest control rule, and the \verb{build_*()} process
-specifications -- into a single validated object that can be stored on a data
+specifications, into a single validated object that can be stored on a data
 list (\code{data_list$model_config}, e.g. via
 \code{build_data(..., model_config = model_config(...))}). A configuration then
 travels with the data instead of living only in the \code{\link[=fit_mod]{fit_mod()}} call.
 }
 \details{
 The defaults are exactly \code{\link[=fit_mod]{fit_mod()}}'s own argument defaults, so a data list
-carrying \code{model_config()} fits identically to one with no slot at all. When a
+holding \code{model_config()} fits identically to one with no slot at all. When a
 data list has a \code{model_config}, \code{\link[=fit_mod]{fit_mod()}} reads each field only for
-arguments the caller did \strong{not} pass explicitly -- an argument passed to
+arguments the caller did \strong{not} pass explicitly, an argument passed to
 \code{\link[=fit_mod]{fit_mod()}} always wins, even when passed at its default. Omit an argument to
 let the stored configuration take effect for that field.
 }
@@ -69,7 +69,7 @@ let the stored configuration take effect for that field.
 
 The configuration is code-side model structure, not one of the workbook data
 sheets, so it is \strong{not} written by \code{\link[=write_data]{write_data()}} and does not survive an
-xlsx round-trip -- \code{build_data(base = x, model_config = cfg)} piped through
+xlsx round-trip, \code{build_data(base = x, model_config = cfg)} piped through
 \code{\link[=write_data]{write_data()}} then \code{\link[=read_data]{read_data()}} returns without the slot. Re-attach it in
 code, store it alongside the data, or persist it as a documented, git-diffable
 YAML with \code{\link[=save_config]{save_config()}} / \code{\link[=load_config]{load_config()}} and apply it with

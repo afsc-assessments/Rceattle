@@ -3,8 +3,8 @@
 # Provenance: the value was accepted by validate_switches() and then scored by
 # the template with the SAME independent normal penalty as "IID"
 # (`flt_varying_sel == 1 || == 2`, `index_varying_q == 1 || == 2`). No
-# correlation parameter was ever read -- index_q_rho belongs to the removed
-# Catchability = "AR1" (QAR1) path, and selectivity has no equivalent. So a
+# correlation parameter was ever read -- the one that existed belonged to the
+# Catchability = "AR1" (QAR1) path, removed in 5.37.0, and selectivity has no equivalent. So a
 # fleet set to "AR1" fitted independent deviations under a name that promised
 # correlated ones, silently. These tests pin the refusal, the redirect, and the
 # fact that "IID" is the exact fit the removed value gave.

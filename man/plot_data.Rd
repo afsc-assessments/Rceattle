@@ -38,8 +38,8 @@ the bubble subplot).}
 
 \item{subplots}{Integer vector controlling which subplots are produced:
 \itemize{
-\item 1 -- equal-size points showing presence/absence by year/fleet
-\item 2 -- points scaled to relative quantity / precision within each
+\item 1, equal-size points showing presence/absence by year/fleet
+\item 2, points scaled to relative quantity / precision within each
 data type (catch tonnage, 1/SE for indices, sample size for comps)
 }}
 
@@ -81,7 +81,7 @@ long fleet names are clipped.}
 \item{cex.main}{Title character expansion.}
 }
 \value{
-Invisibly, a list with \code{typetable} -- the long data frame underlying
+Invisibly, a list with \code{typetable}, the long data frame underlying
 the plot (year, fleet, data type, relative size).
 }
 \description{

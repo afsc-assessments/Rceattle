@@ -10,7 +10,15 @@ and clear release notes — not speed.
       (`git status`).
 - [ ] `DESCRIPTION` `Version:` field bumped (semver: bump patch for
       bug fixes / docs, minor for new features, major for breaking
-      API changes).
+      API changes). "Breaking" means no back-compat path. A removal with a
+      deprecation message that keeps old fits working is a minor bump:
+      `growth_re` was removed with a `switch_check()` message and a
+      `fit_mod()` guard dropping retired blocks from `inits`, and shipped as
+      a minor. Refusing a configuration that never fitted the model it
+      described (inert, self-contradictory, double-counted, reading values
+      not yet computed, penalizing years outside the hindcast) is also minor,
+      though stored fits with it stop refitting; list each under
+      `## Breaking changes` with the rebuild (5.33.0, 5.35.0).
 - [ ] `NEWS.md` top section heading matches the new version. Convert any
       "Unreleased" placeholder to the version number. Headings carry the
       version alone, with no date, so that one entry can cite another as
@@ -61,6 +69,11 @@ The `pkgdown` GitHub Actions workflow rebuilds the website on the
 `release` event, so a GitHub Release must be published from the tag —
 drafting one is not enough, the event is `release: published`.
 
+**Check that a release actually rebuilt the site rather than assuming the
+event fired.** It has silently not fired: 5.20.0 has a `release`-triggered
+pkgdown run and 5.21.0, published the same way, got none. The recovery is
+a manual dispatch, `gh workflow run pkgdown.yaml --ref main`.
+
 Write the body; do not paste `NEWS.md`. A release that folds a dozen
 versions spans well over a thousand lines there, and the reader needs the
 short answer: what forces a refit, what breaks, what is new. Follow the
@@ -92,7 +105,7 @@ From a clean R session on a different machine (or in a `renv` sandbox):
 # A temporary library, so verifying a release does not overwrite the
 # working install in the middle of an assessment.
 withr::with_temp_libpaths(
-  remotes::install_github("grantdadams/Rceattle@X.Y.Z"))
+  remotes::install_github("afsc-assessments/Rceattle@X.Y.Z"))
 library(Rceattle)
 packageVersion("Rceattle")  # should match X.Y.Z
 citation("Rceattle")        # should list all references

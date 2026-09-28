@@ -5,7 +5,7 @@
 \title{Prior distributions for Rceattle linkage coefficients}
 \description{
 Each prior is captured as a small object of class
-\code{"Rceattle_prior"} carrying a \code{family} name and two positional
+\code{"Rceattle_prior"} holding a \code{family} name and two positional
 parameters (\code{p1}, \code{p2}). The two-parameter shape is enforced so the
 linkage table can store priors uniformly as four columns
 (\code{prior_family}, \code{prior_p1}, \code{prior_p2}, plus reserved future use).
@@ -13,13 +13,13 @@ linkage table can store priors uniformly as four columns
 \details{
 Two surfaces are provided:
 \enumerate{
-\item \strong{Programmatic constructors} -- exported with the \code{prior_}
+\item \strong{Programmatic constructors}: exported with the \code{prior_}
 prefix (\code{prior_normal()}, \code{prior_lognormal()}, ...), safe to
 call anywhere without masking \code{\link[base:gamma]{base::gamma()}}/\code{\link[base:beta]{base::beta()}}.
 \item \strong{Inline form} inside \code{linkage_spec(priors = ...)}. There the
 argument is captured unevaluated and resolved with a private
 data mask that makes \code{normal()}, \code{lognormal()}, \code{gamma()}, and
-\code{beta()} shorthand for the respective \verb{prior_*} constructors --
+\code{beta()} shorthand for the respective \verb{prior_*} constructors,
 \emph{only} inside that argument. Base R remains untouched at the
 package namespace.
 }

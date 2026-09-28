@@ -10,7 +10,7 @@
 Either form is accepted by \code{\link[=build_M1]{build_M1()}}; the canonical integer
 code is what the TMB template ultimately consumes. The
 env-driven integer codes 4 and 5 still work with a deprecation
-warning -- their structural part is identical to 1 and 2
+warning, their structural part is identical to 1 and 2
 respectively, and the env effect is expressed via the
 \code{linkages} argument to \code{\link[=build_M1]{build_M1()}} (see
 \code{vignette("environmental-linkages-and-priors")}). No string alias is offered

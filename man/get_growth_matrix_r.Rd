@@ -15,7 +15,8 @@ get_growth_matrix_r(
   maxage_sp,
   growth_params_sp,
   growth_log_sd_sp,
-  growth_model_sp
+  growth_model_sp,
+  M_plus_sp
 )
 }
 \arguments{
@@ -42,6 +43,8 @@ Params: K, L1, Linf, Richards m.}
 Log-SD of length: 1st param is SD at minage, 2nd param is SD at maxage.}
 
 \item{growth_model_sp}{Integer. 1 = Von Bertalanffy, 2 = Richards.}
+
+\item{M_plus_sp}{Numeric. Natural mortality at the oldest age (one value, or one per sex), which weights the ages pooled in the plus group by survival, as the template does.}
 }
 \value{
 A 4D array of probabilities with dimensions (sex, age, length, year).

@@ -34,7 +34,7 @@
 #' recruitment applies the annual log deviation, \eqn{R_y \cdot exp(R_{dev,y})}, as in the
 #' mean form. For numerical stability the Ricker \eqn{\beta_{srr}} is estimated on a scale
 #' divided by 1,000,000, so the fitted \code{beta} is 1e6 times the density-dependence
-#' coefficient in the equation above; \code{Bmsy_lim} (\eqn{\approx 1/\beta_{srr}}) carries
+#' coefficient in the equation above; \code{Bmsy_lim} (\eqn{\approx 1/\beta_{srr}}) holds
 #' the same scaling.
 #'
 #' When \code{srr_pred_fun > 0} and \code{srr_fun = 0} recruitment in the hindcast is estimated as in \code{srr_fun = 0} \deqn{R_y = exp(R0 + R_{dev,y})}, but an additional stock recruitment relationship defined by \code{srr_pred_fun} is estimated between \code{srr_hat_styr} and \code{srr_hat_endyr} and treated as an additional penalty. The stock recruitment relationship defined by \code{srr_pred_fun} is then used in the projection.
@@ -77,12 +77,15 @@
 #' spawning biomass per recruit and so exists only in single-species models.
 #'
 #' @section Starting values:
-#' Alpha starts at \code{srr_prior} (default 4) wherever that is an alpha, and at
-#' \eqn{e^3} otherwise; beta starts at 3. Neither knows the stock's scale. Set them
+#' Mean recruitment (\code{R0}) starts at \eqn{e^9 = 8103} thousand fish; under
+#' a curve fitted in the hindcast of a multispecies model the same slot is the
+#' free initial recruitment level \code{R_init}, with the same start. Alpha
+#' starts at \code{srr_prior} (default 4) wherever that is an alpha, and at
+#' \eqn{e^3} otherwise; beta starts at 3. None of them knows the stock's scale. Set them
 #' with \code{srr_alpha_init} / \code{srr_beta_init} or a linkage \code{init};
 #' supplying \code{srr_prior} as alpha's starting value is deprecated. \eqn{\beta} sets the density dependence in
 #' \eqn{R = \alpha S / (1 + \beta S)}, so it must be on the order of
-#' \eqn{(\alpha - 1/\phi_0) / R_0} -- typically \eqn{10^{-3}} or smaller for a
+#' \eqn{(\alpha - 1/\phi_0) / R_0}, typically \eqn{10^{-3}} or smaller for a
 #' stock measured in tonnes; starting three orders of magnitude away drives
 #' predicted recruitment to near zero and the optimizer returns
 #' \code{NA/NaN gradient evaluation}. From a steepness \eqn{h} and unfished
@@ -319,14 +322,14 @@ build_srr <- function(srr_fun = 0,  #srr_model
 #'
 #' `srr_prior` is a prior on **steepness** where the model consumes it as one:
 #' the lognormal (`srr_est_mode` 2) and beta (`srr_est_mode` 3) priors on a
-#' Beverton-Holt curve (`srr_pred_fun` 2 or 3). Everywhere else -- Ricker at any
+#' Beverton-Holt curve (`srr_pred_fun` 2 or 3). Everywhere else, Ricker at any
 #' `srr_est_mode`, and `srr_est_mode` 0 ("fix alpha to prior mean") or 1
-#' ("estimate") for any curve -- it is an alpha, and so is a valid starting
+#' ("estimate") for any curve, it is an alpha, and so is a valid starting
 #' value for `rec_pars[, "Alpha"]`.
 #'
 #' `build_params()` and `fit_mod()` both seed alpha and share this rule.
 #'
-#' @param data_list A `data_list` carrying `srr_est_mode` / `srr_pred_fun`.
+#' @param data_list A `data_list` holding `srr_est_mode` / `srr_pred_fun`.
 #' @return `TRUE` when `srr_prior` may be used as an alpha starting value.
 #' @keywords internal
 #' @noRd
@@ -500,4 +503,47 @@ RECRUITMENT_LINKAGE_PARAMS <- c("R0", "alpha", "beta")
     }
   }
   linkages
+}
+
+
+# A recruitment linkage on a species with input numbers-at-age (estDynamics > 0)
+# fits nothing: its recruitment is read from NByageFixed and rec_pars is fixed.
+# pool_linkages() expands a spec with no `species =` to one row per species.
+.check_srr_linkage_fixed_species <- function(linkage_table, estDynamics, spnames) {
+  if (is.null(linkage_table) || nrow(linkage_table) == 0L) return(invisible())
+  rec <- linkage_table[linkage_table$process == "recruitment", , drop = FALSE]
+  if (nrow(rec) == 0L) return(invisible())
+  fixed_sp <- which((estDynamics %||% rep(0, length(spnames))) > 0)
+  if (!length(fixed_sp)) return(invisible())
+  sp <- if (is.character(rec$species)) match(rec$species, spnames) else
+    as.integer(as.character(rec$species))
+  if (anyNA(sp)) stop("internal error: a recruitment linkage row names no species.", call. = FALSE)
+  bad <- sp %in% fixed_sp
+  if (any(bad)) {
+    est <- setdiff(seq_along(spnames), fixed_sp)
+    stop(sprintf(paste0(
+      "species %s: a recruitment linkage on a species with input numbers-at-age ",
+      "(estDynamics > 0) fits nothing, because its recruitment is read from ",
+      "NByageFixed. Name the estimated species in the spec: `species = c(%s)` (%s)."),
+      paste(unique(spnames[sp[bad]]), collapse = ", "),
+      paste(est, collapse = ", "), paste(spnames[est], collapse = ", ")), call. = FALSE)
+  }
+  invisible()
+}
+
+
+# An identity-link offset on alpha, beta or R0 can drive the curve to or below zero;
+# the template then keeps recruitment positive (posfun, 0.001 barrier) with a penalty
+# (jnll row "Zero n-at-age penalty"), and check_convergence() reports that row.
+.warn_srr_identity_link <- function(linkage_table) {
+  if (is.null(linkage_table) || nrow(linkage_table) == 0L) return(invisible())
+  idn <- linkage_table$process == "recruitment" & !is.na(linkage_table$link) &
+    linkage_table$link == "identity" & linkage_table$design_col != "(Intercept)"
+  if (any(idn)) {
+    warning("identity-link recruitment linkage on ", paste(unique(linkage_table$param[idn]),
+            collapse = ", "), ": an offset that makes the curve non-positive is kept ",
+            "positive by posfun() with a penalty (jnll row \"Zero n-at-age penalty\"). ",
+            "Check that row is 0 in the fit, or use the log link.", call. = FALSE)
+  }
+  invisible()
 }

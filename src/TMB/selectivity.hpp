@@ -3,7 +3,8 @@
 
 /**
  * @brief Performs final normalization and projection of fishery selectivity (age/length) across all fleets.
- * * @details This function iterates through all fleets to process selectivity data.
+ *
+ * @details This function iterates through all fleets to process selectivity data.
  * It handles:
  * 1. Zeroing out selectivity for ages below bin_first_selected.
  * 2. Normalizing selectivity values based on a single age (sel_norm_bin1 >= 0),
@@ -27,7 +28,7 @@
  *   reference, so both reach 1), 1 = AcrossSexes (one reference pooled over the
  *   sexes, so the less-selected sex stays below 1). Orthogonal to
  *   sel_norm_bin1/2, which say WHERE the reference is taken.
- * @param sel_at_age 4D container (fleet, sex, age, year) modified in-place.
+ * @param selectivity 4D container (fleet, sex, age or length bin, year) modified in-place.
  */
 template<class Type>
 void normalize_and_project_selectivity(
@@ -275,6 +276,7 @@ void calculate_selectivity(
     matrix<Type>& lengths,
     const vector<int>&  flt_spp,
     const vector<int>&  flt_sel_type,
+    const vector<int>&  flt_varying_sel,
     const vector<int>&  flt_sel_dim,
     const vector<int>&  bin_first_selected,
     const vector<int>&  flt_n_sel_bins,
@@ -304,7 +306,14 @@ void calculate_selectivity(
     // not const-qualified; these tensors are read, never written, here.
     array<Type>& sel_slp_off,      array<Type>& sel_slp_off_nat,
     array<Type>& sel_inf_off,      array<Type>& sel_inf_off_nat,
-    array<Type>& sel_coff_off,     array<Type>& sel_coff_off_nat
+    array<Type>& sel_coff_off,     array<Type>& sel_coff_off_nat,
+    // Per-sex apical height: exp(log_sel_apical + log offset) + natural offset
+    // multiplies one sex's whole curve. Compiled in only when a selectivity
+    // linkage names `apical` (sel_apical_on), so every other model keeps its
+    // AD tape unchanged.
+    const int& sel_apical_on,
+    array<Type>& log_sel_apical,   // [n_flt, max_sex]
+    array<Type>& sel_apical_off,   array<Type>& sel_apical_off_nat   // [n_flt, max_sex, nyrs]
 ) {
   sel_at_age.setZero();
   sel_at_length.setZero();
@@ -338,19 +347,28 @@ void calculate_selectivity(
     int sel_type = flt_sel_type(flt);
     if (sel_type == 0) continue;
 
+    // NonParametricIntegrable (13) builds its curve two ways: a random walk on the
+    // base coefficients when its deviations are a walk, otherwise the shared
+    // non-parametric branch. Time_varying_sel picks which, so the switch below
+    // dispatches on this rather than on the Selectivity code alone.
+    // SEL_CASE_NP_INTEGRABLE_WALK is internal; it is not a Selectivity value.
+    const int SEL_CASE_NP_INTEGRABLE_WALK = -13;
+    int sel_case = (sel_type == 13 && flt_varying_sel(flt) == 4)
+                     ? SEL_CASE_NP_INTEGRABLE_WALK : sel_type;
+
     bool is_length_based = flt_sel_dim(flt) == 1;
     int nbins =  is_length_based? nlengths(sp) : nages(sp);
     int n_sel_bins = flt_n_sel_bins(flt);
     Type binwidth = is_length_based ? (lengths(sp, 1) - lengths(sp, 0)) : Type(1.0);
 
     // Uncapped, per-year-centered log-selectivity, carried across years for the
-    // NonParametricRPM (type 9) random walk (the realized curve is then capped).
+    // NonParametricPM (type 9) random walk (the realized curve is then capped).
     array<Type> np_unc(nsex(sp), nbins, nyrs_hind); np_unc.setZero();
 
     for (int yr = 0; yr < nyrs_hind; yr++) {
       for (int sex = 0; sex < nsex(sp); sex++) {
 
-        switch (sel_type) {
+        switch (sel_case) {
         case 1: // Logistic
           for (int bin = 0; bin < nbins; bin++) {
             Type x_val = is_length_based ? (lengths(sp, bin) + 0.5 * binwidth) : Type(bin + 1);
@@ -369,7 +387,38 @@ void calculate_selectivity(
           }
           break;
 
-        case 9: { // NonParametricRPM (RTMB "rpm"): random walk on the per-year-
+        // NonParametricIntegrable (13) under Time_varying_sel = "RandomWalk": the
+        // Ianelli curve on the base coefficients plus the running sum of increments
+        // (years after the fleet's start year), centred for output only, so with no
+        // increments every year is NonParametric's curve. No cap; the increments are
+        // scored in ceattle.cpp. Under "Off" or "IID" the form falls to the shared
+        // non-parametric branch below.
+        case SEL_CASE_NP_INTEGRABLE_WALK: {
+          for(int bin = 0; bin < n_sel_bins; bin++){
+            Type inc = (yr > flt_sel_start_yr(flt)) ? sel_coff_dev(flt, sex, bin, yr) : Type(0.0);
+            np_unc(sex, bin, yr) = (yr > 0 ? np_unc(sex, bin, yr - 1) : Type(0.0)) + inc;
+            non_par_sel(flt, sex, bin, yr) = sel_coff(flt, sex, bin) + np_unc(sex, bin, yr);
+          }
+          { vector<Type> base(n_sel_bins);
+            for(int bin = 0; bin < n_sel_bins; bin++) base(bin) = non_par_sel(flt, sex, bin, yr);
+            avg_sel(flt, sex, yr) = log_mean_exp(base); }
+          for(int bin = n_sel_bins; bin < nbins; bin++) {
+            non_par_sel(flt, sex, bin, yr) = non_par_sel(flt, sex, n_sel_bins - 1, yr);
+          }
+          { vector<Type> ls(nbins);
+            for(int bin = 0; bin < nbins; bin++) ls(bin) = non_par_sel(flt, sex, bin, yr);
+            avgsel_tmp = log_mean_exp(ls); }
+          for(int bin = 0; bin < nbins; bin++) {
+            non_par_sel(flt, sex, bin, yr) -= avgsel_tmp;
+            log_non_par_sel(flt, sex, bin, yr) = non_par_sel(flt, sex, bin, yr);
+            non_par_sel(flt, sex, bin, yr) = exp(non_par_sel(flt, sex, bin, yr));
+            if (is_length_based) sel_at_length(flt, sex, bin, yr) = non_par_sel(flt, sex, bin, yr);
+            else                 sel_at_age(flt, sex, bin, yr) = non_par_sel(flt, sex, bin, yr);
+          }
+          break;
+        }
+
+        case 9: { // NonParametricPM (RTMB "rpm"): random walk on the per-year-
                   // renormalized log-selectivity, then a flat age-cap.
           // sel_coff = base coffs (year styr, ages 0..n_sel_bins-1); sel_coff_dev =
           // RAW per-year increments placed at the year they apply. Ages >= n_sel_bins
@@ -416,6 +465,7 @@ void calculate_selectivity(
           break;
         }
 
+        case 13: // NonParametricIntegrable under "Off"/"IID"; penalties on the base (ceattle.cpp)
         case 2: // Non-parametric (Ianelli style)
           for(int bin = 0; bin < n_sel_bins; bin++) {
             non_par_sel(flt, sex, bin, yr) = sel_coff(flt, sex, bin) + sel_coff_dev(flt, sex, bin, yr);
@@ -490,7 +540,7 @@ void calculate_selectivity(
 
             // Normalized per sex here, not in normalize_and_project_selectivity(),
             // so both sexes reach 1: Sel_norm_scope is inert on Hake, which cannot
-            // carry a sex difference in level. inst/dev/TODO-hake-sel-norm-scope.md
+            // carry a sex difference in level. inst/dev/TODO-selectivity.md
             max_sel = -1e10;
             if (sel_norm_bin1(flt) >= 0 && sel_norm_bin2(flt) < 0) {
               max_sel = is_length_based ? sel_at_length(flt, sex, sel_norm_bin1(flt), yr) : sel_at_age(flt, sex, sel_norm_bin1(flt), yr);
@@ -597,6 +647,26 @@ void calculate_selectivity(
 
       } // End sex
     } // End year
+
+    // --- 2b. PER-SEX APICAL HEIGHT ---
+    // One sex's whole curve times exp(log_sel_apical + log-link offset), plus
+    // the identity-link offset, the convention the log-scale slopes use. Applied
+    // after every form's own centring or normalization (NonParametric,
+    // NonParametricPM and Hake rescale inside the switch) and before the shared
+    // normalizer, which must pool its reference across sexes (AcrossSexes) or be
+    // off for the offset to survive; .check_sel_apical_rows() refuses the rest.
+    if (sel_apical_on == 1) {
+      for (int yr = 0; yr < nyrs_hind; yr++) {
+        for (int sex = 0; sex < nsex(sp); sex++) {
+          Type scale = exp(log_sel_apical(flt, sex) + sel_apical_off(flt, sex, yr))
+                       + sel_apical_off_nat(flt, sex, yr);
+          for (int bin = 0; bin < nbins; bin++) {
+            if (is_length_based) sel_at_length(flt, sex, bin, yr) *= scale;
+            else                 sel_at_age(flt, sex, bin, yr) *= scale;
+          }
+        }
+      }
+    }
 
     // --- 3. NORMALIZATION & PROJECTION ---
     normalize_and_project_selectivity(

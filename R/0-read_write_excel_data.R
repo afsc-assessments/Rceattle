@@ -207,8 +207,8 @@ write_data <- function(data_list, file = "Rceattle_data.xlsx") {
 
 #' Write a minimal starter CEATTLE data workbook
 #'
-#' Emits a small, structurally complete single-species workbook -- one survey
-#' and one fishery, flat placeholder data -- that a user can open and edit as a
+#' Emits a small, structurally complete single-species workbook, one survey
+#' and one fishery, flat placeholder data, that a user can open and edit as a
 #' starting point. fleet_control is built on the canonical column names with
 #' schema defaults filled by \code{\link{switch_check}}, so the template is
 #' always in sync with the current schema. The template round-trips through
@@ -227,7 +227,7 @@ write_data <- function(data_list, file = "Rceattle_data.xlsx") {
 #' f <- file.path(tempdir(), "template.xlsx")
 #' dat <- write_template(f, nages = 8, nyrs = 20)
 #'
-#' # The workbook is correctly shaped but carries placeholder observations;
+#' # The workbook is correctly shaped but holds placeholder observations;
 #' # data_requirements() reports what a given configuration still needs.
 #' head(data_requirements(dat), 4)
 #' unlink(f)

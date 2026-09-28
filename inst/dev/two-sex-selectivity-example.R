@@ -1,10 +1,14 @@
 ## Time-varying selectivity options in Rceattle on two-sex model
 ## Also options for different scale between sexes
 ##
-## Fixes:
-##   1. NonParametric + IID now works.
-##   2. Fixed NonParametric + RandomWalk "NA/NaN
-##      function evaluation" overflow via log_sum_exp.
+## Status note (re-checked 2026-09-21, 5.41.0). The header used to say
+## "NonParametric + IID now works". It does not, and deliberately so:
+## 5.35.0 REFUSES random_sel = TRUE on NonParametric and NonParametricPM,
+## because the shape penalties are charged on each year's realized curve,
+## so the reported deviation sd is not the sd of the deviations. 5.40.0
+## added the form that does integrate, NonParametricIntegrable (13); use it
+## when you want random_sel = TRUE.
+## The sections below run because random_sel defaults to FALSE.
 ##
 ## Some models may not converge, so check warning!
 
@@ -94,7 +98,7 @@ d6 <- d
 d6$fleet_control$Selectivity[FISHERY]      <- "2DAR1"
 d6$fleet_control$N_sel_bins[FISHERY]       <- 19
 d6$fleet_control$Time_varying_sel[FISHERY] <- "Off"
-d6$fleet_control$Sel_norm_bin[FISHERY]     <- 0    # normalize by max (moving to "max" or 0 on next release)
+d6$fleet_control$Sel_norm_bin[FISHERY]     <- 0    # normalize by max ("Max" is accepted by Sel_norm_bin since 5.35.0)
 d6$fleet_control$Sel_norm_scope[FISHERY]   <- "AcrossSexes" # compared to "WithinSex"
 d6$fleet_control$Sel_curve_pen1[FISHERY]   <- 0   # correlation across bins
 
@@ -110,7 +114,7 @@ d7 <- d
 d7$fleet_control$Selectivity[FISHERY]      <- "3DAR1"
 d7$fleet_control$N_sel_bins[FISHERY]       <- 19
 d7$fleet_control$Time_varying_sel[FISHERY] <- "Off"
-d7$fleet_control$Sel_norm_bin[FISHERY]     <- 0    # normalize by max (moving to "max" or 0 on next release)
+d7$fleet_control$Sel_norm_bin[FISHERY]     <- 0    # normalize by max ("Max" is accepted by Sel_norm_bin since 5.35.0)
 d7$fleet_control$Sel_norm_scope[FISHERY]   <- "AcrossSexes" # compared to "WithinSex"
 d7$fleet_control$Sel_curve_pen1[FISHERY]   <- 0   # correlation across bins
 d7$fleet_control$Sel_curve_pen2[FISHERY]   <- 0   # correlation across years
@@ -134,7 +138,8 @@ mod_list <- list(NP_IID      = m1,
 ##   NonParametric / NonParametricPM              each sex re-centered to mean 1
 ##   Hake                                         each sex scaled by its own max
 ##                                                (Sel_norm_scope is inert here --
-##                                                 inst/dev/TODO-hake-sel-norm-scope.md) (need to fix)
+##                                                 inst/dev/TODO-selectivity.md) (open: the capability gap, not the silence --
+##                                                 data_check() announces it since 5.35.0)
 ##   DoubleNormal                                 both sexes peak at exactly 1
 ##                                                (only the old-age plateau differs)
 ##
@@ -152,7 +157,7 @@ sex_max <- function(fit, flt = FISHERY, yr = 1) {
 # - Both sexes max at 1
 d8 <- d
 d8$fleet_control$Selectivity[FISHERY]         <- "Logistic"
-d8$fleet_control$Sel_norm_bin[FISHERY]     <- 0    # normalize by max (moving to "max" or 0 on next release)
+d8$fleet_control$Sel_norm_bin[FISHERY]     <- 0    # normalize by max ("Max" is accepted by Sel_norm_bin since 5.35.0)
 d8$fleet_control$Sel_norm_scope[FISHERY]   <- "AcrossSexes" # compared to "WithinSex"
 m8 <- fit_mod(data_list = d8, msmMode = 0, estimateMode = "Hindcast",
               fit_control = fit_control(phase = TRUE))
@@ -160,7 +165,7 @@ m8 <- fit_mod(data_list = d8, msmMode = 0, estimateMode = "Hindcast",
 ## 8b. Double logistic ----
 d9 <- d
 d9$fleet_control$Selectivity[FISHERY]         <- "DoubleLogistic"
-d9$fleet_control$Sel_norm_bin[FISHERY]     <- 0    # normalize by max (moving to "max" or 0 on next release)
+d9$fleet_control$Sel_norm_bin[FISHERY]     <- 0    # normalize by max ("Max" is accepted by Sel_norm_bin since 5.35.0)
 d9$fleet_control$Sel_norm_scope[FISHERY]   <- "AcrossSexes" # compared to "WithinSex"
 m9 <- fit_mod(data_list = d9, msmMode = 0, estimateMode = "Hindcast",
               fit_control = fit_control(phase = TRUE))
@@ -190,6 +195,26 @@ m10 <- fit_mod(data_list = d10, msmMode = 0, estimateMode = "Hindcast",
 # A loose prior is worse than none: N(8, 1) here reaches a ratio of 2.80 with no
 # sdreport at all. Check the Hessian before believing a sex ratio.
 m10$convergence$checks$hessian_conditioning
+
+## 8d. Logistic with a per-sex apical height (5.38.0) ----
+# 8a cannot produce a sex level difference at all: both logistic curves
+# asymptote to 1. `apical` multiplies one sex's whole curve, after the form and
+# before the across-sex normalization, so the sex contrast becomes a parameter
+# with a standard error. Name the fleet and the sex that carries it; the other
+# sex is the reference. For two saturating logistic curves the multiplier is
+# also the ratio of maxima; for a dome with sex-specific shape it is not, and
+# sex_max() is the ratio to quote.
+sel_apical <- build_selectivity(linkages = list(
+  apical = linkage_spec(~ 1, by = ~ fleet + sex, fleet = FISHERY, sex = "male",
+                        priors = list(intercept = lognormal(0, 0.5)))))
+d11 <- d8
+d11$fleet_control$Selectivity_index[FISHERY] <- FISHERY   # the offset sits on the lead fleet
+m11 <- fit_mod(data_list = d11, msmMode = 0, estimateMode = "Hindcast",
+               selFun = sel_apical,
+               fit_control = fit_control(phase = TRUE))
+sex_max(m11)                                             # 5.38.0: ratio 2.15
+exp(m11$estimated_params$log_sel_apical[FISHERY, 2])     # the multiplier; equal here, logistic
+summary(m11$sdrep)["log_sel_apical", ]                   # log 0.77, SE 0.21
 
 ## Sex comparison ----
 ## The objective for 8c is not comparable to 8a/8b -- a prior adds its own term,

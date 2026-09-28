@@ -20,7 +20,7 @@ An \code{Rceattle_run_config}.
 \description{
 Returns the \code{\link[=model_config]{model_config()}} structure plus the estimation controls and
 \code{\link[=fit_control]{fit_control()}} bundle as a single \code{Rceattle_run_config}. Accepts a fitted
-Rceattle object, a data list carrying \verb{$model_config}, an
+Rceattle object, a data list holding \verb{$model_config}, an
 \code{Rceattle_run_config}, or an \code{Rceattle_model_config}. Estimation controls and
 \code{fit_control} supplied via \code{...} override any found on the object.
 }

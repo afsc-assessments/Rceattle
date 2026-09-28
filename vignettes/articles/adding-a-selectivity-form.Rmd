@@ -1,0 +1,293 @@
+---
+title: "Adding a selectivity form"
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  message = FALSE, warning = FALSE,
+  eval = identical(Sys.getenv("RCEATTLE_EVAL_VIGNETTES"), "true")
+)
+```
+
+A selectivity form is an assessment decision before it is code: it fixes which
+ages or lengths a fleet's data can inform, and so which biomass the model
+reports. This article follows one existing form, `Selectivity = "DoubleNormal"`
+(code 8), through every file it touches, so that you can add your own by the same
+route. Every path, function and code quoted here is checked by
+`tests/testthat/test-docs-anchors.R`, so if this page and the code disagree, the
+test suite fails.
+
+Read the [developer guide](developer-guide.html) first for the pipeline and the
+switch system, and `CONTRIBUTING.md` for the toolchain and the tests. The numbers
+below come from Rceattle 5.37.0 on the bundled `GOApollock` data.
+
+Two terms used throughout. A parameter is *mapped out* when the TMB map holds
+`NA` for it: it stays at its starting value and is not estimated. A *drift guard*
+is a test that reads the source rather than running the model, and fails when
+two places that must agree no longer do.
+
+## How a form travels through the pipeline
+
+A user writes the form in the `Selectivity` column of `fleet_control`, as a name
+or as its integer code. `fit_mod()` runs `switch_check()` first, which resolves
+either spelling through `sel_map` in `R/0-switches.R` and stores the **canonical
+name** (`"DoubleNormal"`), so every R check after it compares strings. The integer
+appears once, in `rearrange_data()`, which calls `convert_switches()` and passes
+the code to the template as `flt_sel_type`. The template dispatches on it.
+
+So the two sides of a form are bound by nothing but agreement: the name and code
+in `sel_map`, and the `case` label in `selectivity.hpp`. Several places inside R
+also key on the form, and each is a site to edit. Find them with
+`grep -n 'NonParametric\|sel_type\|Selectivity %in%' R/`, rather than trusting
+this list to stay complete: the parametric-form list `sel_para` in
+`data_check()`; the slot-label switch in `.rce_sel_slot_labels()`; `sim_mod()`,
+which warns that the AR1 forms hold their own random effects; the form groups in
+`R/0-switches.R` (`.np`, `.np_hake` -- which also holds `Hake` and `LogisticPM`
+-- `.np_pen3`, `np_legacy_idx` for the pre-4.4 format upgrade, `np_idx` for the
+`Sel_curve_pen1/2` NA check, and `.rce_sel_pen1_sign_aware()`);
+`.rce_np_unintegrable_fleets()` in `R/3-build_map.R`, which decides whether
+`random_sel = TRUE` is refused; and `.is_pm` in `R/5-rearrange_data.R`, which
+sets `allow_all` for `Sel_norm_bin`.
+
+**A penalized form needs two registries, and they are separate.**
+`.RCE_SEL_PEN_POSITIVE` (`R/0-switches.R`) lists, per `Sel_curve_pen` slot, the
+forms that read that slot as a weight; it drives the negative-weight refusal
+only. `.sd_specs`, a few lines below it, drives the
+`Sel_shape_sd` / `Sel_curvature_sd` / `Sel_devmag_sd` conversion and has its own
+form list. Both are keyed by canonical NAME, not by the integer, so a new form
+is absent from both by default. The two fail in opposite directions: absent from
+`.RCE_SEL_PEN_POSITIVE`, a negative weight on your form is accepted silently;
+absent from `.sd_specs`, a user who sets the SD column gets a hard stop saying
+the form does not use that slot. Add the name to each slot it reads, in both.
+
+**Which code to take.** Codes are frozen, because a saved configuration and a
+saved fit hold the integer. Three are not free although no form uses them: 10
+was retired; 12 is still named in the normalizer's exclusion list in
+`selectivity.hpp` (`sel_type != 12`); and 14 was advertised as a second
+integrable form before being collapsed into 13, which means
+`meta_data_names.xlsx` -- the template every workbook is built from -- carried
+`14 = ...` on `dev` for six days. A `Selectivity` column written in that window
+holds it. Retired is not free: **the next form takes 15.**
+
+## The files, in pipeline order
+
+| File | When | What changes |
+|---|---|---|
+| `R/0-switches.R` | always | Add `"YourForm" = N` to `sel_map`. `validate_switches()` rejects any name not in the map, so this line is what makes the form selectable. |
+| `R/0-column_schema.R` | always | Extend the `Selectivity` row's description: the schema is the source of truth for the workbook. |
+| `R/data.R` | always | Add the code to the `\item{Selectivity}` entry; `test-schema-canonical.R` requires every `sel_map` name to be documented there. |
+| `src/TMB/selectivity.hpp` | always | Add the `case N:` to `switch (sel_type)` in `calculate_selectivity()`. Write into `sel_at_age` or `sel_at_length` by `is_length_based`; `normalize_and_project_selectivity()` then applies `Bin_first_selected`, the `Sel_norm_bin` normalization and the projection for every form except those it names. |
+| `R/3-build_map.R` | always | Add an `if (sel_type == "YourForm")` block to `build_map_selectivity()`. Everything starts mapped out; the block frees the slots your form reads, per sex, and the deviates for each `Time_varying_sel` mode it supports. Mirrored fleets (shared `Selectivity_index`) are handled afterwards by `adjust_map_shared_params()`, which is form-agnostic. |
+| `src/TMB/ceattle.cpp` | if the form takes deviates | The deviate densities in `JNLL_SEL_DEV` are keyed on **hard-coded type lists**: four `if` lines in the block headed `Logistic selectivity penalties` name the codes `1`, `3`, `4` and `8` explicitly. A form whose map block frees deviates but whose code is not in those lists estimates free parameters with no density, and nothing reports it. Add the code to each list your form's deviates belong in. |
+| `R/1-data_check.R` | always | Add the form to the `sel_para` list, so the `Time_varying_sel` soft-deprecation nudge covers it, and restrict `Time_varying_sel` to the modes your `build_map()` block handles, next to the NonParametric, NonParametricPM, Hake and LogisticPM checks. A mode the block does not name is mapped out silently (see Troubleshooting). Add any required-column check here too. |
+| `R/0-parameter_index.R` | if the form re-uses a slot | `.PAR_SEL_SLOTS` names what each `sel_inf` and `log_sel_slp` slot means per form, **and** `.rce_sel_slot_labels()` dispatches to it through a hand-written `switch` on the code and the name. Both need the new form, or `parameter_index()` and the standard-error tables label the slot for the logistic family. |
+| `R/2-build_params.R` | if the defaults are wrong for the form | Starting values are shared across forms: `sel_inf` starts at the values 0 and 10 (slot 1 at the length midpoint on a length-based fleet), `log_sel_slp` at 0.5. LogisticPM is the one form with its own start. See the worked example for why DoubleNormal needs one too. |
+| `R/0-build_selectivity.R`, `R/0-linkage_encode.R`, `src/TMB/linkage.hpp` | if the form takes linkages | `.SEL_LINKAGE_WIRED_FORMS` lists the forms a selectivity linkage may target and `.SEL_PARAM_TO_SLOT` maps parameter names to slots. A new parameter name needs an entry in `R/0-linkage_encode.R` and the matching slot in `linkage.hpp`; the two are in lockstep. |
+| `R/4-build_parameter_bounds.R`, `R/5-rearrange_data.R`, `R/6-phaser.R` | only for new parameters or columns, plus the two form checks named above | Bounds and phases are keyed on parameter name, not form. `rearrange_data()` passes each selectivity column through under its `tmb_target` name; a new column goes through `R/0-column_schema.R` first. Two exceptions there DO key on the form: `flt_sel_lead`, which groups by `Selectivity_index` and `Selectivity` together, and `.is_pm`, which sets `allow_all` for `Sel_norm_bin`. |
+| `vignettes/model-options-and-functionality.Rmd`, `vignettes/model-parameterizations.Rmd`, `build_map_selectivity()` roxygen | always | The forms table, the equations, and the code list in the map builder's help page. |
+| `tests/testthat/` | always | A `test-selectivity-<form>.R` that pins the curve against an R implementation, and the map for each `Time_varying_sel` mode the form supports. |
+
+## What each site does for `DoubleNormal`
+
+`sel_map` binds `"DoubleNormal"` to `8`. `case 8` in `selectivity.hpp` reads four
+values per fleet and sex: the peak (`sel_inf(0)`), the logit of the right-tail
+floor (`sel_inf(1)`), and the log widths of the ascending and descending Gaussian
+limbs (`log_sel_slp(0)` and `log_sel_slp(1)`), each as base parameter plus annual
+deviate plus linkage offset. The floor is on the logit scale so a linkage offset
+cannot push it above 1, and the descending limb approaches the floor rather than
+zero, which is Stock Synthesis's `end_logit`. `build_map_selectivity()` frees
+those four slots per sex and, for `Time_varying_sel` in `IID` and `RandomWalk`,
+a deviate per hindcast year on each (the block also names `AR1`, which
+`data_check()` refuses for every form); `Block` replaces the base
+parameters with one value per block. `ceattle.cpp` scores those deviates in
+`JNLL_SEL_DEV` because `8` is in its type lists; the form has no penalty of its
+own. `.PAR_SEL_SLOTS` relabels the slots, `.SEL_LINKAGE_WIRED_FORMS` admits the
+form with the parameter names `peak`, `right_floor`, `sigma_asc` and
+`sigma_desc`, and the shared normalizer zeroes the curve below
+`Bin_first_selected`, normalizes at `Sel_norm_bin` if set, and holds the last
+hindcast year into the projection.
+
+## Worked example: switching the fishery to `DoubleNormal`
+
+The GOA pollock fishery ships with `DoubleLogistic` selectivity and a random walk
+on its ascending limb. To compare forms on equal terms the walk is switched off,
+so both fits estimate a static curve. First build without fitting
+(`estimateMode = "DebugBuild"`) to see what the model receives.
+
+```{r build}
+library(Rceattle)
+d <- GOApollock
+flt <- which(d$fleet_control$Fleet_name == "GOA_pollock_fishery")
+d$fleet_control$Time_varying_sel[flt] <- "Off"
+d$fleet_control$Selectivity[flt] <- "DoubleNormal"
+
+b <- fit_mod(d, estimateMode = "DebugBuild", msmMode = 0,
+             fit_control = fit_control(phase = FALSE, getsd = FALSE, verbose = 0))
+b$obj$env$data$flt_sel_type                    # the codes the template dispatches on
+unname(b$initial_params$sel_inf[, flt, 1])     # peak, logit floor at the default starts
+unname(b$initial_params$log_sel_slp[, flt, 1])
+round(unname(b$quantities$sel_at_age[flt, 1, 1:10, 1]), 3)
+```
+
+```
+#> [1] 4 1 1 0 0 0 4 8
+#> [1]  0 10
+#> [1] 0.5 0.5
+#>  [1] 1 1 1 1 1 1 1 1 1 1
+```
+
+The fleet receives code 8 and the stored column reads `"DoubleNormal"`. The
+default starting values are the logistic family's, and for this form they
+describe a flat curve: a peak at age 0 and a floor of `plogis(10)`, so selectivity
+is 1 at every age. The ascending width then has no effect on the likelihood, so
+its gradient is zero and the optimizer has no direction to move it in. A phased
+fit from those starts stays on that ridge, with an objective of 3085.98 and
+selectivity 1.000 at every age. Give the form starting values that describe a
+dome:
+
+```{r fit}
+inits <- b$initial_params
+inits$sel_inf[1, flt, ] <- 4          # peak at age 4
+inits$sel_inf[2, flt, ] <- 0          # logit floor 0, i.e. a floor of 0.5
+inits$log_sel_slp[, flt, ] <- log(2)  # limb widths of two ages
+
+fit <- fit_mod(d, inits = inits, estimateMode = "Estimate", msmMode = 0,
+               fit_control = fit_control(phase = TRUE, verbose = 0))
+c(objective = fit$opt$objective, npar = length(fit$obj$par), AIC = AIC(fit))
+est <- fit$estimated_params
+round(c(peak = est$sel_inf[1, flt, 1], floor = plogis(est$sel_inf[2, flt, 1]),
+        sigma_asc = exp(est$log_sel_slp[1, flt, 1]),
+        sigma_desc = exp(est$log_sel_slp[2, flt, 1])), 3)
+round(unname(fit$quantities$sel_at_age[flt, 1, 1:10, 1]), 3)
+```
+
+```
+#> objective      npar       AIC
+#>  914.1043  220.0000 2268.2085
+#>       peak      floor  sigma_asc sigma_desc
+#>      5.289      0.000      1.233      3.680
+#>  [1] 0.002 0.029 0.179 0.579 0.973 0.982 0.898 0.762 0.601 0.441
+```
+
+The same data under the shipped `DoubleLogistic`, also static, reach an objective
+of 918.15 with the same 220 parameters (AIC 2276.31), so the double normal fits
+these age compositions a little better. Terminal female spawning-stock biomass
+moves from 390,251 t to 344,169 t.
+
+`parameter_index()` shows the relabelled slots, and the standard-error table
+shows what a floor at its limit looks like:
+
+```{r labels}
+pi <- parameter_index(fit)
+print(pi[pi$block %in% c("sel_inf", "log_sel_slp") & grepl("fishery", pi$fleet),
+         c("block", "slot", "n_cells")], row.names = FALSE)
+sd <- summary(fit$sdrep)
+round(tail(sd[rownames(sd) %in% c("sel_inf", "log_sel_slp"), ], 2), 3)
+```
+
+```
+#>       block                   slot n_cells
+#>  log_sel_slp    log sigma ascending       1
+#>  log_sel_slp   log sigma descending       1
+#>      sel_inf                   peak       1
+#>      sel_inf logit right-tail floor       1
+#>         Estimate Std. Error
+#> sel_inf    5.289      0.132
+#> sel_inf  -17.312   2881.348
+```
+
+A logit floor of -17 with a standard error of 2,881 is the floor at zero: the
+descending limb wants to reach zero, and the parameter is unidentified there. Fix
+it, or accept the flat likelihood in that direction. Either way the curve is the
+same.
+
+## What the drift guards catch
+
+Two static tests read the source and fail on a half-finished form. Both were run
+red for this article by adding `"Fake" = 12` to `sel_map` with no `case`.
+
+**`test-schema-cpp-dispatch.R`** parses every `case N:` inside `switch (sel_type)`
+in `src/TMB/` and requires the set to equal the map's values, minus a pinned
+exemption in each direction (`Fixed = 0` is applied before the dispatch). A map
+entry with no `case` fails like this:
+
+```
+── Failure ('test-schema-cpp-dispatch.R:161:5'): every C++ dispatch branch matches the R map that selects it ──
+Expected `setdiff(r, cpp)` to have the same values as `sort(unique(as.integer(s$map_only)))`.
+Actual: 0, 12
+Expected: 0
+Needs: 12
+```
+
+A `case` with no map entry fails the same way in the other direction. The test
+runs in seconds and needs no compiled model.
+
+**`test-schema-canonical.R`** parses the `\item{Selectivity}` entry of `R/data.R`
+and requires every `sel_map` name to be documented there and every documented
+name to be in the map:
+
+```
+── Failure ('test-schema-canonical.R:187:7'): R/data.R documents the switch codes the maps actually define ──
+Expected `missing_from_docs` to have length 0.
+Actual length: 1.
+```
+
+**`test-schema-registries.R`** checks that a schema column declaring
+`allowed = "sel_map"` is actually validated, so the map cannot drift from the
+schema. Nothing static checks the type lists in `ceattle.cpp` or the slot-label
+switch; those two are the ones to check by hand. The behaviour tests for the
+form itself are yours to write; `test-selectivity-double-normal.R` is the
+pattern: a static curve against an R implementation, then the map under `Off`,
+`IID` and `Block`.
+
+## Troubleshooting
+
+**It compiled and nothing changed.** Check `fit$obj$env$data$flt_sel_type`. If
+the fleet still shows the old code, the name did not resolve: `validate_switches()`
+lists the names it accepts, and a code not in `sel_map` is refused before the
+template runs. If the code is right, look at the fleet's selectivity: the
+`switch` has no `default` arm and the arrays are zeroed before it, so a `case`
+label that does not match leaves the curve at zero, or, with `Sel_norm_bin` set,
+divides by a zero reference and gives a `NaN` objective. Rebuild the DLL
+(`pkgload::load_all(".")`); a header edit is inert until then.
+
+**The parameter is not estimated.** `fit$map$mapList` holds `NA` for every cell
+that is mapped out. If your slot is `NA`, the `build_map_selectivity()` block did
+not free it, or the fleet is a mirror and takes its map from the lead fleet of its
+`Selectivity_index` group. If the slot is free but the estimate equals the start,
+the gradient there is zero at the start, which is the flat-curve case above.
+
+**The deviates vanished.** `build_map_selectivity()` frees deviates only for the
+`Time_varying_sel` modes your block names. A mode it does not name is mapped out
+without a message unless `data_check()` refuses it. The shipped GOA pollock
+fishery uses `RandomWalkAscending`, which the DoubleNormal block does not handle:
+switching that fleet's form drops the fit from 316 to 220 parameters silently.
+Refuse unsupported modes in `data_check()` next to the existing per-form checks.
+
+**The deviates are estimated but unpenalised.** The map freed them and the
+`ceattle.cpp` type lists do not name your code, so `JNLL_SEL_DEV` is zero for the
+fleet while the deviates move freely. Add the code to the lists.
+
+**The value does not come back in the output.** Selectivity is reported as
+`sel_at_age` and `sel_at_length` in `fit$quantities`; a new derived quantity
+needs a `REPORT()` in the template and an entry in `quantity_dictionary()`.
+Parameter labels come from `.PAR_SEL_SLOTS` through `.rce_sel_slot_labels()`;
+without both entries a re-used slot is labelled for the logistic family. A new
+likelihood row needs the `JnllRow` enum, `R/6-rename_output.R` and
+`.JNLL_ROW_AXIS` together.
+
+## Before the pull request
+
+- `NOT_CRAN=true TESTTHAT_PARALLEL=false` suite green, including
+  `test-golden-regression.R`: a new `case` must leave the four reference fits
+  unchanged to the last digit.
+- `NEWS.md`, the `DESCRIPTION` version, the forms table in
+  `vignettes/model-options-and-functionality.Rmd`, the code list in
+  `vignettes/model-parameterizations.Rmd` and the `build_map_selectivity()`
+  roxygen, in the same commit.
+- A `Time_varying_sel` restriction in `data_check()` for every mode the map block
+  does not handle, and the code in the `ceattle.cpp` type lists for every mode it
+  does.
+- Starting values that describe the shape the form is for.

@@ -61,7 +61,7 @@ read as labels for back-compatibility.}
 \item{spnames}{Species labels, length \code{nspp}. Default: the model's own.}
 
 \item{add_ci}{Add a 95\% confidence interval. Only available where the
-plotted quantity carries standard errors; warns and draws none otherwise.}
+plotted quantity holds standard errors; warns and draws none otherwise.}
 
 \item{lwd}{Line width on the base-graphics scale: the default \code{3} renders as
 a standard-weight ggplot line. A vector varies it across series.}
@@ -119,13 +119,13 @@ Returns and saves a figure with the population trajectory.
 Function that plots the time-series (SSB/B/R/Depletion) 95\% CI trends as estimated from Rceattle
 }
 \section{Units}{
-The model carries numbers-at-age in \strong{thousands} and weight-at-age in
+The model holds numbers-at-age in \strong{thousands} and weight-at-age in
 \strong{kg}, so every biomass series (\code{biomass}, \code{ssb}, \code{exploitable_biomass})
 comes out of the model in \strong{mt} and recruitment comes out in \strong{thousands of
 fish}. For display these are divided by 1e6 (million mt) and 1e3 (millions
 of recruits) respectively; depletion is a ratio and is not rescaled. Supply
-the model's inputs on that convention -- catch and index in mt, weight-at-age
-in kg -- or the axis labels will not describe what is plotted.
+the model's inputs on that convention, catch and index in mt, weight-at-age
+in kg, or the axis labels will not describe what is plotted.
 }
 
 \section{Confidence intervals}{
@@ -137,7 +137,7 @@ linearization and right-skewed, and it cannot cross zero the way a symmetric
 natural-scale interval does for weak year classes and depleted stocks.
 
 \code{sd_log} comes from the model's own \code{log_biomass} / \code{log_ssb} / \code{log_R} where
-those are reported, and is otherwise recovered as \code{sd(x) / x} -- the delta
+those are reported, and is otherwise recovered as \code{sd(x) / x}, the delta
 method's own identity, which matches the reported values to machine
 precision. That covers \code{exploitable_biomass} and the two depletions, which
 cannot be reported on the log scale (\code{exploitable_biomass} is identically 0

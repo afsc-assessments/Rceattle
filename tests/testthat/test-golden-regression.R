@@ -29,8 +29,9 @@ testthat::test_that("the four reference fits reproduce their pinned objectives",
   # above the package's own 1e-4 convergence threshold. That made the reference
   # sensitive to changes that cannot alter the model at all: adding a constant to
   # the objective (which leaves every gradient untouched) once moved goa_ss by
-  # 52.9 units. Polishing pins a true optimum instead, which is reproducible
-  # under any such perturbation. getsd = FALSE is numerically inert here.
+  # 52.9 units. Polishing pins the minimum that is reached; goa_ss has a second
+  # local minimum 52.9 units higher that a one-ULP gradient change can select
+  # (inst/dev/TRAPS.md). getsd = FALSE is numerically inert here.
   ref <- c(ss     = 10241.0304272585,
            ms     = 10267.2478324443,
            goa_ss = 12867.9902664788,

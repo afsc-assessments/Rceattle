@@ -30,11 +30,13 @@ testthat::test_that("species filter that excludes everything yields zero rows", 
     by      = ~ species,
     species = 99L
   )
-  rows <- Rceattle:::materialize_linkage(
-    spec, process = "growth",
-    env_data = env,
-    strata   = list(species = 1:3)
-  )
+  # Since 5.36.0 a filter that matches nothing says so, since the whole spec drops.
+  testthat::expect_warning(
+    rows <- Rceattle:::materialize_linkage(
+      spec, process = "growth",
+      env_data = env,
+      strata   = list(species = 1:3)),
+    "`species = 99` on the growth linkage for `K` matches none")
   testthat::expect_equal(nrow(rows), 0L)
   testthat::expect_setequal(attr(rows, "design_colnames"),
                             c("(Intercept)", "temp"))

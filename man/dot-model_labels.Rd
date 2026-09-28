@@ -16,8 +16,8 @@ Returns \code{model_names} if supplied, otherwise \code{"Model 1"}, \code{"Model
 the colour/legend mapping always has labels.
 }
 \details{
-\code{model_names} is often built as a \code{list()} -- the package's own vignettes do
--- so it is flattened to character here. Left as a list it becomes a
+\code{model_names} is often built as a \code{list()}, the package's own vignettes do
+, so it is flattened to character here. Left as a list it becomes a
 one-element list per model and the plot frame fails to bind.
 
 Too few names would be recycled, drawing two models as one series under one

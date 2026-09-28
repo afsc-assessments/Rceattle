@@ -89,12 +89,51 @@ test_that("data_check() resolves string switches before comparing them", {
   expect_true(srr_msg(d))
 })
 
-test_that("convergence_diagnostics() notes, not fails, the curve under predation", {
+test_that("convergence_diagnostics() reads the curve against the data, not steepness, under predation", {
   m <- msm_srr_build(build_srr(srr_fun = "mean", srr_pred_fun = "BevertonHolt",
                                srr_est_mode = "Estimated"))
   sr <- convergence_diagnostics(m)$checks$stock_recruit
   expect_true(!is.null(sr))
-  expect_match(sr$message, "not checked")
+  # Steepness is never the test here; the curve is read over the SSB range
+  # (test-recruitment-srr-degenerate-check.R). At the default starts (alpha
+  # e^3, beta 3) both curves are flat over the fixture's SSB.
+  expect_identical(sr$severity, "WARN")
+  expect_match(sr$message, "Species1: flat over the observed SSB range")
+  expect_match(sr$message, "Species2: flat over the observed SSB range")
+  expect_false(grepl("steepness", sr$message))
+})
+
+test_that("the Ianelli penalty fits under predation from on-scale starts", {
+  # The 5.31.0 tests above are build-only. One fitted case: the penalty form
+  # converges on the fixture when alpha and beta start on the stock's scale
+  # (build_srr(srr_alpha_init =, srr_beta_init =)), and the curve check reads
+  # the fitted curve rather than skipping it.
+  skip_on_cran()
+  d  <- msm_srr_data()
+  m0 <- msm_srr_build(build_srr(), d)
+  hind <- d$endyr - d$styr + 1
+  ssb  <- m0$quantities$ssb[, seq_len(hind)]
+  R    <- m0$quantities$R[, seq_len(hind)]
+  s_med <- apply(ssb, 1, stats::median)
+  fit <- suppressMessages(suppressWarnings(fit_mod(
+    data_list = d, estimateMode = "Hindcast", msmMode = 1, suitMode = 0,
+    initMode = "NonEquilibrium", random_rec = FALSE,
+    recFun = build_srr(srr_fun = "mean", srr_pred_fun = "BevertonHolt",
+                       srr_alpha_init = 2 * rowMeans(R) / s_med, srr_beta_init = 1 / s_med),
+    fit_control = fit_control(phase = FALSE, verbose = 0, getsd = FALSE))))
+  expect_true(is.finite(fit$opt$objective))
+  expect_lt(max(abs(fit$obj$gr())), 0.1)
+  expect_true(all(is.finite(fit$estimated_params$rec_pars[, 2:3])))
+  expect_true(all(abs(fit$estimated_params$rec_pars[, 2:3]) < 30))
+  # What this fit produces: species 1 bends inside the data (predicted /
+  # asymptote 0.73 at the lowest SSB, 0.90 at the highest), species 2 runs to
+  # the flat ridge (alpha 2.4e6, beta 1251, ratio 1.000 everywhere).
+  sr <- convergence_diagnostics(fit)$checks$stock_recruit
+  expect_identical(sr$severity, "WARN")
+  expect_match(sr$message, "Species2: flat over the observed SSB range")
+  expect_false(grepl("Species1:", sr$message))
+  expect_lt(sr$data$Species1$dd_at_smin, 0.9)
+  expect_gt(sr$data$Species2$dd_at_smin, 0.9)
 })
 
 test_that("a fixed-dynamics species carries no curve penalty", {

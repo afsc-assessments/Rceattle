@@ -69,7 +69,10 @@ plot_stock_recruit <-
         # each branch reads like its counterpart in calculate_recruitment()
         # (src/TMB/recruitment.hpp) rather than folding a display divisor in.
         ssb_raw <- xg * .RCE_TS_RESCALE[["ssb"]]
-        yg_raw <- if (srr_pred == 0) {
+        # A species with input numbers-at-age has no fitted curve (rec_pars are placeholders).
+        yg_raw <- if (isTRUE((dl$estDynamics %||% 0)[sp] > 0)) {
+          rep(NA_real_, length(xg))
+        } else if (srr_pred == 0) {
           rep(exp(rp[sp, 1]), length(xg))                               # mean rec: exp(rec_pars[,1]) = R0
         } else if (srr_pred %in% c(2, 3)) {                             # Beverton-Holt
           exp(rp[sp, 2]) * ssb_raw / (1 + exp(rp[sp, 3]) * ssb_raw)

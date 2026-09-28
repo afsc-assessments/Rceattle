@@ -82,7 +82,7 @@ Runs a forward-projecting management strategy evaluation (MSE). Projected select
 }
 \section{Assessment schedule}{
 A single \code{assessment_period} is a fixed cycle. A vector is the schedule
-itself, for a design whose years are not evenly spaced -- one assessment
+itself, for a design whose years are not evenly spaced, one assessment
 missed inside an otherwise biennial cycle, for instance:
 
 \if{html}{\out{<div class="sourceCode">}}\preformatted{biennial <- seq(om$data_list$endyr + 2, om$data_list$projyr, by = 2)
@@ -152,7 +152,7 @@ model's terminal year to the last assessment, which is where catch is
 filled, not the whole projection.
 
 Note that this reduces catch, not ABC. Where realized catch sits well below
-ABC -- GOA arrowtooth flounder, for one -- reducing ABC changes removals only
+ABC, GOA arrowtooth flounder, for one, reducing ABC changes removals only
 to the extent the fishery attains it, while reducing catch changes them in
 full. Either scale the multiplier by recent attainment,
 \code{1 - (1 - mult) * attainment}, or report the unscaled result as an upper
@@ -164,8 +164,8 @@ Catch recorded past a model's terminal year is blanked to \code{NA} at setup, wi
 a warning naming the years. Those years are the projection, and the MSE sets
 their catch from the control rule; the likelihood never scored them either,
 since it fits only \code{Year <= endyr}. This is what a workbook looks like when
-\code{endyr} has fallen behind the catch series -- catch through 2023 with \code{endyr}
-still 2019 -- and it is worth resolving before running the MSE, because
+\code{endyr} has fallen behind the catch series, catch through 2023 with \code{endyr}
+still 2019, and it is worth resolving before running the MSE, because
 conditioning the assessment on those years is a different question from
 projecting over them.
 }

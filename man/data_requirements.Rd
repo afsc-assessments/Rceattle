@@ -61,13 +61,13 @@ configuration, which top-level \code{data_list} elements are \strong{Required},
 \strong{Optional} (used if supplied, otherwise default-filled by \code{\link[=clean_data]{clean_data()}}), or
 \strong{Ignored} (not consulted because the feature that would use them is switched
 off). It answers "what do I actually need to supply for \emph{this} model?" without
-having to read the validation code or the switch tables -- the same conditions
+having to read the validation code or the switch tables, the same conditions
 enforced at fit time (they share one declarative table).
 }
 \details{
 The configuration can be given either as an existing (possibly partial)
-\code{data_list} -- its switches are normalized through \code{\link[=clean_data]{clean_data()}} /
-\code{\link[=switch_check]{switch_check()}} so the conditions evaluate against filled defaults -- or,
+\code{data_list}, its switches are normalized through \code{\link[=clean_data]{clean_data()}} /
+\code{\link[=switch_check]{switch_check()}} so the conditions evaluate against filled defaults, or,
 when no \code{data_list} is supplied, built from the convenience arguments.
 
 Requirements are \emph{conditional}: e.g. \code{diet_data}, \code{ration_data} and the

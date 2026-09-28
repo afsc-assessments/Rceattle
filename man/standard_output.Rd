@@ -35,7 +35,7 @@ dropped.
 
 \strong{The standard has no species dimension.} It describes one stock, so a
 multispecies CEATTLE fit cannot be represented in it as a whole. A \code{species}
-column is carried alongside the standard columns and \code{species} selects one
+column is held alongside the standard columns and \code{species} selects one
 stock; with several species in the fit and no selection, this errors rather
 than returning a frame in which two stocks' biomass share a year.
 

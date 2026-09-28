@@ -12,7 +12,7 @@ process_residuals(
 )
 }
 \arguments{
-\item{object}{A fitted \code{Rceattle} model. The targeted deviations must be estimated -- as random effects (e.g. \code{random_rec = TRUE}) or as penalized fixed effects -- with a usable covariance.}
+\item{object}{A fitted \code{Rceattle} model. The targeted deviations must be estimated, as random effects (e.g. \code{random_rec = TRUE}) or as penalized fixed effects, with a usable covariance.}
 
 \item{process}{One of \code{"recruitment"}, \code{"initial"}, \code{"catchability"}, or
 \code{"all"}.}
@@ -31,13 +31,13 @@ columns \code{source} (the process), \code{fleet}, \code{species}, \code{year},
 \description{
 One-sample process residuals for the model's random-effect (or penalized)
 process deviations, in the style of SAM's \code{procres()} (Nielsen and Berg
-2014). They validate the \emph{process} model -- whether the deviations behave like
-their assumed iid normal process -- a complement to the observation-based
+2014). They validate the \emph{process} model, whether the deviations behave like
+their assumed iid normal process, a complement to the observation-based
 \code{\link[=osa_residuals]{osa_residuals()}}.
 
-Each set of deviations carries a Gaussian process prior in the model. The
-posterior \emph{mode} of the deviations is shrunk toward that prior, so -- following
-SAM -- a single draw is taken from the joint posterior of the deviations (from
+Each set of deviations holds a Gaussian process prior in the model. The
+posterior \emph{mode} of the deviations is shrunk toward that prior, so, following
+SAM, a single draw is taken from the joint posterior of the deviations (from
 the joint precision when they are random effects, or the fixed-effect
 covariance when they are penalized fixed effects) and standardized by the
 process standard deviation. Under a correctly specified process these are

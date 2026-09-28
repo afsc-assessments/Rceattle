@@ -92,7 +92,7 @@
 #'
 #' @description Collects the quantities a stock assessment reports into one set
 #' of tidy tables, so a SAFE chapter or a model comparison is built from a
-#' single call rather than from a dozen ad-hoc extractions. Every table carries
+#' single call rather than from a dozen ad-hoc extractions. Every table holds
 #' a `model` column, so passing several fits gives a like-for-like comparison.
 #'
 #' @details
@@ -107,7 +107,7 @@
 #'     the natural-scale name and process from [parameter_dictionary()]. Where
 #'     `sigma_R` and an estimated M are found. Estimates are on the parameter's
 #'     own scale, so a `log_` name needs `exp()`; a **fixed** M is not here at
-#'     all, because it was never estimated — read it off `M_at_age`.}
+#'     all, because it was never estimated, read it off `M_at_age`.}
 #'   \item{`likelihood`}{The negative log-likelihood by component and fleet or
 #'     species, weighted and unweighted.}
 #'   \item{`timeseries`}{Biomass, female spawning-stock biomass, recruitment,
@@ -117,7 +117,7 @@
 #'   \item{`reference_points`}{The executive-summary quantities: the SPR-based
 #'     F proxies, unfished and target female spawning-stock biomass, the biomass
 #'     proxies implied by `Ptarget` / `Plimit`, and terminal status. A `basis`
-#'     column says whether each was estimated, and if not, why -- see below.}
+#'     column says whether each was estimated, and if not, why, see below.}
 #'   \item{`fits`}{Observed against predicted index and catch, with the standard
 #'     deviation of normalized residuals (SDNR) per fleet.}
 #'   \item{`retrospective`, `jitter`, `osa`}{Present only when the corresponding
@@ -130,7 +130,7 @@
 #' simply absent from the result.
 #'
 #' The standard harvest scenarios of guideline section 4.11.3 are **not**
-#' produced -- they need a standard projection module, which Rceattle does not
+#' produced, they need a standard projection module, which Rceattle does not
 #' have. Projected biomass under the model's own harvest control rule is in
 #' `timeseries` with `era = "fore"`.
 #'
@@ -160,8 +160,8 @@
 #' @section Two negative log-likelihoods:
 #' `model` reports both, and **both are minimized**: a smaller value is the
 #' better fit. `marginal_nll` is the negative log marginal likelihood the
-#' optimizer minimized -- random effects integrated out by the Laplace
-#' approximation -- and is what `AIC` is built from. `joint_nll` is what the
+#' optimizer minimized, random effects integrated out by the Laplace
+#' approximation, and is what `AIC` is built from. `joint_nll` is what the
 #' template evaluated at the conditional modes, so it is what `likelihood` sums
 #' to, on the same scale as `jnll_comp`. They are equal when `n_random` is 0 and
 #' differ by the Laplace correction otherwise.
@@ -170,7 +170,7 @@
 #' A diagnostics list is matched to models **by name**, so `list(alt = ..., base
 #' = ...)` pairs correctly whatever the order. An unnamed list is paired
 #' positionally and says so in a message. Names that are not model names are an
-#' error -- which catches the realistic mistake of passing one model's
+#' error, which catches the realistic mistake of passing one model's
 #' [osa_residuals()] result stored as a list of parts.
 #'
 #' @param object An Rceattle fit from [fit_mod()], or a list of them.
@@ -189,7 +189,7 @@
 #'   one means.
 #'
 #' @return A list of data frames with class `"rceattle_report"`, one element per
-#'   section described above. Each carries a `model` column.
+#'   section described above. Each holds a `model` column.
 #'
 #' @seealso [quantity_dictionary()] for what each quantity means and its units,
 #'   [as.data.frame.Rceattle()] for the time series alone, and
@@ -314,10 +314,11 @@ report_tables <- function(object,
   est <- tryCatch(stats::coef(fit), error = function(e) NULL)
   if (is.null(est) || !length(est)) return(NULL)
 
-  # Fixed effects only, and NA rather than absent when getsd = FALSE.
+  # Fixed effects only. NA when getsd = FALSE, and NA for a negative variance
+  # too: a SAFE table must not carry sqrt(|variance|) as an uncertainty.
   se <- tryCatch({
     v <- stats::vcov(fit)
-    if (is.null(v)) NULL else sqrt(abs(diag(v)))
+    if (is.null(v)) NULL else .conv_se_from_cov(v)
   }, error = function(e) NULL)
   se <- if (!is.null(se) && length(se) == length(est)) unname(se)
         else rep(NA_real_, length(est))
@@ -566,6 +567,10 @@ report_tables <- function(object,
       blank("terminal_depletion",
             "unfished reference not derived (MSSB0 placeholder)")
     }
+    if (isTRUE((d$estDynamics[i] %||% 0) > 0)) {
+      blank(c("Ftarget", "Flimit", "SPRtarget", "SPRlimit", "SBF"),
+            "input numbers-at-age: no harvest control rule, projected at F = 0")
+    }
 
     # A quantity this fit does define can still come back non-finite from the
     # model. Saying "estimated" beside an empty cell would send the reader
@@ -754,7 +759,7 @@ print.rceattle_report <- function(x, ...) {
 #'
 #' **The standard has no species dimension.** It describes one stock, so a
 #' multispecies CEATTLE fit cannot be represented in it as a whole. A `species`
-#' column is carried alongside the standard columns and `species` selects one
+#' column is held alongside the standard columns and `species` selects one
 #' stock; with several species in the fit and no selection, this errors rather
 #' than returning a frame in which two stocks' biomass share a year.
 #'

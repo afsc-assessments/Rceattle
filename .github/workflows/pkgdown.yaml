@@ -48,7 +48,8 @@ jobs:
             gfortran \
             libssl-dev \
             libcurl4-openssl-dev \
-            libxml2-dev
+            libxml2-dev \
+            doxygen
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         env:
@@ -60,6 +61,11 @@ jobs:
       - name: Build pkgdown site
         run: pkgdown::build_site_github_pages(new_process = FALSE, install = FALSE)
         shell: Rscript {0}
+
+      # After the site build, which empties docs/ first. Doxyfile writes docs/cpp/,
+      # the "C++ template reference" link in the site's Contributing menu.
+      - name: Build the C++ template reference
+        run: doxygen Doxyfile
 
       - name: Deploy to GitHub Pages
         if: github.event_name != 'pull_request'

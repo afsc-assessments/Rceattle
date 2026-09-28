@@ -40,7 +40,7 @@ The mean-growth keys (\code{K}, \code{L1}, \code{Linf}, \code{m})
 accept arbitrary one-sided formulas and make that growth parameter
 year-varying (a per-year offset around its mean). The SD-endpoint keys
 (\code{sd_L1}, \code{sd_Linf}) only honor intercept-bearing
-formulas (typically \code{~ 1}) -- they thread \code{init}, \code{bounds}, and
+formulas (typically \code{~ 1}), they thread \code{init}, \code{bounds}, and
 \code{priors} onto the growth SD-at-age, giving
 the SDs the same prior/fix/initial-value contract as the mean
 parameters. Slope rows on SD specs raise a warning and have no

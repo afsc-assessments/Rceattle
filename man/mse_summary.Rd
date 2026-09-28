@@ -16,7 +16,7 @@ estimation-model (EM) perception metrics.}
 A named list, one element per entity dimension so each metric lives
 only where it applies (no NA padding):
 \itemize{
-\item \code{species} -- a data.frame with one row per species (keyed by \code{Species})
+\item \code{species}, a data.frame with one row per species (keyed by \code{Species})
 of the conservation / status metrics: per-species average catch, catch
 inter-annual variability (IAV), and P(Closed) = the probability the
 fishery is closed (catch ~ 0); the relative mean-squared error of
@@ -26,17 +26,17 @@ perceived overfishing / overfished probabilities (via
 (estimation model disagrees with the operating-model truth); and terminal
 biomass, SSB, dynamic SB0, SSB depletion (equilibrium and dynamic),
 average SSB depletion, and SSB-collapse counts.
-\item \code{fleet} -- a data.frame with one row per fishery fleet (keyed by
+\item \code{fleet}, a data.frame with one row per fishery fleet (keyed by
 \code{Fleet_code} / \code{Fleet_name}) of average catch, catch IAV, and P(Closed).
-\item \code{total} -- a named numeric of the across-fleet total average catch and
+\item \code{total}, a named numeric of the across-fleet total average catch and
 catch IAV.
-\item \code{meta} -- run provenance (\code{nsim}, \code{nspp}, \code{nflts}, \code{HCR}, projection-year
+\item \code{meta}, run provenance (\code{nsim}, \code{nspp}, \code{nflts}, \code{HCR}, projection-year
 range).
 }
 
 All metrics are averaged across projection years and simulations.
 
-Metric columns carry syntactic names, so they can be typed without
+Metric columns hold syntactic names, so they can be typed without
 backticks: \code{avg_catch}, \code{catch_iav}, \code{p_closed}, \code{ssb_rmse_avg},
 \code{ssb_rmse_terminal}, \code{em_p_overfishing}, \code{em_p_overfished},
 \code{om_p_overfishing}, \code{om_p_overfished}, \code{p_overfishing_false_pos},
@@ -50,16 +50,28 @@ the four \verb{*_false_pos} / \verb{*_false_neg} metrics are the probability the
 disagree. The three \verb{*_sims_collapsed} metrics are \strong{counts of
 simulations}, not probabilities.
 
-\code{om_terminal_depletion} is \code{NA} for a multispecies run that derived no
-unfished reference, which is any run without a harvest control rule
-(\code{HCR = "NoFishing"}): under \code{msmMode > 0} the model reads spawning
-biomass against the \code{MSSB0} input, and \code{fit_mod()} only fills that in by
-projecting under no fishing when an HCR is present. Dividing by the
-placeholder instead reported SSB/999 as a depletion -- on the Pacific hake
-three-species model, 2.68e3. Use \code{om_terminal_depletion_dynamic}, which is
-computed against the model's own \code{DynamicSB0} and is unaffected.
+The three depletions divide by different references:
+\itemize{
+\item \code{om_terminal_depletion_dynamic}: terminal SSB over the OM's own
+\code{DynamicSB0}, its history with no fishing on the stock-recruit curve with
+the realized recruitment deviations and, under predation, the suitability
+fitted in the hindcast. Defined for single- and multispecies OMs. A
+species with input numbers-at-age (\code{estDynamics > 0}) keeps those numbers
+in the dynamic run, so its dynamic depletion is near 1 and says nothing
+about fishing.
+\item \code{om_terminal_depletion}: terminal SSB over \code{SB0}, the equilibrium value
+for a single-species OM. Under \code{msmMode > 0} it is \code{MSSB0}, SSB at the end
+of a no-fishing projection, which \code{fit_mod()} derives only when a harvest
+control rule is present; without one (\code{HCR = "NoFishing"}) this is \code{NA}.
+\item \code{om_avg_depletion}: the OM's own \code{ssb_depletion} averaged over the
+projection. Under predation with no HCR that series divides by SSB in the
+last projection year, not by an unfished reference.
+}
 
-Each frame carries a \code{"labels"} attribute mapping those names to the long
+The collapse metrics compare the OM with \code{OM_no_F}, the OM refit with no
+fishing after the original operating model's \code{endyr} (\code{\link[=remove_F]{remove_F()}}).
+
+Each frame holds a \code{"labels"} attribute mapping those names to the long
 display strings (e.g. \code{om_terminal_depletion_dynamic} ->
 \code{"OM: Terminal SSB Depletion (Dynamic)"}) for plots and tables:
 \code{attr(summ$species, "labels")}.

@@ -15,6 +15,8 @@ Scope, in order of importance:
 - `../Rceattle-models` — EBS/GOA pollock, sablefish, arrowtooth, plaice, POP.
 - `../GOA-ATF-ESP` — GOA arrowtooth and its cannibalism run: the only live two-sex,
   `suitMode = 0` model, so it is what exercises the sexed and predation paths.
+- `../GOA-multispecies-assessment` — the GOA multispecies assessment (`run_all.R`,
+  `R/02_fit_models.R`). `inst/dev/SIBLING-REPOS.md` is the full list.
 - The other sibling directories under `../` (`CEATTLE`, `Climate_MSE*`, `hake-CEATTLE`,
   `GOAceattle`, `Rceattle_MSE`, …) — real runs, lower priority. `../Rceattle-models` also
   holds Pacific hake.
@@ -22,13 +24,13 @@ Scope, in order of importance:
 
 ## Invocation
 
-Grep the two consumers explicitly. Do not `cd` to a parent and filter -- the repo sits one
+Grep the three consumers explicitly. Do not `cd` to a parent and filter -- the repo sits one
 level below the ecosystem root, and a wrong level sweeps a dozen unrelated repositories while
 the `Rceattle/` self-exclusion silently stops matching, so every internal call site is reported
 as a consumer hit.
 
 ```
-grep -rn "$ARGUMENTS" --include="*.R" "../Rceattle-models" "../GOA-ATF-ESP"
+grep -rn "$ARGUMENTS" --include="*.R" "../Rceattle-models" "../GOA-ATF-ESP" "../GOA-multispecies-assessment"
 ```
 
 To widen to the other sibling run directories, add them by name (`../CEATTLE`,

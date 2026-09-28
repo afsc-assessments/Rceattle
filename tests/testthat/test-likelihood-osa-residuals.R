@@ -796,3 +796,29 @@ testthat::test_that("CAAL residuals label both frames as age bins", {
   n_len <- length(unique(pear$length))
   testthat::expect_equal(nrow(osa), nrow(pear) - n_len)
 })
+
+
+# A Gaussian method is continuous-only, so `discrete = TRUE` sends the
+# composition rows to oneStepGeneric. The fallback happened but was neither
+# announced nor written to the `method` attribute, so the attribute -- and
+# print() -- named a method no composition row had used.
+testthat::test_that("discrete = TRUE announces and records its method override", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("TMB")
+
+  dat <- make_test_data(nyrs = 6, nages = 4, seed = 11)
+  fit <- suppressMessages(suppressWarnings(Rceattle::fit_mod(
+    dat, file = NULL, estimateMode = 1, msmMode = 0,
+    fit_control = fit_control(getsd = FALSE, verbose = 0, phase = FALSE))))
+
+  testthat::expect_message(
+    osa <- suppressWarnings(osa_residuals(
+      fit, source = "comp", discrete = TRUE,
+      method = "oneStepGaussianOffMode")),
+    "cannot be scored by a Gaussian")
+
+  # Recorded as its own entry, leaving `default` as the method that was asked for.
+  m <- attr(osa, "method")
+  testthat::expect_equal(m[["default"]], "oneStepGaussianOffMode")
+  testthat::expect_equal(m[["DiscreteComposition"]], "oneStepGeneric")
+})

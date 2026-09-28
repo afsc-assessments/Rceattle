@@ -34,8 +34,8 @@ build_params <- function(data_list) {
   param_list$dummy = 0  # Variable to test derived quantities given input parameters; n = [1]
 
   # * 1.0. Population scalar ----
-  param_list$log_pop_scalar = matrix(0, nrow = data_list$nspp, ncol = max_age,
-                                    dimnames = list(data_list$spnames, paste0("Age", 1:max_age)))
+  # Log multiplier on input numbers-at-age (estDynamics = 2); 0 is a multiplier of 1.
+  param_list$log_pop_scalar = stats::setNames(rep(0, data_list$nspp), data_list$spnames)
 
   # * 1.1. Recruitment parameters ----
   # - Stock recruit parameters
@@ -279,10 +279,6 @@ build_params <- function(data_list) {
   param_list$index_q_beta = matrix(0, nrow = nrow(data_list$fleet_control), ncol = ncol(data_list$env_data) - 1,
                                    dimnames = list(data_list$fleet_control$Fleet_name, colnames(data_list$env_data)[-1]))
 
-  # - Rho for environment-q linkage (sensu GOA Pollock)
-  param_list$index_q_rho = rep(0, nrow(data_list$fleet_control))
-  names(param_list$index_q_rho) <- data_list$fleet_control$Fleet_name
-
   # param_list$index_q_pow = rep(0, nrow(data_list$fleet_control))
 
   # - Annual index catchability deviations
@@ -370,6 +366,12 @@ build_params <- function(data_list) {
   # - Annual selectivity asymptotic deviations for logistic
   param_list$sel_inf_dev = array(0, dim = c(2, n_selectivities, max_sex, nyrs_hind),
                                  dimnames = list(c("Ascending" , "Descending"), data_list$fleet_control$Fleet_name, sex_labels, yrs_hind))
+
+  # - Per-sex apical height, log scale: the whole curve of one sex times
+  #   exp(log_sel_apical), applied after the form and before normalization. 0 is
+  #   no offset; estimated only through a selectivity linkage on `apical`.
+  param_list$log_sel_apical = array(0, dim = c(n_selectivities, max_sex),
+                                    dimnames = list(data_list$fleet_control$Fleet_name, sex_labels))
 
   # - Log standard deviation for selectivity random walk - used for logistic
   param_list$sel_dev_log_sd <- log(data_list$fleet_control$Time_varying_sel_sd)
@@ -541,6 +543,13 @@ build_params <- function(data_list) {
             for (s in idx$species) {
               param_list$sel_inf[slot$slot, idx$fleet,
                                  idx$per_sp[[as.character(s)]]$sex] <- init_val
+            }
+          } else if (identical(slot$arr, "log_sel_apical")) {
+            # The init is the multiplier itself (1 = no offset), stored logged.
+            .stop_unless_positive(init_val, row$param, "log_sel_apical")
+            for (s in idx$species) {
+              param_list$log_sel_apical[idx$fleet,
+                                        idx$per_sp[[as.character(s)]]$sex] <- log(init_val)
             }
           }
           # `coff` is a per-bin vector with no single level to set, so an

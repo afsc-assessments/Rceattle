@@ -119,7 +119,7 @@
 #' Survey index fits
 #'
 #' Plots fitted index series: observed points with 95% observation intervals and
-#' the model-predicted index, faceted by fleet. Every fleet carrying
+#' the model-predicted index, faceted by fleet. Every fleet holding
 #' `index_data` is drawn, a fishery with a CPUE series as much as a survey.
 #'
 #' The interval follows the fleet's `Index_distribution`: lognormal quantiles on
@@ -236,7 +236,7 @@ plot_logindex <- function(...) {
 #' Survey catchability over time
 #'
 #' Plots the fitted survey catchability `q` by year, faceted by fleet. Every
-#' fleet carrying `index_data` is drawn, a fishery with a CPUE series as much as
+#' fleet holding `index_data` is drawn, a fishery with a CPUE series as much as
 #' a survey.
 #'
 #' The value plotted is the realized catchability the model scaled the survey by,
@@ -247,7 +247,7 @@ plot_logindex <- function(...) {
 #' a time-invariant catchability draws a flat line, which is the honest picture
 #' of a constant `q` rather than an empty panel.
 #'
-#' **Hindcast years only.** The model carries catchability over the hindcast and
+#' **Hindcast years only.** The model applies catchability over the hindcast and
 #' does not project it, so the series stops at `endyr` regardless of the
 #' projection horizon. There is no `incl_proj`.
 #'
@@ -409,7 +409,7 @@ plot_catch <- function(Rceattle,
 #' `log(observed) - log(predicted)` for a log-scale (`"Lognormal"`) fleet, and
 #' `observed - predicted` for a natural-scale one (`"MVN"`, `"MVNORM"`,
 #' `"Normal"`, `"TruncatedNormal"`), whose sd is absolute. A positive residual
-#' means the survey saw more than the model predicted. Panels carry different
+#' means the survey saw more than the model predicted. Panels hold different
 #' units where a model mixes the two families, which is why the y scale is free
 #' per fleet.
 #'

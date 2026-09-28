@@ -14,10 +14,11 @@
 # from it and Laplace-integrating the deviates drives it to zero -- measured at
 # 2.7e-8 on Atka2022, which is a time-invariant selectivity reported as a
 # time-varying one. "IID" scores the deviations themselves and does identify the
-# sd. But the AMAK shape penalty beside it is one-sided, so the Laplace objective
-# is only piecewise smooth: fit_mod() refuses `random_sel = TRUE` for the walk
-# because the density is improper, and for IID while `Sel_curve_pen1` is non-zero
-# because the optimizer stops at a kink rather than an optimum.
+# sd. But the AMAK shape penalties and the average-selectivity term are charged
+# on each year's realized curve and do not scale with the sd, so the density
+# integrated is tilted and the reported sd is biased low: fit_mod() refuses
+# `random_sel = TRUE` for the walk because the density is improper, and for IID
+# because the sd it would report is not the sd of the deviations.
 testthat::skip_on_cran()
 
 testthat::test_that("NonParametric accepts IID and the bundled Atka2022 fits", {
@@ -67,29 +68,22 @@ testthat::test_that("random_sel = TRUE is refused for both non-parametric modes"
                       fit_control = Rceattle::fit_control(getsd = FALSE, verbose = 0))
   ))$opt$objective))
 
-  # IID is refused too while the one-sided shape penalty is on, for a different
-  # reason: that penalty is not twice differentiable, so the Laplace objective is
-  # only piecewise smooth. Atka2022 stops at a kink with a maximum gradient of
-  # 6.8 and an sd 27% from the value it reaches with the penalty off.
+  # IID is refused too, whatever the shape penalties are set to: the
+  # average-selectivity penalty is always charged on the realized curve, so the
+  # reported deviation sd is the sd of a tilted density. Until 5.35.0 the
+  # refusal was lifted at Sel_curve_pen1 = 0, which removed the kink (Atka2022
+  # stopped at a maximum gradient of 6.8 with the penalty on) but not the bias.
   d$fleet_control$Time_varying_sel[2] <- "IID"
-  testthat::expect_error(
-    suppressMessages(suppressWarnings(Rceattle::fit_mod(
-      data_list = d, inits = NULL, msmMode = 0, estimateMode = "Hindcast",
-      random_sel = TRUE,
-      fit_control = Rceattle::fit_control(getsd = FALSE, verbose = 0)))),
-    "Sel_curve_pen1"
-  )
-
-  # With that penalty off the deviates integrate cleanly, which is the control
-  # showing the refusal is about the penalty and not about the IID density.
-  d$fleet_control$Sel_curve_pen1[2] <- 0
-  re <- suppressMessages(suppressWarnings(Rceattle::fit_mod(
-    data_list = d, inits = NULL, msmMode = 0, estimateMode = "Hindcast",
-    random_sel = TRUE,
-    fit_control = Rceattle::fit_control(getsd = FALSE, verbose = 0))))
-  testthat::expect_gt(exp(re$estimated_params$sel_dev_log_sd[2]), 1e-3)
-  testthat::expect_lt(
-    max(abs(re$obj$gr(re$obj$env$last.par.best[re$obj$env$lfixed()]))), 1e-2)
+  for (pen1 in list(d$fleet_control$Sel_curve_pen1[2], 0)) {
+    d$fleet_control$Sel_curve_pen1[2] <- pen1
+    testthat::expect_error(
+      suppressMessages(suppressWarnings(Rceattle::fit_mod(
+        data_list = d, inits = NULL, msmMode = 0, estimateMode = "Hindcast",
+        random_sel = TRUE,
+        fit_control = Rceattle::fit_control(getsd = FALSE, verbose = 0)))),
+      "average-selectivity"
+    )
+  }
 })
 
 
@@ -108,5 +102,28 @@ testthat::test_that("NonParametricPM still refuses IID, naming the alternative",
       data_list = d, inits = NULL, msmMode = 0, estimateMode = 3,
       fit_control = Rceattle::fit_control(verbose = 0)))),
     "NonParametricPM"
+  )
+})
+
+
+# The random_sel guard puts NonParametricPM in its walk branch
+# (.rce_np_unintegrable_fleets, R/3-build_map.R), but only the IID arm was
+# exercised, so the form-9 walk arm could have stopped refusing unnoticed.
+testthat::test_that("NonParametricPM under RandomWalk refuses random_sel, naming the integrable form", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("Rceattle")
+
+  data("Atka2022")
+  d <- Atka2022
+  d$fleet_control$Selectivity <- as.character(d$fleet_control$Selectivity)
+  d$fleet_control$Time_varying_sel <- as.character(d$fleet_control$Time_varying_sel)
+  d$fleet_control$Selectivity[2]       <- "NonParametricPM"
+  d$fleet_control$Time_varying_sel[2]  <- "RandomWalk"
+  testthat::expect_error(
+    suppressMessages(suppressWarnings(Rceattle::fit_mod(
+      data_list = d, inits = NULL, msmMode = 0, estimateMode = 3,
+      random_sel = TRUE,
+      fit_control = Rceattle::fit_control(verbose = 0)))),
+    "NonParametricIntegrable"
   )
 })

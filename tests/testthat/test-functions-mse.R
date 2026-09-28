@@ -58,6 +58,18 @@ testthat::test_that("Test MSE - Tier 3 w no uncertainty", {
   testthat::expect_equal(24, length(mse$Sim_1$EM))
   testthat::expect_equal(rep(0.4, 3), as.numeric(mse$Sim_1$OM$quantities$ssb_depletion[,nyrs]), tolerance = 0.005)
 
+  # OM_no_F is the OM with no fishing after the original OM's terminal year: the
+  # two share the hindcast, and the no-F projection is unfished. remove_F() on
+  # the advanced OM with its default start would begin after 2040 and remove
+  # nothing.
+  om_yrs <- mse$Sim_1$OM$data_list$styr:mse$Sim_1$OM$data_list$projyr
+  pre    <- which(om_yrs <= ss_run$data_list$endyr)
+  post   <- which(om_yrs >  ss_run$data_list$endyr)
+  testthat::expect_equal(unname(mse$Sim_1$OM_no_F$quantities$ssb[, pre]),
+                         unname(mse$Sim_1$OM$quantities$ssb[, pre]), tolerance = 1e-8)
+  testthat::expect_true(all(mse$Sim_1$OM_no_F$quantities$F_spp[, post] < 1e-8))
+  testthat::expect_gt(max(mse$Sim_1$OM$quantities$F_spp[, post]), 1e-3)
+
   # mse_summary() derives the performance-metric table from the MSE run. It is
   # exported but was previously untested; guard that it runs end-to-end and
   # returns the expected per-species metrics (it does substantial index math and

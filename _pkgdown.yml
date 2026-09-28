@@ -1,4 +1,4 @@
-url: https://grantdadams.github.io/Rceattle/
+url: https://afsc-assessments.github.io/Rceattle/
 
 template:
   bootstrap: 5
@@ -23,9 +23,9 @@ home:
     linkages, predation, management strategy evaluation (MSE), and diagnostics.
   links:
   - text: Browse source code
-    href: https://github.com/grantdadams/Rceattle
+    href: https://github.com/afsc-assessments/Rceattle
   - text: Report a bug
-    href: https://github.com/grantdadams/Rceattle/issues
+    href: https://github.com/afsc-assessments/Rceattle/issues
 
 navbar:
   bg: primary
@@ -69,9 +69,13 @@ navbar:
       - text: "--- Contributing ---"
       - text: "Developer guide"
         href: articles/developer-guide.html
+      - text: "Adding a selectivity form"
+        href: articles/adding-a-selectivity-form.html
+      - text: "C++ template reference"
+        href: cpp/index.html
     github:
       icon: fab fa-github
-      href: https://github.com/grantdadams/Rceattle
+      href: https://github.com/afsc-assessments/Rceattle
       aria-label: GitHub
 
 articles:
@@ -112,9 +116,12 @@ articles:
   - environmental-linkages-and-priors
 
 - title: Contributing
-  desc: Extending and maintaining the package internals.
+  desc: >
+    Extending and maintaining the package internals. The C++ template reference
+    (Doxygen, built from src/TMB/) is linked from the navbar.
   contents:
   - articles/developer-guide
+  - articles/adding-a-selectivity-form
 
 reference:
 - title: "Data input / output"

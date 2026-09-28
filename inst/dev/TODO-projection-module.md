@@ -93,6 +93,17 @@ default the last 5); the bridge averages 5 (`spm_bridge.R:104-110`). Identical
 for arrowtooth, whose biology is time-invariant; different on any stock with
 time-varying selectivity or weight-at-age. Moves numbers, so `/golden-check`.
 
+**Two sites hardcode the terminal year; three more inherit it.** The projection's F
+(`ceattle.cpp:2275`, `FIXME using last year of selectivity`) and the reference-point
+schedules (`:1595`, marked at `:1602`, `FIXME: time-vary sel in the forecast`) index
+`nyrs_hind - 1` themselves. The two `max_catch_hat` sums and `exploitable_biomass` index the
+loop year and only see the terminal curve because `normalize_and_project_selectivity()` copies
+it forward into every projection year (`selectivity.hpp:120`). **That fill is the single
+lever**: an averaging window placed there covers those three automatically, and the two
+hardcoded sites still have to be changed by hand -- a window that reaches only the projection's
+F leaves the reference points on a different basis from the projection they are compared
+against.
+
 **Gap 1 — catch-conditioned projection years (the keystone).** There is no way
 to specify catch in a projection year; `proj_F` comes from the HCR only. SS3
 and WHAM solve F from a specified catch inside the tape (WHAM `proj.catch`, and

@@ -9,13 +9,13 @@
 #'   \item **Pearson residual bubbles** by year and bin, faceted by fleet (and,
 #'     for joint-sex data, by sex); red = positive, blue = negative, sized by
 #'     magnitude. The Pearson residual is
-#'     the same form used by [residuals.Rceattle()] -- standardized by the
+#'     the same form used by [residuals.Rceattle()], standardized by the
 #'     variance the fleet's own likelihood assumes, so the weight column and any
 #'     Dirichlet-multinomial overdispersion are already in the denominator.
-#'   \item **Annual composition** -- observed (shaded area) vs fitted (line)
+#'   \item **Annual composition**: observed (shaded area) vs fitted (line)
 #'     proportion at age / length, one panel per year. Joint-sex data are
 #'     mirrored (females up, males down).
-#'   \item **Aggregated composition** -- observed vs fitted, counts pooled over
+#'   \item **Aggregated composition**: observed vs fitted, counts pooled over
 #'     the fitted hindcast years. The interval holds 95% of the data the model
 #'     predicts (not a confidence interval on the mean), so observations outside
 #'     it indicate misfit. Poor where the expected count is below about 10, and
@@ -40,7 +40,7 @@
 #' @param residual_type `"pearson"` (default) for the ggplot2 Pearson-residual
 #'   and composition-fit figures drawn here, or `"osa"` to instead draw the
 #'   one-step-ahead residual diagnostics via [osa_residuals()] and
-#'   [plot.rceattle_osa()] -- a Q-Q plot (with SDNR / tail annotation) alongside
+#'   [plot.rceattle_osa()], a Q-Q plot (with SDNR / tail annotation) alongside
 #'   signed OSA- and Pearson-residual bubbles. The `"osa"` path builds its
 #'   observation data on demand, so it works with any fit.
 #' @param add_agg_ci Logical. Draw the 95% prediction interval on the aggregated
@@ -176,16 +176,16 @@ plot_comp <- function(Rceattle, file = NULL, model_names = NULL, species = NULL,
 #' needs no family branching here.
 #'
 #' `N_eff` belongs to the OBSERVATION, so the rows are grouped on the key the
-#' likelihood scores one density over -- fleet, species, sex and year, the same
+#' likelihood scores one density over, fleet, species, sex and year, the same
 #' key `data_check()` requires to be unique. Year alone is not that key: a fleet
-#' may carry a female-only and a male-only row in one year, which are two
+#' may hold a female-only and a male-only row in one year, which are two
 #' observations, and pooling them would return half the effective sample size
 #' beside an `ISS` that correctly counts both. Joint-sex rows (`Sex == 3`) stay
 #' one observation, because one multinomial spans both sexes.
 #'
 #' Within an observation `N_eff` is constant across bins on the offset-inflated
 #' scale the `sd` was built on, but this reads the RAW fitted proportion, where
-#' `comp_offset` dominates the smallest bins -- at `hat = 1e-6` the recovery is
+#' `comp_offset` dominates the smallest bins, at `hat = 1e-6` the recovery is
 #' an order of magnitude out. The largest fitted bin is therefore load-bearing,
 #' not merely tidier; there the error is below ~1e-3 relative, growing with the
 #' number of bins in the observation.
@@ -194,7 +194,7 @@ plot_comp <- function(Rceattle, file = NULL, model_names = NULL, species = NULL,
 #'
 #' @param d One panel's rows, already filtered to the fitted hindcast years.
 #' @return The summed effective sample size, or `NA` if any observation's
-#'   assumed sd is unusable -- a partial sum would read as a downweighted fleet.
+#'   assumed sd is unusable, a partial sum would read as a downweighted fleet.
 #' @noRd
 .comp_assumed_ess <- function(d) {
   if (is.null(d$Sd)) return(NA_real_)
@@ -220,7 +220,7 @@ plot_comp <- function(Rceattle, file = NULL, model_names = NULL, species = NULL,
 #' the input sample size summed over the fitted hindcast years, the effective
 #' sample size the likelihood actually assumed (`Comp_weights` and any
 #' Dirichlet-multinomial overdispersion already in it), and the effective sample
-#' size this fit's own residuals imply -- the McAllister-Ianelli tuning target
+#' size this fit's own residuals imply, the McAllister-Ianelli tuning target
 #' `fit_mod()` computes as a harmonic mean across years, which is the unbiased
 #' scale to average a ratio estimator on. The gap between the second and third
 #' is the reweighting decision, so both are named rather than either standing in
@@ -266,8 +266,8 @@ plot_comp <- function(Rceattle, file = NULL, model_names = NULL, species = NULL,
 #' Tidy long-format composition observed / fitted / Pearson table
 #'
 #' Reuses [residuals.Rceattle()] (`type = "pearson"`, `source = "comp"`) for the
-#' observed and fitted proportions and the Pearson residual -- the single source
-#' of truth -- then adds the plotting-only columns: joint-sex bins re-based onto
+#' observed and fitted proportions and the Pearson residual, the single source
+#' of truth, then adds the plotting-only columns: joint-sex bins re-based onto
 #' a single age/length axis (males stored as bins `nbin+1 .. 2*nbin` are mapped
 #' to `1 .. nbin` and tagged `sex_grp = "male"`) and the facet labels. Zero
 #' observed proportions are kept; only `NA` observed/fitted are dropped (by
@@ -325,12 +325,12 @@ plot_comp <- function(Rceattle, file = NULL, model_names = NULL, species = NULL,
 #' over years (for one fleet x type panel), and puts the total back on the
 #' proportion scale; joint-sex groups keep their shared normalization (females +
 #' males sum to 1). Pooling counts rather than averaging proportions is what
-#' stops a year with 20 otoliths carrying the weight of one with 2000.
+#' stops a year with 20 otoliths counting as much as one with 2000.
 #'
 #' The pooled count is a sum of independent draws, so its variance is the exact
 #' sum of the per-year variances the fleet's own likelihood assumes (the `Sd`
 #' column). The resulting interval treats the fitted proportions as known, so it
-#' is slightly narrower than one that carried the estimation uncertainty in
+#' is slightly narrower than one that held the estimation uncertainty in
 #' `p_hat` as well.
 #'
 #' @param d One panel's rows from [.comp_resid_long()].
@@ -559,7 +559,7 @@ plot_diet_comp1 <- plot_diet_comp
 #'
 #' Observed 95% intervals (`lower_95` / `upper_95`) are a normal approximation to
 #' the binomial proportion, \eqn{\hat p \pm 1.96\sqrt{p(1-p)/N}}, using the same
-#' Sample_size as the Pearson denominator (`diet_data` carries no stored CI
+#' Sample_size as the Pearson denominator (`diet_data` holds no stored CI
 #' columns). Estimated 95% intervals (`Est_Lower` / `Est_Upper`) are added only
 #' when the `sdrep` exposes a `diet_hat` standard error; the C++ template
 #' `REPORT()`s but does not `ADREPORT()` `diet_hat`, so these are unavailable

@@ -5,12 +5,12 @@
 #' **Optional** (used if supplied, otherwise default-filled by [clean_data()]), or
 #' **Ignored** (not consulted because the feature that would use them is switched
 #' off). It answers "what do I actually need to supply for *this* model?" without
-#' having to read the validation code or the switch tables -- the same conditions
+#' having to read the validation code or the switch tables, the same conditions
 #' enforced at fit time (they share one declarative table).
 #'
 #' The configuration can be given either as an existing (possibly partial)
-#' `data_list` -- its switches are normalized through [clean_data()] /
-#' [switch_check()] so the conditions evaluate against filled defaults -- or,
+#' `data_list`, its switches are normalized through [clean_data()] /
+#' [switch_check()] so the conditions evaluate against filled defaults, or,
 #' when no `data_list` is supplied, built from the convenience arguments.
 #'
 #' Requirements are *conditional*: e.g. `diet_data`, `ration_data` and the

@@ -13,7 +13,7 @@
 #'     These series have no age/length bin, so no bubble plots are drawn.
 #'   \item **Composition** (`comp` / `caal`): a Q-Q panel, a signed OSA-residual
 #'     bubble panel, and a signed Pearson-residual bubble panel (the Pearson
-#'     residuals carried on the `rceattle_osa` object). By default age-based bins
+#'     residuals held on the `rceattle_osa` object). By default age-based bins
 #'     (age composition and conditional age-at-length) are shown in the left
 #'     column and length-based bins in the right column, each with its own bin
 #'     axis; set `combine = FALSE` to draw the age and length composition as two
@@ -58,6 +58,7 @@ plot.rceattle_osa <- function(x, source = "all", species = NULL,
   pearson  <- attr(x, "pearson")
   nages    <- attr(x, "nages")      # per-species, for joint-sex bin rebasing
   nlengths <- attr(x, "nlengths")
+  osa_method <- attr(x, "method")   # captured here: subsetting x drops it
 
   # ---- Subset by data source and species (like residuals.Rceattle()) ----
   # TODO(review): process-residual objects (from process_residuals()) carry
@@ -76,10 +77,26 @@ plot.rceattle_osa <- function(x, source = "all", species = NULL,
     }
   }
 
+  # Dropping the non-finite ones silently would draw a clean panel on a subset:
+  # under "cdf" they fail in a contiguous tail, so the survivors are time-biased.
+  n_all <- nrow(x)
   x <- x[is.finite(x$residual), , drop = FALSE]
+  n_dropped <- n_all - nrow(x)
   if (nrow(x) == 0) {
     warning("No finite residuals to plot for the requested source / species.")
     return(invisible(NULL))
+  }
+  if (n_dropped > 0) {
+    # Counts the OSA rows only. A Pearson panel drawn beside these is a
+    # different population -- composition sources alone, with its own exclusions
+    # and its own finite filter below -- so it is not described here.
+    warning(n_dropped, " of ", n_all, " OSA residual(s) are non-finite and are ",
+            "not plotted, so the OSA panel's SDNR and quantiles describe only ",
+            "the ", nrow(x), " shown.",
+            if ("cdf" %in% as.character(osa_method))
+              paste0(" Under method = \"cdf\" these fail in a contiguous tail, ",
+                     "making the survivors a time-biased subset.")
+            else "")
   }
 
   agg  <- x[x$source %in% c("index", "catch"), , drop = FALSE]
@@ -194,7 +211,7 @@ plot.rceattle_osa <- function(x, source = "all", species = NULL,
     ps <- pear[pear$.side == side, , drop = FALSE]
     if (nrow(ps) > 0) {
       panels[[length(panels) + 1L]] <-
-        .osa_bubble_plot(ps, ylab = ylab, title = "Pearson residuals")
+        .osa_bubble_plot(ps, ylab = ylab, title = "Pearson residuals", outlier = "fixed")
     }
   }
   .osa_stack(panels)
@@ -229,7 +246,7 @@ plot.rceattle_osa <- function(x, source = "all", species = NULL,
 #' Joint-sex compositions stack females in bins `1..nbin` and males in bins
 #' `nbin+1..2*nbin` (where `nbin` is `nages` or `nlengths` for the species).
 #' This re-bases the male bins to `1..nbin` and tags the source label by sex so
-#' males and females face the same bin axis -- matching [plot_comp()]. Rows with
+#' males and females face the same bin axis, matching [plot_comp()]. Rows with
 #' Sex != 3 (single-sex or combined) are returned unchanged.
 #' @param df A data frame with `species`, `sex`, `index_label`, `age_length_bin`,
 #'   and `source` columns.
@@ -343,15 +360,26 @@ plot.rceattle_osa <- function(x, source = "all", species = NULL,
 #' @param osa A data frame with `source`, `year`, `age_length_bin`, and
 #'   `residual` columns. Bubbles are placed at (year, age/length bin); red =
 #'   positive, blue = negative; size scales with the absolute residual;
-#'   outliers (`|resid| > 3`) are drawn as triangles.
+#'   outliers are drawn as triangles.
 #' @param ylab Y-axis label (e.g. `"Age bin"` or `"Length bin"`).
 #' @param title Panel title.
+#' @param outlier How a residual is flagged as an outlier. `"bonferroni"` (OSA
+#'   residuals) flags `|resid|` above `qnorm(1 - 0.05 / (2 n))`, `n` the finite
+#'   residuals in the panel: under the model OSA residuals are i.i.d. N(0, 1),
+#'   so the expected number of flags per panel is 0.05 whatever its size.
+#'   `"fixed"` (Pearson residuals, which are not N(0, 1)) flags `|resid| > 3`.
 #' @return A `ggplot` object.
 #' @keywords internal
-.osa_bubble_plot <- function(osa, ylab = "Bin", title = "OSA residuals") {
+#' @noRd
+.osa_bubble_plot <- function(osa, ylab = "Bin", title = "OSA residuals",
+                             outlier = c("bonferroni", "fixed")) {
+  outlier <- match.arg(outlier)
+  # Flagged on the untruncated residual, per panel (facet = source).
+  n_panel <- stats::ave(is.finite(osa$residual), osa$source, FUN = sum)
+  cut <- if (outlier == "bonferroni") stats::qnorm(1 - 0.05 / (2 * pmax(n_panel, 1))) else 3
+  osa$shape <- ifelse(abs(osa$residual) > cut, "outlier", "normal")
   osa$residual <- .rce_truncate_resid(osa$residual, title)
   osa$sign  <- ifelse(osa$residual >= 0, "positive", "negative")
-  osa$shape <- ifelse(abs(osa$residual) > 3, "outlier", "normal")
 
   p <- ggplot2::ggplot(osa, ggplot2::aes(x = .data$year,
                                          y = .data$age_length_bin)) +

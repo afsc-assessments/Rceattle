@@ -88,8 +88,8 @@ data_check <- function(data_list) {
   # Note this is a DIFFERENT switch from `Time_varying_q = "AR1"`, which is also
   # removed (5.16.0) but by its own check above, with its own message. That one
   # was not an AR1 either: the model gives value 2 the same independent
-  # normal penalty as value 1 (`index_varying_q == 1 || == 2`), and index_q_rho
-  # is read only on the QAR1 path this block removes. Both redirect to the same
+  # normal penalty as value 1 (`index_varying_q == 1 || == 2`), and the QAR1
+  # correlation parameter went with that path (5.37.0). Both redirect to the same
   # place -- a q linkage, `linkage_spec(~ ar1(1 | Year))` -- but they name
   # different columns, so only this block says "QAR1".
   if(!is.null(data_list$fleet_control$Catchability) &&
@@ -180,11 +180,10 @@ data_check <- function(data_list) {
   # Time_varying_sel / Time_varying_q = "AR1" (2) are REMOVED. Neither was ever
   # an AR1. The model scores value 2 with the same independent normal penalty
   # as value 1 -- `flt_varying_sel == 1 || == 2` and `index_varying_q == 1 || ==
-  # 2` -- and neither deviation block has a correlation parameter to read:
-  # index_q_rho is used only on the QAR1 catchability path this release also
-  # removes, and there is no selectivity equivalent at all. So the name promised
-  # an autocorrelation the model does not fit, on a value the schema's own column
-  # descriptions never listed.
+  # 2` -- and neither deviation block has a correlation parameter to read (the
+  # QAR1 catchability path's went with it in 5.37.0; selectivity never had one).
+  # So the name promised an autocorrelation the model does not fit, on a value
+  # the schema's own column descriptions never listed.
   #
   # An error rather than a silent alias, and for the reason the QAR1 removal
   # above gives: a warned fit returns a summary() that looks ordinary, and
@@ -243,9 +242,8 @@ data_check <- function(data_list) {
             # Catchability = 'AR1' refusal above, and the two errors have to
             # stay distinguishable by their text -- they name different columns
             # and different fixes.
-            paste0("index_q_rho is not that correlation either: it belongs to ",
-                   "the removed Catchability = 'AR1' form, not to this ",
-                   "switch.\n"),
+            paste0("No correlation parameter exists for this switch; the one ",
+                   "that did belonged to the removed Catchability = 'AR1' form.\n"),
             exempt = .canon_switch(fc$Catchability, q_map) %in%
                      c("Environmental", "AR1")),
     .tv_ar1(fc$Time_varying_sel, "Time_varying_sel", tv_sel_map,
@@ -704,6 +702,14 @@ data_check <- function(data_list) {
     }
   }
 
+  # The multiplier on input numbers-at-age is estimated only under predation.
+  .ed2 <- which(data_list$estDynamics %in% 2)
+  if(length(.ed2) && isTRUE(as.integer(data_list$msmMode %||% 0L)[1] == 0L)){
+    message("estDynamics = 2 for ", paste(data_list$spnames[.ed2], collapse = ", "),
+            ": the multiplier on input numbers-at-age is estimated only under ",
+            "predation (msmMode > 0); in single-species mode it is fixed at 1, so ",
+            "this fits as estDynamics = 1.")
+  }
   # NByageFixed: presence required when estDynamics > 0 (declarative requirement
   # table); the column-count adequacy check stays imperative below.
   errors <- c(errors, .rce_check_presence(data_list, "NByageFixed"))
@@ -872,6 +878,7 @@ data_check <- function(data_list) {
       # ignores both columns.
       .sel_form <- if("Selectivity" %in% colnames(fc)) .canon_switch(fc$Selectivity[flt], sel_map) else NA_character_
       reads_nsb <- isTRUE(.sel_form %in% c("NonParametric", "NonParametricPM",
+                                           "NonParametricIntegrable",
                                            "Hake", "2DAR1", "3DAR1"))
       .lowest_nsb <- if(isTRUE(.sel_form == "Hake")) bfs + 1L else bfs
       if(reads_nsb && !is.na(bfs) && !is.na(nsb) && .lowest_nsb > nsb){
@@ -965,9 +972,30 @@ data_check <- function(data_list) {
          !fc$Time_varying_sel[flt] %in% c("Off", "RandomWalk")){
         errors <- c(errors, paste0("Fleet '", flt_name, "': for 'NonParametricPM' selectivity, 'Time_varying_sel' must be 'Off' or 'RandomWalk'. Its deviates are random-walk increments, so 'IID' would not describe the curve the model builds; 'NonParametric' supports 'IID'."))
       }
+      #  - NonParametricIntegrable (13) gives its deviations a proper density;
+      #    Time_varying_sel says which structure, and "Off" estimates none.
+      if(!is.na(fc$Selectivity[flt]) && fc$Selectivity[flt] == "NonParametricIntegrable" &&
+         !fc$Time_varying_sel[flt] %in% c("Off", "IID", "RandomWalk")){
+        errors <- c(errors, paste0("Fleet '", flt_name, "': for 'NonParametricIntegrable' selectivity, 'Time_varying_sel' must be 'Off', 'IID' or 'RandomWalk'"))
+      }
       if(!is.na(fc$Selectivity[flt]) && fc$Selectivity[flt] == "Hake" &&
          !fc$Time_varying_sel[flt] %in% c("Off", "IID")){
         errors <- c(errors, "For 'Hake' selectivity, 'Time_varying_sel' must be 'Off' or 'IID'")
+      }
+      # Sel_norm_scope is read only by the shared normalizer. Hake normalizes each
+      # sex by its own maximum and LogisticPM reads Sel_norm_bin as a penalty
+      # range, so on a two-sex fleet of either form the column changes nothing.
+      if(!is.na(fc$Selectivity[flt]) && fc$Selectivity[flt] %in% c("Hake", "LogisticPM") &&
+         isTRUE(data_list$nsex[fc$Species[flt]] == 2) &&
+         isTRUE(fc$Sel_norm_scope[flt] %in% c("AcrossSexes", sel_norm_scope_map[["AcrossSexes"]]))){
+        why <- if(fc$Selectivity[flt] == "Hake"){
+          paste0("normalizes each sex to its own maximum in its own block, so 'Sel_norm_scope' ",
+                 "is not read and the sexes cannot differ in selectivity level with this form")
+        } else {
+          paste0("does not normalize at all and reads 'Sel_norm_bin' as a penalty bin range, ",
+                 "so 'Sel_norm_scope' is not read")
+        }
+        message("Fleet '", flt_name, "': Selectivity = '", fc$Selectivity[flt], "' ", why, ".")
       }
       #  - LogisticPM (ADMB AMAK "pm" BTS, type 11): random-walk deviates on
       #    slope/inflection/age-1 -> allow only "Off"/"RandomWalk".
@@ -982,7 +1010,8 @@ data_check <- function(data_list) {
       # missing / non-numeric (e.g. a Time_varying_sel mode string accidentally
       # written into Sel_curve_pen) before it surfaces as a cryptic
       # "inits not within bounds" error in build_bounds.
-      if(fc$Selectivity[flt] %in% c("NonParametric", "NonParametricPM")){
+      if(fc$Selectivity[flt] %in% c("NonParametric", "NonParametricPM",
+                                    "NonParametricIntegrable")){
         cp1 <- suppressWarnings(as.numeric(fc$Sel_curve_pen1[flt]))
         cp2 <- suppressWarnings(as.numeric(fc$Sel_curve_pen2[flt]))
         if(is.na(cp1) || is.na(cp2)){
@@ -994,17 +1023,19 @@ data_check <- function(data_list) {
         }
       }
 
-      # LogisticPM: Sel_curve_pen1/2/3 are the random-walk weights on the
-      # slope / inflection / age-1 deviates (ADMB 50 / 50 / 8). Require numeric
-      # when time-varying so a stray mode string is caught early.
+      # LogisticPM: Sel_curve_pen1 weights the random walk on the REALIZED
+      # log-selectivity and Sel_curve_pen3 the walk on the free age-1 deviates
+      # (ADMB ctrl_flag(26) and the literal weight 8). Sel_curve_pen2 is not read on this form, so
+      # it is not required. Require the two that are numeric when time-varying,
+      # so a stray mode string is caught early.
       if(!is.na(fc$Selectivity[flt]) && !is.na(fc$Time_varying_sel[flt]) &&
          fc$Selectivity[flt] == "LogisticPM" && fc$Time_varying_sel[flt] == "RandomWalk"){
-        cps <- suppressWarnings(as.numeric(c(fc$Sel_curve_pen1[flt], fc$Sel_curve_pen2[flt], fc$Sel_curve_pen3[flt])))
+        cps <- suppressWarnings(as.numeric(c(fc$Sel_curve_pen1[flt], fc$Sel_curve_pen3[flt])))
         if(any(is.na(cps))){
           errors <- c(errors, paste0(
             "Fleet '", fc$Fleet_name[flt], "' has Selectivity = 'LogisticPM' with time-varying ",
-            "selectivity but 'Sel_curve_pen1'/'Sel_curve_pen2'/'Sel_curve_pen3' (slope/inflection/age-1 ",
-            "random-walk weights) are missing or non-numeric."))
+            "selectivity but 'Sel_curve_pen1' (the random walk on realized log-selectivity) or ",
+            "'Sel_curve_pen3' (the walk on the age-1 deviates) is missing or non-numeric."))
         }
       }
 
@@ -1024,11 +1055,17 @@ data_check <- function(data_list) {
       }
     }
 
+    # A negative penalty weight rewards the deviation it names, without bound.
+    # fit_mod() repeats this on the parameter in use, which `inits` can override.
+    errors <- c(errors, .rce_sel_pen_sign_errors(fc))
+
     # emp_sel presence required when any fleet has Selectivity = "Fixed"
     # (declarative requirement table).
     errors <- c(errors, .rce_check_presence(data_list, "emp_sel"))
 
-    # Estimated selectivity (Selectivity != "Fixed" and Fleet_type != "Off")
+    # Estimated selectivity. Fleet_type is read through .canon_switch(): this
+    # function is callable on a list straight from read_data(), where the column
+    # is still the integer code, and `0 != "Off"` is TRUE.
     # requires comp or CAAL data with Year > 0 to be identifiable. Otherwise
     # the selectivity parameters are unconstrained and the optimizer wanders.
     # EXCEPTION: a fleet whose Selectivity_index is shared (mirrored) with
@@ -1071,7 +1108,7 @@ data_check <- function(data_list) {
     # settings are discarded. NA there really is "unset", so it is skipped.
     # Sel_norm_scope and Sel_cap_bin belong here too: both are per-fleet
     # DATA_IVECTORs read inside the curve builder (selectivity.hpp: the
-    # across-sex normalization reference, and the NonParametricRPM bin cap),
+    # across-sex normalization reference, and the NonParametricPM bin cap),
     # not behind a flt_sel_lead gate.
     .sel_shaping_cols <- c("Selectivity", "Selectivity_dimension",
                            "Bin_first_selected", "N_sel_bins",
@@ -1216,7 +1253,8 @@ data_check <- function(data_list) {
 
     est_sel_flts <- fc[!is.na(fc$Selectivity) &
                          fc$Selectivity != "Fixed" &
-                         (!"Fleet_type" %in% colnames(fc) | fc$Fleet_type != "Off"),
+                         (!"Fleet_type" %in% colnames(fc) |
+                            .canon_switch(fc$Fleet_type, fleet_map) != "Off"),
                        , drop = FALSE]
     # Selectivity_index values that have active age data in ANY sharing fleet
     sel_idx_has_data <- if ("Selectivity_index" %in% colnames(fc)) {
@@ -1616,7 +1654,7 @@ data_check <- function(data_list) {
   # log(Time_varying_sel_sd) exactly as it takes log(Time_varying_q_sd), so a
   # blank or non-positive value is the same -Inf/NaN start with the same
   # unattributable TMB error -- and it additionally makes the geometric mean
-  # .warn_shared_dev_sd() reports for a shared Selectivity_index group NaN.
+  # .warn_shared_block_start() reports for a shared Selectivity_index group NaN.
   #
   # Required only where the TEMPLATE actually reads sel_dev_sd, which is a
   # property of the (Selectivity, Time_varying_sel) pair rather than of either
@@ -1665,6 +1703,8 @@ data_check <- function(data_list) {
       .stv[.sel == "NonParametric"] %in% c("IID", "RandomWalk")
     .reads_sel_sd[.sel == "NonParametricPM"] <-
       .stv[.sel == "NonParametricPM"] == "RandomWalk"
+    .reads_sel_sd[.sel == "NonParametricIntegrable"] <-
+      .stv[.sel == "NonParametricIntegrable"] %in% c("IID", "RandomWalk")
 
     .require_positive(.fc, .col, list(
       list(col = "Time_varying_sel_sd",
@@ -2155,7 +2195,7 @@ data_check <- function(data_list) {
 #' eigenvalues, because that is the operation the covariance index likelihood
 #' actually performs (`MVNORM()` / `Eigen::LLT` in `ceattle.cpp`): a matrix that
 #' factorizes here is one TMB can use. Assumes symmetry has already been
-#' checked -- `chol()` reads only the upper triangle, so it would accept an
+#' checked, `chol()` reads only the upper triangle, so it would accept an
 #' asymmetric matrix whose upper triangle happens to be positive definite.
 #'
 #' @param x A numeric matrix, assumed square and symmetric.
@@ -2180,12 +2220,12 @@ data_check <- function(data_list) {
 #' `fleet_control` still says they share one. Measured on `BS2017SS` with fleets
 #' 4 and 7 in one group and the linkage on fleet 7: fleet 4 flat at 0.035, fleet
 #' 7 running 0.087-0.537. With every fleet in the group named, and equal
-#' coefficients, they stay together -- so this fires on a strict subset only.
+#' coefficients, they stay together, so this fires on a strict subset only.
 #'
 #' Separate from `data_check()` because the linkage table does not exist yet
 #' when that runs: `fit_mod()` pools it after the check.
 #'
-#' @param data_list A `data_list` carrying `linkage_table` and `fleet_control`.
+#' @param data_list A `data_list` holding `linkage_table` and `fleet_control`.
 #' @keywords internal
 #' @noRd
 .warn_q_linkage_shared_group <- function(data_list) {

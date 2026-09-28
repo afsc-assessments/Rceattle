@@ -67,7 +67,7 @@ last hindcast year.}
 \item{incl_mean}{Add a horizontal line at the hindcast mean of each series.}
 
 \item{add_ci}{Add a 95\% confidence interval. Only available where the
-plotted quantity carries standard errors; warns and draws none otherwise.}
+plotted quantity holds standard errors; warns and draws none otherwise.}
 
 \item{lty}{Line type. A vector varies it across the levels of whatever the
 figure separates by line type.}

@@ -1,9 +1,9 @@
-#' Flag the fleet that carries each shared parameter block's penalty
+#' Flag the fleet that holds each shared parameter block's penalty
 #'
 #' Fleets sharing an index estimate one block of parameters, so its prior /
 #' penalty must be accumulated once. Returns 1 for the first estimated fleet in
 #' each group and 0 for the rest. An "Off" fleet estimates nothing, so it is
-#' never chosen while an estimated fleet is available -- the same donor rule
+#' never chosen while an estimated fleet is available, the same donor rule
 #' `adjust_map_shared_params()` uses. Fleets with no index (`NA`) share with
 #' nobody and always lead.
 #'
@@ -111,6 +111,15 @@ rearrange_data <- function(data_list, build_osa = FALSE){
          paste(.missing_fc, collapse = ", "),
          ". Run switch_check() first to fill defaulted columns.", call. = FALSE)
 
+  # Both read the column as supplied: convert_switches() turns a blank and a type
+  # it cannot map into the same NA, and an out-of-range code into itself.
+  .rce_stop_blank_fleet_type(data_list$fleet_control)
+  # convert_switches() resolves factor columns; do it here too so the refusal
+  # below reads the label the user wrote rather than a level index.
+  data_list$fleet_control <-
+    .rce_defactor_fleet_control(data_list$fleet_control)
+  .rce_stop_unreadable_fleet_type(data_list$fleet_control)
+
   # Convert text to integer for switches used in TMB
   data_list <- convert_switches(data_list)
 
@@ -195,6 +204,7 @@ rearrange_data <- function(data_list, build_osa = FALSE){
   # A Fixed curve is read from emp_sel_obs and never normalized, so its value is
   # allowed to be stale -- the same fleets switch_check() leaves alone.
   .norm_hi[data_list$flt_sel_type == 0] <- NA_real_
+
   .is_pm <- data_list$fleet_control$Selectivity %in% c(11, "LogisticPM")
 
   # Resolve the word first, so only a real bin is shifted to the 0-based index:
@@ -264,7 +274,7 @@ rearrange_data <- function(data_list, build_osa = FALSE){
     as.numeric(data_list$fleet_control$Sel_avgsel_pen))
   data_list$flt_sel_avgsel_pen[is.na(data_list$flt_sel_avgsel_pen)] <- 0
 
-  # - 9f) NonParametricRPM (type 9) bin cap (0-based): the realized selectivity is
+  # - 9f) NonParametricPM (type 9) bin cap (0-based): the realized selectivity is
   #       held flat at/after this bin (RTMB cap_old_age). NA -> -999 (no cap).
   data_list$flt_sel_cap_bin <- data_list$fleet_control %>%
     dplyr::mutate(Sel_cap_bin = .data$Sel_cap_bin - sel_bin_offset,

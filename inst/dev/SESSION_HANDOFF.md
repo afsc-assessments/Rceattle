@@ -5,333 +5,300 @@ session. Maintained by `/handoff`.
 
 ## Now
 
-**PR #139 is OPEN into `main`** — https://github.com/grantdadams/Rceattle/pull/139
-(`dev` -> `main`, releasing **5.26.0 + 5.27.0**; `main` is at 5.25.1). Reviewed 2026-09-02
-against CLAUDE.md for accuracy, ease of use, concise language and sibling breakage. Two P0
-defects were found, both measured, both fixed on `dev`; the fixes are described below and are
-NOT yet committed.
+**`dev` is at 5.43.0 and `main` at 5.33.0.** The next step is one `dev` -> `main` release
+covering 5.34.0 through 5.43.0, per `inst/RELEASE-CHECKLIST.md`. Read that file's pkgdown note
+before tagging: the `release: published` event has silently failed to fire once already.
+**The tag is the DESCRIPTION version, so it is 5.43.0, not 5.41.0** -- #160 (5.42.0) and the
+review of #158 (5.42.1) both landed after the release PR was written.
 
-**One root cause behind both.** Under the default `estimateMode = "Estimate"` with an
-estimating HCR, `fit$obj` and `fit$sdrep` belong to the **projection**, not the hindcast —
-`build_hcr_map()` maps every hindcast parameter off. Measured on `Atka2022` with `HCR = 5`:
-`fit$obj$par` is length **2** (`log_Flimit`, `log_Ftarget`) against `.conv_hindcast$par`'s
-**584**. Every test the PR added fits at `estimateMode = "Hindcast"` or `3`, so neither new
-feature was exercised on the mode every real assessment uses. Full account in `TRAPS.md`,
-section "`fit$obj` and `fit$sdrep` are the projection's under an estimating HCR".
+**Checklist state at 5.43.0.** Two of the four measurements have been re-taken at this head,
+and the other two are argued rather than re-run:
 
-1. **`parameter_index()` labelled the wrong parameters.** `fit$identified` and
-   `fit$.conv_hindcast` are captured before the projection, so the convergence battery matched
-   hindcast positions against a projection index: a flagged `rec_pars` printed as
-   `log_Flimit  element 1`. Fixed by storing the hindcast index on `.conv_hindcast$index` (built
-   in `.capture_opt_convergence()`, the last point holding the hindcast `obj`) and by
-   `.conv_index_ok()` / `.conv_index_for()`, which verify an index names the vector being
-   labelled before any coordinate is printed. A mismatch now prints block names alone.
-2. **`plot_selectivity(add_ci = TRUE)` drew a zero-width band.** The projection `sdreport`
-   holds the selectivity parameters fixed, so all 1,012 `log_sel_at_age` errors come back
-   exactly 0 — a hairline reading as certainty, worse than the bare line it replaced, and the
-   existing decline never fired because the errors were *present*. `fit_mod()` now warns at the
-   point the option is set, and the plotter declines an all-zero error naming
-   `estimateMode = "Hindcast"` / `projection_uncertainty = TRUE`.
+- **Full suite, re-run 2026-09-27 at `05169240`, the head of `fix/pr158-review-round3`**
+  (`NOT_CRAN=true TESTTHAT_PARALLEL=false`, serial, R 4.5.1 on macOS with every Suggests
+  installed): **9,702 assertions / 0 failures / 0 errors**, 3 skips, 243 files. Supersedes
+  9,613 (5.42.1) and 9,506 (2026-09-21); the +89 are that branch's new tests. The failure count is
+  the load-bearing number; **the skip count is environment-specific** -- 459 `skip_on_cran()`,
+  763 `skip_if_not_installed()` and 93 `skip_if()` guards mean a clean machine will skip far
+  more, so do not treat 3 as a target.
+- **Ecosystem sweep, re-run and widened to the 5.42.0 refusals**: 375 workbooks across the
+  four consumer repos, 183 with a `fleet_control` sheet (the count excludes `~$` Excel lock
+  files; including them gives 423). Exactly one workbook, one column, two fleets carries a
+  negative weight: EBS pollock 2024's `Sel_curve_pen1` on AVO and ATS, `NonParametricPM` with
+  no `Sel_shape_mode` column at all, which the directional exemption keeps legal -- and ATS
+  additionally follows AVO's `Selectivity_index`, so the template never reads its weight.
+  `Sel_curve_pen1`/`2` exist in only 20 of the 183 workbooks and `pen3` in 1. No workbook
+  sets `Sel_shape_dir` or `Sel_devmag_sd` -- those columns are absent everywhere, so the
+  present-but-NA case never arises. No selectivity prior or apical linkage sits on an `Off`
+  fleet or a shared-block follower -- the GOA pollock 2025 prior fleets are each their
+  group's lead, and GOA cod bridging builds double-normal linkages with no priors. No
+  group anywhere mixes selectivity forms, read raw or canonicalized through `sel_map`.
+- **Hake `MSE_yr2024.R`: the 2026-09-23 run still stands**, and re-running it would prove
+  nothing new. `MSE_hake_yr24_final.xlsx` is **`nspp = 4`** (Hake, ATF, Sablefish, CSL) with
+  only two fleets, both `Selectivity = 5` (`Hake`), on separate `Selectivity_index` values,
+  with no negative penalty weight and no `Sel_shape_dir` or `Sel_devmag_sd` column.
+  Form 5 appears in **no** slot of `.RCE_SEL_PEN_POSITIVE`, so no
+  5.42.0 refusal can fire on it, and with no shared group the 5.42.1 lead rule is a no-op
+  there. Nothing in 5.42.0 or 5.42.1 touches predation, suitability, the DM likelihood,
+  `sim_mod()` or `run_mse()`'s numerics (rule 15); the only MSE-visible change is that the
+  estimation fits now report `NOTE` instead of `OK` under `getsd = FALSE`, a status.
+  Do not read the two-row `fleet_control` as a single-species model: only hake has fishery and
+  survey data, the other three are diet-only predators, so the script's four-element
+  `suitMode` / `suit_styr` / `suit_endyr` vectors and `msmMode = "MSVPA"` are correct. A review
+  pass misread this as a stale script; it is not.
+- **Reproducible install: still owed at this head.** It was driven at 5.41.0. Run it as part
+  of checklist section 4 once the tag is pushed.
+- **`urlchecker::url_check()` and `devtools::spell_check()`: run 2026-09-24, both clear.**
+  Neither is run by CI, so they are only ever done by hand. `url_check()` reports exactly one
+  404, the `adding-a-selectivity-form.html` canary in step 4 below, which is the stale
+  published site rather than a bad link and resolves when pkgdown rebuilds. `spell_check()`
+  returns several hundred domain terms (`acf`, `ADMB`, `ADREPORT`, `al`, `Ageing`); there is
+  no `inst/WORDLIST`, so it is advisory noise, not a gate. Adding a WORDLIST so this becomes
+  a real check is a `CLEANUP_BACKLOG.md`-sized job, not a release one.
 
-**Also fixed in the same pass:**
+**PR #159 merged into `dev` on 2026-09-24**, #160 on 2026-09-25 (`dev` head `c01ea717`), and
+the review of #158 after it. #159 asked four questions of #158: does the language read as
+AI-written, is the API frictionless, are the docs concise, can a developer find and change the
+model. Full suite green (235 files, 0 failures), golden unchanged to ~1e-11.
 
-- **`Bin_first_selected` is a 1-based bin ordinal, not an age** (`Sel_norm_bin` beside it *is*
-  an age — opposite conventions, and the `Age_first_selected` alias argues for the wrong one).
-  The PR's prose read it as an age in four places. Schema description rewritten; docs now say
-  "first selected bin". `minage = 1` hides this everywhere it is currently written.
-- `.rce_sel_lead()` re-derived the selectivity grouping instead of reading `data_list`'s own
-  `flt_sel_lead` / `flt_sel_type`. Now reads them; its test builds the vector with the real
-  `.group_lead()` so it proves parity rather than restating it.
-- `test-selectivity-standard-errors.R`'s back-compat test asserted through `fit_mod()`, which
-  sets `adreport_sel` itself, so it passed either way. Now asserts on `build_osa_data()`.
-- Prose: the log-vs-logit argument was written out five times. The 28-line `ceattle.cpp` block
-  is now 12 and points at `?fit_control`; `plot_selectivity()`'s roxygen essay moved to
-  `model-options-and-functionality.Rmd`, which gained a runnable `estimateMode` example.
-- `add_ci` moved after `colour_by` in `plot_selectivity()`'s signature (it had been inserted
-  before it, breaking positional `colour_by` callers — no sibling does this today).
-- `.rce_sel_se()` now attaches a `(Fleet, Sex, Year)` row lookup, so a 16-fleet model does not
-  rescan a 30,000-row frame once per panel and year.
+What a reviewer should still go at hardest:
 
-**An adversarial review of these fixes found a HIGH-severity regression I had introduced,
-and it is fixed.** `.rce_sel_lead()` had been "simplified" to read `data_list$flt_sel_lead` /
-`flt_sel_type` — fields that do NOT exist on a fitted object, because `fit$data_list` is the
-pre-`rearrange_data()` list. The helper early-returned on every real fit, so mirrored fleets
-drew no confidence band beside a banded lead. Measured: `GOApollock`'s
-`Pollock_survey_1_shelikof_acoustic_BS` resolved to lead `7` instead of `1, 7`, and a mirrored
-`Atka2022` went from a finite band at ages 1-3 to `NULL`, leaving 506 of 1012 ribbon rows
-finite. `GOApollock`, `GOA2018SS`, `GOAatf2023` and `GeorgesBank3spp` all have real selectivity
-groups. **The rewritten unit test passed throughout**, because it asserted against a hand-built
-list carrying the very field under test — the "guards are not themselves guarded" shape, now in
-`TRAPS.md` as its own section. Now resolved with `rearrange_data()`'s own `.group_lead()` on
-`fleet_control`, and the test asserts on a fitted object: lead `1 2`, band restored,
-**1012/1012** ribbon rows finite.
+- **The selectivity form collapse.** `NonParametricIID` (13) and `NonParametricRW` (14) became
+  one `NonParametricIntegrable` (13), with `Time_varying_sel` picking the structure. Code 14 is
+  free. **Golden does not cover it**: the four reference models use forms 0-4 (verified: the
+  union of their `Selectivity` columns is {0,1,2,3,4}), so golden passing only shows the new
+  `sel_case` dispatch is inert for the other forms. What covers the merge is
+  `test-selectivity-nonparametric-integrable.R` and its independent `dnorm` oracle.
+- **The collapse left stale text in six shipped schema descriptions and in NEWS 5.40.0.** Fixed
+  on `fix/release-doc-corrections`; `test-docs-anchors.R` now fails if any schema description
+  names a selectivity code `sel_map` does not accept. A schema `doc` string is written verbatim
+  into `meta_data_names.xlsx`, so it is user-facing, not a comment.
+- **The language sweep touches 69 files** and is isolated in one commit. It recasts clauses
+  rather than transliterating dashes; the risk to look for is a `carry` that meant *propagate*
+  being flattened to `hold`. Six such were caught in roxygen; assume more exist.
 
-Two smaller findings from the same review, also fixed:
+## Round 3 of the #158 review (branch `fix/pr158-review-round3`, 4 commits)
 
-- The all-zero-sd decline could not tell "all exactly 0" (HCR projection) from "all NaN"
-  (non-PD Hessian), and pointed an assessor with a genuine identifiability problem at two
-  remedies that cannot help. Split into two messages; the NaN one names
-  `fit$convergence`'s `sdreport_failed` / `hessian_conditioning`.
-- The docs scoped the `fit$obj` caveat to "an estimating HCR". Measured: `ConstantF` also
-  leaves `obj$par` at length 1 against a 584-row `cov.fixed`. The accurate scope is "any HCR
-  but `NoFishing`" for `obj`, and "an estimating HCR" only for `sdrep`. CLAUDE.md rule 10 was
-  also left contradicting the new `Bin_first_selected` trap, and now names both conventions.
+Folded into 5.43.0, no bump: `dev` was already there and 5.43.1 is reserved. Two adversarial
+passes ran over it; between them they found nine and eleven items, of which these mattered.
 
-**A non-finding worth recording:** the memory cost of storing `.conv_hindcast$index` on every
-fit was measured, not argued — 0.07%-1.5% of a fit (31-109 KB against 3.7-156 MB), ~1 MB over
-ten retro peels. No action.
+- **A negative variance printed as a standard error** in `summary()` and `report_tables()`'s
+  parameter table, which is the table a SAFE executive summary is built from. `vcov()` is
+  `sdreport()`'s covariance with no `pdHess` gate and an indefinite Hessian inverts without
+  being positive definite, so `sqrt(abs(variance))` reported a meaningless number unflagged.
+  Measured on `diag(2, -3)`: `chol()` fails, the diagonal is `0.5, -0.333`, the old code
+  reported `0.707` and `0.577`. Both now return `NA`, with a rounding tolerance of `1e-10` so a
+  converged fit on a flat ridge still reports `0` rather than `NA`.
+- **A factor switch column was read by its level index.** `revert_switches()` resolves eight of
+  the nine columns `convert_switches()` handles; **`Time_varying_q` is the ninth**, so a factor
+  there reached the template by level index through `fit_mod()` -- `factor("Off")` became `IID`,
+  estimating catchability deviations nobody asked for, with `data_check()` clean. One shared
+  rule (`.rce_defactor_fleet_control()`) now runs in `switch_check()` and `convert_switches()`.
+  Nothing in the ecosystem supplies a factor (375 workbooks, 15 bundled `.rda`, every
+  `data.frame()`/`read.csv()` in the four consumer repos), and R >= 4.1 defaults it off.
+- **The blank-`Fleet_type` guard ran after `convert_switches()` had destroyed the evidence**, so
+  a mistyped type was refused as a blank cell. It now reads the column as supplied, and a type
+  outside the allowed set is refused by fleet and value -- closing `3`, `-1` (which was eligible
+  to lead a `Selectivity_index` group whose penalty is gated on `flt_type > 0`, so the group's
+  penalty went uncharged) and `2.7`.
+- **Two claims the second reviewer made did not survive checking**, and one had already been
+  written into NEWS on its word: `revert_switches()` de-factors `Fleet_type` four lines before
+  the `"Off"` assignment that was said to corrupt it, so neither the `switch_check()` NA
+  corruption nor a fit-moving factor `Fleet_type` through `fit_mod()` is real. Verify a
+  reviewer's mechanism before it reaches a release note.
+- **Deliberately left open**: `R/1-data_check.R:1255` still reads `Selectivity != "Fixed"` raw,
+  so raw `GOA2018SS` fleets 4 and 5 are still false positives of the class 5.43.0 fixed -- and
+  they are what satisfies the positive control in `test-switches-fleet-type-integer-off.R`, so
+  fixing the line turns that assertion red. The class fix (canonicalise every schema `switch`
+  column at `data_check()`'s entry) wants its own PR and a golden run; it is the
+  `CLEANUP_BACKLOG.md` row "schema `switch` not enforced at the boundary".
+- The two transfer notes no longer ship in the tarball. `TRAPS.md`, `CLEANUP_BACKLOG.md` and the
+  other `TODO-*` notes still do, because `man/run_mse.Rd` cites two of them.
+- The repository `homepage` setting pointed at `grantdadams.github.io/Rceattle/index.html` (404);
+  it is now the live site. That was a GitHub setting, not a file, so no sweep would have caught it.
+- **A green local suite did not establish the tests were sound.** The width-alignment assertion
+  located its column by searching for `"ages "` in the printed line, and which elements the 90%
+  loading cut keeps moves with rounding in `eigen()`: a consecutive set prints `ages 1-14`, a
+  scattered one `13 ages in 1-14`, so the token sits three characters further along. It passed
+  locally on both lines and failed the `R-CMD-check` `oldrel-1` leg (`FAIL 1 | PASS 3050`). It now
+  measures the first non-space past the padded block name. Twice in this review the tests were
+  the weak link rather than the code -- the 5.42.1 round found three that passed for the wrong
+  reason -- so when a new assertion reads printed output, check what in that output is
+  platform-dependent before trusting one machine's green.
 
-**Verified:** `FAIL 0 | PASS 439` across `plot-selectivity-ci`, `selectivity-standard-errors`,
-`schema-parameter-index`, `convergence`, `schema-canonical`, `vignette-api`; `FAIL 0 |
-PASS 4147` on the wider `plot|selectivity|schema|convergence|vignette-api|fit-verbose` net;
-**golden regression `FAIL 0 | PASS 20`**. `src/TMB/ceattle.cpp` is comment-only (0 non-comment
-lines changed). `devtools::document()` touches only `fit_control.Rd`, `parameter_index.Rd`,
-`plot_selectivity.Rd`. `inst/extdata/meta_data_names.xlsx` regenerated via
-`data-raw/regenerate_meta_xlsx.R` after the schema edit, as its drift guard requires.
+**The release sequence, from here:**
 
-**Still to run before this PR merges:** `/pkgdown-check`, and the release checklist in the PR
-body (`build_vignettes`, `urlchecker`, `spell_check`, tag the merge commit `5.27.0` bare,
-publish a GitHub Release, `deep-checks` on `main`, ecosystem sweep).
+1. **Done.** Every review branch is in: `fix/release-doc-corrections`, #162, #164, #165, #166,
+   and #161 (merged at `eafcece3` with no further bump, since `dev` already read 5.43.0; its
+   NEWS entries were filed under 5.42.0 and have been moved to 5.43.0).
+   `fix/pr158-review-round3` carries the third review of #158 -- see "Round 3" below. **5.43.1
+   is spoken for by the `golden` robustness fix**, so a further review round folds into 5.43.0.
+2. Merge the `dev` -> `main` release PR #158. Its body must say what forces a refit, what
+   breaks and what is new, and must cover 5.42.0, 5.42.1 and 5.43.0; do not paste `NEWS.md`. Suite and
+   sweep are already re-taken at this head (above); the install is checklist section 4.
+3. Tag the MERGE COMMIT on `main` with the DESCRIPTION version, then publish a GitHub Release
+   from the tag.
+4. **Confirm pkgdown rebuilt with the canary, not by eye**, then
+   `gh workflow run deep-checks.yaml --ref main`. The canary is
+   `https://afsc-assessments.github.io/Rceattle/articles/adding-a-selectivity-form.html`, which
+   **404s today** and must return 200 after the Release is published. It 404s because that
+   article landed at 5.37.0 on `dev` and does not exist on `main`, which is what pkgdown
+   builds from -- so it is a live test of the exact silent failure the checklist warns about,
+   with a known-bad starting state. Still 404 after publishing means the `release: published`
+   event did not fire: `gh workflow run pkgdown.yaml --ref main`.
+5. Tell the consumer repos to pin the tag rather than track `main`.
 
-**Sibling repos: no breakage found.** `../Rceattle-models/Model comparison/run_rceattle.R`'s
-`get_condition_number()` already reads `covariance_condition_number` with a pre-5.26.0
-fallback. All 20 `plot_selectivity()` call sites across the siblings are named or
-single-argument. `build_osa_data()` defaults `adreport_sel`, so an old saved `data_list` still
-builds.
+**The last installable tag is `5.28.0`, not 5.33.0.** `main` carried 5.29.0, 5.30.0, 5.31.0,
+5.32.0, 5.32.1 and 5.33.0 without a tag being pushed for any of them. So a consumer who pins
+tags, which is what step 5 asks for, moves **5.28.0 -> 5.43.0**, fifteen minor versions (29 through 43
+inclusive), not eight. Say that in the release body, and treat step 3 as the fragile step it has proven to be:
+the pkgdown `release: published` miss at 5.21.0 is the same step failing in a different way.
 
-## Release 5.21.0 — two things that did not work
+**Three things are red before the release starts, and none is from this batch.** None is
+evidence against the tag. But "known" is not "ignore": read each post-merge run against the
+signature below, because that is the only thing separating a known red from a new one:
 
-- **The `release: published` event fired no pkgdown run.** `main`'s workflow has
-  `release: types: [published]` and 5.20.0 has such a run; 5.21.0 got none. Dispatched manually
-  (`gh workflow run pkgdown.yaml --ref main`), which started immediately while push/PR runs sat
-  queued 45-57 minutes. Actions was degraded that afternoon: a 0-second `startup_failure`, and a
-  run marked `failure` whose job never left `queued`. **Check that a release actually rebuilt
-  the site rather than assuming the event fired.**
-- **`deep-checks` reports success while its `safebounds` job fails** — it is
-  `continue-on-error: true` ("read it, do not gate on it"). See Blocked.
+- **`deep-checks` `golden` fails on `main` at 5.33.0.** `goa_ss` lands in the second local
+  minimum and `goa_ms` inherits it through its warm start. Last fully green 2026-09-13.
+  **Before dispatching `deep-checks` on `main`, expect exactly this signature: a `goa_ss` delta
+  of 52.9 with the other three models bit-identical.** Any other pattern is a real regression
+  and stops the release. Diagnose from the gradient at the reference `par`, not the objective
+  (`TRAPS.md`). The robustness fix is the first job after the release and ships as 5.43.1; until
+  it lands this guard cannot gate anything.
+- **`deep-checks` `suite` never finishes.** It is `cancelled` in every recent run at 5h00-5h01
+  wall clock, a timeout rather than a pass. So the one job that runs the 140 `skip_on_cran()`
+  test files proves nothing about `main` right now. Either raise the ceiling or shard it; until
+  then do not cite a `deep-checks` run as suite coverage.
+- **`R-CMD-check` fails intermittently, and it is mostly macOS, not Windows.** Over the last 100
+  runs: 79 completed, 8 failures, of which 7 were macOS-only and 2 touched Windows. The Windows
+  access violation is real and reproduces on `main` (the file the framework names carries no
+  information, see `TRAPS.md`), but it is ~2 in 79, not 2 in 30. **It shows up as a dead
+  testthat worker** (`parallel_event_loop_chunky` -> `handle_error` -> `cli_abort`), and the
+  log then dumps whatever that worker had printed. In the 2026-09-25 run on #158 that was
+  `test-convergence.R`'s `[FAIL] max_gradient = 4e+12 (largest on 'sel_inf')` and
+  `[FAIL] pdHess` -- which are `print()` output from a deliberately non-converged synthetic
+  fixture (`make_fake_fit()`; the file runs no TMB fit and passes 46/0/0). **Those lines are
+  not a convergence regression.** Check for the dead worker before reading a Windows red as
+  one.
 
-## Done & verified on 5.22.0
+macOS was red 2026-09-20 to 09-22 for two unrelated upstream reasons and recovered on its own;
+branch `ci/macos-libomp` holds an unmerged remedy if the OpenMP one recurs.
 
-- **Suite green**: `FAIL 0 | WARN 229 | SKIP 3 | PASS 7934` (`NOT_CRAN=true`,
-  `TESTTHAT_PARALLEL=false`, 2026-08-26), `test-golden-regression.R` running.
-- **Before/after `ggplot_build()` diff against the released 5.21.0 source** (rule 3's net for a
-  plotting change): layers, labels and series order identical on `relative = "own"`,
-  `"minimum"` and `"none"`. Existing figures do not move.
-- **Ecosystem sweep for `profile(`**: every caller in `Rceattle-models`, `GOA-ATF-ESP`, the
-  vignettes, `examples/` and `tools/verify/verify-refit-like.R` uses NAMED arguments, so
-  appending `joint` breaks nothing. It is appended after `getsd` regardless.
-- **Four defects caught in review, all in this session's own work.** The one that mattered:
-  `profile(param = "q")` on a fleet with `Catchability = "Analytical"` (3) or `"AnalyticalArith"`
-  (7) would have come back FLAT. Those forms solve q from the fleet's own index and overwrite
-  `index_q` (`ceattle.cpp:2526`), so `index_log_q` never reaches the likelihood — every grid
-  point returns the same fit, reading as "the data do not inform q". Now an error naming the
-  fleet, and such fleets are excluded from group expansion (the schema says a group containing
-  one does not share a catchability). `est_index_q` is **not carried on a fitted object**, so the
-  raw column is resolved with `.map_switch(fc$Catchability, q_map, ...)` rather than a second
-  reading of `q_map`.
+The 2026-09-14 backlog plan is finished. Nine branches across eight versions, listed below in
+version order (#150 merged before #149; 5.37.0 took two branches), each reviewed
+adversarially before commit and again by a second session before merge:
 
-## Done & verified on 5.21.0
+| Version | PR | What landed |
+|---|---|---|
+| 5.34.0 | #144 | MSE dynamic-SB0 and fixed-numbers reference-point masking |
+| 5.35.0 | #145 | Silent-wrong-number fixes; `estDynamics = 3` retired |
+| 5.36.0 | #146 | Config overlay by field; OSA outliers flagged per panel |
+| 5.37.0 | #147, #148 | QAR1 path removed; stored-map guard; `CONTRIBUTING.md`, the Doxygen build and `adding-a-selectivity-form.Rmd` |
+| 5.38.0 | #149 | Per-sex apical selectivity offset (`log_sel_apical`) |
+| 5.39.0 | #150 | Multispecies stock-recruit bounds and a degenerate-curve check |
+| 5.40.0 | #151 | Two integrable non-parametric forms (13, 14), collapsed to `NonParametricIntegrable` (13) in #159 |
+| 5.41.0 | #152 | `osa_residuals(method = "cdf")` |
+| 5.42.0 | #160 | Selectivity-penalty sign refusals; apical/prior `Off` and shared-block gates |
+| 5.42.1 | review of #158 | Penalty lead keyed as the template keys it; the code-14 guard widened |
+| 5.43.0 | review of #158 | A blank `Fleet_type` is refused, in `switch_check()` and `rearrange_data()` |
 
-- **Suite green on the recompiled DLL**: `FAIL 0 | WARN 229 | SKIP 3 | PASS 7893`
-  (`NOT_CRAN=true`, `TESTTHAT_PARALLEL=false`, 2026-08-26). `test-golden-regression.R` ran
-  (real `fit_mod()` at `:47` and `:50`) and passed, so the four reference objectives are
-  unmoved.
-- **No `/golden-check` run separately, and it is not needed.** The only template change moves a
-  term between `jnll_comp` rows; the objective is `jnll_comp.sum()` (`ceattle.cpp:5308`), so it
-  is bit-identical by construction. The golden regression in the suite is the check.
-- **`/pkgdown-check` clean** (exit 0), `_pkgdown.yml` carries the three new topics.
-- **New guard**: `test-schema-jnll-rows.R` parses every `jnll_comp(JNLL_*, col)` write in the
-  template — 124 writes, all 21 rows covered — and asserts each row's declared axis matches the
-  column it is actually indexed by. Confirmed non-vacuous by printing the parsed table.
+## After the release, in order
 
-## Done & verified on #119 (merged)
+1. **Make `golden` robust**, so `deep-checks` can gate a release. Warm-start the reference fits
+   from the pinned parameters, or take the lower of two starts. It is a harness change and
+   cannot move a fitted number. **This is not just the next cleanup: it gates the NOAA
+   transfer** (`PLAN-adoption-and-NOAA-transfer.md` section 0, item 5) and it has a release
+   vehicle already chosen, 5.43.1 (`TODO-pre-transfer.md` B3). Do it before anything below.
+   While doing it, fix the `deep-checks` `suite` timeout too; a guard that cannot finish is
+   the same problem in a different job.
+2. **Decide on the three inert test guards** (`CLEANUP_BACKLOG.md`): restore or delete. The
+   multispecies one is hiding an unexplained disagreement with the old EBS CEATTLE.
+3. **Work `SIMPLIFY-LOG.md`.** Seventeen rows, three struck through, so **fourteen open**: six
+   change behaviour (two of them needing a deprecation path or a shim), one moves a golden
+   reference, four are internal, two additive, one doc. Every row is logged rather than done,
+   by standing rule; Grant picks which become PRs.
 
-- **Suite green**: 0 failures, 3 skips (`NOT_CRAN=true`, `TESTTHAT_PARALLEL=false`).
-- **Golden bit-identical** on all four reference models — but see the caveat below; it does not
-  cover the 5.15.0 changes.
-- **Pacific hake MSE run end to end on this branch AND on `main`**, and the hindcast is identical
-  across the whole release: 2133.821 / 2134.471 / 2137.443 / 2260.706, vulnerability ATF→hake
-  0.8172141 and SBF→hake 0.7685885. `run_mse()` completed both sims; `mse_summary()` returned all
-  four blocks. **The `-1.612` on the estimated-suitability stage is not a regression** — it is
-  against a 5.6.1 inline comment in `../Rceattle-models/Pacific hake/04-mse.R`, and `main` returns
-  the same 2260.706. That comment is stale; the folder `README.md` only pins the first three.
-- **Ecosystem sweep clean.** No exported symbol removed or added between `main` and `dev`;
-  `NAMESPACE` gains only three `Rceattle_fit_control` replacement methods and `simulate.Rceattle`.
-  Every deprecated spelling still live downstream resolves through a shim: `right_adj` ×154,
-  `est_M1` ×40, `srr_pred_fun` ×24, `qFun` ×7, `single.plots` ×7, `rearrange_dat` ×6.
-- `urlchecker::url_check()` clean (20 URLs); `_pkgdown.yml` covers every export.
+Done for this cycle, so do not repeat them: the ecosystem sweep of the four consumer repos, and
+the hake `MSE_yr2024.R` run. Both are recorded above with their results.
 
-## The 5.15.0 work, and what actually covers it
+## Open work, by where it is recorded
 
-`MSSB0` is the multispecies unfished SSB. The template discards its own equilibrium `SB0` under
-`msmMode > 0` and reads this `DATA_VECTOR` instead, so `ssb_depletion` is `ssb / MSSB0`. No
-workbook can supply it: `clean_data()` seeds `.RCE_MSSB0_PLACEHOLDER` (999 mt) and `fit_mod()`
-section 10.2 derives the real value by projecting under no fishing.
+- `TODO-selectivity.md` — `Hake` ignores `Sel_norm_scope` (and `Sel_norm_bin_upper`), with the
+  fix sketch and the double-normalization trap in it; the parked `sel-penalty-form` branch; and
+  whether a bias-corrected Laplace or `tmbstan` should be the recommended way to report the
+  non-parametric deviation SD.
+- `CONTRIBUTOR-EXPERIENCE.md` — items A (two of three recipes), B, E, G and H are open, and so
+  is item 0, which is still the one that should reorder the rest.
+- `TODO-srr-multispecies.md` — initial ages do not decay with M1 + M2 under predation. Built
+  and measured during #150, then reverted: year-1 N and M2 feed back across predation
+  iterations, and `BS2017MS`'s default starts reached an infinite objective at `niter = 10`.
+- `CLEANUP_BACKLOG.md` — everything found and deliberately not fixed, in tiers. Absorbed
+  `TODO-5.34-followups.md`: the PFMC `Ftarget` assignment and the `goa_ss` second minimum
+  live in `TRAPS.md`, the unbounded `log_Ftarget` and the dead average-F branch here.
+- `TODO-projection-module.md`, `TODO-mse-horizon.md` — unchanged by this batch.
+- `TRAPS.md` — verified traps with the measured numbers behind them.
+- `PLAN-adoption-and-NOAA-transfer.md` — moving the package off a personal account to a NOAA
+  org, and the two adoption barriers behind it. **Section 0 holds five decisions reserved for
+  Grant** (destination org, license, co-maintainer, whether `Rceattle-models` moves, timing);
+  agents do not pick these.
+- `TODO-pre-transfer.md` — the execution checklist for that plan, stages A-F with owner tags.
+  Stage B is this release. **B3 is the `golden` robustness fix**, to ship as 5.43.1 if it lands
+  after the tag.
 
-- **It was written only into `data_list_reorganized`**, so the returned `data_list` kept the 999
-  and every refit off a fitted object re-entered the template with it — `.refit_like()`,
-  `remove_F()`, every `run_mse()` projection. `SB0` is also the HCR threshold and the `posfun`
-  floor on `ssb_depletion - Plimit`, so a multispecies refit compared SSB against 999 mt. Fixed.
-- **`mse_summary()` divided by the placeholder regardless.** With `HCR = "NoFishing"` no unfished
-  reference is ever derived (section 10 is gated on `HCR != "NoFishing"`), and the hake model
-  reported a terminal depletion of 2.68e3 where the dynamic reference gave 0.96. `NA` now.
-- **`DynamicHCR` was unusable under multispecies**: the no-HCR arm of the depletion block ran
-  unconditionally and overwrote `ssb/DynamicSB0`, pinning terminal depletion at exactly 1.
-  Gated on `DynamicHCR == 0` now. **That arm is correct as written** — with `HCR = 0` the
-  projection is unfished, so terminal-year SSB *is* multispecies SB0, given enough projection
-  years to equilibrate.
+## Tagged snapshots of the DSEM lines (2026-09-24)
 
-**`/golden-check` is silent on all of it.** The golden recipe passes no HCR, so `HCR = 0`: the
-reference-point penalties never enter the objective and `SB0` is overwritten by `MSSB0` anyway.
-The net is `test-dynamics-unfished-reference.R` (9 assertions, mutation-tested — removing the
-persistence line leaves `MSSB0` at 999 where the fit derived 27796.7 and 189.7 mt), a before/after
-probe against the pre-change build on BS2017MS, and the hake MSE.
+Neither line is a release, and both report a version that must not be mistaken for one. Pin
+the tag, never the branch: the branches move, and an assessment refit from a moving branch
+does not reproduce.
 
-## For Grant's review
+- **`dsem-v5-2026-08-27`** -> `95153bbc`, annotated. The `dsem-v5-integration` snapshot the
+  **GOA arrowtooth 2026 assessment** runs against. 121 commits divergent from `dev` and
+  missing 5.24.0 through 5.42.1, so it does **not** carry that range's silent-wrong-number
+  fixes. Pinning makes that run reproducible, not current; whether it should run on this line
+  at all is a scientific call, not a tooling one.
+  The branch previously declared `Version: 5.23.0`, which is a **published release tag**, so
+  an install from it reported `packageVersion("Rceattle") == "5.23.0"` and any provenance
+  record built from it named the wrong Rceattle. Bumped to `5.23.0.9000` in `95153bbc`.
+- **`dev-DSEM-v4.5-archive`** -> `a82c99f5`, lightweight, and **already equal to
+  `dev-DSEM`'s head**, so it needs no new tag. Declares `Version: 4.5.0`, and no `4.5.0`
+  release tag exists (the line goes 4.4.1 -> 4.6.0), so there is no collision here. 796
+  commits behind `dev`; superseded by `dsem-v5-integration`.
 
-1. **`SB0`/`SBF` are still carried on `M_at_age`** under predation, whose `M2` comes from the
-   *fished* predator field — an unfished reference built on a fished mortality. Correcting it needs
-   an equilibrium `M2` that `calculate_msvpa_predation()` does not compute: it carries three
-   variants (fished, dB0, dBF), and an equilibrium pair means 6 new arrays and 6 new solver
-   parameters inside the `iter` fixed-point loop. Measured on BS2017MS at `estimateMode = 4`:
-   switching `NByageF` to `M_at_age_dBF` alone moved `SBF` by 5.27; `NByage0` to `M_at_age_dB0`
-   moved summed `NByage0` by 16808.7. Marked `TODO(review)` at the site, deferred as too invasive
-   for a release PR. **Settle the definition first**: `NByage0` is not a strict equilibrium — mean
-   recruitment and terminal-year weights, but year-specific M1 and R0 — so "equilibrium M2" here
-   means dB0 without recruitment deviations.
-2. `DynamicSB0`/`DynamicSBF` now decay to spawning on the M they were propagated on. Only bites
-   when `spawn_month != 0` **and** `msmMode > 0`; no bundled dataset carries both, so nothing
-   measurable moved. Worth confirming against a real assessment that has a spawning month.
-3. **PR #119 grew past its original scope.** It began as a release of already-reviewed commits and
-   now also carries a template change and a behaviour change to multispecies refits. Those are
-   verified, but they were not part of what #109–#118 were reviewed as.
+**Outside this repo, and still owed:** `GOA-ATF-ESP/R/2026 assessment model-DSEM.R` was
+repointed from `@dsem-v5-integration` to `@dsem-v5-2026-08-27` but **the edit is uncommitted
+in that repo**. Until it is committed, that assessment still installs from the moving branch.
+The `@dev-DSEM` pins in `Rceattle-models` (GOA pollock 2025, EBS pollock 2024 and its
+README), the 2025 ATF script and `GOA_circlulation_study` are all commented out, so they bite
+only whoever uncomments one; they would each need a `dev-DSEM` tag, which is a different and
+older line.
 
-## Known flags
+## Parked branches
 
-- **`jnll_comp` columns count fleets on rows 1–8 and species on rows 9–20**, so `rowSums()` pools
-  two different axes. `.JNLL_ROW_AXIS` (`R/9-profile.R`) is now a third hand-synced partner to the
-  `JnllRow` enum and `R/6-rename_output.R`; all three must move together.
-- **`unweighted_jnll_comp` is written for 5 of its 21 rows** — composition, CAAL, stomach and the
-  two linkage rows, the ones carrying a `Comp_weights` multiplier. Everything else is
-  structurally zero there, not small, so `profile_components(weighted = FALSE)` returns a much
-  smaller set of series.
-- **The QAR1 block in `ceattle.cpp:4269` is dead code.** `data_check()` refuses
-  `Catchability = 6` (`R/1-data_check.R:92`) and `est_index_q` is only ever set from that column;
-  the live QAR1 form is a q linkage. Its AR1 density was scoring into the "Catchability prior"
-  row and now scores into "Catchability deviates" — a reporting fix that no fit can reach.
-  `R/6-process_residuals.R:204` still branches on `est_index_q == 6`, which is why the block was
-  fixed rather than removed. **Removing the dead QAR1 path — the C++ block and that R branch
-  together — is Grant's call and wants its own change.**
-- **A model carrying GOA numbers forward needs a refit.** Result-changing changes on this line not
-  labelled breaking: the mode-5 selectivity penalty fix (GOA Pacific cod SSB 2050 −14.1%),
-  parameter bounds previously applied to the wrong parameters, `remove_F()` zeroing fitted hindcast
-  F when `suit_endyr < endyr`, composition weights warm-starting from `inits`, failed `run_mse()`
-  simulations returning only a marker, the `mse_summary()` reshape, the recruitment fixes, and
-  `sim_mod()` drawing the index under the fleet's own `Index_distribution`.
-- **5.10.0 moved three predation figures' numbers** — `plot_m2_at_age_prop()` (a share, not a
-  contribution), `plot_ration()` (× average numbers-at-age) and `plot_b_eaten()` (million mt).
-  `plot_selectivity()` also renames `p$data$Age` to `Bin`.
-- **MSE projection statistics are not comparable across 5.13.0.** `sim_mod()` draws the index
-  under the fleet's own `Index_distribution` now, which shifts the RNG stream. At `nsim = 2` the
-  hake summary swung `catch_iav` 0.25 vs 0.74 between branches on identical OM and EM fits.
-- The golden reference on `dev` is `ss = 10241.0304272585` (`ms = 10267.2478324443`,
-  `goa_ss = 12867.9902664788`, `goa_ms = 12932.7902167145` since 5.33.0 mean-centred the q
-  prior on GOA2018SS fleet 2), set in
-  `test-golden-regression.R`.
-
-## Blocked
-
-Nothing.
-
-**Cleared 2026-08-27: the bounds check runs.** `verify-safebounds.R` now builds the package
-SHLIB as well as the TMB model, asserts both DLLs loaded before any case runs, and reports
-"could not run" apart from "violation". All **six** configurations pass locally from a clean tree
-(all three `.so` deleted first), which is the CI condition — the sixth is
-`test-selectivity-catchability.R`, the file that crashed on Windows, which used to be a second CI
-step and was never bounds-checked at all. 206 s end to end.
-
-**`continue-on-error` is off now**, so a bounds failure fails the run. It gates nothing —
-`deep-checks` is nightly and dispatch-only, never a PR check, and `main` is not protected — but
-the failure is visible, which it was not before.
-
-The history below is kept because it is the reason not to trust a green `deep-checks` run
-without reading the job.
-
-<details><summary>What was wrong</summary>
-
-**The bounds check had measured nothing since at least 2026-08-25, and reported green.**
-`deep-checks`' `safebounds` job is `continue-on-error: true`, so the workflow's overall
-conclusion is `success` while the job fails. It fails at the DLL, not on a violation:
-
-```
-confirmed: -DTMB_SAFEBOUNDS in the compile line
-Failed to load at least one DLL.
-  ERROR: 'ceattle' was not found in the list of loaded DLLs.   x 5 cases
-BOUNDS VIOLATIONS or errors in 5 case(s):
-```
-
-All five configurations error before running, so **zero cases are bounds-checked**. The runs on
-2026-08-25 (5.20.0 dispatch) and the 2026-08-26 nightly failed identically, so it is not new.
-
-Cause: `NAMESPACE` loads two DLLs (`useDynLib(Rceattle, .registration=TRUE); useDynLib(ceattle)`).
-`verify-safebounds.R` rebuilds only the TMB lib, then calls `pkgload::load_all(compile = FALSE)`
-— deliberately, since a recompile would overwrite its bounds-checked model — so nothing ever
-builds `src/Rceattle.so`, and `src/Makevars` has `$(SHLIB): tmblib`. On a fresh CI checkout that
-file has never existed. **It passes locally only because a developer's tree already has one**,
-which is why "five configurations clean on macOS" in the 5.20.0 notes was not the clearance it
-looked like.
-
-Both are fixed. It is the only net for the Windows `0xC0000005`, which is still uncured — see the
-5.21.0 release notes' known limitation.
-
-</details>
+- `sel-penalty-form` (`Sel_penalty_form`, 5 commits) — parked by decision, not by defect.
+- `dsem-v5-integration` — PR #111 closed unmerged 2026-09-09. Head `95153bbc`, tagged
+  `dsem-v5-2026-08-27`; see the snapshots section above. Grant's plan is to bring `dev`'s
+  updates onto it later.
+- `reporting-tables` — **local only, never pushed**, so it is not on the remote to triage. Its
+  one stray doc commit, `4716968c`, reached `dev` as `3255fb49` via PR #132 (which merged from
+  `docs/minfraction`, so the content was re-applied rather than merged from this branch).
 
 ## Resume here
 
-**TODO, in order.**
+**Finish the release.** Grant is doing it in a session after this one, so this is where to
+start rather than `SIMPLIFY-LOG.md`.
 
-1. **Read tonight's `deep-checks`** (nightly, 05:00 UTC). It is the first run in which the bounds
-   check measures anything, and the first in which a failure shows red — `continue-on-error` is
-   off. Green means the Windows `0xC0000005` finally has a net; red is a real finding. This is
-   the only thing in PR #128 not verified on a real runner.
-2. **Merge PR #128** (`dev` → `main`, 5.22.0) once its CI and the above are green. Then tag
-   `5.22.0` — bare, no `v` prefix — and **publish** a GitHub Release;
-   `inst/RELEASE-CHECKLIST.md` §3.
-3. **Confirm the site actually rebuilt.** The `release: published` event fired no pkgdown run for
-   5.21.0; dispatch `pkgdown.yaml` by hand if it happens again. See the 5.21.0 note above.
-4. **Dispatch `deep-checks`** (§3b) after the release.
+1. **Decide #161** -- renumber and include, or hold. It is code, not docs, and its bump is
+   stale (see the release sequence, step 1). Nothing else blocks the merge.
+2. **Merge PR #158.** As of 2026-09-25 it is `CLEAN` / `MERGEABLE`, and CI is green on all
+   five platforms -- Windows passed on both runs, which is worth noting given the intermittent
+   access violation. Re-check before merging; the branch has moved since.
+3. **Tag the merge commit `5.43.0`**, bare, no `v` prefix, then publish a GitHub Release from
+   it. **This is the step that has silently not happened five times** (5.29.0 through 5.33.0
+   are all untagged), so do not defer it or hand it on.
+4. **Run the canary** (release sequence, step 4). It 404s now and must return 200 after.
+5. **Dispatch `deep-checks` on `main`** and read `golden` against the 52.9 signature above
+   before concluding anything from it.
+6. **Then 5.43.1: make `golden` robust**, which gates the NOAA transfer.
 
-Three loose ends, none blocking:
-
-1. **`inst/dev/SIBLING-REPOS.md` has an uncommitted edit that predates this session** — the
-   `../GOA-multispecies-assessment` entry. Coherent and complete; left out of the 5.21.0 and
-   5.22.0 commits because it is unrelated to that work, not because it is wrong.
-2. **`../Rceattle-models/GOA pollock/2025/04-fit-and-diagnostics.R` gained an M-at-age-6
-   component profile** (uncommitted, separate repo, not yet run). `minage = 1`, `nages = 10`, and
-   `M1_base` runs 1.39 at age 1 to 0.30 from age 6 on, so age 6 is bin 6 and 0.30 is the value a
-   0.18-0.42 grid brackets. It fixes the age-6 cell **alone**, leaving ages 7-10 at base —
-   narrower than goa_pk's own M profile, which scales the whole vector. **5.22.0's
-   `joint = "multiply"` now expresses the goa_pk version**; switching it is a two-line change and
-   probably what the chapter wants.
-3. **The dead QAR1 path.** `ceattle.cpp:4269` was fixed in place rather than removed because
-   `R/6-process_residuals.R:204` still branches on `est_index_q == 6`. Removing both together is
-   Grant's call.
-
-After that, `inst/dev/CLEANUP_BACKLOG.md` has
-64 items left (Tier 0 and Tier 2 are cleared); `inst/dev/BACKLOG-PLAN.md` sequences them by who is
-exposed. The equilibrium-`M2` item above is the largest and wants its own PR with the hake MSE as
-its check, since golden cannot see it.
-
-Queued and not started: `inst/dev/CONTRIBUTOR-EXPERIENCE.md`. **Item 0 comes first and is a
-conversation, not code**: ask the sibling-repo authors where they actually stopped. A–E and H are
-doc and tooling; G is additive; F is the only item that can break a caller and needs
-`/golden-check` + `/ecosystem-sweep`.
-
-## Older paused work
-
-**The `accessibility-and-code-review` refactor is superseded, not outstanding.** The branch is
-gone from local and remote, its plan no longer exists, and no commit in any branch mentions it.
-Three of its four locked "chosen extras" landed by other routes — the `JnllRow` enum, the repaired
-cpp section index, and Doxygen `@file`/`@brief` blocks on the previously bare headers. Its one
-concrete leftover, splitting `R/0-build_srr_and_M.R`, is done in 5.14.0. Nothing of that plan is
-outstanding. Do not resume from the branch name or the handoff path; both are dead references.
+Two loose ends that are not release-blocking: commit the `GOA-ATF-ESP` pin change in that
+repo, and the `deep-checks` `suite` 5h timeout, which belongs with the 5.43.1 work.

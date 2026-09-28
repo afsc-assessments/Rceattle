@@ -2,7 +2,7 @@
 #'
 #' Natural-scale names of the underlying natural-mortality
 #' parameters that the linkage system can address. Currently just
-#' `M1` -- with the default log link the offset is added to M1 on the
+#' `M1`, with the default log link the offset is added to M1 on the
 #' log scale (applied across all ages unless the linkage row
 #' pins a specific `age_bin`).
 #'
@@ -21,7 +21,7 @@ M_LINKAGE_PARAMS <- c("M1")
 #' Either form is accepted by [build_M1()]; the canonical integer
 #' code is what the TMB template ultimately consumes. The
 #' env-driven integer codes 4 and 5 still work with a deprecation
-#' warning -- their structural part is identical to 1 and 2
+#' warning, their structural part is identical to 1 and 2
 #' respectively, and the env effect is expressed via the
 #' \code{linkages} argument to [build_M1()] (see
 #' `vignette("environmental-linkages-and-priors")`). No string alias is offered
@@ -72,7 +72,7 @@ M_LINKAGE_PARAMS <- c("M1")
 #' For `M1_model` only, the env-driven integer codes 4
 #' and 5 (controlled by `M1_indices`) are accepted for backwards
 #' compatibility but emit a soft-deprecation warning pointing users
-#' at the linkage table -- see [build_M1()].
+#' at the linkage table, see [build_M1()].
 #'
 #' @keywords internal
 #' @noRd
@@ -130,11 +130,11 @@ M_LINKAGE_PARAMS <- c("M1")
 #' @param M1_model Vector or scalar specifying the M1 structural fixed-
 #'   effects model. Either an integer code or the equivalent string
 #'   alias (both forms are accepted; the integer code is canonical):
-#'   * `0` / `"fixed"` -- use the input `M1_base` (no estimation).
-#'   * `1` / `"sex_age_invariant"` -- estimate one `M1_{spp}`.
-#'   * `2` / `"sex_specific"` -- estimate `M1_{spp, sex}`.
-#'   * `3` / `"sex_age_specific"` -- estimate `M1_{spp, sex, age}`.
-#'   * `4`, `5` -- soft-deprecated env-driven codes; use the
+#'   * `0` / `"fixed"`, use the input `M1_base` (no estimation).
+#'   * `1` / `"sex_age_invariant"`, estimate one `M1_{spp}`.
+#'   * `2` / `"sex_specific"`, estimate `M1_{spp, sex}`.
+#'   * `3` / `"sex_age_specific"`, estimate `M1_{spp, sex, age}`.
+#'   * `4`, `5`, soft-deprecated env-driven codes; use the
 #'     `linkages` argument instead. See `vignette("environmental-linkages-and-priors")`.
 #' @param M1_re Vector or scalar specifying the M1 random-effects
 #'   model. Either an integer code or the equivalent string alias:

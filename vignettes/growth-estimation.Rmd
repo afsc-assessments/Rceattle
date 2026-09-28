@@ -47,9 +47,9 @@ whamGrowthData$fleet_control$Selectivity_dimension <- "Length"
 ## Build a growth model with linkages
   
 Growth linkages are built with `build_growth()` and `linkage_spec()`. A
-linkage can act on any von Bertalanffy parameter — `K`, `Linf`, or `L1`
+linkage can act on any von Bertalanffy parameter, `K`, `Linf`, or `L1`
 (natural-scale names; the default `link = "log"` keeps the underlying TMB
-parameter on the log scale) — and can carry priors on the linked
+parameter on the log scale), and can hold priors on the linked
 coefficients.
   
 ```{r}
@@ -92,11 +92,11 @@ temperature slope.
 The `(Intercept)` prior is a prior on the base `Linf` value (natural
 scale, because the default log link is back-transformed inside the prior
 block). An intercept-bearing linkage replaces the base parameter and
-carries its level.
+holds its level.
 
 ### Time-varying growth
 
-The same grammar carries time variation, with a random-effect term on the
+The same grammar holds time variation, with a random-effect term on the
 right-hand side instead of (or alongside) a covariate:
 
 ```{r}
@@ -110,10 +110,10 @@ build_growth(
 ```
 
 This is the only route to time-varying growth. The `growth_re` switch that
-earlier versions carried in the `data_list` was never implemented — nothing
+earlier versions held in the `data_list` was never implemented, nothing
 consumed it, the deviation array was mapped off in every configuration, and the
-model gave it no density — so it is removed as of 5.9.0 and setting it now
-raises a deprecation message. Unlike the switch, a random linkage carries a real
+model gave it no density, so it is removed as of 5.9.0 and setting it now
+raises a deprecation message. Unlike the switch, a random linkage holds a real
 density, so it is estimated, reported in the linkage table, and redrawn by
 `sim_mod(process = "growth")`.
 
@@ -190,6 +190,6 @@ effect on the parameter.
 or per-sex stratification.
 - The length-at-age SD endpoints `sd_L1` and `sd_Linf` are also linkage
 targets, so you can set `init` / `bounds` / `priors` on them. Only
-intercept formulas (e.g. `~ 1`) are honored — the SDs do not vary by year,
+intercept formulas (e.g. `~ 1`) are honored, the SDs do not vary by year,
 so slope terms have no effect. See the "Growth SD endpoints" section of
 `vignette("environmental-linkages-and-priors")` for an example.

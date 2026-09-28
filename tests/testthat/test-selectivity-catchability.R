@@ -35,7 +35,6 @@ testthat::test_that("Fixed catchability", {
   testthat::expect_equal(as.numeric(ss_run$map$mapList$index_q_dev), as.numeric(rep(NA, length(ss_run$map$mapList$index_q_dev))))
   testthat::expect_equal(as.numeric(ss_run$map$mapList$index_q_dev_log_sd), as.numeric(rep(NA, length(ss_run$map$mapList$index_q_dev_log_sd))))
   testthat::expect_equal(as.numeric(ss_run$map$mapList$index_q_log_sd), as.numeric(rep(NA, length(ss_run$map$mapList$index_q_log_sd))))
-  testthat::expect_equal(as.numeric(ss_run$map$mapList$index_q_rho), as.numeric(rep(NA, length(ss_run$map$mapList$index_q_rho))))
 
   # Check q
   # - Pollock
@@ -88,7 +87,6 @@ testthat::test_that("Estimated catchability", {
   testthat::expect_equal(as.numeric(ss_run$map$mapList$index_q_dev), as.numeric(rep(NA, length(ss_run$map$mapList$index_q_dev))))
   testthat::expect_equal(as.numeric(ss_run$map$mapList$index_q_dev_log_sd), as.numeric(rep(NA, length(ss_run$map$mapList$index_q_dev_log_sd))))
   testthat::expect_equal(as.numeric(ss_run$map$mapList$index_q_log_sd), as.numeric(rep(NA, length(ss_run$map$mapList$index_q_log_sd))))
-  testthat::expect_equal(as.numeric(ss_run$map$mapList$index_q_rho), as.numeric(rep(NA, length(ss_run$map$mapList$index_q_rho))))
 
   # Check q
   # - Pollock

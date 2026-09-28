@@ -28,7 +28,7 @@ scripts keep working. Supplying both is an error.}
 A \code{data_list} object containing the simulated or expected data
 values, formatted for use in \code{Rceattle}. When \code{process} redrew
 something, the deviations that generated the data are attached as
-\code{attr(x, "process_sim")} -- a named list holding whichever of
+\code{attr(x, "process_sim")}, a named list holding whichever of
 \code{rec_dev}, \code{init_dev}, \code{log_M1_dev} and
 \code{beta_linkage_re} were drawn. Those are the truth a refit has to
 recover; without them the only comparison available is against the original
@@ -38,15 +38,15 @@ Each is accompanied by a logical of the same shape named with a
 \code{_drawn} suffix (\code{rec_dev_drawn}, ...), \code{TRUE} where the draw
 touched that cell. The draws cover the hindcast only, and
 \code{beta_linkage_re} is one vector over every random-linkage slot whether
-or not its process was asked for, so the arrays carry fitted values
+or not its process was asked for, so the arrays hold fitted values
 alongside simulated ones. Restrict any recovery statistic to the
-\code{_drawn} cells -- over the full array it reports perfect recovery on
+\code{_drawn} cells, over the full array it reports perfect recovery on
 the cells that were never redrawn.
 }
 \description{
 Simulates the data an Rceattle model would have produced, either
 as expected values or as a random draw. Every observation type is covered:
-survey biomass (under the fleet's own \code{Index_distribution} -- lognormal,
+survey biomass (under the fleet's own \code{Index_distribution}, lognormal,
 natural-scale normal, or the correlated MVN/MVNORM draw from its covariance),
 total catch (lognormal), age/length composition and conditional
 age-at-length (multinomial or Dirichlet-multinomial), and stomach contents
@@ -55,7 +55,7 @@ age-at-length (multinomial or Dirichlet-multinomial), and stomach contents
 \details{
 Every draw is taken by the TMB model itself, in a \code{SIMULATE} block beside
 the likelihood that defines it, so the two are edited together. A simulator
-that has drifted from its likelihood does not error -- it makes
+that has drifted from its likelihood does not error, it makes
 \code{\link{self_test}} report recovery against a process the likelihood
 never assumed.
 
@@ -94,7 +94,7 @@ model is unaffected.
 \dontrun{
 data(BS2017SS)
 fit <- fit_mod(BS2017SS, estimateMode = "Hindcast")
-# Expected values only -- no observation error drawn.
+# Expected values only, no observation error drawn.
 sim_mod(fit)
 # One stochastic replicate, drawn from each fleet's own likelihood.
 sim_mod(fit, simulate = TRUE)

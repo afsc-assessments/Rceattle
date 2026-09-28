@@ -53,20 +53,20 @@
 #'
 #' Assemble (or edit) an Rceattle data list in R code rather than from an xlsx
 #' workbook. Supply only the data
-#' blocks a model uses -- dimensions, biology (`weight`, `maturity`,
+#' blocks a model uses, dimensions, biology (`weight`, `maturity`,
 #' `sex_ratio`, `M1_base`), a `fleet_control`, and the observation tables
-#' (`catch_data`, `index_data`, `comp_data`, ...) -- and the optional blocks a
+#' (`catch_data`, `index_data`, `comp_data`, ...), and the optional blocks a
 #' single-species model does not need (`caal_data`, `emp_sel`, `diet_data`, ...)
 #' are default-filled by [clean_data()]. The result is the same bare list
 #' [read_data()] returns and round-trips through [write_data()] unchanged.
 #'
 #' Three entry points, which may be combined:
 #' \itemize{
-#'   \item **from blocks** -- pass the elements as named arguments:
+#'   \item **from blocks**: pass the elements as named arguments:
 #'     `build_data(nspp = 1, styr = 1977, ..., fleet_control = fc, catch_data = catch)`.
-#'   \item **from a file** -- `build_data(file = "model.xlsx", projyr = 2060)`
+#'   \item **from a file**: `build_data(file = "model.xlsx", projyr = 2060)`
 #'     reads the workbook via [read_data()], then applies the overrides.
-#'   \item **from an existing object** -- `build_data(base = BS2017SS, projyr = 2060)`
+#'   \item **from an existing object**: `build_data(base = BS2017SS, projyr = 2060)`
 #'     starts from a data list (e.g. a bundled dataset or a [combine_data()]
 #'     result) and overrides the named blocks. This is the common
 #'     copy-and-edit / combine-and-restamp workflow.
@@ -81,7 +81,7 @@
 #' Full validation runs at fit time, inside `fit_mod()`. `build_data()` runs only
 #' a light presence pre-check (`.check = TRUE`) so a missing *required* block is
 #' reported at construction with a clear message. The pre-check reads an attached
-#' [model_config()], so a configuration carried on the object is accounted for.
+#' [model_config()], so a configuration held on the object is accounted for.
 #' Requirements that depend on fit-time settings passed directly to [fit_mod()]
 #' and stored nowhere on the data list are not knowable here and are left to
 #' that fit-time validation; see [data_requirements()] to preview them.
@@ -221,7 +221,7 @@ build_data <- function(base = NULL, file = NULL, ..., .check = TRUE) {
 #' Reports data-list elements that are Required for the object's stored
 #' configuration but absent, reusing the requirement table's classification so
 #' the message can never diverge from data_check(). A subset of data_check()
-#' (presence only), deliberately -- the authoritative validation runs at fit
+#' (presence only), deliberately, the authoritative validation runs at fit
 #' time.
 #'
 #' @param dl A (clean_data-filled) data list.

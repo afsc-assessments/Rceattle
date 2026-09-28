@@ -34,16 +34,16 @@
 #' function walks the already-built control/observation matrices and produces:
 #'
 #' \itemize{
-#'   \item `obsvec` -- the flat vector of observations. Aggregate (catch and
+#'   \item `obsvec`, the flat vector of observations. Aggregate (catch and
 #'     index) observations are stored as log(observation) because their
 #'     likelihood is lognormal; composition (comp) and conditional-age-at-length
 #'     (caal) observations are stored as bin counts, `(proportion + 1e-5) * N`,
 #'     matching exactly what the TMB likelihood forms during fitting.
-#'   \item `obs_ctl` -- a data frame with one row per element of `obsvec`,
+#'   \item `obs_ctl`, a data frame with one row per element of `obsvec`,
 #'     mapping each position back to its data type, fleet, species, year,
 #'     age/length bin, etc., so residuals stay interpretable. R-side metadata
 #'     only; removed before the data list is passed to TMB.
-#'   \item `*_obsvec_idx` -- per observation-row index vectors. For aggregate
+#'   \item `*_obsvec_idx`, per observation-row index vectors. For aggregate
 #'     series this is the 0-based `obsvec` position of each row; for composition
 #'     and caal it is the 0-based `obsvec` position of the row's FIRST bin (the
 #'     template reads the row's bins as `obsvec.segment(start, n_bins)`). `-1`
@@ -61,13 +61,13 @@
 #'   for every type (aggregate, composition, caal, and diet) so
 #'   [osa_residuals()] can be computed. When `FALSE` (the default), only the
 #'   aggregate index/catch entries the TMB template always reads are built and
-#'   the (much larger) composition/caal/diet metadata is skipped -- this is the
+#'   the (much larger) composition/caal/diet metadata is skipped, this is the
 #'   fast path for simulation testing (e.g. [run_mse()]), where the fitted
 #'   objective is identical but OSA composition residuals are not produced.
 #'
 #' @details The composition proportion offset is read from `data_list$comp_offset`
 #'   (defaulting to `1e-5`), so the comp/caal bin counts are `(proportion +
-#'   comp_offset) * Neff` -- the same offset the TMB likelihood applies when
+#'   comp_offset) * Neff`, the same offset the TMB likelihood applies when
 #'   fitting. Set it via `fit_control(comp_offset = )` or on `data_list` directly.
 #'
 #' @return The input `data_list` with `obsvec`, `obs_ctl`, `osa_mode`,
@@ -76,15 +76,10 @@
 #' @keywords internal
 build_osa_data <- function(data_list, build_osa = FALSE) {
 
-  # Proportion offset added to comp/caal bins before the likelihood. It lives on
-  # data_list (filled by switch_check(), overridable via fit_control(comp_offset=))
-  # FIXME: on the exported rearrange_data() path switch_check() does not run --
-  # comp_offset (and the bias_adjust_* scalars below) are actually filled here in
-  # build_osa_data(), not by switch_check() as the line above implies. Left as-is
-  # for now: reword the "filled by switch_check()" note to say so.
-  # so fitting and the OSA obsvec use the same value and internal re-fits inherit
-  # it. Read it from data_list, defaulting to 1e-5, and keep it as a plain double
-  # for the TMB DATA_SCALAR.
+  # Proportion offset added to comp/CAAL bins before the likelihood, so the fit
+  # and the OSA obsvec use one value. Filled by switch_check() and by
+  # fit_control(comp_offset =) on the fit path, and here (default 1e-5) on the
+  # exported rearrange_data() path, which runs neither.
   comp_offset <- data_list$comp_offset
   if (is.null(comp_offset)) comp_offset <- 1e-5
   comp_offset <- as.numeric(comp_offset)[1]
@@ -219,10 +214,14 @@ build_osa_data <- function(data_list, build_osa = FALSE) {
           # Malformed / non-PD / mis-dimensioned covariance, or non-chronological
           # rows: fall back to excluding this fleet from the OSA residuals rather
           # than emit a wrong or ambiguously-ordered residual.
+          # A fleet at obsvec position -1 adds nothing to the residualization
+          # model, so under random effects excluding it moves every other residual.
           warning(sprintf(paste0(
-            "OSA residuals: index fleet %d has a missing / non-positive-definite / ",
-            "non-%dx%d covariance matrix or non-chronological survey rows; ",
-            "excluding it from the OSA residuals."), f, length(rows), length(rows)))
+            "OSA residuals: index fleet %d has survey rows out of year order or a ",
+            "missing / non-positive-definite / non-%dx%d covariance matrix. Its ",
+            "survey likelihood is dropped from the residual model, so it gets no ",
+            "residuals and, under random effects, the other fleets' residuals ",
+            "shift."), f, length(rows), length(rows)))
         } else {
           z <- as.numeric(forwardsolve(L, index_obs[rows, 1]))   # L^-1 obs (whitened)
           index_obsvec_idx[rows] <- append_obs(

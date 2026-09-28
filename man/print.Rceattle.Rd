@@ -24,7 +24,8 @@ versions used to produce the fit are printed.
 \details{
 For operational use, the package version line is meant to make it
 obvious which version of \code{Rceattle} produced an archived fit so that
-results can be reproduced even if \code{master} has moved on. Tag a
-release (\code{devtools::install_github("grantdadams/Rceattle@vX.Y.Z")})
+results can be reproduced even if \code{main} has moved on. Tag a
+release (\code{devtools::install_github("afsc-assessments/Rceattle@X.Y.Z")},
+bare version, no leading \code{v})
 and the same version string will reappear here on a fresh run.
 }

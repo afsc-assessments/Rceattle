@@ -33,8 +33,8 @@ retrospective(
 Costs an extra model build per peel; see Details.
 Mohn's rho uses only point estimates, so \code{FALSE} is faster with no
 effect on rho. Default \code{NULL} inherits the input model's setting
-(\code{TRUE} if it was fit with \code{getsd = TRUE}, i.e. carries an
-\code{sdrep}); the returned peel models then carry standard errors only
+(\code{TRUE} if it was fit with \code{getsd = TRUE}, i.e. holds an
+\code{sdrep}); the returned peel models then hold standard errors only
 when \code{getsd} is \code{TRUE}.}
 
 \item{phase}{whether each peel is refitted in phases (default \code{TRUE}).
@@ -55,7 +55,7 @@ each species.
 A peel that did not converge is dropped, so \code{Rceattle_list} can be
 shorter than \code{peels + 1} (a message reports how many). Each entry is
 named for its own terminal year (\code{Year_2017}, ...) rather than by
-position, so index it by name -- \code{Rceattle_list[[3]]} is not
+position, so index it by name, \code{Rceattle_list[[3]]} is not
 necessarily the 3-year peel. With no peel left, Mohn's rho is \code{NaN}
 and the function warns.
 
@@ -66,10 +66,11 @@ A peel still estimates the years it dropped. They are its retrospective
 forecast, fit to the observed catch with the survey and composition data
 withheld. Their recruitment deviation is the one \code{\link[=sample_rec]{sample_rec()}} sets with
 \code{sample_rec = FALSE}, computed from the peel's own fit; a penalty-form peel
-with no penalty years averages over its own years after the first, with a
-warning. Three years therefore matter, and each peel has all three:
+with no penalty years averages over its own years after the first (or over
+its one year, for a peel that keeps a single year), with a warning. Three
+years therefore matter, and each peel has all three:
 \describe{
-\item{\code{endyr}, \code{endyr_peel}}{the peel's terminal year -- what it
+\item{\code{endyr}, \code{endyr_peel}}{the peel's terminal year, what it
 was fit through. Equal to each other.}
 \item{\code{endyr_full}}{the unpeeled model's terminal year, where the
 retrospective forecast ends.}
@@ -85,10 +86,10 @@ unpeeled model, rather than \code{(endyr_peel + 1):endyr_full}, which counts
 Mohn's rho is computed from \code{endyr_peel} and is unaffected by any of
 this.
 
-Catchability is estimated only for a fleet that carries fitted index rows
+Catchability is estimated only for a fleet that holds fitted index rows
 (see \code{\link{build_map}}), and a peel moves \code{endyr}. A survey whose
 index observations all fall in the peeled-off years therefore has no q
-estimated in that peel -- the parameter count is not constant across peels.
+estimated in that peel, the parameter count is not constant across peels.
 That is deliberate: a q with no index to inform it is a flat direction in
 the likelihood. It does not affect Mohn's rho, which is computed from SSB,
 but it does mean \code{npar} and the reported catchability differ between a

@@ -14,7 +14,7 @@
 
 \item{config}{Show the attached \code{\link[=model_config]{model_config()}} block. Defaults to \code{TRUE}
 for \code{print()} and \code{FALSE} for \code{summary()}. Has no effect on an object that
-carries no configuration.}
+holds no configuration.}
 
 \item{...}{Currently unused.}
 
@@ -24,9 +24,9 @@ carries no configuration.}
 \code{x}, invisibly.
 }
 \description{
-Shows the model specification as an indented tree -- dimensions, fleets and
+Shows the model specification as an indented tree, dimensions, fleets and
 their selectivity / catchability forms, configured processes, active
-linkages, and any attached \code{\link[=model_config]{model_config()}} -- rather than dumping the full
+linkages, and any attached \code{\link[=model_config]{model_config()}}, rather than dumping the full
 data list.
 }
 \details{

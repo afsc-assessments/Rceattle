@@ -74,7 +74,7 @@
 #'
 #' @return A named list, one element per entity dimension so each metric lives
 #'   only where it applies (no NA padding):
-#'   * `species` -- a data.frame with one row per species (keyed by `Species`)
+#'   * `species`, a data.frame with one row per species (keyed by `Species`)
 #'     of the conservation / status metrics: per-species average catch, catch
 #'     inter-annual variability (IAV), and P(Closed) = the probability the
 #'     fishery is closed (catch ~ 0); the relative mean-squared error of
@@ -84,16 +84,16 @@
 #'     (estimation model disagrees with the operating-model truth); and terminal
 #'     biomass, SSB, dynamic SB0, SSB depletion (equilibrium and dynamic),
 #'     average SSB depletion, and SSB-collapse counts.
-#'   * `fleet` -- a data.frame with one row per fishery fleet (keyed by
+#'   * `fleet`, a data.frame with one row per fishery fleet (keyed by
 #'     `Fleet_code` / `Fleet_name`) of average catch, catch IAV, and P(Closed).
-#'   * `total` -- a named numeric of the across-fleet total average catch and
+#'   * `total`, a named numeric of the across-fleet total average catch and
 #'     catch IAV.
-#'   * `meta` -- run provenance (`nsim`, `nspp`, `nflts`, `HCR`, projection-year
+#'   * `meta`, run provenance (`nsim`, `nspp`, `nflts`, `HCR`, projection-year
 #'     range).
 #'
 #'   All metrics are averaged across projection years and simulations.
 #'
-#'   Metric columns carry syntactic names, so they can be typed without
+#'   Metric columns hold syntactic names, so they can be typed without
 #'   backticks: `avg_catch`, `catch_iav`, `p_closed`, `ssb_rmse_avg`,
 #'   `ssb_rmse_terminal`, `em_p_overfishing`, `em_p_overfished`,
 #'   `om_p_overfishing`, `om_p_overfished`, `p_overfishing_false_pos`,
@@ -107,16 +107,26 @@
 #'   disagree. The three `*_sims_collapsed` metrics are **counts of
 #'   simulations**, not probabilities.
 #'
-#'   `om_terminal_depletion` is `NA` for a multispecies run that derived no
-#'   unfished reference, which is any run without a harvest control rule
-#'   (`HCR = "NoFishing"`): under `msmMode > 0` the model reads spawning
-#'   biomass against the `MSSB0` input, and `fit_mod()` only fills that in by
-#'   projecting under no fishing when an HCR is present. Dividing by the
-#'   placeholder instead reported SSB/999 as a depletion -- on the Pacific hake
-#'   three-species model, 2.68e3. Use `om_terminal_depletion_dynamic`, which is
-#'   computed against the model's own `DynamicSB0` and is unaffected.
+#'   The three depletions divide by different references:
+#'   - `om_terminal_depletion_dynamic`: terminal SSB over the OM's own
+#'     `DynamicSB0`, its history with no fishing on the stock-recruit curve with
+#'     the realized recruitment deviations and, under predation, the suitability
+#'     fitted in the hindcast. Defined for single- and multispecies OMs. A
+#'     species with input numbers-at-age (`estDynamics > 0`) keeps those numbers
+#'     in the dynamic run, so its dynamic depletion is near 1 and says nothing
+#'     about fishing.
+#'   - `om_terminal_depletion`: terminal SSB over `SB0`, the equilibrium value
+#'     for a single-species OM. Under `msmMode > 0` it is `MSSB0`, SSB at the end
+#'     of a no-fishing projection, which `fit_mod()` derives only when a harvest
+#'     control rule is present; without one (`HCR = "NoFishing"`) this is `NA`.
+#'   - `om_avg_depletion`: the OM's own `ssb_depletion` averaged over the
+#'     projection. Under predation with no HCR that series divides by SSB in the
+#'     last projection year, not by an unfished reference.
 #'
-#'   Each frame carries a `"labels"` attribute mapping those names to the long
+#'   The collapse metrics compare the OM with `OM_no_F`, the OM refit with no
+#'   fishing after the original operating model's `endyr` ([remove_F()]).
+#'
+#'   Each frame holds a `"labels"` attribute mapping those names to the long
 #'   display strings (e.g. `om_terminal_depletion_dynamic` ->
 #'   `"OM: Terminal SSB Depletion (Dynamic)"`) for plots and tables:
 #'   `attr(summ$species, "labels")`.
@@ -142,6 +152,9 @@ mse_summary <- function(mse, om_only = FALSE){
     if(length(x) == nspp){ return(x)}
     else {return(rep(x, nspp))}
   }
+
+  # NA, not NaN, when every value is NA (e.g. no Flimit).
+  mean_or_na <- function(x) if (all(is.na(x))) NA_real_ else mean(x, na.rm = TRUE)
 
   ## Drop simulations that did not run to completion ----
   # run_mse() returns only a failure marker for those (no OM, no EMs), so there
@@ -262,6 +275,8 @@ mse_summary <- function(mse, om_only = FALSE){
   # - Average catch
   # - Catch IAV
   # - P(Closed)
+  # Species with input numbers-at-age are projected at F = 0: no catch to vary or close.
+  fixed_n <- (mse[[1]]$OM$data_list$estDynamics %||% rep(0, nspp)) > 0
   for(i in 1:nflts){
     flt = flts[i]
 
@@ -294,6 +309,9 @@ mse_summary <- function(mse, om_only = FALSE){
         length(which(x < 1)) # Using less than 1 here just in case super small catches and fishery is effectively close
         /length(x)))/nsim
 
+    if (isTRUE(fixed_n[flt_spp[flt]])) {
+      mse_summary$`Catch IAV`[i+nspp] <- mse_summary$`P(Closed)`[i+nspp] <- NA_real_
+    }
   }
 
 
@@ -345,8 +363,8 @@ mse_summary <- function(mse, om_only = FALSE){
         pull(Catch)
     )) # Sum catch across fleets within a year
 
-    if (!(sp %in% fished_spp) || sum(lengths(catch_by_sim)) == 0L) {
-      if (sp %in% fished_spp) {
+    if (!(sp %in% fished_spp) || fixed_n[sp] || sum(lengths(catch_by_sim)) == 0L) {
+      if (sp %in% fished_spp && !fixed_n[sp] && sum(lengths(catch_by_sim)) == 0L) {
         # Has a fishery, but nothing landed in the projection years: a data
         # problem rather than a modelling choice, so do not report it as zero.
         warning("Species ", sp, " has a fishery but no catch in the projection ",
@@ -425,6 +443,8 @@ mse_summary <- function(mse, om_only = FALSE){
   # - Produces vectors of Flimits given depletion and input Flimit (Fspr)
   # - Note, it doesnt have Plimit because thats for cod
   flimit_tier3_fun <- function(ssb_depletion, ssb, SBF, plimit, alpha, Flimit){
+    # No Flimit, no Tier 3 limit.
+    if (length(Flimit) != 1 || is.na(Flimit)) return(rep(NA_real_, length(ssb)))
     tier3_flimit <- c()
     for(i in 1:length(ssb)){
 
@@ -561,8 +581,8 @@ mse_summary <- function(mse, om_only = FALSE){
       }
 
       ## Perceived status (averages over all assess-year observations)
-      mse_summary$`EM: P(Fy > Flimit)`[sp]    <- mean(em_f_flimit,   na.rm = TRUE)
-      mse_summary$`EM: P(SSB < SSBlimit)`[sp] <- mean(em_sb_sblimit, na.rm = TRUE)
+      mse_summary$`EM: P(Fy > Flimit)`[sp]    <- mean_or_na(em_f_flimit)
+      mse_summary$`EM: P(SSB < SSBlimit)`[sp] <- mean_or_na(em_sb_sblimit)
     }
 
 
@@ -595,7 +615,7 @@ mse_summary <- function(mse, om_only = FALSE){
     }
 
     om_f_flimit <- unlist(om_f_flimit)
-    mse_summary$`OM: P(Fy > Flimit)`[sp] <- mean(om_f_flimit, na.rm = TRUE)
+    mse_summary$`OM: P(Fy > Flimit)`[sp] <- mean_or_na(om_f_flimit)
 
 
     # * OM: P(SSB < SSBlimit) ----
@@ -634,15 +654,18 @@ mse_summary <- function(mse, om_only = FALSE){
     }
 
     om_sb_sblimit <- unlist(om_sb_sblimit)
-    mse_summary$`OM: P(SSB < SSBlimit)`[sp] <- mean(om_sb_sblimit, na.rm = TRUE)
+    mse_summary$`OM: P(SSB < SSBlimit)`[sp] <- mean_or_na(om_sb_sblimit)
 
 
     ## * Perceived status relative to actual status (paired at assess years) ----
     if(!om_only){
-      mse_summary$`EM: P(Fy > Flimit) but OM: P(Fy < Flimit)`[sp]      <- mean(em_f_flimit   == 1 & om_f_flimit_assess   == 0, na.rm = TRUE)
-      mse_summary$`EM: P(Fy < Flimit) but OM: P(Fy > Flimit)`[sp]      <- mean(em_f_flimit   == 0 & om_f_flimit_assess   == 1, na.rm = TRUE)
-      mse_summary$`EM: P(SSB < SSBlimit) but OM: P(SSB > SSBlimit)`[sp] <- mean(em_sb_sblimit == 1 & om_sb_sblimit_assess == 0, na.rm = TRUE)
-      mse_summary$`EM: P(SSB > SSBlimit) but OM: P(SSB < SSBlimit)`[sp] <- mean(em_sb_sblimit == 0 & om_sb_sblimit_assess == 1, na.rm = TRUE)
+      # NA when either side is NA.
+      both_f <- !is.na(em_f_flimit) & !is.na(om_f_flimit_assess)
+      mse_summary$`EM: P(Fy > Flimit) but OM: P(Fy < Flimit)`[sp]      <- mean_or_na(ifelse(both_f, em_f_flimit == 1 & om_f_flimit_assess == 0, NA))
+      mse_summary$`EM: P(Fy < Flimit) but OM: P(Fy > Flimit)`[sp]      <- mean_or_na(ifelse(both_f, em_f_flimit == 0 & om_f_flimit_assess == 1, NA))
+      both_sb <- !is.na(em_sb_sblimit) & !is.na(om_sb_sblimit_assess)
+      mse_summary$`EM: P(SSB < SSBlimit) but OM: P(SSB > SSBlimit)`[sp] <- mean_or_na(ifelse(both_sb, em_sb_sblimit == 1 & om_sb_sblimit_assess == 0, NA))
+      mse_summary$`EM: P(SSB > SSBlimit) but OM: P(SSB < SSBlimit)`[sp] <- mean_or_na(ifelse(both_sb, em_sb_sblimit == 0 & om_sb_sblimit_assess == 1, NA))
     }
 
 
@@ -661,12 +684,14 @@ mse_summary <- function(mse, om_only = FALSE){
     terminal_b_om <- sapply(mse, function(x) x$OM$quantities$biomass[sp, (projyr - styr + 1)])
     terminal_ssb_om <- sapply(mse, function(x) x$OM$quantities$ssb[sp, (projyr - styr + 1)])
 
-    if(mse[[1]]$OM$data_list$msmMode == 0){ # Take dynamic SB0 for multi-species model from OM projected with no F
+    # Dynamic SB0: the OM's history with no fishing (fitted curve, realized deviations, suitability).
+    terminal_dynamic_sb0_om <- sapply(mse, function(x) x$OM$quantities$DynamicSB0[sp, (projyr - styr + 1)])
+
+    if(mse[[1]]$OM$data_list$msmMode == 0){
       terminal_sb0_om <- sapply(mse, function(x) x$OM$quantities$SB0[sp, (projyr - styr + 1)])
-      terminal_dynamic_sb0_om <- sapply(mse, function(x) x$OM$quantities$DynamicSB0[sp, (projyr - styr + 1)])
     }
 
-    if(mse[[1]]$OM$data_list$msmMode > 0){ # Take dynamic SB0 for multi-species model from OM projected with no F
+    if(mse[[1]]$OM$data_list$msmMode > 0){
       # Terminal year, as in the single-species arm above. The multispecies
       # SB0 is the same in every year -- the model overwrites its own
       # derivation with the `MSSB0` input -- so this reads the same number a
@@ -693,9 +718,6 @@ mse_summary <- function(mse, om_only = FALSE){
         !derived | is.na(derived)
       }
       terminal_sb0_om[undefined] <- NA_real_
-      terminal_dynamic_sb0_om <- if (length(mse_no_f)) {
-        sapply(mse_no_f, function(x) x$OM_no_F$quantities$ssb[sp, (projyr - styr + 1)])
-      } else NA_real_
     }
 
     mse_summary$`OM: Terminal B`[sp] <- mean(terminal_b_om)
@@ -787,9 +809,9 @@ mse_summary <- function(mse, om_only = FALSE){
 
 #' Print method for an MSE summary
 #'
-#' @description Says what the summary holds. The object is deliberately ragged --
+#' @description Says what the summary holds. The object is deliberately ragged,
 #' per-species, per-fleet and whole-system metrics have different shapes and
-#' cannot share one frame -- so it reports the blocks and their dimensions rather
+#' cannot share one frame, so it reports the blocks and their dimensions rather
 #' than printing them end to end.
 #'
 #' @param x An `"Rceattle_mse_summary"` object from [mse_summary()].

@@ -8,9 +8,9 @@ encode_linkage_for_tmb(table, X)
 }
 \arguments{
 \item{table}{an \code{Rceattle_linkage_table} (typically the output of
-\code{\link[=pool_linkages]{pool_linkages()}}).}
+\code{pool_linkages()}).}
 
-\item{X}{the global design matrix from \code{\link[=pool_linkages]{pool_linkages()}} (passed
+\item{X}{the global design matrix from \code{pool_linkages()} (passed
 through unchanged so callers can stash it alongside).}
 }
 \value{

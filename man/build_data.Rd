@@ -25,9 +25,9 @@ An Rceattle data list (a bare \code{list}, as from \code{\link[=read_data]{read_
 \description{
 Assemble (or edit) an Rceattle data list in R code rather than from an xlsx
 workbook. Supply only the data
-blocks a model uses -- dimensions, biology (\code{weight}, \code{maturity},
+blocks a model uses, dimensions, biology (\code{weight}, \code{maturity},
 \code{sex_ratio}, \code{M1_base}), a \code{fleet_control}, and the observation tables
-(\code{catch_data}, \code{index_data}, \code{comp_data}, ...) -- and the optional blocks a
+(\code{catch_data}, \code{index_data}, \code{comp_data}, ...), and the optional blocks a
 single-species model does not need (\code{caal_data}, \code{emp_sel}, \code{diet_data}, ...)
 are default-filled by \code{\link[=clean_data]{clean_data()}}. The result is the same bare list
 \code{\link[=read_data]{read_data()}} returns and round-trips through \code{\link[=write_data]{write_data()}} unchanged.
@@ -35,11 +35,11 @@ are default-filled by \code{\link[=clean_data]{clean_data()}}. The result is the
 \details{
 Three entry points, which may be combined:
 \itemize{
-\item \strong{from blocks} -- pass the elements as named arguments:
+\item \strong{from blocks}: pass the elements as named arguments:
 \code{build_data(nspp = 1, styr = 1977, ..., fleet_control = fc, catch_data = catch)}.
-\item \strong{from a file} -- \code{build_data(file = "model.xlsx", projyr = 2060)}
+\item \strong{from a file}: \code{build_data(file = "model.xlsx", projyr = 2060)}
 reads the workbook via \code{\link[=read_data]{read_data()}}, then applies the overrides.
-\item \strong{from an existing object} -- \code{build_data(base = BS2017SS, projyr = 2060)}
+\item \strong{from an existing object}: \code{build_data(base = BS2017SS, projyr = 2060)}
 starts from a data list (e.g. a bundled dataset or a \code{\link[=combine_data]{combine_data()}}
 result) and overrides the named blocks. This is the common
 copy-and-edit / combine-and-restamp workflow.
@@ -54,7 +54,7 @@ are mapped to their canonical equivalents.
 Full validation runs at fit time, inside \code{fit_mod()}. \code{build_data()} runs only
 a light presence pre-check (\code{.check = TRUE}) so a missing \emph{required} block is
 reported at construction with a clear message. The pre-check reads an attached
-\code{\link[=model_config]{model_config()}}, so a configuration carried on the object is accounted for.
+\code{\link[=model_config]{model_config()}}, so a configuration held on the object is accounted for.
 Requirements that depend on fit-time settings passed directly to \code{\link[=fit_mod]{fit_mod()}}
 and stored nowhere on the data list are not knowable here and are left to
 that fit-time validation; see \code{\link[=data_requirements]{data_requirements()}} to preview them.

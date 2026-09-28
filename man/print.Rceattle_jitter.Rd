@@ -20,7 +20,7 @@ management advice and far above optimizer noise.}
 }
 \description{
 Reports what the run was for: how many random starts reached the
-best optimum found. The objective values alone cannot say that -- non-converged
+best optimum found. The objective values alone cannot say that, non-converged
 starts are dropped before the result is returned, so the count of returned
 fits is not the count attempted.
 }

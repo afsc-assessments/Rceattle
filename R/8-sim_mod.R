@@ -15,9 +15,9 @@
 
 #' Resolve `Index_distribution` to its integer family code
 #'
-#' Accepts either spelling a `fleet_control` column can hold -- the name
-#' (`"MVN"`) or the code (`1`) -- because `index_ll_type` is built inside
-#' `rearrange_data()` and is not carried on a fitted model's `data_list`.
+#' Accepts either spelling a `fleet_control` column can hold, the name
+#' (`"MVN"`) or the code (`1`), because `index_ll_type` is built inside
+#' `rearrange_data()` and is not held on a fitted model's `data_list`.
 #' Anything unrecognized falls back to lognormal, matching the column default.
 #'
 #' @param x The `Index_distribution` column.
@@ -294,17 +294,17 @@
 }
 
 
-#' Warn where a covariance survey fleet carries rows it cannot simulate
+#' Warn where a covariance survey fleet holds rows it cannot simulate
 #'
 #' The `MVN`/`MVNORM` draw is a correlated block, and the covariance is supplied
-#' for the fleet's FITTED observations only -- there is no covariance entry for a
+#' for the fleet's FITTED observations only, there is no covariance entry for a
 #' year the model does not fit, so those rows keep the values they came in with.
 #' The independent families have no such limit and redraw every row.
 #'
 #' That matters because `run_mse()` reveals the operating model's negative-`Year`
 #' rows to the estimation model as each assessment's new data. For a covariance
 #' fleet those rows were never drawn, so the estimation model would be handed
-#' survey observations carried over unchanged, and a management-strategy
+#' survey observations reused unchanged, and a management-strategy
 #' evaluation would report performance against a survey that never varied.
 #'
 #' @param data_list Data list being simulated into.
@@ -342,7 +342,7 @@
 #' The write-back takes the first `n` columns positionally. `rearrange_data()`
 #' builds `comp_obs` with `dplyr::select(contains("Comp_"))` while
 #' `.composition_cols()` matches `^Comp_`, so a column named like `Total_Comp_n`
-#' puts the two out of step and every bin lands one place over -- silently, since
+#' puts the two out of step and every bin lands one place over, silently, since
 #' the copy is still the right shape. Tested with `!=` rather than `<` because
 #' that mismatch shows up as an EXTRA simulated column, not a missing one.
 #'
@@ -362,8 +362,8 @@
 
 #' Warn where a composition row came back with nothing in it
 #'
-#' A row sums to zero when the model predicts no composition for it -- a fleet
-#' with no catch that year, or one switched off -- and also when the effective
+#' A row sums to zero when the model predicts no composition for it, a fleet
+#' with no catch that year, or one switched off, and also when the effective
 #' sample size rounds away, which `Sample_size * weight` can do for a heavily
 #' down-weighted fleet. The first is meaningful and expected; the second is a
 #' fleet silently dropping out of the refit, so name both rather than let a
@@ -389,7 +389,7 @@
 #' Drop the sample size of a row that came back empty
 #'
 #' The composition density gates on `Sample_size`, not on the bins, so a row the
-#' draw left empty is still scored -- at `comp_offset` in every bin, a small
+#' draw left empty is still scored, at `comp_offset` in every bin, a small
 #' uniformly-pulling term with no data behind it. `run_mse()` has always zeroed
 #' the sample size alongside the bins (R/10-run_mse.R); `sim_mod()` has to do the
 #' same, or `self_test()` refits against a term the operating model never
@@ -406,15 +406,15 @@
 #' Resolve `process` to the model's `simulate_state` vector
 #'
 #' Process error is off unless asked for, because redrawing a process changes
-#' what a self-test measures -- from "can the estimator recover these
+#' what a self-test measures, from "can the estimator recover these
 #' parameters" to "can it recover this process". The slots follow
 #' `ceattle.cpp`: recruitment, M and growth are the population dynamics;
 #' selectivity and catchability are the observation process.
 #'
 #' `"recruitment"` covers the initial age structure as well as the annual
 #' deviations. The initial numbers-at-age are recruitment from the years before
-#' `styr` -- `init_dev` and `rec_dev` share `R_sd` and the same bias correction,
-#' and `rec_dev` at year 0 feeds the initial scalar -- so they are one process.
+#' `styr`, `init_dev` and `rec_dev` share `R_sd` and the same bias correction,
+#' and `rec_dev` at year 0 feeds the initial scalar, so they are one process.
 #'
 #' @param process `FALSE` / `"none"` for none, `TRUE` / `"all"` for every
 #'   process, `"dynamics"` for the population dynamics, `"observation"` for the
@@ -455,17 +455,17 @@
 #' does it, including one saved and reloaded (TMB re-tapes from the stored
 #' `obj$env$data`).
 #'
-#' A fit whose `$obj` was dropped to save space still carries its `data_list` and
+#' A fit whose `$obj` was dropped to save space still holds its `data_list` and
 #' its estimates, which is all `.refit_like()` needs to rebuild the model without
 #' re-estimating it. The rebuild is the same model rather than an approximation,
-#' but that is checked rather than assumed -- see `.sim_check_rebuild()`.
+#' but that is checked rather than assumed, see `.sim_check_rebuild()`.
 #'
 #' Rebuild at the mode the source was fitted under. `estimateMode = 3` builds the
 #' objective and stops, which leaves `catch_hat` at 0 on every projection row, so
-#' a fit that ran a projection needs one too -- mode 2 runs it from the supplied
+#' a fit that ran a projection needs one too, mode 2 runs it from the supplied
 #' estimates without re-optimizing the hindcast.
 #'
-#' `model_average()` output cannot be rebuilt -- see the `stop()` below, which
+#' `model_average()` output cannot be rebuilt, see the `stop()` below, which
 #' says why.
 #'
 #' @param Rceattle A fitted `Rceattle` model.
@@ -499,8 +499,8 @@
 #' Confirm a rebuilt model is the one whose estimates it was given
 #'
 #' `.refit_like()` reconstructs the model specification from the `data_list`, so
-#' a `data_list` edited since the fit -- or one that no longer records everything
-#' the fit used -- rebuilds something else, which would then simulate around the
+#' a `data_list` edited since the fit, or one that no longer records everything
+#' the fit used, rebuilds something else, which would then simulate around the
 #' wrong expected values.
 #'
 #' Check what the draws are made of: one predicted quantity per observation type
@@ -511,7 +511,7 @@
 #' an edited `data_list` shows up as a mismatch. `bias_adjust_obs`
 #' cannot be checked that way: it enters neither of them and nothing outside the
 #' `data_list` records it, so the rebuild simply honours whatever the
-#' `data_list` now says. What is worth catching is its ABSENCE --
+#' `data_list` now says. What is worth catching is its ABSENCE,
 #' `.refit_bias_adjust()` falls back to the `fit_control()` default when the
 #' field is missing, so a fit made with the correction off would rebuild with it
 #' on and every simulated catch would be mis-centred by `exp(sigma^2 / 2)`, with
@@ -675,7 +675,7 @@
 #'
 #' A non-finite or negative draw is not quietly dropped: `data_check()` rejects
 #' it, the refit errors, and `self_test()` counts the replicate as not converged
-#' -- which reads as a convergence problem rather than a data one. The usual
+#', which reads as a convergence problem rather than a data one. The usual
 #' cause is an observation standard deviation that never got a value
 #' (`Estimate_catch_sd = 1` with `Catch_sd` blank gives `exp(log(NA))`), or, for a
 #' natural-scale survey draw, observation error large relative to the index.
@@ -684,7 +684,7 @@
 #' @param fleet Fleet code per element, for the message.
 #' @param what Data type name.
 #' @param strictly_positive `TRUE` where zero is invalid too. `data_check()`
-#'   requires a survey index above zero, but accepts a catch of exactly zero --
+#'   requires a survey index above zero, but accepts a catch of exactly zero,
 #'   and a fishery closed in a projection year legitimately draws one.
 #' @param skip Elements already reported elsewhere. The natural-scale index draw
 #'   is covered by `.sim_warn_index_truncated()`, which names the family to
@@ -710,7 +710,7 @@
 #'
 #' @description Simulates the data an Rceattle model would have produced, either
 #' as expected values or as a random draw. Every observation type is covered:
-#' survey biomass (under the fleet's own \code{Index_distribution} -- lognormal,
+#' survey biomass (under the fleet's own \code{Index_distribution}, lognormal,
 #' natural-scale normal, or the correlated MVN/MVNORM draw from its covariance),
 #' total catch (lognormal), age/length composition and conditional
 #' age-at-length (multinomial or Dirichlet-multinomial), and stomach contents
@@ -719,7 +719,7 @@
 #' @details
 #' Every draw is taken by the TMB model itself, in a \code{SIMULATE} block beside
 #' the likelihood that defines it, so the two are edited together. A simulator
-#' that has drifted from its likelihood does not error -- it makes
+#' that has drifted from its likelihood does not error, it makes
 #' \code{\link{self_test}} report recovery against a process the likelihood
 #' never assumed.
 #'
@@ -771,7 +771,7 @@
 #' @return A \code{data_list} object containing the simulated or expected data
 #'   values, formatted for use in \code{Rceattle}. When \code{process} redrew
 #'   something, the deviations that generated the data are attached as
-#'   \code{attr(x, "process_sim")} -- a named list holding whichever of
+#'   \code{attr(x, "process_sim")}, a named list holding whichever of
 #'   \code{rec_dev}, \code{init_dev}, \code{log_M1_dev} and
 #'   \code{beta_linkage_re} were drawn. Those are the truth a refit has to
 #'   recover; without them the only comparison available is against the original
@@ -781,15 +781,15 @@
 #'   \code{_drawn} suffix (\code{rec_dev_drawn}, ...), \code{TRUE} where the draw
 #'   touched that cell. The draws cover the hindcast only, and
 #'   \code{beta_linkage_re} is one vector over every random-linkage slot whether
-#'   or not its process was asked for, so the arrays carry fitted values
+#'   or not its process was asked for, so the arrays hold fitted values
 #'   alongside simulated ones. Restrict any recovery statistic to the
-#'   \code{_drawn} cells -- over the full array it reports perfect recovery on
+#'   \code{_drawn} cells, over the full array it reports perfect recovery on
 #'   the cells that were never redrawn.
 #' @examples
 #' \dontrun{
 #' data(BS2017SS)
 #' fit <- fit_mod(BS2017SS, estimateMode = "Hindcast")
-#' # Expected values only -- no observation error drawn.
+#' # Expected values only, no observation error drawn.
 #' sim_mod(fit)
 #' # One stochastic replicate, drawn from each fleet's own likelihood.
 #' sim_mod(fit, simulate = TRUE)
@@ -1008,9 +1008,9 @@ sim_mod <- function(object = NULL, simulate = FALSE, process = FALSE, Rceattle =
 #' report perfect recovery of a process it never simulated.
 #'
 #' Each deviation comes back with a `_drawn` logical of the same shape. The
-#' template reports every deviation array whole -- the draws cover the hindcast
+#' template reports every deviation array whole, the draws cover the hindcast
 #' only, and `beta_linkage_re` spans every random-linkage slot whether or not its
-#' process was asked for -- so the arrays carry fitted values alongside simulated
+#' process was asked for, so the arrays hold fitted values alongside simulated
 #' ones. The mask is written by the draw itself (`ceattle.cpp` sections 5.12b and
 #' 5.13) rather than re-derived here, so it cannot disagree with what happened.
 #'
@@ -1079,8 +1079,8 @@ sim_mod <- function(object = NULL, simulate = FALSE, process = FALSE, Rceattle =
 #' Does this model hold a random linkage on a process the caller asked for?
 #'
 #' Mirrors the gate in ceattle.cpp section 5.12b, including its skip of observed
-#' AR1 (QAR1) groups. Used only for the HYPOTHETICAL question -- would this
-#' process be drawn if it were asked for -- which the model cannot answer,
+#' AR1 (QAR1) groups. Used only for the HYPOTHETICAL question, would this
+#' process be drawn if it were asked for, which the model cannot answer,
 #' since it only reports what it did draw. What actually happened is read from
 #' `beta_linkage_re_drawn_sim` instead.
 #'
@@ -1137,6 +1137,9 @@ sample_rec <- function(object = NULL, sample_rec = TRUE, update_model = TRUE, re
 
   # Replace future rec devs ----
   for(sp in 1:object$data_list$nspp){
+    # A species with input numbers-at-age has no recruitment of its own: its
+    # rec_dev is mapped out and its R is the input recruits, so there is nothing to set.
+    if (isTRUE((object$data_list$estDynamics %||% 0)[sp] > 0)) next
 
     # -- where SR curve is estimated directly
     if(object$data_list$srr_fun == object$data_list$srr_pred_fun){
@@ -1214,12 +1217,10 @@ sample_rec <- function(object = NULL, sample_rec = TRUE, update_model = TRUE, re
 #'   model's deviations are no longer what generated the data and the bias this
 #'   reports is an artefact. Compare against
 #'   \code{attr(sims, "process_sim")} in that case. Passing a
-#'   \code{\link{self_test}} result that carries process draws warns, since the
+#'   \code{\link{self_test}} result that holds process draws warns, since the
 #'   attribute makes that case detectable rather than only documented.
 #' @export
 compare_sim <- function(operating_mod, simulation_mods, object = "quantities") {
-  # TODO update
-
   # Every statistic below is a deviation from `operating_mod`. That is the truth
   # only when the replicates redrew the observations alone; with
   # sim_mod(process = ) / self_test(process = ) the operating model's deviations
@@ -1316,11 +1317,13 @@ compare_sim <- function(operating_mod, simulation_mods, object = "quantities") {
 #' @param growth_log_sd_sp Array. Dimensions (sex, 2).
 #'   Log-SD of length: 1st param is SD at minage, 2nd param is SD at maxage.
 #' @param growth_model_sp Integer. 1 = Von Bertalanffy, 2 = Richards.
+#' @param M_plus_sp Numeric. Natural mortality at the oldest age (one value, or one per sex), which weights the ages pooled in the plus group by survival, as the template does.
 #'
 #' @return A 4D array of probabilities with dimensions (sex, age, length, year).
 get_growth_matrix_r <- function(fracyr, nsex_sp, nages_sp, nlengths_sp, nyrs,
                                 lengths_sp, minage_sp, maxage_sp,
-                                growth_params_sp, growth_log_sd_sp, growth_model_sp) {
+                                growth_params_sp, growth_log_sd_sp, growth_model_sp,
+                                M_plus_sp) {
 
   # Define names for the dimensions
   dim_names <- list(
@@ -1396,10 +1399,11 @@ get_growth_matrix_r <- function(fracyr, nsex_sp, nages_sp, nlengths_sp, nyrs,
         }
 
         # --- 2. Plus Group Correction (SS Style) ---
+        # Ages pooled in the plus group, weighted by survival at the oldest-age M.
         if(a == nages_sp) {
           diff <- growth_params_sp[s, y, 3] - length_at_age[s, a, y] # Linf - current size
           ages <- 0:(nages_sp)
-          weight_a <- exp(-0.2 * ages)
+          weight_a <- exp(-M_plus_sp[min(s, length(M_plus_sp))] * ages)
           vals <- length_at_age[s, a, y] + (ages / nages_sp) * diff
           length_at_age[s, a, y] <- sum(vals * weight_a) / sum(weight_a)
         }

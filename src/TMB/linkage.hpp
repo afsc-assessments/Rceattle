@@ -332,11 +332,13 @@ void rceattle_apply_q_linkages(
  *
  * Param codes: `0`/`1` -> log_sel_slp[asc/desc] (`slp_offset`);
  *              `2`/`3` -> sel_inf[asc/desc]      (`inf_offset`);
- *              `4`     -> sel_coff, all bins     (`coff_offset`).
+ *              `4`     -> sel_coff, all bins     (`coff_offset`);
+ *              `5`     -> log_sel_apical         (`apical_offset`).
  *
  * @param slp_offset [in,out] Slope offsets [2, n_flt, max_sex, nyrs].
  * @param inf_offset [in,out] Inflection offsets [2, n_flt, max_sex, nyrs].
  * @param coff_offset [in,out] Nonparametric-coefficient offsets [n_flt, max_sex, n_sel_bins, nyrs].
+ * @param apical_offset [in,out] Per-sex apical-height offsets [n_flt, max_sex, nyrs].
  * @param link_code Link scale to consume (1 = log, 0 = identity).
  * @param linkage_X Environmental covariate matrix; rows are years.
  * @param beta Per-row effect sizes (0-length = no-op).
@@ -346,6 +348,7 @@ void rceattle_apply_sel_linkages(
     array<Type>&          slp_offset,   // [2, n_flt, max_sex, nyrs]
     array<Type>&          inf_offset,   // [2, n_flt, max_sex, nyrs]
     array<Type>&          coff_offset,  // [n_flt, max_sex, n_sel_bins, nyrs]
+    array<Type>&          apical_offset,// [n_flt, max_sex, nyrs]
     int                   link_code,
     const vector<int>&    linkage_process,
     const vector<int>&    linkage_param,
@@ -393,6 +396,8 @@ void rceattle_apply_sel_linkages(
             for (int bin = 0; bin < n_sel_bins; ++bin) {
               coff_offset(flt, sx, bin, yr) += v;
             }
+          } else if (param == 5) {
+            apical_offset(flt, sx, yr) += v;
           }
         }
       }

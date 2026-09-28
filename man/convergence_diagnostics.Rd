@@ -26,8 +26,10 @@ object. Each check yields a record with a common schema
 \details{
 \code{fit_mod()} runs this automatically and attaches the result as
 \code{fit$convergence}; call \code{convergence_diagnostics()} directly to
-re-run it on any fit. Checks cover the optimizer gradient, Hessian
-positive-definiteness and conditioning, parameters on bounds, a deviation
-variance estimated to zero, phasing, and
-parameter estimability.
+re-run it on any fit. Checks cover the optimizer gradient, a requested
+\code{sdreport} that did not return, an \code{sdreport} that was never
+requested, Hessian positive-definiteness and conditioning, parameters on
+bounds, parameters past them, a deviation variance estimated to zero, phasing,
+parameter estimability, a numbers-at-age, Ricker-intercept or recruitment floor that
+was reached, and the stock-recruit curve.
 }

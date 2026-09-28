@@ -177,3 +177,51 @@ testthat::test_that("MVN OSA residuals match compResidual::resmvnorm (SAM-author
                                               matrix(mu, ncol = 1), Sigma))
   testthat::expect_equal(osa$residual[order(osa$year)], r_sam, tolerance = 1e-6)
 })
+testthat::test_that("method = \"cdf\" reproduces the MVN whitened innovation", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("TMB")
+
+  # The whitened block is independent standard normals, so its conditional CDF is
+  # pnorm of the innovation and method = "cdf" must return the same closed form
+  # the Gaussian methods do. This is the only cover the MVN CDF call site has.
+  for (dist in c("MVN", "MVNORM")) {
+    o <- .osa_index_fit(dist); fit <- o$fit; Sigma <- o$Sigma
+    osa <- suppressWarnings(suppressMessages(
+      osa_residuals(fit, source = "index", method = "cdf", parallel = FALSE)))
+    sel <- .fitted_index(fit)
+    rp  <- fit$obj$report(fit$obj$env$last.par.best)
+    innov <- as.numeric(forwardsolve(t(chol(Sigma)),
+                                     fit$obj$env$data$index_obs[sel, 1] - rp$index_hat[sel]))
+    testthat::expect_equal(osa$residual[order(osa$year)], innov, tolerance = 1e-5,
+                           info = dist)
+    testthat::expect_true(all(is.na(osa$predicted)), info = dist)
+  }
+})
+
+
+testthat::test_that("a survey whose rows are out of year order is dropped, with a warning", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("TMB")
+
+  # The lower-triangular whitening conditions row k on rows 1..k-1, so it is the
+  # one-step-ahead conditioning order only while the rows are chronological and
+  # aligned with Sigma. Out of order, the residuals would be a valid
+  # decomposition of the wrong conditioning sequence -- so the fleet is dropped
+  # instead, and the warning has to say that the drop is from the residual
+  # MODEL, not just the output: the other fleets' residuals move with it under
+  # random effects.
+  o  <- .osa_index_fit("MVNORM")
+  dl <- o$fit$obj$env$data
+  rows <- .fitted_index(o$fit)
+  testthat::expect_gt(length(rows), 1)
+
+  # Same rows, same Sigma, years no longer ascending.
+  dl$index_ctl[rows, 3] <- rev(dl$index_ctl[rows, 3])
+  testthat::expect_warning(
+    osa_dat <- build_osa_data(dl, build_osa = TRUE),
+    "out of year order")
+
+  # Dropped means excluded from obsvec, which is what makes the residual model
+  # differ from the fitted one -- not merely filtered out of the returned frame.
+  testthat::expect_true(all(osa_dat$index_obsvec_idx[rows] == -1L))
+})

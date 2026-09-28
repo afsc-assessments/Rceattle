@@ -48,7 +48,7 @@ This vignette fits a sequence of five single- and multi-species models with `Rce
 # executing it in CI would reinstall mid-render.
 # Rceattle (pulls CRAN dependencies automatically; e.g. TMB, Matrix, dplyr)
 install.packages("remotes")
-remotes::install_github("grantdadams/Rceattle")
+remotes::install_github("afsc-assessments/Rceattle")
 
 # Optional: TMBhelper provides richer optimization diagnostics.
 # Rceattle falls back to plain nlminb + sdreport if it's not installed.
@@ -165,7 +165,7 @@ by hand, most of what you need is reachable through standard S3 methods:
 summary(model_1)        # reference points, likelihood, convergence
 coef(model_1)           # estimated parameters
 head(vcov(model_1))     # covariance matrix (NULL when getsd = FALSE)
-logLik(model_1)         # log-likelihood, carrying its degrees of freedom
+logLik(model_1)         # log-likelihood, holding its degrees of freedom
 AIC(model_1)            # so stats::AIC() works
 head(residuals(model_1))
 head(as.data.frame(model_1))
@@ -173,13 +173,13 @@ head(as.data.frame(model_1))
 
 `plot()`, `simulate()` and `profile()` dispatch on the fit too, and the
 diagnostics return their own classes with `print()` methods that summarize the
-result — `retrospective()` gives an `Rceattle_retro`, `jitter()` an
+result, `retrospective()` gives an `Rceattle_retro`, `jitter()` an
 `Rceattle_jitter`, `self_test()` an `Rceattle_selftest`, `profile()` an
 `Rceattle_profile`, and `osa_residuals()` an `rceattle_osa`. A data list read by
 `read_data()` is an `Rceattle_data`, which also prints and summarizes.
 
 The numbers themselves live in two places. Derived quantities on their natural
-scale are in `fit$quantities` — biomass, `ssb`, `N_at_age`, `M_at_age`,
+scale are in `fit$quantities`, biomass, `ssb`, `N_at_age`, `M_at_age`,
 `sel_at_age`, reference points and the likelihood components. The parameters the
 optimizer actually estimated are in `fit$estimated_params`, mostly on a log
 scale, under abbreviated names. `parameter_dictionary()` explains those names:
@@ -192,7 +192,7 @@ parameter_dictionary(process = "selectivity")
 Anything beginning `log_`, or ending `_log_sd`, needs `exp()` to reach the
 quantity named in the dictionary's `natural` column.
 
-`quantity_dictionary()` does the same job for the reported quantities — what
+`quantity_dictionary()` does the same job for the reported quantities, what
 each one means, the units it is in, its dimensions, and whether `sdreport()`
 gives it a standard error:
 
@@ -200,7 +200,7 @@ gives it a standard error:
 quantity_dictionary("ssb_depletion")
 quantity_dictionary(process = "reference_points")
 
-# Everything that carries a standard error
+# Everything that holds a standard error
 dict <- quantity_dictionary()
 dict[dict$se, c("quantity", "units")]
 ```
@@ -209,7 +209,7 @@ Units follow the model throughout: numbers-at-age are **thousands of fish** and
 weight-at-age is **kg**, so their product is **mt**. Two things worth reading off
 the dictionary before using a quantity. `ssb` is *female* spawning-stock biomass,
 and every per-recruit reference point (`SPR0`, `SPRlimit`, `SPRtarget`) is
-defined only in single-species mode — on a multispecies fit the model leaves them
+defined only in single-species mode, on a multispecies fit the model leaves them
 at zero, which is not an estimate of zero.
 
 ## 5. Compare models
@@ -227,10 +227,10 @@ sapply(list(model_2, model_3, model_5), AIC)
 
 ```
 
-`report_tables()` collects the quantities an assessment reports — the fit and
+`report_tables()` collects the quantities an assessment reports, the fit and
 its likelihood decomposition, the time series with uncertainty, the reference
-points, and the fits to index and catch — into one set of tidy tables. Every
-table carries a `model` column, so several fits stack for a like-for-like
+points, and the fits to index and catch, into one set of tidy tables. Every
+table holds a `model` column, so several fits stack for a like-for-like
 comparison:
 
 ```{r}
@@ -297,7 +297,7 @@ plot_ssb(model_list, model_names = model_names, incl_proj = TRUE, add_ci = TRUE)
 # Biomass depletion (total biomass / B0)
 plot_depletion(model_list, model_names = model_names, incl_proj = FALSE, add_ci = FALSE)
 
-# SSB depletion (female spawning biomass / SB0) -- the quantity a Tier 3 HCR
+# SSB depletion (female spawning biomass / SB0), the quantity a Tier 3 HCR
 # compares against B40%
 plot_depletionSSB(model_list, model_names = model_names, incl_proj = FALSE, add_ci = FALSE)
 
@@ -305,7 +305,7 @@ plot_depletionSSB(model_list, model_names = model_names, incl_proj = FALSE, add_
 
 Diagnostic plots cover selectivity, composition fits, index fits, and catch fits. Composition plots take a single model; selectivity, index and catch plots take one or more.
 
-Each fleet is drawn on the dimension its selectivity was estimated on -- age, or length bin for a fleet whose `Selectivity_dimension` is `"Length"`. With one model, colour is the year, so time-varying selectivity reads as a fan. With several, colour separates the models and the fan moves to transparency.
+Each fleet is drawn on the dimension its selectivity was estimated on, age, or length bin for a fleet whose `Selectivity_dimension` is `"Length"`. With one model, colour is the year, so time-varying selectivity reads as a fan. With several, colour separates the models and the fan moves to transparency.
 
 ```{r}
 # Selectivity

@@ -21,10 +21,10 @@ profile_components(
 the weighted components, since those are what moved the fit.
 \code{unweighted_jnll_comp} exists so Francis and McAllister-Ianelli can read a
 composition likelihood without its \code{Comp_weights} multiplier, so only the
-rows that carry such a multiplier are filled: composition, CAAL, stomach
+rows that hold such a multiplier are filled: composition, CAAL, stomach
 content and the two linkage rows. Every other row is zero there and is
 dropped as unfitted, so \code{weighted = FALSE} returns a much smaller set of
-series — the index, catch, selectivity, catchability and penalty
+series, the index, catch, selectivity, catchability and penalty
 components are absent, not flat.}
 
 \item{relative}{How to place each series on the y axis.
@@ -57,13 +57,13 @@ also disables \code{minfraction}, which is defined against the total.}
 }
 \value{
 A data frame with one row per grid point per retained component:
-the profile's \code{grid} columns (\code{slot_1}, ...) carrying the value profiled
+the profile's \code{grid} columns (\code{slot_1}, ...) holding the value profiled
 over, then \code{fit} (grid row index), \code{component} (the \code{jnll_comp} row),
 \code{unit} (fleet or species name, \code{NA} for model-wide rows), \code{axis}
 (\code{"fleet"}, \code{"species"} or \code{"model"}), \code{series} (the plotting label), and
 \code{value} (the re-zeroed negative log-likelihood). Series are ordered by
 decreasing change over the grid, with \code{"Total"} first. The profile's
-\code{param}, \code{alias} and the \code{relative} used are carried as attributes.
+\code{param}, \code{alias} and the \code{relative} used are held as attributes.
 }
 \description{
 Pulls the per-fleet and per-species negative log-likelihood
@@ -79,7 +79,7 @@ yourself.
 }
 \details{
 \strong{Which cells are reported.} \code{jnll_comp} is a component-by-column matrix
-whose columns mean different things on different rows -- fleets on the data,
+whose columns mean different things on different rows, fleets on the data,
 selectivity and catchability rows, species on the priors, penalties and
 predation rows. Each cell is labelled from the axis its row uses, so a cell
 becomes e.g. \code{"Shelikof acoustic: Index data"}. The unit is dropped from the

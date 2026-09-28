@@ -245,3 +245,33 @@ testthat::test_that("the TruncatedNormal OSA override is announced and recorded"
       Rceattle::osa_residuals(ln, source = "index", parallel = FALSE)))
   testthat::expect_identical(attr(osa_ln, "method"), "oneStepGaussianOffMode")
 })
+
+testthat::test_that("method = \"cdf\" gives the TruncatedNormal residual in closed form", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("TMB")
+
+  # Under a Gaussian method this family needs its own oneStepGeneric call with a
+  # (0, Inf) range, because the truncation enters the density only through
+  # log Phi(mu/sd) and a Gaussian method cannot see it. Under "cdf" the template
+  # returns the truncated CDF itself, so the family is residualized in the main
+  # call -- exactly, with no numerical integration. The oracle is the transform:
+  #   F(x) = [Phi((x - mu)/sd) - Phi(-mu/sd)] / Phi(mu/sd)
+  fit <- .tn_fixture("TruncatedNormal", sd = 150, mode = 1)
+  osa <- suppressWarnings(suppressMessages(
+    Rceattle::osa_residuals(fit, source = "index", method = "cdf", parallel = FALSE)))
+
+  idx <- fit$data_list$index_data
+  srv <- idx$Fleet_name == "Survey"
+  row <- match(osa$year, idx$Year[srv])
+  mu  <- as.numeric(fit$quantities$index_hat[srv][row])
+  sd  <- as.numeric(fit$quantities$log_index_sd[srv][row])
+  Fx  <- (stats::pnorm((osa$observed - mu) / sd) - stats::pnorm(-mu / sd)) /
+    stats::pnorm(mu / sd)
+  testthat::expect_equal(osa$residual, stats::qnorm(Fx), tolerance = 1e-5)
+
+  # ... and it is NOT the untruncated residual, so the test can fail.
+  testthat::expect_gt(max(abs(osa$residual - (osa$observed - mu) / sd)), 0.1)
+
+  # No method override, so `method` stays the plain string the caller passed.
+  testthat::expect_identical(attr(osa, "method"), "cdf")
+})

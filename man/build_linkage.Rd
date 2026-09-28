@@ -14,7 +14,7 @@ covariates and on stratifying factors (species, sex). They produce:
 \item an \code{Rceattle_linkage_spec} object that captures the user's
 intent (formula + grouping) without committing to a global
 column index, and
-\item a \code{\link[=materialize_linkage]{materialize_linkage()}} step that, given the env data and
+\item a \code{materialize_linkage()} step that, given the env data and
 stratum levels, expands the spec into the canonical long-format
 linkage-table rows consumed by TMB.
 }

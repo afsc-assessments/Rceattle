@@ -20,7 +20,7 @@ scripts keep working. Supplying both is an error.}
 A common vocabulary, documented here once and inherited by the diagnostics
 that refit the model: \code{\link[=retrospective]{retrospective()}}, \code{\link[=jitter]{jitter()}} and \code{\link[=self_test]{self_test()}}. Each
 argument means the same thing wherever it appears. \code{phase}, \code{getsd} and
-\code{timeout} are deliberately \strong{not} here -- their defaults and their
+\code{timeout} are deliberately \strong{not} here, their defaults and their
 consequences for the diagnostic differ, so each function documents its own.
 \code{\link[=profile]{profile()}} refits too but takes only \code{cores} and a bare \code{getsd}.
 }
@@ -33,10 +33,10 @@ model's own \code{data_list} (\code{loopnum}, \code{comp_offset}, the bias-adjus
 or takes \code{fit_control()}'s default. Setting one of those is an error rather
 than a silent no-op, so a field you set is a field the refit used.
 
-Only the fields you set are applied -- named in the \code{fit_control()} call, or
+Only the fields you set are applied, named in the \code{fit_control()} call, or
 assigned to afterwards (\code{ctl$getsd <- TRUE}). One you never touch keeps the
-diagnostic's own default, which is not always \code{fit_control()}'s --
-\code{\link[=retrospective]{retrospective()}} phases its peels where \code{fit_control()} does not -- so
+diagnostic's own default, which is not always \code{fit_control()}'s,
+\code{\link[=retrospective]{retrospective()}} phases its peels where \code{fit_control()} does not, so
 \code{fit_control(getsd = FALSE)} asks about standard errors and changes nothing
 else. Setting a field to the value that is already \code{fit_control()}'s default
 still counts as setting it.

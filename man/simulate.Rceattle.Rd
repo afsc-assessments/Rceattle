@@ -21,13 +21,13 @@ observation error. See \code{\link[=sim_mod]{sim_mod()}} for the alternatives.}
 \item{...}{Currently unused.}
 }
 \value{
-A list of \code{nsim} \code{data_list} objects -- always a list, including at
+A list of \code{nsim} \code{data_list} objects, always a list, including at
 \code{nsim = 1}, so callers do not have to special-case the length. When
-\code{process} redrew something, each element carries the deviations that
+\code{process} redrew something, each element holds the deviations that
 generated it as \code{attr(, "process_sim")}: a named list of whichever of
 \code{rec_dev}, \code{init_dev}, \code{log_M1_dev} and \code{beta_linkage_re} were drawn, each
 with a \verb{_drawn} logical of the same shape marking the cells the draw
-touched. Compare estimates against those rather than against \code{object} --
+touched. Compare estimates against those rather than against \code{object},
 see \code{\link[=sim_mod]{sim_mod()}}.
 }
 \description{
@@ -40,7 +40,7 @@ A wrapper on \code{\link[=sim_mod]{sim_mod()}}, which documents the observation 
 expected values rather than draws, call \code{sim_mod(simulate = FALSE)}.
 
 Draws are taken by the TMB model, so \code{simulate()} needs a live \verb{$obj}: a
-model loaded from disk has one, a \code{\link[=model_average]{model_average()}} result does not -- see
+model loaded from disk has one, a \code{\link[=model_average]{model_average()}} result does not, see
 \code{\link[=sim_mod]{sim_mod()}}.
 }
 \examples{

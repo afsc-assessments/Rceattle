@@ -14,13 +14,13 @@
 #'   \item{Random}{Anything inside a bar: `(1 | Year)` for independent annual
 #'     deviations, or a covariance structure such as `ar1(Year + 0 | fleet)`.
 #'     These get a standard deviation (and correlation, where the structure has
-#'     one) and are integrated out by the Laplace approximation -- unless the
+#'     one) and are integrated out by the Laplace approximation, unless the
 #'     spec sets `integrate = FALSE`, which estimates the deviations as a
 #'     penalized fixed effect instead and requires that SD to be fixed.}
 #' }
 #'
 #' The split is the same one `lme4` and `glmmTMB` use, and the parsing is done
-#' by `reformulas` -- the package both of those rely on -- so the syntax behaves
+#' by `reformulas`, the package both of those rely on, so the syntax behaves
 #' the way a user of either would expect.
 #'
 #' @param formula a one-sided formula.

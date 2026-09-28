@@ -9,7 +9,7 @@ M_LINKAGE_PARAMS
 \description{
 Natural-scale names of the underlying natural-mortality
 parameters that the linkage system can address. Currently just
-\code{M1} -- with the default log link the offset is added to M1 on the
+\code{M1}, with the default log link the offset is added to M1 on the
 log scale (applied across all ages unless the linkage row
 pins a specific \code{age_bin}).
 }

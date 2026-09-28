@@ -18,7 +18,7 @@
 #'
 #' Console suppression is otherwise left to the caller: the call sites wrap this
 #' differently (`suppressMessages()`, `suppressWarnings()`, both, or neither),
-#' and suppression is console-only -- it does not affect the fit. The one
+#' and suppression is console-only, it does not affect the fit. The one
 #' exception is `data_check()`'s warnings, dropped here via
 #' `fit_mod(quiet_data_check = TRUE)`, because every caller re-validates a
 #' `data_list` the user has already fitted. Convergence and TMB warnings still
@@ -35,9 +35,9 @@
 #'
 #'   There is deliberately no `bounds` counterpart. Bounds are always rebuilt
 #'   from the source `data_list`, which reproduces them exactly for every bound
-#'   the schema or the linkage table drives (`linkage_spec(bounds = )`) -- the
+#'   the schema or the linkage table drives (`linkage_spec(bounds = )`), the
 #'   documented way to set them. A raw `fit_mod(bounds = )` hand-override is
-#'   therefore the one thing a refit does not carry, and carrying it would not be
+#'   therefore the one thing a refit does not hold, and holding it would not be
 #'   safe: [run_mse()] grows `log_F` and re-dimensions the selectivity deviation
 #'   blocks at every assessment, so the source fit's bounds no longer line up
 #'   with the parameters they would be indexed against.
@@ -58,7 +58,7 @@
 #' @param suit_styr,suit_endyr Suitability window; default to the source's,
 #'   clamped to a peel year or pinned to the pristine OM by some callers.
 #' @param projection_uncertainty Whether the refit reports standard errors with
-#'   the hindcast parameters on. Defaults to the source's, carried on
+#'   the hindcast parameters on. Defaults to the source's, held on
 #'   `data_list`; under an HCR a refit without it reports zero for the whole
 #'   hindcast.
 #'
@@ -198,12 +198,12 @@
 #' Returned unchanged rather than coerced to a logical. The cpp reads these as
 #' `DATA_SCALAR` and uses them as a plain multiplier on the correction
 #' (`bias_adjust_obs * sigma^2 / 2`), so a fractional value is a partial
-#' bias-adjustment ramp, not a malformed flag -- `as.logical()` would quantize
+#' bias-adjustment ramp, not a malformed flag, `as.logical()` would quantize
 #' 0.5 up to 1 and apply a full bias correction where a half one was configured.
 #' `DATA_SCALAR` also means a vector would fail in `MakeADFun`, so taking the
 #' first element cannot silently pick the wrong one.
 #'
-#' `NULL` means the `data_list` carries no resolved value -- it never went
+#' `NULL` means the `data_list` holds no resolved value, it never went
 #' through [fit_mod()], or it came from a fit predating the field being recorded.
 #' In the second case a model fitted with the correction off refits with it on,
 #' which is not recoverable from the object; [fit_control()]'s own default is the

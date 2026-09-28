@@ -38,7 +38,7 @@ argument of \code{\link[=residuals.Rceattle]{residuals.Rceattle()}} and \code{\l
 \item{residual_type}{\code{"pearson"} (default) for the ggplot2 Pearson-residual
 and composition-fit figures drawn here, or \code{"osa"} to instead draw the
 one-step-ahead residual diagnostics via \code{\link[=osa_residuals]{osa_residuals()}} and
-\code{\link[=plot.rceattle_osa]{plot.rceattle_osa()}} -- a Q-Q plot (with SDNR / tail annotation) alongside
+\code{\link[=plot.rceattle_osa]{plot.rceattle_osa()}}, a Q-Q plot (with SDNR / tail annotation) alongside
 signed OSA- and Pearson-residual bubbles. The \code{"osa"} path builds its
 observation data on demand, so it works with any fit.}
 
@@ -63,13 +63,13 @@ fleet x composition type:
 \item \strong{Pearson residual bubbles} by year and bin, faceted by fleet (and,
 for joint-sex data, by sex); red = positive, blue = negative, sized by
 magnitude. The Pearson residual is
-the same form used by \code{\link[=residuals.Rceattle]{residuals.Rceattle()}} -- standardized by the
+the same form used by \code{\link[=residuals.Rceattle]{residuals.Rceattle()}}, standardized by the
 variance the fleet's own likelihood assumes, so the weight column and any
 Dirichlet-multinomial overdispersion are already in the denominator.
-\item \strong{Annual composition} -- observed (shaded area) vs fitted (line)
+\item \strong{Annual composition}: observed (shaded area) vs fitted (line)
 proportion at age / length, one panel per year. Joint-sex data are
 mirrored (females up, males down).
-\item \strong{Aggregated composition} -- observed vs fitted, counts pooled over
+\item \strong{Aggregated composition}: observed vs fitted, counts pooled over
 the fitted hindcast years. The interval holds 95\% of the data the model
 predicts (not a confidence interval on the mean), so observations outside
 it indicate misfit. Poor where the expected count is below about 10, and

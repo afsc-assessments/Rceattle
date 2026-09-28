@@ -51,7 +51,7 @@ read as labels for back-compatibility.}
 \item{spnames}{Species labels, length \code{nspp}. Default: the model's own.}
 
 \item{add_ci}{Add a 95\% confidence interval. Only available where the
-plotted quantity carries standard errors; warns and draws none otherwise.}
+plotted quantity holds standard errors; warns and draws none otherwise.}
 
 \item{lwd}{Line width on the base-graphics scale: the default \code{3} renders as
 a standard-weight ggplot line. A vector varies it across series.}

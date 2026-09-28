@@ -60,7 +60,7 @@ TMBphase <- function(data, parameters, map, random, phases, model_name,
     if (length(random) > 0) {
       random_use <- NULL
       re_var_pars <- c("R_log_sd", "sel_dev_log_sd", "sel_curve_pen",
-                       "index_q_dev_log_sd", "index_q_rho", "index_q_log_sd",
+                       "index_q_dev_log_sd", "index_q_log_sd",
                        "M1_dev_log_sd", "M1_rho",
                        "log_sigma_linkage", "trans_rho_linkage", "log_obs_sd_linkage",
                        "growth_log_sd")
@@ -126,12 +126,12 @@ set_phases <- function(){
     index_q_dev = 5,   # Annual survey catchability deviates (if time-varying)
     index_q_log_sd = 4, # Prior SD for survey catchability deviates
     index_q_beta = 4,  # Regression coefficients for environmental linkage
-    index_q_rho = 4,   # AR1 correlation parameter
     index_q_dev_log_sd = 4, # SD for annual survey catchability deviates (if time-varying)
     sel_coff = 3,      # Non-parametric selectivity coefficients
     sel_coff_dev = 4,  # Annual deviates for non-parametric selectivity coefficients
     log_sel_slp = 3,    # Slope parameters for logistic forms of selectivity
     sel_inf = 3,       # Asymptote parameters for logistic forms of selectivity
+    log_sel_apical = 3, # Per-sex apical height (log multiplier), via a selectivity linkage
     log_sel_slp_dev = 5,# Annual deviates for slope parameters for logistic forms of selectivity (if time-varying)
     sel_inf_dev = 5,   # Annual deviates for asymptote parameters for logistic forms of selectivity (if time-varying)
     sel_dev_log_sd = 4, # SD for annual selectivity deviates (if time-varying)

@@ -51,6 +51,14 @@ rebuilt DLL, so `devtools::test()` aborts before running anything with
 edit run `pkgload::load_all(".")` first, then test with `TESTTHAT_PARALLEL=false`.
 (`test-coverage.yaml` forces serial for a related reason.)
 
+**`load_all()` does not notice a header-only edit.** TMB's `compile()` compares `ceattle.cpp`'s
+mtime against `ceattle.so`'s and nothing else, so editing only a `.hpp` — where most of the
+process logic lives — recompiles nothing and every measurement afterwards is against the old
+model. It is silent: `load_all()` reports success. Cost the OSA CDF work half an hour of
+debugging a fix that was already correct and simply had never been built. **After a `.hpp`-only
+edit, `touch src/TMB/ceattle.cpp` before `load_all()`**, and confirm the `.so` mtime moved. Same
+failure mode as the `safebounds` trap below, from the same cause.
+
 **Roxygen is pinned at 8.1.0** (`DESCRIPTION: Config/roxygen2/version`). A *different* local
 roxygen2 rewrites *every* `man/*.Rd`; an older one also swaps the key back to the legacy
 `RoxygenNote:`, leaving both present and contradicting each other. After `document()`, check
@@ -70,8 +78,49 @@ fleet — an `Off` fleet's slice is all `NA` and must never lead. Penalties and 
 block are accumulated once, on the lead fleet (`flt_sel_lead` / `flt_q_lead`); without that gate
 they are counted once per sharing fleet.
 
+**A shared block STARTS at the geometric mean of its members' starting values, not at the
+lead's.** TMB collapses a shared parameter to `tapply(par, map, mean)`, and these are all held
+on the log scale, so no fleet keeps the value in its own row. It bites hardest on catchability,
+where `index_log_q` is seeded from `log(Catchability_init)`: a shared q at the mean scales a
+survey's whole predicted index by a constant factor, and no residual pattern distinguishes that
+from a real change in abundance. Measured on an SS3 bridge for GOA Pacific cod, where a
+converter-created fleet kept a default init and pulled the survey's q to
+`sqrt(1.496398) = 1.223270` — 18% low across all 16 index observations, 6.23 nats, with the
+standard deviations right to 5e-07 and both composition components agreeing to under 0.001.
+`build_map()` warns since 5.44.0 (`.warn_shared_block_start()`), for both deviation sds and the
+catchability. Two edges: a member whose `Catchability_init` is blank, zero or negative seeds the
+WHOLE group at `NA`/`-Inf` and it cannot fit — `data_check()` requires that column positive only
+on fleets carrying index rows, and exempts `Analytical`/`AnalyticalArith` — and under
+`Estimated-with-prior` the prior centre, and the prior SD, are the **lead's** alone, so a
+non-lead fleet's values there are simply never read. **Inject or set per-fleet starting values by
+BLOCK, never by fleet name.**
+
 **Worked example: GOA2018SS.** Fleets 1 and 7 share selectivity; fleets 9 and 10 share
 selectivity *and* q.
+
+**There are TWO lead rules and they do not agree.** Which one is right depends on whether you
+are asking about the parameter block or about the penalty:
+
+| rule | grouping key | who uses it |
+|---|---|---|
+| `.shared_block_lead()` (`R/0-linkage_table.R`) | `Selectivity_index` **alone** | the map — `adjust_map_shared_params()` shares on this, so it is the rule for "does a linkage or prior here free anything?" |
+| `flt_sel_lead` (`R/5-rearrange_data.R`, via `.group_lead()`) | `Selectivity_index` **and** `Selectivity` | the template — `ceattle.cpp` gates the penalty block on it, so it is the rule for "does this fleet's penalty weight get read?" |
+
+They coincide on every group that shares one form, which is every group in every bundled data
+set and in all 375 consumer-repo workbooks, so the divergence hides. It opens when two live
+fleets share an index with **different** forms: the template makes them two groups and charges
+both, while the map still copies one block over both. `data_check()` only *warns* about that
+(`R/1-data_check.R`, the `.sel_shaping_cols` check), so the configuration reaches a fit.
+
+5.42.0's negative-`Sel_curve_pen` guard borrowed the map's rule to decide which fleets to
+check, and so skipped a fleet whose weight `ceattle.cpp` does read — a negative weight there
+rewarded the deviation without bound while `data_check()` reported clean. Fixed at 5.42.1 with
+`.rce_sel_pen_lead()`. **If you write anything that predicts the template's behaviour, group
+by index AND form; if you write anything about the map, group by index alone.**
+
+Still open, and pre-existing: in that same mixed-form state the one shared `sel_coff` block is
+penalized **twice**, once per group, because the map shares more widely than the penalty gate
+groups. `CLEANUP_BACKLOG.md` carries it.
 
 **A fixed-width parameter slot does not have a fixed meaning.** Several blocks are declared
 `[…, 2]` or `[…, 3]`, and what the slot holds depends on a switch, so a static label names the
@@ -111,7 +160,7 @@ for every shortened token the dictionary uses.
 ## `fit$data_list` is the pre-`rearrange_data()` list
 
 **Nothing `rearrange_data()` derives survives onto a fitted object.** Its output goes to
-`data_list_reorganized`, and `mod_objects$data_list` (`R/6-fit_mod.R:1460`) is the *input* list
+`data_list_reorganized`, and `mod_objects$data_list` (`R/6-fit_mod.R:1664`) is the *input* list
 plus `calc_mcall_ianelli()`'s two numeric `fleet_control` columns. So `fit$data_list` has no
 `flt_sel_lead`, no `flt_sel_type`, no `bin_first_selected` — those exist only on
 `fit$obj$env$data`.
@@ -169,21 +218,53 @@ than switch on `estimateMode`.
 
 ## Silent-wrong-number traps
 
+**Which fleet leads a `Selectivity_index` group is row-order dependent, so a group's penalty
+weights can change meaning when rows move.** `.group_lead()` picks the group's first fleet that
+is not `Off`, and `Fleet_code` must equal the row number, so inserting or reordering a fleet —
+or switching the lead `Off` — promotes a different row. Only the lead's `Sel_curve_pen1/2/3` are
+read (`ceattle.cpp:4051` gates on `flt_sel_lead(flt) == 1`), and a follower's are neither read
+nor checked against the lead's: `.sel_shaping_cols` deliberately excludes them, and the negative-
+weight refusal skips followers for the same reason. So a stale or wrong weight sitting on a
+follower is inert until a reordering makes that fleet the lead, at which point it is charged
+silently. Keep the whole group's penalty columns in agreement even though nothing enforces it.
+
+**A `NonParametricPM` (9) `RandomWalk` fleet at the default `Sel_curve_pen3 = 0` has an exactly
+flat direction.** Slot 3 is the only term charged on the RAW `sel_coff_dev`
+(`ceattle.cpp:4233`); every other term — shape, curvature, the random walk, and the data —
+reads `log_non_par_sel`, which `selectivity.hpp:449-459` mean-centres per year. A shift common
+to all bins in a year is therefore invisible everywhere except slot 3, verified by objectives
+bit-identical across `Time_varying_sel_sd` of 0.1, 0.2, 1 and 3 while the deviates moved. With
+the schema default of 0 nothing scores that direction at all, so under `random_sel = TRUE` the
+Laplace inner Hessian is singular. Set `Sel_curve_pen3` (or `Sel_devmag_sd`) on a form-9
+random-walk fleet. Pre-existing; found reviewing 5.42.0.
+
+**A single-species PFMC fit's `Flimit` depends on the `log_Ftarget` start value, a parameter
+PFMC never estimates.** Measured 2026-09-14 on `make_test_data()`, `HCR = "PFMC"`,
+`estimateMode = 2`: fitted `Flimit` is 0.4812 from the `build_params()` start of 0, 0.5853 from
+3, and 0.7379 from -999 (the value a `ConstantF, Ftarget = 0` fit stores). The cause is in
+`ceattle.cpp` section 5.12: `Ftarget(sp) = Flimit(sp) + QnormHCR(sp)` is assigned inside the
+fleet/sex/age/year loop at the first projection year, so for the first fishery, first sex and
+age `minage` the hindcast years of `Ftarget_at_age` still carry `exp(log_Ftarget)`. `SPRtarget`
+reads a hindcast year, and the single-species reference-point penalty pulls `Flimit` toward
+whatever that start implies. Every single-species PFMC fit, the hake EM included, carries the
+start-0 version. Fix: assign `Ftarget` from `Flimit` before the F loop; see
+`CLEANUP_BACKLOG.md`.
+
 **A Pearson residual must divide by the effective sample size the likelihood used.** Fixed in
 5.29.0; the structure that caused it is still there, so a fourth composition-like source would
 repeat it.
 
-- `Comp_weights` multiplies the multinomial log-likelihood (`ceattle.cpp:3686`), so it is an
+- `Comp_weights` multiplies the multinomial log-likelihood (`ceattle.cpp:3790`), so it is an
   effective sample size — the model's own simulator says so, drawing at
-  `n_nom * comp_weights(flt)` (`:3758`). Dividing by the raw `Sample_size` gives a residual
+  `n_nom * comp_weights(flt)` (`:3870`). Dividing by the raw `Sample_size` gives a residual
   `1/sqrt(w)` times the right one: too small on an upweighted fleet, too large on a downweighted
   one. `MultinomialAFSC` is the schema default, so this was the *common* case, and
   `reweight_comps()` tunes either side of 1.
 - A Dirichlet-multinomial is additionally overdispersed by `(n + conc)/(1 + conc)`, so those
   residuals were inflated into apparent misfit.
-- **Three sources, three different alpha constructions.** comp (`ceattle.cpp:3665`) and CAAL
-  (`:3819`) build the concentration on the offset-inflated total, so `sum(alpha) = N·S²·theta`
-  with `S = 1 + comp_offset·nbins`; diet (`:4848`) renormalizes first, so it is the clean
+- **Three sources, three different alpha constructions.** comp (`ceattle.cpp:3776`) and CAAL
+  (`:3931`) build the concentration on the offset-inflated total, so `sum(alpha) = N·S²·theta`
+  with `S = 1 + comp_offset·nbins`; diet (`:5009`) renormalizes first, so it is the clean
   `N_s·theta`. Sharing one formula across all three is wrong for two of them — measured up to
   1% in the sd on the smallest bins from the offset alone, at the default `comp_offset = 1e-5`.
 
@@ -211,10 +292,10 @@ verified against the 2026 GOA three-species assessment (2026-08-29):
   Unestimated they sit at `exp(0) = 1`, so that assessment reports **Ftarget = Flimit = 1.0/yr**
   for all three species — an enormous F that reads as an estimate. Gate on
   `build_hcr_map(data_list, fit$map)`. **Do NOT read `fit$map$mapList$log_Ftarget` instead**:
-  `build_map.R:1424` sets both to `NA` in the hindcast map whatever the HCR, so that test says
+  `R/3-build_map.R:1536` sets both to `NA` in the hindcast map whatever the HCR, so that test says
   "never estimated" for every model.
 - Under `msmMode > 0` the template overwrites `SB0` / `B0` with the `MSSB0` / `MSB0` inputs
-  (`ceattle.cpp:2118`), which stand at `.RCE_MSSB0_PLACEHOLDER = 999` mt until `fit_mod()`
+  (`ceattle.cpp:2189`), which stand at `.RCE_MSSB0_PLACEHOLDER = 999` mt until `fit_mod()`
   derives them from a no-fishing projection. Measured on that fit: `SB0 = 999` for all three
   species against true terminal SSB of 1,136,070 / 564,108 / 96,504 mt, so a
   `B_target = Ptarget * SB0` proxy comes out at **399.6 mt**. `data_list$MSSB0_derived` is the
@@ -260,6 +341,25 @@ full schedule for a one-sex species only. **SPR reaches the objective only under
 comments. A fit reports **99** quantities, identical single- and multi-species; enumerate from
 `names(fit$quantities)`, not from the source.
 
+**A missing OSA CDF term returns 0, not an error.** `oneStepPredict(method = "cdf")` reads
+`Fx = 1 / (1 + exp(nlcdf.lower - nlcdf.upper))`. A likelihood that supplies no
+`keep.cdf_lower` / `keep.cdf_upper` term makes those two evaluations identical, so `Fx = 0.5`
+and every residual on that data source is exactly 0 — a clean-looking Q-Q plot from a
+likelihood that was never asked anything. The Dirichlet-multinomial composition families are in
+exactly that position (no elementary beta-binomial CDF), so `osa_residuals()` routes those
+fleets to a Gaussian method and says so; `test-likelihood-osa-cdf.R` asserts the routing and
+that the residuals are not degenerate. **Any new observation likelihood owes a CDF term the way
+it owes a `SIMULATE` draw.**
+
+**Squeezing an OSA CDF at exactly one machine epsilon lands on a rounding tie.** `Fx` above is
+recovered in double precision, and at a tail of `DBL_EPSILON/2 = 1.11e-16` the denominator is
+`1 + 1.11e-16` — the round-half-to-even tie above 1 — so whether it rounds to 1 depends on the
+last bits of an objective summed over thousands of observations. When it does, `Fx = 1` and the
+residual is `+Inf`. Measured on BS2017SS: 6 of 4538 composition residuals infinite at one
+epsilon, 0 at four (`osa_squeeze_cdf()` in `comp_osa.hpp`). The reference implementation TMB
+ships uses `squeeze()`, i.e. one epsilon, and has the same latent failure. The cost of four is
+where `|residual|` saturates: 8.04 rather than 8.13.
+
 **`Index_distribution` has a second hand-synced registry.** A family added to
 `index_distribution_map` (`R/0-switches.R`) must also be classified in
 `.index_rows_natural_scale()` in the same file, which is what `residuals(type = "pearson")`,
@@ -284,7 +384,7 @@ fleet 2's composition likelihood while `jnll_comp[11, 2]` is species 2's recruit
 and `rowSums()` pools across two different axes. `.JNLL_ROW_AXIS` (`R/9-profile.R`) is the
 registry; `test-schema-jnll-rows.R` parses every `jnll_comp(JNLL_*, col)` write in the template
 and asserts each row's declared axis matches the column it is actually indexed by. Verified
-2026-08-26: 124 writes, all 21 rows covered.
+2026-08-26: 124 writes, all 21 rows covered; 133 writes at 5.41.0, same 21 rows.
 
 **`unweighted_jnll_comp` is populated for 5 of its 21 rows.** It exists so Francis and
 McAllister-Ianelli can read a composition likelihood without its `Comp_weights` multiplier, so
@@ -297,17 +397,20 @@ in its `@param`.
 
 **`retrospective(getsd = TRUE)` can return fewer peels than `getsd = FALSE`, so Mohn's rho
 differs.** `.refit_converged()` drops a peel on a non-positive-definite Hessian, and that check
-can only run when an `sdreport` was asked for (`R/0-convergence.R:213`, deliberate). A peel that
+can only run when an `sdreport` was asked for (`R/0-convergence.R:231`, deliberate). A peel that
 converges on gradient but has a singular Hessian is therefore kept without standard errors and
 dropped with them. On `make_test_data()` every peel is lost this way. Rho is computed over the
 peels that survive, so **two runs of the same model can report different rho** depending only on
 `getsd`. `test-functions-retrospective.R` compares the two runs peel by peel over the shared
 names for exactly this reason.
 
-**`fit_mod(d, config = cfg)` replaces `d$model_config` with `cfg$model_config`, linkages and
-all.** `R/6-fit_mod.R:318` attaches the config's structure to the data list unconditionally, so
-a config built from scratch discards every linkage `build_data()` put on `d`. Measured on 5.29.0,
-`GOAatf` with a survey `slp_asc ~ rw(1 | Year)` linkage:
+**~~`fit_mod(d, config = cfg)` replaces `d$model_config`, linkages and all.~~ Fixed in
+5.36.0** (`65259384`): `R/6-fit_mod.R:333-363` overlays only the fields the config's `"set"`
+attribute names, keeps the data's for the rest, and warns where the two differ. Kept because the
+measurement is what the fix was written against, and because a config saved before that release
+still carries no `"set"` attribute -- those set their non-default fields, which is the old
+behaviour for any field the author did change. Measured on 5.29.0, `GOAatf` with a survey
+`slp_asc ~ rw(1 | Year)` linkage:
 
 | call | random effects |
 |---|---|
@@ -315,15 +418,25 @@ a config built from scratch discards every linkage `build_data()` put on `d`. Me
 | `fit_mod(d, config = run_config(d, random_sel = FALSE))` | 57 |
 | `fit_mod(d, config = run_config(model_config(), random_sel = FALSE))` | **0** |
 
-No warning; the fit runs and returns a model without the time-varying survey selectivity. Build
-the config from the data (`run_config(d, ...)`) or from a fit. The same applies to every
-`model_config()` field, not only `selFun`.
+Before 5.36.0 there was no warning: the fit ran and returned a model without the time-varying
+survey selectivity. Building the config from the data (`run_config(d, ...)`) or from a fit is
+still the habit worth keeping, and it is the only thing that works for a config written before
+the attribute existed.
 
 `random_sel` does not reach the linkage REs either way — it gates only the `fleet_control`
-`Time_varying_sel` deviations (`R/6-fit_mod.R:760`, `:818`); linkage REs are integrated whenever
-present, unless the spec sets `integrate = FALSE` (`:836`). Its config description ("Estimate time-varying selectivity as random effects",
-`R/0-save_config.R:306`) reads otherwise, and IPHC read it that way. `random_q` is the same: it
-gates only `index_q_dev` (`:757`).
+`Time_varying_sel` deviations (`R/6-fit_mod.R:852`); linkage REs are integrated whenever
+present, unless the spec sets `integrate = FALSE` (`:923`). `random_q` is the same: it gates
+only `index_q_dev` (`:849`). The config description that misled an external user into reading
+`random_sel` as a switch over linkage REs was corrected in 5.36.0 and now says
+"Integrate the Time_varying_sel deviations and estimate their sd (linkages integrate either
+way)" (`R/0-save_config.R:309`), so the trap is the behaviour, not the wording.
+
+**`fit_mod(initMode =)` never reads the data object's own `initMode`.** The argument defaults to
+`"NonEquilibrium"` (`R/6-fit_mod.R:185`) and is written to the data list unconditionally
+(`:424`), so a value set on the data is overwritten before anything reads it. `BS2017MS$initMode`
+is 1 (`Equilibrium`), and the golden `ms` fit -- which passes no `initMode` -- initializes as
+`NonEquilibrium`. A
+`model_config` slot on the data is honoured (`:385`, since 5.36.0); the bare field is not.
 
 **A `data_list` element with no `write_data()`/`read_data()` support round-trips to nothing.**
 The feature is then silently lossy through the standard xlsx format. This is how `index_cov` was
@@ -465,7 +578,7 @@ ran when someone typed `/golden-check` locally. Its measured cost of `0` in
 a skipped file otherwise reports as a pass.
 
 **And golden was only the worst case of it: no `skip_on_cran()` test could fail any job.** That
-is 140 of the 192 test files — every test that runs a real `fit_mod()` optimization. `R-CMD-check`
+is 173 of the 240 test files — every test that runs a real `fit_mod()` optimization. `R-CMD-check`
 sets `NOT_CRAN=false`, so it skips all of them. `test-coverage` does run them, but
 `tools/ci/coverage-shard.R` passes `stop_on_failure = FALSE` (deliberately: a failure must not
 throw away the shard's coverage before it is written) and no later step reads the result — the
@@ -484,6 +597,51 @@ only in a Markdown file, the same file executed and the worker died with exit co
 `check-r-package` step instead — step env beats both the job env and anything a prior step
 exported, and it is printed in the step's own env block, so the log says which mode ran. 1 of 7
 recent Windows runs slipped; when it does not slip you learn nothing.
+
+**What the crash DUMPS is not a finding either — fixed at the source in 5.43.0.** When the
+worker dies, `R CMD check` prints whatever that test file had written to stdout, under a
+`── Test failures ──` heading. `test-convergence.R` used `expect_invisible(print(cv))`, which
+unlike `expect_output()` does not sink output, so the file wrote three lines of a **deliberately
+non-converged synthetic fixture** on every run:
+
+```
+<Rceattle convergence>  status: FAIL
+  [FAIL] max_gradient     Maximum absolute marginal gradient = 4e+12 on sel_inf (...)
+  [FAIL] pdHess           Hessian is not positive definite; standard errors are unavailable.
+```
+
+Those lines were read as a real convergence regression three separate times, most recently on
+#161 -- and 5.43.0 naming the quantity (`sel_inf (selectivity inflection)`) made them read
+*more* like a genuine finding, not less. The call is captured now and the file prints nothing,
+so a dead-worker dump is quieter. **Diagnose from the traceback**
+(`parallel_event_loop_chunky` -> `handle_error` -> `cli_abort` means a worker died), never from
+the text it dumped.
+
+**The file testthat names for this crash carries NO information — measured 2026-09-21.** Tests
+run in parallel (`Config/testthat/parallel: true`, two workers on the runner), so when a worker
+dies testthat reports whichever file that worker was holding. Three occurrences have named three
+unrelated files: `test-selectivity-catchability.R`, `test-switch-string-aliases.R` (on `main`)
+and `test-data-input-validation.R`. **The last of those executes nothing in CI** -- it opens with
+`skip_on_cran()` and an unconditional `skip()`, and CI runs `NOT_CRAN=false` -- so a file that
+ran zero lines was blamed for the fault. Do not investigate the named file, and do not read
+`verify-safebounds.R`'s "the CI crash config" case as targeting anything established; that
+config was chosen from one such attribution.
+
+**The same fault also shows up as a broken worker message, not a crash code -- measured
+2026-09-27 on #158.** The parent died in
+`test_check() -> rs__read_message() -> rs__parse_header()` with `Internal callr error, invalid
+message header`, and the Windows log carried **no `Failure (` line and no `FAIL n` count**: no
+test failed, the IPC stream to a parallel worker broke. Treat it as the same dead-worker class as
+the access violation, and check the same two things -- whether any assertion actually failed, and
+whether the same commit passed elsewhere. Here **commit `44864a79` passed Windows in the
+`pull_request` run and failed in the `push` run**, one commit with both outcomes on one platform,
+which is the strongest evidence available that a Windows red is infrastructure. A red with a
+`Failure (` line in it is a different thing and is worth investigating.
+
+**It is not specific to any release line.** `main` at 5.33.0, released and unchanged, crashed
+with the same exit code on 2026-09-21. Rate over the 30 most recent `R-CMD-check` runs: 2
+failures, both that day, while Windows also PASSED on that day on another branch -- so
+intermittent, not an image change. Everything from 2026-09-16 to 2026-09-20 passed.
 
 **An access violation is memory corruption, not a bad optimum.** A fit in a different basin
 gives a huge gradient and a failed `sdreport` — not a fault. The model is built
@@ -571,6 +729,18 @@ across the boundary.
 different `par`/`ssb` across *different* code, though deterministic on same-code re-runs. Judge
 it on `obj`/`jnll`, not `par`/`ssb`.
 
+**`goa_ss` has a second local minimum of the negative log-likelihood 52.9 units higher, and a
+one-ULP change in one gradient element is enough to send `nlminb` there.** Recorded on the
+5.34.0 branch (PR #144, 2026-09-14): adding code the objective never evaluates left every
+objective bit-identical and bounds-checked builds clean, but changed one `log_F` gradient
+element by 3e-16 (presumably summation order), and from there `nlminb` reached the higher
+minimum with `newtonsteps = 3` in place. HEAD reproduces the reference (12867.9902664788). The
+52.9 that `golden-check.md` attributes to tolerance-stopping (commit `1a172677`) is the same
+gap; polishing did not remove it. A `goa_ss` delta of 52.9 with the other three models
+bit-identical is this, not a numeric regression. Diagnose it from the gradient at the reference
+`par`, not from the objective. A robustness fix (a warm start from the reference `par`, or a
+second start keeping the lower minimum) is open; see `CLEANUP_BACKLOG.md`.
+
 ## Prior centring shares `bias_adjust_proc` with the recruitment deviations
 
 From 5.33.0 every lognormal prior and the Ianelli penalty are centred at `-sd^2/2` when
@@ -604,3 +774,138 @@ Only centring exactly one term gives a mean of `sqrt(R0 * R_hat)`; with the flag
 reference points and a `proj_mean_rec = FALSE` projection read. The data dampen the shift on
 hindcast R. Accepted for 5.33.0 (2026-09-12); removing it would move the hake baselines again.
 `test-likelihood-prior-bias-adjust.R` pins the formula, not this property.
+
+## Porting an ADMB model
+
+Absorbed from `ADMB-CONVERSION.md`, which this file replaces; nothing referenced it.
+
+**An ADMB `dev_vector`'s sum-to-zero constraint cannot be replicated in TMB, and a straight
+port is unidentified.** The deviations and the parameter they deviate from trade off freely and
+the optimizer wanders the ridge. Fix: map the first element to `NA` in `R/3-build_map.R`, which
+pins the level. **Exception:** if the vector already carries its own penalty -- a normal
+penalty or a random-effects density -- that pins it, and turning off the first element as well
+over-constrains it.
+
+**AMAK conventions are reproduced deliberately, not corrected.** `src/TMB/selectivity.hpp:609`
+evaluates the logistic at mid-age (`age_vector(j) = j + 0.5`, so `bin + 1.5`) for `LogisticPM`
+(11); the standard `Logistic` (1) uses `bin + 1`. `NonParametricPM` (9) and `LogisticPM` exist
+to match ADMB AMAK's "pm" parameterizations, penalties included, and
+`NonParametricIntegrable` (13) came from the same lineage in 5.40.0.
+
+The literature citations through `src/TMB/` are the specification for those blocks, not
+historical notes; `CLAUDE.md` says so under Comments.
+
+## CLAUDE.md's traps in full
+
+`CLAUDE.md` carries each of these as one line. This is the fuller text it held until 2026-09-14,
+kept verbatim (only a stale line number replaced by the call it pointed at). Some repeat a
+section above.
+
+- **`Index_distribution` has a second hand-synced registry** — a family added to
+  `index_distribution_map` must also be classified in `.index_rows_natural_scale()`
+  (`R/0-switches.R`), or it silently gets the log-scale residual formula.
+- **`jnll_comp` columns count fleets on rows 1–8 and species on rows 9–20**, so `rowSums()`
+  pools across two different axes. Row 21 (linkage random effects) is model-wide.
+  `.JNLL_ROW_AXIS` (`R/9-profile.R`) is the registry.
+- **A reference point CEATTLE never estimated is a number, not a gap** — `Ftarget`/`Flimit` sit
+  at `exp(0) = 1` unless the HCR estimates them (gate on `build_hcr_map()`, never on `fit$map`),
+  `SB0` under `msmMode > 0` is the 999 mt `MSSB0` placeholder until `MSSB0_derived` is TRUE, and
+  the per-recruit quantities are zero outside `msmMode = 0`.
+- **The depletions do not simply divide by `SB0`** — under `HCR = 0 & msmMode > 0` they divide
+  by biomass in the last projection year, so blanking them alongside a placeholder `SB0`
+  discards a valid series.
+- **A grep for `REPORT(` over `ceattle.cpp` over-counts** — several sit behind comments. A fit
+  reports 101 quantities at 5.41.0 (99 at 5.24.0); enumerate from `names(fit$quantities)`. `quantity_dictionary()` is the
+  registry, and `test-schema-quantity-dictionary.R` holds the two together.
+- **`retrospective(getsd = TRUE)` can drop peels `getsd = FALSE` keeps** — the non-PD Hessian
+  check only runs when an `sdreport` exists — so Mohn's rho can differ between the two.
+- **`unweighted_jnll_comp` is written for 5 of its 21 rows** — composition, CAAL, stomach and the
+  two linkage rows. Everything else is structurally zero there, not small.
+- **`fit_mod(d, config = cfg)` replaces `d$model_config` with the config's** — a config from
+  `run_config(model_config(), ...)` silently drops every linkage on `d` (57 REs → 0). Build it
+  with `run_config(d, ...)`. `random_sel` never gates linkage REs.
+- **`bias_adjust_proc` centres the lognormal priors and the recruitment deviations together**
+  (5.33.0) — `FALSE` gives median priors *and* uncentred deviations. Reproduce an old prior by
+  shifting its input; the Ianelli penalty with centred deviations cannot be reproduced. With the
+  flag on, in the penalty years the pair favours `exp(-sigma_R^2/4)` times the pre-5.33.0
+  recruitment.
+- **A `data_list` element with no `write_data()`/`read_data()` support round-trips to nothing** —
+  this is how `index_cov` was lost.
+- **A `Comp_weights` of 1 under a Dirichlet-multinomial is a starting weight of e** — that
+  likelihood reads the column as a log.
+- **A Pearson residual divides by the effective sample size the likelihood used, not the input
+  N** — `Comp_weights` multiplies the multinomial log-likelihood, so it *is* an effective sample
+  size (the comp `SIMULATE` draw is `rmultinom_rce(n_nom * comp_weights(flt), p)`), and a DM is
+  overdispersed by `(n + conc)/(1 + conc)`. Comp, CAAL and diet each have their own switch,
+  weight and DM parameter block, and three *different* alpha constructions — only diet's is the
+  clean `p·N·theta`. `.rce_comp_pearson()` is the one place that resolves this.
+- **`fit_mod(estimateMode=)`** takes a string or the integer behind it: `"Estimate"` (0) =
+  hindcast + HCR projection, `"Hindcast"` (1) = hindcast only, `"Projection"` (2) =
+  projection-only from `inits`, `"DebugBuild"` (3) = build without optimizing,
+  `"DebugOptimize"` (4). Prefer the strings.
+- **`fit_mod(estimateMode = 4)` returns a placeholder objective** (`dummy*dummy`), because
+  `build_map()` maps out every hindcast parameter. Don't read anything into a mode-4 objective,
+  gradient, or Hessian. **Mode 3 returns the real objective**, so `obj$fn()` / `obj$gr()` are
+  usable for diagnosing a model before fitting it — the analogue of WHAM's
+  `fit_wham(do.fit = FALSE)` and SAM's `sam.fit(run = FALSE)`.
+- **`fit$obj` is the PROJECTION's under any HCR but `NoFishing`; `fit$sdrep` too unless the HCR
+  is also `ConstantF`** — at the default `estimateMode = "Estimate"`, `build_hcr_map()` maps
+  every hindcast parameter off, so `obj$par` is `log_Ftarget`/`log_Flimit` alone (2 against the
+  hindcast's 584 on `Atka2022`) and every delta-method SE of a hindcast quantity is exactly 0.
+  Anything indexing `obj$par` by position must verify it against the vector it is labelling;
+  `fit$identified` and `fit$.conv_hindcast` are the hindcast's.
+- **`fit$data_list` is the PRE-`rearrange_data()` list** — it carries no `flt_sel_lead`,
+  `flt_sel_type` or any other `rearrange_data()` output. Those live on
+  `data_list_reorganized`, which `fit_mod()` does not keep. Recompute from `fleet_control`.
+- **`Bin_first_selected` is a 1-based bin ordinal; `Sel_norm_bin` is an absolute age** — opposite
+  conventions in adjacent columns, and `minage = 1` hides it.
+- **`init_dev`'s ages start at `minage + 1`** — age `minage` in the first year is recruitment, so
+  a `nages-1` axis is shifted, not just short. `.PAR_AXIS_OFFSET` (`R/0-parameter_index.R`) is the
+  registry; `minage = 1` hides the shift everywhere bundled.
+- **The conditioning check reads the correlation matrix, not the covariance** — `condition_number`
+  changed meaning at 5.26.0; `covariance_condition_number` carries the old value, and the
+  1e6/1e10 thresholds now fire less readily.
+- **`fit_control()` bundles the optimizer and uncertainty knobs** — `getsd`, `bias.correct`,
+  `loopnum`, `newtonsteps`, `getJointPrecision`, `nlminb_control`, and the bias-adjustment
+  flags. `getsd = FALSE` leaves `sdrep` NULL, so `vcov()` returns NULL and uncertainty bands
+  are NA. The refit diagnostics forward `phase`, `getsd`, the bias-adjust flags and
+  `projection_uncertainty` — the last two are read back off `data_list`, because a freshly
+  built `fit_control()` would silently reset them to its own defaults.
+- **`run_mse()` pins the OM's stock-recruit and suitability windows to the pristine `om$`**, not
+  the advancing `om_use$`, so the hindcast does not drift through the projection — essential for
+  multispecies, whose predation suitability must stay fixed.
+  `tools/verify/verify-mse-hindcast-invariant.R` checks it.
+- **Every observation and process error is drawn in a `SIMULATE{}` block beside the density that
+  scores it.** `sim_mod()` implements no observation model in R — it calls `obj$simulate()` once
+  and writes the result back, so a new likelihood family owes a draw. Draw what the density
+  assumes (bias-correction convention and scale included), REPORT under a `*_sim` name, and
+  don't draw what the model does not define. `tools/verify/verify-sim-*.R` is the net.
+- **An MSE draw is per observation row, so the row count is part of the RNG stream.** Anything
+  changing the operating model's horizon or row count changes every draw after it — that is how a
+  refit horizon set by the *next* assessment year made observation error depend on the assessment
+  schedule (2.1% on a year whose advice was identical by construction). Before touching the
+  horizon, the row count, or the draw order, ask what it does to a comparison of two schedules,
+  not just to one run's reproducibility. Common random numbers are still incomplete between
+  assessments; `inst/dev/TODO-mse-horizon.md` has the design and the measured numbers.
+- **The guards are not themselves guarded.** `test-golden-regression.R` is `skip_on_cran()` AND
+  `skip_on_covr()`, so until 5.16.0 it ran in no CI job at all; the `deep-checks` workflow now
+  runs it nightly and asserts it produced assertions. `NOT_CRAN=false` must be step-level `env:`
+  on `check-r-package`, never `$GITHUB_ENV` — through `$GITHUB_ENV` it did not hold reliably, and
+  when it slipped Windows died with `0xC0000005`.
+- **An access violation is memory corruption, not a bad optimum.** The model builds
+  `safebounds = FALSE`, so an out-of-range access writes silently into adjacent memory. Build
+  `RCEATTLE_SAFEBOUNDS=true` and run `tools/verify/verify-safebounds.R`, which asserts
+  `-DTMB_SAFEBOUNDS` actually reached the compile line — `pkgload` only recompiles when sources
+  change, so a clean result against a stale `.so` means nothing.
+- **`newtonsteps > 0` can return a parameter OUTSIDE its bounds.** `fit_mod()` passes
+  `build_bounds()`'s range to `nlminb`, which respects it, but the Newton refinement afterwards
+  is a plain unconstrained step in both `.fit_tmb()` paths — TMBhelper's own included, which the
+  package cannot clamp. Measured on a GOA Pacific cod bridge at `newtonsteps = 3`: a growth
+  parameter came back at 5.08e-05 against a lower bound of 1e-3, gradient 0.263, Hessian not
+  invertible; at `newtonsteps = 0`, same code, it sat on the bound at 1.00e-03, gradient
+  0.00246, `sdreport` clean. The three steps bought 0.0017 nats. `convergence` reports it as
+  `parameters_outside_bounds` (FAIL) since 5.45.0; before that it read as `parameters_on_bounds`
+  (WARN, "at a configured bound") because `par <= lo + tol` is also true below `lo`. The default
+  is 0, but the golden references all run 3.
+- **A slow fit is the model, not a regression** — `BS2017SS` has needed ~500–700 `nlminb`
+  iterations since at least 2023.

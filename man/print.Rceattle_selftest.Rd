@@ -21,21 +21,21 @@ as clean. Default \code{0.9}, matching \code{\link[=jitter]{jitter()}}'s.}
 Reports what a self-test is run to find out: how many
 simulations the estimator brought back to an optimum, and under what the
 replicates were generated. The returned list cannot say the first on its own
--- non-converged runs are dropped before it is returned, so the number of
+, non-converged runs are dropped before it is returned, so the number of
 fits returned is not the number attempted.
 }
 \details{
 The status is the convergence RATE, since that is the quantity the run
 produces: \code{FAIL} if nothing converged, \code{WARN} below \code{rate}, \code{NOTE} if any
 replicate was dropped, \code{OK} otherwise. The table beneath tallies each
-returned fit's own \verb{$convergence$status}, which is a separate question --
-a replicate can reach a zero gradient and still carry a \code{NOTE} or \code{WARN} --
+returned fit's own \verb{$convergence$status}, which is a separate question,
+a replicate can reach a zero gradient and still hold a \code{NOTE} or \code{WARN},
 and those are not folded into the header for that reason.
 
 The last line says what generated the replicates, because it decides what the
 spread means. With processes held fixed (the default) \code{sim_mod()} redraws the
-observations alone, so the spread carries observation error only and is a
-lower bound on estimation uncertainty -- do not read it against the model's
+observations alone, so the spread reflects observation error only and is a
+lower bound on estimation uncertainty, do not read it against the model's
 own uncertainty bands, which include process error. See
 \strong{Interpreting the spread} in \code{\link[=self_test]{self_test()}}.
 }

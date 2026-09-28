@@ -11,6 +11,16 @@
 # overall status (the worst severity present).
 .CONV_SEVERITY <- c("OK", "NOTE", "WARN", "FAIL")
 
+# The parameters the bounds checks must skip at the -999 "off" sentinel: a
+# fleet-year with no catch (`log_F`) and an initial deviate the template never
+# reads (`init_dev`). Both are bounded below at -1000, so the sentinel has to be
+# matched by NAME and value -- a bare `par > -900` would also hide a parameter
+# that genuinely diverged downwards. `log_Ftarget` also carries -999 (fit_mod(),
+# for a held HCR parameter) but needs no entry here: it has no build_bounds()
+# range, so `is.finite(lo)` is FALSE and neither check can fire on it. Give it one
+# and it belongs in this list.
+.CONV_SENTINEL_PARS <- c("log_F", "init_dev")
+
 # Build one check record.
 .conv_record <- function(id, tier, severity, message, data = NULL) {
   severity <- match.arg(severity, .CONV_SEVERITY)
@@ -54,7 +64,9 @@
   worst <- NULL
   gg <- NULL
   if (!is.null(diag) && !is.null(diag$final_gradient)) {
-    gg <- diag$final_gradient
+    # Named by block so the index can say where the largest gradient sits.
+    gg <- stats::setNames(as.numeric(diag$final_gradient),
+                          as.character(diag$Param))
     i <- which.max(abs(diag$final_gradient))
     if (length(i) == 1L) {
       worst <- list(param = as.character(diag$Param[i]),
@@ -119,12 +131,22 @@
     tryCatch(.rce_par_index(obj, data_list), error = function(e) NULL)
   } else NULL
 
+  # Standard errors of the hindcast fixed effects, in obj$par order. Kept here
+  # because under any estimating HCR `fit$sdrep` is the projection's.
+  se_fixed <- NULL
+  if (!is.null(opt$SD) && !is.null(opt$SD$cov.fixed)) {
+    se_fixed <- tryCatch(
+      stats::setNames(.conv_se_from_cov(opt$SD$cov.fixed), names(opt$SD$par.fixed)),
+      error = function(e) NULL)
+  }
+
   list(
     par                = if (!is.null(bnd_par)) bnd_par else par_fixed,
     index              = index,
     gradient           = gg,
     lower              = bnd_lo,
     upper              = bnd_hi,
+    se_fixed           = se_fixed,
     sd_requested       = isTRUE(getsd),
     sd_present         = !is.null(opt$SD),
     max_gradient       = as.numeric(mg),
@@ -140,21 +162,21 @@
 #' Did a diagnostic re-fit converge well enough to keep?
 #'
 #' @description
-#' The shared keep/drop gate for the re-fitting diagnostics --
-#' [retrospective()], [jitter()], [self_test()] and [profile.Rceattle()] -- each
+#' The shared keep/drop gate for the re-fitting diagnostics,
+#' [retrospective()], [jitter()], [self_test()] and [profile.Rceattle()], each
 #' of which silently drops the runs that did not converge.
 #'
 #' These call sites used to test `opt$Convergence_check` against the string
 #' `TMBhelper::fit_tmb()` uses for a non-invertible Hessian. `fit_tmb()` assigns
-#' that particular string in exactly one place -- when `sdreport` returns
-#' `pdHess = FALSE` -- and the test could not work in either direction:
+#' that particular string in exactly one place, when `sdreport` returns
+#' `pdHess = FALSE`, and the test could not work in either direction:
 #'
 #' * with `getsd = TRUE`, `fit_tmb()` returns early when the Hessian fails
 #'   `chol()`, so it never reaches that assignment, and the shape it returns
-#'   instead carries no `Convergence_check` at all -- the run was dropped by the
+#'   instead holds no `Convergence_check` at all, the run was dropped by the
 #'   enclosing `is.null()` guard, by accident rather than by the test;
 #' * with `getsd = FALSE` the assignment is unreachable, so *nothing* was ever
-#'   dropped -- a run that ended with a maximum gradient of 1e13 counted as
+#'   dropped, a run that ended with a maximum gradient of 1e13 counted as
 #'   converged. (`Convergence_check` is still set, but to one of the two gradient
 #'   verdicts, neither of which the test matched.)
 #'
@@ -179,8 +201,8 @@
 #' anything that only reads `length()`:
 #'
 #' * this is an OPTIMIZER gate, not the whole battery. A kept run can still
-#'   carry a WARN (gradient between 1e-3 and 1) or even a FAIL from one of the
-#'   other checks -- a non-positive-definite Hessian, a non-identifiable
+#'   hold a WARN (gradient between 1e-3 and 1) or even a FAIL from one of the
+#'   other checks, a non-positive-definite Hessian, a non-identifiable
 #'   parameter, a stock-recruit curve under the replacement line. Read
 #'   `$convergence` on what comes back; do not treat "returned" as "clean";
 #' * the one case that drops without a matching battery record is a non-finite
@@ -242,7 +264,7 @@
 #' While the keep/drop gate could not actually drop anything (see
 #' `.refit_converged()`) that silence cost nothing; now that it can, a caller
 #' who does not think to compare `length()` against what they asked for would
-#' read a thinned list as a complete one -- and for `jitter()` and `self_test()`
+#' read a thinned list as a complete one, and for `jitter()` and `self_test()`
 #' a thinned list is a biased sample, since the runs that failed are exactly the
 #' ones that would have shown the spread.
 #'
@@ -270,7 +292,7 @@
 #' @description
 #' `.fit_tmb()` optimizes with `eval.max = iter.max = 1e9`, so a re-fit that
 #' wanders somewhere pathological has no bound and one replicate can stall a
-#' whole `jitter()` or `self_test()` run -- the failure this is for is a hang,
+#' whole `jitter()` or `self_test()` run, the failure this is for is a hang,
 #' which no convergence check can reach because the fit never returns.
 #'
 #' The limit is approximate by construction: [setTimeLimit()] is checked when
@@ -278,7 +300,7 @@
 #' evaluations rather than inside one. That is enough here (`nlminb` re-enters R
 #' every evaluation) but a single very long evaluation can overrun it.
 #'
-#' Errors -- including the timeout -- are returned rather than thrown, so one bad
+#' Errors, including the timeout, are returned rather than thrown, so one bad
 #' replicate cannot abort the run and, under a cluster, take every other
 #' replicate with it.
 #'
@@ -336,10 +358,60 @@
 
 # --- checks ------------------------------------------------------------------
 
+# Where one parameter of a named vector sits: "log_M1 (M1): age 1", or the
+# display name alone when no index matches the vector.
+.conv_par_where <- function(i, nms, index) {
+  txt <- .rce_par_display(nms[i])
+  idx <- .conv_index_for(index, nms)
+  if (!is.null(idx)) {
+    lab <- idx$label[match(i, idx$par_index)]
+    if (length(lab) == 1L && !is.na(lab) && nzchar(lab)) {
+      txt <- paste0(txt, ": ", lab)
+    }
+  }
+  txt
+}
+
+# Standard errors from a covariance diagonal. An indefinite Hessian inverts to a
+# negative variance, which has no standard error and must not warn from in here.
+# A variance within rounding of zero is a parameter the data barely move, not an
+# indefinite Hessian, so it reports 0 rather than NA.
+.conv_se_from_cov <- function(cov) {
+  v <- diag(cov)
+  tol <- 1e-10 * max(abs(v[is.finite(v)]), 0, na.rm = TRUE)
+  v[!is.finite(v) | v < -tol] <- NA_real_
+  v[is.finite(v) & v < 0] <- 0
+  sqrt(v)
+}
+
+# How far the estimates are from the optimum, in standard errors: the Newton
+# step -cov %*% gradient, scaled so every parameter scale compares.
+# NULL unless cov.fixed is the hindcast's (under an estimating HCR it is not).
+.conv_newton_step_se <- function(object, gg) {
+  cov <- tryCatch(object$sdrep$cov.fixed, error = function(e) NULL)
+  if (is.null(cov) || !is.matrix(cov) || is.null(gg) || is.null(names(gg)) ||
+      nrow(cov) != length(gg)) return(NULL)
+  # Only reported on a positive-definite Hessian. The step is the distance to a
+  # minimum only if `cov` inverts one; on a saddle it points away from it, and
+  # "the optimum is a fraction of a standard error away" would read as
+  # reassurance beside the pdHess check that just failed.
+  if (!isTRUE(object$sdrep$pdHess)) return(NULL)
+  nm <- rownames(cov)
+  if (is.null(nm)) nm <- names(object$sdrep$par.fixed)
+  if (!identical(unname(as.character(nm)), names(gg))) return(NULL)
+  # Signed the way the estimates would move; the message reports the largest
+  # absolute value.
+  se   <- unname(.conv_se_from_cov(cov))
+  step <- as.numeric(-(cov %*% gg)) / se
+  if (!any(is.finite(step))) return(NULL)
+  i <- which.max(abs(replace(step, !is.finite(step), NA)))
+  list(max = abs(step[i]), i = i, step_se = stats::setNames(step, names(gg)))
+}
+
 # Optimizer convergence: max |gradient| (+ the parameter carrying it) and
 # Hessian positive-definiteness. Reads the hindcast snapshot so the result is
 # not clobbered by the projection re-optimization.
-.check_optimizer <- function(object) {
+.check_optimizer <- function(object, index = NULL) {
   ch <- object$.conv_hindcast
   out <- list()
   if (is.null(ch)) return(out)
@@ -347,13 +419,24 @@
   mg <- ch$max_gradient
   if (!is.null(mg) && is.finite(mg)) {
     sev <- if (mg > 1) "FAIL" else if (mg > 1e-3) "WARN" else "OK"
-    worst_txt <- if (!is.null(ch$worst)) {
-      sprintf(" (largest on '%s')", ch$worst$param)
+    gg  <- ch$gradient
+    # Coordinates cost a parList() pass, so a clean gradient does not force them.
+    if (sev == "OK") index <- NULL
+    worst_txt <- if (!is.null(gg) && !is.null(names(gg)) && any(is.finite(gg))) {
+      sprintf(" on %s", .conv_par_where(which.max(abs(gg)), names(gg), index))
+    } else if (!is.null(ch$worst)) {
+      sprintf(" on %s", .rce_par_display(ch$worst$param))
+    } else ""
+    step <- .conv_newton_step_se(object, gg)
+    step_txt <- if (!is.null(step)) {
+      sprintf(" Reaching the optimum would move the estimates by at most %.2g standard errors (%s).",
+              step$max, .conv_par_where(step$i, names(gg), index))
     } else ""
     out$max_gradient <- .conv_record(
       "max_gradient", "fit", sev,
-      sprintf("Maximum absolute marginal gradient = %.3g%s.", mg, worst_txt),
-      ch)
+      sprintf("Maximum absolute marginal gradient = %.3g%s.%s",
+              mg, worst_txt, step_txt),
+      c(ch, list(newton_step_se = step$max, step_se = step$step_se)))
   }
 
   if (!is.null(ch$pdHess) && !is.na(ch$pdHess)) {
@@ -382,7 +465,7 @@
   # leaves a measure of how nearly linearly dependent the estimates are.
   # The covariance number is still reported, as the numerical cost of inverting
   # the Hessian; see inst/dev/TRAPS.md for the measured values.
-  se <- sqrt(diag(cov))
+  se <- .conv_se_from_cov(cov)
   ok <- is.finite(se) & se > 0
   if (sum(ok) < 2L) return(out)
   keep_i <- which(ok)
@@ -426,7 +509,7 @@
   ntop  <- which(cum >= 0.90)[1]                          # blocks explaining >=90%
   if (is.na(ntop)) ntop <- length(share)
   ntop  <- max(1L, min(ntop, 5L))                         # always name >=1, cap at 5
-  combo <- paste(sprintf("%s (%.0f%%)", names(share)[seq_len(ntop)],
+  combo <- paste(sprintf("%s: %.0f%%", .rce_par_display(names(share)[seq_len(ntop)]),
                          100 * as.numeric(share)[seq_len(ntop)]),
                  collapse = " + ")
   top   <- data.frame(param = names(share), share = round(as.numeric(share), 3))
@@ -447,16 +530,18 @@
     idx <- .conv_index_for(index, nm_full)
     if (!is.null(idx)) {
       lines <- character(0)
+      # One width for every block printed below, so the coordinates align.
+      .w <- max(16L, nchar(.rce_par_display(names(share)[seq_len(ntop)])))
       for (b in names(share)[seq_len(ntop)]) {
         inb <- which(nm == b)
         o   <- inb[order(v[inb]^2, decreasing = TRUE)]
         keep <- o[seq_len(max(1L, which(cumsum(v[o]^2) / sum(v[o]^2) >= 0.90)[1]))]
         # `v` and `nm` index the parameters kept above, so map back before
         # asking parameter_index() where they are.
-        s <- .rce_par_summary(keep_i[keep], idx, max_lines = 2L)
+        s <- .rce_par_summary(keep_i[keep], idx, max_lines = 2L, width = .w)
         if (length(s) > 0) {
           lines <- c(lines, sub("\\((\\d+)\\)$",
-                                sprintf("(\\1 of %d, %.0f%% of the direction)",
+                                sprintf("(\\1 of %d parameters; %.0f%% of the direction)",
                                         length(inb), 100 * share[[b]]), s))
         }
       }
@@ -468,6 +553,48 @@
     list(condition_number = kappa, se_ratio = se_ratio,
          covariance_condition_number = cov_kappa, loadings = top))
   out
+}
+
+# The template floors numbers-at-age, the Ricker intercept and (under an
+# identity-link recruitment linkage) recruitment at 0.001 with a penalty, so a
+# non-zero row means the fit is of a floored model, not the one specified.
+.check_zero_n_penalty <- function(object) {
+  jc <- object$quantities$jnll_comp
+  if (is.null(jc) || !"Zero n-at-age penalty" %in% rownames(jc)) return(list())
+  pen <- jc["Zero n-at-age penalty", ]
+  # posfun() charges 0.01 * (x - 0.001)^2 per floored value, so sqrt(pen / 0.01)
+  # is the root-sum-square excursion (thousands of fish for N and R). Under 1e-3
+  # is numerical.
+  excursion <- sqrt(pmax(pen, 0) / 0.01)
+  bad <- !is.finite(pen)
+  hit <- which(bad | excursion > 1e-3)
+  if (!length(hit)) return(list())
+  sp <- (object$data_list$spnames %||% seq_along(pen))[hit]
+  severity <- if (any(bad) || max(excursion[is.finite(excursion)], 0) > 1) "FAIL" else "WARN"
+  list(zero_n_penalty = .conv_record(
+    "zero_n_penalty", "fit", severity,
+    sprintf("Numbers-at-age, the Ricker intercept or recruitment sat on the 0.001 floor in species %s (root-sum-square excursion %s); the fit is of a floored model, not the one specified.",
+            paste(sp, collapse = ", "),
+            paste(ifelse(bad[hit], "not finite", signif(excursion[hit], 3)), collapse = ", ")),
+    list(penalty = pen, excursion = excursion)))
+}
+
+# getsd = FALSE leaves sdrep NULL, so the Hessian eigenvalue, sdreport, pdHess
+# and estimability checks all return nothing. Without this record the battery
+# reports "OK" and report_tables() prints it into a SAFE table, which reads as
+# "every check passed" rather than "the strongest checks never ran".
+.check_hessian_not_run <- function(object) {
+  ch <- object$.conv_hindcast
+  # fit_mod() always records sd_requested as a logical, so a positive FALSE is
+  # what marks getsd = FALSE. An absent field is an older or synthetic fit
+  # object and says nothing either way, so it earns no record.
+  if (is.null(ch) || !identical(ch$sd_requested, FALSE)) return(list())
+  list(hessian_not_run = .conv_record(
+    "hessian_not_run", "fit", "NOTE",
+    paste0("Hessian checks not run: the fit was made with getsd = FALSE, so ",
+           "the positive-definite Hessian, condition-number, sdreport and ",
+           "estimability checks were all skipped. Refit with getsd = TRUE ",
+           "before reading this status as convergence.")))
 }
 
 # sdreport failed: requested but did not return (Hessian not invertible). A
@@ -482,9 +609,15 @@
     "sdreport failed (Hessian not invertible); standard errors unavailable."))
 }
 
-# Parameters at a configured bound. Optimization is unbounded in fit_mod(), so a
-# parameter at/beyond its build_bounds() range means the MLE hit the edge of the
-# plausible range -- often unidentified or mis-scaled.
+# Parameters at, or past, a configured bound. fit_mod() passes build_bounds()'s
+# range to nlminb, so a parameter sitting ON a bound means the MLE reached the
+# edge of the plausible range -- often unidentified or mis-scaled, but a
+# well-posed optimum, so WARN.
+#
+# Sitting PAST one is different and reported separately, at FAIL. nlminb respects
+# the bounds; the Newton refinement that `newtonsteps` asks for afterwards does
+# not, in either `.fit_tmb()` path, so a parameter nlminb parked on a bound can be
+# pushed straight through it and the value that comes back is the one saved.
 .check_bounds <- function(object, index = .conv_par_index(object)) {
   ch <- object$.conv_hindcast
   if (is.null(ch) || is.null(ch$par) || is.null(ch$lower) || is.null(ch$upper)) {
@@ -493,24 +626,55 @@
   par <- ch$par; lo <- ch$lower; hi <- ch$upper
   rng <- hi - lo
   tol <- pmax(1e-6, 1e-3 * ifelse(is.finite(rng) & rng > 0, rng, 1))
+  # Skip the -999 sentinel by name and value (.CONV_SENTINEL_PARS), not by a bare
+  # value test, which would also hide a parameter that diverged downwards. An
+  # unnamed vector keeps every element: names() would give NULL, and `%in%` on it
+  # returns logical(0), which would silently empty BOTH records.
+  nm    <- if (is.null(names(par))) rep("", length(par)) else names(par)
+  real  <- !(!is.na(par) & par == -999 & nm %in% .CONV_SENTINEL_PARS)
+  # Which side fired is read off the test itself, so a parameter bounded on one
+  # side only reports that side. Most bounds are one-sided.
+  below <- is.finite(lo) & par < lo - tol
+  above <- is.finite(hi) & par > hi + tol
+  out   <- which((below | above) & real)
   at_lo <- is.finite(lo) & par <= lo + tol
   at_hi <- is.finite(hi) & par >= hi - tol
-  hit <- which((at_lo | at_hi) & par > -900)   # skip -999 sentinels (e.g. log_F)
-  if (length(hit) == 0) return(list())
-  tab <- data.frame(param = names(par)[hit], mle = signif(par[hit], 4),
-                    lower = signif(lo[hit], 4), upper = signif(hi[hit], 4),
-                    bound = ifelse(at_lo[hit], "lower", "upper"))
-  # `hit` counts positions in the hindcast bounds vector, so the index has to be
-  # the one built from it.
-  idx <- .conv_index_for(index, names(par))
-  tab <- .conv_attach_label(tab, hit, idx)
-  list(parameters_on_bounds = .conv_record(
-    "parameters_on_bounds", "fit", "WARN",
-    .conv_with_coords(
-      sprintf("%d parameter(s) at a configured bound: %s.",
-              length(hit), paste(unique(names(par)[hit]), collapse = ", ")),
-      hit, idx),
-    tab))
+  hit <- setdiff(which((at_lo | at_hi) & real), out)
+  if (length(hit) == 0 && length(out) == 0) return(list())
+
+  # Both sets count positions in the hindcast bounds vector, so the index has to
+  # be the one built from it.
+  idx <- .conv_index_for(index, nm)
+  tabulate_hits <- function(k, side) {
+    tab <- data.frame(param = nm[k], mle = signif(par[k], 4),
+                      lower = signif(lo[k], 4), upper = signif(hi[k], 4),
+                      bound = side)
+    .conv_attach_label(tab, k, idx)
+  }
+
+  res <- list()
+  if (length(out)) {
+    res$parameters_outside_bounds <- .conv_record(
+      "parameters_outside_bounds", "fit", "FAIL",
+      .conv_with_coords(
+        sprintf(paste0("%d parameter(s) OUTSIDE a configured bound: %s. The ",
+                       "optimizer returned a value the model declared ",
+                       "implausible; if fit_control(newtonsteps) is above 0, ",
+                       "those steps are unconstrained -- refit with 0."),
+                length(out), paste(unique(nm[out]), collapse = ", ")),
+        out, idx),
+      tabulate_hits(out, ifelse(below[out], "below lower", "above upper")))
+  }
+  if (length(hit)) {
+    res$parameters_on_bounds <- .conv_record(
+      "parameters_on_bounds", "fit", "WARN",
+      .conv_with_coords(
+        sprintf("%d parameter(s) at a configured bound: %s.",
+                length(hit), paste(unique(nm[hit]), collapse = ", ")),
+        hit, idx),
+      tabulate_hits(hit, ifelse(at_lo[hit], "lower", "upper")))
+  }
+  res
 }
 
 #' A process variance estimated to zero
@@ -520,8 +684,8 @@
 #' time-invariant. `Atka2022` under `random_sel = TRUE` with a non-parametric
 #' random walk reaches `sel_dev_sd = 2.7e-08`. The battery flags that particular
 #' fit through `max_gradient`, which reports that the optimizer stopped, not what
-#' went wrong; and a collapse at a CLEAN gradient -- a well-posed maximum at the
-#' boundary -- has nothing else to catch it.
+#' went wrong; and a collapse at a CLEAN gradient, a well-posed maximum at the
+#' boundary, has nothing else to catch it.
 #'
 #' Scope is deliberately narrow. Only the standard deviations of a modelled
 #' DEVIATION are read, all of which are log-scale and O(0.1)-O(1) in any
@@ -531,7 +695,7 @@
 #' already trips `parameters_on_bounds` because `build_bounds()` bounds those,
 #' and it governs no time-varying process. `growth_log_sd` is excluded because it
 #' is a length-at-age sd in CENTIMETRES, where 1e-3 means nothing. Correlations
-#' and penalty weights (`sel_curve_pen`, `index_q_rho`, `M1_rho`,
+#' and penalty weights (`sel_curve_pen`, `M1_rho`,
 #' `trans_rho_linkage`) are not sds at all, and the catchability PRIOR sd
 #' (`index_q_log_sd`) is a deliberate choice.
 #'
@@ -657,11 +821,9 @@
 
   # Steepness needs spawning biomass per recruit, which is undefined under
   # predation, so the curve cannot be tested against the replacement line.
+  # What can be tested without SPR is whether the data informed the curve.
   if (isTRUE(as.integer(dl[["msmMode"]] %||% 0L)[1] > 0L)) {
-    return(list(stock_recruit = .conv_record(
-      "stock_recruit", "fit", "NOTE",
-      "Stock-recruit curve not checked: steepness needs spawning biomass per recruit, which is undefined under msmMode > 0.",
-      list(steepness = NA_real_, R0 = numeric(0)))))
+    return(.check_stock_recruit_msm(object, curve))
   }
 
   # Both are [nspp, nyrs]; the stock-recruit curve is summarised by its first
@@ -709,6 +871,115 @@
 }
 
 
+# Under predation steepness does not exist and nothing anchors alpha and beta,
+# so an uninformed curve runs to a flat ridge (recruitment independent of SSB
+# over the data) or a linear one (beta at 0), each with a positive-definite
+# Hessian. Read the curve over the hindcast SSB range, the +/-30 bound and the
+# standard errors instead.
+.check_stock_recruit_msm <- function(object, curve) {
+  dl <- object[["data_list"]]
+  q  <- object[["quantities"]]
+  rp <- object[["estimated_params"]][["rec_pars"]]
+  ssb <- q[["ssb"]]
+  if (is.null(rp) || is.null(ssb)) return(list())
+  nyrs_hind <- dl[["endyr"]] - dl[["styr"]] + 1
+  spp  <- dl[["spnames"]] %||% paste0("Species", seq_len(nrow(rp)))
+  estd <- dl[["estDynamics"]] %||% rep(0, nrow(rp))
+  ch   <- object[[".conv_hindcast"]]
+
+  pos_of <- function(sp, slot) {
+    if (is.null(ch$index)) return(integer(0))
+    ch$index[ch$index$block == "rec_pars" & ch$index$slot == slot &
+               ch$index$species == spp[sp], "par_index"]
+  }
+  # NA without an sdreport (getsd = FALSE), so the standard-error clause is
+  # silent then.
+  se_of <- function(sp, slot) {
+    i <- pos_of(sp, slot)
+    if (is.null(ch$se_fixed) || length(i) != 1L || i > length(ch$se_fixed)) return(NA_real_)
+    unname(ch$se_fixed[i])
+  }
+  # A curve held at its inputs (srr_est_mode = "Fixed", or a linkage fixing
+  # alpha and beta) is what the user asked for, not something the data failed
+  # to inform; it is reported without a warning.
+  fixed_curve <- function(sp) {
+    !is.null(ch$index) && !length(pos_of(sp, "alpha")) && !length(pos_of(sp, "beta"))
+  }
+
+  msg <- character(0); dat <- list(); held <- character(0)
+  for (sp in seq_len(nrow(rp))) {
+    if (isTRUE(estd[sp] > 0)) next                       # input numbers, no curve
+    if (fixed_curve(sp)) { held <- c(held, spp[sp]); next }
+    la <- rp[sp, 2]; lb <- rp[sp, 3]
+    a  <- exp(la);   b  <- exp(lb)
+    s  <- ssb[sp, seq_len(nyrs_hind)]
+    s  <- s[is.finite(s) & s > 0]
+    if (!length(s)) next
+    smin <- min(s); smax <- max(s)
+    se_a <- se_of(sp, "alpha"); se_b <- se_of(sp, "beta")
+    why <- character(0)
+    # Density dependence at the two ends of the observed SSB range.
+    if (curve %in% c(2L, 3L)) {
+      # Beverton-Holt: predicted / asymptote = beta S / (1 + beta S).
+      dd_smin <- b * smin / (1 + b * smin); dd_smax <- b * smax / (1 + b * smax)
+      if (dd_smin > 0.9) why <- c(why, sprintf(
+        "flat over the observed SSB range (predicted/asymptote %.3f at the lowest SSB, %.4g): recruitment does not depend on SSB in these data",
+        dd_smin, smin))
+      if (dd_smax < 0.1) why <- c(why, sprintf(
+        "linear over the observed SSB range (predicted/asymptote %.3f at the highest SSB, %.4g): no density dependence, beta is not informed",
+        dd_smax, smax))
+    } else {
+      # Ricker: R = alpha S exp(-beta S / 1e6); the density-dependence factor is
+      # exp(-beta S / 1e6) and the curve peaks at S* = 1e6 / beta.
+      dd_smin <- exp(-b * smin / 1e6); dd_smax <- exp(-b * smax / 1e6)
+      speak   <- 1e6 / b
+      if (dd_smax > 0.9) why <- c(why, sprintf(
+        "linear over the observed SSB range (density-dependence factor %.3f at the highest SSB, %.4g): no density dependence, beta is not informed",
+        dd_smax, smax))
+      if (speak < smin) why <- c(why, sprintf(
+        "peak at SSB %.4g, below the lowest observed SSB (%.4g): every observation is on the descending limb",
+        speak, smin))
+    }
+    at_bound <- abs(c(la, lb)) >= 30 - 1e-3
+    if (any(at_bound)) why <- c(why, sprintf(
+      "%s at the +/-30 log-scale overflow bound",
+      paste(c("alpha", "beta")[at_bound], collapse = " and ")))
+    big_se <- c(alpha = se_a, beta = se_b)
+    big_se <- big_se[is.finite(big_se) & big_se > 10 | is.nan(big_se)]
+    if (length(big_se)) why <- c(why, sprintf(
+      "log-scale standard error %s on %s",
+      paste(signif(big_se, 3), collapse = " and "), paste(names(big_se), collapse = " and ")))
+    dat[[spp[sp]]] <- list(alpha = a, beta = b, se_log_alpha = se_a, se_log_beta = se_b,
+                           dd_at_smin = dd_smin, dd_at_smax = dd_smax,
+                           ssb_range = c(smin, smax))
+    if (length(why)) msg <- c(msg, sprintf("%s: %s.", spp[sp], paste(why, collapse = "; ")))
+  }
+  if (!length(dat)) {
+    if (!length(held)) return(list(stock_recruit = .conv_record(
+      "stock_recruit", "fit", "NOTE",
+      "Stock-recruit curve not checked: no species carries an estimated curve with usable spawning biomass.",
+      list())))
+    return(list(stock_recruit = .conv_record(
+      "stock_recruit", "fit", "NOTE",
+      sprintf("Stock-recruit curve held at its inputs for %s; nothing to check.",
+              paste(held, collapse = ", ")),
+      list(held = held))))
+  }
+  if (!length(msg)) {
+    return(list(stock_recruit = .conv_record(
+      "stock_recruit", "fit", "OK",
+      "Stock-recruit curve bends within the observed SSB range (steepness is undefined under msmMode > 0, so the replacement line is not checked).",
+      dat)))
+  }
+  list(stock_recruit = .conv_record(
+    "stock_recruit", "fit", "WARN",
+    paste(c("Stock-recruit curve not informed by the data under predation.", msg,
+            "Anchor it with an alpha prior through build_srr(linkages = ), or report the fit as a mean-recruitment model."),
+          collapse = " "),
+    dat))
+}
+
+
 #' Convergence diagnostics for a fitted Rceattle model
 #'
 #' Runs the post-fit convergence battery and returns a single structured
@@ -719,10 +990,12 @@
 #'
 #' \code{fit_mod()} runs this automatically and attaches the result as
 #' \code{fit$convergence}; call \code{convergence_diagnostics()} directly to
-#' re-run it on any fit. Checks cover the optimizer gradient, Hessian
-#' positive-definiteness and conditioning, parameters on bounds, a deviation
-#' variance estimated to zero, phasing, and
-#' parameter estimability.
+#' re-run it on any fit. Checks cover the optimizer gradient, a requested
+#' \code{sdreport} that did not return, an \code{sdreport} that was never
+#' requested, Hessian positive-definiteness and conditioning, parameters on
+#' bounds, parameters past them, a deviation variance estimated to zero, phasing,
+#' parameter estimability, a numbers-at-age, Ricker-intercept or recruitment floor that
+#' was reached, and the stock-recruit curve.
 #'
 #' @param object An object of class \code{"Rceattle"} returned by [fit_mod()].
 #' @param ... Currently unused.
@@ -732,19 +1005,21 @@
 #'   records).
 #' @export
 convergence_diagnostics <- function(object, ...) {
-  # Three checks name their parameters by coordinate. The hindcast index was
+  # Five checks name their parameters by coordinate. The hindcast index was
   # stored by fit_mod(); the one for the fit's final parameter vector means
   # pushing a tagged vector through TMB's parList(), so a promise builds the pair
   # at most once, and not at all on a fit where every check passes.
   delayedAssign("index", .conv_par_index(object))
   checks <- c(
     .check_phasing(object),
-    .check_optimizer(object),
+    .check_optimizer(object, index),
     .check_sdreport_failed(object),
+    .check_hessian_not_run(object),
     .check_hessian_eigen(object, index),
     .check_bounds(object, index),
     .check_variance_collapse(object),
     .check_estimability_record(object, index),
+    .check_zero_n_penalty(object),
     .check_stock_recruit(object)
   )
   structure(

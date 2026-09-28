@@ -2,7 +2,7 @@
 #'
 #' @description
 #' CEATTLE's TMB parameter vector uses transformed, abbreviated names
-#' (`log_sel_slp_dev`, `M1_beta`, `index_q_rho`, ...). This table is the single
+#' (`log_sel_slp_dev`, `M1_beta`, `M1_rho`, ...). This table is the single
 #' place mapping them to the quantity a user actually chose to estimate, so
 #' error messages, diagnostics and output summaries share one vocabulary.
 #'
@@ -30,7 +30,7 @@
     r("dummy", "dummy", "internal",
       "Placeholder parameter; the only free parameter under estimateMode = 4.", "[1]"),
     r("log_pop_scalar", "pop_scalar", "internal",
-      "Multiplier on user-supplied numbers-at-age when estDynamics > 0.", "[nspp, nages]"),
+      "Multiplier on user-supplied numbers-at-age; estimated for estDynamics = 2 under predation, 1 otherwise.", "[nspp]"),
 
     # -- recruitment -------------------------------------------------------
     r("rec_pars", "R0 / alpha / beta", "recruitment",
@@ -95,8 +95,6 @@
       "Survey/index catchability.", "[n_flt]"),
     r("index_q_beta", "q covariate effect", "catchability",
       "LEGACY environmental regression coefficients on q; superseded by beta_linkage.", "[n_flt, n_env]"),
-    r("index_q_rho", "rho_q", "catchability",
-      "AR1 correlation of the annual catchability deviations.", "[n_flt]"),
     r("index_q_dev", "q deviations", "catchability",
       "Annual deviations on catchability when q is time-varying.", "[n_flt, nyrs_hind]"),
     r("index_q_log_sd", "sigma_q_prior", "catchability",
@@ -109,6 +107,8 @@
       "Logistic-family selectivity slope; row 1 ascending, row 2 descending.", "[2, n_sel, nsex]"),
     r("sel_inf", "selectivity inflection", "selectivity",
       "Logistic-family age/length at 50% selection; row 1 ascending, row 2 descending.", "[2, n_sel, nsex]"),
+    r("log_sel_apical", "selectivity apical height", "selectivity",
+      "Log multiplier on one sex's whole curve, applied after the form and before normalization; 0 = no offset. Estimated only through a selectivity linkage on `apical`.", "[n_sel, nsex]"),
     r("log_sel_slp_dev", "slope deviations", "selectivity",
       "Annual deviations on the selectivity slope.", "[2, n_sel, nsex, nyrs_hind]"),
     r("sel_inf_dev", "inflection deviations", "selectivity",
@@ -183,7 +183,7 @@
 
 #' Look up what a CEATTLE parameter is
 #'
-#' The TMB parameter vector uses transformed, abbreviated names --
+#' The TMB parameter vector uses transformed, abbreviated names,
 #' `log_M1`, `R_log_sd`, `index_log_q`. This returns the table mapping each one
 #' to the quantity it represents on its natural scale, which process it belongs
 #' to, what it means, and its dimensions.

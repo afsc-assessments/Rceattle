@@ -35,7 +35,7 @@ upward, since age \code{minage} in the first year is recruitment.
 Coordinate columns are \code{NA} where the axis does not apply to a block. The
 linkage and environmental-covariate blocks (\code{beta_linkage}, \code{M1_beta}, ...)
 are indexed by a linkage-table row rather than a model coordinate, so they
-carry no coordinates and are reported by element number.
+hold no coordinates and are reported by element number.
 
 A selectivity \code{slot} is named from the fleet's \code{Selectivity}: slot 2 of
 \code{sel_inf} is a descending inflection for the double-logistic family, the
@@ -44,7 +44,7 @@ right-tail floor under \code{DoubleNormal}, and the age-1 selectivity under
 
 Under \code{estimateMode = "Estimate"} with any HCR but \code{"NoFishing"}, \code{object$obj}
 is the projection object, whose only free parameters are \code{log_Ftarget} /
-\code{log_Flimit} -- so the index describes those, not the hindcast.
+\code{log_Flimit}, so the index describes those, not the hindcast.
 \code{fit$convergence} reads the hindcast index that \code{\link[=fit_mod]{fit_mod()}} captured before
 the projection remapped the model, and checks it against the vector it is
 labelling either way.

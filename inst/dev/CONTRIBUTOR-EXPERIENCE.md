@@ -3,14 +3,17 @@
 Make the codebase navigable, editable and extensible by a **fisheries scientist or ecologist**,
 not a software engineer. State and plan, not policy; policy lives in `CLAUDE.md`.
 
-Nothing here has been started.
+**Shipped in 5.37.0 (PRs #147, #148):** C, D, the A-guard, and the first of A's three recipes.
+Open: A's other two recipes, B, E, G, H. Item F was deleted — its premise was wrong (the column
+it proposed to fix already holds a canonical string; see "Where item F went" below). Item 0 has
+still not been done, and it is still the one that should reorder the rest.
 
 **Success measure for the whole effort, so it can fail:** someone outside the maintainer group
 lands a working selectivity form, or a new likelihood family, without a maintainer walking them
 through it. One observable event. If that has not happened a year after these items land, the
 items were the wrong items.
 
-**Every item is documentation or tooling except F and G, which change the API.** Rule 5's
+**Every item is documentation or tooling except G, which changes the API.** Rule 5's
 doc-sync obligations apply as written in `CLAUDE.md`; they are not restated per item, only where
 an item is *exempt* or needs a version bump.
 
@@ -47,17 +50,17 @@ What FIMS does better is the contributor path:
 
 | FIMS has | Rceattle has | Verified by |
 |---|---|---|
-| `vignettes/adding-new-module.Rmd`, 739 lines: ordered file list, validation checklist, troubleshooting | one 448-line `developer-guide.Rmd` describing the system, no per-task recipe | `wc -l` both |
+| `vignettes/adding-new-module.Rmd`, 739 lines: ordered file list, validation checklist, troubleshooting | a 465-line `developer-guide.Rmd` plus one per-task recipe, `adding-a-selectivity-form.Rmd` (5.37.0); two more recipes open | `wc -l` both |
 | `inst/include/common/glossary.md` — every symbol, meaning, units | nothing | `find` |
-| Doxygen with rendered LaTeX, published on the pkgdown site | Doxygen comments in all 10 headers, **no Doxyfile, not published** | `grep -rl "@brief" src/TMB/` = 10 files; `find -iname Doxyfile` = none |
-| `CONTRIBUTING.md`, 101 lines | none — the equivalent lives in `CLAUDE.md`, addressed to an agent | `ls` |
+| Doxygen with rendered LaTeX, published on the pkgdown site | Doxygen comments in all 11 headers, built by `Doxyfile` and published from the pkgdown workflow (5.37.0) | `ls src/TMB/*.hpp` = 11, all with `@brief`; `.github/workflows/pkgdown.yaml` |
+| `CONTRIBUTING.md`, 101 lines | `CONTRIBUTING.md`, 124 lines (5.37.0); `CLAUDE.md` keeps the agent-facing policy | `ls` |
 | `use_gtest_template()` / `use_testthat_template()` scaffolding | none | `grep -rn "usethis::" R/` = none |
 | `.devcontainer/` + a setup vignette + `setup_fims.sh` | the `export PATH=/usr/bin:$PATH` toolchain trap, documented only in `CLAUDE.md` | `ls` |
 | `tidy()` / `glance()` / `augment()` via {generics} | none | `grep` R/ + NAMESPACE |
 
 The concrete gap, as a task: **adding a selectivity form.** In FIMS it is one new file under
 `functors/` plus registration, every step written down. In Rceattle it is a new `case` in the
-`switch (sel_type)` at `src/TMB/selectivity.hpp:350` plus edits across the R pipeline — and that
+`switch (sel_type)` at `src/TMB/selectivity.hpp:361` plus edits across the R pipeline — and that
 list is written down nowhere a human will find it.
 
 ### The file list is a hypothesis, not a finding
@@ -68,23 +71,26 @@ correct this table**, and the prompt says so.
 
 | File | When | Why |
 |---|---|---|
-| `R/0-switches.R` | always | `sel_map` (`:73`–`:84`) — the name the user types. `"DoubleNormal" = 8` is at `:82` |
+| `R/0-switches.R` | always | `sel_map` (`:73`–`:87`) — the name the user types. `"DoubleNormal" = 8` is at `:82`; the 5.40.0 forms close the list at `:85`–`:86` |
 | `R/0-column_schema.R` | always | the `Selectivity` description (`:118`) is the user-facing switch documentation |
-| `src/TMB/selectivity.hpp` | always | the `case` in `switch (sel_type)` at `:350` |
-| `R/1-data_check.R` | usually | per-form required-column checks live at `:633`–`:654` |
+| `src/TMB/selectivity.hpp` | always | the `case` in `switch (sel_type)` at `:361` |
+| `R/1-data_check.R` | usually | per-form checks: `N_sel_bins` at `:867`–`:889`; form x `Time_varying_sel` for the non-parametric forms at `:960`–`:984`, Hake at `:986`–`:989`, LogisticPM at `:1002`–`:1005` |
 | `R/2-build_params.R` | if the form has new parameters | |
-| `R/3-build_map.R` | if the form has new parameters | 257 selectivity references; the densest file in the list |
+| `R/3-build_map.R` | if the form has new parameters | the densest file in the list: `grep -ci sel` returns 302 lines |
 | `R/4-build_parameter_bounds.R` | if the form has new parameters | |
 | `R/5-rearrange_data.R` | if the form needs a column passed to TMB | |
 | `src/TMB/ceattle.cpp` + the `JnllRow` enum | if the form carries its own penalty | |
-| `R/6-rename_output.R` | with the above | display names are hand-synced to `JnllRow`; the selectivity rows are at `:148`–`:149` |
+| `R/6-rename_output.R` | with the above | display names are hand-synced to `JnllRow`; the selectivity rows are at `:188`–`:189` |
 | `tests/testthat/` | always | `test-schema-cpp-dispatch.R` binds map values to `case` labels and will go red until both exist |
 
-**A trap the recipe must state:** the pipeline compares `Selectivity` against **strings before
-`switch_check()` and integers after it**. `R/1-data_check.R:633` tests
-`%in% c("NonParametric", "NonParametricPM")`; `R/0-switches.R:947` then converts via
-`.conv(.data$Selectivity, sel_map)` and downstream code compares integers. A form added to the
-map but not to the string-side checks passes validation and fails later, or the reverse.
+**A trap the recipe must state:** `Selectivity` is compared against **canonical strings**
+everywhere in the R pipeline. Integers or strings on input become strings at `switch_check()`,
+which calls `revert_switches()` before it returns (`R/0-switches.R:1003`, converting at `:1152`;
+nothing after that call re-converts the column). They become integers only inside
+`rearrange_data()`, on the copy handed to TMB
+(`convert_switches()`, `R/0-switches.R:1471`). So a form added to `sel_map` but not to the
+per-form string checks passes validation and fails later. Some sites defend both spellings, for
+example `R/0-switches.R:944`.
 
 ---
 
@@ -92,12 +98,12 @@ map but not to the string-side checks passes validation and fails later, or the 
 
 ### Recommended order, and the case against it
 
-**0 → B → C → A → D → H → E → G → F.**
+**0 → B → C → A → D → H → E → G.**
 
 A has the highest ceiling, which is why I first put it first — but B is cheaper, C is nearly
 free, and **A will spend its whole length referring to names that B defines**, so writing A
 first means writing it twice. D and H are small and independent. E only pays off once A exists
-to be enforced. F is last because it is the only item that can move a number.
+to be enforced.
 
 The case for A first: if item 0 says people stop at "how do I add a thing", B and C are
 navigation aids for a wall they never reach. **Overturn this with item 0's answer, not with my
@@ -125,8 +131,8 @@ The knowledge already exists in `.claude/commands/new-column.md`, written for an
 are the same content for a person. The linkage article must state rule 12 (`linkage.hpp` and
 `R/0-linkage_encode.R` in lockstep).
 
-Fitting chunks are gated the way `vignettes/*.Rmd` do it — six of them open with
-`eval = identical(Sys.getenv("RCEATTLE_EVAL_VIGNETTES"), "true")`. Do not copy
+Fitting chunks are gated the way `vignettes/*.Rmd` do it — nine of them open with
+`eval = identical(Sys.getenv("RCEATTLE_EVAL_VIGNETTES"), "true")`, as do both articles. Do not copy
 `vignettes/articles/developer-guide.Rmd` for this; it has one chunk.
 
 **Every recipe ships with its drift guard (below). A recipe without one is not done.**
@@ -156,7 +162,7 @@ the existing drift guards were.
 **symbol · code name · units · where computed · where reported.**
 
 FIMS's version maps symbol → meaning. Rceattle's must map **symbol → variable name**, because
-that is the actual barrier: someone opening the 5,183-line `ceattle.cpp` cannot tell what
+that is the actual barrier: someone opening the 5,671-line `ceattle.cpp` cannot tell what
 `biomassSSB` or `NByage` hold or in what units. Cover at minimum the quantities named in
 `R/6-rename_output.R` and every `JnllRow` row.
 
@@ -170,7 +176,7 @@ the A-guard test so it cannot drift.
 ### C. Publish the Doxygen — half a day · nearly free, immediately visible
 
 A `Doxyfile` plus a step in `.github/workflows/pkgdown.yaml`. The `@brief` blocks already exist
-in all ten headers; this is a build and a link, and it makes the C++ browsable without an editor.
+in all eleven headers; this is a build and a link, and it makes the C++ browsable without an editor.
 
 `pkgdown.yaml` triggers on `main` only, so a PR to `dev` gets no CI for it — run
 `/pkgdown-check` locally.
@@ -205,31 +211,6 @@ behaviour test for the new form* fails until the case body is written. A scaffol
 the whole suite green has hidden the remaining work.
 **Doc-sync:** internal helpers, no user-visible change.
 
-### F. Report switch names, not codes — 2 days + a sweep · ⚠ the only item that can break a caller
-
-**Narrower than it looks, and more delicate.** The input side already accepts strings:
-`.conv(.data$Selectivity, sel_map)` at `R/0-switches.R:947` resolves `"DoubleNormal"` (`:82`) to
-`8`. What is missing is the return trip — after `switch_check()` the stored value is an integer,
-so `mod$data_list$fleet_control$Selectivity` reads `8`, and messages quote the integer.
-
-**Scope, stated exactly, because the ambiguous version is dangerous:**
-
-- **Do**: add a display-only canonical name to the fitted object's reporting surface, and quote
-  the name in every message that names a switch value.
-- **Do not**: change what `data_list$fleet_control$Selectivity` holds after `switch_check()`. It
-  stays an integer.
-
-The reason is that the pipeline compares this column against strings in some places and integers
-in others depending on position — `R/1-data_check.R:633` compares strings, `R/0-switches.R:680`,
-`:700`, `:752` and 257 sites in `R/3-build_map.R` compare after conversion. Storing a string
-would make branches silently stop matching: a wrong number that does not announce itself, which
-is the failure mode `CLAUDE.md` opens with.
-
-**Acceptance:** golden bit-identical (`/golden-check`), and `/ecosystem-sweep` clean over
-`../Rceattle-models` and `../GOA-ATF-ESP` (ignore `EBS_CEATTLE_TMB`, a vendored fork). Deprecate,
-never delete — rule 1.
-**Doc-sync:** NEWS + `DESCRIPTION` `Version:` + the affected vignette. Minor bump.
-
 ### G. broom generics — 2–3 days · additive · ⚠ API
 
 `tidy.Rceattle()` — one row per parameter with estimate, SE, bounds. `glance.Rceattle()` — one
@@ -256,6 +237,18 @@ often the difference between contributing and not.
 **Doc-sync:** repo tooling, exempt.
 
 ---
+
+## Where item F went
+
+Item F proposed reporting switch names rather than codes, on the premise that
+`fit$data_list$fleet_control$Selectivity` holds an integer after `switch_check()` and that
+messages therefore quote `8` rather than `"DoubleNormal"`. That premise was wrong, and had been
+since before the item was written: `switch_check()` calls `revert_switches()` before returning,
+so the stored column holds the canonical string and the messages already quote it. The integer
+exists only on the copy `rearrange_data()` hands to TMB.
+
+The item is deleted rather than rewritten, because what it asked for is what the code does.
+What survives is the trap above, stated the right way round.
 
 ## Explicitly not doing
 

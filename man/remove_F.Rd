@@ -4,15 +4,27 @@
 \alias{remove_F}
 \title{Rerun with F = 0.}
 \usage{
-remove_F(object = NULL, Rceattle = NULL)
+remove_F(object = NULL, styr = NULL, Rceattle = NULL)
 }
 \arguments{
 \item{object}{A fitted Rceattle model object}
+
+\item{styr}{First year with F = 0; default \code{endyr + 1}, which leaves the hindcast unchanged.}
 
 \item{Rceattle}{deprecated name for \code{object}, still accepted so existing
 scripts keep working. Supplying both is an error.}
 }
 \description{
-Function to update hindcast and set F to 0.
-Useful for determining dynamic reference points for multi-species models under climate-change.
+Refits the model with fishing mortality set to 0 from \code{styr} on, keeping
+every other parameter. The projection after \code{endyr} is always unfished.
+\code{run_mse()} uses it for the no-fishing run (\code{OM_no_F}) behind the collapse
+metrics.
+}
+\details{
+\code{styr} may be any year from the model's own \code{styr} to \code{endyr + 1}; the
+projection is unfished whatever harvest control rule the model was fit under.
+Under predation, empirical suitability (\code{suitMode = 0}) is derived from the
+fitted abundance over each predator's \code{suit_styr:suit_endyr}, so \code{styr} must
+fall after that window for every predator with \code{suitMode = 0} and diet data
+in it.
 }

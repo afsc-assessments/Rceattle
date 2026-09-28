@@ -21,11 +21,11 @@ build_M1(
 effects model. Either an integer code or the equivalent string
 alias (both forms are accepted; the integer code is canonical):
 \itemize{
-\item \code{0} / \code{"fixed"} -- use the input \code{M1_base} (no estimation).
-\item \code{1} / \code{"sex_age_invariant"} -- estimate one \verb{M1_\{spp\}}.
-\item \code{2} / \code{"sex_specific"} -- estimate \verb{M1_\{spp, sex\}}.
-\item \code{3} / \code{"sex_age_specific"} -- estimate \verb{M1_\{spp, sex, age\}}.
-\item \code{4}, \code{5} -- soft-deprecated env-driven codes; use the
+\item \code{0} / \code{"fixed"}, use the input \code{M1_base} (no estimation).
+\item \code{1} / \code{"sex_age_invariant"}, estimate one \verb{M1_\{spp\}}.
+\item \code{2} / \code{"sex_specific"}, estimate \verb{M1_\{spp, sex\}}.
+\item \code{3} / \code{"sex_age_specific"}, estimate \verb{M1_\{spp, sex, age\}}.
+\item \code{4}, \code{5}, soft-deprecated env-driven codes; use the
 \code{linkages} argument instead. See \code{vignette("environmental-linkages-and-priors")}.
 }}
 

@@ -4,7 +4,7 @@
 #' `fit$quantities` holds every derived quantity the TMB model reports, under
 #' the model's own abbreviated names (`ssb`, `F_spp`, `NByageF`, ...). This
 #' table is the single place saying what each one is, the units it is in, how it
-#' is shaped, whether it carries a standard error, and what the same quantity is
+#' is shaped, whether it holds a standard error, and what the same quantity is
 #' called in the NOAA standardized assessment output.
 #'
 #' Columns:
@@ -18,7 +18,7 @@
 #'   \item{units}{The units the value is in, or "unitless" / "proportion".}
 #'   \item{dims}{Dimensions, in the model's own notation.}
 #'   \item{se}{Whether [TMB::sdreport()] gives a standard error for it, i.e.
-#'     whether the template `ADREPORT`s it. `FALSE` means `fit$sdrep` carries
+#'     whether the template `ADREPORT`s it. `FALSE` means `fit$sdrep` holds
 #'     nothing for this quantity and any interval must come from elsewhere.}
 #'   \item{standard_label}{The `label` this quantity takes in the NOAA
 #'     standardized assessment output consumed by `stockplotr` and `asar`, or
@@ -58,7 +58,7 @@
       "Total biomass relative to unfished biomass, biomass / B0.",
       "proportion", "[nspp, nyrs]", TRUE, NA_character_),
     r("ssb_depletion", "population",
-      "Female spawning biomass relative to unfished, ssb / SB0; the quantity a Tier 3 harvest control rule compares against B40%.",
+      "Female spawning biomass relative to unfished, ssb / SB0; the quantity a Tier 3 harvest control rule compares against B40%. NA for a species with input numbers-at-age in single-species mode unless DynamicHCR = TRUE, where it is those numbers relative to themselves (1 at spawn_month = 0).",
       "proportion", "[nspp, nyrs]", TRUE, "relative_spawning_biomass"),
     r("N_at_age", "population",
       "Numbers at age at the start of the year.",
@@ -72,7 +72,7 @@
 
     # -- recruitment -------------------------------------------------------
     r("R", "recruitment",
-      "Recruitment: numbers entering at the youngest age bin.",
+      "Recruitment: numbers entering at the youngest age bin. For a species with input numbers-at-age (estDynamics > 0), the input recruits, with no standard error.",
       "thousands of fish", "[nspp, nyrs]", TRUE, "recruitment"),
     r("log_R", "recruitment",
       "Recruitment on the log scale; its standard error is the CV of recruitment.",
@@ -154,10 +154,10 @@
     # M2, which scales with predator abundance, so spawning output per recruit
     # is not a property of the prey stock alone.
     r("Flimit", "reference_points",
-      "Limit fishing mortality, the FOFL proxy (F35% under Tier 3) used in projections.",
+      "Limit fishing mortality, the FOFL proxy (F35% under Tier 3) used in projections; NA for a species with input numbers-at-age.",
       "yr^-1", "[nspp]", FALSE, NA_character_),
     r("Ftarget", "reference_points",
-      "Target fishing mortality, the maximum FABC proxy (F40% under Tier 3) used in projections.",
+      "Target fishing mortality, the maximum FABC proxy (F40% under Tier 3) used in projections; NA for a species with input numbers-at-age.",
       "yr^-1", "[nspp]", FALSE, NA_character_),
     r("B0", "reference_points",
       "Total biomass at F = 0, carrying the estimated stock-recruit relationship.",
@@ -166,7 +166,7 @@
       "Female spawning biomass at F = 0; the B100% the Tier 3 proxies are taken from.",
       "mt", "[nspp, nyrs]", FALSE, "spawning_biomass_zero"),
     r("SBF", "reference_points",
-      "Female spawning biomass at F = Ftarget.",
+      "Female spawning biomass at F = Ftarget; NA for a species with input numbers-at-age.",
       "mt", "[nspp, nyrs]", FALSE, NA_character_),
     r("DynamicB0", "reference_points",
       "Total biomass under the realized recruitment history with F set to zero. A species with input numbers-at-age keeps them.",
@@ -175,16 +175,16 @@
       "Female spawning biomass under the realized recruitment history with F set to zero. A species with input numbers-at-age keeps them.",
       "mt", "[nspp, nyrs]", FALSE, NA_character_),
     r("DynamicSBF", "reference_points",
-      "Female spawning biomass under the realized recruitment history with F set to Ftarget.",
+      "Female spawning biomass under the realized recruitment history with F set to Ftarget; NA for a species with input numbers-at-age.",
       "mt", "[nspp, nyrs]", FALSE, NA_character_),
     r("SPR0", "reference_points",
       "Spawning biomass per recruit at F = 0. Zero under msmMode > 0.",
       "kg per recruit", "[nspp]", FALSE, NA_character_),
     r("SPRlimit", "reference_points",
-      "Spawning biomass per recruit at F = Flimit. Zero under msmMode > 0.",
+      "Spawning biomass per recruit at F = Flimit. Zero under msmMode > 0; NA for a species with input numbers-at-age.",
       "kg per recruit", "[nspp]", FALSE, NA_character_),
     r("SPRtarget", "reference_points",
-      "Spawning biomass per recruit at F = Ftarget. Zero under msmMode > 0.",
+      "Spawning biomass per recruit at F = Ftarget. Zero under msmMode > 0; NA for a species with input numbers-at-age.",
       "kg per recruit", "[nspp]", FALSE, NA_character_),
     r("SPRFinit", "reference_points",
       "Spawning biomass per recruit at F = Finit. Zero under msmMode > 0.",
@@ -377,8 +377,8 @@
 
     # -- internal ----------------------------------------------------------
     r("pop_scalar", "internal",
-      "Multiplier on user-supplied numbers-at-age when estDynamics > 0.",
-      "multiplier", "[nspp, nages]", TRUE, NA_character_),
+      "Multiplier on user-supplied numbers-at-age; estimated for estDynamics = 2 under predation, 1 otherwise.",
+      "multiplier", "[nspp]", TRUE, NA_character_),
     r("rec_srr_single_density", "internal",
       "Flag recording whether the stock-recruit prior was evaluated as a single density.",
       "unitless", "[1]", FALSE, NA_character_)
@@ -390,7 +390,7 @@
 #'
 #' `fit$quantities` uses the model's own abbreviated names. This returns the
 #' table mapping each one to what it means, the units it is in, how it is
-#' shaped, whether it carries a standard error, and what the same quantity is
+#' shaped, whether it holds a standard error, and what the same quantity is
 #' called in the NOAA standardized assessment output.
 #'
 #' @param quantity Report names as they appear in `names(fit$quantities)`,
@@ -411,7 +411,7 @@
 #' `Observation_units` column.
 #'
 #' `se = TRUE` means the TMB template `ADREPORT`s the quantity, so `fit$sdrep`
-#' carries a standard error for it and [as.data.frame.Rceattle()] can fill `se`,
+#' holds a standard error for it and [as.data.frame.Rceattle()] can fill `se`,
 #' `lwr` and `upr`. `se = FALSE` means no standard error exists anywhere on the
 #' fit for that quantity. Nothing has a standard error when the fit was produced
 #' with `fit_control(getsd = FALSE)`, which leaves `sdrep` NULL.
@@ -424,7 +424,7 @@
 #'
 #' Every per-recruit reference point (`SPR0`, `SPRlimit`, `SPRtarget`,
 #' `SPRFinit`, `NbyageSPR`) is computed only under `msmMode = 0` and is exactly
-#' **zero on a multispecies fit** -- M there carries predation mortality, which
+#' **zero on a multispecies fit**: M there holds predation mortality, which
 #' scales with predator abundance, so spawning output per recruit is not a
 #' property of the prey stock alone.
 #'
@@ -435,7 +435,7 @@
 #' # What is ssb_depletion, and what units is it in?
 #' quantity_dictionary("ssb_depletion")
 #'
-#' # Everything that carries a standard error
+#' # Everything that holds a standard error
 #' dict <- quantity_dictionary()
 #' dict[dict$se, c("quantity", "meaning")]
 #'

@@ -13,8 +13,8 @@
 #'   Costs an extra model build per peel; see Details.
 #'   Mohn's rho uses only point estimates, so \code{FALSE} is faster with no
 #'   effect on rho. Default \code{NULL} inherits the input model's setting
-#'   (\code{TRUE} if it was fit with \code{getsd = TRUE}, i.e. carries an
-#'   \code{sdrep}); the returned peel models then carry standard errors only
+#'   (\code{TRUE} if it was fit with \code{getsd = TRUE}, i.e. holds an
+#'   \code{sdrep}); the returned peel models then hold standard errors only
 #'   when \code{getsd} is \code{TRUE}.
 #' @param phase whether each peel is refitted in phases (default \code{TRUE}).
 #'   A peel restarts from the unpeeled fit's starting values with a year removed;
@@ -35,7 +35,7 @@
 #'   A peel that did not converge is dropped, so \code{Rceattle_list} can be
 #'   shorter than \code{peels + 1} (a message reports how many). Each entry is
 #'   named for its own terminal year (\code{Year_2017}, ...) rather than by
-#'   position, so index it by name -- \code{Rceattle_list[[3]]} is not
+#'   position, so index it by name, \code{Rceattle_list[[3]]} is not
 #'   necessarily the 3-year peel. With no peel left, Mohn's rho is \code{NaN}
 #'   and the function warns.
 #'
@@ -46,10 +46,11 @@
 #'   forecast, fit to the observed catch with the survey and composition data
 #'   withheld. Their recruitment deviation is the one [sample_rec()] sets with
 #'   `sample_rec = FALSE`, computed from the peel's own fit; a penalty-form peel
-#'   with no penalty years averages over its own years after the first, with a
-#'   warning. Three years therefore matter, and each peel has all three:
+#'   with no penalty years averages over its own years after the first (or over
+#'   its one year, for a peel that keeps a single year), with a warning. Three
+#'   years therefore matter, and each peel has all three:
 #'   \describe{
-#'     \item{\code{endyr}, \code{endyr_peel}}{the peel's terminal year -- what it
+#'     \item{\code{endyr}, \code{endyr_peel}}{the peel's terminal year, what it
 #'       was fit through. Equal to each other.}
 #'     \item{\code{endyr_full}}{the unpeeled model's terminal year, where the
 #'       retrospective forecast ends.}
@@ -65,10 +66,10 @@
 #'   Mohn's rho is computed from \code{endyr_peel} and is unaffected by any of
 #'   this.
 #'
-#'   Catchability is estimated only for a fleet that carries fitted index rows
+#'   Catchability is estimated only for a fleet that holds fitted index rows
 #'   (see \code{\link{build_map}}), and a peel moves \code{endyr}. A survey whose
 #'   index observations all fall in the peeled-off years therefore has no q
-#'   estimated in that peel -- the parameter count is not constant across peels.
+#'   estimated in that peel, the parameter count is not constant across peels.
 #'   That is deliberate: a q with no index to inform it is a flat direction in
 #'   the likelihood. It does not affect Mohn's rho, which is computed from SSB,
 #'   but it does mean \code{npar} and the reported catchability differ between a
@@ -338,6 +339,8 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
       if (!length(hat_yrs)) hat_yrs <- seq(min(2, nyrs_peel), nyrs_peel)
     }
     for(sp in 1:newmod$data_list$nspp){
+      # A species with input numbers-at-age has no rec_dev to set (its R is the input recruits).
+      if (isTRUE((newmod$data_list$estDynamics %||% 0)[sp] > 0)) next
 
       # -- where SR curve is estimated directly
       if(newmod$data_list$srr_fun == newmod$data_list$srr_pred_fun){
@@ -473,7 +476,8 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
               " contain no stock-recruit penalty years, so their curve stays at the ",
               "unpeeled fit's estimates (fitted to years the peel withholds) unless a ",
               "prior or a reference-point penalty changes it; their projected recruitment deviation averages over the ",
-              "peel's own years after the first. With getsd = TRUE such a peel is usually dropped for a ",
+              "peel's own years after the first (or over its one year, for a peel that keeps a single year). ",
+              "With getsd = TRUE such a peel is usually dropped for a ",
               "non-positive-definite Hessian.", call. = FALSE)
     }
   }
@@ -696,11 +700,11 @@ print.Rceattle_retro <- function(x, band = 0.2, ...) {
 #' @param getsd whether each jitter runs \code{TMB::sdreport}. Jitter compares
 #'   objectives and point estimates across starts, so \code{FALSE} is faster
 #'   with no effect on that comparison. Default \code{NULL} inherits the input
-#'   model's setting (\code{TRUE} only if it carries an \code{sdrep}).
+#'   model's setting (\code{TRUE} only if it holds an \code{sdrep}).
 #' @param timeout elapsed-second limit per jitter, \code{Inf} (default) for none.
 #'   A jitter is a deliberately perturbed start and the optimizer runs with no
 #'   iteration cap, so this is the diagnostic most likely to send one somewhere
-#'   pathological and stall the whole run -- a hang no convergence check can
+#'   pathological and stall the whole run, a hang no convergence check can
 #'   catch, because the fit never returns. One that exceeds the limit is stopped,
 #'   counted as non-converged and reported separately. Approximate: the limit is
 #'   checked when control returns to R, so it fires between the optimizer's
@@ -709,7 +713,7 @@ print.Rceattle_retro <- function(x, band = 0.2, ...) {
 #' @return a list of 1. \code{Rceattle_list}, the converged jitters, and
 #'   2. \code{nll}, their objective values. Non-converged (or timed-out) starts
 #'   are dropped and reported in a message, so both can be shorter than
-#'   \code{njitter} -- and that count is itself the result, since the whole point
+#'   \code{njitter}, and that count is itself the result, since the whole point
 #'   is what fraction of random starts reach the same optimum.
 #'
 #' @examples
@@ -849,7 +853,7 @@ jitter <- function(object = NULL, njitter = 50, sd = 0.2, phase = FALSE, seed = 
 #' Print method for a jitter analysis
 #'
 #' @description Reports what the run was for: how many random starts reached the
-#' best optimum found. The objective values alone cannot say that -- non-converged
+#' best optimum found. The objective values alone cannot say that, non-converged
 #' starts are dropped before the result is returned, so the count of returned
 #' fits is not the count attempted.
 #'

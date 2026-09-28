@@ -35,7 +35,7 @@ GROWTH_FUNS <- c("empirical", "vonBertalanffy", "Richards")
 #' `sd_L1` / `sd_Linf` are the standard deviations of length-at-age
 #' anchored at `L1` and `Linf` (the SD-at-age interpolation endpoints).
 #' Only intercept-only specs (`~ 1`) are honored
-#' on the SD endpoints -- they thread through `init` / `bounds` /
+#' on the SD endpoints, they thread through `init` / `bounds` /
 #' `priors` onto the growth SD-at-age but do not vary by year.
 #' The empirical weight-at-age model admits no linkages.
 #'
@@ -95,7 +95,7 @@ GROWTH_LINKAGE_PARAMS <- c("K", "L1", "Linf", "m", "sd_L1", "sd_Linf")
 #'   accept arbitrary one-sided formulas and make that growth parameter
 #'   year-varying (a per-year offset around its mean). The SD-endpoint keys
 #'   (`sd_L1`, `sd_Linf`) only honor intercept-bearing
-#'   formulas (typically `~ 1`) -- they thread `init`, `bounds`, and
+#'   formulas (typically `~ 1`), they thread `init`, `bounds`, and
 #'   `priors` onto the growth SD-at-age, giving
 #'   the SDs the same prior/fix/initial-value contract as the mean
 #'   parameters. Slope rows on SD specs raise a warning and have no

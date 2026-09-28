@@ -59,7 +59,7 @@ $$M2_{isa,y} = \sum_{pbj} \left( \frac{N_{pbj,y} \delta_{pbj,y} {S}_{pbjisa}} {\
 ## Consumption
 Rceattle supports several age-based consumption parameterizations: an environmentally driven bioenergetics model and direct input of consumption-at-age. The consumption model is controlled by the following objects in the data (`bioenergetics_control` sheet of the excel data input):
 
-* `Ceq`	Integer: switch for which bioenergetics equation to use for each species for ft to scale max consumption: 1 = Exponential (Stewart et al 1983), 2 = Temperature-dependence for warm-water species (Kitchell et al 1977; sensu Holsman et al 2015), 3 = temperature dependence for cool and cold-water species (Thornton and Lessem 1979); 4 = temperature function held constant at 1.0 — bypasses bioenergetics and uses `ration_data` as direct empirical annual ration input (set `CA = 1`, `fday = 1`, `CB = 0`)
+* `Ceq`	Integer: switch for which bioenergetics equation to use for each species for ft to scale max consumption: 1 = Exponential (Stewart et al 1983), 2 = Temperature-dependence for warm-water species (Kitchell et al 1977; sensu Holsman et al 2015), 3 = temperature dependence for cool and cold-water species (Thornton and Lessem 1979); 4 = temperature function held constant at 1.0, bypasses bioenergetics and uses `ration_data` as direct empirical annual ration input (set `CA = 1`, `fday = 1`, `CB = 0`)
 * `Cindex`	Integer: which environmental index in env_data to use to use for $T_y$ for bioenergetics based ration
 * `Pvalue`	Tuning parameter $\varphi_p$ that scales the maximum consumption used for ration for each species
 * `fday` Data $Fday_p$ number of foraging days per year for each species
@@ -129,18 +129,67 @@ A **fishery** index is CPUE, which accumulates over the whole year alongside the
 
 $$\tilde{N}_{isa,y} = \bar{N}_{isa,y} = N_{isa,y}\, \frac{1 - e^{-Z_{isa,y}}}{Z_{isa,y}} \qquad \text{(Fleet\_type = Fishery)}$$
 
-$\bar{N}$ is also what a fishery's age composition is built on, so a fleet's index, catch and comps are consistent by construction, and $Month_{f_i}$ is not read for a fishery's index rows. The model keys this on `Fleet_type`; there is no column to set. The distinction moves trend as well as scale, so a constant $q$ cannot absorb it — at `Month = 6`, $e^{-Z/2}$ approximates $\bar{N}/N$ to within 1% at $Z = 0.5$ but is 9.6% low at $Z = 1.5$. Stock Synthesis splits the same way on its per-fleet survey timing (`SS_expval.tpl`: $timing \ge 0 \rightarrow e^{-Z \cdot timing}$; $timing < 0$, required of every fishing fleet $\rightarrow (1 - e^{-Z})/Z$). See `vignette("model-options-and-functionality")` for the seasonal-fishery case and the measured trend errors.
+$\bar{N}$ is also what a fishery's age composition is built on, so a fleet's index, catch and comps are consistent by construction, and $Month_{f_i}$ is not read for a fishery's index rows. The model keys this on `Fleet_type`; there is no column to set. The distinction moves trend as well as scale, so a constant $q$ cannot absorb it, at `Month = 6`, $e^{-Z/2}$ approximates $\bar{N}/N$ to within 1% at $Z = 0.5$ but is 9.6% low at $Z = 1.5$. Stock Synthesis splits the same way on its per-fleet survey timing (`SS_expval.tpl`: $timing \ge 0 \rightarrow e^{-Z \cdot timing}$; $timing < 0$, required of every fishing fleet $\rightarrow (1 - e^{-Z})/Z$). See `vignette("model-options-and-functionality")` for the seasonal-fishery case and the measured trend errors.
 
 
 ## Selectivity parameterizations
 Multiple age-based selectivity functions are supported by Rceattle. They are controlled by `Selectivity_index`, `Selectivity`, `N_sel_bins`, `Time_varying_sel`, `Time_varying_sel_sd`, and `Bin_first_selected` in fleet_control sheet of an Rceattle data file. They are defined as follows:
 
 * `Selectivity_index`:	index to use if selectivities of different surveys are to be the same
-* `Selectivity`:	Selectivity parameterization to use for the fleet: 0 or `"Fixed"` = empirical selectivity provided in `emp_sel`; 1 or `"Logistic"`; 2 or `"NonParametric"` sensu Ianelli et al 2018; 3 or `"DoubleLogistic"`; 4 or `"DescendingLogistic"`; 5 or `"Hake"`, non-parametric sensu Taylor et al 2014; 6 or `"2DAR1"` for bin by year; 7 or `"3DAR1"` sensu Cheng et al (2025); 8 or `"DoubleNormal"`, the six-parameter Stock Synthesis pattern 24; 9 or `"NonParametricPM"`, Ianelli non-parametric with the ADMB AMAK (`"pm"`) penalty; 11 or `"LogisticPM"`, the AMAK logistic with a free age-1 selectivity. There is no 10 — the integer codes are frozen, because renumbering one would silently reinterpret every saved config and every fitted `.rds` that carries it. Whether a form is age- or length-based is set by `Selectivity_dimension`, not by the code.
+* `Selectivity`:	Selectivity parameterization to use for the fleet: 0 or `"Fixed"` = empirical selectivity provided in `emp_sel`; 1 or `"Logistic"`; 2 or `"NonParametric"` sensu Ianelli et al 2018; 3 or `"DoubleLogistic"`; 4 or `"DescendingLogistic"`; 5 or `"Hake"`, non-parametric sensu Taylor et al 2014; 6 or `"2DAR1"` for bin by year; 7 or `"3DAR1"` sensu Cheng et al (2025); 8 or `"DoubleNormal"`, a four-parameter double normal (peak, ascending and descending widths, and a right-tail floor); this is the Stock Synthesis pattern 24 shape without its initial-selectivity and plateau-width parameters; 9 or `"NonParametricPM"`, Ianelli non-parametric with the ADMB AMAK (`"pm"`) penalty; 11 or `"LogisticPM"`, the AMAK logistic with a free age-1 selectivity; 13 or `"NonParametricIntegrable"`, the Ianelli base curve whose deviations have a proper density and so integrate under `random_sel` (`Time_varying_sel` picks the structure: `"Off"`, `"IID"` or `"RandomWalk"`). There is no 10, 12 or 14; the integer codes are frozen, because renumbering one would silently reinterpret every saved config and every fitted `.rds` that holds it. Whether a form is age- or length-based is set by `Selectivity_dimension`, not by the code.
 * `N_sel_bins`:	Number of age or length bins (per `Selectivity_dimension`) to estimate for non-parametric and AR1 selectivity. For example, if `minage = 1` and selectivity parameters are estimated up till age-6, `N_sel_bins = 6` and if `minage = 0` and selectivity parameters are estimated up till age-6, `N_sel_bins = 7`.  Not used otherwise
-* `Time_varying_sel`:	Whether a time-varying selectivity should be estimated for logistic, double logistic selectivity, descending logistic, or non-parametric selectivity (`Selectivity = 5 or "Hake"`). 0 or `"Off"` = no; 1 or `"IID"` = penalized deviates given `Time_varying_sel_sd`, or random effects with that sd estimated under `fit_mod(random_sel = TRUE)`; 3 or `"Block"` = time blocks with no penalty; 4 or `"RandomWalk"` = random walk following Dorn; 5 or `"RandomWalkAscending"` = random walk on ascending portion of double logistic only. Value 2 (`"AR1"`) was **removed in 5.16.0** — it was never an AR1, and an autocorrelated deviation is now a selectivity linkage, `linkage_spec(~ ar1(1 | Year))`. The switch as a whole is soft-deprecated in favour of that grammar.
-* `Time_varying_sel_sd`:	The sd of the time-varying selectivity deviates. With `random_sel = FALSE` in `fit_mod()` it is fixed at this value, per fleet. With `random_sel = TRUE` the deviates are integrated out and this sd is *estimated*, so the value here is only a starting value — and fleets sharing a `Selectivity_index` share one estimated sd, started at the geometric mean of theirs. `Time_varying_q_sd` is the catchability equivalent, under `random_q`.
+* `Time_varying_sel`:	Whether a time-varying selectivity should be estimated for logistic, double logistic selectivity, descending logistic, or non-parametric selectivity (`Selectivity = 5 or "Hake"`). 0 or `"Off"` = no; 1 or `"IID"` = penalized deviates given `Time_varying_sel_sd`, or random effects with that sd estimated under `fit_mod(random_sel = TRUE)`; 3 or `"Block"` = time blocks with no penalty; 4 or `"RandomWalk"` = random walk following Dorn; 5 or `"RandomWalkAscending"` = random walk on ascending portion of double logistic only. Value 2 (`"AR1"`) was **removed in 5.16.0**: it was never an AR1, and an autocorrelated deviation is now a selectivity linkage, `linkage_spec(~ ar1(1 | Year))`. The switch as a whole is soft-deprecated in favour of that grammar.
+* `Time_varying_sel_sd`:	The sd of the time-varying selectivity deviates. With `random_sel = FALSE` in `fit_mod()` it is fixed at this value, per fleet. With `random_sel = TRUE` the deviates are integrated out and this sd is *estimated*, so the value here is only a starting value, and fleets sharing a `Selectivity_index` share one estimated sd, started at the geometric mean of theirs. `Time_varying_q_sd` is the catchability equivalent, under `random_q`.
 * `Bin_first_selected`:	Age/length bin at which selectivity is non-zero. Selectivity before this age will be set to 0.
+
+### Selectivity penalty weights
+
+`Sel_curve_pen1/2/3` are penalty *weights*. Each penalty is a Gaussian
+sum-of-squares ($\text{weight}\cdot x^2 = x^2 / (2\sigma^2)$), so you may instead
+supply a **standard deviation** and let `switch_check()` convert it with
+$\text{weight} = 1/(2\sigma^2)$. Supplying an SD sets the matching
+`Sel_curve_pen` column; a `Sel_curve_pen` you set directly is never overwritten.
+
+Which form reads which slot, and what it charges:
+
+| Slot | SD column | Reads the sign? | `NonParametric` (2) | `NonParametricPM` (9) | `NonParametricIntegrable` (13) | `LogisticPM` (11) |
+|---|---|---|---|---|---|---|
+| `Sel_curve_pen1` | `Sel_shape_sd` | only on 9 under `Sel_shape_mode = "Directional"` | shape, on the realized curve | shape, on the realized curve | shape, on the base curve | random walk on realized log-selectivity |
+| `Sel_curve_pen2` | `Sel_curvature_sd` | no | 2nd-difference curvature, on the realized curve | 2nd-difference curvature, on the realized curve | 2nd-difference curvature, on the base curve | not read |
+| `Sel_curve_pen3` | `Sel_devmag_sd` | no | not read | deviation magnitude | not read | random walk on the age-1 deviates |
+
+**Realized or base.** Forms 2 and 9 charge the shape and curvature penalties on
+the *realized* curve, accumulated over sexes and years (form 2 under `"IID"` or
+`"RandomWalk"`, form 9 from `Sel_start_year` under `"RandomWalk"`; 9 refuses
+`"IID"`). Form 13 charges them once per sex on the *base* coefficients. The same
+weight therefore bites harder on a time-varying 2 or 9 -- retune rather than
+copy one across forms.
+
+Three points that decide whether a value you set does anything:
+
+- **The direction.** `Sel_shape_dir = "Increasing"` is implemented only by
+  `NonParametricPM` (9) under `Sel_shape_mode = "Directional"`, where the
+  template switches the one-sided penalty from the decreasing side to the
+  increasing one. Everywhere else -- including 9 under `"Smooth"`, which is
+  two-sided -- the weight is applied as written, so `"Increasing"` is refused
+  rather than silently negating it.
+- **The sign.** A weight multiplies a squared deviation, so a negative one
+  *rewards* that deviation. `data_check()` refuses a negative `Sel_curve_pen`
+  wherever the template reads it as a weight -- which leaves four cases it does
+  not refuse: the directional case above, a `Fleet_type = "Off"` fleet (charged
+  no selectivity penalty at all), a fleet that follows another's
+  `Selectivity_index` *and* shares its selectivity form (the group's penalty is
+  charged once, on the lead), and a slot charged on deviates the fleet does
+  not estimate, per the next point.
+- **Whether the deviates exist.** The three cells above marked as random walks
+  or deviation magnitude are charged on the time-varying deviates, so under
+  `Time_varying_sel = "Off"` they are identically zero and the weight is never
+  read. Forms 2 and 13 do estimate deviates, but score them with a Gaussian
+  density on `Time_varying_sel_sd`, which is why they never read slot 3.
+
+The 2D/3D-AR1 forms (6/7) reuse `Sel_curve_pen1/2/3` for logit-scale
+correlations, not weights, and keep those columns. The `Hake` form (5) reads no
+`Sel_curve_pen` slot.
 
 ### Fixed selectivity
 Input:
@@ -150,7 +199,8 @@ Input:
 Input:
 `Selectivity = 2 or "NonParametric"`, `N_sel_bins = 6`, `Sel_curve_pen1 = 12.5`, `Sel_curve_pen2 = 200`, and `Bin_first_selected = 1`
 
-The `Sel_curve_pen1/2/3` are penalty *weights*. Each penalty is a Gaussian sum-of-squares ($\text{weight}\cdot x^2 = x^2 / (2\sigma^2)$), so you may instead supply them as **standard deviations** — `Sel_shape_sd` (with `Sel_shape_dir = "Decreasing"`/`"Increasing"` for the directional sign), `Sel_curvature_sd`, and `Sel_devmag_sd` — which are converted to the weights via $\text{weight} = 1/(2\sigma^2)$. Supplying an SD sets the matching `Sel_curve_pen` column; a `Sel_curve_pen` value you provide directly is never overwritten. `Sel_shape_sd` and `Sel_devmag_sd` apply to both `NonParametric` (2/9) and `LogisticPM` (11); `Sel_curvature_sd` is `NonParametric`-only (LogisticPM does not use `Sel_curve_pen2`). LogisticPM's shape penalty is two-sided, so its weight is always positive (`Sel_shape_dir = "Increasing"` is rejected there). The 2D/3D-AR1 forms reuse `Sel_curve_pen` for logit-scale correlations and keep those columns.
+See **Selectivity penalty weights** above for `Sel_curve_pen1/2/3` and the
+standard-deviation columns that set them.
 
 Equation:
 $$sel_{f_i sa}=e^{\phi_{f_isa}}$$
@@ -170,7 +220,7 @@ Equation:
 $$sel_{f_i sa}=1/(1+e^{-(Slp_{f_i}+e^{\phi_{f_i sy}^{slp} } ) (a-(Inf_{f_i}+\phi_{f_i sy}^{Inf} ) ) } )$$
 Penalized likelihood: `Time_varying_sel = 1`
 $$\phi_{f_i sy} \sim N(0,\sigma^{\phi}_{f_i}) $$
-Random effect: `Time_varying_sel = 1` with `fit_mod(random_sel = TRUE)` -- the deviations are integrated out by the Laplace approximation and $\hat\sigma^{\phi}_{f_i}$ is estimated rather than fixed at `Time_varying_sel_sd`
+Random effect: `Time_varying_sel = 1` with `fit_mod(random_sel = TRUE)`: the deviations are integrated out by the Laplace approximation and $\hat\sigma^{\phi}_{f_i}$ is estimated rather than fixed at `Time_varying_sel_sd`
 $$\phi_{f_i sy} \sim N(0,\hat\sigma^{\phi}_{f_i}) $$
 Block: `Time_varying_sel = 3` main parameters are set to 0 and the following is specified:
 $$\phi_{f_i sy} = \phi_{f_i sy_{block}}$$
@@ -189,7 +239,7 @@ $$sel_{f_i sa}=1/(1+e^{-(Slp1_{f_i}+e^{\phi_{f_i sy}^{slp1} } ) (a-(Inf1_{f_i}+\
 
 Penalized likelihood: `Time_varying_sel = 1`
 $$\phi_{f_i sy} \sim N(0,\sigma^{\phi}_{f_i}) $$
-Random effect: `Time_varying_sel = 1` with `fit_mod(random_sel = TRUE)` -- the deviations are integrated out by the Laplace approximation and $\hat\sigma^{\phi}_{f_i}$ is estimated rather than fixed at `Time_varying_sel_sd`
+Random effect: `Time_varying_sel = 1` with `fit_mod(random_sel = TRUE)`: the deviations are integrated out by the Laplace approximation and $\hat\sigma^{\phi}_{f_i}$ is estimated rather than fixed at `Time_varying_sel_sd`
 $$\phi_{f_i sy} \sim N(0,\hat\sigma^{\phi}_{f_i}) $$
 Block: `Time_varying_sel = 3` main parameters are set to 0 and the following is specified:
 $$\phi_{f_i sy} = \phi_{f_i sy_{block}}$$
@@ -221,7 +271,7 @@ $$sel_{f_i sa}=1-1/(1+e^{-(Slp2_{f_i}+e^{\phi_{f_i sy}^{slp2} } ) (a-(Inf2_{f_i}
 
 Penalized likelihood: `Time_varying_sel = 1`
 $$\phi_{f_i sy} \sim N(0,\sigma^{\phi}_{f_i}) $$
-Random effect: `Time_varying_sel = 1` with `fit_mod(random_sel = TRUE)` -- the deviations are integrated out by the Laplace approximation and $\hat\sigma^{\phi}_{f_i}$ is estimated rather than fixed at `Time_varying_sel_sd`
+Random effect: `Time_varying_sel = 1` with `fit_mod(random_sel = TRUE)`: the deviations are integrated out by the Laplace approximation and $\hat\sigma^{\phi}_{f_i}$ is estimated rather than fixed at `Time_varying_sel_sd`
 $$\phi_{f_i sy} \sim N(0,\hat\sigma^{\phi}_{f_i}) $$
 Block: `Time_varying_sel = 3` main parameters are set to 0 and the following is specified:
 $$\phi_{f_i sy} = \phi_{f_i sy_{block}}$$
@@ -248,7 +298,7 @@ Input:
 
 Penalized likelihood: `Time_varying_sel = 1`
 $$\phi_{f_i sy} \sim N(0,\sigma^{\phi}_{f_i}) $$
-Random effect: `Time_varying_sel = 1` with `fit_mod(random_sel = TRUE)` -- the deviations are integrated out by the Laplace approximation and $\hat\sigma^{\phi}_{f_i}$ is estimated rather than fixed at `Time_varying_sel_sd`
+Random effect: `Time_varying_sel = 1` with `fit_mod(random_sel = TRUE)`: the deviations are integrated out by the Laplace approximation and $\hat\sigma^{\phi}_{f_i}$ is estimated rather than fixed at `Time_varying_sel_sd`
 $$\phi_{f_i sy} \sim N(0,\hat\sigma^{\phi}_{f_i}) $$
 
 
@@ -259,7 +309,7 @@ Separate selectivity and catchability functions can be estimated for each survey
 * `Catchability`	Text or integer switch specifying catchability. 0 or "Fixed" = fixed at prior; 1 or "Estimated" = Estimate single parameter; 2 or "Estimated-with-prior" = Estimate single parameter with prior; 3 or "Analytical" = Estimate analytical q  from Ludwig and Walters 1994; 4 or "PowerEquation" = Estimate power equation; - 5 or "Environmental" = Linear equation log(q_y) = q_mu + beta * index_y); 6 or "AR1" = REMOVED in 5.12.0 (it never estimated the deviates, so q was constant); express the Rogers et al. form as a q linkage with `ar1(1 | Year)` and `observe =`.
 * `Catchability_init`	Starting value or fixed value for catchability
 * `Catchability_prior_sd`	Log-scale SD of the q prior: dnorm(log_q, log(Catchability_init) - bias_adjust_proc * sd^2/2, sd)
-* `Time_varying_q`	Whether a time-varying q should be estimated. 0 = no, 1 = penalized deviate, 2 = random effect, 3 = time blocks with no penalty; 4 = random walk from mean following Dorn 2018 (dnorm(q_y - q_y-1, 0, sigma). If Catchability = 5, this determines the environmental index to be used in the equation log(q_y) = q_mu + beta * index_y
+* `Time_varying_q`	Whether a time-varying q should be estimated. 0 = no, 1 = penalized deviate, 2 = AR1 (REMOVED in 5.16.0; `data_check()` errors), 3 = time blocks with no penalty; 4 = random walk from mean following Dorn 2018 (dnorm(q_y - q_y-1, 0, sigma). If Catchability = 5, this determines the environmental index to be used in the equation log(q_y) = q_mu + beta * index_y
 * `Time_varying_q_sd`	The sd to use for the random walk of time varying q if set to 1
 
 ### Linear time-invariant catchability formulations
@@ -292,9 +342,9 @@ $$\hat{q}_{f_i} = \exp\left( \sum_y \left( log \left[ \frac{CPUE:I_{{f_i},y}}  {
 *Annual catchability estimated via penalized likelihood or as random effects* 
 
 NOTE: If `Catchability = 2` a prior will be put on mean catchability as above.
-`Catchability %in% c(1:2)` and `Time_varying_q %in% c(1:2)`
+`Catchability %in% c(1:2)` and `Time_varying_q %in% c(1, 4)`
 $$\hat{q}_{f_iy} = e^{\bar{q}_{f_i}+ \omega_{f_iy}}$$
-$\omega_{f_iy} \sim N(0,$`Time_varying_q_sd`$)$ where `Time_varying_q_sd` is either fixed `Time_varying_q = 1` or estimated `Time_varying_q = 2` & `random_q = TRUE` in \function{fit_mod}
+$\omega_{f_iy} \sim N(0,$`Time_varying_q_sd`$)$ where `Time_varying_q_sd` is either fixed, or estimated with `random_q = TRUE` in `fit_mod()`
 
 *Catchability time-blocks*
 

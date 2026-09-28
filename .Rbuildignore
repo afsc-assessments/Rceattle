@@ -5,6 +5,8 @@
 ^\.claude$
 ^\.mcp\.json$
 ^CLAUDE\.md$
+^CONTRIBUTING\.md$
+^Doxyfile$
 ^doc$
 ^Meta$
 ^examples$
@@ -35,5 +37,6 @@
 ^covr$
 ^fims\.log$
 ^inst/dev/SESSION_HANDOFF\.md$
+^inst/dev/PLAN-adoption-and-NOAA-transfer\.md$
+^inst/dev/TODO-pre-transfer\.md$
 ^figure$
-^inst/dev/TODO-iphc-requests\.md$

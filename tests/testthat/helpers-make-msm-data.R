@@ -124,7 +124,8 @@ make_msm_test_data <- function(
                               maxage_sp = nages,
                               growth_params_sp = gp,
                               growth_log_sd_sp = gsd,
-                              growth_model_sp = growth_model)
+                              growth_model_sp = growth_model,
+                              M_plus_sp = M[sp])
     growth_matrix[sp, ,] = gm$growth_matrix
     length_at_age[sp, ] = gm$length_at_age
 

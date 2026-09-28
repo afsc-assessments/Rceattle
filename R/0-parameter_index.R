@@ -189,7 +189,7 @@
 #' Coordinate columns are `NA` where the axis does not apply to a block. The
 #' linkage and environmental-covariate blocks (`beta_linkage`, `M1_beta`, ...)
 #' are indexed by a linkage-table row rather than a model coordinate, so they
-#' carry no coordinates and are reported by element number.
+#' hold no coordinates and are reported by element number.
 #'
 #' A selectivity `slot` is named from the fleet's `Selectivity`: slot 2 of
 #' `sel_inf` is a descending inflection for the double-logistic family, the
@@ -198,7 +198,7 @@
 #'
 #' Under `estimateMode = "Estimate"` with any HCR but `"NoFishing"`, `object$obj`
 #' is the projection object, whose only free parameters are `log_Ftarget` /
-#' `log_Flimit` -- so the index describes those, not the hindcast.
+#' `log_Flimit`, so the index describes those, not the hindcast.
 #' `fit$convergence` reads the hindcast index that [fit_mod()] captured before
 #' the projection remapped the model, and checks it against the vector it is
 #' labelling either way.
@@ -360,13 +360,24 @@ parameter_index <- function(object) {
 # distinct value, because "fleets 2-5" would imply an order fleets do not have.
 .PAR_ORDINAL <- c("age", "bin", "year")
 
+# "log_M1 (M1)": the TMB block name, which is what the parameter list and map are
+# keyed on, followed by the quantity it estimates on the natural scale from
+# parameter_dictionary(). A block the dictionary does not list, or whose natural
+# name is its own, prints bare.
+#' @noRd
+.rce_par_display <- function(block) {
+  info <- .PAR_INFO
+  nat  <- info$natural[match(block, info$internal)]
+  ifelse(is.na(nat) | nat == block, block, sprintf("%s (%s)", block, nat))
+}
+
 #' Summarise a set of flagged parameters by coordinate
 #'
 #' One line per block and per distinct combination of its categorical axes, with
 #' the ordinal axes collapsed to ranges. 49 rows of `sel_coff_dev` become the
 #' fleet, sex, bins and years they occupy.
 #' @noRd
-.rce_par_summary <- function(par_idx, index, max_lines = 8L) {
+.rce_par_summary <- function(par_idx, index, max_lines = 8L, width = NULL) {
   if (is.null(index) || nrow(index) == 0 || length(par_idx) == 0) {
     return(character(0))
   }
@@ -384,9 +395,10 @@ parameter_index <- function(object) {
                           list(sep = "\r")))
 
   # A run of consecutive values reads as a range; a scattered set is listed, or
-  # counted against its span once it is too long to list. "2013-2018" over three
-  # years would name six.
+  # counted against its span once it is too long to list: "38 years in
+  # 1980-2021". "2013-2018" over three years would name six.
   nouns <- list(age = c("age ", "ages "), bin = c("bin ", "bins "))
+  counted <- c(age = "ages", bin = "bins", year = "years")
   rng <- function(v, axis) {
     v <- stats::na.omit(v)
     if (length(v) == 0) return(NA_character_)
@@ -398,10 +410,18 @@ parameter_index <- function(object) {
     if (length(n) == 1L) return(paste0(nn[1], n))
     if (all(diff(n) == 1)) return(paste0(nn[2], n[1], "-", n[length(n)]))
     if (length(n) <= 6L) return(paste0(nn[2], paste(n, collapse = ", ")))
-    sprintf("%d of %s%s-%s", length(n), nn[2], n[1], n[length(n)])
+    sprintf("%d %s in %s-%s", length(n), counted[[axis]], n[1], n[length(n)])
   }
 
-  lines <- vapply(split(seq_len(nrow(df)), key), function(i) {
+  groups <- split(seq_len(nrow(df)), key)
+  shown  <- vapply(groups, function(i) .rce_par_display(df$block[i[1]]),
+                   character(1))
+  # Taken from the caller when it prints several blocks in a loop: a width
+  # computed here would size each line to its own block name, and the column
+  # would not line up down the printed check.
+  width  <- if (is.null(width)) max(16L, nchar(shown)) else width
+  lines <- vapply(seq_along(groups), function(g) {
+    i <- groups[[g]]
     r <- df[i, , drop = FALSE]
     parts <- character(0)
     for (a in AX) {
@@ -419,7 +439,8 @@ parameter_index <- function(object) {
       parts <- paste0("element ",
                       if (rg[1] == rg[2]) rg[1] else paste(rg, collapse = "-"))
     }
-    sprintf("  %-16s %s  (%d)", r$block[1], paste(parts, collapse = ", "), nrow(r))
+    sprintf("  %-*s %s  (%d)", width, shown[[g]], paste(parts, collapse = ", "),
+            nrow(r))
   }, character(1), USE.NAMES = FALSE)
 
   lines <- lines[order(-as.numeric(sub(".*\\((\\d+)\\)$", "\\1", lines)))]

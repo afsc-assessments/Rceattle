@@ -282,8 +282,10 @@ simData$weight <- cbind(data.frame(Wt_name = "Base",
                         WAA
 )
 
-# * Maturity (time-invariant in Rceattle)
-MatAA <- matrix(maturity_df[1,2:11], ncol = simData$nages)
+# * Maturity (time-invariant in Rceattle; the WHAM input repeats one ogive over
+# all 45 years, so row 1 is the whole schedule). as.matrix() first: a tibble row
+# is a list, and matrix() would build a list-matrix that reads back as NA.
+MatAA <- matrix(as.matrix(maturity_df[1,2:11]), ncol = simData$nages)
 colnames(MatAA) <- paste0("Age",1:simData$nages)
 simData$maturity <- cbind(data.frame(Species = 1),
                           MatAA
