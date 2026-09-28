@@ -725,6 +725,17 @@ across the boundary.
   `sd_plus_group` included — is never exercised. Covered constructively by the
   `test-growth-*.R` files.
 
+**The `golden` job's red on `main` at the 5.45.0 release was NOT the 52.9 basin — measured
+2026-09-28, run 36433121293.** It failed on the MVN/Normal index-family configuration pin, at
+the GRADIENT: `max|gradient|` 3.5e-04 on `ubuntu-latest` against a 1e-4 gate, where local
+macOS/arm64 gives 2.5e-05. The objective it pins reproduced to its 1e-6 tolerance on the same
+run, and the other 19 assertions passed, so nothing about the model moved. That configuration
+sits on the q-versus-population-scale ridge, softened 11.5x by compound symmetry in `Sigma`, so
+its gradient records where the optimizer stopped rather than what the model is; the gate is 1e-3
+from 5.45.1. Two lessons: the four integration references were not the only platform-dependent
+thing in that file, and `TMBhelper` **is** installed on the runner (1.4.0 from
+`kaskr/TMB_contrib_R@d275e52`), so a different optimizer is not the explanation for any of it.
+
 **`goa_ms` (fixed-M GOA multispecies) sits on a flat likelihood ridge:** the same objective at
 different `par`/`ssb` across *different* code, though deterministic on same-code re-runs. Judge
 it on `obj`/`jnll`, not `par`/`ssb`.
