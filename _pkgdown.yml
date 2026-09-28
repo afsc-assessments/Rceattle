@@ -1,4 +1,4 @@
-url: https://grantdadams.github.io/Rceattle/
+url: https://afsc-assessments.github.io/Rceattle/
 
 template:
   bootstrap: 5
@@ -23,9 +23,9 @@ home:
     linkages, predation, management strategy evaluation (MSE), and diagnostics.
   links:
   - text: Browse source code
-    href: https://github.com/grantdadams/Rceattle
+    href: https://github.com/afsc-assessments/Rceattle
   - text: Report a bug
-    href: https://github.com/grantdadams/Rceattle/issues
+    href: https://github.com/afsc-assessments/Rceattle/issues
 
 navbar:
   bg: primary
@@ -75,7 +75,7 @@ navbar:
         href: cpp/index.html
     github:
       icon: fab fa-github
-      href: https://github.com/grantdadams/Rceattle
+      href: https://github.com/afsc-assessments/Rceattle
       aria-label: GitHub
 
 articles:

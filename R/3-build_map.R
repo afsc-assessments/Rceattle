@@ -91,10 +91,31 @@ build_map <- function(data_list, params, debug = FALSE, random_rec = FALSE,
   # Last, so they read the final map: build_map_f_and_data_weights() maps
   # sel_dev_log_sd out for "Off" fleets, build_map_fixed_natage() maps both out
   # for a fixed-dynamics species, and build_map_debug() maps out everything.
-  .warn_shared_dev_sd(map_list, data_list, "Selectivity_index",
-                      "Time_varying_sel_sd", "sel_dev_log_sd")
-  .warn_shared_dev_sd(map_list, data_list, "Catchability_index",
-                      "Time_varying_q_sd", "index_q_dev_log_sd")
+  .warn_shared_block_start(map_list, data_list, "Selectivity_index",
+                           "Time_varying_sel_sd", "sel_dev_log_sd")
+  .warn_shared_block_start(map_list, data_list, "Catchability_index",
+                           "Time_varying_q_sd", "index_q_dev_log_sd")
+  # The catchability itself, not just its deviations. data_check() already
+  # reports a shared group whose Catchability forms or Time_varying_q differ, and
+  # a Fixed lead whose inits differ, but not the ordinary case: forms agreeing,
+  # inits not, a q estimated for the group.
+  .warn_shared_block_start(map_list, data_list, "Catchability_index",
+                           "Catchability_init", "index_log_q",
+                           what = "catchability",
+                           # Catchability_init is read twice: as the shared
+                           # starting value, and under Estimated-with-prior as
+                           # the LEAD fleet's prior centre (ceattle.cpp gates the
+                           # prior on est_index_q == 2 inside flt_q_lead == 1).
+                           # The lead's value therefore survives, in the prior,
+                           # and a difference is worth nats rather than a start.
+                           note = paste0(
+                             "The lognormal q prior is centred on the LEAD ",
+                             "fleet's Catchability_init, so differing values ",
+                             "here move the objective and not just the ",
+                             "starting point."),
+                           note_when = function(fc, est)
+                             any(.canon_switch(fc$Catchability[est], q_map) ==
+                                   "Estimated-with-prior"))
 
   # --- Final Steps ---
   map_list_grande <- list()
@@ -107,30 +128,72 @@ build_map <- function(data_list, params, debug = FALSE, random_rec = FALSE,
 ## Helper Functions ----
 
 # Fleets sharing a Selectivity_index or a Catchability_index estimate ONE
-# deviation sd between them. TMB collapses a shared parameter to the mean of its
-# members' starting values, and both sds are held on the log scale, so the group
-# starts at the GEOMETRIC MEAN of the members' values -- no fleet keeps the one
-# in its own row. Warned once per group, over the members that are actually
-# estimated: a fleet whose map slot is NA keeps its own value and contributes
-# nothing to the mean.
-.warn_shared_dev_sd <- function(map_list, data_list, index_col, sd_col, par) {
+# parameter between them -- a deviation sd, or the catchability itself. TMB
+# collapses a shared parameter to the mean of its members' starting values, and
+# all of these are held on the log scale, so the group starts at the GEOMETRIC
+# MEAN of the members' values -- no fleet keeps the one in its own row. Warned
+# once per group, over the members that are actually estimated: a fleet whose map
+# slot is NA keeps its own value and contributes nothing to the mean.
+#
+# The catchability case is the one that hurts: a shared q at the mean of two
+# fleets' Catchability_init scales a survey's whole predicted index by a constant
+# factor, which no residual pattern distinguishes from a real change in abundance.
+# `what` is spliced after "The group estimates one", so it must be a bare noun
+# phrase; `note` is appended verbatim where `note_when` says it applies.
+.warn_shared_block_start <- function(map_list, data_list, index_col, start_col,
+                                     par, what = "deviation sd", note = NULL,
+                                     note_when = NULL) {
   fc <- data_list$fleet_control
-  if (is.null(fc[[index_col]]) || is.null(fc[[sd_col]])) return(invisible(NULL))
+  if (is.null(fc[[index_col]]) || is.null(fc[[start_col]])) return(invisible(NULL))
 
   for (idx in unique(fc[[index_col]][!is.na(fc[[index_col]])])) {
     grp  <- which(fc[[index_col]] == idx)
     est  <- grp[!is.na(map_list[[par]][fc$Fleet_code[grp]])]
-    vals <- fc[[sd_col]][est]
-    if (length(est) < 2 || length(unique(vals)) < 2) next
+    if (length(est) < 2) next
+    vals <- fc[[start_col]][est]
+
+    # as.character() first: as.numeric() on a FACTOR returns level codes, which
+    # are all positive, so a zero would pass the check below and be reported as a
+    # geometric mean the fit can never use. data_check() reads the same columns
+    # off a workbook, where a factor is exactly what a stray text cell produces.
+    num <- suppressWarnings(as.numeric(as.character(vals)))
+    bad <- !is.finite(num) | num <= 0
+
+    # A member that is blank, zero or negative seeds the WHOLE group at NA, -Inf
+    # or NaN rather than at any mean, and the group cannot fit. Reported even when
+    # every member carries the same unusable value, unlike the geometric mean,
+    # which is only surprising when they differ. Only Analytical and
+    # AnalyticalArith may leave the column non-positive (they solve q from the
+    # data) and a fleet with no fitted index rows may leave it blank, but either
+    # still joins the group's mean once it shares an estimated block.
+    if (any(bad)) {
+      shown <- ifelse(is.na(vals) | !nzchar(trimws(as.character(vals))),
+                      "<blank>", trimws(as.character(vals)))
+      warning(paste0(
+        "Fleets sharing ", index_col, " ", idx, " (",
+        paste(fc$Fleet_name[est], collapse = ", "), ") share one ", what,
+        ", seeded from the log of ", start_col, ", and ",
+        paste(fc$Fleet_name[est][bad], collapse = ", "),
+        if (sum(bad) > 1) " carry " else " carries ",
+        paste(shown[bad], collapse = ", "),
+        ", whose log is not finite. The group starts at ",
+        format(suppressWarnings(mean(log(num)))),
+        " on the log scale rather than at a usable mean, and cannot fit."))
+      next
+    }
+    if (length(unique(vals)) < 2) next
 
     warning(paste0(
       "Fleets sharing ", index_col, " ", idx, " (",
       paste(fc$Fleet_name[est], collapse = ", "),
-      ") have different ", sd_col, " (", paste(vals, collapse = ", "),
-      "). The group estimates one deviation sd, and it starts at the geometric ",
-      "mean of those values (", signif(exp(mean(log(vals))), 4),
+      ") have different ", start_col, " (",
+      paste(trimws(as.character(vals)), collapse = ", "),
+      "). The group estimates one ", what, ", and it starts at the geometric ",
+      "mean of those values (", signif(exp(mean(log(num))), 4),
       ") -- the mean on the log scale TMB takes for a shared parameter -- so no ",
-      "fleet keeps the value in its own row."))
+      "fleet keeps the value in its own row.",
+      if (!is.null(note) && (is.null(note_when) || isTRUE(note_when(fc, est))))
+        paste0(" ", note) else ""))
   }
   invisible(NULL)
 }
@@ -451,7 +514,7 @@ build_map_m1 <- function(map_list, data_list, nyrs_hind) {
 #'   turns on the parameters it uses.
 #'
 #'   Time-varying growth comes from the linkage grammar
-#'   (\code{build_growth(linkages = )}), whose random effects carry their own
+#'   (\code{build_growth(linkages = )}), whose random effects hold their own
 #'   density and map.
 #'
 #' @param map_list The current TMB map list.
@@ -619,7 +682,7 @@ build_map_predation <- function(map_list, data_list) {
 #'
 #' `RandomWalk` is scored on the realized log-selectivity, which is renormalized
 #' to mean 1 within each year, so the density never touches the level of a year's
-#' coefficients -- those directions are improper, not merely weakly identified,
+#' coefficients, those directions are improper, not merely weakly identified,
 #' and the deviation sd collapses (2.7e-8 on Atka2022).
 #'
 #' `IID` (`NonParametric` only; `NonParametricPM` cannot take it) is scored on
@@ -651,10 +714,10 @@ build_map_predation <- function(map_list, data_list) {
     stringsAsFactors = FALSE)
 }
 
-#' Fleets whose selectivity deviates are estimated but carry no density
+#' Fleets whose selectivity deviates are estimated but hold no density
 #'
 #' `Time_varying_sel = "Block"` estimates one deviate per block and the model
-#' scores none of them -- a block is a fixed effect, and "time blocks with no
+#' scores none of them, a block is a fixed effect, and "time blocks with no
 #' penalty" is what the switch means. Every other time-varying mode that
 #' estimates a deviate also defines a term for it, so this is the one
 #' configuration that has nothing to integrate against. `fit_mod()` reads this
@@ -707,7 +770,7 @@ build_map_predation <- function(map_list, data_list) {
 #'     `log_sel_slp[1]` = log(sigma_asc); `log_sel_slp[2]` = log(sigma_desc).
 #'     right_floor->0: dome-shaped; right_floor->1: logistic ascending only.
 #'
-#' \code{N_sel_bins}	Number of age/length bins to estimate non-parametric selectivity when Selectivity = 2 or 5. Not used otherwise
+#' \code{N_sel_bins}	Number of age/length bins to estimate for non-parametric and AR1 selectivity (Selectivity = 2, 5, 6, 7, 9, or 13). Not used otherwise
 #'
 #' \code{Time_varying_sel}	determines if time-varying selectivity should be estimated for logistic, double logistic selectivity,  descending logistic , non-parametric, or hake (\code{Selectivity = 1, 2, 3, 4, or 5}).
 #' `0` = 'Off'
@@ -908,18 +971,16 @@ build_map_selectivity <- function(map_list, data_list, nyrs_hind, random_sel) {
       #      Both share identical parameters / mapping; they differ only in the
       #      selectivity penalty form (see ceattle.cpp).
       if (sel_type %in% c("NonParametric", "NonParametricPM",
-                          "NonParametricIID", "NonParametricRW")) {
-        # "IID" is scored for NonParametric only. NonParametricPM builds its
-        # curve as a cumulative walk (each year's coefficients are the previous
-        # year's plus sel_coff_dev, see selectivity.hpp case 9), so a deviate
-        # there IS a random-walk increment and an independent-deviate reading of
-        # it would not describe the curve the model draws. NonParametricIID and
-        # NonParametricRW each take the one mode their density describes.
+                          "NonParametricIntegrable")) {
+        # NonParametricPM builds its curve as a cumulative walk (each year's
+        # coefficients are the previous year's plus sel_coff_dev, see
+        # selectivity.hpp case 9), so a deviate there IS a random-walk increment
+        # and an independent-deviate reading of it would not describe the curve
+        # the model draws; it therefore takes no "IID".
         .np_modes <- switch(sel_type,
                             NonParametric    = c("Off", "IID", "RandomWalk"),
                             NonParametricPM  = c("Off", "RandomWalk"),
-                            NonParametricIID = c("Off", "IID"),
-                            NonParametricRW  = c("Off", "RandomWalk"))
+                            NonParametricIntegrable = c("Off", "IID", "RandomWalk"))
         if (!is.na(tv_sel) && !tv_sel %in% .np_modes) {
           stop(paste0("'Time_varying_sel' for fleet ", flt, " with '", sel_type,
                       "' selectivity must be ",
@@ -949,7 +1010,7 @@ build_map_selectivity <- function(map_list, data_list, nyrs_hind, random_sel) {
             sel_start_yr <- sel_start_yr_grp[i]  # group-resolved (mirrored fleets share one block)
             start_idx <- if (is.null(sel_start_yr) || is.na(sel_start_yr)) 1L else
               max(1L, min(nyrs_hind, as.integer(sel_start_yr) - data_list$styr + 1L))
-            if (sel_type == "NonParametricRW") {
+            if (sel_type == "NonParametricIntegrable") {
               # The base curve (sel_coff) carries the shape and stays estimated;
               # the increments are pure changes, so the one at the start year is
               # fixed at 0 and the earlier ones, with neither data nor a density,
@@ -1174,7 +1235,7 @@ build_map_selectivity <- function(map_list, data_list, nyrs_hind, random_sel) {
       }
 
       # * 2DAR1 ----
-      # ---- sel_type = 6 (age-based), 13 (length-based)
+      # ---- sel_type = 6; age- or length-based per Selectivity_dimension
       if (sel_type == "2DAR1") {
         # A 2DAR1 fleet's deviations come from the AR1 field, so "Off" asks for
         # what it already has. Only an overridden mode is reported.
@@ -1212,7 +1273,7 @@ build_map_selectivity <- function(map_list, data_list, nyrs_hind, random_sel) {
 
 
       # * 3DAR1 ----
-      # ---- sel_type = 7 (age-based), 14 (length-based)
+      # ---- sel_type = 7; age- or length-based per Selectivity_dimension
       if (sel_type == "3DAR1") {
         # As for 2DAR1: "Off" agrees with the AR1 field's own deviations.
         if (!is.na(tv_sel) && tv_sel != "Off") {
@@ -1258,8 +1319,8 @@ build_map_selectivity <- function(map_list, data_list, nyrs_hind, random_sel) {
 #'
 #' @description Maps catchability base parameters (\code{index_log_q}),
 #'   time-varying deviations (\code{index_q_dev}), and environmental linkages
-#'   (\code{index_q_beta}) for every fleet that carries
-#'   fitted \code{index_data} -- a fishery with a CPUE series as much as a
+#'   (\code{index_q_beta}) for every fleet that holds
+#'   fitted \code{index_data}, a fishery with a CPUE series as much as a
 #'   survey. A fleet with no index rows gets none of them, whatever its
 #'   \code{Catchability} says, since a q with no index to inform it is a flat
 #'   direction. Sharing overrides this: \code{adjust_map_shared_params()} then
@@ -1468,7 +1529,7 @@ adjust_map_shared_params <- function(map_list, data_list) {
       # Sel_norm_bin*, Time_varying_sel) are checked in data_check().
 
       # A differing Time_varying_sel_sd across the group is reported by
-      # .warn_shared_dev_sd(), which runs at the end of build_map() because two
+      # .warn_shared_block_start(), which runs at the end of build_map() because two
       # later steps still map this parameter out.
 
       # Make selectivity maps the same if selectivity is the same
@@ -1495,9 +1556,10 @@ adjust_map_shared_params <- function(map_list, data_list) {
       # cannot share a group at all, are checked in data_check().
 
       # A differing Time_varying_q_sd across the group is reported by
-      # .warn_shared_dev_sd(), as for selectivity. index_q_log_sd is a prior sd
-      # the assessor sets, never estimated, so a differing Catchability_prior_sd
-      # is always honoured per fleet.
+      # .warn_shared_block_start(), as for selectivity. index_q_log_sd is a prior sd
+      # the assessor sets and never estimated, but in a shared group only the
+      # LEAD fleet's is read: the prior is scored once, on the lead, so a
+      # differing value on a non-lead fleet has no effect.
 
       # Make catchability maps the same.
       #
@@ -1709,7 +1771,7 @@ build_map_debug <- function(map_list, debug) {
 #' @description Maps `beta_linkage` (one entry per row of
 #'   `data_list$linkage_table`). Rows whose `est_phase == 0` are fixed
 #'   at their initial values via `NA`; `(Intercept)` rows are also
-#'   fixed (their value stays at 0 -- the base parameter carries the
+#'   fixed (their value stays at 0, the base parameter holds the
 #'   level). Everything else is estimated.  Phased estimation honoring
 #'   nonzero phase ordinals can layer on later via the `phase` argument
 #'   to [fit_control()].
@@ -1803,7 +1865,7 @@ build_map_linkages <- function(map_list, data_list) {
 #'
 #' @description Maps the base parameter (`rec_pars`, `log_M1`,
 #'   `log_growth_pars`) out of estimation only for stratum groups
-#'   whose linkage formula carries *no* intercept. With an intercept
+#'   whose linkage formula holds *no* intercept. With an intercept
 #'   in the formula (`~ 1`, `~ temp`, ...) and a nonzero `est_phase` the
 #'   base parameter holds the level and stays estimable; the linkage
 #'   `(Intercept)` row is fixed at 0 instead. When an intercept row has

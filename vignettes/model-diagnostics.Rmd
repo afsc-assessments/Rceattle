@@ -20,16 +20,16 @@ knitr::opts_chunk$set(
 
 Rceattle provides a full set of model diagnostics:
 
-- **convergence diagnostics** — attached automatically to every fit
-- **S3 methods** — `residuals()`, `logLik()`, and the like
-- **fit plots** — compare predicted to observed data
-- **retrospective analysis** — peel off recent years to detect systematic bias
-- **jitter testing** — perturb starting values to check the optimizer found a global minimum
-- **self-testing** (simulation–estimation) — check the model recovers its own estimates from simulated data
-- **likelihood profiling** — check how informative the data are about a given parameter
+- **convergence diagnostics**: attached automatically to every fit
+- **S3 methods**: `residuals()`, `logLik()`, and the like
+- **fit plots**: compare predicted to observed data
+- **retrospective analysis**: peel off recent years to detect systematic bias
+- **jitter testing**: perturb starting values to check the optimizer found a global minimum
+- **self-testing** (simulation–estimation), check the model recovers its own estimates from simulated data
+- **likelihood profiling**: check how informative the data are about a given parameter
 
-**They all report the same way.** Printing any of them opens with one line — the
-object, an overall status, and a verdict — before the detail:
+**They all report the same way.** Printing any of them opens with one line (the
+object, an overall status, and a verdict) before the detail:
 
 ```
 <Rceattle convergence>  status: OK
@@ -60,32 +60,32 @@ object, an overall status, and a verdict — before the detail:
   sigmaR over 29 grid point(s); all converged
   minimum -log L : 1274.8831  at slot_1 = 1.5
   within 1.92 of the minimum : 1.3 to >=1.5
-  the minimum is at a grid edge (slot_1), so the grid does not bracket it -- widen `values`
+  the minimum is at a grid edge (slot_1), so the grid does not bracket it, widen `values`
 ```
 
-The severity words are the same four everywhere — `OK`, `NOTE`, `WARN`, `FAIL` —
+The severity words are the same four everywhere, `OK`, `NOTE`, `WARN`, `FAIL`,
 and the overall status is the worst present. The **return values are unchanged**:
 each object is still the data frame or list it always was, so `retro$mohns`,
 `jit$nll`, `diag$sdnr`, `prof$grid$slot_1` and `sims[["Sim_1"]]` index exactly as
 before, and `c(sims, list(fit))` still gives a plain list of fits to plot. Only
 the printing has an opinion.
 
-Four of these carry a threshold you can set. `print(retro, band = )` is Mohn's
-rho threshold — the default `0.2` is the rule of thumb below, and Hurtado-Ferro
+Four of these hold a threshold you can set. `print(retro, band = )` is Mohn's
+rho threshold; the default `0.2` is the rule of thumb below, and Hurtado-Ferro
 et al. (2015) give asymmetric, life-history-dependent alternatives (−0.15 to
 0.20 long-lived, −0.22 to 0.30 short-lived), which is why it is an argument.
 `print(jit, tol = )` is how close an objective must be to count as having
 reached the same optimum. `print(sims, rate = )` is the fraction of simulations
 that must converge before a self-test counts as clean. `print(prof, cutoff = )`
 bounds the reported interval; the default 1.92 is the 95% profile-likelihood
-cutoff for one parameter — half the 0.95 quantile of a chi-square on one degree
+cutoff for one parameter, half the 0.95 quantile of a chi-square on one degree
 of freedom.
 
 Two of them report something the numbers alone cannot. A self-test drops its
 non-converged runs before returning, so the length of what comes back is not the
-number attempted — the header gives the rate against `nsim`, and the last line
+number attempted; the header gives the rate against `nsim`, and the last line
 says what generated the replicates, since with processes held fixed the spread
-carries observation error only. A profile whose minimum sits at the first or
+holds observation error only. A profile whose minimum sits at the first or
 last grid value has run out of grid rather than found the optimum; it plots as
 an ordinary curve, so the print says so and asks for a wider `values`.
 
@@ -139,7 +139,7 @@ the result as `model$convergence`. Each check is one record with a `severity`
 (`"OK"`, `"NOTE"`, `"WARN"`, or `"FAIL"`); the object's `status` is the worst
 severity present. Non-OK checks are reported via `message()` during the fit, and
 `print(model)` shows the overall status. A non-converged model is never turned
-into an error — the fit is always returned with its diagnostics attached, so you
+into an error: the fit is always returned with its diagnostics attached, so you
 decide whether to trust it.
 
 ```{r}
@@ -155,17 +155,32 @@ convergence_diagnostics(model_1)
 
 The checks cover:
 
-- **`max_gradient`** — maximum absolute marginal gradient and the parameter
-  carrying it (`WARN` > 1e-3, `FAIL` > 1).
-- **`pdHess`** — whether the Hessian is positive definite (`FAIL` if not).
-- **`sdreport_failed`** — `FAIL` when an `sdreport` was requested but the
+- **`max_gradient`**: maximum absolute marginal gradient and the parameter
+  holding it (`WARN` > 1e-3, `FAIL` > 1). When an `sdreport` of the same
+  parameters is available, the message also says how far the estimates are from
+  the optimum in standard errors. A quadratic approximation puts the optimum a
+  Newton step `-cov.fixed %*% gradient` away, and each element is divided by its
+  own standard error. That size is comparable across log, logit and
+  natural-scale parameters, which the raw gradient is not: 0.02 means finishing
+  the optimization would move no estimate by more than 2% of its standard error.
+  The largest absolute value is in `$data$newton_step_se` and the signed vector,
+  which says which way each estimate would move, in `$data$step_se`. Reported
+  only; the severity is still read on the gradient.
+- **`pdHess`**: whether the Hessian is positive definite (`FAIL` if not).
+- **`sdreport_failed`**: `FAIL` when an `sdreport` was requested but the
   Hessian could not be inverted.
-- **`zero_n_penalty`** — the "Zero n-at-age penalty" likelihood row is non-zero
+- **`hessian_not_run`**: `NOTE` when the fit was made with `getsd = FALSE`, so
+  `pdHess`, `hessian_conditioning`, `sdreport_failed` and `estimability` had
+  nothing to read and never ran. It separates "every check passed" from "the
+  strongest checks were skipped"; refit with `getsd = TRUE` before reading the
+  status as convergence. Each refitting diagnostic resolves its own `getsd`, so
+  `run_mse()`'s refits carry the note and a reweighted default fit does not.
+- **`zero_n_penalty`**: the "Zero n-at-age penalty" likelihood row is non-zero
   for a species: its numbers-at-age, Ricker intercept or (under an identity-link
   recruitment linkage) recruitment sat on the 0.001 floor, so the fit is of a
   floored model rather than the one specified. `WARN` when the root-sum-square
   excursion is under 1 (a thousand fish), `FAIL` above.
-- **`hessian_conditioning`** — how much better the data pin down some parameter
+- **`hessian_conditioning`**: how much better the data pin down some parameter
   combinations than others. Inverting the Hessian gives the covariance of the
   estimates; standardising it by the standard errors gives their correlation,
   whose eigenvalues are variances along directions in parameter space. The
@@ -184,28 +199,35 @@ The checks cover:
   Read on the **correlation** and not the covariance, because the covariance
   condition number is not scale-invariant: `log_F` sits near -2 and `sel_inf`
   near 10, so rescaling a parameter would move it without changing the model.
-  Standardising costs sensitivity — the same three models read 4.6e4, 1.9e5 and
-  2.5e9 on the covariance against 2.0e4, 1.6e4 and 1.9e8 here — so a model that
+  Standardising costs sensitivity (the same three models read 4.6e4, 1.9e5 and
+  2.5e9 on the covariance against 2.0e4, 1.6e4 and 1.9e8 here) so a model that
   is merely badly scaled no longer trips the check. The covariance number is
   still reported, as `covariance_condition_number`, for the numerical cost of
   inverting the Hessian; `pdHess` and `sdreport_failed` are what catch an
   inversion that actually fails. The thresholds were held at 1e6/1e10 on three
   models: `BS2017SS` sits at 2.0e4, roughly 1.7 orders below `WARN`.
 
-  The parameters carrying the top 90% of each block's loading are then named by
+  The parameters holding the top 90% of each block's loading are then named by
   fleet, bin and year, with a count: a ridge over ten years and one over a single
   year read differently. Complements `TMBhelper::check_estimability`, which gives
   a per-parameter verdict, with a continuous severity and a direction.
-- **`parameters_on_bounds`** — parameters that hit a configured `build_bounds()`
-  limit (often unidentified or mis-scaled).
-- **`variance_collapse`** — a deviation standard deviation estimated to zero
+- **`parameters_on_bounds`**: parameters that sit ON a configured
+  `build_bounds()` limit (often unidentified or mis-scaled). `WARN`: the edge of
+  the plausible range is still a well-posed optimum.
+- **`parameters_outside_bounds`**: parameters PAST one, which is a different
+  verdict and a `FAIL` -- the optimizer returned a value the model declared
+  implausible. `fit_mod()` passes the bounds to `nlminb`, which respects them, but
+  the Newton refinement `fit_control(newtonsteps)` asks for afterwards is
+  unconstrained, so a parameter parked on a bound can be pushed through it. Refit
+  with `newtonsteps = 0`, the default.
+- **`variance_collapse`**: a deviation standard deviation estimated to zero
   (`WARN` below 1e-3), meaning the process it governs is not varying: a model
   configured as time-varying has fitted something time-invariant. Covers the
   recruitment, selectivity, catchability, M1 and linkage random-effect standard
   deviations. `WARN` rather than `FAIL` because a variance at the boundary is a
-  well-posed optimum — a verdict about the model, not the optimizer — and it can
+  well-posed optimum (a verdict about the model, not the optimizer) and it can
   occur with a perfectly clean gradient, which is the case nothing else catches.
-- **`stock_recruit`** — whether the fitted curve is one the data informed. In a
+- **`stock_recruit`**: whether the fitted curve is one the data informed. In a
   single-species model it is read against the replacement line through
   steepness. Under predation steepness does not exist (it needs spawning biomass
   per recruit), so the curve is read over the observed SSB range instead: `WARN`
@@ -213,28 +235,36 @@ The checks cover:
   dependence), when a Ricker peaks below the lowest observed SSB, when log alpha
   or log beta sits at its +/-30 bound, or when a log-scale standard error exceeds
   10. A curve held at its inputs is a `NOTE`.
-- **`phasing`** — phases that ended with a high gradient, localizing which
+- **`phasing`**: phases that ended with a high gradient, localizing which
   parameter block is hard to fit.
-- **`estimability`** — surfaces `TMBhelper::check_estimability` when it ran.
+- **`estimability`**: surfaces `TMBhelper::check_estimability` when it ran.
 
 ### Naming the parameter, not just the block
 
 TMB names every element of `obj$par` after its parameter block, so on their own
-`estimability`, `parameters_on_bounds` and `hessian_conditioning` could say
-`sel_coff_dev` was flagged but not which of its 392 elements. Each now reports
-the fleet, sex, bin and year instead, from [`parameter_index()`]:
+`max_gradient`, `estimability`, the two bounds checks and
+`hessian_conditioning` could say `sel_coff_dev` was flagged but not which of its
+392 elements. Each now reports the fleet, sex, age, bin and year instead, from
+[`parameter_index()`], and follows the block name with the quantity it
+estimates, from [`parameter_dictionary()`]:
 
 ```
-[FAIL] estimability  49 non-identifiable fixed parameter(s)
-  sel_coff_dev  GOA_pollock_fishery, bins 1-8, 2013-2018  (41)
+  [WARN] max_gradient     Maximum absolute marginal gradient = 0.00222 on log_M1 (M1): Pollock, age 1.
+  [WARN] hessian_conditioning Condition number = 2.4e+06; loads on: log_F (F): 67% + rec_dev (recruitment deviations): 26%.
+  log_F (F)                        Hake_fishery, 38 years in 1980-2021  (38 of 44 parameters; 67% of the direction)
+  rec_dev (recruitment deviations) 24 years in 1981-2013  (24 of 44 parameters; 26% of the direction)
 ```
 
-The three checks do not all count positions in the same vector.
-`estimability` and `parameters_on_bounds` are captured from the hindcast
+A scattered set of years or ages is counted against its span ("38 years in
+1980-2021"); a consecutive run prints as a range. The count in parentheses is
+how many of the block's parameters carry 90% of its loading.
+
+The checks do not all count positions in the same vector. `max_gradient`,
+`estimability` and the two bounds checks are captured from the hindcast
 optimization; `hessian_conditioning` reads the `sdreport`, which under an
 estimating HCR belongs to the projection fit and holds only `log_Ftarget` /
 `log_Flimit`. Each check therefore verifies that the index describes the vector
-it is about to label, and prints block names alone when it does not — a
+it is about to label, and prints block names alone when it does not: a
 coordinate naming the wrong parameter is worse than no coordinate.
 
 `parameter_index()` itself describes `fit$obj`, which under any HCR but
@@ -256,7 +286,7 @@ plot_comp(model_1)
 
 ### Survey indices
 
-`plot_index()` shows observed vs. predicted survey biomass; pass `log = TRUE` for the log scale. `plot_indexresidual()` plots the residuals as observed minus predicted, on whichever scale the fleet is fitted on (log for a `Lognormal` fleet, the natural scale for the others) — a useful first check for time trends or heteroscedasticity. A positive residual means the survey saw more than the model predicted. These return `ggplot` objects.
+`plot_index()` shows observed vs. predicted survey biomass; pass `log = TRUE` for the log scale. `plot_indexresidual()` plots the residuals as observed minus predicted, on whichever scale the fleet is fitted on (log for a `Lognormal` fleet, the natural scale for the others), a useful first check for time trends or heteroscedasticity. A positive residual means the survey saw more than the model predicted. These return `ggplot` objects.
 
 ```{r}
 plot_index(model_1)
@@ -264,7 +294,7 @@ plot_index(model_1, log = TRUE)
 plot_indexresidual(model_1)
 ```
 
-`plot_catchability()` draws the other half of the same fit: the catchability the model scaled each survey by, faceted by fleet. It reads the realized `q`, so one figure covers an estimated or fixed mean, annual deviations under `Time_varying_q`, an environmental regression, a `q` linkage such as `rw(1 | Year)`, and the closed-form `"Analytical"` value. A fleet with a time-invariant `q` draws a flat line. Hindcast years only — the model does not project catchability.
+`plot_catchability()` draws the other half of the same fit: the catchability the model scaled each survey by, faceted by fleet. It reads the realized `q`, so one figure covers an estimated or fixed mean, annual deviations under `Time_varying_q`, an environmental regression, a `q` linkage such as `rw(1 | Year)`, and the closed-form `"Analytical"` value. A fleet with a time-invariant `q` draws a flat line. Hindcast years only, the model does not project catchability.
 
 ```{r}
 plot_catchability(model_1)
@@ -282,9 +312,9 @@ plot_catch(model_1)
 Pearson residuals on composition data are *not* standard normal even when the
 model is correct: the age/length bins are correlated (more fish in one bin means
 fewer in another), and random effects induce correlation across years. They are
-at least standardized by the variance the fleet's own likelihood assumes -- the
+at least standardized by the variance the fleet's own likelihood assumes: the
 composition weight enters as an effective sample size under a multinomial, and a
-Dirichlet-multinomial's overdispersion is in the denominator -- so a weighted or
+Dirichlet-multinomial's overdispersion is in the denominator, so a weighted or
 DM fleet is not inflated on that account alone. One-step-ahead
 (OSA) residuals remove both problems. Each observation is residualized conditional
 on the observations added before it, integrating out the random effects, so under a
@@ -292,17 +322,17 @@ correctly specified model the residuals are iid standard normal (Thygesen et al.
 Trijoulet et al. 2023). This makes them suitable for objective goodness-of-fit testing.
 
 `osa_residuals()` computes them *post hoc* for any combination of the fitted data
-types -- survey indices (`"index"`), fishery catch (`"catch"`), age/length
+types, survey indices (`"index"`), fishery catch (`"catch"`), age/length
 composition (`"comp"`), conditional age-at-length (`"caal"`), predator diet
-(`"diet"`), and, where a linkage carries an observed state-space covariate, the
+(`"diet"`), and, where a linkage holds an observed state-space covariate, the
 covariate observation itself (`"ecov"`). Composition data use the conditional
 binomial / beta-binomial decomposition. Because OSA re-optimizes the random
 effects for each observation it is expensive, so run it on a converged fit
 (`estimateMode < 3`). All sources are available from any fit; `osa_residuals()`
 builds the required observation data on demand and skips a requested source the
 model has no observations for (it errors only if *none* of them do). `"diet"` is
-the one source not in the default set -- it applies only to multispecies models
-and can be slow -- so pass `source = "all"` to include it.
+the one source not in the default set, it applies only to multispecies models
+and can be slow, so pass `source = "all"` to include it.
 
 ```{r osa}
 # Aggregate (catch + index) residuals
@@ -320,7 +350,7 @@ plot(osa)
 # the data, like `type` in stats::residuals.glm()):
 residuals(model_1, type = "osa", source = c("index", "catch"))
 
-# Composition OSA residuals -- no special fit required
+# Composition OSA residuals, no special fit required
 plot_comp(model_1, residual_type = "osa")              # Q-Q + signed bubbles
 residuals(model_1, type = "osa", source = "comp")
 ```
@@ -340,7 +370,7 @@ is found in that coordinate, and the observation is standardized against it.
 `method = "cdf"` instead asks the model for the conditional CDF and returns
 `qnorm(F(x))`. For a composition bin the conditional is a binomial, written
 through the regularized incomplete beta so it is defined at the fractional
-counts composition data carry; for the aggregate series it is `pnorm`. On a
+counts composition data hold; for the aggregate series it is `pnorm`. On a
 fixed-effect model nothing is approximated; with random effects see below.
 
 The two do not agree on composition data, and the disagreement is measurable.
@@ -360,16 +390,16 @@ consistent with the residuals being iid standard normal. A composition bin holds
 a count, so its conditional CDF is a step function and `qnorm(F(x))` inherits
 the step; the randomized quantile residual `qnorm(F(x) − U f(x))` (Dunn and
 Smyth 1996, as Trijoulet et al. 2023 prescribe) removes it. That is why
-`discrete` defaults to `TRUE` under `"cdf"` — and why `"cdf"` with
+`discrete` defaults to `TRUE` under `"cdf"`, and why `"cdf"` with
 `discrete = FALSE` is the worst of the three, not the best. On the aggregate
 index and catch series, which really are Gaussian, all three agree to 5e-5
 wherever the 8.04 ceiling below does not bind.
 
 The step it randomizes over is the **model's**, not the data's: the counts the
 likelihood reads are `proportion × Sample_size`, so on a fleet whose sample size
-has been tuned they are not whole fish. That is the right choice — an OSA
-residual asks whether the observation is consistent with the model as specified
-— but it is worth knowing that a heavily down-weighted fleet is being
+has been tuned they are not whole fish. That is the right choice: an OSA
+residual asks whether the observation is consistent with the model as specified,
+but it is worth knowing that a heavily down-weighted fleet is being
 residualized against a multinomial it was never sampled from.
 
 ```{r osa-cdf}
@@ -380,7 +410,7 @@ osa_diagnostics(osa_cdf)
 Three things to know before switching:
 
 * **`predicted` is `NA` on every row.** The method never forms a conditional
-  mean, which is the point — under the Gaussian methods that mean is an expected
+  mean, which is the point, under the Gaussian methods that mean is an expected
   bin count that can come back negative on a sparse bin, and the residual on
   those rows is then biased positive. Fitted values are in `model_1$quantities`
   and in `residuals(model_1, type = "pearson")`. (`sd` is `NA` under the default
@@ -392,14 +422,14 @@ Three things to know before switching:
   object's `method` attribute. Their `predicted` is blanked too, so the column
   keeps one meaning across the object.
 * **`|residual|` is censored at 8.04, in both directions.** The upper end is
-  forced by double precision — `F` is recovered as `1/(1 + exp(.))`, which
+  forced by double precision, `F` is recovered as `1/(1 + exp(.))`, which
   saturates at the last double below one. The lower end is not: that same
-  expression carries a small `F` down to about 1e-308. It is censored to match
+  expression takes a small `F` down to about 1e-308. It is censored to match
   anyway, because an asymmetric ceiling would show as a long left tail against a
   wall on the right, which is what skewness in the residuals looks like. The
-  cost is real — `osa_diagnostics()` computes SDNR and the tail statistics on
+  cost is real, `osa_diagnostics()` computes SDNR and the tail statistics on
   the censored values, so it bites hardest on a short series where one
-  observation carries the statistic. `osa_residuals()` warns when any residual
+  observation holds the statistic. `osa_residuals()` warns when any residual
   sits there. Which method to reach for then is measured, not obvious
   (`tools/verify/verify-osa-cdf-accuracy.R`, a 12-year survey with one
   observation multiplied by 200):
@@ -414,8 +444,8 @@ Three things to know before switching:
   Only `"oneStepGaussian"` reports the uncensored value here: the package
   default returns `NaN` on that row, so its SDNR is unusable rather than merely
   large, and `"oneStepGeneric"` compresses the outlier harder than the ceiling
-  does. The default's failure is magnitude-dependent — at a ×20 outlier it is
-  finite and matches `"oneStepGaussian"` — so reach for that method
+  does. The default's failure is magnitude-dependent (at a ×20 outlier it is
+  finite and matches `"oneStepGaussian"`) so reach for that method
   specifically, and on the fleet in question: it costs an `nlminb` per
   observation.
 
@@ -423,7 +453,7 @@ Three things to know before switching:
 
 `"cdf"` is exact only on a fixed-effect model. With random effects
 `oneStepPredict()` integrates the CDF over the latent states by Laplace, and
-that integrand is a Gaussian times a sigmoid rather than a density — where, for
+that integrand is a Gaussian times a sigmoid rather than a density, where, for
 a Gaussian observation, the Gaussian methods integrate a density and are exact.
 Measured against the exact Kalman innovations of a linear-Gaussian state space
 model, as the latent state becomes more informative relative to the observation
@@ -435,9 +465,9 @@ model, as the latent state becomes more informative relative to the observation
 | 1.12 | 1e-15 | 4e-14 | 6e-03 |
 | 2.24 | 1e-15 | 3e-14 | 4e-02 |
 
-**That is a result about a linear-Gaussian model, and it does not carry over
+**That is a result about a linear-Gaussian model, and it does not transfer
 wholesale.** The Gaussian methods are exact when the one-step-ahead *predictive*
-is Gaussian, which needs the model to be linear in the random effects — and
+is Gaussian, which needs the model to be linear in the random effects, and
 Rceattle's index and catch are `exp()` of cumulated log recruitment deviations
 pushed through the population dynamics. `fullGaussian` and `oneStepGaussian`
 cannot differ for a Gaussian conditional, so their disagreement measures the
@@ -446,15 +476,15 @@ catch, while `"cdf"` differs from `oneStepGaussian` by 0.017 on index. **No
 method is exact for index or catch under random effects.**
 
 **`"ecov"` is the exception, and there a Gaussian method is right.** Its
-conditional — a Gaussian measurement of an AR1 latent, every other data term
-unconditional — genuinely is linear-Gaussian: the two Gaussian methods agree to
+conditional (a Gaussian measurement of an AR1 latent, every other data term
+unconditional) genuinely is linear-Gaussian: the two Gaussian methods agree to
 4e-14 on the QAR1 fixture, while `"cdf"` sits 0.139 away, about a quarter of the
 residual sd. It does not reverse for compositions: their conditional is discrete
 and skewed, which is what the Gaussian methods get wrong, and by much more.
 Simulating from a 22-random-effect model with the recruitment deviations redrawn
 and residualizing at the generating parameters (1680 residuals),
 `oneStepGaussianOffMode` gives mean +0.513, sd 0.404 and KS rejection in every
-one of 120 replicates, against +0.006, sd 1.002 and 6 of 120 — the nominal 5% —
+one of 120 replicates, against +0.006, sd 1.002 and 6 of 120, the nominal 5%,
 for `"cdf"` with `discrete = TRUE`.
 
 What limits `"cdf"` on compositions is the depth of the conditioning rather than
@@ -464,13 +494,13 @@ for `"oneStepGaussianOffMode"` on the same fit, and takes hours; the same rows
 residualized on their own come back clean, and the 22-random-effect model above
 is residualized correctly. So try it, read the warning it issues, and where the
 residuals come back non-finite in bulk fall back to a Gaussian method for that
-source — remembering that its composition residuals are the under-dispersed ones
+source, remembering that its composition residuals are the under-dispersed ones
 in the comparison above.
 
 Both halves of that split are what the SAM authors do, in two packages.
 `stockassessment::residuals.sam()` names no method, so it takes
-`oneStepPredict()`'s `"oneStepGaussianOffMode"` default with `discrete = FALSE`
-— on a model that is random effects throughout, whose observations are Gaussian
+`oneStepPredict()`'s `"oneStepGaussianOffMode"` default with `discrete = FALSE`,
+on a model that is random effects throughout, whose observations are Gaussian
 on the log scale. Their composition package `compResidual::resMulti()`, the
 implementation Trijoulet et al. (2023) cite, instead hardcodes
 `method = "cdf", discrete = TRUE`. Rceattle fits both kinds of data, so it makes
@@ -503,8 +533,8 @@ Following Stewart and Monnahan (2025), a practical workflow is:
 1. **Inspect the aggregate fit** across years (`plot_comp(model_1)`): systematic
    lack of fit here points to structural misspecification (e.g. the wrong
    selectivity shape). Counts are pooled across the fitted hindcast years, and
-   the interval holds 95% of the data the model predicts -- not a confidence
-   interval on the mean -- so observations outside it are the ones to explain.
+   the interval holds 95% of the data the model predicts, not a confidence
+   interval on the mean, so observations outside it are the ones to explain.
    The panel is annotated with the input sample size, the effective sample size
    the likelihood assumed (`ESS (likelihood)`), and the one this fit's residuals
    imply (`ESS (McAllister-Ianelli)`). The gap between those two is the
@@ -515,16 +545,16 @@ Following Stewart and Monnahan (2025), a practical workflow is:
    or effective-sample-size issue.
 3. **Compare the lower/upper tail statistics** to their null intervals: these
    localize departures to the tails of the residual distribution. They are
-   reported as order statistics -- `lower_r` / `upper_r` name which one, and
+   reported as order statistics, `lower_r` / `upper_r` name which one, and
    `lower_p` / `upper_p` the nominal probability it sits at, which is near but
-   not exactly 2.5% -- against the exact `Beta(r, n - r + 1)` null. The
+   not exactly 2.5%, against the exact `Beta(r, n - r + 1)` null. The
    statistic and its interval must come from the same estimator, so
    `osa_diagnostics()` no longer simulates and its `nsim` / `seed` arguments are
    ignored. The residuals themselves remain randomized-quantile residuals: pass
    a seed to `osa_residuals()` to control those.
 4. **Inspect Pearson bubble plots** (`plot_comp(model_1)`, the default): patterns
    in the sign of residuals across age/year can identify *where* lack of fit
-   occurs -- Stewart and Monnahan recommend keeping these alongside OSA
+   occurs, Stewart and Monnahan recommend keeping these alongside OSA
    residuals.
 5. **Revise the model or data weighting** where misspecification is found, using
    this together with the other diagnostics rather than as an accept/reject test.
@@ -540,7 +570,7 @@ tuned$reweight$history    # weight per fleet, per iteration
 ```
 
 Restrict it to particular fleets with `fleets =`, taking either `Fleet_code`
-values or names matching `fleet_control$Fleet_name` — give ids or names, not a
+values or names matching `fleet_control$Fleet_name`, give ids or names, not a
 mix, since R coerces `c(1, "Survey")` to character.
 
 ```{r}
@@ -554,7 +584,7 @@ that estimate; those fleets are named and skipped.
 The alternatives are Francis (2011) reweighting, applied by hand, and estimating
 the weights directly with a Dirichlet-multinomial likelihood
 (`Comp_distribution = "DirichletMultinomial"`), which avoids the iteration
-entirely — note that under that likelihood `Comp_weights` is read as the **log**
+entirely, note that under that likelihood `Comp_weights` is read as the **log**
 of the starting weight, so the model default of `1` is a starting weight of
 *e*, and a weight of 1 is written as `0`.
 
@@ -596,17 +626,17 @@ plot_biomass(model_1_retro$Rceattle_list)
 plot_biomass(model_1_retro$Rceattle_list, incl_proj = TRUE)
 ```
 
-Each peel carries its own terminal year as `data_list$endyr`, so the first plot draws every peel only as far as it was fit and the peels fan out.
+Each peel holds its own terminal year as `data_list$endyr`, so the first plot draws every peel only as far as it was fit and the peels fan out.
 
 A peel still estimates the years it dropped: they are its retrospective forecast, fit to the observed catch with recruitment projected at the single deviation `sample_rec(sample_rec = FALSE)` uses, computed over the peel, and the survey and composition data withheld. Fishing mortality is estimated through the unpeeled terminal year and the harvest control rule takes over after it, so each peel has three years:
 
 | Field | Meaning |
 |---|---|
-| `endyr`, `endyr_peel` | the peel's terminal year — what it was fit through |
+| `endyr`, `endyr_peel` | the peel's terminal year, what it was fit through |
 | `endyr_full` | the unpeeled terminal year, where the retrospective forecast ends |
 | `projyr` | the end of the projection |
 
-`incl_proj = TRUE` plots the forecast and projection years. Take the forecast years as `endyr_peel + seq_len(endyr_full - endyr_peel)` — empty for the unpeeled model, where `(endyr_peel + 1):endyr_full` would count down instead.
+`incl_proj = TRUE` plots the forecast and projection years. Take the forecast years as `endyr_peel + seq_len(endyr_full - endyr_peel)`, empty for the unpeeled model, where `(endyr_peel + 1):endyr_full` would count down instead.
 
 The `retrospective()` function returns a list with two elements:
 
@@ -617,7 +647,7 @@ The `retrospective()` function returns a list with two elements:
 
 The `nyrs_forecast` argument (default 3) also evaluates rho for years projected beyond each terminal peel, so a single call quantifies forecast skill alongside retrospective bias.
 
-A peel that did not converge is dropped and a message reports how many, so `Rceattle_list` can be shorter than `peels + 1`. Index it by name rather than position — with a peel missing, `Rceattle_list[[3]]` is not the 3-year peel. If no peel converges, Mohn's rho is `NaN` and the call warns.
+A peel that did not converge is dropped and a message reports how many, so `Rceattle_list` can be shorter than `peels + 1`. Index it by name rather than position, with a peel missing, `Rceattle_list[[3]]` is not the 3-year peel. If no peel converges, Mohn's rho is `NaN` and the call warns.
 
 ## Jitter testing
 
@@ -631,7 +661,7 @@ hist(log(jitters$nll - min(jitters$nll)),
      main = "Jitter NLL spread (log scale)",
      xlab = "log(NLL - min NLL)")
 
-# Overlay biomass trajectories — tight overlap indicates a stable optimum
+# Overlay biomass trajectories, tight overlap indicates a stable optimum
 plot_biomass(jitters$Rceattle_list)
 
 # Number of runs that converged
@@ -640,13 +670,13 @@ length(jitters$Rceattle_list)
 
 Non-converging runs are dropped from `Rceattle_list` and reported in a message, so if `length(jitters$Rceattle_list)` is well below `njitter`, convergence is fragile. Read that count as part of the result, not as a nuisance: the dropped starts are the ones that wandered off, so a jitter test that returns only its successes understates the spread.
 
-A run is dropped when its maximum absolute gradient exceeds 1 — the same threshold `convergence_diagnostics()` calls `FAIL` — or when an `sdreport` that was requested did not come back.
+A run is dropped when its maximum absolute gradient exceeds 1 (the same threshold `convergence_diagnostics()` calls `FAIL`) or when an `sdreport` that was requested did not come back.
 
 `retrospective()` and `jitter()` both fit peels / starts in parallel by default. Pass `cores = 1` to force sequential execution; otherwise the call uses a PSOCK cluster sized at `parallel::detectCores() - 6` (capped at 2 under `R CMD check`).
 
 ## Self-test (simulation–estimation)
 
-`self_test()` simulates `nsim` datasets from a fitted model — holding its estimated parameters fixed — and re-fits the model to each. If the refit estimates cluster around the values used to simulate them, the model is at least self-consistent: it can recover its own estimates from data it generated. Persistent bias or a wide spread in a quantity means the data are not informative about it.
+`self_test()` simulates `nsim` datasets from a fitted model (holding its estimated parameters fixed) and re-fits the model to each. If the refit estimates cluster around the values used to simulate them, the model is at least self-consistent: it can recover its own estimates from data it generated. Persistent bias or a wide spread in a quantity means the data are not informative about it.
 
 ```{r}
 sims <- self_test(model_1, nsim = 10)            # default nsim = 50
@@ -654,25 +684,25 @@ sims <- self_test(model_1, nsim = 10)            # default nsim = 50
 # Number of simulations that converged (non-converged runs are dropped)
 length(sims)
 
-# Overlay biomass / SSB trajectories across simulations — the original fit's
+# Overlay biomass / SSB trajectories across simulations, the original fit's
 # trajectory should sit inside the spread of the refits.
 plot_biomass(c(list(model_1), sims), model_names = c("fit", names(sims)))
 plot_ssb(c(list(model_1), sims),     model_names = c("fit", names(sims)))
 ```
 
-Each simulation uses `seed + i` as its RNG seed, so results are reproducible whether or not `cores > 1`. Set `simulate = FALSE` to refit against the model's *expected* values (no observation error) rather than draws from the observation likelihood — useful for confirming that the estimator returns the generating parameters in the noise-free limit. `cores` behaves the same way as in `retrospective()` and `jitter()`.
+Each simulation uses `seed + i` as its RNG seed, so results are reproducible whether or not `cores > 1`. Set `simulate = FALSE` to refit against the model's *expected* values (no observation error) rather than draws from the observation likelihood, useful for confirming that the estimator returns the generating parameters in the noise-free limit. `cores` behaves the same way as in `retrospective()` and `jitter()`.
 
-Every refit starts from the fitted model's *starting* values, not its estimates, so it covers the same ground the original fit did. `phase` therefore defaults to whatever the input model was fit with — pass `phase = TRUE` explicitly if you fit the model some other way and the refits are being dropped, since a model that needed phasing once needs it for every simulated data set too. `start = "estimated"` starts from the fitted estimates instead: much faster, but the optimizer then begins inside the basin containing the generating values and recovery is close to guaranteed by construction, so read it as optimistic about recovery rather than simply less powerful.
+Every refit starts from the fitted model's *starting* values, not its estimates, so it covers the same ground the original fit did. `phase` therefore defaults to whatever the input model was fit with, pass `phase = TRUE` explicitly if you fit the model some other way and the refits are being dropped, since a model that needed phasing once needs it for every simulated data set too. `start = "estimated"` starts from the fitted estimates instead: much faster, but the optimizer then begins inside the basin containing the generating values and recovery is close to guaranteed by construction, so read it as optimistic about recovery rather than simply less powerful.
 
-Three things to keep in mind when reading the result. Non-converged refits are dropped and reported in a message, and they are dropped *because* they behaved badly — so the returned replicates are a favourable subset, and any spread or bias computed over them (including `compare_sim()`'s CV) understates the truth. By default only the observations are redrawn: every replicate shares the operating model's single realization of recruitment and mortality, so the spread across replicates is observation error alone — a lower bound on estimation uncertainty in SSB and recruitment, not comparable to the model's own uncertainty bands.
+Three things to keep in mind when reading the result. Non-converged refits are dropped and reported in a message, and they are dropped *because* they behaved badly (so the returned replicates are a favourable subset, and any spread or bias computed over them (including `compare_sim()`'s CV) understates the truth. By default only the observations are redrawn: every replicate shares the operating model's single realization of recruitment and mortality, so the spread across replicates is observation error alone) a lower bound on estimation uncertainty in SSB and recruitment, not comparable to the model's own uncertainty bands.
 
-Third, watch for a truncation warning on a natural-scale index. A fleet with `Index_distribution = "Normal"`, `"MVN"` or `"MVNORM"` is drawn on the natural scale with an absolute sd, so a draw can come out negative — impossible for an index, and rejected by `data_check()`. Those draws are redrawn, which samples the fleet from a normal *truncated at zero* rather than the untruncated normal the likelihood maximises. Occasional truncation is harmless; a lot of it is not. An acoustic index observed at 0.70 with an absolute sd of 0.80 rejects a fifth of its draws and the truncated mean sits 39% above the untruncated one, so the self-test is measuring recovery against a data-generating process the estimator never assumed. `sim_mod()` warns when any row puts more than 2% of its probability at or below zero — `Phi(-mu/sd)`, read off the fit rather than counted from the draw, so it does not vary between replicates.
+Third, watch for a truncation warning on a natural-scale index. A fleet with `Index_distribution = "Normal"`, `"MVN"` or `"MVNORM"` is drawn on the natural scale with an absolute sd, so a draw can come out negative (impossible for an index, and rejected by `data_check()`. Those draws are redrawn, which samples the fleet from a normal *truncated at zero* rather than the untruncated normal the likelihood maximises. Occasional truncation is harmless; a lot of it is not. An acoustic index observed at 0.70 with an absolute sd of 0.80 rejects a fifth of its draws and the truncated mean sits 39% above the untruncated one, so the self-test is measuring recovery against a data-generating process the estimator never assumed. `sim_mod()` warns when any row puts more than 2% of its probability at or below zero) `Phi(-mu/sd)`, read off the fit rather than counted from the draw, so it does not vary between replicates.
 
-The fix for a `Normal` fleet is `Index_distribution = "TruncatedNormal"`, which fits the truncated density — renormalized by `log Φ(µ/σ)` over the `(0, ∞)` the data can actually occupy — and draws from it by inverse CDF. Draw and likelihood then agree exactly and no draw is ever rejected. `"Normal"` is kept untruncated because it reproduces the AMAK `avo_like` / `cpue_like` term for term, which is what an ADMB bridge compares against; use it there and `"TruncatedNormal"` elsewhere. `MVN`/`MVNORM` have no such option: a multivariate normal truncated to the positive orthant has no closed-form sampler, so rejection is the only route and the gap stays. Either way the underlying issue is the same — an absolute sd that large relative to the index means the natural-scale normal was a poor observation model to begin with.
+The fix for a `Normal` fleet is `Index_distribution = "TruncatedNormal"`, which fits the truncated density, renormalized by `log Φ(µ/σ)` over the `(0, ∞)` the data can actually occupy, and draws from it by inverse CDF. Draw and likelihood then agree exactly and no draw is ever rejected. `"Normal"` is kept untruncated because it reproduces the AMAK `avo_like` / `cpue_like` term for term, which is what an ADMB bridge compares against; use it there and `"TruncatedNormal"` elsewhere. `MVN`/`MVNORM` have no such option: a multivariate normal truncated to the positive orthant has no closed-form sampler, so rejection is the only route and the gap stays. Either way the underlying issue is the same, an absolute sd that large relative to the index means the natural-scale normal was a poor observation model to begin with.
 
-`"TruncatedNormal"` OSA residuals need one thing said about them. The truncation constant is a function of the prediction, not of the observation, so it drops out of any method that reads the curvature of the density in the observation — including `oneStepPredict()`'s default `oneStepGaussianOffMode`, which would return the untruncated `(obs - µ)/σ`. `osa_residuals()` therefore residualizes this family in its own call, integrating the density over `(0, ∞)`, so the residual is `qnorm(F(x))` for the truncated `F`. The correction is the size of the truncated mass: on a fleet predicting 100 with an absolute sd of 150, an observation exactly at the prediction moves from a residual of 0 to −0.44. You do not need to pass anything for this; `method` is overridden for those rows only.
+`"TruncatedNormal"` OSA residuals need one thing said about them. The truncation constant is a function of the prediction, not of the observation, so it drops out of any method that reads the curvature of the density in the observation, including `oneStepPredict()`'s default `oneStepGaussianOffMode`, which would return the untruncated `(obs - µ)/σ`. `osa_residuals()` therefore residualizes this family in its own call, integrating the density over `(0, ∞)`, so the residual is `qnorm(F(x))` for the truncated `F`. The correction is the size of the truncated mass: on a fleet predicting 100 with an absolute sd of 150, an observation exactly at the prediction moves from a residual of 0 to −0.44. You do not need to pass anything for this; `method` is overridden for those rows only.
 
-Under `method = "cdf"` none of that applies: the model supplies the truncated `F` in closed form, so the family is residualized in the main call, exactly, and the separate integration — with its cost and its occasional failure to converge on a random-effects model — is not needed.
+Under `method = "cdf"` none of that applies: the model supplies the truncated `F` in closed form, so the family is residualized in the main call, exactly, and the separate integration (with its cost and its occasional failure to converge on a random-effects model) is not needed.
 
 ### Redrawing process error
 
@@ -687,9 +717,9 @@ sims <- self_test(model_1, nsim = 10, process = "recruitment")
 sims <- self_test(model_1, nsim = 10, process = "dynamics")
 ```
 
-Recruitment covers the initial age structure as well as the hindcast deviations, since the initial numbers-at-age are recruitment from before `styr`. Natural mortality covers the `M1_re` random effects, and growth, catchability and selectivity are redrawn wherever they are written as a random linkage (see `vignette("environmental-linkages-and-priors")`). A process the model gives no distribution to — asking for M when `M1_re = 0`, say — is left alone and reported in a warning rather than silently returned unchanged.
+Recruitment covers the initial age structure as well as the hindcast deviations, since the initial numbers-at-age are recruitment from before `styr`. Natural mortality covers the `M1_re` random effects, and growth, catchability and selectivity are redrawn wherever they are written as a random linkage (see `vignette("environmental-linkages-and-priors")`). A process the model gives no distribution to (asking for M when `M1_re = 0`, say) is left alone and reported in a warning rather than silently returned unchanged.
 
-Recruitment has one such case worth knowing about. Under `srr_fun = 0` with `srr_pred_fun > 0` — the AMAK/Ianelli configuration, where recruitment is estimated annually and the stock-recruit curve is fitted as a *penalty* on those same deviations — the deviations are scored by two densities at once.
+Recruitment has one such case worth knowing about. Under `srr_fun = 0` with `srr_pred_fun > 0` (the AMAK/Ianelli configuration, where recruitment is estimated annually and the stock-recruit curve is fitted as a *penalty* on those same deviations) the deviations are scored by two densities at once.
 
 Two terms on one quantity do not compose into a distribution to draw from. Drawing at `R_sd` from the first alone ignores the second, and the second is not a density on the deviations alone either: it couples them to the stock-recruit parameters, which are estimated too. Either way the self-test would measure recovery against a process the model does not assume, so the deviations are not redrawn and `sim_mod()` says why. A random linkage on a recruitment parameter is a separate latent and is still drawn. Set `srr_fun` to the stock-recruit function itself to redraw the deviations.
 
@@ -702,7 +732,7 @@ rec   <- truth$rec_dev[truth$rec_dev_drawn]
 
 Compare estimates against those, not against the operating model. The mask matters: the process draws cover the hindcast only, and `beta_linkage_re` spans every random linkage whether or not its process was asked for, so a correlation taken over the whole array scores fitted values as though they had been simulated. For the same reason `compare_sim()`, which compares against the operating model, is not valid for `process`-drawn replicates.
 
-One caveat before reading a redrawn M as validation. On `BS2017SS` with a year-varying M random effect, refits recover the simulated deviations (correlation around 0.5, positive in every replicate) but recover their standard deviation poorly — roughly 70% low, and collapsing to zero in a third of replicates. That is the usual behaviour of a variance component estimated from little information, not a fault in the simulation, and a year-varying M is weakly informed because it trades off against selectivity and catchability. Read a self-test that redraws M as a test of deviation recovery rather than of variance recovery.
+One caveat before reading a redrawn M as validation. On `BS2017SS` with a year-varying M random effect, refits recover the simulated deviations (correlation around 0.5, positive in every replicate) but recover their standard deviation poorly, roughly 70% low, and collapsing to zero in a third of replicates. That is the usual behaviour of a variance component estimated from little information, not a fault in the simulation, and a year-varying M is weakly informed because it trades off against selectivity and catchability. Read a self-test that redraws M as a test of deviation recovery rather than of variance recovery.
 
 When the returned list is shorter than `nsim`, `debug = TRUE` returns *every* simulation so the failures can be read directly rather than inferred:
 
@@ -715,12 +745,12 @@ sims[[failed[1]]]$convergence          # which check failed, and on which parame
 
 ## Likelihood profile
 
-`profile()` re-fits the model across a grid of fixed values for a chosen parameter and returns the NLL surface. A flat profile means the data carry little information about the parameter; a minimum away from the MLE means the fit has not truly settled there. It supports the recruitment standard deviation, the stock–recruit parameters, and natural mortality.
+`profile()` re-fits the model across a grid of fixed values for a chosen parameter and returns the NLL surface. A flat profile means the data say little about the parameter; a minimum away from the MLE means the fit has not truly settled there. It supports the recruitment standard deviation, the stock–recruit parameters, and natural mortality.
 
 Specify the parameter with a natural-scale alias: `"sigmaR"` (recruitment
 standard deviation), `"M1"` (natural mortality), or the stock–recruit parameters
 `"R0"`, `"alpha"`, and `"beta"`. Aliases take natural-scale values directly.
-`slots` gives the cell(s) to profile — usually just the species index — and
+`slots` gives the cell(s) to profile (usually just the species index) and
 `values` gives the grid of values for each. Supplying more than one slot
 profiles over the full grid of combinations.
 
@@ -757,7 +787,7 @@ prof_M_sex <- profile(
 ### Moving a set of cells together
 
 `slots` cross, so *k* slots give a *k*-dimensional profile. That is wrong for a
-parameter supplied as a vector — an empirical age-based M profiled over 13
+parameter supplied as a vector, an empirical age-based M profiled over 13
 values across ten ages would be `13^10` fits. `joint` puts every named cell on
 **one** grid instead: `"multiply"` scales each cell's current value, preserving
 the shape of the schedule (`1` is the fitted model), and `"add"` shifts it,
@@ -781,7 +811,7 @@ plot_profile(prof_M_all)
 
 `param = "q"` profiles a fleet's base catchability, and `slots` takes a fleet
 name. Fleets sharing a `Catchability_index` share one q, so naming any member
-profiles the whole group — the others are added with a message.
+profiles the whole group; the others are added with a message.
 
 ```{r}
 prof_q <- profile(
@@ -792,12 +822,12 @@ prof_q <- profile(
 )
 ```
 
-`profile()` returns `Rceattle_list` (one fit per grid row, `NULL` where the fit failed), `grid` (the user-scale value grid — a multiplier or offset under `joint`), `nll` (joint NLL aligned with `grid`, `NA` for non-converged fits), `alias` (the natural-scale name you profiled under, if you used one), `joint`, and echoes of `param` and `slots`. To cross-profile across multiple species, supply one slot per species (e.g. `slots = list(1, 2, 3)` with `param = "sigmaR"`); to cross-profile M1 across sex, supply one slot per sex as in the third example above. `cores` behaves the same way as in the other diagnostic functions.
+`profile()` returns `Rceattle_list` (one fit per grid row, `NULL` where the fit failed), `grid` (the user-scale value grid, a multiplier or offset under `joint`), `nll` (joint NLL aligned with `grid`, `NA` for non-converged fits), `alias` (the natural-scale name you profiled under, if you used one), `joint`, and echoes of `param` and `slots`. To cross-profile across multiple species, supply one slot per species (e.g. `slots = list(1, 2, 3)` with `param = "sigmaR"`); to cross-profile M1 across sex, supply one slot per sex as in the third example above. `cores` behaves the same way as in the other diagnostic functions.
 
 ### Where the data disagree
 
 The total says how well the data determine the parameter, not whether the data
-sources agree about it — a smooth quadratic total can be two surveys pulling in
+sources agree about it, a smooth quadratic total can be two surveys pulling in
 opposite directions. `plot_profile()` draws the components separately, in the
 layout `r4ss::SSplotProfile()` uses.
 
@@ -837,7 +867,7 @@ does not include.
 
 ## Comparing runs
 
-Overlaying sensitivity runs is itself a useful diagnostic — large divergences in biomass or mortality deserve scrutiny.
+Overlaying sensitivity runs is itself a useful diagnostic, large divergences in biomass or mortality deserve scrutiny.
 
 ```{r}
 mod_list  <- list(model_1, model_1_retro$Rceattle_list$Year_2019)
@@ -852,7 +882,7 @@ plot_depletionSSB(Rceattle = mod_list, model_names = mod_names)
 ## Collecting it into report tables
 
 Everything above returns its own shape. `report_tables()` gathers them into one
-set of tidy tables — the fit, the likelihood decomposition, the time series with
+set of tidy tables, the fit, the likelihood decomposition, the time series with
 uncertainty, the reference points, the fits to index and catch, and whichever
 diagnostics you pass it:
 

@@ -54,7 +54,7 @@ fitted on and read from its \code{Index_distribution}:
 \code{log(observed) - log(predicted)} for a log-scale (\code{"Lognormal"}) fleet, and
 \code{observed - predicted} for a natural-scale one (\code{"MVN"}, \code{"MVNORM"},
 \code{"Normal"}, \code{"TruncatedNormal"}), whose sd is absolute. A positive residual
-means the survey saw more than the model predicted. Panels carry different
+means the survey saw more than the model predicted. Panels hold different
 units where a model mixes the two families, which is why the y scale is free
 per fleet.
 

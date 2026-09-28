@@ -16,7 +16,7 @@ estimation-model (EM) perception metrics.}
 A named list, one element per entity dimension so each metric lives
 only where it applies (no NA padding):
 \itemize{
-\item \code{species} -- a data.frame with one row per species (keyed by \code{Species})
+\item \code{species}, a data.frame with one row per species (keyed by \code{Species})
 of the conservation / status metrics: per-species average catch, catch
 inter-annual variability (IAV), and P(Closed) = the probability the
 fishery is closed (catch ~ 0); the relative mean-squared error of
@@ -26,17 +26,17 @@ perceived overfishing / overfished probabilities (via
 (estimation model disagrees with the operating-model truth); and terminal
 biomass, SSB, dynamic SB0, SSB depletion (equilibrium and dynamic),
 average SSB depletion, and SSB-collapse counts.
-\item \code{fleet} -- a data.frame with one row per fishery fleet (keyed by
+\item \code{fleet}, a data.frame with one row per fishery fleet (keyed by
 \code{Fleet_code} / \code{Fleet_name}) of average catch, catch IAV, and P(Closed).
-\item \code{total} -- a named numeric of the across-fleet total average catch and
+\item \code{total}, a named numeric of the across-fleet total average catch and
 catch IAV.
-\item \code{meta} -- run provenance (\code{nsim}, \code{nspp}, \code{nflts}, \code{HCR}, projection-year
+\item \code{meta}, run provenance (\code{nsim}, \code{nspp}, \code{nflts}, \code{HCR}, projection-year
 range).
 }
 
 All metrics are averaged across projection years and simulations.
 
-Metric columns carry syntactic names, so they can be typed without
+Metric columns hold syntactic names, so they can be typed without
 backticks: \code{avg_catch}, \code{catch_iav}, \code{p_closed}, \code{ssb_rmse_avg},
 \code{ssb_rmse_terminal}, \code{em_p_overfishing}, \code{em_p_overfished},
 \code{om_p_overfishing}, \code{om_p_overfished}, \code{p_overfishing_false_pos},
@@ -71,7 +71,7 @@ last projection year, not by an unfished reference.
 The collapse metrics compare the OM with \code{OM_no_F}, the OM refit with no
 fishing after the original operating model's \code{endyr} (\code{\link[=remove_F]{remove_F()}}).
 
-Each frame carries a \code{"labels"} attribute mapping those names to the long
+Each frame holds a \code{"labels"} attribute mapping those names to the long
 display strings (e.g. \code{om_terminal_depletion_dynamic} ->
 \code{"OM: Terminal SSB Depletion (Dynamic)"}) for plots and tables:
 \code{attr(summ$species, "labels")}.

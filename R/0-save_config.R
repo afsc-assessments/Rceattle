@@ -345,7 +345,7 @@ print.Rceattle_run_config <- function(x, ...) {
 #'
 #' Returns the [model_config()] structure plus the estimation controls and
 #' [fit_control()] bundle as a single `Rceattle_run_config`. Accepts a fitted
-#' Rceattle object, a data list carrying `$model_config`, an
+#' Rceattle object, a data list holding `$model_config`, an
 #' `Rceattle_run_config`, or an `Rceattle_model_config`. Estimation controls and
 #' `fit_control` supplied via `...` override any found on the object.
 #'
@@ -406,15 +406,15 @@ run_config <- function(x, ...) {
 
 #' Save a model run configuration to a documented YAML file
 #'
-#' Round-trips a full run configuration -- the [model_config()] structure plus
-#' the estimation controls and [fit_control()] bundle -- to a
+#' Round-trips a full run configuration, the [model_config()] structure plus
+#' the estimation controls and [fit_control()] bundle, to a
 #' git-diffable YAML file, with each field's documentation emitted as a comment
 #' and a spec-tree + provenance header. Only fields that differ from their
 #' defaults are written, so two configurations diff to just their real
 #' differences. The parameter values (`inits`/`map`/`bounds`) are NOT stored;
 #' pair the config with a saved fit for those.
 #'
-#' @param x A fitted Rceattle object, a data list carrying `$model_config`, an
+#' @param x A fitted Rceattle object, a data list holding `$model_config`, an
 #'   `Rceattle_run_config`, or an `Rceattle_model_config`.
 #' @param file Output path for the `.yaml` file.
 #' @param ... Estimation controls / `fit_control` to record (passed to

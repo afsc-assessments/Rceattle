@@ -5,29 +5,192 @@ session. Maintained by `/handoff`.
 
 ## Now
 
-**In flight (2026-09-23): exact SS3 -> Rceattle bridge for AI and GOA Pacific cod, branch
-`cod-bridge`** (off `dev` at `cf82f27e`; WIP commit `f0796442` pushed, 5.42.0 in DESCRIPTION;
-paired `Rceattle-models` commits `3c6e9f0`, `99f40e2` and `3b2fc4b` on master). Goal: from a cold start Rceattle reaches the same solution as an SS3 reference
-run. Plan: `../Rceattle-models/SS3-bridge/PLAN.md` (phases 0-5). Targets are SS3 runs
-adjusted only in *estimation-method* choices (F_Method 2, `max_bias_adj -1`, F_Ballpark off,
-InitEQ lambda 0); biology, selectivity and likelihood are built into Rceattle.
+**`dev` is at 5.45.0 and `main` at 5.33.0.** The next step is one `dev` -> `main` release
+covering 5.34.0 through 5.45.0, per `inst/RELEASE-CHECKLIST.md`. Read that file's pkgdown note
+before tagging: the `release: published` event has silently failed to fire once already.
+**The tag is the DESCRIPTION version, so read it off `DESCRIPTION` at the moment you tag; it
+has moved four times during this release (5.41.0 -> 5.42.1 -> 5.43.0 -> 5.45.0) as review and
+follow-up work landed on `dev`, and `README.md:43` has had to follow it each time.** #160 (5.42.0),
+#169 (5.44.0, 5.45.0) and the
+review of #158 (5.42.1) both landed after the release PR was written.
 
-- AI target: `Rceattle-models/AI cod - Dev/Data/M24_1_adjusted` (SS3 3.30.22.1, NLL 531.003,
-  gradient 6.3e-5). `M24_1_baseline` reproduces the original M24_1 (535.161 vs 535.174).
-- GOA target: `Rceattle-models/GOA cod/Data/goa_pcod-no init and ramp` (NLL 2048.07).
-- The superseded `origin/dev-cod-bridge` (798 behind `dev`) is a read-only reference; nothing
-  is merged from it.
+**Checklist state at 5.45.0.** Two of the four measurements have been re-taken at this head,
+and the other two are argued rather than re-run:
 
-The release notes below still stand; the cod bridge ships in the same `dev` -> `main` release
-or after it, Grant's call.
+- **Full suite, re-run 2026-09-28 at `be207905`, `dev` at 5.45.0**
+  (`NOT_CRAN=true TESTTHAT_PARALLEL=false`, serial, R 4.5.1 on macOS with every Suggests
+  installed): **9,765 assertions / 0 failures / 0 errors**, 3 skips, 244 files. Supersedes
+  9,702 (round 3), 9,613 (5.42.1) and 9,506 (2026-09-21). **Re-take it after anything lands on
+  `dev`**: this figure has gone stale four times in this release, most recently when #169 merged
+  minutes after the 9,702 run. The failure count is
+  the load-bearing number; **the skip count is environment-specific** -- 459 `skip_on_cran()`,
+  763 `skip_if_not_installed()` and 93 `skip_if()` guards mean a clean machine will skip far
+  more, so do not treat 3 as a target.
+- **Ecosystem sweep, re-run and widened to the 5.42.0 refusals**: 375 workbooks across the
+  four consumer repos, 183 with a `fleet_control` sheet (the count excludes `~$` Excel lock
+  files; including them gives 423). Exactly one workbook, one column, two fleets carries a
+  negative weight: EBS pollock 2024's `Sel_curve_pen1` on AVO and ATS, `NonParametricPM` with
+  no `Sel_shape_mode` column at all, which the directional exemption keeps legal -- and ATS
+  additionally follows AVO's `Selectivity_index`, so the template never reads its weight.
+  `Sel_curve_pen1`/`2` exist in only 20 of the 183 workbooks and `pen3` in 1. No workbook
+  sets `Sel_shape_dir` or `Sel_devmag_sd` -- those columns are absent everywhere, so the
+  present-but-NA case never arises. No selectivity prior or apical linkage sits on an `Off`
+  fleet or a shared-block follower -- the GOA pollock 2025 prior fleets are each their
+  group's lead, and GOA cod bridging builds double-normal linkages with no priors. No
+  group anywhere mixes selectivity forms, read raw or canonicalized through `sel_map`.
+- **Hake `MSE_yr2024.R`: the 2026-09-23 run still stands**, and re-running it would prove
+  nothing new. `MSE_hake_yr24_final.xlsx` is **`nspp = 4`** (Hake, ATF, Sablefish, CSL) with
+  only two fleets, both `Selectivity = 5` (`Hake`), on separate `Selectivity_index` values,
+  with no negative penalty weight and no `Sel_shape_dir` or `Sel_devmag_sd` column.
+  Form 5 appears in **no** slot of `.RCE_SEL_PEN_POSITIVE`, so no
+  5.42.0 refusal can fire on it, and with no shared group the 5.42.1 lead rule is a no-op
+  there. Nothing in 5.42.0 or 5.42.1 touches predation, suitability, the DM likelihood,
+  `sim_mod()` or `run_mse()`'s numerics (rule 15); the only MSE-visible change is that the
+  estimation fits now report `NOTE` instead of `OK` under `getsd = FALSE`, a status.
+  Do not read the two-row `fleet_control` as a single-species model: only hake has fishery and
+  survey data, the other three are diet-only predators, so the script's four-element
+  `suitMode` / `suit_styr` / `suit_endyr` vectors and `msmMode = "MSVPA"` are correct. A review
+  pass misread this as a stale script; it is not.
+- **Reproducible install: still owed at this head.** It was driven at 5.41.0. Run it as part
+  of checklist section 4 once the tag is pushed.
+- **`urlchecker::url_check()` and `devtools::spell_check()`: run 2026-09-24, both clear.**
+  Neither is run by CI, so they are only ever done by hand. `url_check()` reports exactly one
+  404, the `adding-a-selectivity-form.html` canary in step 4 below, which is the stale
+  published site rather than a bad link and resolves when pkgdown rebuilds. `spell_check()`
+  returns several hundred domain terms (`acf`, `ADMB`, `ADREPORT`, `al`, `Ageing`); there is
+  no `inst/WORDLIST`, so it is advisory noise, not a gate. Adding a WORDLIST so this becomes
+  a real check is a `CLEANUP_BACKLOG.md`-sized job, not a release one.
 
-**`dev` is at 5.41.0**, and once this notes consolidation merges nothing is open against it.
-`main` is at 5.33.0, so the next step is one `dev` -> `main` release covering 5.34.0 through
-5.41.0, per `inst/RELEASE-CHECKLIST.md`. Read that file's pkgdown note before tagging: the
-`release: published` event has silently failed to fire once already.
+**PR #159 merged into `dev` on 2026-09-24**, #160 on 2026-09-25 (`dev` head `c01ea717`), and
+the review of #158 after it. #159 asked four questions of #158: does the language read as
+AI-written, is the API frictionless, are the docs concise, can a developer find and change the
+model. Full suite green (235 files, 0 failures), golden unchanged to ~1e-11.
 
-The 2026-09-14 backlog plan is finished. Eight branches, listed below in version order
-(#150 merged before #149), each reviewed
+What a reviewer should still go at hardest:
+
+- **The selectivity form collapse.** `NonParametricIID` (13) and `NonParametricRW` (14) became
+  one `NonParametricIntegrable` (13), with `Time_varying_sel` picking the structure. Code 14 is
+  free. **Golden does not cover it**: the four reference models use forms 0-4 (verified: the
+  union of their `Selectivity` columns is {0,1,2,3,4}), so golden passing only shows the new
+  `sel_case` dispatch is inert for the other forms. What covers the merge is
+  `test-selectivity-nonparametric-integrable.R` and its independent `dnorm` oracle.
+- **The collapse left stale text in six shipped schema descriptions and in NEWS 5.40.0.** Fixed
+  on `fix/release-doc-corrections`; `test-docs-anchors.R` now fails if any schema description
+  names a selectivity code `sel_map` does not accept. A schema `doc` string is written verbatim
+  into `meta_data_names.xlsx`, so it is user-facing, not a comment.
+- **The language sweep touches 69 files** and is isolated in one commit. It recasts clauses
+  rather than transliterating dashes; the risk to look for is a `carry` that meant *propagate*
+  being flattened to `hold`. Six such were caught in roxygen; assume more exist.
+
+## Round 3 of the #158 review (branch `fix/pr158-review-round3`, 4 commits)
+
+Folded into 5.43.0, no bump: `dev` was already there and 5.45.1 is reserved. Two adversarial
+passes ran over it; between them they found nine and eleven items, of which these mattered.
+
+- **A negative variance printed as a standard error** in `summary()` and `report_tables()`'s
+  parameter table, which is the table a SAFE executive summary is built from. `vcov()` is
+  `sdreport()`'s covariance with no `pdHess` gate and an indefinite Hessian inverts without
+  being positive definite, so `sqrt(abs(variance))` reported a meaningless number unflagged.
+  Measured on `diag(2, -3)`: `chol()` fails, the diagonal is `0.5, -0.333`, the old code
+  reported `0.707` and `0.577`. Both now return `NA`, with a rounding tolerance of `1e-10` so a
+  converged fit on a flat ridge still reports `0` rather than `NA`.
+- **A factor switch column was read by its level index.** `revert_switches()` resolves eight of
+  the nine columns `convert_switches()` handles; **`Time_varying_q` is the ninth**, so a factor
+  there reached the template by level index through `fit_mod()` -- `factor("Off")` became `IID`,
+  estimating catchability deviations nobody asked for, with `data_check()` clean. One shared
+  rule (`.rce_defactor_fleet_control()`) now runs in `switch_check()` and `convert_switches()`.
+  Nothing in the ecosystem supplies a factor (375 workbooks, 15 bundled `.rda`, every
+  `data.frame()`/`read.csv()` in the four consumer repos), and R >= 4.1 defaults it off.
+- **The blank-`Fleet_type` guard ran after `convert_switches()` had destroyed the evidence**, so
+  a mistyped type was refused as a blank cell. It now reads the column as supplied, and a type
+  outside the allowed set is refused by fleet and value -- closing `3`, `-1` (which was eligible
+  to lead a `Selectivity_index` group whose penalty is gated on `flt_type > 0`, so the group's
+  penalty went uncharged) and `2.7`.
+- **Two claims the second reviewer made did not survive checking**, and one had already been
+  written into NEWS on its word: `revert_switches()` de-factors `Fleet_type` four lines before
+  the `"Off"` assignment that was said to corrupt it, so neither the `switch_check()` NA
+  corruption nor a fit-moving factor `Fleet_type` through `fit_mod()` is real. Verify a
+  reviewer's mechanism before it reaches a release note.
+- **Deliberately left open**: `R/1-data_check.R:1255` still reads `Selectivity != "Fixed"` raw,
+  so raw `GOA2018SS` fleets 4 and 5 are still false positives of the class 5.43.0 fixed -- and
+  they are what satisfies the positive control in `test-switches-fleet-type-integer-off.R`, so
+  fixing the line turns that assertion red. The class fix (canonicalise every schema `switch`
+  column at `data_check()`'s entry) wants its own PR and a golden run; it is the
+  `CLEANUP_BACKLOG.md` row "schema `switch` not enforced at the boundary".
+- The two transfer notes no longer ship in the tarball. `TRAPS.md`, `CLEANUP_BACKLOG.md` and the
+  other `TODO-*` notes still do, because `man/run_mse.Rd` cites two of them.
+- The repository `homepage` setting pointed at `grantdadams.github.io/Rceattle/index.html` (404);
+  it is now the live site. That was a GitHub setting, not a file, so no sweep would have caught it.
+- **A green local suite did not establish the tests were sound.** The width-alignment assertion
+  located its column by searching for `"ages "` in the printed line, and which elements the 90%
+  loading cut keeps moves with rounding in `eigen()`: a consecutive set prints `ages 1-14`, a
+  scattered one `13 ages in 1-14`, so the token sits three characters further along. It passed
+  locally on both lines and failed the `R-CMD-check` `oldrel-1` leg (`FAIL 1 | PASS 3050`). It now
+  measures the first non-space past the padded block name. Twice in this review the tests were
+  the weak link rather than the code -- the 5.42.1 round found three that passed for the wrong
+  reason -- so when a new assertion reads printed output, check what in that output is
+  platform-dependent before trusting one machine's green.
+
+**The release sequence, from here:**
+
+1. **Done.** Every review branch is in: `fix/release-doc-corrections`, #162, #164, #165, #166,
+   and #161 (merged at `eafcece3` with no further bump, since `dev` already read 5.43.0; its
+   NEWS entries were filed under 5.42.0 and have been moved to 5.43.0).
+   `fix/pr158-review-round3` carries the third review of #158 -- see "Round 3" below. **5.45.1
+   is spoken for by the `golden` robustness fix**, so a further review round folds into 5.43.0.
+2. Merge the `dev` -> `main` release PR #158. Its body must say what forces a refit, what
+   breaks and what is new, and must cover 5.42.0, 5.42.1 and 5.43.0; do not paste `NEWS.md`. Suite and
+   sweep are already re-taken at this head (above); the install is checklist section 4.
+3. Tag the MERGE COMMIT on `main` with the DESCRIPTION version, then publish a GitHub Release
+   from the tag.
+4. **Confirm pkgdown rebuilt with the canary, not by eye**, then
+   `gh workflow run deep-checks.yaml --ref main`. The canary is
+   `https://afsc-assessments.github.io/Rceattle/articles/adding-a-selectivity-form.html`, which
+   **404s today** and must return 200 after the Release is published. It 404s because that
+   article landed at 5.37.0 on `dev` and does not exist on `main`, which is what pkgdown
+   builds from -- so it is a live test of the exact silent failure the checklist warns about,
+   with a known-bad starting state. Still 404 after publishing means the `release: published`
+   event did not fire: `gh workflow run pkgdown.yaml --ref main`.
+5. Tell the consumer repos to pin the tag rather than track `main`.
+
+**The last installable tag is `5.28.0`, not 5.33.0.** `main` carried 5.29.0, 5.30.0, 5.31.0,
+5.32.0, 5.32.1 and 5.33.0 without a tag being pushed for any of them. So a consumer who pins
+tags, which is what step 5 asks for, moves **5.28.0 -> 5.45.0**, seventeen minor versions (29 through 45
+inclusive), not eight. Say that in the release body, and treat step 3 as the fragile step it has proven to be:
+the pkgdown `release: published` miss at 5.21.0 is the same step failing in a different way.
+
+**Three things are red before the release starts, and none is from this batch.** None is
+evidence against the tag. But "known" is not "ignore": read each post-merge run against the
+signature below, because that is the only thing separating a known red from a new one:
+
+- **`deep-checks` `golden` fails on `main` at 5.33.0.** `goa_ss` lands in the second local
+  minimum and `goa_ms` inherits it through its warm start. Last fully green 2026-09-13.
+  **Before dispatching `deep-checks` on `main`, expect exactly this signature: a `goa_ss` delta
+  of 52.9 with the other three models bit-identical.** Any other pattern is a real regression
+  and stops the release. Diagnose from the gradient at the reference `par`, not the objective
+  (`TRAPS.md`). The robustness fix is the first job after the release and ships as 5.45.1; until
+  it lands this guard cannot gate anything.
+- **`deep-checks` `suite` never finishes.** It is `cancelled` in every recent run at 5h00-5h01
+  wall clock, a timeout rather than a pass. So the one job that runs the 140 `skip_on_cran()`
+  test files proves nothing about `main` right now. Either raise the ceiling or shard it; until
+  then do not cite a `deep-checks` run as suite coverage.
+- **`R-CMD-check` fails intermittently, and it is mostly macOS, not Windows.** Over the last 100
+  runs: 79 completed, 8 failures, of which 7 were macOS-only and 2 touched Windows. The Windows
+  access violation is real and reproduces on `main` (the file the framework names carries no
+  information, see `TRAPS.md`), but it is ~2 in 79, not 2 in 30. **It shows up as a dead
+  testthat worker** (`parallel_event_loop_chunky` -> `handle_error` -> `cli_abort`), and the
+  log then dumps whatever that worker had printed. In the 2026-09-25 run on #158 that was
+  `test-convergence.R`'s `[FAIL] max_gradient = 4e+12 (largest on 'sel_inf')` and
+  `[FAIL] pdHess` -- which are `print()` output from a deliberately non-converged synthetic
+  fixture (`make_fake_fit()`; the file runs no TMB fit and passes 46/0/0). **Those lines are
+  not a convergence regression.** Check for the dead worker before reading a Windows red as
+  one.
+
+macOS was red 2026-09-20 to 09-22 for two unrelated upstream reasons and recovered on its own;
+branch `ci/macos-libomp` holds an unmerged remedy if the OpenMP one recurs.
+
+The 2026-09-14 backlog plan is finished. Nine branches across eight versions, listed below in
+version order (#150 merged before #149; 5.37.0 took two branches), each reviewed
 adversarially before commit and again by a second session before merge:
 
 | Version | PR | What landed |
@@ -38,242 +201,30 @@ adversarially before commit and again by a second session before merge:
 | 5.37.0 | #147, #148 | QAR1 path removed; stored-map guard; `CONTRIBUTING.md`, the Doxygen build and `adding-a-selectivity-form.Rmd` |
 | 5.38.0 | #149 | Per-sex apical selectivity offset (`log_sel_apical`) |
 | 5.39.0 | #150 | Multispecies stock-recruit bounds and a degenerate-curve check |
-| 5.40.0 | #151 | `NonParametricIID` (13) and `NonParametricRW` (14) |
+| 5.40.0 | #151 | Two integrable non-parametric forms (13, 14), collapsed to `NonParametricIntegrable` (13) in #159 |
 | 5.41.0 | #152 | `osa_residuals(method = "cdf")` |
+| 5.42.0 | #160 | Selectivity-penalty sign refusals; apical/prior `Off` and shared-block gates |
+| 5.42.1 | review of #158 | Penalty lead keyed as the template keys it; the code-14 guard widened |
+| 5.43.0 | review of #158 | A blank `Fleet_type` is refused, in `switch_check()` and `rearrange_data()` |
 
-## Done & verified (cod bridge, 2026-09-23, WIP on `cod-bridge`)
+## After the release, in order
 
-**Phase 1, growth and biology.** `build_growth(pop_lengths, sd_form = "SD"/"CV",
-plus_group_length = "M1"/"none"/"SS3.24"/"decay", plus_group_decay)`; control columns
-`L50_mat_len` / `slope_mat_len` (added via `/new-column`; round-trip, template, meta xlsx
-regenerated); one `spawn_output[nspp, nages, nyrs]` array now feeds SSB, SB0/SBF, dynamic B0
-and SPR (`ceattle.cpp` 5.7). Defaults reproduce the old behaviour.
-- `test-growth-ss3-options.R`: all pass (checks against an independent R implementation of
-  SS3's ALK / weight / fecundity).
-- `/golden-check` via `test-golden-regression.R`: **PASS**, 24 expectations, 0 failures, after
-  Phase 1.
+1. **Make `golden` robust**, so `deep-checks` can gate a release. Warm-start the reference fits
+   from the pinned parameters, or take the lower of two starts. It is a harness change and
+   cannot move a fitted number. **This is not just the next cleanup: it gates the NOAA
+   transfer** (`PLAN-adoption-and-NOAA-transfer.md` section 0, item 5) and it has a release
+   vehicle already chosen, 5.45.1 (`TODO-pre-transfer.md` B3). Do it before anything below.
+   While doing it, fix the `deep-checks` `suite` timeout too; a guard that cannot finish is
+   the same problem in a different job.
+2. **Decide on the three inert test guards** (`CLEANUP_BACKLOG.md`): restore or delete. The
+   multispecies one is hiding an unexplained disagreement with the old EBS CEATTLE.
+3. **Work `SIMPLIFY-LOG.md`.** Seventeen rows, three struck through, so **fourteen open**: six
+   change behaviour (two of them needing a deprecation path or a shim), one moves a golden
+   reference, four are internal, two additive, one doc. Every row is logged rather than done,
+   by standing rule; Grant picks which become PRs.
 
-**Phase 2, selectivity.**
-- `Selectivity = "DoubleNormalSS3"` (15): SS3 pattern 24, own array `sel_dn6[6, flt, sex]`
-  on SS3's scales, unnormalized, -999 ends -> `sel_dn6_ends` data flag + parameter mapped out.
-  Linkage codes 6-11 (`dn_peak`, `top_logit`/`dn_top`, `ascend_se`/`dn_asc`,
-  `descend_se`/`dn_desc`, `start_logit`/`dn_init`, `end_logit`/`dn_final`), in lockstep in
-  `R/0-linkage_encode.R` and `linkage.hpp`. Blocks = identity-link `~ cut(Year, breaks)`;
-  SS3 annual devs = log-link `(1 | Year)` with `integrate = FALSE` and fixed SD (existing
-  grammar, no new dev machinery). `Time_varying_sel` must be "Off" for this form.
-- Selected body weight (behaviour change, Grant approved): length-selective fleets with
-  estimated growth weigh catch and survey biomass by sum P(l|a) s(l) w(l) / sum P(l|a) s(l)
-  (`ceattle.cpp`, right after `calculate_selectivity()`).
-- `test-selectivity-double-normal-ss3.R`: 12 pass (curve to 1e-10 vs SS3 formula, -999 ends,
-  block linkage). Targeted subset (schema, linkage-encode, selectivity, parameter, growth):
-  262 tests, the only failures were `test-schema-cpp-dispatch.R` exemptions, now added (not
-  re-run since).
-- `test-golden-regression.R` after Phase 2 C++: **PASS**, 24 expectations, 0 failures.
-
-**Parity harness** `Rceattle-models/SS3-bridge/parity_check.R` (G1 forward state at SS3 MLE,
-G2 gradient/NLL at SS3 MLE, G3 cold start); converter consolidated to
-`Rceattle-models/SS3-bridge/ss3_to_rceattle.R`. Driver: `Rscript SS3-bridge/run_parity.R "AI cod - Dev"`
-from `Rceattle-models` (sources the stock's forward pass, then `parity_report()`).
-Set `RCEATTLE_PKG` to load a worktree of this branch instead of `../../Rceattle`.
-
-**AI cod, run 2026-09-23 with the converter's ageing error and sample-size factor.**
-`test-schema-cpp-dispatch.R` re-run with the new exemptions: 111 pass, and the whole
-`schema` + `switches-schema` set is green.
-
-G1, 12 rows at tol 1e-5 (Report.sso print precision), **11 PASS, 1 FAIL**: length-at-age
-4.5e-6, weight 2.4e-6, fecundity 2.8e-6, ALK 4.3e-7, sel FshComb 7.3e-7, sel Srv 3.7e-7,
-N-at-age 7.5e-6, SSB 4.7e-6, R 3.9e-6, length comp FshComb 1.3e-7, length comp Srv 8.7e-8,
-**predicted CAAL 1.2e-1**. The two composition rows are new — see "The CAAL gap" below.
-
-G2 still FAILS: **max |gradient| 547**, unchanged from 532 and still on
-`log_growth_pars` (547, 472, 233, 141) and `growth_log_sd` (55, 16), then `rec_pars` -26,
-`beta_linkage` 10, `index_log_q` -7. Total NLL Rceattle 519.71 vs SS3 531.00. Netting off
-the constants SS3 drops from its densities, what is left as a difference in fit is:
-
-| component | Rceattle | SS3 | constant | **residual** |
-|---|---|---|---|---|
-| Age_comp (CAAL) | 407.4520 | 402.4730 | -- | **+4.9790** |
-| Catch | -70.2254 | 0.3080 | 34 x (log 0.05 + 0.5 log 2pi) = -70.6110 | **+0.0776** |
-| Length_comp | 140.0588 | 140.0590 | -- | **-0.0002** |
-| Recruitment | 28.1199 | -2.9041 | 34 x 0.5 log 2pi = 31.2439 | **-0.2199** |
-| Survey | 3.9741 | -8.9361 | 14 x 0.5 log 2pi = 12.8651 | **+0.0451** |
-| [Rce only] Initial abundance deviates | 12.8700 | -- | -- | -- |
-| [Rce only] Linkage-table priors | -2.5415 | -- | -- | -- |
-
-**The ageing-error fix worked and was not the growth gradient.** CAAL fell from +725 to
-+4.98, so `build_ss3_age_error()` closed 99.3% of that component. The growth gradient did
-**not** move (532 -> 547), so the previous note's hypothesis is refuted.
-
-**The CAAL gap is SOLVED, and it is a defect in the two SS3 data files, not in Rceattle.**
-Full write-up, with the source citations and the measured effect on the AI assessment, is
-`Rceattle-models/SS3-bridge/CAAL-length-bin-defect.md` — read that before touching this.
-In short, at **v3.30.22.1** (the version both models were run with, and the tag the line
-numbers below refer to — `main` differs):
-
-- `SS_readdata_330.tpl:2448-2449` declares `imatrix Lbin_lo` / `Lbin_hi`, **integers**, so
-  `:2586-2587` truncates a written `24.5` to `24` on assignment.
-- Under `Lbin_method = 1` (both cod files) the values are population **bin numbers**, used as
-  written (`:2589-2600`).
-- `:2681-2684` sets `Lbin_filter` over the **inclusive** bin-index range, and
-  `SS_expval.tpl:631` builds the cell as `age_exp = exp_AL * Lbin_filter(f,i)` — the joint
-  age x length expectation summed over every bin the filter marks.
-- `Report.sso` echoes `len_bins(Lbin_lo)` (`SS_write_report.tpl:2398`, `:4105`), which is how
-  the truncation shows up: all 21 GOA CAAL bins read 1 cm below the data file, AI likewise.
-
-Both files write **lengths** where `Lbin_method = 1` wants bin numbers. Population bins are
-0.5, 1.5, ..., so bin index *k* has lower edge *k* - 0.5 and a row labelled `L` is fitted at
-`L - 1`:
-
-| stock | `Lbin_hi - Lbin_lo` | bins SS3 actually uses |
-|---|---|---|
-| AI cod | 1 | **two**: `L - 1` and `L`; adjacent rows overlap by one bin |
-| GOA cod | 0 | **one** 1 cm bin at `L - 1`, for a row holding a 5 cm data bin |
-
-Rebuilding AI's cells as `trunc(Lbin_lo)..trunc(Lbin_hi)` takes the predicted CAAL from
-**1.18e-1 to <= 1.8e-6 on 1159 of the 1160 rows**. That is the whole +4.98 and the whole 547
-gradient on `log_growth_pars`. The one row left is 2002 `Lbin_lo` 100.5, the only AI CAAL
-observation at month 1 rather than month 7 (0.062) — see "CAAL month" below.
-
-**`Data/M24_1_caal_bins_fixed`** is the corrected AI run: `M24_1_adjusted` with only the two
-CAAL columns changed to population bin numbers, one bin per row (1160 lines, nothing else,
-same executable). A Mac v3.30.22.1 build reproduces the archived `M24_1_adjusted` at
-531.003 exactly, so the comparison is clean; the corrected run is 532.903. Growth moves
-(length at age +0.2 to +0.5 cm, K -1.66%, q +1.34%), status barely does (B/B0 -0.30%), and
-the 2025 OFL falls 1.25%. `SS3-bridge/compare_caal_bin_fix.R` regenerates the table.
-
-**`Lbin_method = 3` is not available as a fix on this SS3 version.** The integer truncation
-makes the length compare unequal to every half-integer bin edge, and SS3 stops with
-`L_bin_lo no match to poplenbins in age comp`. Confirmed by trying it. The containers were
-widened to `matrix` in commit `416bf89`, released in **v3.30.25**.
-
-**So Rceattle needed no new column**, and both follow-ups are done:
-- `ss3_caal_length()` in the converter now resolves both columns per `Lbin_method`, refuses
-  non-integer values under methods 1 and 2, and refuses a row whose population-bin range is
-  not exactly one data bin. Verified on all four files: both as-written models are refused
-  with the reason, both corrected ones convert.
-- GOA's coarse CAAL is the ordinary case Phase 1a already handles — `pop_to_data_bin`
-  accumulates the ALK into the data bins (`growth.hpp:76`). Still read off the code for GOA,
-  which has not been run through the bridge.
-
-**AI now bridges against `Data/M24_1_caal_bins_fixed`** (SS3 total 532.903): predicted CAAL
-6.09e-2 with **1159 of 1160 rows at <= 2.0e-6**, CAAL likelihood residual **+0.0081**, and
-max |gradient| over SS3-estimated parameters **75.3** (was 547). The one row left is the
-month-1 workaround row, which Rceattle cannot represent.
-
-**G2 was testing parameters SS3 holds fixed**, and one of them carried the largest gradient
-(`growth_log_sd`, 98.8). `parity_g2(fixed_in_ss3 = ...)` now tests only what SS3 estimated
-and prints the rest marked `fixed`; the stock's forward pass declares the list.
-
-**SS3's survey q floats.** `Q_setup`'s `float` column decides whether q is solved analytically
-from the index each iteration, independently of the `LnQ_base` phase — M24_1 has `float = 1`,
-so its q is never a parameter and phase -2 only keeps it out of the gradient. The converter
-had hardcoded `"Estimated"`; `ss3_q_form()` now reads the flag and maps it to Rceattle's
-`"Analytical"`, the same geometric-mean solution. Rceattle solves q = 0.89188, SS3's value to
-five digits, so the forward state is unchanged — but q now responds to biomass, which took
-max |gradient| 75.3 -> 60.9, `rec_pars` -25.9 -> -18.9 and `beta_linkage` 11.3 -> 6.04.
-
-**A harness bug inflated the recruitment residual.** `.ss3_constants()` counted the deviates
-the map leaves free, but `ceattle.cpp` penalises `rec_dev` over every hindcast year and
-`init_dev` over ages 1..nages-1 **whatever the map says** — a deviate fixed at zero still costs
-a full density. The count is 47, not 44, so the residual is **+0.7342**, not the +3.4910 this
-note previously carried. Verified by recomputing both `jnll_comp` rows from the parameter
-arrays against the C++ loop bounds.
-
-**What is left as a real difference in fit**, after the densities' constants: Recruitment
-+0.7342, Catch +0.0667, Age_comp +0.0081, Length_comp -0.0003, Survey +0.0001 — about
-**0.81 nats**, nearly all of it recruitment, and no Rceattle-only terms remain.
-
-**What was ruled out first**, each against SS3's own Report.sso — kept because it is what
-bounds the answer:
-
-- Observed CAAL is exact. `caal_data` is row-for-row with SS3's `agecomp` (same order,
-  same keys) and the proportions agree to 0 (max |diff| over 1157 x 13 cells).
-- Sample sizes are exact: `Nsamp_ss3 / Sample_size_rce` is the constant 6.1289572 for every
-  row, which is SS3's variance adjustment 0.163372 divided by the add-to-comp 1 + 13 x 1e-4.
-- The age-length key is exact **over the whole matrix**, not just Jan 1: `growth_matrix`
-  indices 1-2 match SS3's Sub_Seas 1 ALK to 4.3e-7 and indices 3-4 (the per-fleet keys, at
-  SS3 month 7 = Rceattle Month 6) match Sub_Seas 2 to 4.4e-7, across all 143 lengths x 14 ages.
-  Note SS3's ALK rows come out of `r4ss` in descending length order; sort before comparing.
-- N-at-age is exact (7.5e-6) and the survival to survey time agrees: SS3's own
-  `natage` mid/begin ratio is 0.8118 and is flat across ages 0-3, so it cancels in the
-  conditional either way.
-- No ageing-error matrix can close it. Solving for the matrix that maps Rceattle's reported
-  `pred_CAAL` onto SS3's `condbase` (a linear, well-posed fit, since every row sums to 1)
-  leaves 0.1148 against 0.1176 for the converter's. The error is in the joint, not the smear.
-- SS3's population bins are the data bins (143, 1 cm, 0.5-142.5), so the two models share a
-  length axis. **`Lbin_hi - Lbin_lo` = 1 is a two-bin span, not one bin** — reading it as one
-  bin was the wrong turn that made this look unexplainable.
-
-The symptom that bounded it: the predicted **length marginal** is exact to 1.3e-7 while the
-**age split within a length bin** is out by up to 0.118, concentrated at 23.5-26.5 cm
-(ages 1 v 2) and 36.5-40.5 cm (ages 2 v 3), where adjacent ages overlap. Summing a
-neighbouring bin into the cell moves the split without moving the marginal, which is exactly
-the shape of the multi-bin cell above. Two one-parameter fits also closed most of it and
-were confounded on a ridge — a growth timing of 0.465 yr instead of 0.5, or a +0.5 cm shift
-of the length axis — and both were **artefacts** of averaging bin `L - 1` with bin `L`;
-neither is a real effect, and neither should be implemented.
-
-## Known flags (cod bridge)
-
-- **SS3 months are calendar months** (1 = 1 Jan): Rceattle `Month` = SS3 month - 1; fisheries
-  use Month 6 (SS3 mid-season ALK). Fixed in the converter (`ss3_month_to_rce()`); this alone
-  took AI survey selectivity from 2.9e-2 to 3.7e-7.
-- **SS3 age bins start at 1 for both stocks** (AI 1-13, GOA 1-10) while Rceattle ages start at
-  0; SS3's ageing error sends true age 0 into bin 1. The converter's `build_ss3_age_error()`
-  does the same (age-0 obs column empty). Run and verified 2026-09-23: it took AI CAAL from
-  +725 to +4.98. It is **not** the growth gradient, which did not move.
-- **A CAAL row's `Lbin_lo`/`Lbin_hi` are population bin NUMBERS under `Lbin_method = 1`,
-  truncated to int, and the cell spans them inclusive.** Both cod files write lengths there,
-  so every row sits one bin low, and AI's rows span two bins. `condbase` echoes the truncated
-  bin, so it reads 1 cm below the data file — account for that when joining the two.
-- **Rceattle keeps one age-length key per fleet, not per data row**: `growth_matrix` is
-  indexed `nspp * 2 + flt`, and both the length-comp block and the CAAL block read it at
-  `flt_month(flt)`. `caal_data` carries no `Month` column, so a CAAL row's timing comes from
-  its fleet. That is right for SS3, whose sub-season ALKs these reproduce to 4.4e-7.
-- **CAAL month: per-fleet is enough for both stocks, and `fleet_control$Month` cannot be
-  removed.** Every GOA fleet is single-month (1-3 at month 1, 4 at month 7) for CAAL, length
-  comps and indices alike; AI is too, bar one CAAL row. The fleet slot
-  `nspp * 2 + flt` of `weight_hat` also carries selected body weight for **catch and survey
-  biomass** (`ceattle.cpp:1305, 2774, 2845`), which no data row owns, so the fleet keeps its
-  month regardless. `comp_data` already has a per-row `Month` (`comp_n` column 1) but it is
-  read **only when `growth_model == 0`** (`ceattle.cpp:2874`); under estimated growth the
-  fleet's month wins, because the ALK exists per fleet and not per month. Letting a row
-  override its fleet would mean dimensioning `growth_matrix` / `weight_hat` by distinct
-  **(fleet, month)** pairs — which is `n_flt` slots for every current model, so shapes and
-  numbers would not move — plus a `Month` column on `caal_data`. Not worth it for one row;
-  the converter should refuse a fleet whose rows carry mixed months instead.
-- SS3 multinomial = `MultinomialAFSC` x 1/(1 + n_SS3bins x min_comp); the converter sets
-  `comp_offset = addtocomp` and divides `Sample_size` by that factor. A `MultinomialSS3`
-  family was written and **reverted at Grant's request** (2026-09-23). Tail compression is
-  refused with a commented placeholder in the converter.
-- `sd_plus_group = "SS3"` is mislabelled for `Growth_Age_for_L2 = 999` (SS3 then pins the plus
-  group, which is `"WHAM"`); documented, behaviour unchanged.
-- SS3 fecundity is 0 below `First_Mature_Age`; Rceattle has no cut (AI age 0: 1.2e-9 kg, ~2e-9
-  of SSB). The harness compares mature ages only.
-- GOA notes in `Rceattle-models/GOA cod/Bridging/*.md` have SS3's F_Method numbering backwards
-  and call Pope's the blocker; `dev` already uses Baranov with F as parameters (= F_Method 2).
-- Windows: `load_all()`'s debug build overflows the object file ("file too big"). Use
-  `pkgbuild::compile_dll(".", debug = FALSE)` then `pkgload::load_all(".", compile = FALSE)`;
-  the bridge scripts do. `devtools::document()` on this machine churns unrelated `man/` and
-  `NAMESPACE` (R 4.5.1 link targets); keep only the intended `.Rd`.
-- Every switch value needs a string alias (Grant, standing rule).
-
-## Blocked (cod bridge)
-
-- GOA cannot run on `dev` until Phase 2 items 3-4 and 3b land: its forward pass uses
-  branch-only switches (`BlockDev`, `SS3Robust`, `EnvExp`, `*_addtocomp`,
-  `Age_first_selected`).
-
-## Before the release
-
-1. Work `inst/dev/SIMPLIFY-LOG.md`. It is the accumulated list of API, switch and workflow
-   simplifications found while doing the above. Every row is logged rather than done, by
-   standing rule. Grant picks which become PRs after the release.
-2. `/ecosystem-sweep` the four consumer repos in `SIBLING-REPOS.md`. 5.35.0 retired
-   `estDynamics = 3` and 5.37.0 refuses unknown names in a stored `map`, so a sweep is not
-   optional this cycle.
-3. Run the hake `MSE_yr2024.R`. It is the only end-to-end `run_mse()` and the only routine
-   exercise of estimated suitability; reference objectives are in `SIBLING-REPOS.md`.
+Done for this cycle, so do not repeat them: the ecosystem sweep of the four consumer repos, and
+the hake `MSE_yr2024.R` run. Both are recorded above with their results.
 
 ## Open work, by where it is recorded
 
@@ -291,90 +242,69 @@ neither is a real effect, and neither should be implemented.
   live in `TRAPS.md`, the unbounded `log_Ftarget` and the dead average-F branch here.
 - `TODO-projection-module.md`, `TODO-mse-horizon.md` — unchanged by this batch.
 - `TRAPS.md` — verified traps with the measured numbers behind them.
+- `PLAN-adoption-and-NOAA-transfer.md` — moving the package off a personal account to a NOAA
+  org, and the two adoption barriers behind it. **Section 0 holds five decisions reserved for
+  Grant** (destination org, license, co-maintainer, whether `Rceattle-models` moves, timing);
+  agents do not pick these.
+- `TODO-pre-transfer.md` — the execution checklist for that plan, stages A-F with owner tags.
+  Stage B is this release. **B3 is the `golden` robustness fix**, to ship as 5.45.1 if it lands
+  after the tag.
+
+## Tagged snapshots of the DSEM lines (2026-09-24)
+
+Neither line is a release, and both report a version that must not be mistaken for one. Pin
+the tag, never the branch: the branches move, and an assessment refit from a moving branch
+does not reproduce.
+
+- **`dsem-v5-2026-08-27`** -> `95153bbc`, annotated. The `dsem-v5-integration` snapshot the
+  **GOA arrowtooth 2026 assessment** runs against. 121 commits divergent from `dev` and
+  missing 5.24.0 through 5.42.1, so it does **not** carry that range's silent-wrong-number
+  fixes. Pinning makes that run reproducible, not current; whether it should run on this line
+  at all is a scientific call, not a tooling one.
+  The branch previously declared `Version: 5.23.0`, which is a **published release tag**, so
+  an install from it reported `packageVersion("Rceattle") == "5.23.0"` and any provenance
+  record built from it named the wrong Rceattle. Bumped to `5.23.0.9000` in `95153bbc`.
+- **`dev-DSEM-v4.5-archive`** -> `a82c99f5`, lightweight, and **already equal to
+  `dev-DSEM`'s head**, so it needs no new tag. Declares `Version: 4.5.0`, and no `4.5.0`
+  release tag exists (the line goes 4.4.1 -> 4.6.0), so there is no collision here. 796
+  commits behind `dev`; superseded by `dsem-v5-integration`.
+
+**Outside this repo, and still owed:** `GOA-ATF-ESP/R/2026 assessment model-DSEM.R` was
+repointed from `@dsem-v5-integration` to `@dsem-v5-2026-08-27` but **the edit is uncommitted
+in that repo**. Until it is committed, that assessment still installs from the moving branch.
+The `@dev-DSEM` pins in `Rceattle-models` (GOA pollock 2025, EBS pollock 2024 and its
+README), the 2025 ATF script and `GOA_circlulation_study` are all commented out, so they bite
+only whoever uncomments one; they would each need a `dev-DSEM` tag, which is a different and
+older line.
 
 ## Parked branches
 
 - `sel-penalty-form` (`Sel_penalty_form`, 5 commits) — parked by decision, not by defect.
-- `dsem-v5-integration` — PR #111 closed unmerged 2026-09-09.
-- `reporting-tables` — one stray doc commit, `4716968c`, which reached `dev` as `3255fb49`
-  via PR #132.
+- `dsem-v5-integration` — PR #111 closed unmerged 2026-09-09. Head `95153bbc`, tagged
+  `dsem-v5-2026-08-27`; see the snapshots section above. Grant's plan is to bring `dev`'s
+  updates onto it later.
+- `reporting-tables` — **local only, never pushed**, so it is not on the remote to triage. Its
+  one stray doc commit, `4716968c`, reached `dev` as `3255fb49` via PR #132 (which merged from
+  `docs/minfraction`, so the content was re-applied rather than merged from this branch).
 
 ## Resume here
 
-**Cod bridge** (`git checkout cod-bridge` and `git pull`; pull `../Rceattle-models` master too):
-**The parameter sets now match exactly, 89 for 89**, block for block: growth 4, selectivity 4,
-M block 1, stock-recruit 1, InitF 1, F by year 34, recruitment deviates 31, initial ages 13.
-`ss3_fix_map()` derives the fixed set from SS3's own phase column. What is left:
+**Finish the release.** Grant is doing it in a session after this one, so this is where to
+start rather than `SIMPLIFY-LOG.md`.
 
-1. **The initial age structure needs a new `initMode`, and this is a decision, not a task.**
-   Rceattle's `initMode 4` builds `mort_sum(a) = sum_{a'<a} M1(a') + Finit`, adding `Finit`
-   **once**; `initMode 3` accumulates a constant `Finit` with no selectivity. SS3 accumulates
-   `Finit * sel(a')`. Confirmed exactly: the injected `init_dev` minus SS3's `Early_InitAge`
-   is `const - Finit * cumsum(sel)` with **residual 0.00000 at all 13 ages**, and the implied
-   cumulative selectivity reproduces the real one to three decimals. It costs 1.372 nats on
-   the `init_dev` penalty, and it means Rceattle's `Finit` and SS3's `InitF` are not the same
-   quantity. No existing mode is exact, which is what the plan's Phase 4c predicted. Adding
-   one is a new switch value, so hard rule 9 applies.
-2. **The gradient is now 3.15 and no longer dominated by any one block** — `beta_linkage`
-   -3.15, `log_growth_pars` 2.02, `rec_pars` -1.95, `sel_dn6` 1.54, then `rec_dev` and
-   `init_dev` below 1.2. It was 547 when this work started.
+1. **Decide #161** -- renumber and include, or hold. It is code, not docs, and its bump is
+   stale (see the release sequence, step 1). Nothing else blocks the merge.
+2. **Merge PR #158.** As of 2026-09-25 it is `CLEAN` / `MERGEABLE`, and CI is green on all
+   five platforms -- Windows passed on both runs, which is worth noting given the intermittent
+   access violation. Re-check before merging; the branch has moved since.
+3. **Tag the merge commit with whatever `DESCRIPTION` reads then (5.45.0 today)**, bare, no `v`
+   prefix, then publish a GitHub Release from
+   it. **This is the step that has silently not happened five times** (5.29.0 through 5.33.0
+   are all untagged), so do not defer it or hand it on.
+4. **Run the canary** (release sequence, step 4). It 404s now and must return 200 after.
+5. **Dispatch `deep-checks` on `main`** and read `golden` against the 52.9 signature above
+   before concluding anything from it.
+6. **Then 5.45.1: make `golden` robust**, which gates the NOAA transfer.
 
-   What closed it was **`bias_adjust_obs = FALSE`**. SS3 bias-corrects *recruitment*
-   (`max_bias_adj -1`, which is `bias_adjust_proc` and stays on) but applies no bias
-   correction to the catch or index observation likelihoods; Rceattle shifts both means by
-   -sigma^2/2 (`ceattle.cpp:3366` index, `:3686` catch). Found by finite-differencing both
-   models, not just Rceattle: predicted catch matched SS3 to 4.17e-6, its sensitivity to
-   `Linf` matched (mean 3.69 against 3.68) and the residuals matched to five decimals, yet
-   the catch gradient was +17.78 in SS3 and -39.49 here — so the likelihood had to differ,
-   not the prediction. `SS3-bridge/attribute_gradient.R` does the Rceattle side; the SS3 side
-   is `init_values_src = 1`, perturb `MGparm[3]`, `-maxfn 0 -phase 50`.
-
-   Survey residual fell 0.0446 -> **0.0001** with it, and catch 0.0797 -> 0.0667.
-
-**G3 has been run, and it makes the `initMode` case concrete.**
-`SS3-bridge/run_g3.R` fits from two starts. **Warm** (start at SS3's MLE) converges cleanly,
-max |gradient| **5.1e-11**, and lands **1.34 nats below** SS3's MLE at 517.8151. Against SS3:
-SSB terminal 0.39% and max 3.33%, recruitment median 1.5% and max 15.4% (2022, a terminal
-year). The parameter blocks move by:
-
-| block | how far it moves |
-|---|---|
-| `log_growth_pars` | 0.0016 abs — growth is essentially identical |
-| `sel_dn6` | 0.30 abs but 0.3% rel (SS3 scales, peak near 100 cm) |
-| `rec_pars` | 0.14 abs, 1.3% rel |
-| `log_F` | 0.05 abs |
-| `init_dev` | 0.47 abs |
-| **`log_Finit`** | **2.02 abs on the log scale — a factor of 7.5** |
-
-Everything agrees closely **except the initial-state block**, which is the `initMode` difference
-above, now demonstrated at the optimum rather than inferred from the injected values. Rceattle's
-`Finit` is not SS3's `InitF`, so it has no anchor and runs off.
-
-**Cold does not converge.** Without phasing it stops at 380 iterations with a gradient of 67.9
-(the `fit_control` defaults are `rel_tol = 1`, `newtonsteps = 0`); with phasing and Newton steps
-it diverges outright, objective 14585 and SSB out by 1e8. That is a starting-value problem, not
-an SS3 agreement one, and `log_Finit` being ill-determined is the likely reason a cold start has
-nothing holding it. Retry after the `initMode` fix.
-
-**The growth priors are gone.** The forward pass carried tight normals on K, L1 and Linf,
-justified by SS3 having its own (`ctl PR_SD` K 0.021, Linf 2) and by the comps being
-Francis-down-weighted about 25x. Both premises were stale: SS3 reports `Pr_type = No_prior`
-on all four growth parameters with `Parm_priors = 0` — that PR_SD column is a placeholder SS3
-ignores — and the comps now agree to 3e-4. Removing them took the Rceattle-only linkage row
-off the table entirely and moved the total by exactly the 2.5415 it was worth, leaving the
-gradient unchanged. **Every row of the component table is now an SS3 component.**
-2. The rest of G2 is within 0.35 nats of SS3 once the densities' constants are netted off
-   (`parity_report()` prints the residual column). Two blocks have no SS3 counterpart:
-   `init_dev` (+12.87) and the linkage-table prior (-2.54). `rec_pars` (-26) and
-   `index_log_q` (-7) are still Phase 4 (InitF / equilibrium catch, analytical q); the
-   -0.22 recruitment and +0.045 survey residuals are the same two items.
-3. Phase 2 items for GOA: length selectivity on population bins (sel, ALK, comps, selected
-   weight), SS3 age pattern 10 with length selectivity; Phase 3b multiple ageing-error
-   definitions; then port GOA's forward pass off the branch-only switches.
-4. Before committing: NEWS 5.42.0 needs AI before/after numbers for selected body weight;
-   `/doc-sync`, `/document` (keep only intended `.Rd`), full `/test`. None of the above has
-   touched `R/` or `src/` — the only code change this session was to the harness in
-   `Rceattle-models` (`3b2fc4b`).
-
-**Otherwise:** read `inst/RELEASE-CHECKLIST.md` and start the release, or pick from
-`SIMPLIFY-LOG.md` first. Both are Grant's call.
+Two loose ends that are not release-blocking: commit the `GOA-ATF-ESP` pin change in that
+repo, and the `deep-checks` `suite` 5h timeout, which belongs with the 5.45.1 work.

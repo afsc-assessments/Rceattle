@@ -3,7 +3,7 @@ Version-numbering note. Three gaps in this file are deliberate, not lost entries
 
   * 4.14.0 was a real DESCRIPTION version whose entries were folded into 5.0.0.
   * 5.2.0-5.2.4 were likewise folded into 5.3.0.
-  * main's 4.9.0 / 4.9.1 are the same recruitment changes this line carries as
+  * main's 4.9.0 / 4.9.1 are the same recruitment changes this line has as
     5.5.0 / 5.5.1, applied to the two lines separately.
 
 No tag existed above 4.8.0 while these were in flight, so nobody could have installed an
@@ -12,7 +12,7 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
-# Rceattle 5.42.0
+# Rceattle 5.46.0
 
 ## `initMode = "FishedNonEquilibriumSelected"` (6)
 
@@ -105,6 +105,584 @@ young age class, so the age-class mean understated its catch weight; this is
 also Stock Synthesis's catch weight. Age-selective fleets and empirical-weight
 models are unchanged, including all four golden references.
 
+# Rceattle 5.45.0
+
+## A parameter past a bound is now its own verdict, at FAIL
+
+`fit_mod()` passes `build_bounds()`'s range to `nlminb`, which respects it. The
+Newton refinement that `fit_control(newtonsteps)` asks for afterwards does not:
+in both `.fit_tmb()` paths it is a plain unconstrained step, so a parameter
+`nlminb` parked on a bound can be pushed straight through it, and the value that
+comes back is the one saved in the fit.
+
+`convergence_diagnostics()` reported that as `parameters_on_bounds` at `WARN`,
+whose message read "at a configured bound" -- because the test `par <= lo + tol`
+is also true below `lo`. A value outside the range the model declared plausible
+now gets its own record, `parameters_outside_bounds`, at `FAIL`, naming the
+parameter and pointing at `newtonsteps`. A parameter genuinely sitting on a bound
+still reports `parameters_on_bounds` at `WARN` and is no longer double-counted.
+A tolerance band remains, scaled to each parameter's declared range, so a value
+just inside `lo - tol` still reads as "at" the bound.
+
+**The `par > -900` filter is gone**, which is the substantive part: it hid any
+parameter that had diverged DOWNWARDS -- a value at `-1e6` against a lower bound
+of `-10` drew no record at all -- and that is the direction an unconstrained
+Newton step most plausibly takes. The `-999` sentinel it was there for (an
+unfished fleet-year in `log_F`, an `init_dev` above the plus group) is now matched
+by NAME and value instead. That skip is defensive rather than load-bearing: every
+`-999` slot is mapped out before the bounds vector is built, so none reaches this
+check on a fit built from scratch, but a warm start can carry one into a slot
+whose catch is now non-zero. An unnamed parameter vector keeps every element,
+rather than emptying both records.
+
+No fit changes. The Newton steps themselves are left alone in both paths --
+clamping the one in `.fit_tmb()`'s fallback was considered and rejected, because
+that path runs only when TMBhelper is absent, so neither the test suite nor the
+golden references reach it, and an unverifiable change to how a fit is computed is
+worse than a reported one. The diagnostic covers both paths.
+
+`newtonsteps` defaults to `0`, so no default fit is affected. Measured on a GOA
+Pacific cod bridge at `newtonsteps = 3`: a growth parameter returned at 5.08e-05
+against a lower bound of 1e-3, with a maximum gradient of 0.263 and a Hessian that
+would not invert. At `newtonsteps = 0`, the same code and the same data, that
+parameter sat at 1.00e-03, on the bound, with a maximum gradient of 0.00246 and a
+clean `sdreport` -- so the three steps bought 0.0017 nats of objective and cost the
+feasible region and the standard errors. The stale comment in `R/0-convergence.R` claiming
+optimization is unbounded in `fit_mod()` is corrected.
+
+# Rceattle 5.44.0
+
+## A shared catchability now says when it starts somewhere no fleet asked for
+
+Fleets sharing a `Catchability_index` share ONE `index_log_q`, and TMB starts a
+shared parameter at the mean of its members' starting values. `index_log_q` is
+`log(Catchability_init)`, so the group starts at the **geometric mean** of the
+members' inits and no fleet keeps the value in its own row. That has always been
+the behaviour; `vignette("model-options-and-functionality")` has described it
+correctly since 5.9.0, which corrected docs that said otherwise. Nothing said so
+at run time, though -- unlike the deviation standard deviations, which
+`build_map()` has warned about for some time.
+
+`build_map()` now warns for the catchability itself, naming the group, the
+differing inits and the geometric mean it will start from. Two things the
+warning is careful about:
+
+* A member whose `Catchability_init` is blank, zero or negative seeds the whole
+  group at `NA` or `-Inf` rather than at any mean, and the group cannot fit.
+  `data_check()` requires the column positive only on fleets that carry index
+  rows, and exempts `Analytical` / `AnalyticalArith` because they solve q from
+  the data -- yet a fleet in either category still joins an estimated block. The
+  warning reports the non-finite start instead of naming a geometric mean the fit
+  will never reach.
+* `Catchability_init` is read twice. Under `Estimated-with-prior` the lognormal q
+  prior stays centred on the **lead** fleet's value, so differing inits there move
+  the objective and not merely the starting point. The warning says so, and only
+  where a prior is actually scored. Relatedly, a non-lead fleet's
+  `Catchability_prior_sd` is never read either, which the vignette now states.
+
+`Catchability_init`'s schema entry now says it must be positive on a fleet sharing
+an estimated `Catchability_index` group too, not only on a fleet carrying index
+rows, and `Catchability_prior_sd`'s says only the lead's is read.
+`inst/extdata/meta_data_names.xlsx` is regenerated from the schema accordingly.
+
+`data_check()`'s existing reports are unchanged: the analytical case, a `Fixed`
+lead leaving fleets on different inits, and a `Catchability` or `Time_varying_q`
+differing within a group. The gap was the ordinary case -- forms agreeing, inits
+not, a q estimated for the group.
+
+No fit changes. This is a warning and a documentation fix.
+
+Why it is worth a warning rather than a note in a vignette: a shared q at the
+mean scales a survey's whole predicted index by a constant factor, and no
+residual pattern distinguishes that from a real change in abundance. It was found
+on an SS3 bridge for GOA Pacific cod, where a fleet created by a converter kept a
+default init and dragged the survey's q to `sqrt(1.4964) = 1.2233`. Measured on a
+forward pass -- `estimateMode = 3`, so the objective is evaluated AT the starting
+values and the start IS the fitted value -- that was 18% low across all 16 index
+observations and 6.23 nats, with the standard deviations right to 5e-07 and both
+composition components agreeing to under 0.001. In a fit that estimates q the
+start matters less, though it still chooses which optimum is found.
+
+The internal helper `.warn_shared_dev_sd()` is now `.warn_shared_block_start()`,
+since it no longer reports only standard deviations.
+
+# Rceattle 5.43.0
+
+## Breaking changes
+* **The package moved to `afsc-assessments/Rceattle`, and every link follows
+  it.** `DESCRIPTION`'s `URL` and `BugReports`, `_pkgdown.yml`'s `url` and
+  navbar, the README's install commands and badges, `?print.Rceattle`'s install
+  hint, `CONTRIBUTING.md`, `examples/Install_Rceattle.R` and two vignettes all
+  named `grantdadams`. GitHub redirects the repository path, so the install
+  commands kept working -- but **the documented website did not**:
+  `https://grantdadams.github.io/Rceattle/` returns 404 and
+  `https://afsc-assessments.github.io/Rceattle/` returns 200, so `URL`,
+  `_pkgdown.yml` and the README all pointed users at a dead page. Pin
+  `afsc-assessments/Rceattle@5.43.0`: a redirect is not a permanent address, and
+  it breaks the moment anything is created at the old path.
+
+
+* **An integer-coded `Fleet_type` no longer reads as estimated in
+  `data_check()`.** `data_check()` is callable on a list straight from
+  `read_data()`, where the switch columns are still the integer codes the
+  workbook stores -- and every bundled data set that carries a `fleet_control`
+  stores them that way (`GOA2018SS` is `2, 2, 2, 2, 2, 2, 0, 1, ...`), so the
+  integer is the shipped representation. `0 != "Off"` coerces to
+  `"0" != "Off"`, which is `TRUE`, so an `Off` fleet read as estimated: on
+  `GOA2018SS` with fleet 7 given its own `Selectivity_index`, it was named in
+  the "estimated Selectivity but no `comp_data`" error, and is not now. The
+  subset reads the column through `.canon_switch()`, as the same file already
+  did eleven lines further down, rather than through a fourth spelling of the
+  test -- `.canon_switch()` also resolves `" 0 "`, `"0.0"` and `"00"`, which a
+  `%in%` list does not.
+
+  **No fitted number moves.** `fit_mod()`, `build_map()` and `build_params()`
+  each call `switch_check()` first, and on the canonical strings the old and
+  new readings are `identical()` -- asserted for five bundled data sets. Only
+  the un-canonicalized path changes.
+
+  The rest of the class is open, in `inst/dev/CLEANUP_BACKLOG.md`: the schema
+  types thirteen columns as `switch` with an `allowed` map, but nothing
+  enforces that at the boundary, so any comparison written against the
+  canonical spelling is wrong for a `fleet_control` that has not been through
+  `switch_check()`. Those sites are unreachable today because their callers
+  canonicalize first; the fix is to enforce the schema once on entry rather
+  than to convert them one at a time.
+
+* **The distance-to-optimum report is withheld when the covariance cannot
+  carry it.** The Newton step measures the distance to a minimum only if
+  `cov.fixed` inverts a positive-definite Hessian. On a saddle the step points
+  away from one, so "reaching the optimum would move the estimates by at most
+  0.0009 standard errors" read as reassurance printed directly beside a failing
+  `pdHess`. It is reported only when `pdHess` is `TRUE`. Severity is still read
+  on the gradient, so no fit changes status -- now asserted, where neither that
+  claim nor the laziness of the coordinate lookup had a test.
+
+  A negative variance no longer escapes as `NaNs produced`. Three sites took
+  `sqrt(diag(cov))` unguarded, in a battery documented never to raise; they now
+  share `.conv_se_from_cov()`. The callers already dropped non-finite entries --
+  it was the `sqrt()` itself that warned.
+
+* **A negative variance reports no standard error, rather than
+  `sqrt(|variance|)`.** `summary()` and `report_tables()`'s parameter table both
+  took `sqrt(abs(diag(vcov(fit))))`. `vcov()` is `sdreport()`'s fixed-effect
+  covariance with no `pdHess` gate, and an indefinite Hessian inverts without
+  being positive definite, so a variance can come back below zero (demonstrated on
+  an indefinite 2x2 Hessian; the defect is reachable only where `pdHess` is
+  `FALSE`): `abs()` then
+  printed a plausible standard error, with no warning, in the table a SAFE
+  chapter's executive summary is built from. Both now return `NA` for that
+  parameter and the real standard error for every other; the `pdHess` check in
+  `convergence_diagnostics()` says why it is missing, and `print(summary())` says
+  which of the two reasons applies. A variance within rounding of zero
+  (`-1e-18` on a flat ridge) reports `0`, not `NA`: that is a direction the data
+  barely inform, not an indefinite Hessian.
+
+  `hessian_conditioning`'s coordinates line up again. The column width was
+  computed inside `.rce_par_summary()`, which `.check_hessian_eigen()` calls
+  once per block, so each line sized to its own block name and the aligned
+  output `vignette("model-diagnostics")` illustrates was unreachable. The caller
+  now passes one width, and the vignette's example is regenerated from the
+  format `print()` emits rather than hand-written.
+
+* **A blank `Fleet_type` is refused.** The column has no schema default, so
+  nothing filled it, and a blank one is not "unset, take the default" -- it is
+  a fleet whose role in the likelihood nobody stated. `switch_check()` now
+  stops, naming the fleet and the values to choose from, and
+  `rearrange_data()` does the same: it is exported and reachable without
+  `switch_check()`, and a blank reaching it was handed to the template as
+  `flt_type = NA`.
+
+  `rearrange_data()` checks it **before** `convert_switches()`, which coerces the
+  column to integers: a blank and a value it cannot map both become `NA` there,
+  so a mistyped `Fleet_type` was reported as a blank cell. It now refuses, by
+  fleet and by value, any type outside the set `validate_switches()` allows --
+  `Fleet_type could not be read for fleet(s) Bottom_trawl ('Fisherie')`. That
+  closes three codes the old check handed to the template: `3` (the index takes
+  the survey branch and the catch is dropped, and because the predicted
+  composition is only assigned for types 1 and 2 while the composition
+  likelihood is gated on `type > 0`, the comps are fit against an all-zero
+  prediction and accrue a `posfun` penalty), `-1` (contributes nothing, **and**
+  is eligible to lead its `Selectivity_index` group, whose penalty is gated on
+  `flt_type > 0`, so the group's shape and curvature penalty goes uncharged) and
+  `2.7` (truncated to `Survey`). `data_check()` refuses all three, so no model
+  that fits through `fit_mod()` today is newly stopped. It is stricter than the
+  converter in one respect, deliberately: a padded or non-canonical spelling
+  (`" 0 "`, `"00"`, `"2.0"`) is refused here although `convert_switches()` could
+  resolve it, because the allowed set is the documented one. Write the canonical
+  name or the bare code.
+
+  `NA` was the damaging case, and the two halves of the package read it
+  differently. `Fleet_type != "Off"` is `NA` rather than `FALSE`, so
+  `data_check()`'s estimated-selectivity subset kept an all-`NA` row and died
+  inside its `vapply` on `missing value where TRUE/FALSE needed`, naming no
+  fleet and no column -- measured on `Atka2022` with `Fleet_type[1] <- NA` --
+  while `build_map_selectivity()` treated `NA` as estimated
+  (`.on[is.na(.on)] <- TRUE`). An empty string or whitespace already produced
+  a correctly named error from `validate_switches()`; those are refused here
+  too, earlier and from one rule, rather than because they were broken in the
+  same way.
+
+* **A factor-valued `fleet_control` column is read by its labels, not its level
+  indices.** `read.csv(stringsAsFactors = TRUE)` factors every column, and
+  `convert_switches()` passed a factor straight to `as.integer()`, which returns
+  the level index rather than the code the label names. `switch_check()` ->
+  `revert_switches()` already resolved eight of the nine switch columns, so for
+  those the exposure is the exported `rearrange_data()` path, where
+  `Fleet_type = factor(c("Off", "Survey"))` reached the template as `1, 2` -- the
+  `Off` fleet fitted as a fishery, its catch entering the likelihood while
+  `build_map()`, which reads labels, pinned its parameters.
+
+  **`Time_varying_q` is the ninth, and it is not on that list**, so a factor there
+  reached the template by level index even through `fit_mod()`: a column of
+  `factor("Off")` became `IID` (1), estimating time-varying catchability
+  deviations nobody asked for. **That is the one configuration in this release
+  whose fit moves**; refit any model whose `fleet_control` was built through
+  `read.csv(stringsAsFactors = TRUE)`. Neither `switch_check()` nor
+  `validate_switches()` refused it -- both compare labels, so it looked valid all
+  the way down.
+
+  Factor columns are now resolved once, in `switch_check()` and again in
+  `convert_switches()` for the `rearrange_data()` path. No bundled data set and
+  no workbook or script in the four consumer repositories supplies a factor
+  (checked: 375 workbooks, 15 bundled `.rda`, and every `data.frame()` /
+  `read.csv()` that builds a `fleet_control`), and the package requires R >= 4.1,
+  where the default is already `FALSE`.
+
+  Every spelling of a stated type -- canonical name, integer code, character
+  code, and `Off` -- is accepted exactly as before. No bundled data set and
+  none of the 183 consumer-repository workbooks carrying a `Fleet_type` column
+  has a blank one, so nothing that fits today stops fitting.
+
+  Still open, and tracked in `inst/dev/CLEANUP_BACKLOG.md`: an
+  **integer-coded** `Fleet_type` read before `switch_check()` canonicalizes it
+  reads as live at every bare `!= "Off"` comparison, because `0 != "Off"` is
+  `TRUE`. `validate_switches()` documents the trap and canonicalizes first;
+  fourteen other raw comparisons in `R/` do not.
+
+## Convergence messages name the quantity and the coordinate
+
+* **`fit$convergence` names what a flagged parameter estimates.** The
+  `max_gradient` message, the `hessian_conditioning` loadings, and the
+  per-coordinate lines under `hessian_conditioning`, `parameters_on_bounds` and
+  `estimability` now follow each block name with the natural-scale quantity
+  from `parameter_dictionary()`: `log_M1 (M1)`, `rec_dev (recruitment
+  deviations)`, `log_F (F)`. The block name stays first, since it is what
+  `map` and the parameter list are keyed on.
+* **`max_gradient` says where the largest gradient sits.** It gave the block
+  alone (`'log_M1'`); it now gives the species, fleet, sex, age or year from
+  `parameter_index()`, the way `estimability`, `parameters_on_bounds` and
+  `hessian_conditioning` already did. The coordinate is resolved only when the
+  check is not `OK`, so a clean fit still skips building the index.
+* **`max_gradient` reports the distance to the optimum in standard errors**,
+  as `$data$newton_step_se` (the largest absolute value), `$data$step_se` (the
+  signed vector) and in the message. A quadratic approximation puts
+  the optimum a Newton step `-cov.fixed %*% gradient` away; dividing each
+  element by its standard error makes the size comparable across log, logit
+  and natural-scale parameters. It is reported only when the `sdreport`
+  describes the hindcast parameters (not under an estimating HCR), and the
+  severity is still read on the gradient, so no fit changes status.
+* **Scattered years and ages read as a count against their span**: "38 years in
+  1980-2021" rather than "38 of 1980-2021", and the `hessian_conditioning`
+  count reads "(38 of 44 parameters; 67% of the direction)".
+
+# Rceattle 5.42.1
+
+Found reviewing the release PR that carries 5.34.0 through 5.42.0 (#158), over
+several adversarial passes. Corrections to 5.42.0's own guard, to the tests
+meant to hold it, and to documentation it left behind.
+
+## Bug fixes
+
+* **The negative-`Sel_curve_pen` refusal no longer skips a fleet whose penalty
+  the template does charge.** The check skipped any fleet that followed another
+  fleet's `Selectivity_index`, on the grounds that a shared block is penalized
+  once, on its lead. But the template's lead (`flt_sel_lead`, built in
+  `rearrange_data()`) groups fleets by `Selectivity_index` **and** selectivity
+  form, while the rule the check borrowed -- the one the parameter map shares
+  on -- groups by the index alone. Two live fleets sharing an index with
+  different forms are therefore two groups to the template, each charged, and
+  the check called the second one a follower and passed over it: a negative
+  weight there reached `ceattle.cpp` and rewarded the deviation it names,
+  without bound, with `data_check()` reporting clean. The check now reads the
+  lead the same way the template does. No bundled data set and no workbook in
+  the consumer repositories has a group of mixed form (every bundled
+  `fleet_control`, including the three carried inside fitted example objects,
+  and 183 workbooks with a `fleet_control` sheet; the answer is the same read
+  raw or canonicalized through `sel_map`), so no existing model changes;
+  this closes the guard rather than moving a number.
+
+  The lead it builds also **fails closed on a `Selectivity` the template cannot
+  read.** `.canon_switch()` trims and `rearrange_data()`'s `.pull_int()` does
+  not, so `" NonParametric"` resolves here and reaches the template as `NA` --
+  a group of its own there, with the fleet leading and its weight charged.
+  Such a value now gets a key of its own here too, so the fleet leads and is
+  checked. `switch_check()` normalizes the spelling before either is reached,
+  so this is a guard against a hand-built `fleet_control`, not a path a
+  workbook takes.
+
+* **`test-docs-anchors.R` now checks the schema column that shipped the stale
+  code.** The guard added at 5.42.0, so that no schema description names a
+  selectivity code `sel_map` does not accept, matched only a slash-separated
+  run (`2/9/13`). Of the eight columns it names, four matched nothing at all --
+  including `Selectivity` itself, which enumerates every code one per line and
+  is the column form 14 was advertised in. It now also reads a comma-or-`or`
+  list, a per-line `13 = ...` enumeration, and a code parenthesized after a
+  form name, quoted or not -- `Sel_curve_pen1` writes `"type 2/9/13"` and
+  `LogisticPM (11)` in one sentence, so requiring the quotes missed 11 and
+  would have missed a stale code in that position. All eight columns now yield
+  codes. It is a shape-matcher, not a parser: a code written in a shape none of
+  the four patterns covers (`14 - ...`, `forms 2 and 14`) still slips, so it
+  narrows the gap rather than closing it.
+
+* **A refusal test that passed for the wrong reason.** The check that an
+  `apical` linkage is refused on an AR1 selectivity form matched the string
+  `"AR1"`, and `GOAatf` ships `Sel_curve_pen2 = 200` on the fleet the fixture
+  switches: on the AR1 forms that slot is a correlation, so `data_check()`
+  stopped first with its own out-of-range message, which also contains `"AR1"`.
+  Deleting the refusal left the suite green. The fixture now zeroes that column
+  and the assertion matches the apical clause, so removing the refusal fails the
+  test.
+
+* **`.rce_sel_pen_lead()`'s `Off` handling was untested.** Replacing its `off`
+  argument with `rep(FALSE, n)` left `test-selectivity-penalty-sd.R` green,
+  because the sign check has its own independent `Off` skip. The file now pins
+  that an `Off` fleet never leads its group, that the next fleet leads instead,
+  and that the result is `identical()` to the `flt_sel_lead` `rearrange_data()
+  hands the template for the same table.
+
+## Documentation
+
+* `README.md`'s operational pinning example named 5.41.0, a version this line
+  never releases, so an assessor pinning a version for management advice was
+  sent to a reference `install_github()` can never resolve. It now names the
+  version this release tags. Like every version named there it resolves only
+  once that tag is pushed -- checklist section 3, and `TODO-pre-transfer.md`
+  B5 says to re-check the line whenever the version moves.
+
+* `vignette("model-parameterizations")` listed three cases the negative-weight
+  refusal does not catch; there are four. The fleet following another's
+  `Selectivity_index` was added to the check and to `NEWS.md` at 5.42.0 but not
+  to the reference table.
+
+* `vignette("adding-a-selectivity-form")` said code 14 was free and the next
+  form should take 15, in a paragraph whose own rule is that a retired code is
+  not free. 14 was advertised as a second integrable form in
+  `meta_data_names.xlsx` -- the template every workbook is built from -- before
+  being collapsed into 13, so a `Selectivity` column written in that window
+  holds it. It is now listed with 10 and 12 as taken. The same article named
+  three R sites that key on the selectivity form when there are at least eight,
+  attributed two of them to the wrong check, and described
+  `.RCE_SEL_PEN_POSITIVE` as driving the penalty-SD conversion; that conversion
+  is a separate registry, `.sd_specs`, which fails closed where
+  `.RCE_SEL_PEN_POSITIVE` fails open.
+
+* `vignette("developer-guide")` gave three switch-code facts the code does not
+  support: the `selectivity.hpp` dispatch list omitted the Ianelli
+  non-parametric form (2), which every bundled reference model uses, and
+  descending logistic (4); `sel_map` skips 10, 12 and 14, not 10 alone; and the
+  `Sel_curve_pen1` / `Sel_curve_pen2` slot map omitted form 13.
+
+* The 5.39.0 entry now says the stock-recruit bound is unconditional. Predation
+  is why it was added, and it sits under a predation heading, but
+  `build_bounds()` applies +/-30 to every model.
+
+# Rceattle 5.42.0
+
+Found reviewing the 5.34.0-5.41.0 release (`# Rceattle 5.41.0` and the versions
+below it). The negative-weight defect is much older than that review: the
+one-sided shape penalty has had no sign branch since it landed in December 2024,
+and 4.10.0 added a second way in through `Sel_shape_dir`. 5.40.0 only extended it
+to the integrable forms.
+
+## Breaking changes
+
+* **A negative `Sel_curve_pen1`/`2`/`3` is refused wherever the template reads
+  it as a weight.** A penalty slot multiplies a squared deviation, so a negative
+  weight rewards the deviation it names instead of penalizing it. Use a positive
+  weight, or the matching `Sel_shape_sd` / `Sel_curvature_sd` / `Sel_devmag_sd`
+  column, which is a standard deviation and cannot go negative. The one
+  exemption is `"NonParametricPM"` (9) under `Sel_shape_mode = "Directional"`,
+  the only branch in the template that reads a sign -- there it switches the
+  penalty from the decreasing side to the increasing one rather than negating
+  it. That form's `"Smooth"` mode applies the weight two-sided and is refused
+  like the rest. `"2DAR1"` (6) and `"3DAR1"` (7) reuse these columns as AR1
+  correlations and are untouched.
+
+  Slot 3 is checked only on `"NonParametricPM"` (9) and `"LogisticPM"` (11):
+  `"NonParametric"` (2) and `"NonParametricIntegrable"` (13) also estimate
+  selectivity deviates, but score them with a Gaussian density on
+  `Time_varying_sel_sd`, so neither reads the slot. The rule throughout is to
+  refuse a weight only where the fleet's own wiring reaches it: the template
+  gates the penalty block on `flt_type(flt) > 0 && flt_sel_lead(flt) == 1`, so a
+  `Fleet_type = "Off"` fleet is skipped, and so is one that follows another
+  fleet's `Selectivity_index` -- the group is charged once, on its lead.
+  (**Narrowed in 5.42.1**: the template groups by `Selectivity_index` *and*
+  selectivity form, so only a follower sharing the lead's form is skipped. A
+  follower with a different form leads its own group, is charged, and is
+  refused. Read that entry, not this sentence, for the rule in force.)
+
+  Measured on `BS2017SS` fleet 1 (`NonParametric`, `N_sel_bins = 8`, with the
+  shipped `Sel_curve_pen2 = 12.5` active): ramping the fleet's `sel_coff`
+  downward by a constant step per bin takes the `JNLL_SEL_NONPARAM` row to -29,
+  -122, -502 and -2032 at steps of 0.5, 1, 2 and 4, and the whole objective to
+  -6.6e6 at a step of 256 -- quadratic, and falling without bound, while the
+  composition likelihood flattens and cannot counteract it. The row is exactly
+  `[Sel_curve_pen1 * (N_sel_bins - 1) + Sel_curve_pen2] * step^2` up to a
+  constant, so the **curvature penalty does bind** -- on the single second
+  difference where the ramp meets the coefficient repeated past `N_sel_bins` --
+  and the objective diverges only once `|Sel_curve_pen1|` exceeds
+  `Sel_curve_pen2 / (N_sel_bins - 1)`, 1.79 here. A smaller negative weight is
+  merely anti-shrinking rather than divergent; it is refused too, because
+  rewarding a deviation is wrong at any magnitude. `data_check()` now stops,
+  naming the fleet, the slot and the standard-deviation column that sets the
+  same weight safely.
+
+* **`Sel_shape_dir = "Increasing"` is refused on every form but
+  `"NonParametricPM"` (9) under `Sel_shape_mode = "Directional"`.** It used to
+  negate `Sel_curve_pen1` on every non-parametric form. `"NonParametric"` (2)
+  and `"NonParametricIntegrable"` (13) have no increasing-direction penalty at
+  all -- the template hard-codes `max(d, 0)^2`, `d` being the log-selectivity
+  drop from one bin to the next -- so `"Increasing"` never did what it said
+  there; it fitted the reward above. There is no like-for-like migration: only 9
+  in `"Directional"` mode implements the direction, and it is not a drop-in (it
+  charges its average-selectivity term only when `Sel_avgsel_pen > 0`, defaults
+  its penalty range to `Bin_first_selected` rather than the first bin, reads
+  `Sel_curve_pen3`, and refuses `Time_varying_sel = "IID"`). If you did not mean
+  an increasing penalty, drop the column -- the default is `"Decreasing"`.
+  Unlike the sign check above, this one is not waived on a `Fleet_type = "Off"`
+  fleet: the direction states what the form can express, and `write_data()`
+  persists the weight it sets.
+
+* **`Sel_devmag_sd` is refused on `"NonParametric"` (2) and
+  `"NonParametricIntegrable"` (13).** It writes `Sel_curve_pen3`, which neither
+  form reads: both estimate selectivity deviates, but score them with a Gaussian
+  density on `Time_varying_sel_sd`. The column was a silent no-op on both.
+
+* **A negative `sel_curve_pen` carried in `inits` is refused too.**
+  `sel_curve_pen` is a parameter, not data, so `inits` from a stored fit
+  override the `Sel_curve_pen` columns. Without this a fit saved before 5.42.0
+  would keep its negative weight through `retrospective()`, `profile()`,
+  `run_mse()` and `self_test()` on a workbook the user had already corrected --
+  measured at -3.81 on a decreasing ramp and -28.99 at three times that ramp,
+  with the column reading a valid +20. `fit_mod()` now applies the same rule to
+  the parameter actually in use and names `inits` as the source. This closes the
+  **sign** only: a stored `inits$sel_curve_pen` still supersedes an edited
+  `Sel_curve_pen` column at any magnitude, silently (a column retuned from 200
+  to 20 keeps 200 on a refit). That is tracked in `inst/dev/CLEANUP_BACKLOG.md`.
+
+* **An `apical` selectivity linkage on a fleet with `Fleet_type = "Off"` is
+  refused.** No data are fit to such a fleet, so `log_sel_apical` was a free
+  parameter in a flat direction: a singular Hessian and a failed `getsd` with
+  nothing naming the cause. It was the only selectivity parameter `build_map()`
+  freed without a `Fleet_type` gate.
+
+* **A selectivity *prior* on a fleet with `Fleet_type = "Off"` is refused**, for
+  the same reason: `build_map_selectivity()` maps that fleet's `log_sel_slp` and
+  `sel_inf` off, so the prior was evaluated against a fixed value and added a
+  constant to the objective while constraining nothing. The apical linkage was
+  given this gate above; the prior path had been left without one.
+
+## Bug fixes
+
+* **The negative-weight refusal no longer fires on a slot the fleet's
+  configuration makes inert.** `LogisticPM`'s slots 1 and 3 and
+  `"NonParametricPM"`'s slot 3 are charged on the time-varying deviates, so
+  under `Time_varying_sel = "Off"` the term is identically zero and the weight is
+  never read -- verified by objectives bit-identical at `+w`, `0` and `-w` on
+  `BS2017SS`. A negative value there is inert rather than wrong, and is now
+  allowed; it is still refused once the deviates are estimated. The slots charged
+  on the base curve (1 and 2 on the non-parametric forms) are checked whatever
+  `Time_varying_sel` says.
+
+* **`data_check()` no longer requires `Sel_curve_pen2` on a time-varying
+  `LogisticPM` fleet.** The template says in as many words that
+  `sel_curve_pen(flt,1)` -- the 0-based C++ spelling of the same column -- is
+  unused in that branch, so the column was required and
+  then ignored -- and the schema, `?BS2017SS` and
+  `vignette("model-parameterizations")` all say `LogisticPM` does not use it. The
+  two weights it does read, `Sel_curve_pen1` (the random walk on realized
+  log-selectivity) and `Sel_curve_pen3` (the walk on the age-1 deviates), are
+  still required, and the message now names what each one weights.
+
+* **An `apical` selectivity linkage is now refused on the fleets that actually
+  share a block, and allowed on the ones that do not.** `Selectivity_index` is a
+  group key, not a fleet code: the lead is the group's first fleet that is not
+  `"Off"`, and a group of one shares nothing. The check compared the key to
+  `Fleet_code`, which both refused offsets that were perfectly identifiable
+  (`GOAatf` fleet 3 and `GOA2018SS` fleet 11, each the sole member of its group,
+  and `GOA2018SS` fleet 9, the lead of the group `{9, 10}`) and, where a
+  group's key equalled its *second* member's code, let the follower
+  through: `build_map_selectivity()` freed the cell and
+  `adjust_map_shared_params()` then mapped it off, pinning the offset at
+  `exp(0) = 1` with the fit converging and nothing reported. Both now follow
+  `.shared_block_lead()`, the rule the map itself applies, and the error names
+  the lead fleet. The same comparison governed selectivity **priors** and is
+  fixed with it. This tightens as well as loosens: a fleet whose `Fleet_code`
+  happened to equal its group's key was always allowed before, so an `apical`
+  linkage or selectivity prior on one that a lower-numbered fleet leads (group
+  `{2, 5}` keyed 5, say) now stops. That block was the lead's, so the linkage
+  was freeing nothing.
+
+* **`osa_residuals()` records the `discrete = TRUE` method override.** A
+  Gaussian method cannot score a discrete observation, so those composition rows
+  fall back to `oneStepGeneric`. The fallback happened but was neither announced
+  nor written to the returned object's `method` attribute, so the attribute --
+  and `print()` -- named a method no composition row had used.
+
+* **The non-finite-residual messages now name the `"cdf"` limitation where it
+  applies.** Both the headline warning and `.osa_retry_tail()`'s message sent
+  the analyst to re-check convergence and sample sizes without mentioning the
+  measurement recorded in the same file: on a random-effects fit with a large
+  composition data set the Laplace inner problem fails on the depth of
+  conditioning, and the retry recovers nothing (1879 before, 1879 after). Both
+  now add that reading, and only where it can hold -- the headline warning shows
+  it under `method = "cdf"` on a fit with random effects, since a Gaussian
+  method returns every residual finite on the same fit. Convergence and the
+  sparsest compositions remain the first thing to check otherwise.
+
+* **`plot()` on an `rceattle_osa` object warns when it drops residuals.** It
+  filtered to the finite ones and warned only when *every* residual was
+  non-finite. Under `method = "cdf"` the failures are a contiguous tail, so the
+  survivors are a time-biased subset -- at the documented 1879-of-4538 loss the
+  figure drew a clean Q-Q panel, with an SDNR annotation, and said nothing.
+
+* **`convergence_diagnostics()` reports a `NOTE` under `getsd = FALSE`.** With
+  no `sdreport` the Hessian eigenvalue, `pdHess`, sdreport and estimability
+  checks all return nothing, and the battery reported `"OK"` --
+  `report_tables()$model$converged` then printed `OK` into a SAFE table.
+  Nothing distinguished "every check passed" from "the strongest checks never
+  ran". The fit is unchanged. Only `estimateMode` `"Estimate"` and `"Hindcast"`
+  run the battery, and each refitting diagnostic resolves its own `getsd`:
+  `retrospective()`, `jitter()`, `self_test()` and `profile()` follow whether
+  the source fit kept an `sdreport`; `reweight()` follows that fit's
+  `fit_control$getsd`, so a default fit still reads `OK`; `run_mse()` refits at
+  `getsd = FALSE`, so an MSE's estimation fits now read `NOTE` -- a status only,
+  changing no result.
+
+* **The `"NonParametricPM"` (9) directional shape penalty now has a
+  limiting-case and specification check.** Nothing verified that
+  `Sel_shape_dir = "Increasing"` penalizes an increasing curve on the one form
+  that implements it; the existing tests
+  covered the `weight = 1/(2*sd^2)` arithmetic and one `"Decreasing"` fit. On a
+  strictly increasing curve the decreasing direction now charges 0 and the
+  increasing direction 5.6, mirrored on a strictly decreasing curve, and all
+  three shapes tested match the ADMB/AMAK `sel_like(1)` one-sided SSQ recomputed
+  from `sel_coff` to 1e-10, driven both through `Sel_curve_pen1` and through the
+  `Sel_shape_dir` column a user actually writes. This is why the direction is
+  refused elsewhere rather than implemented there: on 9 it is now checked.
+
+## Documentation
+
+* The `estDynamics` list in `vignette("data-without-excel")` still offered code
+  `3`, retired in 5.35.0 and refused by `switch_check()` since. The same file
+  listed the codes correctly 344 lines earlier.
+
+* `Sel_shape_dir` is documented as `NonParametricPM`-only in the column schema
+  (which ships verbatim into `meta_data_names.xlsx`), in `?BS2017SS` and in
+  `vignette("model-parameterizations")`. All three described the directional
+  sign as working on every non-parametric form.
+
 # Rceattle 5.41.0
 
 ## One-step-ahead residuals from the conditional CDF
@@ -112,11 +690,11 @@ models are unchanged, including all four golden references.
 * **`osa_residuals(method = "cdf")`.** The one-step-ahead residual is defined
   through the conditional CDF, `qnorm(F(x))`, and is standard normal by the
   probability integral transform whatever shape the conditional has. Until now
-  the model could not supply that CDF, so only the Gaussian methods -- which
-  approximate the conditional as normal and standardize the observation against
-  its conditional mode -- were available. The template now supplies it: the
+  the model could not supply that CDF, so only the Gaussian methods were
+  available; those approximate the conditional as normal and standardize the
+  observation against its conditional mode. The template now supplies it: the
   continuous binomial `1 - I_p(x + 1, n - x)` for a composition bin, which is
-  defined at the fractional counts composition data carry, and `pnorm` for the
+  defined at the fractional counts composition data hold, and `pnorm` for the
   aggregate index, catch and covariate series (`src/TMB/comp_osa.hpp`, gated by
   `keep.cdf_lower` / `keep.cdf_upper` under a new `osa_mode = 2`). The fitted
   objective is untouched: the gates are zero except inside a
@@ -138,7 +716,7 @@ models are unchanged, including all four golden references.
   series, which are genuinely Gaussian, all three agree to 5e-5 and all three
   pass.
 
-* **`discrete` now defaults per method** -- `TRUE` under `"cdf"`, `FALSE`
+* **`discrete` now defaults per method:** `TRUE` under `"cdf"`, `FALSE`
   otherwise, which is what every method that existed before this one already
   did. The default changed from `FALSE` to `NULL` to express that; passing
   `TRUE` or `FALSE` explicitly still does exactly what it did, and `FALSE` under
@@ -147,8 +725,8 @@ models are unchanged, including all four golden references.
   `TRUE` under `"cdf"`: a composition bin holds a count, so its conditional CDF
   is a step function and `qnorm(F(x))` inherits the step, which is why the
   middle row of the table above is the worst of the three rather than the best.
-  Randomizing over the step -- `qnorm(F(x) - U f(x))`, Dunn and Smyth (1996),
-  the construction Trijoulet et al. (2023) prescribe -- removes it. The
+  Randomizing over the step removes it: `qnorm(F(x) - U f(x))`, Dunn and Smyth
+  (1996), the construction Trijoulet et al. (2023) prescribe. The
   randomization is drawn serially under `seed` after the per-observation loop
   returns, so this method stays bit-reproducible with `parallel = TRUE`, and
   `attr(osa, "discrete")` records what was used.
@@ -164,8 +742,8 @@ models are unchanged, including all four golden references.
   default too: only `method = "oneStepGaussian"` ever returns one.)
 
   This is also what resolves the negative composition `predicted` values
-  reported as issue #108 point 1 -- 404 of 4538 rows on BS2017SS, minimum
-  -10.86, each carrying a positive-biased residual. Under `"cdf"` no expected
+  reported as issue #108 point 1: 404 of 4538 rows on BS2017SS, minimum
+  -10.86, each with a positive-biased residual. Under `"cdf"` no expected
   count is formed at all. The Gaussian methods still report and warn about them,
   unchanged; WHAM does the same thing on its own example, so this is not an
   Rceattle defect.
@@ -180,16 +758,16 @@ models are unchanged, including all four golden references.
 
 * **Known limitation: compositions at scale under random effects.** On a
   random-effects model with a large composition data set, `method = "cdf"`
-  returns non-finite residuals in bulk and is very slow -- on `BS2017SS` with
+  returns non-finite residuals in bulk and is very slow. On `BS2017SS` with
   `random_rec = TRUE` (159 random effects, 4538 composition bins), **1879 of
   4538 residuals are non-finite** against 0 for `"oneStepGaussianOffMode"` on
   the same fit. The failures are a contiguous tail and the same rows come back
   clean when residualized on their own, so it is the depth of the conditioning,
   not the observations; redoing the tail on a fresh call recovers nothing.
-  What binds is that depth, not the presence of random effects -- the same
+  What binds is that depth, not the presence of random effects: the same
   method residualizes 1680 composition bins on a 22-random-effect model
   correctly. **So try `"cdf"`, and when the warning reports non-finite residuals
-  in bulk, fall back to a Gaussian `method` for that source** -- taking its
+  in bulk, fall back to a Gaussian `method` for that source**, taking its
   composition residuals as under-dispersed by about a factor of two and a half
   (the numbers are in the bullet below). `"cdf"` is sound on fixed-effect
   models, and on random-effects models for the aggregate and covariate series.
@@ -201,28 +779,28 @@ models are unchanged, including all four golden references.
   ships (`contrib/OSA_multivariate_dists-main/distr.hpp`) sums the pmf over
   `0..floor(x)`, which is a step function of a fractional count and costs `O(x)`
   beta functions per bin. This is said rather than approximated quietly,
-  because a missing CDF term does not fail loudly -- it makes both tails equal,
+  because a missing CDF term does not fail loudly. It makes both tails equal,
   giving `Fx = 0.5` and a residual of exactly 0 for every bin.
 
 * **`|residual|` is censored at 8.04 under `"cdf"`, in both directions, and
   `osa_residuals()` warns when any residual sits there.** The upper end is
   forced: `Fx` is recovered from `1 / (1 + exp(nlcdf.lower - nlcdf.upper))` in
   double precision, which saturates at the last double below one, so nothing
-  reading a CDF can report past 8.21 on that side. The lower end is *not* --
-  that expression carries a small `F` down to about 1e-308, a residual of -37 --
-  and is censored to match anyway, because an asymmetric ceiling would show as a
+  reading a CDF can report past 8.21 on that side. The lower end is *not*
+  forced: that expression takes a small `F` down to about 1e-308, a residual of
+  -37. It is censored to match anyway, because an asymmetric ceiling would show as a
   long left tail against a wall on the right, which is what skewness in the
   residuals looks like. The cost is real: `osa_diagnostics()` computes SDNR and
   the tail statistics on the censored values, and it bites hardest on a short
-  series where one observation carries the statistic. Which method to reach for
+  series where one observation drives the statistic. Which method to reach for
   then is measured rather than asserted
   (`tools/verify/verify-osa-cdf-accuracy.R`, a 12-year survey with one
   observation multiplied by 200): `"oneStepGaussian"` reports it uncensored at
   38.98 (SDNR 12.89), `"cdf"` censors to 8.04 (SDNR 4.59), `"oneStepGeneric"`
   compresses it to 3.33 (SDNR 2.21), and the package default
   `"oneStepGaussianOffMode"` returns `NaN` there, making its SDNR unusable
-  rather than merely large. That last failure is magnitude-dependent -- at a x20
-  outlier the default is finite and matches `"oneStepGaussian"` -- so **reach
+  rather than merely large. That last failure is magnitude-dependent: at a x20
+  outlier the default is finite and matches `"oneStepGaussian"`, so **reach
   for `"oneStepGaussian"` specifically**, not for "a Gaussian method", and on
   the fleet in question rather than a whole composition source, since it costs
   an `nlminb` per observation. The template shrinks the CDF away from 0 and 1 by
@@ -236,26 +814,26 @@ models are unchanged, including all four golden references.
   a linear-Gaussian state space model, `fullGaussian` and `oneStepGaussian` are
   exact to machine precision while `"cdf"` errs by 7e-4 to 4e-2 as the latent
   state becomes more informative. **That is a result about a LINEAR-Gaussian
-  model and does not carry over wholesale**: the Gaussian methods are exact when
+  model and does not transfer wholesale**: the Gaussian methods are exact when
   the one-step-ahead predictive is Gaussian, which needs the model to be linear
   in the random effects, and Rceattle's index and catch are `exp()` of cumulated
   log recruitment deviations through the population dynamics. `fullGaussian` and
   `oneStepGaussian` cannot differ for a Gaussian conditional, and on a
   17-deviation fixture they differ by 0.091 on both index and catch, where
-  `"cdf"` differs from `oneStepGaussian` by 0.017 on index -- so **no method is
+  `"cdf"` differs from `oneStepGaussian` by 0.017 on index, so **no method is
   exact for index or catch under random effects** and this release does not
   claim one. **`"ecov"` is the exception**: its conditional genuinely is
   linear-Gaussian, the two Gaussian methods agree there to 4e-14, and `"cdf"`
-  sits 0.139 away -- about a quarter of the residual sd -- so prefer a Gaussian
+  sits 0.139 away, about a quarter of the residual sd, so prefer a Gaussian
   method for that source. It does not reverse for
-  compositions, whose conditional is discrete and skewed -- exactly what the
+  compositions, whose conditional is discrete and skewed, exactly what the
   Gaussian methods get wrong, and by much more. Simulating from a
   22-random-effect model with the recruitment deviations redrawn (1680
   residuals): `oneStepGaussianOffMode` gives mean +0.513, sd 0.404 and KS
   rejection in 120 of 120 replicates; `"cdf"` with `discrete = TRUE` gives mean
   +0.006, sd 1.002 and 6 of 120, the nominal 5%.
 
-  Both halves of that split are what the SAM authors do across two packages --
+  Both halves of that split are what the SAM authors do across two packages.
   `stockassessment::residuals.sam()` takes the Gaussian default with
   `discrete = FALSE`, their composition package `compResidual::resMulti()`
   hardcodes `method = "cdf", discrete = TRUE`. Rceattle fits both kinds of data,
@@ -267,44 +845,63 @@ models are unchanged, including all four golden references.
   composition and aggregate rows must be split into separate calls under
   `"cdf"` because they need different `discrete` settings, and without this the
   split zeroed the aggregate data terms while the compositions were
-  residualized -- which on a random-effects model moved the composition
+  residualized, which on a random-effects model moved the composition
   residuals by up to 0.99 on a 21-random-effect fixture. It also improves the
   pre-existing `"TruncatedNormal"` split. Fixed-effect models are unaffected,
   and `verify-refit-like.R` is bit-identical.
+
+## Ease of use
+
+* **`osa_residuals()` says when composition residuals are taken at the default
+  method.** The default is biased on composition data by the scoring table in
+  `?osa_residuals`, and stays the default because `"cdf"` returns non-finite
+  residuals in bulk on a deeply nested random-effects model. Naming any method,
+  the default included, is taken as a choice and stays silent.
+* **The install commands in the README and `?print.Rceattle` work as written.**
+  The version pin pointed at 4.3.0 and the tag convention was documented as
+  `@vX.Y.Z`; releases since 5.0.0 are tagged bare. The example links pointed at
+  `blob/master`, and there is no `master` branch.
+* **`print()` on a `model_config` lists the fields it imposes.** `fit_mod(config = )`
+  overlays only the fields the config set, so this is what a config will change
+  on a data object, readable before fitting rather than from the warnings the
+  fit raises.
 
 # Rceattle 5.40.0
 
 ## New features
 
-* **Two non-parametric selectivity forms whose deviates integrate.**
-  `NonParametric` charges its shape penalties on each year's realized curve,
-  so under `random_sel = TRUE` the density the Laplace approximation
-  integrates is tilted and the reported deviation SD is not the SD of the
-  deviations; `fit_mod()` refuses that combination, and the random-walk mode
-  for its own reason (`inst/dev/TODO-selectivity.md`). Two
-  new forms keep `NonParametric` and `NonParametricPM` exactly as they are and
-  add a proper density: `Selectivity = "NonParametricIID"` (code 13) is the
-  Ianelli base curve with iid annual deviates, `"NonParametricRW"` (14) the
-  same base with random-walk increments (the start-year increment fixed at
-  0), each taking only the `Time_varying_sel` mode its density describes. The
-  decreasing, curvature and average-selectivity penalties are charged once on
-  the base coefficients, and the deviates are scored by `dnorm(0, sel_dev_sd)`
-  on the estimated bins, so `random_sel = TRUE` estimates the SD from a
-  complete density. With `Time_varying_sel = "Off"` both give the
-  `NonParametric` objective to the last digit, at any `Bin_first_selected`;
-  `NonParametricRW` reads no `Sel_cap_bin`. `fit_mod()`'s refusals now name
-  them as the alternative. The per-year mean of a year's deviates is removed by
-  the curve's centring, so the data never see it: under `random_sel = TRUE` it
-  integrates out exactly, under `random_sel = FALSE` those directions are pure
-  prior.
+* **A non-parametric selectivity form whose deviations integrate.**
+  `NonParametric` charges its shape penalties on each year's realized curve, so
+  under `random_sel = TRUE` the density the Laplace approximation integrates is
+  tilted and the reported deviation SD is not the SD of the deviations;
+  `fit_mod()` refuses that combination, and the random-walk mode for its own
+  reason (`inst/dev/TODO-selectivity.md`). `Selectivity =
+  "NonParametricIntegrable"` (code 13) keeps `NonParametric` and
+  `NonParametricPM` exactly as they are and adds the missing density: it is the
+  Ianelli base curve with the decreasing, curvature and average-selectivity
+  penalties charged once on the base coefficients, and the deviations scored by
+  `dnorm(0, sel_dev_sd)` on the estimated bins, so `random_sel = TRUE` estimates
+  the SD from a complete density.
+
+  `Time_varying_sel` picks the structure, as it does for `NonParametric`:
+  `"Off"` estimates no deviations, `"IID"` gives independent annual deviations,
+  and `"RandomWalk"` gives increments from the base curve with the start-year
+  increment fixed at 0. Under `"Off"` the form reproduces the `NonParametric`
+  objective to the last digit, at any `Bin_first_selected`. It reads no
+  `Sel_cap_bin`, and `fit_mod()`'s refusals name it as the alternative. The
+  per-year mean of a year's deviations is removed by the curve's centring, so
+  the data never see it: under `random_sel = TRUE` it integrates out exactly,
+  under `random_sel = FALSE` those directions are pure prior.
 * **A non-parametric fleet's coefficients below `Bin_first_selected` are held at
   0.** They are mapped off, but the curve reads them: each year is centred by the
   log mean over every bin, so a value there shifted the whole curve while no
-  density scored it. `inits` from a fit with a lower `Bin_first_selected` carry
-  such values -- 0.9 in those cells moved `Atka2022`'s fishery objective by 704
-  nats and year-1 selectivity by 0.21. `NonParametric` and `NonParametricPM` were
-  affected as well as the new forms; a fit started from the build defaults, the
-  golden fits included, is unchanged.
+  density scored it. `inits` from a fit with a lower `Bin_first_selected` hold
+  such values: 0.9 in those cells moved `Atka2022`'s fishery objective by 704
+  nats and year-1 selectivity by 0.21. This affected `NonParametric` (2) and the
+  new form 13. `NonParametricPM` (9) was never affected, because its
+  branch already zeroed those cells before centring, so no `NonParametricPM` fit
+  needs revisiting. A fit started from the build defaults, the golden fits
+  included, is unchanged.
 * **What the estimated SD is worth.** `tools/verify/verify-sim-recovery-np-integrable.R`
   draws deviates at a known SD on `Atka2022`'s fishery (multinomial age
   compositions, input sample sizes 2 to 236), simulates the observations and
@@ -328,6 +925,10 @@ models are unchanged, including all four golden references.
   log alpha has reached 702, next to the double-precision limit; +/-30 is 13
   orders of magnitude either side of any stock's scale, so it never binds a
   determined estimate. A linkage bound on alpha or beta overrides it.
+  Predation is the reason the bound was added, but the bound itself is
+  unconditional: `build_bounds()` applies it to every model, single-species
+  included, and the refit stop below reaches any fit whose `rec_pars` sit
+  outside it, estimated or fixed.
   **A fit saved on the old unbounded ridge, with log alpha or log beta beyond
   +/-30, no longer refits**: `build_bounds()` stops because its starting values
   are outside the bounds, which takes `retrospective()`, `profile()` and
@@ -344,7 +945,7 @@ models are unchanged, including all four golden references.
   0.1 at the highest; for Ricker, a density-dependence factor above 0.9), when a
   Ricker peaks below the lowest observed SSB, when log alpha or log beta sits at
   the overflow bound, or (with `getsd = TRUE`) when a log-scale standard error
-  exceeds 10; the record carries alpha, beta, their standard errors and the
+  exceeds 10; the record holds alpha, beta, their standard errors and the
   density dependence at both ends of the SSB range per species. A curve held
   at its inputs is a NOTE, not a warning. The hindcast standard errors it reads
   are now kept in the fit's convergence snapshot, since under an estimating HCR
@@ -379,7 +980,7 @@ models are unchanged, including all four golden references.
   `[n_fleets, nsex]`, log scale) multiplies one sex's whole curve by
   `exp(log_sel_apical)`, applied after the form and before the shared
   normalizer, so it works for every estimated form. Name the fleet and the sex
-  that carries it, as Stock Synthesis's male-offset option does:
+  that holds it, as Stock Synthesis's male-offset option does:
   `build_selectivity(linkages = list(apical = linkage_spec(~ 1, by = ~ fleet + sex, fleet = 3, sex = "male", priors = list(intercept = lognormal(0, 0.5)))))`.
   The multiplier equals the ratio of the sexes' peak heights only where their
   shapes peak equally (the logistic family on an age axis); for a dome with
@@ -390,7 +991,7 @@ models are unchanged, including all four golden references.
   with `link = "identity"`, and one on a fleet whose
   `Sel_norm_scope = "WithinSex"` normalization would divide the offset out.
   The contrast is informed only by joint compositions (`comp_data$Sex = 3`), and
-  `fit_mod()` warns when the named fleet has none and the offset carries no
+  `fit_mod()` warns when the named fleet has none and the offset has no
   prior, since nothing then informs the ratio. Naming `fleet` and `sex` is
   enough: `by` defaults to `~ fleet + sex` for this parameter.
   The multiplier is compiled into the template only when a linkage names it,
@@ -413,16 +1014,16 @@ models are unchanged, including all four golden references.
   offsets) and its AR1 density, plus the `index_q_rho` parameter only they
   read. Both blocks and the parameter are gone; `index_q_rho` drops out of
   `parameter_dictionary()`, `set_phases()` and the map. An older fit's `inits`
-  and stored `map` carrying it are accepted (the block is dropped as retired),
+  and stored `map` naming it are accepted (the block is dropped as retired),
   and a stored `map` sizing `log_pop_scalar` by age (before 5.35.0) is
-  collapsed as `inits` already were -- levels included, so a map that estimated
+  collapsed as `inits` already were, levels included, so a map that estimated
   an age-specific scalar collapses to one per species rather than stopping in
-  TMB -- so `retrospective()`, `profile()` and `run_mse()` on a saved fit still
+  TMB, so `retrospective()`, `profile()` and `run_mse()` on a saved fit still
   run. A `map` name the model has no parameter for is dropped with a warning
   (a retired block is dropped silently), so a misspelling no longer fixes
   nothing; a `map` missing a parameter the model has stops with a message
   naming it, where TMB used to fail on the template read; a map level no cell
-  carries is dropped rather than becoming a parameter without a start value;
+  holds is dropped rather than becoming a parameter without a start value;
   and a `map` that estimated an age-specific `log_pop_scalar` warns that only
   the first age is kept. A script that sets `inits$index_q_rho` keeps running,
   with that assignment now inert. No reachable fit changes; the golden fits
@@ -431,7 +1032,7 @@ models are unchanged, including all four golden references.
 ## Documentation
 
 * **A contributor path.** `CONTRIBUTING.md` (setup, tests, branches, what a
-  pull request carries) replaces the branch table and commit convention in the
+  pull request owes) replaces the branch table and commit convention in the
   developer guide. A new article, *Adding a selectivity form*, traces
   `Selectivity = "DoubleNormal"` through every file, fits it on `GOApollock`,
   and shows what the drift guards report on a half-finished form;
@@ -526,13 +1127,15 @@ release stays a minor version.
   a zero gradient, which leaves the Hessian singular. A spec with no
   `species =` expands to one row per species, so it is refused too; the message
   names the estimated species to put in `species = c(...)`.
-* **`random_sel = TRUE` is refused for non-parametric selectivity with
+* **`random_sel = TRUE` is refused for `Selectivity = "NonParametric"` with
   `Time_varying_sel = "IID"` at every `Sel_curve_pen` setting.** Until now
   `Sel_curve_pen1 = 0` lifted the refusal, but the average-selectivity penalty
   is always charged on each year's realized curve and does not scale with the
   deviation sd, so the sd that fit reported was the sd of a tilted density
   (about 5% of the precision low at sd 0.35, more as the sd grows). Fit with
-  `random_sel = FALSE`, the penalized AMAK formulation.
+  `random_sel = FALSE`, the penalized AMAK formulation. (From 5.40.0 the
+  integrable form `NonParametricIntegrable` takes
+  `random_sel = TRUE` instead; this refusal does not apply to it.)
 
 ## Bug fixes
 
@@ -541,7 +1144,7 @@ release stays a minor version.
   zero; on the single-species fixture an alpha offset of -100 per unit covariate
   gave `R_hat` of -89 and a NaN objective, stock-recruit penalty and dynamic B0
   under Beverton-Holt, and a NaN `log(alpha * SPR0)` in `R_hat` and steepness
-  under Ricker. When the model carries an identity-link recruitment linkage,
+  under Ricker. When the model has an identity-link recruitment linkage,
   hindcast recruitment, R0, R_init, the penalty curve, `R_hat` (first year
   included) and the Ricker log arguments are kept positive by `posfun()` (a
   0.001 barrier: a badly negative curve returns a value well below 0.001, not
@@ -590,9 +1193,12 @@ release stays a minor version.
   relative to themselves and stay reported; under predation `MSSB0` replaces
   `SB0`.
 * **`data_check()` says when `Sel_norm_scope` is not read.** On a two-sex
-  `Hake` or `LogisticPM` fleet the column changed nothing (both normalize each
-  sex to its own maximum; measured identical to every digit on GOAatf fleet 3),
-  without saying so. The schema and the vignette now say it too.
+  `Hake` or `LogisticPM` fleet the column changed nothing, without saying so
+  (measured identical to every digit on GOAatf fleet 3). Neither form goes
+  through the shared normalizer, for different reasons: `Hake` normalizes each
+  sex to its own maximum in its own block, while `LogisticPM` does not normalize
+  at all and reuses `Sel_norm_bin` as a penalty bin range. The notice names the
+  reason that applies, and the schema and the vignette say it too.
 * `retrospective()`'s note on a penalty-form peel with no penalty years now
   covers a peel that keeps a single year.
 
@@ -612,7 +1218,7 @@ release stays a minor version.
   log F = -999, the value `build_params()` gives a fleet with no catch, not as
   -Inf; the projection was already unfished, only the stored parameter changes.
   A single-species projection under a rule that estimates `Ftarget` starts it
-  at log F = 0 when `inits` carry that no-fishing value, as the multispecies
+  at log F = 0 when `inits` hold that no-fishing value, as the multispecies
   loop already did; before, inits from a `ConstantF` fit with `Ftarget = 0`
   left the rule's `Ftarget` at 0, where its gradient is exactly 0.
 
@@ -623,7 +1229,7 @@ release stays a minor version.
   already correct.
 
 * **A species with input numbers-at-age (`estDynamics > 0`) is projected at
-  F = 0 and carries no harvest control rule.** `build_hcr_map()` already left
+  F = 0 and takes no harvest control rule.** `build_hcr_map()` already left
   its `log_Ftarget` / `log_Flimit` unestimated and the reference-point
   penalties already skipped it, but the projection still fished it at those
   start values (F = 1 under most rules). Its projected catch is now 0. Its
@@ -656,13 +1262,13 @@ release stays a minor version.
 * **`remove_F()` sets F to 0 from the year after `endyr` by default**, not from
   the year after the latest `suit_endyr`. When the suitability window ended
   before `endyr` it removed fishing inside the hindcast: on the hake MSE,
-  2020–2023 of a 2023 hindcast. A new `start_yr` argument gives the first year
+  2020–2023 of a 2023 hindcast. A new `styr` argument gives the first year
   fished at F = 0; under predation it must fall after the empirical-suitability
   window (the `suit_endyr` of every predator with `suitMode = 0` and non-zero
   fitted suitability), since removing fishing inside it would change the
   suitability the model was fit with. As before, the
   projection is unfished whatever harvest control rule the model was fit under,
-  so `start_yr` can be no later than the year after `endyr`.
+  so `styr` can be no later than the year after `endyr`.
   `run_mse()` now builds `OM_no_F` with no fishing
   after the original operating model's terminal year, so it matches the OM
   through that year. The `OM no F: SSB Collapse` and `OM: SSB Collapse from F`

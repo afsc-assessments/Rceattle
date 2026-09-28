@@ -78,8 +78,49 @@ fleet — an `Off` fleet's slice is all `NA` and must never lead. Penalties and 
 block are accumulated once, on the lead fleet (`flt_sel_lead` / `flt_q_lead`); without that gate
 they are counted once per sharing fleet.
 
+**A shared block STARTS at the geometric mean of its members' starting values, not at the
+lead's.** TMB collapses a shared parameter to `tapply(par, map, mean)`, and these are all held
+on the log scale, so no fleet keeps the value in its own row. It bites hardest on catchability,
+where `index_log_q` is seeded from `log(Catchability_init)`: a shared q at the mean scales a
+survey's whole predicted index by a constant factor, and no residual pattern distinguishes that
+from a real change in abundance. Measured on an SS3 bridge for GOA Pacific cod, where a
+converter-created fleet kept a default init and pulled the survey's q to
+`sqrt(1.496398) = 1.223270` — 18% low across all 16 index observations, 6.23 nats, with the
+standard deviations right to 5e-07 and both composition components agreeing to under 0.001.
+`build_map()` warns since 5.44.0 (`.warn_shared_block_start()`), for both deviation sds and the
+catchability. Two edges: a member whose `Catchability_init` is blank, zero or negative seeds the
+WHOLE group at `NA`/`-Inf` and it cannot fit — `data_check()` requires that column positive only
+on fleets carrying index rows, and exempts `Analytical`/`AnalyticalArith` — and under
+`Estimated-with-prior` the prior centre, and the prior SD, are the **lead's** alone, so a
+non-lead fleet's values there are simply never read. **Inject or set per-fleet starting values by
+BLOCK, never by fleet name.**
+
 **Worked example: GOA2018SS.** Fleets 1 and 7 share selectivity; fleets 9 and 10 share
 selectivity *and* q.
+
+**There are TWO lead rules and they do not agree.** Which one is right depends on whether you
+are asking about the parameter block or about the penalty:
+
+| rule | grouping key | who uses it |
+|---|---|---|
+| `.shared_block_lead()` (`R/0-linkage_table.R`) | `Selectivity_index` **alone** | the map — `adjust_map_shared_params()` shares on this, so it is the rule for "does a linkage or prior here free anything?" |
+| `flt_sel_lead` (`R/5-rearrange_data.R`, via `.group_lead()`) | `Selectivity_index` **and** `Selectivity` | the template — `ceattle.cpp` gates the penalty block on it, so it is the rule for "does this fleet's penalty weight get read?" |
+
+They coincide on every group that shares one form, which is every group in every bundled data
+set and in all 375 consumer-repo workbooks, so the divergence hides. It opens when two live
+fleets share an index with **different** forms: the template makes them two groups and charges
+both, while the map still copies one block over both. `data_check()` only *warns* about that
+(`R/1-data_check.R`, the `.sel_shaping_cols` check), so the configuration reaches a fit.
+
+5.42.0's negative-`Sel_curve_pen` guard borrowed the map's rule to decide which fleets to
+check, and so skipped a fleet whose weight `ceattle.cpp` does read — a negative weight there
+rewarded the deviation without bound while `data_check()` reported clean. Fixed at 5.42.1 with
+`.rce_sel_pen_lead()`. **If you write anything that predicts the template's behaviour, group
+by index AND form; if you write anything about the map, group by index alone.**
+
+Still open, and pre-existing: in that same mixed-form state the one shared `sel_coff` block is
+penalized **twice**, once per group, because the map shares more widely than the penalty gate
+groups. `CLEANUP_BACKLOG.md` carries it.
 
 **A fixed-width parameter slot does not have a fixed meaning.** Several blocks are declared
 `[…, 2]` or `[…, 3]`, and what the slot holds depends on a switch, so a static label names the
@@ -176,6 +217,26 @@ estimated the hindcast.** `build_hcr_map()` (`R/0-build_hcr.R`) replaces every e
 than switch on `estimateMode`.
 
 ## Silent-wrong-number traps
+
+**Which fleet leads a `Selectivity_index` group is row-order dependent, so a group's penalty
+weights can change meaning when rows move.** `.group_lead()` picks the group's first fleet that
+is not `Off`, and `Fleet_code` must equal the row number, so inserting or reordering a fleet —
+or switching the lead `Off` — promotes a different row. Only the lead's `Sel_curve_pen1/2/3` are
+read (`ceattle.cpp:4051` gates on `flt_sel_lead(flt) == 1`), and a follower's are neither read
+nor checked against the lead's: `.sel_shaping_cols` deliberately excludes them, and the negative-
+weight refusal skips followers for the same reason. So a stale or wrong weight sitting on a
+follower is inert until a reordering makes that fleet the lead, at which point it is charged
+silently. Keep the whole group's penalty columns in agreement even though nothing enforces it.
+
+**A `NonParametricPM` (9) `RandomWalk` fleet at the default `Sel_curve_pen3 = 0` has an exactly
+flat direction.** Slot 3 is the only term charged on the RAW `sel_coff_dev`
+(`ceattle.cpp:4233`); every other term — shape, curvature, the random walk, and the data —
+reads `log_non_par_sel`, which `selectivity.hpp:449-459` mean-centres per year. A shift common
+to all bins in a year is therefore invisible everywhere except slot 3, verified by objectives
+bit-identical across `Time_varying_sel_sd` of 0.1, 0.2, 1 and 3 while the deviates moved. With
+the schema default of 0 nothing scores that direction at all, so under `random_sel = TRUE` the
+Laplace inner Hessian is singular. Set `Sel_curve_pen3` (or `Sel_devmag_sd`) on a form-9
+random-walk fleet. Pre-existing; found reviewing 5.42.0.
 
 **A single-species PFMC fit's `Flimit` depends on the `log_Ftarget` start value, a parameter
 PFMC never estimates.** Measured 2026-09-14 on `make_test_data()`, `HCR = "PFMC"`,
@@ -537,6 +598,25 @@ only in a Markdown file, the same file executed and the worker died with exit co
 exported, and it is printed in the step's own env block, so the log says which mode ran. 1 of 7
 recent Windows runs slipped; when it does not slip you learn nothing.
 
+**What the crash DUMPS is not a finding either — fixed at the source in 5.43.0.** When the
+worker dies, `R CMD check` prints whatever that test file had written to stdout, under a
+`── Test failures ──` heading. `test-convergence.R` used `expect_invisible(print(cv))`, which
+unlike `expect_output()` does not sink output, so the file wrote three lines of a **deliberately
+non-converged synthetic fixture** on every run:
+
+```
+<Rceattle convergence>  status: FAIL
+  [FAIL] max_gradient     Maximum absolute marginal gradient = 4e+12 on sel_inf (...)
+  [FAIL] pdHess           Hessian is not positive definite; standard errors are unavailable.
+```
+
+Those lines were read as a real convergence regression three separate times, most recently on
+#161 -- and 5.43.0 naming the quantity (`sel_inf (selectivity inflection)`) made them read
+*more* like a genuine finding, not less. The call is captured now and the file prints nothing,
+so a dead-worker dump is quieter. **Diagnose from the traceback**
+(`parallel_event_loop_chunky` -> `handle_error` -> `cli_abort` means a worker died), never from
+the text it dumped.
+
 **The file testthat names for this crash carries NO information — measured 2026-09-21.** Tests
 run in parallel (`Config/testthat/parallel: true`, two workers on the runner), so when a worker
 dies testthat reports whichever file that worker was holding. Three occurrences have named three
@@ -546,6 +626,17 @@ and `test-data-input-validation.R`. **The last of those executes nothing in CI**
 ran zero lines was blamed for the fault. Do not investigate the named file, and do not read
 `verify-safebounds.R`'s "the CI crash config" case as targeting anything established; that
 config was chosen from one such attribution.
+
+**The same fault also shows up as a broken worker message, not a crash code -- measured
+2026-09-27 on #158.** The parent died in
+`test_check() -> rs__read_message() -> rs__parse_header()` with `Internal callr error, invalid
+message header`, and the Windows log carried **no `Failure (` line and no `FAIL n` count**: no
+test failed, the IPC stream to a parallel worker broke. Treat it as the same dead-worker class as
+the access violation, and check the same two things -- whether any assertion actually failed, and
+whether the same commit passed elsewhere. Here **commit `44864a79` passed Windows in the
+`pull_request` run and failed in the `push` run**, one commit with both outcomes on one platform,
+which is the strongest evidence available that a Windows red is infrastructure. A red with a
+`Failure (` line in it is a different thing and is worth investigating.
 
 **It is not specific to any release line.** `main` at 5.33.0, released and unchanged, crashed
 with the same exit code on 2026-09-21. Rate over the 30 most recent `R-CMD-check` runs: 2
@@ -698,8 +789,8 @@ over-constrains it.
 **AMAK conventions are reproduced deliberately, not corrected.** `src/TMB/selectivity.hpp:609`
 evaluates the logistic at mid-age (`age_vector(j) = j + 0.5`, so `bin + 1.5`) for `LogisticPM`
 (11); the standard `Logistic` (1) uses `bin + 1`. `NonParametricPM` (9) and `LogisticPM` exist
-to match ADMB AMAK's "pm" parameterizations, penalties included, and `NonParametricIID` (13)
-and `NonParametricRW` (14) came from the same lineage in 5.40.0.
+to match ADMB AMAK's "pm" parameterizations, penalties included, and
+`NonParametricIntegrable` (13) came from the same lineage in 5.40.0.
 
 The literature citations through `src/TMB/` are the specification for those blocks, not
 historical notes; `CLAUDE.md` says so under Comments.
@@ -806,5 +897,15 @@ section above.
   `RCEATTLE_SAFEBOUNDS=true` and run `tools/verify/verify-safebounds.R`, which asserts
   `-DTMB_SAFEBOUNDS` actually reached the compile line — `pkgload` only recompiles when sources
   change, so a clean result against a stale `.so` means nothing.
+- **`newtonsteps > 0` can return a parameter OUTSIDE its bounds.** `fit_mod()` passes
+  `build_bounds()`'s range to `nlminb`, which respects it, but the Newton refinement afterwards
+  is a plain unconstrained step in both `.fit_tmb()` paths — TMBhelper's own included, which the
+  package cannot clamp. Measured on a GOA Pacific cod bridge at `newtonsteps = 3`: a growth
+  parameter came back at 5.08e-05 against a lower bound of 1e-3, gradient 0.263, Hessian not
+  invertible; at `newtonsteps = 0`, same code, it sat on the bound at 1.00e-03, gradient
+  0.00246, `sdreport` clean. The three steps bought 0.0017 nats. `convergence` reports it as
+  `parameters_outside_bounds` (FAIL) since 5.45.0; before that it read as `parameters_on_bounds`
+  (WARN, "at a configured bound") because `par <= lo + tol` is also true below `lo`. The default
+  is 0, but the golden references all run 3.
 - **A slow fit is the model, not a regression** — `BS2017SS` has needed ~500–700 `nlminb`
   iterations since at least 2023.

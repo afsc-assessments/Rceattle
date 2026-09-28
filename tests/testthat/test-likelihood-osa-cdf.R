@@ -536,7 +536,7 @@ testthat::test_that("a failed Laplace solve does not cost every observation afte
       n_call <<- n_call + 1L
       mk(rep(NaN, 4 - from))
     }),
-    "did not help")            # and it must NOT claim to have recovered anything
+    "recovered none")          # and it must NOT claim to have recovered anything
   testthat::expect_equal(n_call, 1L)
   testthat::expect_equal(sum(!is.finite(got$residual)), 2L)
 
@@ -603,8 +603,34 @@ testthat::test_that("turning `discrete` off under cdf says what it costs", {
   testthat::expect_no_message(suppressWarnings(Rceattle::osa_residuals(
     fit, source = "comp", method = "cdf", parallel = FALSE)))
   # ... nor on a Gaussian method, whose compositions were always continuous.
+  # Scoped to the discrete notice: leaving `method` unset also raises the
+  # default-method notice below, which is a different message.
   testthat::expect_no_message(suppressWarnings(Rceattle::osa_residuals(
-    fit, source = "comp", discrete = FALSE, parallel = FALSE)))
+    fit, source = "comp", discrete = FALSE, parallel = FALSE)),
+    message = "discrete = FALSE")
+})
+
+# The package default is biased on composition data by its own scoring table, so
+# a caller who never chose a method is told which one they got. Naming any
+# method, including the default, is taken as a choice and stays silent.
+testthat::test_that("an unset method says so on composition sources", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("TMB")
+  dat <- make_test_data(nyrs = 10, nages = 6, seed = 18)
+  fit <- suppressWarnings(Rceattle::fit_mod(
+    dat, file = NULL, estimateMode = 1, msmMode = 0,
+    fit_control = fit_control(phase = FALSE, verbose = 0, getsd = FALSE)))
+  testthat::expect_message(
+    suppressWarnings(Rceattle::osa_residuals(fit, source = "comp", parallel = FALSE)),
+    "biased on composition data")
+  testthat::expect_no_message(
+    suppressWarnings(Rceattle::osa_residuals(
+      fit, source = "comp", method = "oneStepGaussianOffMode", parallel = FALSE)),
+    message = "biased on composition data")
+  # Aggregate series are Gaussian, so the default is not the biased choice there.
+  testthat::expect_no_message(
+    suppressWarnings(Rceattle::osa_residuals(fit, source = "index", parallel = FALSE)),
+    message = "biased on composition data")
 })
 
 

@@ -34,7 +34,7 @@
 #' recruitment applies the annual log deviation, \eqn{R_y \cdot exp(R_{dev,y})}, as in the
 #' mean form. For numerical stability the Ricker \eqn{\beta_{srr}} is estimated on a scale
 #' divided by 1,000,000, so the fitted \code{beta} is 1e6 times the density-dependence
-#' coefficient in the equation above; \code{Bmsy_lim} (\eqn{\approx 1/\beta_{srr}}) carries
+#' coefficient in the equation above; \code{Bmsy_lim} (\eqn{\approx 1/\beta_{srr}}) holds
 #' the same scaling.
 #'
 #' When \code{srr_pred_fun > 0} and \code{srr_fun = 0} recruitment in the hindcast is estimated as in \code{srr_fun = 0} \deqn{R_y = exp(R0 + R_{dev,y})}, but an additional stock recruitment relationship defined by \code{srr_pred_fun} is estimated between \code{srr_hat_styr} and \code{srr_hat_endyr} and treated as an additional penalty. The stock recruitment relationship defined by \code{srr_pred_fun} is then used in the projection.
@@ -85,7 +85,7 @@
 #' with \code{srr_alpha_init} / \code{srr_beta_init} or a linkage \code{init};
 #' supplying \code{srr_prior} as alpha's starting value is deprecated. \eqn{\beta} sets the density dependence in
 #' \eqn{R = \alpha S / (1 + \beta S)}, so it must be on the order of
-#' \eqn{(\alpha - 1/\phi_0) / R_0} -- typically \eqn{10^{-3}} or smaller for a
+#' \eqn{(\alpha - 1/\phi_0) / R_0}, typically \eqn{10^{-3}} or smaller for a
 #' stock measured in tonnes; starting three orders of magnitude away drives
 #' predicted recruitment to near zero and the optimizer returns
 #' \code{NA/NaN gradient evaluation}. From a steepness \eqn{h} and unfished
@@ -322,14 +322,14 @@ build_srr <- function(srr_fun = 0,  #srr_model
 #'
 #' `srr_prior` is a prior on **steepness** where the model consumes it as one:
 #' the lognormal (`srr_est_mode` 2) and beta (`srr_est_mode` 3) priors on a
-#' Beverton-Holt curve (`srr_pred_fun` 2 or 3). Everywhere else -- Ricker at any
+#' Beverton-Holt curve (`srr_pred_fun` 2 or 3). Everywhere else, Ricker at any
 #' `srr_est_mode`, and `srr_est_mode` 0 ("fix alpha to prior mean") or 1
-#' ("estimate") for any curve -- it is an alpha, and so is a valid starting
+#' ("estimate") for any curve, it is an alpha, and so is a valid starting
 #' value for `rec_pars[, "Alpha"]`.
 #'
 #' `build_params()` and `fit_mod()` both seed alpha and share this rule.
 #'
-#' @param data_list A `data_list` carrying `srr_est_mode` / `srr_pred_fun`.
+#' @param data_list A `data_list` holding `srr_est_mode` / `srr_pred_fun`.
 #' @return `TRUE` when `srr_prior` may be used as an alpha starting value.
 #' @keywords internal
 #' @noRd

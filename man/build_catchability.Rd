@@ -16,8 +16,8 @@ fleet by default (\code{by = ~ fleet}); use the \code{fleet} argument of
 A list of catchability settings for \code{\link[=fit_mod]{fit_mod()}}.
 }
 \description{
-Carry environmental linkages on survey/index catchability \code{q}. The effect of
-an \code{env_data} covariate is written as a formula and can carry priors, bounds,
+Holds environmental linkages on survey/index catchability \code{q}. The effect of
+an \code{env_data} covariate is written as a formula and can hold priors, bounds,
 and an estimation phase like any other linkage.
 }
 \examples{

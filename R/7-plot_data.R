@@ -18,8 +18,8 @@
 #'   the bubble subplot).
 #' @param subplots Integer vector controlling which subplots are produced:
 #'   \itemize{
-#'     \item 1 -- equal-size points showing presence/absence by year/fleet
-#'     \item 2 -- points scaled to relative quantity / precision within each
+#'     \item 1, equal-size points showing presence/absence by year/fleet
+#'     \item 2, points scaled to relative quantity / precision within each
 #'       data type (catch tonnage, 1/SE for indices, sample size for comps)
 #'   }
 #' @param datatypes Either `"all"` or a subset of
@@ -45,7 +45,7 @@
 #' @param mainTitle Logical; if `TRUE` add a default title.
 #' @param cex.main Title character expansion.
 #'
-#' @return Invisibly, a list with `typetable` -- the long data frame underlying
+#' @return Invisibly, a list with `typetable`, the long data frame underlying
 #'   the plot (year, fleet, data type, relative size).
 #'
 #' @export

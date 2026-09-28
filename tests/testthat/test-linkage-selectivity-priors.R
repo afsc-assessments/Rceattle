@@ -78,11 +78,13 @@ testthat::test_that("prior on a mirror fleet (shared Selectivity_index) is rejec
   fc <- data.frame(Fleet_name = c("F1", "F2"), Selectivity = c("Logistic", "Logistic"),
                    Selectivity_index = c(1L, 1L), Fleet_code = c(1L, 2L),
                    stringsAsFactors = FALSE)
-  # Fleet 2 mirrors fleet 1 (Selectivity_index 1 != Fleet_code 2) -> double-count.
+  # Fleet 2 follows fleet 1 (same Selectivity_index, and fleet 1 leads the
+  # group) -> the shared block would be penalized twice.
   lt2 <- data.frame(process = "sel", param = "inf_asc", fleet = 2L,
                     prior_family = "normal", stringsAsFactors = FALSE)
-  testthat::expect_error(Rceattle:::.check_sel_linkage_support(lt2, fc), "mirror")
-  # The lead fleet (Selectivity_index 1 == Fleet_code 1) carries the block prior.
+  testthat::expect_error(Rceattle:::.check_sel_linkage_support(lt2, fc),
+                         "share a Selectivity_index")
+  # The lead fleet, i.e. the group's first fleet, carries the block prior.
   lt1 <- lt2; lt1$fleet <- 1L
   testthat::expect_silent(Rceattle:::.check_sel_linkage_support(lt1, fc))
 })

@@ -305,6 +305,7 @@ void calculate_selectivity(
     matrix<int>&  pop_to_data_bin,
     const vector<int>&  flt_spp,
     const vector<int>&  flt_sel_type,
+    const vector<int>&  flt_varying_sel,
     const vector<int>&  flt_sel_dim,
     const vector<int>&  bin_first_selected,
     const vector<int>&  flt_n_sel_bins,
@@ -381,6 +382,15 @@ void calculate_selectivity(
     int sel_type = flt_sel_type(flt);
     if (sel_type == 0) continue;
 
+    // NonParametricIntegrable (13) builds its curve two ways: a random walk on the
+    // base coefficients when its deviations are a walk, otherwise the shared
+    // non-parametric branch. Time_varying_sel picks which, so the switch below
+    // dispatches on this rather than on the Selectivity code alone.
+    // SEL_CASE_NP_INTEGRABLE_WALK is internal; it is not a Selectivity value.
+    const int SEL_CASE_NP_INTEGRABLE_WALK = -13;
+    int sel_case = (sel_type == 13 && flt_varying_sel(flt) == 4)
+                     ? SEL_CASE_NP_INTEGRABLE_WALK : sel_type;
+
     bool is_length_based = flt_sel_dim(flt) == 1;
     // A length-based curve runs over the POPULATION bins at the population bin
     // width; an age-based one over ages. Identical to the data grid whenever no
@@ -390,13 +400,13 @@ void calculate_selectivity(
     Type binwidth = is_length_based ? (lengths_pop(sp, 1) - lengths_pop(sp, 0)) : Type(1.0);
 
     // Uncapped, per-year-centered log-selectivity, carried across years for the
-    // NonParametricRPM (type 9) random walk (the realized curve is then capped).
+    // NonParametricPM (type 9) random walk (the realized curve is then capped).
     array<Type> np_unc(nsex(sp), nbins, nyrs_hind); np_unc.setZero();
 
     for (int yr = 0; yr < nyrs_hind; yr++) {
       for (int sex = 0; sex < nsex(sp); sex++) {
 
-        switch (sel_type) {
+        switch (sel_case) {
         case 1: // Logistic
           for (int bin = 0; bin < nbins; bin++) {
             Type x_val = is_length_based ? (lengths_pop(sp, bin) + 0.5 * binwidth) : Type(bin + 1);
@@ -415,11 +425,13 @@ void calculate_selectivity(
           }
           break;
 
-        case 14: { // NonParametricRW: the Ianelli curve on the base coefficients
-                   // plus the running sum of increments (years after the fleet's
-                   // start year), centred for output only, so with no increments
-                   // every year is NonParametric's curve. No cap; the increments
-                   // are scored in ceattle.cpp.
+        // NonParametricIntegrable (13) under Time_varying_sel = "RandomWalk": the
+        // Ianelli curve on the base coefficients plus the running sum of increments
+        // (years after the fleet's start year), centred for output only, so with no
+        // increments every year is NonParametric's curve. No cap; the increments are
+        // scored in ceattle.cpp. Under "Off" or "IID" the form falls to the shared
+        // non-parametric branch below.
+        case SEL_CASE_NP_INTEGRABLE_WALK: {
           for(int bin = 0; bin < n_sel_bins; bin++){
             Type inc = (yr > flt_sel_start_yr(flt)) ? sel_coff_dev(flt, sex, bin, yr) : Type(0.0);
             np_unc(sex, bin, yr) = (yr > 0 ? np_unc(sex, bin, yr - 1) : Type(0.0)) + inc;
@@ -444,7 +456,7 @@ void calculate_selectivity(
           break;
         }
 
-        case 9: { // NonParametricRPM (RTMB "rpm"): random walk on the per-year-
+        case 9: { // NonParametricPM (RTMB "rpm"): random walk on the per-year-
                   // renormalized log-selectivity, then a flat age-cap.
           // sel_coff = base coffs (year styr, ages 0..n_sel_bins-1); sel_coff_dev =
           // RAW per-year increments placed at the year they apply. Ages >= n_sel_bins
@@ -491,7 +503,7 @@ void calculate_selectivity(
           break;
         }
 
-        case 13: // NonParametricIID: the same curve, penalties charged on the base in ceattle.cpp
+        case 13: // NonParametricIntegrable under "Off"/"IID"; penalties on the base (ceattle.cpp)
         case 2: // Non-parametric (Ianelli style)
           for(int bin = 0; bin < n_sel_bins; bin++) {
             non_par_sel(flt, sex, bin, yr) = sel_coff(flt, sex, bin) + sel_coff_dev(flt, sex, bin, yr);

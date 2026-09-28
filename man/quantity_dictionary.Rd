@@ -23,7 +23,7 @@ A data frame with one row per quantity and columns \code{quantity},
 \description{
 \code{fit$quantities} uses the model's own abbreviated names. This returns the
 table mapping each one to what it means, the units it is in, how it is
-shaped, whether it carries a standard error, and what the same quantity is
+shaped, whether it holds a standard error, and what the same quantity is
 called in the NOAA standardized assessment output.
 }
 \details{
@@ -33,7 +33,7 @@ units read \code{"mt or thousands of fish"} follows its fleet's
 \code{Observation_units} column.
 
 \code{se = TRUE} means the TMB template \code{ADREPORT}s the quantity, so \code{fit$sdrep}
-carries a standard error for it and \code{\link[=as.data.frame.Rceattle]{as.data.frame.Rceattle()}} can fill \code{se},
+holds a standard error for it and \code{\link[=as.data.frame.Rceattle]{as.data.frame.Rceattle()}} can fill \code{se},
 \code{lwr} and \code{upr}. \code{se = FALSE} means no standard error exists anywhere on the
 fit for that quantity. Nothing has a standard error when the fit was produced
 with \code{fit_control(getsd = FALSE)}, which leaves \code{sdrep} NULL.
@@ -46,7 +46,7 @@ because several quantities (predation, multispecies) have no standard name.
 
 Every per-recruit reference point (\code{SPR0}, \code{SPRlimit}, \code{SPRtarget},
 \code{SPRFinit}, \code{NbyageSPR}) is computed only under \code{msmMode = 0} and is exactly
-\strong{zero on a multispecies fit} -- M there carries predation mortality, which
+\strong{zero on a multispecies fit}: M there holds predation mortality, which
 scales with predator abundance, so spawning output per recruit is not a
 property of the prey stock alone.
 }
@@ -57,7 +57,7 @@ head(quantity_dictionary())
 # What is ssb_depletion, and what units is it in?
 quantity_dictionary("ssb_depletion")
 
-# Everything that carries a standard error
+# Everything that holds a standard error
 dict <- quantity_dictionary()
 dict[dict$se, c("quantity", "meaning")]
 

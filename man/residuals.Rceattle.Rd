@@ -45,7 +45,7 @@ absorbed a folded tail.
 \description{
 Returns a long-format data frame of residuals, following the convention of
 \code{\link[stats:residuals.glm]{stats::residuals.glm()}} where \code{type} selects the \emph{kind} of residual. By
-default residuals are returned for every applicable data source -- survey
+default residuals are returned for every applicable data source, survey
 indices, fishery catches, age/length composition (\code{comp}), and conditional
 age-at-length (\code{caal}); use \code{source} to restrict to particular ones.
 }
@@ -62,7 +62,7 @@ survey index,
 realized observation log-SD \eqn{\sigma} and the observation
 bias-adjustment flag \eqn{b} (\code{bias_adjust_obs}, default 1). A
 natural-scale index fleet (\code{Index_distribution} \code{"MVN"}, \code{"MVNORM"},
-\code{"Normal"} or \code{"TruncatedNormal"}) carries an ABSOLUTE \eqn{\sigma} and is
+\code{"Normal"} or \code{"TruncatedNormal"}) holds an ABSOLUTE \eqn{\sigma} and is
 standardized as \eqn{(o - \hat{o})/\sigma} instead. Two caveats there: a
 covariance fleet gets its marginal residual, not the whitened one (use
 \code{type = "osa"} for that), and \code{"TruncatedNormal"} is standardized on the
@@ -79,8 +79,8 @@ model's random-effect deviations; \code{source} does not apply.}
 }
 
 Composition rows are returned in long form (one row per observation x
-age/length bin) and carry the \code{Age0_Length1} flag from \code{comp_data} (\code{0} age,
-\code{1} length); CAAL rows carry both the conditioning \code{Length} and the age \code{Bin}.
+age/length bin) and hold the \code{Age0_Length1} flag from \code{comp_data} (\code{0} age,
+\code{1} length); CAAL rows hold both the conditioning \code{Length} and the age \code{Bin}.
 
 Where a fleet uses tail accumulation (\code{Comp_accum_young} /
 \code{Comp_accum_old}), composition residuals describe the bins the likelihood

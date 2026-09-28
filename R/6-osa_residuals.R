@@ -28,8 +28,8 @@
 #' One-step-ahead (OSA) residuals for an Rceattle model
 #'
 #' @description
-#' Computes one-step-ahead (OSA) residuals -- also called forecast or quantile
-#' residuals (Thygesen et al. 2017) -- for a fitted [Rceattle] model via
+#' Computes one-step-ahead (OSA) residuals, also called forecast or quantile
+#' residuals (Thygesen et al. 2017), for a fitted [Rceattle] model via
 #' [TMB::oneStepPredict()]. Unlike Pearson residuals, OSA residuals are
 #' distributed iid standard normal under a correctly specified model even when
 #' observations are correlated (through composition bins) or when the model
@@ -38,7 +38,7 @@
 #'
 #' These are *internal* OSA residuals: the residualization is integrated into
 #' the assessment via TMB, so it also accounts for correlation induced by the
-#' model's random effects across years -- the gold standard relative to the
+#' model's random effects across years, the gold standard relative to the
 #' *external* `compResidual` approach (Stewart and Monnahan 2025).
 #'
 #' OSA residuals are computed *post hoc* and are expensive (TMB re-optimizes the
@@ -66,7 +66,7 @@
 #' scale. The correlated covariance families (`"MVN"` / `"MVNORM"`) are whitened
 #' by the lower Cholesky of the fleet's survey covariance Sigma = L L', so the
 #' residuals are the multivariate-Gaussian one-step-ahead innovations
-#' L^-1 (obs - q*pred) -- the closed form [TMB::oneStepPredict()] reproduces for a
+#' L^-1 (obs - q*pred), the closed form [TMB::oneStepPredict()] reproduces for a
 #' Gaussian block.
 #'
 #' Under a Gaussian `method`, `"TruncatedNormal"` rows are residualized in their
@@ -75,14 +75,14 @@
 #' the model supplies the truncated CDF in closed form, so the family is
 #' residualized in the main call, exactly.) Its density differs from
 #' `"Normal"` only by `log Phi(mu/sd)`, which is a function of the prediction and
-#' not of the observation, so a Gaussian method -- which reads the curvature of
-#' the density in the observation -- cannot see the truncation at all and returns
+#' not of the observation, so a Gaussian method, which reads the curvature of
+#' the density in the observation, cannot see the truncation at all and returns
 #' the untruncated `(obs - mu)/sd`. Integrating over the family's own support
 #' instead gives the truncated CDF
 #' `F(x) = [Phi((x - mu)/sd) - Phi(-mu/sd)] / Phi(mu/sd)`,
 #' so `qnorm(F(x))` is standard normal by the probability integral transform
 #' however hard the truncation bites. The upper limit is finite rather than
-#' `Inf` -- ten standard deviations past the largest fitted index in the group,
+#' `Inf`, ten standard deviations past the largest fitted index in the group,
 #' which leaves under 1e-23 of the mass outside while keeping the Laplace inner
 #' problem in a region it can solve. That group also runs with
 #' `splineApprox = FALSE`, because the spline shortcut integrates over whatever
@@ -102,8 +102,8 @@
 #' * **On a model with random effects the exact integration can fail.** It
 #'   evaluates the Laplace marginal at arbitrary values of the observation, and
 #'   the inner problem does not always converge across the whole support. Rather
-#'   than return `NA` for those rows -- which would shrink the sample
-#'   [osa_diagnostics()] passes verdict on, without saying so -- the fleet is
+#'   than return `NA` for those rows, which would shrink the sample
+#'   [osa_diagnostics()] passes verdict on, without saying so, the fleet is
 #'   recomputed under TMB's spline approximation and a warning says the residuals
 #'   for it are approximate. Fixed-effect models are unaffected.
 #' * **`sd` is `NA` and `predicted` means something different for this group.**
@@ -159,10 +159,10 @@
 #' @param parallel Logical; compute the per-observation OSA loop in parallel via
 #'   \code{\link[parallel]{mclapply}}. Default `TRUE`. This is the main speedup for models
 #'   with random effects, where each observation triggers a Laplace
-#'   re-evaluation -- it gives a near-linear speedup across cores (set
+#'   re-evaluation, it gives a near-linear speedup across cores (set
 #'   `options(mc.cores = )` to choose how many; forking falls back to serial on
-#'   Windows). Some models -- heavy random-effect structures such as a
-#'   time-varying catchability -- abort the forked worker instead of returning;
+#'   Windows). Some models, heavy random-effect structures such as a
+#'   time-varying catchability, abort the forked worker instead of returning;
 #'   the loop then recomputes serially, after rebuilding, and prints the worker's
 #'   own "irrecoverable exception" message, which comes from C and cannot be
 #'   suppressed. That message does not mean the call failed. Pass `FALSE` to skip
@@ -184,19 +184,23 @@
 #'   range of ages rather than the one named), `length` (the conditioning length
 #'   bin for caal; `NA` otherwise), `index_label` (`"age"`/`"length"`/`NA`), `observed`,
 #'   `predicted`, `sd`, and `residual`. For aggregate series `observed` and
-#'   `predicted` are on the residualization scale -- log for lognormal catch/index,
+#'   `predicted` are on the residualization scale, log for lognormal catch/index,
 #'   natural scale for a `"Normal"` or `"TruncatedNormal"` index, and the
 #'   whitened (`L^-1`) scale for an
 #'   `"MVN"`/`"MVNORM"` index; for compositions they are bin counts.
 #'   `predicted` is `NA` for every row under `method = "cdf"`, which forms no
-#'   conditional mode (see above). `sd` is `NA` under the default method too --
-#'   only `method = "oneStepGaussian"` returns one. Carries
-#'   `method` and `seed` attributes -- `method` is the string that was passed,
-#'   or a named vector `c(default = <method>, ...)` when a likelihood family was
-#'   residualized with its own: `TruncatedNormal = "oneStepGeneric"` for a
-#'   truncated index fleet under a Gaussian method, and
-#'   `DirichletMultinomial = "oneStepGaussianOffMode"` for a D-M composition
-#'   under `"cdf"` -- and
+#'   conditional mode (see above). `sd` is `NA` under the default method too,
+#'   only `method = "oneStepGaussian"` returns one. It holds
+#'   `method` and `seed` attributes, `method` is the string that was passed,
+#'   or a named vector `c(default = <method>, ...)` when a group of rows was
+#'   residualized with its own. Two names are likelihood families:
+#'   `TruncatedNormal = "oneStepGeneric"` for a truncated index fleet under a
+#'   Gaussian method, and `DirichletMultinomial = "oneStepGaussianOffMode"` for
+#'   a D-M composition under `"cdf"`. The third is not a family but the rows
+#'   `discrete = TRUE` selects: `DiscreteComposition = "oneStepGeneric"`,
+#'   written only under a Gaussian `method`, which cannot score a discrete
+#'   observation because it is continuous-only (`"cdf"` already is a CDF method,
+#'   so it needs no override and writes no entry). It also holds
 #'   (when composition types
 #'   are present) a `"pearson"` attribute holding the matching Pearson residuals
 #'   so [plot.rceattle_osa()] can show both. The attribute uses this data
@@ -205,10 +209,10 @@
 #'   Note the shared names do not mean a shared scale: in the attribute
 #'   `observed` and `predicted` are proportions summing to one within a
 #'   fleet-year, with the sample size in `sample_size`, because composition
-#'   Pearson residuals are defined on proportions -- not the bin counts the
-#'   columns above carry. Do not compare the two directly.
+#'   Pearson residuals are defined on proportions, not the bin counts the
+#'   columns above hold. Do not compare the two directly.
 #'   Both describe the bins the likelihood fit, so a fleet with tail
-#'   accumulation reports the folded window in each -- with one asymmetry: the
+#'   accumulation reports the folded window in each, with one asymmetry: the
 #'   one-step-ahead decomposition drops each group's last bin (it is fixed by
 #'   sum-to-N), and under an *old*-tail accumulation that dropped bin is the
 #'   upper accumulated one. Such a fleet therefore shows its upper boundary bin
@@ -222,7 +226,7 @@
 #' observation against it. That is fast, and it is what WHAM and SAM use.
 #'
 #' `"cdf"` instead asks the model for the conditional CDF and returns
-#' `qnorm(F(x))` -- the probability integral transform, which is standard normal
+#' `qnorm(F(x))`, the probability integral transform, which is standard normal
 #' whatever shape the conditional has. No conditional mean is formed, so the
 #' method has three properties the Gaussian ones do not:
 #'
@@ -237,32 +241,32 @@
 #'   means one thing across the object.
 #' * **The conditional mean cannot leave the support**, because it is never
 #'   computed. That removes the negative composition `predicted` values described
-#'   below, and the positive bias they carry into the residual on those rows.
+#'   below, and the positive bias they pass into the residual on those rows.
 #' * **`Index_distribution = "TruncatedNormal"` is exact and needs no separate
 #'   call**, so none of the three consequences listed above applies to that
 #'   family under `"cdf"`.
 #'
 #' What it costs, in three places.
 #'
-#' * **Not available for a Dirichlet-multinomial composition** -- the conditional
+#' * **Not available for a Dirichlet-multinomial composition**: the conditional
 #'   is a beta-binomial, which has no closed-form CDF and cannot be summed at a
 #'   fractional count. Those fleets are residualized with
 #'   `"oneStepGaussianOffMode"`, announced in a message and recorded in the
 #'   `method` attribute.
 #' * **`|residual|` is censored at 8.04, in both directions.** The upper end is
 #'   forced: [TMB::oneStepPredict()] recovers `F` as `1 / (1 + exp(.))`, which
-#'   saturates at the last double below one. The lower end is not -- that same
-#'   expression carries a small `F` down to a residual of -37 -- and is censored
+#'   saturates at the last double below one. The lower end is not, that same
+#'   expression takes a small `F` down to a residual of -37, and is censored
 #'   to match anyway, because an asymmetric ceiling would show as a long left
 #'   tail against a wall on the right, which is what skewness in the residuals
 #'   looks like. This is a ceiling, not a large number standing in for a larger
 #'   one: [osa_diagnostics()] computes SDNR and the tail statistics on the
 #'   censored values, so it bites hardest on a short series where one
-#'   observation carries the statistic, and the function warns when any residual
+#'   observation drives the statistic, and the function warns when any residual
 #'   sits there.
 #'
 #'   For an observation past the ceiling, **reach for `"oneStepGaussian"`
-#'   specifically** and on the fleet in question -- on a 12-year survey with one
+#'   specifically** and on the fleet in question, on a 12-year survey with one
 #'   observation multiplied by 200 it reports 38.98 uncensored, where the package
 #'   default returns `NaN` and `"oneStepGeneric"` compresses the same row to
 #'   3.33. It costs an `nlminb` and an `optimHess` per observation. The
@@ -305,27 +309,27 @@
 #' `"cdf"` is exact only on a fixed-effect model. With random effects
 #' [TMB::oneStepPredict()] integrates the CDF over the latent states by Laplace,
 #' and the integrand there is a Gaussian times a sigmoid rather than a density,
-#' so the approximation is not exact -- where for a Gaussian observation the
+#' so the approximation is not exact, where for a Gaussian observation the
 #' Gaussian methods integrate a density and are. Against the exact Kalman
 #' innovations of a linear-Gaussian state space model the Gaussian methods are
 #' exact to 1e-14, while `"cdf"` errs by 7e-4 to 4e-2 as the latent state becomes
 #' more informative relative to the observation
 #' (`tools/verify/verify-osa-cdf-accuracy.R`, which compiles that model).
 #'
-#' **That result is about a LINEAR-Gaussian model, and does not carry over
+#' **That result is about a LINEAR-Gaussian model, and does not transfer
 #' wholesale.** Those methods are exact when the one-step-ahead *predictive* is
 #' Gaussian, which needs the model to be linear in the random effects. Rceattle's
 #' index and catch are `exp()` of cumulated log recruitment deviations pushed
 #' through the population dynamics, and are not. `fullGaussian` and
 #' `oneStepGaussian` cannot differ for a Gaussian conditional, so their
-#' disagreement measures the departure -- on a 17-deviation fixture they differ
+#' disagreement measures the departure, on a 17-deviation fixture they differ
 #' by 0.091 on both index and catch, while `"cdf"` differs from
 #' `oneStepGaussian` by 0.017 on index. **No method is exact for index or catch
 #' under random effects**, and the choice there is not settled by this package.
 #'
 #' **`"ecov"` is the exception, and there a Gaussian method is right.** Its
-#' conditional -- a Gaussian measurement of an AR1 latent, every other data term
-#' unconditional -- genuinely is linear-Gaussian: `fullGaussian` and
+#' conditional, a Gaussian measurement of an AR1 latent, every other data term
+#' unconditional, genuinely is linear-Gaussian: `fullGaussian` and
 #' `oneStepGaussian` agree to 4e-14 on the QAR1 fixture in
 #' `test-likelihood-osa-cdf.R`, while `"cdf"` sits 0.139 away, about a quarter of
 #' the residual standard deviation.
@@ -337,12 +341,12 @@
 #' (1680 residuals, 120 replicates; null standard errors 0.024 and 0.017),
 #' `"oneStepGaussianOffMode"` gives mean +0.513 and sd 0.404 with
 #' Kolmogorov-Smirnov rejecting all 120, against mean +0.006, sd 1.002 and 6 of
-#' 120 -- the nominal 5% -- for `"cdf"` with `discrete = TRUE`.
+#' 120, the nominal 5%, for `"cdf"` with `discrete = TRUE`.
 #' The Gaussian default is not merely biased there; it is under-dispersed by a
 #' factor of two and a half. What limits `"cdf"` on compositions is scale, not
-#' random effects -- see the section below.
+#' random effects, see the section below.
 #'
-#' @section Known limitation -- compositions at scale under random effects:
+#' @section Known limitation, compositions at scale under random effects:
 #' On a random-effects model with a large composition data set, `method = "cdf"`
 #' returns non-finite residuals in bulk and is very slow. Measured on `BS2017SS`
 #' with `random_rec = TRUE` (159 random effects, 4538 composition bins):
@@ -350,7 +354,7 @@
 #' `"oneStepGaussianOffMode"` on the same fit, and hours rather than minutes.
 #'
 #' The failures are a contiguous tail, and the same 1880 rows residualized on
-#' their own return 1 failure -- so the observations are not the problem. What
+#' their own return 1 failure, so the observations are not the problem. What
 #' separates the two runs is the depth of the conditioning (2658 prior
 #' observations against none): the Laplace inner problem fails on the
 #' conditioning itself, and redoing the tail on a fresh call does not recover it
@@ -358,7 +362,7 @@
 #'
 #' What binds is the depth, not the presence of random effects: the same method
 #' residualizes 1680 composition bins on a 22-random-effect model correctly (the
-#' section above). So try `"cdf"` and read the warning it issues -- when it
+#' section above). So try `"cdf"` and read the warning it issues, when it
 #' returns non-finite residuals in bulk, fall back to a Gaussian `method` for
 #' that source, remembering that its composition residuals are under-dispersed
 #' by about a factor of two and a half. `"cdf"` is sound on fixed-effect models,
@@ -458,7 +462,22 @@ osa_residuals <- function(object = NULL,
   # Check the method here rather than letting TMB reject it one observation group
   # at a time: the group split below reads it, so a typo would otherwise pick the
   # wrong split before failing.
+  .method_defaulted <- missing(method)
   method <- match.arg(method, choices = .OSA_METHODS)
+
+  # On composition data the package default is the method its own scoring table
+  # rejects: residualized at the parameters that simulated the data it fails the
+  # KS test on every replicate, where method = "cdf" passes (?osa_residuals,
+  # "Choosing a method"). The default stays put because "cdf" returns non-finite
+  # residuals in bulk on a deeply nested random-effects model, but a caller who
+  # never chose a method should be told which one they got.
+  if (.method_defaulted && any(c("comp", "caal", "diet") %in% source)) {
+    message("osa_residuals(): composition residuals are being computed with the default ",
+            "method = \"", method, "\", which is biased on composition data. ",
+            "method = \"cdf\" is the only one that passes a self-test there; it can return ",
+            "non-finite residuals on a model with many random effects. ",
+            "See the \"Choosing a method\" section of ?osa_residuals.")
+  }
 
   # Whether to treat a composition observation as the discrete count it is.
   # Default TRUE under method = "cdf" and FALSE otherwise, which leaves every
@@ -555,10 +574,10 @@ osa_residuals <- function(object = NULL,
   sel_discrete <- ifelse(is_comp, isTRUE(discrete), FALSE)
 
   # ---- The method each observation is actually residualized with --------------
-  # Everything runs under `method`. Two likelihood families cannot, because the
-  # method the caller passed does not describe them, and each is split into its
-  # own oneStepPredict() call. Both overrides are announced and recorded on the
-  # returned object's `method` attribute.
+  # Everything runs under `method`. Three groups cannot, because the method the
+  # caller passed does not describe them, and each is split into its own
+  # oneStepPredict() call. All three are announced and recorded on the returned
+  # object's `method` attribute.
   fc_osa   <- object$data_list$fleet_control
   dat_osa  <- object$obj$env$data
   ill_osa  <- dat_osa$index_ll_type
@@ -623,7 +642,14 @@ osa_residuals <- function(object = NULL,
   # (b) Discrete compositions. The Gaussian methods are continuous-only, so
   # `discrete = TRUE` needs a CDF-based method: "cdf" already is one, and any
   # Gaussian choice falls back to the generic (numerically integrated) one.
-  sel_method[sel_discrete & sel_method %in% .OSA_GAUSSIAN_METHODS] <- "oneStepGeneric"
+  sel_gauss_disc <- sel_discrete & sel_method %in% .OSA_GAUSSIAN_METHODS
+  if (any(sel_gauss_disc)) {
+    message("osa_residuals(): discrete = TRUE cannot be scored by a Gaussian ",
+            "method, which is continuous-only. Those ", sum(sel_gauss_disc),
+            " composition observation(s) are residualized with method = ",
+            "\"oneStepGeneric\" instead of \"", method, "\". See ?osa_residuals.")
+  }
+  sel_method[sel_gauss_disc] <- "oneStepGeneric"
 
   # (c) `Index_distribution = "TruncatedNormal"` under a Gaussian method is
   # residualized on its own, with oneStepGeneric over a (0, Inf) range. That
@@ -934,14 +960,15 @@ osa_residuals <- function(object = NULL,
 
   rownames(out) <- NULL
   class(out) <- c("rceattle_osa", "data.frame")
-  # Record what was actually used, not what was asked for: two likelihood
-  # families are residualized with their own method regardless of `method`, so a
-  # single string would misdescribe those rows. Stays a plain string when nothing
-  # was overridden.
-  attr(out, "method") <- if (any(sel_trunc) || any(sel_dm)) {
+  # Record what was actually used, not what was asked for: three groups are
+  # residualized with their own method regardless of `method`, so a single
+  # string would misdescribe those rows. Stays a plain string when nothing was
+  # overridden.
+  attr(out, "method") <- if (any(sel_trunc) || any(sel_dm) || any(sel_gauss_disc)) {
     c(default = method,
-      if (any(sel_trunc)) c(TruncatedNormal = "oneStepGeneric"),
-      if (any(sel_dm))    c(DirichletMultinomial = .OSA_CDF_FALLBACK))
+      if (any(sel_trunc))     c(TruncatedNormal = "oneStepGeneric"),
+      if (any(sel_dm))        c(DirichletMultinomial = .OSA_CDF_FALLBACK),
+      if (any(sel_gauss_disc)) c(DiscreteComposition = "oneStepGeneric"))
   } else method
   attr(out, "seed")   <- seed
   # Randomized composition residuals carry a draw, so whether they were
@@ -1024,10 +1051,22 @@ osa_residuals <- function(object = NULL,
 
   n_bad <- sum(!is.finite(out$residual))
   if (n_bad > 0) {
-    warning(n_bad, " of ", nrow(out), " OSA residual(s) are non-finite. This ",
-            "usually indicates a poorly converged fit or very sparse / ",
-            "degenerate compositions (common for conditional age-at-length); ",
-            "check model convergence before interpreting the residuals.")
+    # The "cdf" clause is shown only where it can apply. Under a Gaussian method
+    # the same fit returns every residual finite, so leading with it there would
+    # explain away a result that does point at the data or the fit.
+    warning(n_bad, " of ", nrow(out), " OSA residual(s) are non-finite. Check ",
+            "model convergence and the sparsest compositions before ",
+            "interpreting the residuals: non-finite values usually point to ",
+            "very sparse or degenerate compositions (common for conditional ",
+            "age-at-length), or to a poorly converged fit.",
+            if (identical(method, "cdf") && length(object$obj$env$random))
+              paste0(" On a random-effects fit with a large composition data ",
+                     "set this can instead be the documented limitation of ",
+                     "method = \"cdf\" -- the Laplace inner problem fails on ",
+                     "the depth of conditioning -- which says nothing about ",
+                     "the fit.")
+            else "",
+            " See ?osa_residuals.")
   }
 
   # A composition `predicted` is an expected bin count, so it cannot be
@@ -1066,22 +1105,22 @@ osa_residuals <- function(object = NULL,
 #' `method = "cdf"` on a random-effects model can return non-finite residuals in
 #' bulk: measured on BS2017SS with random recruitment, 1879 of 4538 composition
 #' bins, against 0 for the Gaussian method. The failures are a contiguous tail,
-#' and the same 1880 rows residualized ON THEIR OWN give 1 failure -- so they are
+#' and the same 1880 rows residualized ON THEIR OWN give 1 failure, so they are
 #' not intrinsically bad observations.
 #'
 #' The hypothesis this helper was written for was a warm-start cascade: TMB's cdf
 #' loop is `nll <- fn(observation(k)); lp <- env$last.par; ...; env$last.par <- lp`
 #' (TMB 1.9.21), capturing the warm start AFTER the evaluation, so a NaN solve
 #' would be restored as the start for everything after it. **Measurement refuted
-#' that.** Redoing the tail on a fresh call -- which is what clears any poisoned
-#' warm start -- recovers nothing: 1879 before, 1879 after. What differs between
+#' that.** Redoing the tail on a fresh call, which is what clears any poisoned
+#' warm start, recovers nothing: 1879 before, 1879 after. What differs between
 #' the failing call and the successful isolated one is not the warm start but the
 #' DEPTH OF CONDITIONING (2658 prior observations against none), so the Laplace
 #' inner problem is failing on the conditioning itself.
 #'
 #' The retry is kept because it is cheap in the common case (it runs only when
 #' something is already non-finite) and it does recover a genuinely transient
-#' failure, but **no such case has been observed** -- see `?osa_residuals` for
+#' failure, but **no such case has been observed**: see `?osa_residuals` for
 #' the limitation this leaves, and `inst/dev/SESSION_HANDOFF.md` for where to
 #' take it next.
 #'
@@ -1093,6 +1132,7 @@ osa_residuals <- function(object = NULL,
 #' @return `res`, with the recomputed tail spliced in. Messages only if it
 #'   recovered something, or if it could not.
 #' @keywords internal
+#' @noRd
 .osa_retry_tail <- function(res, rerun, max_try = .OSA_CDF_MAX_RETRY) {
   n_bad0 <- sum(!is.finite(res$residual))
   if (n_bad0 == 0L) return(res)
@@ -1115,10 +1155,16 @@ osa_residuals <- function(object = NULL,
             " observation(s)",
             if (n_left) paste0("; ", n_left, " remain non-finite") else "", ".")
   } else {
+    # Recovering none rules out a poisoned warm start: the failure is in the
+    # solve itself, not in the sequence. On a large composition data set that is
+    # the known "cdf" limitation; on a small one it still points at the fit.
     message("osa_residuals(): ", n_bad0, " observation(s) are non-finite and ",
-            "recomputing the block from the first one did not help, so the ",
-            "failure is in those observations rather than in the sequence. ",
-            "Check model convergence and the sparsest compositions.")
+            "recomputing the block from the first one recovered none, so the ",
+            "Laplace inner problem fails on the conditioning itself rather than ",
+            "on a poisoned warm start. On a random-effects fit with a large ",
+            "composition data set that is the measured limitation of ",
+            "method = \"cdf\" rather than a sign of a bad fit; on a small one, ",
+            "check convergence and the sparsest compositions. See ?osa_residuals.")
   }
   res
 }
@@ -1147,6 +1193,7 @@ osa_residuals <- function(object = NULL,
 #'   failed parallel one-step-ahead loop needs a genuinely new one.
 #' @return A TMB ADFun object with the requested `osa_mode`.
 #' @keywords internal
+#' @noRd
 .osa_build_obj <- function(fit, osa_dat = NULL, osa_mode = 1L, force = FALSE) {
   obj <- fit$obj
   osa_mode <- as.integer(osa_mode)[1]
@@ -1331,7 +1378,7 @@ print.rceattle_osa_diagnostics <- function(x, ...) {
 #' The `r`-th order statistic of `n` uniforms is `Beta(r, n - r + 1)`. What is
 #' compared against this must be `sort(resid)[r]`: pairing it with `quantile()`'s
 #' type-7 interpolation drops coverage to about 0.86 near n = 50. `r` is clamped
-#' to `[1, n]` -- unclamped, `qbeta(p, n + 1, 0)` is 1 and the upper tail check
+#' to `[1, n]`, unclamped, `qbeta(p, n + 1, 0)` is 1 and the upper tail check
 #' passes for every series with n <= 19.
 #'
 #' @param q Nominal tail probability.

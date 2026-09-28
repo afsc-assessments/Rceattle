@@ -8,7 +8,7 @@ new_linkage_table()
 }
 \value{
 An empty \code{data.frame} with the columns and types defined in
-\link{LINKAGE_COLS}, carrying class \code{c("Rceattle_linkage_table", "data.frame")}.
+\link{LINKAGE_COLS}, holding class \code{c("Rceattle_linkage_table", "data.frame")}.
 }
 \description{
 Construct an empty linkage table with the canonical schema

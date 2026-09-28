@@ -13,7 +13,7 @@ COMP_LINKAGE_PARAMS <- c("theta_comp", "theta_caal", "theta_diet")
 #' Composition-weighting specification
 #'
 #' @description
-#' Carries **priors** on the Dirichlet-multinomial composition-weighting
+#' Holds **priors** on the Dirichlet-multinomial composition-weighting
 #' overdispersion. The DM weight (the "theta" that scales the effective sample
 #' size) is otherwise an unpenalized free parameter; a linkage lets you put a
 #' prior on it through the same grammar as every other parameter. The three

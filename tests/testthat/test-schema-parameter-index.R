@@ -218,7 +218,7 @@ testthat::test_that("the summary collapses ordinal axes and counts the group", {
 
   testthat::expect_length(out, 1L)
   # Years are ordinal, so they read as a range rather than 49 values.
-  testthat::expect_match(out, "log_F")
+  testthat::expect_match(out, "log_F (F)", fixed = TRUE)
   testthat::expect_match(out, "\\d{4}-\\d{4}")
   testthat::expect_match(out, sprintf("\\(%d\\)$", length(lf)))
 })

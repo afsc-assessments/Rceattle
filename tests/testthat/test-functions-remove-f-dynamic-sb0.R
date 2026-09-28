@@ -1,4 +1,4 @@
-# remove_F() refits with F = 0 from `start_yr`, by default the year after endyr, so
+# remove_F() refits with F = 0 from `styr`, by default the year after endyr, so
 # the hindcast is unchanged. Up to 5.33.0 it started the year after the latest
 # suit_endyr, which removed fishing inside the hindcast whenever the suitability
 # window ended early -- on the Pacific hake MSE, 2020-2023 of a 2023 hindcast.
@@ -17,7 +17,7 @@
     fit_control = fit_control(phase = FALSE, verbose = 0, getsd = FALSE))))
 }
 
-test_that("remove_F() keeps the hindcast and removes fishing from start_yr", {
+test_that("remove_F() keeps the hindcast and removes fishing from styr", {
   testthat::skip_on_cran()
   fit <- .msm_early_suit_fit()
   dl  <- fit$data_list
@@ -31,15 +31,15 @@ test_that("remove_F() keeps the hindcast and removes fishing from start_yr", {
 
   # Starting in the hindcast, after the suitability window, removes that fishing.
   sy    <- max(dl$suit_endyr) + 1
-  early <- suppressMessages(suppressWarnings(remove_F(fit, start_yr = sy)))
+  early <- suppressMessages(suppressWarnings(remove_F(fit, styr = sy)))
   cols  <- (sy - dl$styr + 1):nh
   expect_true(all(early$quantities$F_spp[, cols] < 1e-10))
   expect_gt(max(fit$quantities$F_spp[, cols]), 1e-3)
 
-  expect_error(remove_F(fit, start_yr = max(dl$suit_endyr)), "suitability window")
-  expect_error(remove_F(fit, start_yr = dl$styr), "start_yr")
+  expect_error(remove_F(fit, styr = max(dl$suit_endyr)), "suitability window")
+  expect_error(remove_F(fit, styr = dl$styr), "styr")
   # The projection is always unfished, so a later start would be ignored.
-  expect_error(remove_F(fit, start_yr = dl$endyr + 2), "year after endyr")
+  expect_error(remove_F(fit, styr = dl$endyr + 2), "year after endyr")
 })
 
 test_that("remove_F() leaves the projection unfished under a harvest control rule", {
@@ -57,7 +57,7 @@ test_that("remove_F() leaves the projection unfished under a harvest control rul
   expect_true(all(no_f$quantities$F_spp[, proj] < 1e-10))
 })
 
-test_that("parametric suitability does not restrict start_yr", {
+test_that("parametric suitability does not restrict styr", {
   testthat::skip_on_cran()
   set.seed(123)
   d   <- make_msm_test_data()$data_list
@@ -68,10 +68,10 @@ test_that("parametric suitability does not restrict start_yr", {
     fit_control = fit_control(phase = FALSE, verbose = 0, getsd = FALSE))))
   # Suitability from predator-prey weight ratios does not read abundance, so a
   # start inside its window leaves it unchanged and is allowed.
-  expect_no_error(suppressMessages(suppressWarnings(remove_F(fit, start_yr = d$endyr - 5))))
+  expect_no_error(suppressMessages(suppressWarnings(remove_F(fit, styr = d$endyr - 5))))
 })
 
-test_that("a prey-only species' suitability window does not restrict start_yr", {
+test_that("a prey-only species' suitability window does not restrict styr", {
   testthat::skip_on_cran()
   set.seed(123)
   d <- make_msm_test_data()$data_list
@@ -85,9 +85,9 @@ test_that("a prey-only species' suitability window does not restrict start_yr", 
   expect_gt(max(abs(s[1, , , , ])), 0)                   # species 1 eats, so has suitability
   expect_true(all(s[2, , , , ] == 0))                    # species 2 eats nothing
   # Only species 1's window (to endyr - 5) binds; suitability is unchanged after it.
-  no_f <- suppressMessages(suppressWarnings(remove_F(fit, start_yr = d$endyr - 2)))
+  no_f <- suppressMessages(suppressWarnings(remove_F(fit, styr = d$endyr - 2)))
   expect_equal(no_f$quantities$suitability, fit$quantities$suitability, tolerance = 1e-12)
-  expect_error(remove_F(fit, start_yr = d$endyr - 5), "suitability window")
+  expect_error(remove_F(fit, styr = d$endyr - 5), "suitability window")
 })
 
 test_that("mse_summary() takes multispecies dynamic depletion from DynamicSB0", {

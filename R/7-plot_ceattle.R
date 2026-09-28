@@ -25,13 +25,13 @@ rich.colors.short <- function(n,alpha=1){
 #' @details
 #' # Units
 #'
-#' The model carries numbers-at-age in **thousands** and weight-at-age in
+#' The model holds numbers-at-age in **thousands** and weight-at-age in
 #' **kg**, so every biomass series (`biomass`, `ssb`, `exploitable_biomass`)
 #' comes out of the model in **mt** and recruitment comes out in **thousands of
 #' fish**. For display these are divided by 1e6 (million mt) and 1e3 (millions
 #' of recruits) respectively; depletion is a ratio and is not rescaled. Supply
-#' the model's inputs on that convention -- catch and index in mt, weight-at-age
-#' in kg -- or the axis labels will not describe what is plotted.
+#' the model's inputs on that convention, catch and index in mt, weight-at-age
+#' in kg, or the axis labels will not describe what is plotted.
 #'
 #' # Confidence intervals
 #'
@@ -43,7 +43,7 @@ rich.colors.short <- function(n,alpha=1){
 #' natural-scale interval does for weak year classes and depleted stocks.
 #'
 #' `sd_log` comes from the model's own `log_biomass` / `log_ssb` / `log_R` where
-#' those are reported, and is otherwise recovered as `sd(x) / x` -- the delta
+#' those are reported, and is otherwise recovered as `sd(x) / x`, the delta
 #' method's own identity, which matches the reported values to machine
 #' precision. That covers `exploitable_biomass` and the two depletions, which
 #' cannot be reported on the log scale (`exploitable_biomass` is identically 0
@@ -693,7 +693,7 @@ plot_depletion <- .ts_wrapper("biomass_depletion", zero_y = TRUE)
 #' choice either way, and `alpha` sets the faintest end.
 #'
 #' Line type separates the sexes, and `lty` supplies its values. Panels are
-#' fleets, so `spnames` does not label anything here -- it only lets `species`
+#' fleets, so `spnames` does not label anything here, it only lets `species`
 #' select by name.
 #'
 #' # Confidence intervals
@@ -701,13 +701,13 @@ plot_depletion <- .ts_wrapper("biomass_depletion", zero_y = TRUE)
 #' `add_ci = TRUE` draws `exp(log(sel) +/- 1.96 * sd)`, so the band is positive
 #' and right-skewed. It needs a fit run with `fit_control(selectivity_se = TRUE)`.
 #'
-#' Only estimated, age-based fleets carry one. A length-based fleet is drawn on
-#' `sel_at_length`, which is what was fitted and carries no error; a
+#' Only estimated, age-based fleets hold one. A length-based fleet is drawn on
+#' `sel_at_length`, which is what was fitted and holds no error; a
 #' `Selectivity = "Fixed"` fleet estimates nothing; and no fleet gets a band
-#' below its first selected bin (`Bin_first_selected`, a 1-based bin ordinal --
+#' below its first selected bin (`Bin_first_selected`, a 1-based bin ordinal,
 #' not an absolute age), where selectivity is 0 by construction. A
 #' fleet mirroring another's `Selectivity_index` has no errors of its own and
-#' borrows its lead's, but only where the two curves agree -- `data_check()` only
+#' borrows its lead's, but only where the two curves agree, `data_check()` only
 #' warns when a shared group differs in a shaping column such as `Sel_norm_bin`.
 #'
 #' Every year drawn gets its own band, so a time-varying fleet is dense. Pair it
@@ -1112,7 +1112,7 @@ plot_form <- function( params = NULL, pred = 1, pred_age = 1, prey = 1, msmMode 
 #'
 #' @description Mortality-at-age over the hindcast for one model: predation
 #'   mortality (`M2`, the default) or residual natural mortality (`M1`). One
-#'   component at a time, never their sum -- [plot_m_at_age()] draws total M
+#'   component at a time, never their sum, [plot_m_at_age()] draws total M
 #'   (M1 + M2) as a time series.
 #'
 #' @param file name of a file to identified the files exported by the

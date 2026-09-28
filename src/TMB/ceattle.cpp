@@ -77,10 +77,11 @@ struct LOM_t : vector<matrix<Type> > {
  *  5. Initial calculations
  *  6. Population dynamics
  *  7. Predation mortality equations
- *  9. Survey components
- *  10. Fishery components
- *  11. Compositon data components
- *  12. Diet data components
+ *  8. Index components equations
+ *  9. Fishery components equations
+ *  10. Composition equations
+ *  11. Predicted stomach content
+ *  12. Derived quantities
  *  13. Likelihood components
  *  14. Report section
  *  15. Model return/end
@@ -270,8 +271,8 @@ Type objective_function<Type>::operator() () {
   DATA_IVECTOR(linkage_X_col);         // 0-based column of linkage_X
   DATA_IVECTOR(linkage_link);          // identity=0, log=1, logit=2
   // Only an identity-link recruitment offset can make the curve non-positive, so
-  // the recruitment floors (6.6.1, 6.6, 6.10) run only then; every other model's
-  // AD tape is left exactly as it was.
+  // the recruitment floors (sections 6.3, 6.5, 6.6 and 6.9) run only then; every
+  // other model's AD tape is left exactly as it was.
   int rec_floor_on = 0;
   for (int i = 0; i < linkage_link.size(); ++i) {
     if (linkage_process(i) == RCEATTLE_PROC_RECRUIT && linkage_link(i) == 0) rec_floor_on = 1;
@@ -1305,10 +1306,11 @@ Type objective_function<Type>::operator() () {
     pop_to_data_bin,      // Data bin each population bin falls in
     flt_spp,              // Fleet to species mapping
     flt_sel_type,         // Selectivity model type per fleet
+    flt_varying_sel,      // Time_varying_sel per fleet (picks NonParametricIntegrable's construction)
     flt_sel_dim,          // Age or length based
     bin_first_selected,   // Min bin selected per fleet
     flt_n_sel_bins,       // Max estimated bins per fleet
-    flt_sel_cap_bin,      // Bin (0-based) at/after which realized non-par sel is capped flat (NonParametricRPM)
+    flt_sel_cap_bin,      // Bin (0-based) at/after which realized non-par sel is capped flat (NonParametricPM)
     sel_norm_bin1,        // Normalization control/bin 1
     sel_norm_bin2,        // Normalization control/bin 2
     sel_norm_scope,       // Normalization reference pooled across sexes?
@@ -4521,7 +4523,7 @@ Type objective_function<Type>::operator() () {
           }
 
           // (4) Dev-magnitude penalty: norm2 of the RAW per-year increments
-          //     (sel_coff_dev IS the random-walk increment for NonParametricRPM;
+          //     (sel_coff_dev IS the random-walk increment for NonParametricPM;
           //     = RTMB norm2(sel_devs)). Increments are 0 at non-change years.
           for(int bin = 0; bin < flt_n_sel_bins(flt); bin++){
             for(yr = start_yr; yr < nyrs_tmp; yr++){
@@ -4551,13 +4553,13 @@ Type objective_function<Type>::operator() () {
       }
 
 
-      // 1c) NonParametricIID (13) and NonParametricRW (14): the Ianelli shape
+      // 1c) NonParametricIntegrable (13): the Ianelli shape
       //     priors (decreasing, curvature, average selectivity) are charged ONCE
       //     on the base curve sel_coff, and the deviates carry a proper Gaussian
       //     density with sel_dev_sd, so under random_sel = TRUE the Laplace
       //     approximation integrates a density whose normalizing constant is
       //     complete. With no deviates the objective equals NonParametric's.
-      if((flt_sel_type(flt) == 13) || (flt_sel_type(flt) == 14)) {
+      if(flt_sel_type(flt) == 13) {
         int n_sel_bins = flt_n_sel_bins(flt);
         int start_yr   = flt_sel_start_yr(flt);
         for(sex = 0; sex < nsex(sp); sex++){
@@ -4590,15 +4592,14 @@ Type objective_function<Type>::operator() () {
           // 4. Average-selectivity level of the base coefficients.
           jnll_comp(JNLL_SEL_NONPARAM, flt) += 2.0 * square(avg_base);
 
-          // 3. The deviates: iid about the base (13) over every hindcast year,
-          //    or random-walk increments (14) from the year after the fleet's
+          // 3. The deviates: iid about the base over every hindcast year,
+          //    or random-walk increments from the year after the fleet's
           //    start year (the start-year increment is fixed at 0). Only the
           //    estimated coefficient bins are scored; a bin held at 0 would add
           //    a constant rising with the sd and pull it toward zero.
           //    With Time_varying_sel = "Off" there are no deviates and no density.
-          bool scored = (flt_sel_type(flt) == 13 && flt_varying_sel(flt) == 1) ||
-                        (flt_sel_type(flt) == 14 && flt_varying_sel(flt) == 4);
-          int yr_lo = (flt_sel_type(flt) == 14) ? start_yr + 1 : 0;
+          bool scored = (flt_varying_sel(flt) == 1) || (flt_varying_sel(flt) == 4);
+          int yr_lo = (flt_varying_sel(flt) == 4) ? start_yr + 1 : 0;
           if(scored){
             for(yr = yr_lo; yr < nyrs_hind; yr++){
               for(int bin = bin_first_selected(flt); bin < n_sel_bins; bin++) {
@@ -4612,7 +4613,7 @@ Type objective_function<Type>::operator() () {
 
       // 2) Logistic selectivity penalties
       // Penalized/random effect likelihood time-varying logistic/double-logistic selectivity deviates
-      if(((flt_varying_sel(flt) == 1)||(flt_varying_sel(flt) == 2)) && (flt_sel_type(flt) != 2) && (flt_sel_type(flt) != 5) && (flt_sel_type(flt) != 11) && (flt_sel_type(flt) != 13) && (flt_sel_type(flt) != 14)){
+      if(((flt_varying_sel(flt) == 1)||(flt_varying_sel(flt) == 2)) && (flt_sel_type(flt) != 2) && (flt_sel_type(flt) != 5) && (flt_sel_type(flt) != 11) && (flt_sel_type(flt) != 13)){
         for(sex = 0; sex < nsex(sp); sex ++){
           for(yr = 0; yr < nyrs_hind; yr++){
 
@@ -4636,7 +4637,7 @@ Type objective_function<Type>::operator() () {
       // Random walk:
       // - Type 4 = random walk on ascending and descending for double logistic
       // - Type 5 = ascending only for double logistics
-      if(((flt_varying_sel(flt) == 4)||(flt_varying_sel(flt) == 5)) && (flt_sel_type(flt) != 2) && (flt_sel_type(flt) != 5) && (flt_sel_type(flt) != 11) && (flt_sel_type(flt) != 13) && (flt_sel_type(flt) != 14)){
+      if(((flt_varying_sel(flt) == 4)||(flt_varying_sel(flt) == 5)) && (flt_sel_type(flt) != 2) && (flt_sel_type(flt) != 5) && (flt_sel_type(flt) != 11) && (flt_sel_type(flt) != 13)){
         for(sex = 0; sex < nsex(sp); sex ++){
           for(yr = 1; yr < nyrs_hind; yr++){ // Start at second year
 

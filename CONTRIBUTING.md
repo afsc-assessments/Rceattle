@@ -78,7 +78,7 @@ Three checks sit outside the ordinary suite:
 merges `dev` into `main` as a release, following `inst/RELEASE-CHECKLIST.md`. Operational
 assessments pin a tagged release, so `main` moves only at a release.
 
-**What a pull request carries.** A behaviour, API or documentation change updates
+**What a pull request owes.** A behaviour, API or documentation change updates
 `NEWS.md`, the `DESCRIPTION` version and the affected vignette together (what counts as
 breaking, and the `_pkgdown.yml` and `man/` obligations, are rules 5 and 6 in `CLAUDE.md`).
 Add a test named `tests/testthat/test-<area>-<topic>.R`; a test that runs a real
@@ -106,7 +106,7 @@ Stated in full under "Hard rules" in `CLAUDE.md`. In brief:
    vignette, ask.
 5. `fleet_control$Fleet_code` equals the row number, and selectivity bin columns follow two
    conventions (ordinal versus absolute age). `nages` is a count of bins, not the oldest age.
-6. `src/TMB/linkage.hpp` and `R/0-linkage_encode.R` carry the same process and parameter
+6. `src/TMB/linkage.hpp` and `R/0-linkage_encode.R` hold the same process and parameter
    codes; change one, change both.
 7. The repositories in `inst/dev/SIBLING-REPOS.md` consume this API. Sweep them after a
    breaking change.
@@ -120,5 +120,5 @@ C++ header to emulate.
 
 ## Getting help
 
-Open an issue at <https://github.com/grantdadams/Rceattle/issues> so the answer is
+Open an issue at <https://github.com/afsc-assessments/Rceattle/issues> so the answer is
 searchable. The maintainer address in `DESCRIPTION` is the fallback.

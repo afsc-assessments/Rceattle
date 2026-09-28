@@ -70,7 +70,7 @@ selectivity linkages; the process-level linkages leave it \code{NA}.}
 \item{est_phase}{estimation phase ordinal; \code{0} = fix at \code{init}.}
 
 \item{re_index, sigma_index, re_time}{random-effect registry fields filled by
-\code{\link[=pool_linkages]{pool_linkages()}}; \code{NA} on fixed rows. \code{re_index} is the 0-based slot in
+\code{pool_linkages()}; \code{NA} on fixed rows. \code{re_index} is the 0-based slot in
 \code{beta_linkage_re}, \code{sigma_index} the 0-based slot in \code{log_sigma_linkage},
 and \code{re_time} the numeric grouping value used to order \code{rw()}/\code{ar1()}
 deviations in real elapsed time.}

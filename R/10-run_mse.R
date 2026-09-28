@@ -350,7 +350,7 @@
 #' # Assessment schedule
 #'
 #' A single `assessment_period` is a fixed cycle. A vector is the schedule
-#' itself, for a design whose years are not evenly spaced -- one assessment
+#' itself, for a design whose years are not evenly spaced, one assessment
 #' missed inside an otherwise biennial cycle, for instance:
 #'
 #' ```
@@ -422,7 +422,7 @@
 #' filled, not the whole projection.
 #'
 #' Note that this reduces catch, not ABC. Where realized catch sits well below
-#' ABC -- GOA arrowtooth flounder, for one -- reducing ABC changes removals only
+#' ABC, GOA arrowtooth flounder, for one, reducing ABC changes removals only
 #' to the extent the fishery attains it, while reducing catch changes them in
 #' full. Either scale the multiplier by recent attainment,
 #' `1 - (1 - mult) * attainment`, or report the unscaled result as an upper
@@ -434,8 +434,8 @@
 #' a warning naming the years. Those years are the projection, and the MSE sets
 #' their catch from the control rule; the likelihood never scored them either,
 #' since it fits only `Year <= endyr`. This is what a workbook looks like when
-#' `endyr` has fallen behind the catch series -- catch through 2023 with `endyr`
-#' still 2019 -- and it is worth resolving before running the MSE, because
+#' `endyr` has fallen behind the catch series, catch through 2023 with `endyr`
+#' still 2019, and it is worth resolving before running the MSE, because
 #' conditioning the assessment on those years is a different question from
 #' projecting over them.
 #'
@@ -1228,7 +1228,7 @@ run_mse <- function(om, em, nsim = 10, start_sim = 1, assessment_period = 1, sam
       # simulation would then be indistinguishable by name from one that never
       # attempted the unfished run.
       # No fishing after the original OM's terminal year; the advanced om_use ends at the last assessment.
-      sim_list["OM_no_F"] <- list(tryCatch(remove_F(om_use, start_yr = om$data_list$endyr + 1), error = function(e) {
+      sim_list["OM_no_F"] <- list(tryCatch(remove_F(om_use, styr = om$data_list$endyr + 1), error = function(e) {
         # Recorded on the object, not just warned about: this runs in a parallel
         # worker, whose warnings are discarded, and the simulation is still
         # usable for everything that does not compare against the unfished run.

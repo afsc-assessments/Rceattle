@@ -21,7 +21,7 @@ SEL_LINKAGE_PARAMS <- c("slp_asc", "slp_desc", "inf_asc", "inf_desc", "coff",
 #' Selectivity specification
 #'
 #' @description
-#' Carries environmental linkages on selectivity parameters. The effect on a
+#' Holds environmental linkages on selectivity parameters. The effect on a
 #' parameter is written as a formula and composes additively with any
 #' `Time_varying_sel` process error on the same fleet (the two are separate
 #' mechanisms: a covariate effect versus a deviation).
@@ -38,7 +38,7 @@ SEL_LINKAGE_PARAMS <- c("slp_asc", "slp_desc", "inf_asc", "inf_desc", "coff",
 #'   \item{`coff`}{non-parametric selectivity-at-bin coefficients.}
 #'   \item{`apical`}{a multiplier on one sex's whole curve (log scale),
 #'     applied after the form and before normalization, so every estimated
-#'     form takes it. Name the fleet and the sex that carries it
+#'     form takes it. Name the fleet and the sex that holds it
 #'     (`by = ~ fleet + sex`, `fleet = 3`, `sex = "male"`), as Stock
 #'     Synthesis's male-offset option does; the other sex is the reference.
 #'     See Details.}
@@ -59,9 +59,12 @@ SEL_LINKAGE_PARAMS <- c("slp_asc", "slp_desc", "inf_asc", "inf_desc", "coff",
 #' logistic family on an age axis); for a dome with sex-specific shape, read
 #' it as the multiplier on that sex's curve and take the peak ratio from
 #' `fit$quantities$sel_at_age`. Only the contrast between the sexes is
-#' identified (the common level is `log_F`), so one sex carries it and the fit
+#' identified (the common level is `log_F`), so one sex holds it and the fit
 #' is refused if both do, if no fleet or no sex is named, if the species has
-#' one sex, or on a `Fixed`, AR1 or mirror fleet. It is also refused where
+#' one sex, on a `Fixed`, AR1 or `Fleet_type = "Off"` fleet, on a fleet that
+#' shares another's `Selectivity_index` block, or under `link = "identity"`,
+#' which could drive the multiplier negative; use the default `link = "log"`.
+#' It is also refused where
 #' `Sel_norm_scope = "WithinSex"` normalization would divide it straight back
 #' out; use `"AcrossSexes"`, under which the more-selected sex peaks at 1, or
 #' turn `Sel_norm_bin` off. The contrast is informed only by joint composition
@@ -73,7 +76,7 @@ SEL_LINKAGE_PARAMS <- c("slp_asc", "slp_desc", "inf_asc", "inf_desc", "coff",
 #' this parameter.
 #' An intercept prior is on the multiplier's natural scale (`lognormal()`
 #' centred on 1 means no offset). Like every selectivity linkage, a covariate
-#' on it acts in the hindcast years; projection years carry the last hindcast
+#' on it acts in the hindcast years; projection years hold the last hindcast
 #' year's curve.
 #'
 #' **Priors on a selectivity parameter.** An intercept-only formula (`~ 1`) with
@@ -85,13 +88,14 @@ SEL_LINKAGE_PARAMS <- c("slp_asc", "slp_desc", "inf_asc", "inf_desc", "coff",
 #' prior-only [build_composition()] path.
 #'
 #' A selectivity prior targets one parameter, so in a two-sex model an
-#' unstratified `~ 1` prior constrains sex 1 only -- use `by = ~ sex` for a
+#' unstratified `~ 1` prior constrains sex 1 only, use `by = ~ sex` for a
 #' per-sex prior. An `init` on a selectivity intercept has no effect (the
 #' starting value comes from the data), and a prior on the double-normal
 #' `right_floor` is not supported.
-#' For a fleet that mirrors another fleet's selectivity (shared
-#' `Selectivity_index`), place the prior on the lead fleet so the shared
-#' parameter block is not penalized more than once.
+#' Fleets sharing a `Selectivity_index` estimate one parameter block, so place
+#' the prior on the group's lead fleet (its first fleet that is not `Off`); a
+#' prior on a follower would penalize the shared block once per sharing fleet.
+#' A prior on an `Off` fleet is refused: its selectivity is not estimated.
 #'
 #' @param linkages Optional named list of [linkage_spec()] objects keyed by
 #'   selectivity parameter. Coefficients are per fleet by default
@@ -236,20 +240,38 @@ build_selectivity <- function(linkages = NULL) {
         paste(fleet_control$Fleet_name[dn_flt], collapse = ", ")), call. = FALSE)
     }
 
-    # (b) Fleets that mirror another fleet's selectivity (Selectivity_index != own
-    # Fleet_code) share one parameter block; a prior on the mirror double-counts
-    # the block (cf. the shared-block penalty trap). Require the prior on the lead
-    # fleet (Selectivity_index == Fleet_code).
-    sidx <- fleet_control$Selectivity_index
-    mir_flt <- unique(vapply(prior_rows$fleet, row_flt, integer(1)))
-    mir_flt <- mir_flt[!is.na(sidx[mir_flt]) & sidx[mir_flt] != mir_flt]
-    if (length(mir_flt) > 0L) {
+    prior_flt <- unique(vapply(prior_rows$fleet, row_flt, integer(1)))
+
+    # (b) An "Off" fleet's selectivity parameters are mapped off, so a prior on
+    # one is evaluated against a fixed value: it adds a constant to the objective
+    # and informs nothing. Same reason the apical offset is refused there.
+    off_flt <- prior_flt[vapply(prior_flt, function(f)
+      identical(.canon_switch(fleet_control$Fleet_type[f], fleet_map), "Off"), logical(1))]
+    if (length(off_flt) > 0L) {
       stop(sprintf(paste0(
-        "selectivity prior on fleet(s) %s that mirror another fleet's ",
-        "selectivity (Selectivity_index != Fleet_code): the shared block would be ",
+        "selectivity prior on fleet(s) %s with Fleet_type = \"Off\": that fleet's ",
+        "selectivity parameters are not estimated, so the prior would add a ",
+        "constant to the objective and constrain nothing."),
+        paste(fleet_control$Fleet_name[off_flt], collapse = ", ")), call. = FALSE)
+    }
+
+    # (c) Fleets sharing a Selectivity_index estimate one parameter block, so a
+    # prior on a follower penalizes that block once per sharing fleet.
+    mir_lead <- vapply(prior_flt, function(f)
+      .shared_block_lead(list(fleet_control = fleet_control), f, "sel"), integer(1))
+    if (any(!is.na(mir_lead))) {
+      # Name each follower with its own lead: two followers of one lead would
+      # otherwise print that lead twice, in a list nothing pairs to the first.
+      .bad <- !is.na(mir_lead)
+      stop(sprintf(paste0(
+        "selectivity prior on %s, which share a Selectivity_index with the lead ",
+        "fleet named and take its selectivity block: the shared block would be ",
         "penalized once per sharing fleet. Place the prior on the lead fleet ",
-        "(the one whose Selectivity_index equals its Fleet_code)."),
-        paste(fleet_control$Fleet_name[mir_flt], collapse = ", ")), call. = FALSE)
+        "instead."),
+        paste(sprintf("'%s' (lead: '%s')",
+                      fleet_control$Fleet_name[prior_flt[.bad]],
+                      fleet_control$Fleet_name[mir_lead[.bad]]),
+              collapse = ", ")), call. = FALSE)
     }
 
     # (c) A prior on a limb the fleet's own curve never uses. Logistic reads only
@@ -316,6 +338,14 @@ build_selectivity <- function(linkages = NULL) {
 
   for (i in seq_len(nrow(ap))) {
     flts <- as.integer(ap$fleet[i])
+    # Nothing is fit to an "Off" fleet, so the offset is a flat direction: a
+    # singular Hessian and a failed getsd with nothing naming the cause. An NA
+    # Fleet_type is not "Off" -- build_map_selectivity() treats it as estimated.
+    off <- flts[which(vapply(flts, function(f)
+      identical(.canon_switch(fc$Fleet_type[f], fleet_map), "Off"), logical(1)))]
+    if (length(off)) refuse(paste0(
+      "apical selectivity linkage on fleet(s) %s with Fleet_type = \"Off\": no ",
+      "data are fit to that fleet, so nothing informs the offset."), off)
     fixed <- flts[as.character(fc$Selectivity[flts]) == "Fixed"]
     if (length(fixed)) refuse(paste0(
       "apical selectivity linkage on fleet(s) %s with Selectivity = \"Fixed\": an ",
@@ -327,14 +357,21 @@ build_selectivity <- function(linkages = NULL) {
       "apical selectivity linkage on fleet(s) %s with an AR1 selectivity form: ",
       "those forms estimate a per-sex level in sel_coff already."), ar1)
 
-    # A mirror takes its whole selectivity block from its lead fleet, this
-    # offset included, so a linkage placed on the mirror would free nothing.
-    sidx   <- fc$Selectivity_index
-    mirror <- flts[!is.na(sidx[flts]) & sidx[flts] != flts]
-    if (length(mirror)) refuse(paste0(
-      "apical selectivity linkage on fleet(s) %s that mirror another fleet's ",
-      "selectivity (Selectivity_index != Fleet_code): the block is the lead ",
-      "fleet's. Place it on the lead fleet; the mirrors share it."), mirror)
+    # Fleets sharing a Selectivity_index estimate ONE block, this offset
+    # included, so a linkage on a follower would free nothing.
+    lead <- vapply(flts, function(f) .shared_block_lead(list(fleet_control = fc), f, "sel"),
+                   integer(1))
+    if (any(!is.na(lead))) {
+      # `flts` is one fleet here (ap is read row by row), so name it with its
+      # lead rather than printing two lists to be paired up by position.
+      .bad <- !is.na(lead)
+      stop(sprintf(paste0(
+        "apical selectivity linkage on %s, which shares a Selectivity_index with ",
+        "the lead fleet named and takes its selectivity block. Place the offset ",
+        "on the lead fleet instead; the fleets sharing the index inherit it."),
+        paste(sprintf("'%s' (lead: '%s')", fc$Fleet_name[flts[.bad]],
+                      fc$Fleet_name[lead[.bad]]), collapse = ", ")), call. = FALSE)
+    }
 
     if (!is.null(nsex)) {
       one_sex <- flts[nsex[fc$Species[flts]] == 1]

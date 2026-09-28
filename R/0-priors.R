@@ -1,20 +1,20 @@
 #' Prior distributions for Rceattle linkage coefficients
 #'
 #' Each prior is captured as a small object of class
-#' `"Rceattle_prior"` carrying a `family` name and two positional
+#' `"Rceattle_prior"` holding a `family` name and two positional
 #' parameters (`p1`, `p2`). The two-parameter shape is enforced so the
 #' linkage table can store priors uniformly as four columns
 #' (`prior_family`, `prior_p1`, `prior_p2`, plus reserved future use).
 #'
 #' Two surfaces are provided:
 #'
-#'   1. **Programmatic constructors** -- exported with the `prior_`
+#'   1. **Programmatic constructors**: exported with the `prior_`
 #'      prefix (`prior_normal()`, `prior_lognormal()`, ...), safe to
 #'      call anywhere without masking [base::gamma()]/[base::beta()].
 #'   2. **Inline form** inside `linkage_spec(priors = ...)`. There the
 #'      argument is captured unevaluated and resolved with a private
 #'      data mask that makes `normal()`, `lognormal()`, `gamma()`, and
-#'      `beta()` shorthand for the respective `prior_*` constructors --
+#'      `beta()` shorthand for the respective `prior_*` constructors,
 #'      *only* inside that argument. Base R remains untouched at the
 #'      package namespace.
 #'

@@ -303,7 +303,7 @@ calc_mcall_ianelli_diet <- function(data_list = NULL, quantities = NULL){
 #' `index_sd` / `catch_sd` were named `log_index_sd` / `log_catch_sd` until
 #' 5.9.0. Neither was ever a log, and `index_sd` is an ABSOLUTE sd for a
 #' natural-scale `Index_distribution`, so the old name actively misled. Fits
-#' saved before the rename carry only the old name; a fresh report carries only
+#' saved before the rename hold only the old name; a fresh report holds only
 #' the new one. Everything downstream reads through this.
 #'
 #' @param quantities A fit's `$quantities` list, or a TMB report.

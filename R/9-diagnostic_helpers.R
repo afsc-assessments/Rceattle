@@ -7,7 +7,7 @@
 #' A common vocabulary, documented here once and inherited by the diagnostics
 #' that refit the model: [retrospective()], [jitter()] and [self_test()]. Each
 #' argument means the same thing wherever it appears. `phase`, `getsd` and
-#' `timeout` are deliberately **not** here -- their defaults and their
+#' `timeout` are deliberately **not** here, their defaults and their
 #' consequences for the diagnostic differ, so each function documents its own.
 #' [profile()] refits too but takes only `cores` and a bare `getsd`.
 #'
@@ -19,10 +19,10 @@
 #' or takes `fit_control()`'s default. Setting one of those is an error rather
 #' than a silent no-op, so a field you set is a field the refit used.
 #'
-#' Only the fields you set are applied -- named in the `fit_control()` call, or
+#' Only the fields you set are applied, named in the `fit_control()` call, or
 #' assigned to afterwards (`ctl$getsd <- TRUE`). One you never touch keeps the
-#' diagnostic's own default, which is not always `fit_control()`'s --
-#' [retrospective()] phases its peels where `fit_control()` does not -- so
+#' diagnostic's own default, which is not always `fit_control()`'s,
+#' [retrospective()] phases its peels where `fit_control()` does not, so
 #' `fit_control(getsd = FALSE)` asks about standard errors and changes nothing
 #' else. Setting a field to the value that is already `fit_control()`'s default
 #' still counts as setting it.
@@ -58,8 +58,8 @@ NULL
 #' sequentially instead, as `osa_residuals()` does when its parallel
 #' one-step-ahead loop fails.
 #'
-#' Two things follow. The retry starts from the beginning -- results from a
-#' cluster that has lost a worker cannot be recovered -- so a caller with side
+#' Two things follow. The retry starts from the beginning, results from a
+#' cluster that has lost a worker cannot be recovered, so a caller with side
 #' effects repeats them; `run_mse()` re-writes the `.rds` of any simulation that
 #' had already finished, which is safe only because it seeds each simulation
 #' separately and so reproduces it exactly. And an error raised by `fun` itself

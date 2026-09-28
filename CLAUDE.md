@@ -18,6 +18,8 @@ projection, MSE, diagnostics, plotting — is R.
    linkage grammar.
 4. `inst/dev/TRAPS.md` — verified traps with the measured numbers behind them.
 5. `inst/RELEASE-CHECKLIST.md` — the release and tag process.
+6. `CONTRIBUTING.md` — the same rules written for a human contributor, plus
+   `vignettes/articles/adding-a-selectivity-form.Rmd`, one extension end to end.
 
 ---
 
@@ -128,7 +130,8 @@ rcmdcheck::rcmdcheck()                 # what CI runs (slow; usually backgrounde
   `test-vignette-api.R`, which parses every chunk and checks each Rceattle call names an
   exported function with arguments it has; that catches renames, not return-shape drift.
   `data/` has the bundled example datasets.
-- **`inst/dev/`** — committed developer notes (handoff, traps, sibling repos, ADMB conversion).
+- **`inst/dev/`** — committed developer notes (handoff, traps, sibling repos, backlog).
+  The ADMB porting notes are a section of `TRAPS.md`.
   The untracked `dev/` is scratch and does not survive a clone.
 
 ## Plotting
@@ -224,6 +227,8 @@ What to consult when documenting a switch, shaping a workflow, or naming a proce
 One line each; the fuller text and the measured numbers are in `inst/dev/TRAPS.md` (the last
 section holds every entry below in full).
 
+- **`newtonsteps > 0` can return a parameter OUTSIDE its bounds**: nlminb respects them, the Newton refinement after it does not, in either `.fit_tmb()` path. `convergence` reports `parameters_outside_bounds` (FAIL); default is 0 but golden runs 3.
+- **A shared parameter block starts at the GEOMETRIC MEAN of its members' starting values**, not the lead's; inject per BLOCK, never per fleet. Cost a GOA cod survey 18% of its index.
 - **`Index_distribution` has a second registry**: a new family must also be classified in `.index_rows_natural_scale()`, or it gets the log-scale residual.
 - **`jnll_comp` columns count fleets on rows 1–8, species on 9–20, and neither on row 21** (model-wide linkage REs); `.JNLL_ROW_AXIS` is the registry, so `rowSums()` mixes axes.
 - **A reference point CEATTLE never estimated is a number, not a gap**: `Ftarget`/`Flimit` = 1, `MSSB0` = 999 mt, per-recruit quantities 0 under `msmMode > 0`.

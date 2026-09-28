@@ -7,8 +7,8 @@
 .process_prior_spec(fit, process, par_name, n)
 }
 \description{
-Maps the estimated (non-fixed) elements of \code{par_name} -- in the column-major
-order used by TMB and the covariance matrices -- to their species/fleet,
+Maps the estimated (non-fixed) elements of \code{par_name}, in the column-major
+order used by TMB and the covariance matrices, to their species/fleet,
 year/age labels, and the process prior mean and SD.
 }
 \keyword{internal}

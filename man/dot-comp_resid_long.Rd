@@ -16,8 +16,8 @@ A data frame, or \code{NULL} when there are no composition residuals.
 }
 \description{
 Reuses \code{\link[=residuals.Rceattle]{residuals.Rceattle()}} (\code{type = "pearson"}, \code{source = "comp"}) for the
-observed and fitted proportions and the Pearson residual -- the single source
-of truth -- then adds the plotting-only columns: joint-sex bins re-based onto
+observed and fitted proportions and the Pearson residual, the single source
+of truth, then adds the plotting-only columns: joint-sex bins re-based onto
 a single age/length axis (males stored as bins \verb{nbin+1 .. 2*nbin} are mapped
 to \verb{1 .. nbin} and tagged \code{sex_grp = "male"}) and the facet labels. Zero
 observed proportions are kept; only \code{NA} observed/fitted are dropped (by

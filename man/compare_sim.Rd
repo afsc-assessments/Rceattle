@@ -26,6 +26,6 @@ replicates redrew the observations alone. If they were produced with
 model's deviations are no longer what generated the data and the bias this
 reports is an artefact. Compare against
 \code{attr(sims, "process_sim")} in that case. Passing a
-\code{\link{self_test}} result that carries process draws warns, since the
+\code{\link{self_test}} result that holds process draws warns, since the
 attribute makes that case detectable rather than only documented.
 }

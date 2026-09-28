@@ -74,7 +74,7 @@ A \code{ggplot} object.
 }
 \description{
 Plots the fitted survey catchability \code{q} by year, faceted by fleet. Every
-fleet carrying \code{index_data} is drawn, a fishery with a CPUE series as much as
+fleet holding \code{index_data} is drawn, a fishery with a CPUE series as much as
 a survey.
 }
 \details{
@@ -85,7 +85,7 @@ the closed-form value under \code{"Analytical"} / \code{"AnalyticalArith"}. A fl
 a time-invariant catchability draws a flat line, which is the honest picture
 of a constant \code{q} rather than an empty panel.
 
-\strong{Hindcast years only.} The model carries catchability over the hindcast and
+\strong{Hindcast years only.} The model applies catchability over the hindcast and
 does not project it, so the series stops at \code{endyr} regardless of the
 projection horizon. There is no \code{incl_proj}.
 

@@ -113,7 +113,7 @@ ms_run_proj2 <- fit_mod(
   data_list    = BS2017MS,
   inits        = ms_run$estimated_params,
   file         = NULL,
-  estimateMode = 3,   # Evaluate only — do not re-estimate
+  estimateMode = 3,   # Evaluate only, do not re-estimate
   niter        = 5,
   random_rec   = FALSE,
   msmMode      = 1,
@@ -153,7 +153,7 @@ plot_catch(Rceattle = mod_list, model_names = mod_names, incl_proj = TRUE)
 
 ## Random recruitment effects
 
-Setting `random_rec = TRUE` treats log-recruitment deviations as random effects, marginalized via the Laplace approximation, rather than as penalized fixed effects. This carries recruitment process uncertainty through into the projections.
+Setting `random_rec = TRUE` treats log-recruitment deviations as random effects, marginalized via the Laplace approximation, rather than as penalized fixed effects. This propagates recruitment process uncertainty into the projections.
 
 ```{r}
 ss_re <- fit_mod(
@@ -181,7 +181,7 @@ The `HCR` argument to `fit_mod()` accepts the output of `build_hcr()`. See `?bui
 
 | Value | String | Description | Multi-species? |
 |---|---|---|---|
-| 0 | `"NoFishing"` | No fishing — estimate hindcast only | Yes |
+| 0 | `"NoFishing"` | No fishing, estimate hindcast only | Yes |
 | 1 | `"CMSY"` | CMSY: maximize catch across all species (can constrain depletion ≥ `Plimit`) | Yes |
 | 2 | `"ConstantF"` | Constant F set at `Ftarget` for each species | Yes |
 | 3 | `"ConstantFSSB"` | F that achieves `Ftarget`% of SSB₀ at the end of the projection | Yes |

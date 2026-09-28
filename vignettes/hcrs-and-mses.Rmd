@@ -88,7 +88,7 @@ The OM and the EM must share a terminal year and a projection horizon; the MSE f
 
 Then check `endyr` against the catch series. The MSE takes over at `endyr + 1`, and every year after that is a projection year whose catch the control rule sets, so catch recorded past `endyr` is blanked to `NA` at setup and `run_mse()` warns and names the years.
 
-That warning almost always means `endyr` has fallen behind. A workbook can carry catch, index and composition data for years the model does not fit — the likelihood scores only `Year <= endyr` — so the data are added and `endyr` is left where it was. Conditioning the assessment on those years and projecting over them are different questions, and the warning is where you choose. Move `endyr` up and refit both models to condition on them; leave it and the MSE simulates those years instead.
+That warning almost always means `endyr` has fallen behind. A workbook can hold catch, index and composition data for years the model does not fit; the likelihood scores only `Year <= endyr`, so the data are added and `endyr` is left where it was. Conditioning the assessment on those years and projecting over them are different questions, and the warning is where you choose. Move `endyr` up and refit both models to condition on them; leave it and the MSE simulates those years instead.
 
 ```{r, message = FALSE, echo = TRUE}
 mse1 <- run_mse(
@@ -116,7 +116,7 @@ mse1 <- run_mse(
   historical data. Set this separately if you want to vary
   past-data realizations while holding the projection draws fixed.
 
-You do not need to call `set.seed()` before `run_mse()` — the `seed`
+You do not need to call `set.seed()` before `run_mse()`, the `seed`
 arguments fully control reproducibility. (You may still want
 `set.seed()` for plotting code that draws random colours or jitter.)
 
@@ -175,7 +175,7 @@ plot_depletionSSB(
 `mse_summary()` reduces the trajectories to performance statistics for comparing strategies.
 It returns a **list**, because the metrics are computed on three different entities: `$species`
 (one row per species), `$fleet` (one row per fleet), and `$total` (a named vector across the
-whole system). `$meta` records what the summary was built from -- the number of simulations,
+whole system). `$meta` records what the summary was built from, the number of simulations,
 species and fleets, and the harvest control rule.
 
 ```{r, warning = FALSE, echo = TRUE}
@@ -186,8 +186,8 @@ knitr::kable(mse_summ$species, digits = 2)
 knitr::kable(mse_summ$fleet, digits = 2)
 ```
 
-Metric columns are named syntactically -- `avg_catch`, `catch_iav`, `ssb_rmse_terminal`,
-`om_p_overfishing`, `em_p_overfished` -- with the `om_` and `em_` prefixes separating what the
+Metric columns are named syntactically, `avg_catch`, `catch_iav`, `ssb_rmse_terminal`,
+`om_p_overfishing`, `em_p_overfished`, with the `om_` and `em_` prefixes separating what the
 operating model did from what the estimation model believed. `p_overfishing_false_pos` and its
 siblings are where the two disagree.
 
@@ -195,7 +195,7 @@ siblings are where the two disagree.
 
 # Alternative scenarios
 
-The runs below vary one element of the strategy at a time — the reference points, the survey frequency, the assessment interval, or the environment — so their performance statistics can be compared against `mse1`.
+The runs below vary one element of the strategy at a time (the reference points, the survey frequency, the assessment interval, or the environment) so their performance statistics can be compared against `mse1`.
 
 ------------------------------------------------------------------------
 
@@ -270,7 +270,7 @@ mse4 <- run_mse(
 
 ## A missed assessment, and a buffer while advice is stale
 
-The scenarios above all set a *period*: an assessment every second or fourth year, for as long as the projection runs. A skipped assessment is a different thing — one gap in an otherwise regular cycle — and `assessment_period` also takes the schedule itself, as a vector of the years an assessment is completed.
+The scenarios above all set a *period*: an assessment every second or fourth year, for as long as the projection runs. A skipped assessment is a different thing (one gap in an otherwise regular cycle) and `assessment_period` also takes the schedule itself, as a vector of the years an assessment is completed.
 
 ```{r, message = FALSE, echo = TRUE, eval = FALSE}
 biennial <- seq(om$data_list$endyr + 2, om$data_list$projyr, by = 2)
@@ -288,7 +288,7 @@ The distinction matters for the answer, not just the bookkeeping. A triennial pe
 
 To pair the gap with a precautionary reduction, give `catch_mult` a `data.frame` of `Year`, `Species` and `mult`. It applies only in the pairs listed, so the reduction can be held for the years advice is stale and lifted once the next assessment lands. `Species` is the species number, and any pair the table omits is multiplied by 1.
 
-Be careful which years those are. The assessment in year `Y` sets catch for `Y+1` onward, so a missed assessment leaves the **two years after it** on the previous assessment's advice — not the missed year itself, which the previous assessment sets in the baseline too.
+Be careful which years those are. The assessment in year `Y` sets catch for `Y+1` onward, so a missed assessment leaves the **two years after it** on the previous assessment's advice, not the missed year itself, which the previous assessment sets in the baseline too.
 
 ```{r, message = FALSE, echo = TRUE, eval = FALSE}
 schedule <- setdiff(biennial, miss_yr)
@@ -310,17 +310,17 @@ mse7 <- run_mse(
 )
 ```
 
-Run these against a baseline that differs *only* in the schedule — same `om`, same `em`, same `seed` — and compare them as paired within-replicate differences.
+Run these against a baseline that differs *only* in the schedule (same `om`, same `em`, same `seed`) and compare them as paired within-replicate differences.
 
 Two schedules on the same `seed` share their recruitment deviations, drawn once per replicate before the first assessment. Each assessment's observation draws are seeded on that assessment's own year rather than on wherever the previous assessments left the random stream, so an assessment in year `Y` starts from the same place in every schedule that assesses `Y`, and a divergence at one assessment does not displace every assessment after it.
 
-Common random numbers are not complete, though, and it is worth knowing where they stop. One `sim_mod()` call draws every year in the assessment interval under that assessment's seed, so a year sitting *inside* a longer interval is drawn under a different seed than the same year in a schedule that assessed it directly. Two schedules that differ in which years they assess realize different observation error in the years between, even where the stock is in the same state. The paired difference is therefore mostly, but not entirely, the schedule — size the replicate count with that in mind rather than assuming all the noise has cancelled.
+Common random numbers are not complete, though, and it is worth knowing where they stop. One `sim_mod()` call draws every year in the assessment interval under that assessment's seed, so a year sitting *inside* a longer interval is drawn under a different seed than the same year in a schedule that assessed it directly. Two schedules that differ in which years they assess realize different observation error in the years between, even where the stock is in the same state. The paired difference is therefore mostly, but not entirely, the schedule, size the replicate count with that in mind rather than assuming all the noise has cancelled.
 
-Once two schedules genuinely diverge — different catch taken, different years surveyed — their draws diverge too. That is a real difference between the runs rather than noise, and no seeding scheme removes it.
+Once two schedules genuinely diverge (different catch taken, different years surveyed) their draws diverge too. That is a real difference between the runs rather than noise, and no seeding scheme removes it.
 
-Make the last assessment year reach the projection horizon. Catch is filled only up to the last assessment, so a schedule that stops short leaves the trailing years at `NA` — and `mse_summary()` summarises over the whole projection, understating average catch, catch IAV and P(Closed) with nothing in the table to say so. A biennial cycle over an odd number of projection years lands here every time: `seq(2027, 2050, by = 2)` ends at 2049 against a 2050 horizon. `run_mse()` warns when it happens.
+Make the last assessment year reach the projection horizon. Catch is filled only up to the last assessment, so a schedule that stops short leaves the trailing years at `NA`, and `mse_summary()` summarises over the whole projection, understating average catch, catch IAV and P(Closed) with nothing in the table to say so. A biennial cycle over an odd number of projection years lands here every time: `seq(2027, 2050, by = 2)` ends at 2049 against a 2050 horizon. `run_mse()` warns when it happens.
 
-One caveat to carry into any write-up: `catch_mult` multiplies catch, not ABC. A real ABC reduction changes removals only to the extent the fishery attains ABC, and for a stock whose catch sits well below ABC it changes them hardly at all. Either scale the multiplier by recent attainment, `1 - (1 - mult) * attainment`, or report the unscaled result as an upper bound on the effect of the reduction.
+One caveat to take into any write-up: `catch_mult` multiplies catch, not ABC. A real ABC reduction changes removals only to the extent the fishery attains ABC, and for a stock whose catch sits well below ABC it changes them hardly at all. Either scale the multiplier by recent attainment, `1 - (1 - mult) * attainment`, or report the unscaled result as an upper bound on the effect of the reduction.
 
 ------------------------------------------------------------------------
 
@@ -384,7 +384,7 @@ mse5 <- run_mse(
 # Overall summary
 
 Tagging each summary with an `MSE` label and stacking them puts the strategies side by side in
-one table. Stack the entity you want to compare on -- here the per-species metrics -- rather
+one table. Stack the entity you want to compare on, here the per-species metrics, rather
 than the whole list.
 
 ```{r, echo = TRUE}

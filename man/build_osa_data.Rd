@@ -14,7 +14,7 @@ already been built (and coerced to matrices) by \code{\link[=rearrange_data]{rea
 for every type (aggregate, composition, caal, and diet) so
 \code{\link[=osa_residuals]{osa_residuals()}} can be computed. When \code{FALSE} (the default), only the
 aggregate index/catch entries the TMB template always reads are built and
-the (much larger) composition/caal/diet metadata is skipped -- this is the
+the (much larger) composition/caal/diet metadata is skipped, this is the
 fast path for simulation testing (e.g. \code{\link[=run_mse]{run_mse()}}), where the fitted
 objective is identical but OSA composition residuals are not produced.}
 }
@@ -32,16 +32,16 @@ a single flat vector (\code{obsvec}) with a companion \code{keep} indicator. Thi
 function walks the already-built control/observation matrices and produces:
 
 \itemize{
-\item \code{obsvec} -- the flat vector of observations. Aggregate (catch and
+\item \code{obsvec}, the flat vector of observations. Aggregate (catch and
 index) observations are stored as log(observation) because their
 likelihood is lognormal; composition (comp) and conditional-age-at-length
 (caal) observations are stored as bin counts, \code{(proportion + 1e-5) * N},
 matching exactly what the TMB likelihood forms during fitting.
-\item \code{obs_ctl} -- a data frame with one row per element of \code{obsvec},
+\item \code{obs_ctl}, a data frame with one row per element of \code{obsvec},
 mapping each position back to its data type, fleet, species, year,
 age/length bin, etc., so residuals stay interpretable. R-side metadata
 only; removed before the data list is passed to TMB.
-\item \verb{*_obsvec_idx} -- per observation-row index vectors. For aggregate
+\item \verb{*_obsvec_idx}, per observation-row index vectors. For aggregate
 series this is the 0-based \code{obsvec} position of each row; for composition
 and caal it is the 0-based \code{obsvec} position of the row's FIRST bin (the
 template reads the row's bins as \code{obsvec.segment(start, n_bins)}). \code{-1}
@@ -55,7 +55,7 @@ catch and index, comp and caal composition, and predator diet composition.
 }
 \details{
 The composition proportion offset is read from \code{data_list$comp_offset}
-(defaulting to \code{1e-5}), so the comp/caal bin counts are \code{(proportion + comp_offset) * Neff} -- the same offset the TMB likelihood applies when
+(defaulting to \code{1e-5}), so the comp/caal bin counts are \code{(proportion + comp_offset) * Neff}, the same offset the TMB likelihood applies when
 fitting. Set it via \code{fit_control(comp_offset = )} or on \code{data_list} directly.
 }
 \keyword{internal}

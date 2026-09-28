@@ -38,17 +38,38 @@ appears once, in `rearrange_data()`, which calls `convert_switches()` and passes
 the code to the template as `flt_sel_type`. The template dispatches on it.
 
 So the two sides of a form are bound by nothing but agreement: the name and code
-in `sel_map`, and the `case` label in `selectivity.hpp`. Three places inside R
-also compare the integer, and each is a site to edit: the parametric-form list
-`sel_para` in `data_check()`, the slot-label switch in
-`.rce_sel_slot_labels()`, and `sim_mod()`, which warns that the AR1 forms carry
-their own random effects.
+in `sel_map`, and the `case` label in `selectivity.hpp`. Several places inside R
+also key on the form, and each is a site to edit. Find them with
+`grep -n 'NonParametric\|sel_type\|Selectivity %in%' R/`, rather than trusting
+this list to stay complete: the parametric-form list `sel_para` in
+`data_check()`; the slot-label switch in `.rce_sel_slot_labels()`; `sim_mod()`,
+which warns that the AR1 forms hold their own random effects; the form groups in
+`R/0-switches.R` (`.np`, `.np_hake` -- which also holds `Hake` and `LogisticPM`
+-- `.np_pen3`, `np_legacy_idx` for the pre-4.4 format upgrade, `np_idx` for the
+`Sel_curve_pen1/2` NA check, and `.rce_sel_pen1_sign_aware()`);
+`.rce_np_unintegrable_fleets()` in `R/3-build_map.R`, which decides whether
+`random_sel = TRUE` is refused; and `.is_pm` in `R/5-rearrange_data.R`, which
+sets `allow_all` for `Sel_norm_bin`.
+
+**A penalized form needs two registries, and they are separate.**
+`.RCE_SEL_PEN_POSITIVE` (`R/0-switches.R`) lists, per `Sel_curve_pen` slot, the
+forms that read that slot as a weight; it drives the negative-weight refusal
+only. `.sd_specs`, a few lines below it, drives the
+`Sel_shape_sd` / `Sel_curvature_sd` / `Sel_devmag_sd` conversion and has its own
+form list. Both are keyed by canonical NAME, not by the integer, so a new form
+is absent from both by default. The two fail in opposite directions: absent from
+`.RCE_SEL_PEN_POSITIVE`, a negative weight on your form is accepted silently;
+absent from `.sd_specs`, a user who sets the SD column gets a hard stop saying
+the form does not use that slot. Add the name to each slot it reads, in both.
 
 **Which code to take.** Codes are frozen, because a saved configuration and a
-saved fit carry the integer. Two are not free although no form uses them: 10 was
-retired, and 12 is still named in the normalizer's exclusion list in
-`selectivity.hpp` (`sel_type != 12`). 13 and 14 are `NonParametricIID` and
-`NonParametricRW` (5.40.0), so the next form takes 15.
+saved fit hold the integer. Three are not free although no form uses them: 10
+was retired; 12 is still named in the normalizer's exclusion list in
+`selectivity.hpp` (`sel_type != 12`); and 14 was advertised as a second
+integrable form before being collapsed into 13, which means
+`meta_data_names.xlsx` -- the template every workbook is built from -- carried
+`14 = ...` on `dev` for six days. A `Selectivity` column written in that window
+holds it. Retired is not free: **the next form takes 15.**
 
 ## The files, in pipeline order
 
@@ -64,7 +85,7 @@ retired, and 12 is still named in the normalizer's exclusion list in
 | `R/0-parameter_index.R` | if the form re-uses a slot | `.PAR_SEL_SLOTS` names what each `sel_inf` and `log_sel_slp` slot means per form, **and** `.rce_sel_slot_labels()` dispatches to it through a hand-written `switch` on the code and the name. Both need the new form, or `parameter_index()` and the standard-error tables label the slot for the logistic family. |
 | `R/2-build_params.R` | if the defaults are wrong for the form | Starting values are shared across forms: `sel_inf` starts at the values 0 and 10 (slot 1 at the length midpoint on a length-based fleet), `log_sel_slp` at 0.5. LogisticPM is the one form with its own start. See the worked example for why DoubleNormal needs one too. |
 | `R/0-build_selectivity.R`, `R/0-linkage_encode.R`, `src/TMB/linkage.hpp` | if the form takes linkages | `.SEL_LINKAGE_WIRED_FORMS` lists the forms a selectivity linkage may target and `.SEL_PARAM_TO_SLOT` maps parameter names to slots. A new parameter name needs an entry in `R/0-linkage_encode.R` and the matching slot in `linkage.hpp`; the two are in lockstep. |
-| `R/4-build_parameter_bounds.R`, `R/5-rearrange_data.R`, `R/6-phaser.R` | only for new parameters or columns | Bounds and phases are keyed on parameter name, not form. `rearrange_data()` passes each selectivity column through under its `tmb_target` name; a new column goes through `R/0-column_schema.R` first. |
+| `R/4-build_parameter_bounds.R`, `R/5-rearrange_data.R`, `R/6-phaser.R` | only for new parameters or columns, plus the two form checks named above | Bounds and phases are keyed on parameter name, not form. `rearrange_data()` passes each selectivity column through under its `tmb_target` name; a new column goes through `R/0-column_schema.R` first. Two exceptions there DO key on the form: `flt_sel_lead`, which groups by `Selectivity_index` and `Selectivity` together, and `.is_pm`, which sets `allow_all` for `Sel_norm_bin`. |
 | `vignettes/model-options-and-functionality.Rmd`, `vignettes/model-parameterizations.Rmd`, `build_map_selectivity()` roxygen | always | The forms table, the equations, and the code list in the map builder's help page. |
 | `tests/testthat/` | always | A `test-selectivity-<form>.R` that pins the curve against an R implementation, and the map for each `Time_varying_sel` mode the form supports. |
 
@@ -85,7 +106,7 @@ parameters with one value per block. `ceattle.cpp` scores those deviates in
 own. `.PAR_SEL_SLOTS` relabels the slots, `.SEL_LINKAGE_WIRED_FORMS` admits the
 form with the parameter names `peak`, `right_floor`, `sigma_asc` and
 `sigma_desc`, and the shared normalizer zeroes the curve below
-`Bin_first_selected`, normalizes at `Sel_norm_bin` if set, and carries the last
+`Bin_first_selected`, normalizes at `Sel_norm_bin` if set, and holds the last
 hindcast year into the projection.
 
 ## Worked example: switching the fishery to `DoubleNormal`
@@ -193,7 +214,7 @@ exemption in each direction (`Fixed = 0` is applied before the dispatch). A map
 entry with no `case` fails like this:
 
 ```
-── Failure ('test-schema-cpp-dispatch.R:157:5'): every C++ dispatch branch matches the R map that selects it ──
+── Failure ('test-schema-cpp-dispatch.R:161:5'): every C++ dispatch branch matches the R map that selects it ──
 Expected `setdiff(r, cpp)` to have the same values as `sort(unique(as.integer(s$map_only)))`.
 Actual: 0, 12
 Expected: 0

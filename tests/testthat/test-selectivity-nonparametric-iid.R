@@ -104,3 +104,26 @@ testthat::test_that("NonParametricPM still refuses IID, naming the alternative",
     "NonParametricPM"
   )
 })
+
+
+# The random_sel guard puts NonParametricPM in its walk branch
+# (.rce_np_unintegrable_fleets, R/3-build_map.R), but only the IID arm was
+# exercised, so the form-9 walk arm could have stopped refusing unnoticed.
+testthat::test_that("NonParametricPM under RandomWalk refuses random_sel, naming the integrable form", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("Rceattle")
+
+  data("Atka2022")
+  d <- Atka2022
+  d$fleet_control$Selectivity <- as.character(d$fleet_control$Selectivity)
+  d$fleet_control$Time_varying_sel <- as.character(d$fleet_control$Time_varying_sel)
+  d$fleet_control$Selectivity[2]       <- "NonParametricPM"
+  d$fleet_control$Time_varying_sel[2]  <- "RandomWalk"
+  testthat::expect_error(
+    suppressMessages(suppressWarnings(Rceattle::fit_mod(
+      data_list = d, inits = NULL, msmMode = 0, estimateMode = 3,
+      random_sel = TRUE,
+      fit_control = Rceattle::fit_control(verbose = 0)))),
+    "NonParametricIntegrable"
+  )
+})

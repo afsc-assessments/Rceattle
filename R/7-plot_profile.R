@@ -16,7 +16,7 @@
 #'
 #' Concatenates [profile_components()] over a list of profiles, adding the
 #' `Model` column the facets key on, and checks that they profile the same
-#' thing -- overlaying a profile of M on a profile of sigmaR would draw two
+#' thing, overlaying a profile of M on a profile of sigmaR would draw two
 #' unrelated curves on one axis.
 #'
 #' @param profiles List of `"Rceattle_profile"` objects.
@@ -171,7 +171,7 @@
 #' @description Draws each negative log-likelihood component against the
 #'   profiled parameter, with the total overlaid, in the style of
 #'   `r4ss::SSplotProfile()`. Where the curves disagree about which value of the
-#'   parameter they prefer, the data sources are in conflict -- which is what
+#'   parameter they prefer, the data sources are in conflict, which is what
 #'   the total on its own cannot show.
 #'
 #' @details
@@ -185,8 +185,8 @@
 #' When one component dwarfs the others it sets the y axis and the rest flatten
 #' onto the bottom, so where *they* prefer the parameter cannot be read.
 #' `relative = "scaled"` puts every curve on 0 to 1 so the minima can be
-#' compared. It discards magnitude — a component moving 0.02 draws like one
-#' moving 40 — so raise `minfraction` with it. That filter runs on the raw
+#' compared. It discards magnitude, a component moving 0.02 draws like one
+#' moving 40, so raise `minfraction` with it. That filter runs on the raw
 #' change, and is what keeps a barely-constrained component from drawing a
 #' confident-looking curve.
 #'
@@ -217,7 +217,7 @@
 #'   the same profile run on two model configurations).
 #' @param weighted,relative,minfraction Passed to [profile_components()].
 #'   `minfraction` drops a component moving less than that fraction of the
-#'   TOTAL's change over the grid -- not an absolute number of objective units.
+#'   TOTAL's change over the grid, not an absolute number of objective units.
 #'   It defaults to `0.01` here, as in `r4ss::SSplotProfile()`, so a total
 #'   moving 60 units cuts at 0.6.
 #' @param add_cutoff Draw a horizontal line at `cutoff`. Off by default: the

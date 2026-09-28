@@ -4,7 +4,7 @@
 #' `fit$quantities` holds every derived quantity the TMB model reports, under
 #' the model's own abbreviated names (`ssb`, `F_spp`, `NByageF`, ...). This
 #' table is the single place saying what each one is, the units it is in, how it
-#' is shaped, whether it carries a standard error, and what the same quantity is
+#' is shaped, whether it holds a standard error, and what the same quantity is
 #' called in the NOAA standardized assessment output.
 #'
 #' Columns:
@@ -18,7 +18,7 @@
 #'   \item{units}{The units the value is in, or "unitless" / "proportion".}
 #'   \item{dims}{Dimensions, in the model's own notation.}
 #'   \item{se}{Whether [TMB::sdreport()] gives a standard error for it, i.e.
-#'     whether the template `ADREPORT`s it. `FALSE` means `fit$sdrep` carries
+#'     whether the template `ADREPORT`s it. `FALSE` means `fit$sdrep` holds
 #'     nothing for this quantity and any interval must come from elsewhere.}
 #'   \item{standard_label}{The `label` this quantity takes in the NOAA
 #'     standardized assessment output consumed by `stockplotr` and `asar`, or
@@ -135,6 +135,9 @@
     r("catch_hat", "fishing",
       "Predicted fishery catch, one value per row of catch_data; weight or numbers per the fleet's Observation_units.",
       "mt or thousands of fish", "[nrow(catch_data)]", FALSE, "catch_predicted"),
+    r("equil_catch_hat", "fishing",
+      "Predicted initial equilibrium catch, one value per year styr-1 row of catch_data: the catch the deviation-free initial age structure yields at Finit, on the fleet's own selectivity. SS3's Equil_catch.",
+      "mt or thousands of fish", "[nrow(equil_catch)]", FALSE, NA_character_),
     r("max_catch_hat", "fishing",
       "Predicted exploitable biomass or numbers available to the fleet, the ceiling the catch equation can take.",
       "mt or thousands of fish", "[nrow(catch_data)]", FALSE, NA_character_),
@@ -395,7 +398,7 @@
 #'
 #' `fit$quantities` uses the model's own abbreviated names. This returns the
 #' table mapping each one to what it means, the units it is in, how it is
-#' shaped, whether it carries a standard error, and what the same quantity is
+#' shaped, whether it holds a standard error, and what the same quantity is
 #' called in the NOAA standardized assessment output.
 #'
 #' @param quantity Report names as they appear in `names(fit$quantities)`,
@@ -416,7 +419,7 @@
 #' `Observation_units` column.
 #'
 #' `se = TRUE` means the TMB template `ADREPORT`s the quantity, so `fit$sdrep`
-#' carries a standard error for it and [as.data.frame.Rceattle()] can fill `se`,
+#' holds a standard error for it and [as.data.frame.Rceattle()] can fill `se`,
 #' `lwr` and `upr`. `se = FALSE` means no standard error exists anywhere on the
 #' fit for that quantity. Nothing has a standard error when the fit was produced
 #' with `fit_control(getsd = FALSE)`, which leaves `sdrep` NULL.
@@ -429,7 +432,7 @@
 #'
 #' Every per-recruit reference point (`SPR0`, `SPRlimit`, `SPRtarget`,
 #' `SPRFinit`, `NbyageSPR`) is computed only under `msmMode = 0` and is exactly
-#' **zero on a multispecies fit** -- M there carries predation mortality, which
+#' **zero on a multispecies fit**: M there holds predation mortality, which
 #' scales with predator abundance, so spawning output per recruit is not a
 #' property of the prey stock alone.
 #'
@@ -440,7 +443,7 @@
 #' # What is ssb_depletion, and what units is it in?
 #' quantity_dictionary("ssb_depletion")
 #'
-#' # Everything that carries a standard error
+#' # Everything that holds a standard error
 #' dict <- quantity_dictionary()
 #' dict[dict$se, c("quantity", "meaning")]
 #'

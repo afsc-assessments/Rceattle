@@ -33,7 +33,7 @@ figure separates by line type.}
 and 1.}
 
 \item{add_ci}{Add a 95\% confidence interval. Only available where the
-plotted quantity carries standard errors; warns and draws none otherwise.}
+plotted quantity holds standard errors; warns and draws none otherwise.}
 
 \item{minyr, maxyr}{First / last year to plot.}
 
@@ -76,8 +76,8 @@ take it: \code{\link[=plot_timeseries]{plot_timeseries()}} and its wrappers (\co
 \code{\link[=plot_f]{plot_f()}}), the predation plotters (\code{\link[=plot_b_eaten]{plot_b_eaten()}}, \code{\link[=plot_b_eaten_prop]{plot_b_eaten_prop()}},
 \code{\link[=plot_m_at_age]{plot_m_at_age()}}, \code{\link[=plot_m2_at_age_prop]{plot_m2_at_age_prop()}}, \code{\link[=plot_ration]{plot_ration()}}), and
 \code{\link[=plot_selectivity]{plot_selectivity()}}. Each argument means the same thing wherever it appears,
-but not every plotter takes every one -- \code{incl_mean} is on the predation
-plotters, \code{add_ci} only where the quantity carries standard errors, and
+but not every plotter takes every one, \code{incl_mean} is on the predation
+plotters, \code{add_ci} only where the quantity holds standard errors, and
 \code{alpha} only where the figure has a ribbon or a fan. The remaining
 \verb{plot_*()} functions still take their own arguments; see each one's help.
 }
@@ -85,11 +85,11 @@ plotters, \code{add_ci} only where the quantity carries standard errors, and
 
 
 They supply values for whichever \strong{discrete variable the plot already
-encodes with that aesthetic}, matched in level order -- which is not always
+encodes with that aesthetic}, matched in level order, which is not always
 the model. Each function's help says what its own figure separates.
 
-Where colour encodes a continuous variable -- the year fan in
-\code{\link[=plot_selectivity]{plot_selectivity()}} -- \code{line_col} supplies the ramp anchors instead: one
+Where colour encodes a continuous variable, the year fan in
+\code{\link[=plot_selectivity]{plot_selectivity()}}, \code{line_col} supplies the ramp anchors instead: one
 colour draws the fan in that colour, several interpolate between them.
 }
 

@@ -14,7 +14,7 @@ reweight_comps(
 )
 }
 \arguments{
-\item{object}{An \code{Rceattle} model fitted at \code{estimateMode} \code{"Estimate"} (0) or \code{"Hindcast"} (1) -- the modes that optimize the hindcast.}
+\item{object}{An \code{Rceattle} model fitted at \code{estimateMode} \code{"Estimate"} (0) or \code{"Hindcast"} (1), the modes that optimize the hindcast.}
 
 \item{n_iter}{Maximum number of iterations (default 10).}
 
@@ -22,7 +22,7 @@ reweight_comps(
 
 \item{fleets}{Fleets to tune, as \code{Fleet_code} values or as names matching
 \code{fleet_control$Fleet_name} (as in \code{\link[=linkage_spec]{linkage_spec()}}). Give ids or names, not
-a mix -- R coerces \code{c(1, "Survey")} to \code{c("1", "Survey")}. Default \code{NULL}
+a mix, R coerces \code{c(1, "Survey")} to \code{c("1", "Survey")}. Default \code{NULL}
 tunes every eligible fleet.}
 
 \item{verbose}{Print the weights each iteration (default \code{TRUE}).}
@@ -31,7 +31,7 @@ tunes every eligible fleet.}
 scripts keep working. Supplying both is an error.}
 }
 \value{
-The model refitted with the final weights, carrying a \code{reweight}
+The model refitted with the final weights, holding a \code{reweight}
 element: \code{history} (one row per fleet per iteration), \code{iterations}, and
 \code{converged}. The last rows of \code{history} are the weights the returned model
 was fitted with.
@@ -40,7 +40,7 @@ was fitted with.
 Tunes multinomial composition weights by refitting: each pass sets a fleet's
 weight to the McAllister & Ianelli (1997) weight implied by the previous fit,
 and stops once the weights settle. The weight multiplies the input sample
-size, so changing it changes the fit and hence the next implied weight --
+size, so changing it changes the fit and hence the next implied weight,
 which is why the weights are tuned iteratively rather than in one step.
 }
 \details{
@@ -55,11 +55,11 @@ of their own (\code{CAAL_weights}, \code{Diet_comp_weights}), but they are not t
 here; set them by hand if needed.
 
 Tuning stops when the largest relative change in any weight falls below
-\code{tol}. Hitting \code{n_iter} first gives a warning, not an error -- the partly
+\code{tol}. Hitting \code{n_iter} first gives a warning, not an error, the partly
 tuned fit is returned either way, and \verb{$reweight$history} shows whether the
 weights were still settling.
 
-The weight is a parameter, not a data input, so each pass carries it to the
+The weight is a parameter, not a data input, so each pass holds it to the
 next through \code{inits}; \code{fleet_control$Comp_weights} supplies the value only
 when a model is built from scratch, and editing that column then refitting
 from an existing fit has no effect (\code{fit_mod()} warns when it detects this).

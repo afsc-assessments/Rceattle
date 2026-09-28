@@ -136,8 +136,8 @@ LINKAGE_STRATUM_ALL <- 0L
 #' Encode a linkage table into TMB-friendly parallel vectors
 #'
 #' @param table an `Rceattle_linkage_table` (typically the output of
-#'   [pool_linkages()]).
-#' @param X the global design matrix from [pool_linkages()] (passed
+#'   `pool_linkages()`).
+#' @param X the global design matrix from `pool_linkages()` (passed
 #'   through unchanged so callers can stash it alongside).
 #'
 #' @return A named list with components:

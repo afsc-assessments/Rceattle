@@ -128,8 +128,8 @@ LINKAGE_LINKS <- c("identity", "log", "logit")
 #' Link functions with a C++ accumulator behind them
 #'
 #' Every accumulator in `src/TMB/linkage.hpp` gates on `linkfn == 1` (log) or
-#' `linkfn == 0` (identity). `"logit"` stays reserved -- the code is referenced
-#' by the C++ header -- but is rejected until an accumulator implements it;
+#' `linkfn == 0` (identity). `"logit"` stays reserved, the code is referenced
+#' by the C++ header, but is rejected until an accumulator implements it;
 #' the processes wired today expose only log-scale parameters.
 #'
 #' @keywords internal
@@ -159,7 +159,7 @@ LINKAGE_LINKS_IMPLEMENTED <- c("identity", "log")
 #' Construct an empty linkage table with the canonical schema
 #'
 #' @return An empty `data.frame` with the columns and types defined in
-#'   [LINKAGE_COLS], carrying class `c("Rceattle_linkage_table", "data.frame")`.
+#'   [LINKAGE_COLS], holding class `c("Rceattle_linkage_table", "data.frame")`.
 #' @keywords internal
 new_linkage_table <- function() {
   cols <- lapply(LINKAGE_COLS, function(type) {
@@ -290,7 +290,7 @@ validate_linkage_table <- function(x) {
 #'   `NA` = fixed.
 #' @param est_phase estimation phase ordinal; `0` = fix at `init`.
 #' @param re_index,sigma_index,re_time random-effect registry fields filled by
-#'   [pool_linkages()]; `NA` on fixed rows. `re_index` is the 0-based slot in
+#'   `pool_linkages()`; `NA` on fixed rows. `re_index` is the 0-based slot in
 #'   `beta_linkage_re`, `sigma_index` the 0-based slot in `log_sigma_linkage`,
 #'   and `re_time` the numeric grouping value used to order `rw()`/`ar1()`
 #'   deviations in real elapsed time.
@@ -400,7 +400,7 @@ linkage_row <- function(process, param, X_col,
 #'
 #' @param row a one-row slice of an `Rceattle_linkage_table`.
 #' @param data_list the data list (used for `nspp`, `nsex`, `nages`).
-#' @return a list with components `species`, `sex`, `age` -- each a list
+#' @return a list with components `species`, `sex`, `age`, each a list
 #'   keyed by species id, giving the sex/age index vectors to apply for
 #'   that species.
 #' @keywords internal
@@ -433,7 +433,7 @@ linkage_row <- function(process, param, X_col,
 #' length midpoint. Slot 2 is an inflection for the logistic family, but
 #' DoubleNormal reuses it as `logit(right_floor)` and LogisticPM as a log
 #' age-1 selectivity override. A value written on the wrong one of those is
-#' silently wrong -- `right_floor = 0.2` would become `plogis(0.2) = 0.55` --
+#' silently wrong, `right_floor = 0.2` would become `plogis(0.2) = 0.55`,
 #' so the transformed slots are refused rather than guessed at.
 #'
 #' @param param linkage parameter name; `slot` its `.SEL_PARAM_TO_SLOT` index.
@@ -449,18 +449,19 @@ linkage_row <- function(process, param, X_col,
 #' Is this fleet a follower in a shared selectivity / catchability block?
 #'
 #' `Selectivity_index` / `Catchability_index` are group keys, not fleet codes:
-#' fleets carrying the same value estimate ONE parameter block, and
+#' fleets holding the same value estimate ONE parameter block, and
 #' `adjust_map_shared_params()` copies the group's donor slice over the rest.
-#' The donor is the first estimated fleet in the group -- the same rule
+#' The donor is the first estimated fleet in the group, the same rule
 #' `.group_lead()` applies for `flt_sel_lead` / `flt_q_lead`, and the reason an
 #' `Off` fleet (whose slice is all NA) never leads. A value set on the donor is
 #' what the whole group uses; one set on any other member is overwritten.
 #'
-#' A group of one is not shared, whatever its key happens to be -- a survey
+#' A group of one is not shared, whatever its key happens to be, a survey
 #' catchability counter runs 1..n_survey and rarely matches the fleet code.
 #'
-#' @return `NA_integer_` if `flt` is not a follower, otherwise the fleet code of
-#'   the donor whose value would win.
+#' @return `NA_integer_` if `flt` is not a follower, otherwise the fleet_control
+#'   ROW of the donor whose value would win. `data_check()` requires `Fleet_code`
+#'   to equal the row number, so the two coincide, but this is a row index.
 #' @keywords internal
 #' @noRd
 .shared_block_lead <- function(data_list, flt, process) {
@@ -473,7 +474,10 @@ linkage_row <- function(process, param, X_col,
   rows <- which(!is.na(idx) & idx == idx[flt])
   if (length(rows) < 2L) return(NA_integer_)
 
-  off  <- if (is.null(fc$Fleet_type)) rep(FALSE, nrow(fc)) else fc$Fleet_type == "Off"
+  # Read through the map: a workbook that has not been through switch_check()
+  # still holds the integer code, and 0 == "Off" is FALSE.
+  off  <- if (is.null(fc$Fleet_type)) rep(FALSE, nrow(fc)) else
+    vapply(fc$Fleet_type, function(x) identical(.canon_switch(x, fleet_map), "Off"), logical(1))
   est  <- rows[!off[rows]]
   lead <- if (length(est)) est[1] else rows[1]
   if (identical(as.integer(lead), as.integer(flt))) NA_integer_ else as.integer(lead)

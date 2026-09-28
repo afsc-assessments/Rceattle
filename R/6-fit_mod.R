@@ -26,7 +26,7 @@
 #'   (\code{HCR}); \code{"Hindcast"} (1) = fit the hindcast only (no fitting BRPs/HCR/projection);
 #'   \code{"Projection"} (2) = fit the BRPs/HCR/projection only, from the initial
 #'   parameters in \code{inits}; \code{"DebugBuild"} (3) = build through
-#'   \code{MakeADFun} but not \code{nlminb} -- the returned \code{obj} carries the
+#'   \code{MakeADFun} but not \code{nlminb}, the returned \code{obj} holds the
 #'   real objective and gradient, so \code{obj$fn()} / \code{obj$gr()} are usable
 #'   for diagnosing a model before committing to a fit; \code{"DebugOptimize"}
 #'   (4) = optimize with all parameters mapped out, so the objective is a
@@ -40,9 +40,9 @@
 #' @param M1Fun M1 parameterizations and priors. Use \code{build_M1}.
 #' @param growthFun The weight-at-age parameterization from \code{\link{build_growth}}.
 #' @param qFun Catchability specification from \code{\link{build_catchability}},
-#'   carrying any environmental linkages on q.
-#' @param selFun Selectivity specification from \code{\link{build_selectivity}}, carrying any environmental linkages on selectivity parameters.
-#' @param compFun Composition-weighting specification from \code{\link{build_composition}}, carrying any priors on the Dirichlet-multinomial weights.
+#'   holding any environmental linkages on q.
+#' @param selFun Selectivity specification from \code{\link{build_selectivity}}, holding any environmental linkages on selectivity parameters.
+#' @param compFun Composition-weighting specification from \code{\link{build_composition}}, holding any priors on the Dirichlet-multinomial weights.
 #' @param msmMode The predation-mortality mode, as a string alias or integer code:
 #'   \code{"SingleSpecies"} (0, the default, no predation), \code{"MSVPA"}
 #'   (1, the Type-II MSVPA predation of Holsman et al. 2015) or
@@ -65,16 +65,13 @@
 #'   `loopnum`, `newtonsteps`, `TMBfilename`, `verbose`, `nlminb_control`).
 #'   Defaults to `fit_control()`. See [fit_control()] for the meaning and
 #'   defaults of each field.
-#' @param config (Optional) An `Rceattle_run_config` from [load_config()] (or
-#'   [run_config()]). Its stored `model_config` structure and estimation controls
-#'   (`estimateMode`, `random_rec`/`random_q`/`random_sel`, `suit_styr`/
-#'   `suit_endyr`, `fit_control`) overlay only the arguments the caller did *not*
-#'   pass -- an explicit argument always wins. `NULL` (default) applies no
-#'   configuration. Example: `fit_mod(data_list, config = load_config("run.yaml"))`.
+#' @param config (Optional) An `Rceattle_run_config` from [load_config()] or
+#'   [run_config()] whose stored settings overlay the ones you did not pass;
+#'   `NULL` (default) applies no configuration. See Details for what it overlays.
 #' @param quiet_data_check Drop the warnings the fit-time validation raises (errors still
 #'   stop the fit). `FALSE` (default) for an ordinary fit. The diagnostic refits
-#'   -- [retrospective()], [jitter()], [self_test()], [profile()], [run_mse()],
-#'   [remove_F()], [sample_rec()], [reweight_comps()] -- set it, since they
+#', [retrospective()], [jitter()], [self_test()], [profile()], [run_mse()],
+#'   [remove_F()], [sample_rec()], [reweight_comps()], set it, since they
 #'   re-validate a `data_list` the caller has already fitted once and would
 #'   otherwise repeat the same warnings per peel, jitter, or MSE iteration.
 #'   Also drops a linkage filter's "has no effect" warning; a filter that
@@ -94,11 +91,24 @@
 #' \item{2. MSVPA Holling Type III}
 #' }
 #'
-#' Values 3 through 9 (Kinzey & Punt 2009 functional responses --
+#' Values 3 through 9 (Kinzey & Punt 2009 functional responses,
 #' Holling Type I/II/III, predator interference, predator preemption,
 #' Hassell-Varley, Ecosim) are blocked at runtime by \code{data_check()}
 #' because the implementations have not been validated against the
 #' current parameter set. See \code{src/TMB/predation.hpp}.
+#'
+#' **What `config` overlays.** Two overlays happen, at different levels. The
+#' estimation controls (`estimateMode`, `random_rec` / `random_q` /
+#' `random_sel`, `suit_styr` / `suit_endyr`, `fit_control`) overlay only the
+#' arguments you did not pass, so an explicit argument always wins. The stored
+#' `model_config` is merged into the data object's **field by field**, not
+#' wholesale: only the fields the config actually set are imposed, and the data
+#' object keeps the rest. Since 5.36.0 a config built with [model_config()]
+#' therefore no longer drops the linkages held on the data object, which it
+#' did when the whole structure was replaced. Where a field is set on both and
+#' the two disagree, the config's value is used and the difference is reported
+#' as a warning naming the field. A config written before that field record
+#' existed is treated as having set its non-default fields.
 #'
 #'
 #' @section Initial age structure:
@@ -107,7 +117,7 @@
 #'   \item{\code{"FreeParams"} (0)}{The initial age-structure is estimated directly, one free
 #'     parameter per age.}
 #'   \item{\code{"Equilibrium"} (1)}{Unfished (\eqn{F_{init} = 0}) equilibrium age-structure,
-#'     carried out from \eqn{R_0} and residual natural mortality \eqn{M1}.}
+#'     projected from \eqn{R_0} and residual natural mortality \eqn{M1}.}
 #'   \item{\code{"NonEquilibrium"} (2)}{As (1), plus estimated initial population deviates, so
 #'     the first year need not sit at equilibrium. The default.}
 #'   \item{\code{"FishedNonEquilibrium"} (3)}{As (2), with an estimated initial fishing
@@ -133,7 +143,7 @@
 #' young ages at the full initial F and (4) does not decay the older ages with it at all.
 #'
 #' Modes 1 and 5 differ by exactly one term: both start from the initial equilibrium
-#' recruitment \eqn{R_{init}}, but (1) carries it forward unchanged while (5) seeds the first
+#' recruitment \eqn{R_{init}}, but (1) projects it forward unchanged while (5) seeds the first
 #' year with the realized recruitment \code{R_init * exp(rec_dev[1])}. On a stock whose first
 #' year was not average, that is not a small difference.
 #'
@@ -905,8 +915,8 @@ fit_mod <-
       if (length(.walk)) {
         stop("Fleet ", .flts(.walk), ": set `random_sel = FALSE` to fit ",
              "non-parametric selectivity with `Time_varying_sel = \"RandomWalk\"`, ",
-             "or use `Selectivity = \"NonParametricRW\"`, whose increments carry a ",
-             "proper density.",
+             "or use `Selectivity = \"NonParametricIntegrable\"`, whose increments ",
+             "have a proper density.",
              "\n  The deviates cannot be integrated out: the walk is scored on ",
              "the renormalized curve, which leaves the level of each year's ",
              "coefficients unidentified, so the estimated deviation standard ",
@@ -919,8 +929,8 @@ fit_mod <-
       if (length(.iid)) {
         stop("Fleet ", .flts(.iid), ": set `random_sel = FALSE` to fit ",
              "non-parametric selectivity with `Time_varying_sel = \"IID\"`, or use ",
-             "`Selectivity = \"NonParametricIID\"`, which charges the shape penalties ",
-             "on the base curve and integrates.",
+             "`Selectivity = \"NonParametricIntegrable\"`, which charges the shape ",
+             "penalties on the base curve and integrates.",
              "\n  The shape and average-selectivity penalties do not scale with the ",
              "deviation sd, so an integrated sd would be biased low whatever ",
              "`Sel_curve_pen1` / `Sel_curve_pen2` are. ",
@@ -1173,6 +1183,21 @@ fit_mod <-
       }
       rm(.weight_blocks)
     }
+
+    # sel_curve_pen is a parameter, so a supplied `inits` supersedes the
+    # Sel_curve_pen columns; check the weight actually in use.
+    if (!is.null(inits) && !is.null(start_par$sel_curve_pen)) {
+      .pen_err <- .rce_sel_pen_sign_errors(
+        data_list$fleet_control, pen = start_par$sel_curve_pen,
+        source = "in the supplied `inits`")
+      if (length(.pen_err)) {
+        stop(paste(c(.pen_err,
+          paste0("Set `inits$sel_curve_pen` to the weight you mean, or rebuild ",
+                 "from the workbook with `inits = NULL`.")), collapse = "\n"),
+          call. = FALSE)
+      }
+    }
+
     # Proportion of projected F to each fleet
     start_par$proj_F_prop <- data_list$fleet_control$Proj_F_proportion
     # Fixed fishing mortality for projections for each species
@@ -1241,7 +1266,7 @@ fit_mod <-
     # Taken before TMBphase() replaces start_par with a fitted state.
     # Non-parametric coefficients below Bin_first_selected are mapped off but enter
     # the curve's centring unscored, so hold them at 0 whatever `inits` carries.
-    .np_forms <- c("NonParametric", "NonParametricPM", "NonParametricIID", "NonParametricRW")
+    .np_forms <- c("NonParametric", "NonParametricPM", "NonParametricIntegrable")
     if (!is.null(data_list$fleet_control$Bin_first_selected)) {
       for (.f in which(as.character(data_list$fleet_control$Selectivity) %in% .np_forms)) {
         .bfs <- suppressWarnings(as.integer(data_list$fleet_control$Bin_first_selected[.f]))

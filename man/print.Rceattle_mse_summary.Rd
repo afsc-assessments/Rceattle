@@ -15,8 +15,8 @@
 \code{x}, invisibly.
 }
 \description{
-Says what the summary holds. The object is deliberately ragged --
+Says what the summary holds. The object is deliberately ragged,
 per-species, per-fleet and whole-system metrics have different shapes and
-cannot share one frame -- so it reports the blocks and their dimensions rather
+cannot share one frame, so it reports the blocks and their dimensions rather
 than printing them end to end.
 }

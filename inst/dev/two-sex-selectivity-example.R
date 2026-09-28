@@ -6,8 +6,8 @@
 ## 5.35.0 REFUSES random_sel = TRUE on NonParametric and NonParametricPM,
 ## because the shape penalties are charged on each year's realized curve,
 ## so the reported deviation sd is not the sd of the deviations. 5.40.0
-## added the two forms that do integrate, NonParametricIID (13) and
-## NonParametricRW (14); use those when you want random_sel = TRUE.
+## added the form that does integrate, NonParametricIntegrable (13); use it
+## when you want random_sel = TRUE.
 ## The sections below run because random_sel defaults to FALSE.
 ##
 ## Some models may not converge, so check warning!

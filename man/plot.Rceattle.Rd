@@ -11,7 +11,7 @@
 
 \item{what}{Character. One of \code{"biomass"} (default), \code{"ssb"},
 \code{"recruitment"}, \code{"depletion"} (total biomass / B0), \code{"ssb_depletion"}
-(female spawning biomass / SB0 -- the quantity a Tier 3 HCR compares
+(female spawning biomass / SB0, the quantity a Tier 3 HCR compares
 against B40\%), \code{"index"}, \code{"catch"}, \code{"selectivity"}, \code{"mortality"}, or
 \code{"data"}.}
 

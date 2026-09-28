@@ -15,7 +15,7 @@ build_composition(linkages = NULL)
 A list of composition-weighting settings for \code{\link[=fit_mod]{fit_mod()}}.
 }
 \description{
-Carries \strong{priors} on the Dirichlet-multinomial composition-weighting
+Holds \strong{priors} on the Dirichlet-multinomial composition-weighting
 overdispersion. The DM weight (the "theta" that scales the effective sample
 size) is otherwise an unpenalized free parameter; a linkage lets you put a
 prior on it through the same grammar as every other parameter. The three

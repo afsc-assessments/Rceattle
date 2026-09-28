@@ -23,6 +23,6 @@ Maps the growth parameters (\code{log_growth_pars},
 turns on the parameters it uses.
 
 Time-varying growth comes from the linkage grammar
-(\code{build_growth(linkages = )}), whose random effects carry their own
+(\code{build_growth(linkages = )}), whose random effects hold their own
 density and map.
 }

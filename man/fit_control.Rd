@@ -74,8 +74,8 @@ evaluation of the object it came from. Default \code{1}.}
 (\code{loopnum = 3} sometimes achieves a lower final gradient than
 \code{loopnum = 1}). Default \code{5}.}
 
-\item{newtonsteps}{Integer. Number of extra Newton steps to take
-after optimization (alternative to \code{loopnum}). Default \code{0}.}
+\item{newtonsteps}{Integer. Number of extra unconstrained Newton steps to
+take after optimization (alternative to \code{loopnum}). Default \code{0}.}
 
 \item{phase}{\code{TRUE}/\code{FALSE} or a list. If \code{FALSE}, the model is not
 phased. If \code{TRUE}, default phasing is used. Can also accept a
@@ -98,7 +98,7 @@ print updates of model fit and TMB estimation progress. Default
 A list of class \code{"Rceattle_fit_control"}.
 }
 \description{
-\code{fit_mod()} carries roughly a dozen optimizer- and reporting-related
+\code{fit_mod()} holds roughly a dozen optimizer- and reporting-related
 arguments (\code{bias.correct}, \code{getsd}, \code{loopnum}, \code{newtonsteps}, ...).
 That is a lot of surface area when the user mostly cares about
 "what model am I fitting" rather than "how is it being fit."
@@ -134,14 +134,14 @@ value against every parameter, so its cost is the product of the two: on
 \code{Atka2022} it adds 1,012 values against 584 parameters.
 
 The error is on the log scale, not the logit, because the non-parametric
-forms normalize to mean selectivity 1 rather than a maximum of 1 -- 58\% of
-\code{Atka2022}'s \code{sel_at_age} exceeds 1, to 3.06 -- so a logit is undefined over
+forms normalize to mean selectivity 1 rather than a maximum of 1, 58\% of
+\code{Atka2022}'s \code{sel_at_age} exceeds 1, to 3.06, so a logit is undefined over
 most of the array.
 
 Rows cover estimated, age-based lead fleets only, and start at each fleet's
-first selected bin. Four kinds of cell hold a structural zero -- a \code{Fixed}
+first selected bin. Four kinds of cell hold a structural zero, a \code{Fixed}
 fleet's empirical curve, a length-based fleet's growth-matrix projection, a
-bin below \code{Bin_first_selected}, and array padding -- and one \code{log(0) = -Inf}
+bin below \code{Bin_first_selected}, and array padding, and one \code{log(0) = -Inf}
 on the tape turns \emph{every} quantity in the \code{sdreport} to \code{NaN}, biomass and SSB
 included. All four are identified from the data, so the reported set never
 depends on a parameter value; a value that underflows to zero is floored, so

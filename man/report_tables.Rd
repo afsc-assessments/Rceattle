@@ -38,12 +38,12 @@ one means.}
 }
 \value{
 A list of data frames with class \code{"rceattle_report"}, one element per
-section described above. Each carries a \code{model} column.
+section described above. Each holds a \code{model} column.
 }
 \description{
 Collects the quantities a stock assessment reports into one set
 of tidy tables, so a SAFE chapter or a model comparison is built from a
-single call rather than from a dozen ad-hoc extractions. Every table carries
+single call rather than from a dozen ad-hoc extractions. Every table holds
 a \code{model} column, so passing several fits gives a like-for-like comparison.
 }
 \details{
@@ -58,7 +58,7 @@ run time.}
 the natural-scale name and process from \code{\link[=parameter_dictionary]{parameter_dictionary()}}. Where
 \code{sigma_R} and an estimated M are found. Estimates are on the parameter's
 own scale, so a \code{log_} name needs \code{exp()}; a \strong{fixed} M is not here at
-all, because it was never estimated — read it off \code{M_at_age}.}
+all, because it was never estimated, read it off \code{M_at_age}.}
 \item{\code{likelihood}}{The negative log-likelihood by component and fleet or
 species, weighted and unweighted.}
 \item{\code{timeseries}}{Biomass, female spawning-stock biomass, recruitment,
@@ -68,7 +68,7 @@ projection (\code{era = "fore"}).}
 \item{\code{reference_points}}{The executive-summary quantities: the SPR-based
 F proxies, unfished and target female spawning-stock biomass, the biomass
 proxies implied by \code{Ptarget} / \code{Plimit}, and terminal status. A \code{basis}
-column says whether each was estimated, and if not, why -- see below.}
+column says whether each was estimated, and if not, why, see below.}
 \item{\code{fits}}{Observed against predicted index and catch, with the standard
 deviation of normalized residuals (SDNR) per fleet.}
 \item{\code{retrospective}, \code{jitter}, \code{osa}}{Present only when the corresponding
@@ -81,7 +81,7 @@ than run inside a table-building call; a section whose object is \code{NULL} is
 simply absent from the result.
 
 The standard harvest scenarios of guideline section 4.11.3 are \strong{not}
-produced -- they need a standard projection module, which Rceattle does not
+produced, they need a standard projection module, which Rceattle does not
 have. Projected biomass under the model's own harvest control rule is in
 \code{timeseries} with \code{era = "fore"}.
 }
@@ -112,8 +112,8 @@ series is meaningful there.
 
 \code{model} reports both, and \strong{both are minimized}: a smaller value is the
 better fit. \code{marginal_nll} is the negative log marginal likelihood the
-optimizer minimized -- random effects integrated out by the Laplace
-approximation -- and is what \code{AIC} is built from. \code{joint_nll} is what the
+optimizer minimized, random effects integrated out by the Laplace
+approximation, and is what \code{AIC} is built from. \code{joint_nll} is what the
 template evaluated at the conditional modes, so it is what \code{likelihood} sums
 to, on the same scale as \code{jnll_comp}. They are equal when \code{n_random} is 0 and
 differ by the Laplace correction otherwise.
@@ -123,7 +123,7 @@ differ by the Laplace correction otherwise.
 
 A diagnostics list is matched to models \strong{by name}, so \code{list(alt = ..., base = ...)} pairs correctly whatever the order. An unnamed list is paired
 positionally and says so in a message. Names that are not model names are an
-error -- which catches the realistic mistake of passing one model's
+error, which catches the realistic mistake of passing one model's
 \code{\link[=osa_residuals]{osa_residuals()}} result stored as a list of parts.
 }
 

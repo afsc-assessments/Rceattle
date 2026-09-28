@@ -1,9 +1,10 @@
-# NonParametricIID (13) and NonParametricRW (14), 5.40.0: the Ianelli base
-# curve with deviates that carry a proper density. NonParametric (2) charges its
-# shape penalties on each year's realized curve, so integrating its deviates
-# tilts the density and biases the deviation SD; these forms charge the
-# decreasing, curvature and average-selectivity penalties once on the base
-# coefficients and score the deviates with dnorm(0, sel_dev_sd) alone.
+# NonParametricIntegrable (13), 5.40.0: the Ianelli base curve whose deviations
+# have a proper density, with Time_varying_sel picking the structure.
+# NonParametric (2) charges its shape penalties on each year's realized curve,
+# so integrating its deviates tilts the density and biases the deviation SD.
+# This form charges the decreasing, curvature and average-selectivity penalties
+# once on the base coefficients and scores the deviates with
+# dnorm(0, sel_dev_sd) alone.
 # Atka2022's fishery ships as NonParametric with IID deviates (sd 0.35), the
 # configuration this exists for. estimateMode = 3 evaluates at the starts.
 
@@ -23,20 +24,16 @@ np_build <- function(d, inits = NULL, random_sel = FALSE, mode = 3) {
 
 np_rows <- function(m) m$quantities$jnll_comp[c("Non-parametric selectivity", "Selectivity deviates"), 2]
 
-testthat::test_that("with no deviates both forms give the NonParametric objective", {
+testthat::test_that("with no deviates the form gives the NonParametric objective", {
   testthat::skip_on_cran()
   # A curved base, so the decreasing and curvature penalties are not zero.
   bent <- function(m) { ini <- m$initial_params; ini$sel_coff[2, 1, 1:10] <- log(seq(0.2, 1, length.out = 10)); ini }
   m2  <- np_build(np_data("NonParametric",    "Off")); m2  <- np_build(np_data("NonParametric",    "Off"), inits = bent(m2))
-  m13 <- np_build(np_data("NonParametricIID", "Off")); m13 <- np_build(np_data("NonParametricIID", "Off"), inits = bent(m13))
-  m14 <- np_build(np_data("NonParametricRW",  "Off")); m14 <- np_build(np_data("NonParametricRW",  "Off"), inits = bent(m14))
+  m13 <- np_build(np_data("NonParametricIntegrable", "Off")); m13 <- np_build(np_data("NonParametricIntegrable", "Off"), inits = bent(m13))
   testthat::expect_gt(abs(np_rows(m2)[["Non-parametric selectivity"]]), 0)
   testthat::expect_equal(m13$obj$fn(), m2$obj$fn(), tolerance = 1e-12)
-  testthat::expect_equal(m14$obj$fn(), m2$obj$fn(), tolerance = 1e-12)
   testthat::expect_equal(np_rows(m13), np_rows(m2), tolerance = 1e-12)
-  testthat::expect_equal(np_rows(m14), np_rows(m2), tolerance = 1e-12)
   testthat::expect_equal(m13$quantities$sel_at_age[2, 1, , ], m2$quantities$sel_at_age[2, 1, , ])
-  testthat::expect_equal(m14$quantities$sel_at_age[2, 1, , ], m2$quantities$sel_at_age[2, 1, , ])
 })
 
 testthat::test_that("the Off equivalence holds with a first selected bin above 1", {
@@ -44,18 +41,23 @@ testthat::test_that("the Off equivalence holds with a first selected bin above 1
   bfs <- function(form) { d <- np_data(form, "Off"); d$fleet_control$Bin_first_selected[2] <- 3; d }
   bent <- function(m) { ini <- m$initial_params; ini$sel_coff[2, 1, 3:10] <- log(seq(0.2, 1, length.out = 8)); ini }
   m2  <- np_build(bfs("NonParametric"));    m2  <- np_build(bfs("NonParametric"),    inits = bent(m2))
-  m13 <- np_build(bfs("NonParametricIID")); m13 <- np_build(bfs("NonParametricIID"), inits = bent(m13))
-  m14 <- np_build(bfs("NonParametricRW"));  m14 <- np_build(bfs("NonParametricRW"),  inits = bent(m14))
+  m13 <- np_build(bfs("NonParametricIntegrable")); m13 <- np_build(bfs("NonParametricIntegrable"), inits = bent(m13))
   testthat::expect_equal(m13$obj$fn(), m2$obj$fn(), tolerance = 1e-12)
-  testthat::expect_equal(m14$obj$fn(), m2$obj$fn(), tolerance = 1e-12)
-  # And a walk with no increments does not drift: the last year equals the first.
-  s14 <- m14$quantities$sel_at_age[2, 1, , ]
-  testthat::expect_equal(s14[, ncol(s14)], s14[, 1])
+
+  # The walk construction itself: built under RandomWalk so the walk branch of
+  # the template runs, with the increments at their zero starting values. The
+  # curve must then be flat across years. Checked on the curve rather than the
+  # objective, which differs by the increments' own density.
+  dw <- bfs("NonParametricIntegrable"); dw$fleet_control$Time_varying_sel[2] <- "RandomWalk"
+  mw <- np_build(dw); mw <- np_build(dw, inits = bent(mw))
+  sw <- mw$quantities$sel_at_age[2, 1, , ]
+  testthat::expect_equal(sw[, ncol(sw)], sw[, 1])
+  testthat::expect_equal(sw[, 2], sw[, 1])
 })
 
-testthat::test_that("NonParametricRW reads no increment at or before the fleet's start year", {
+testthat::test_that("NonParametricIntegrable reads no increment at or before the fleet's start year", {
   testthat::skip_on_cran()
-  d <- np_data("NonParametricRW", "RandomWalk")
+  d <- np_data("NonParametricIntegrable", "RandomWalk")
   d$fleet_control$Sel_start_year[2] <- 1990
   m <- np_build(d)
   start_idx <- 1990 - d$styr + 1
@@ -71,16 +73,17 @@ testthat::test_that("NonParametricRW reads no increment at or before the fleet's
 
 testthat::test_that("a zero deviation SD is refused for the new forms as for NonParametric", {
   testthat::skip_on_cran()
-  for (f in c("NonParametricIID", "NonParametricRW")) {
-    d <- np_data(f, if (f == "NonParametricIID") "IID" else "RandomWalk")
+  # Both deviation structures read the sd, so both must refuse a zero.
+  for (tv in c("IID", "RandomWalk")) {
+    d <- np_data("NonParametricIntegrable", tv)
     d$fleet_control$Time_varying_sel_sd[2] <- 0
-    testthat::expect_error(np_build(d), "Time_varying_sel_sd")
+    testthat::expect_error(np_build(d), "Time_varying_sel_sd", info = tv)
   }
 })
 
-testthat::test_that("NonParametricIID scores the deviates alone and leaves the shape penalty on the base", {
+testthat::test_that("NonParametricIntegrable scores the deviates alone and leaves the shape penalty on the base", {
   testthat::skip_on_cran()
-  d <- np_data("NonParametricIID", "IID")
+  d <- np_data("NonParametricIntegrable", "IID")
   m <- np_build(d)
   cells <- which(!is.na(m$map$mapList$sel_coff_dev[2, 1, , ]))
   testthat::expect_gt(length(cells), 0)
@@ -104,9 +107,9 @@ testthat::test_that("NonParametricIID scores the deviates alone and leaves the s
                                           np_rows(n0)[["Non-parametric selectivity"]])))
 })
 
-testthat::test_that("NonParametricRW keeps the base, fixes the first increment and scores the rest", {
+testthat::test_that("NonParametricIntegrable keeps the base, fixes the first increment and scores the rest", {
   testthat::skip_on_cran()
-  d <- np_data("NonParametricRW", "RandomWalk")
+  d <- np_data("NonParametricIntegrable", "RandomWalk")
   m <- np_build(d)
   ml <- m$map$mapList
   testthat::expect_true(all(!is.na(ml$sel_coff[2, 1, 1:10])))
@@ -128,23 +131,31 @@ testthat::test_that("NonParametricRW keeps the base, fixes the first increment a
   testthat::expect_equal(np_rows(m2)[["Non-parametric selectivity"]], np_rows(m)[["Non-parametric selectivity"]])
 })
 
-testthat::test_that("random_sel = TRUE is accepted for the new forms and still refused for NonParametric", {
+testthat::test_that("random_sel = TRUE is accepted for the new form and still refused for NonParametric", {
   testthat::skip_on_cran()
-  m13 <- np_build(np_data("NonParametricIID", "IID"), random_sel = TRUE)
+  m13 <- np_build(np_data("NonParametricIntegrable", "IID"), random_sel = TRUE)
   testthat::expect_identical(sum(names(m13$obj$par) == "sel_dev_log_sd"), 1L)
   testthat::expect_true("sel_coff_dev" %in% m13$obj$env$.random)
-  m14 <- np_build(np_data("NonParametricRW", "RandomWalk"), random_sel = TRUE)
-  testthat::expect_identical(sum(names(m14$obj$par) == "sel_dev_log_sd"), 1L)
+  m13_walk <- np_build(np_data("NonParametricIntegrable", "RandomWalk"), random_sel = TRUE)
+  testthat::expect_identical(sum(names(m13_walk$obj$par) == "sel_dev_log_sd"), 1L)
   testthat::expect_error(np_build(np_data("NonParametric", "IID"), random_sel = TRUE),
-                         "NonParametricIID")
+                         "NonParametricIntegrable")
   testthat::expect_error(np_build(np_data("NonParametric", "RandomWalk"), random_sel = TRUE),
-                         "NonParametricRW")
+                         "NonParametricIntegrable")
 })
 
-testthat::test_that("each form takes only the mode its density describes", {
+# The form supplies the density; Time_varying_sel supplies the structure, so all
+# three of its non-parametric modes are legal and a mode with no density is not.
+testthat::test_that("NonParametricIntegrable takes Off, IID or RandomWalk", {
   testthat::skip_on_cran()
-  testthat::expect_error(np_build(np_data("NonParametricIID", "RandomWalk")), "'Off' or 'IID'")
-  testthat::expect_error(np_build(np_data("NonParametricRW", "IID")), "'Off' or 'RandomWalk'")
+  # `message =` on expect_no_error() is a regexp that scopes which error is
+  # tolerated, not a label, so the assertion is left unscoped and the failing
+  # call identifies the mode.
+  for (mode in c("Off", "IID", "RandomWalk")) {
+    testthat::expect_no_error(np_build(np_data("NonParametricIntegrable", mode)))
+  }
+  testthat::expect_error(np_build(np_data("NonParametricIntegrable", "Block")),
+                         "'Off', 'IID' or 'RandomWalk'")
 })
 
 testthat::test_that("coefficients and deviates below the first selected bin are held at 0", {
@@ -154,7 +165,7 @@ testthat::test_that("coefficients and deviates below the first selected bin are 
   # it. `inits` from a fit with a lower Bin_first_selected carry such values:
   # measured before the guard, 0.9 in those cells moved Atka2022's fishery
   # objective by 704 nats (116258.42 -> 115554.32) and year-1 selectivity by 0.21.
-  d <- np_data("NonParametricIID", "IID")
+  d <- np_data("NonParametricIntegrable", "IID")
   d$fleet_control$Bin_first_selected[2] <- 3
   m   <- np_build(d)
   ini <- m$initial_params
@@ -176,16 +187,16 @@ testthat::test_that("above a first selected bin of 1, the scored cells are exact
   # estimated deviate with no density is a free parameter the integration never
   # sees, and under random_sel the reported SD would absorb it. The Off
   # equivalence tests above cannot catch it, having no deviates at all.
-  for (f in c("NonParametricIID", "NonParametricRW")) {
-    iid <- identical(f, "NonParametricIID")
-    d <- np_data(f, if (iid) "IID" else "RandomWalk")
+  for (tv in c("IID", "RandomWalk")) {
+    iid <- identical(tv, "IID")
+    d <- np_data("NonParametricIntegrable", tv)
     d$fleet_control$Bin_first_selected[2] <- 3
     m   <- np_build(d)
     nyh <- d$endyr - d$styr + 1
     yrs <- if (iid) seq_len(nyh) else 2:nyh          # the walk fixes year 1 at 0
     ml  <- m$map$mapList$sel_coff_dev[2, 1, , ]
-    testthat::expect_true(all(is.na(ml[1:2, ])), info = f)          # below the first selected bin
-    testthat::expect_true(all(!is.na(ml[3:10, yrs])), info = f)     # estimated
+    testthat::expect_true(all(is.na(ml[1:2, ])), info = tv)         # below the first selected bin
+    testthat::expect_true(all(!is.na(ml[3:10, yrs])), info = tv)    # estimated
     # Every estimated cell carries its density: set them all and read the row.
     amp  <- if (iid) 0.4 else 0.05                  # a walk accumulates
     devs <- seq(-amp, amp, length.out = length(3:10) * length(yrs))
@@ -193,7 +204,7 @@ testthat::test_that("above a first selected bin of 1, the scored cells are exact
     ini$sel_coff_dev[2, 1, 3:10, yrs] <- devs
     m2 <- np_build(d, inits = ini)
     testthat::expect_equal(np_rows(m2)[["Selectivity deviates"]],
-                           -sum(stats::dnorm(devs, 0, 0.35, log = TRUE)), info = f)
+                           -sum(stats::dnorm(devs, 0, 0.35, log = TRUE)), info = tv)
   }
 })
 
@@ -201,7 +212,7 @@ testthat::test_that("above a first selected bin of 1, the scored cells are exact
 testthat::test_that("the deviation SD is estimated, not collapsed, when the deviates are integrated", {
   testthat::skip_on_cran()
   fit <- suppressMessages(suppressWarnings(Rceattle::fit_mod(
-    data_list = np_data("NonParametricIID", "IID"), msmMode = 0, estimateMode = "Hindcast",
+    data_list = np_data("NonParametricIntegrable", "IID"), msmMode = 0, estimateMode = "Hindcast",
     random_sel = TRUE,
     fit_control = Rceattle::fit_control(phase = FALSE, getsd = FALSE, verbose = 0))))
   testthat::expect_true(is.finite(fit$opt$objective))

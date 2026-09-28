@@ -22,15 +22,15 @@ enter stock assessments through recruitment, natural mortality,
 growth, catchability, and selectivity. Rceattle exposes a
 **long-format linkage table**: one row per estimated coefficient
 tying an environmental term (or any user-specified design column) to
-a process parameter. Describe linkages with `linkage_spec()` --
-a formula-driven helper -- and pass the result to the relevant
+a process parameter. Describe linkages with `linkage_spec()`,
+a formula-driven helper, and pass the result to the relevant
 `build_*()` function. Each process then applies its environmental
 offset to the linked parameter, year by year.
 
 The linkage path is wired for **growth** (von Bertalanffy and Richards),
 **natural mortality** (`M1`), **recruitment** (`R0`, `alpha`, `beta`),
-**catchability** (`q`), **selectivity** (each form's own parameters), and --
-prior-only -- the **Dirichlet-multinomial composition weights**.
+**catchability** (`q`), **selectivity** (each form's own parameters), and,
+prior-only, the **Dirichlet-multinomial composition weights**.
 
 ## A first example: temperature on `K`
 
@@ -104,16 +104,16 @@ linkage_spec(
 
 Key arguments (see `?linkage_spec` for the full list):
 
-* **`formula`** -- one-sided R formula describing the linear
+* **`formula`**: one-sided R formula describing the linear
   predictor (anything `model.matrix()` understands: `~ 1`, `~ temp`,
   `~ temp + PDO`, `~ poly(temp, 2)`, factor predictors, etc.).
-* **`param`** -- target parameter name (e.g. `"K"`). Filled in
+* **`param`**: target parameter name (e.g. `"K"`). Filled in
   automatically when the spec is registered under a `linkages = list(K = ...)`
   list key.
-* **`by`** -- stratifying factors (default `~species`); use
+* **`by`**: stratifying factors (default `~species`); use
   `~species + sex` for per-(species, sex) coefficients, or `NULL`
   to share a single coefficient set.
-* **`species`** / **`sex`** / **`fleet`** -- restrict a spec to specific
+* **`species`** / **`sex`** / **`fleet`**: restrict a spec to specific
   strata. Use with the multi-spec form (*Per-species* / *Per-sex formulas*
   below) to give different species, sexes, or fleets different formulas.
   `species` and `fleet` accept either 1-based ids or the model's own names
@@ -122,15 +122,15 @@ Key arguments (see `?linkage_spec` for the full list):
   case-insensitive). Prefer names for fleets: an id that is wrong but in
   range attaches the linkage to a different fleet and the model still fits,
   while a misspelled name errors and lists the fleets you do have.
-* **`link`** -- relates the linear predictor to the natural-scale
+* **`link`**: relates the linear predictor to the natural-scale
   target. `"log"` (default) gives a multiplicative effect on natural
   `param`; `"identity"` gives an additive effect on natural `param`.
-* **`init`** / **`bounds`** -- named lists keyed by design-matrix
+* **`init`** / **`bounds`**: named lists keyed by design-matrix
   column (`init = list(temp = 0.05)`, `bounds = list(temp = c(-2, 2))`).
-* **`priors`** -- named list keyed by design-matrix column. Each
+* **`priors`**: named list keyed by design-matrix column. Each
   entry is either an `Rceattle_prior` or a list keyed by species id;
   see *Priors* below.
-* **`re_group`** / **`est_phase`** -- random-effects grouping (placeholder)
+* **`re_group`** / **`est_phase`**: random-effects grouping (placeholder)
   and estimation phase ordinal (`0` fixes, `1+` estimates).
 
 ## Priors
@@ -146,7 +146,7 @@ prior_beta(shape1, shape2)
 
 Inside `linkage_spec(priors = ...)` the unprefixed shorthand `normal()`,
 `lognormal()`, `gamma()`, `beta()` resolves to the corresponding
-`prior_*` constructors via a private data mask -- this is scoped to the
+`prior_*` constructors via a private data mask, this is scoped to the
 `priors` argument and does not mask `base::gamma()` / `base::beta()`
 elsewhere:
 
@@ -199,7 +199,7 @@ growth_spec <- build_growth(
   fun = "vonBertalanffy",
   linkages = list(
     K = linkage_spec(
-      formula = ~ 1,                              # intercept only -- no env effects
+      formula = ~ 1,                              # intercept only, no env effects
       by      = ~ species + sex,
       init    = list(`(Intercept)` = 0.3),   # start at K = 0.3
       # Use `lognormal(log(0.3), 0.1)` to get a normal prior on log(K).
@@ -209,7 +209,7 @@ growth_spec <- build_growth(
 )
 ```
 
-The same pattern works for any linkage target -- `Linf`, `L1`,
+The same pattern works for any linkage target, `Linf`, `L1`,
 `m` (Richards), `M1`, `R0`, `alpha`, `beta`.
 
 An `M1` intercept prior replaces `build_M1(M1_use_prior = TRUE)` for that
@@ -221,8 +221,8 @@ on total M).
 The standard deviations of length-at-age at the `L1` and `Linf` anchors
 (`sd_L1`, `sd_Linf`) are exposed as linkage targets too, so the
 same `init` / `bounds` / `priors` contract applies. They act on the
-growth SD-at-age rather than on the mean growth parameters, and -- because
-the SD-at-age has no year dimension -- only
+growth SD-at-age rather than on the mean growth parameters, and, because
+the SD-at-age has no year dimension, only
 intercept-bearing formulas are honored. Slope rows on these targets
 raise a warning and have no effect; slope-only formulas (`~ 0 + temp`)
 error.
@@ -331,11 +331,11 @@ The linkage prior is applied verbatim, with no lognormal bias-correction term.
 
 Each entry under `priors = list(...)` may be:
 
-* a single prior -- applies to every species/sex row that uses
+* a single prior, applies to every species/sex row that uses
   that design column,
-* a **named list of priors keyed by species id** -- one prior per
+* a **named list of priors keyed by species id**: one prior per
   specified species, or
-* a **named list of priors keyed by species id and sex** -- one prior per
+* a **named list of priors keyed by species id and sex**: one prior per
  specified species and sex, or
 * a **two-level nested list keyed first by specified species, then by specified sex
   id**.
@@ -399,8 +399,8 @@ linkage_spec(
 
 ## Per-species formulas
 
-If species have qualitatively different env relationships -- e.g.
-species 1 responds only to temperature, species 2 also to PDO --
+If species have qualitatively different env relationships, e.g.
+species 1 responds only to temperature, species 2 also to PDO,
 register *multiple specs against the same parameter* and use the
 `species` argument on each to scope it to a subset of stocks:
 
@@ -440,8 +440,8 @@ Inspecting the result, `fit$linkages$K` is either an
 and `fit$data_list$linkage_table` shows the
 materialized rows with `species` and `X_col`.
 
-This pattern composes with species-specific *priors* -- each spec
-carries its own priors, and within a spec the priors can themselves
+This pattern composes with species-specific *priors*, each spec
+holds its own priors, and within a spec the priors can themselves
 be species-keyed if you want even finer control:
 
 ```{r}
@@ -463,7 +463,7 @@ linkage_spec(
 The `sex` argument on `linkage_spec()` mirrors `species`: it scopes a
 spec to a subset of sex ids. Combined with the multi-spec list form,
 this lets you register *separate specs per sex* against the same
-parameter -- typical use cases are sex-dimorphic M priors or distinct
+parameter, typical use cases are sex-dimorphic M priors or distinct
 env responses for females vs. males:
 
 ```{r}
@@ -495,12 +495,12 @@ The `sex` filter applies only when `by` includes `sex`; otherwise `fit_mod()`
 warns that it has no effect, and a filter that matches none of the model's
 levels warns that the spec is dropped. If you
 want different *formulas* per sex (rather than just different priors
-or inits), use the multi-spec form -- one spec with `sex = 1L` and
+or inits), use the multi-spec form, one spec with `sex = 1L` and
 its own RHS, another with `sex = 2L` and a different RHS. 
 
 If you only need different priors per (species, sex) for a single
 shared formula, the nested-priors form (see *Species- and (species,
-sex)-specific priors* above) is simpler -- one spec, one set of
+sex)-specific priors* above) is simpler, one spec, one set of
 design columns, prior values keyed by `species` then `sex`. Reach for
 the per-sex multi-spec form when you need different RHS terms,
 different `init`/`bounds`, or different `est_phase` between sexes.
@@ -509,7 +509,7 @@ different `init`/`bounds`, or different `est_phase` between sexes.
 
 The formula passed to `linkage_spec()` is fed straight to
 [`stats::model.matrix()`](https://stat.ethz.ch/R-manual/R-devel/library/stats/html/model.matrix.html),
-so any expression `model.matrix()` understands works -- polynomial
+so any expression `model.matrix()` understands works, polynomial
 bases, splines, interactions, and arithmetic transformations.
 
 **Polynomials.** Use `poly()` for orthogonal polynomial bases (the
@@ -529,9 +529,9 @@ linkage_spec(
 ```
 
 `poly()` orthogonalises the basis against the rows of `env_data`
--- every row supplied, including any beyond the projection horizon --
+(every row supplied, including any beyond the projection horizon)
 so the columns are zero-mean over that span and the linear
-slope, quadratic curvature, etc. are estimated independently --
+slope, quadratic curvature, etc. are estimated independently,
 generally the right choice if you don't have a specific scientific
 reason to prefer raw monomials.
 
@@ -550,7 +550,7 @@ linkage_spec(
 
 The design column name is the deparsed call (`I(temp^2)`), so when
 you key `init`, `bounds`, or `priors` against it you have to use
-the same string -- backticks let you write it as a name.
+the same string, backticks let you write it as a name.
 
 **Splines.** Natural cubic splines via `splines::ns()` work
 out-of-the-box and are often a better choice than high-order
@@ -669,7 +669,7 @@ broadcast is what you want.
 
 The `M1_indices = c(...)` column-index argument for `M1_model = 4` / `5`
 also adds an environmental effect to `M1` on the log scale, and either
-may be used. Prefer `linkages` -- it composes naturally with priors,
+may be used. Prefer `linkages`; it composes naturally with priors,
 bounds, and per-species formulas.
 
 Inspecting the result:
@@ -680,7 +680,7 @@ fit$quantities$M_linkage_offset     # [nspp, max_sex, max_age, nyrs]
 fit$quantities$jnll_comp["Linkage-table priors", ]
 ```
 
-Growth and M linkages **share the same table** -- one fit can carry
+Growth and M linkages **share the same table**: one fit can hold
 linkage rows for both processes, and the underlying coefficient
 vector `beta_linkage` indexes both.
 
@@ -689,14 +689,14 @@ vector `beta_linkage` indexes both.
 `build_srr()` accepts the same `linkages` argument with three
 allowed parameter keys:
 
-* **`R0`** -- acts under mean recruitment (`srr_fun = "mean"`, penalty
+* **`R0`**: acts under mean recruitment (`srr_fun = "mean"`, penalty
   form included); the right target if recruitment should respond to env
   without fitting an SRR. Under a curve fitted in the hindcast a
   single-species `R0` is derived from alpha and beta, so an `R0` linkage
   is refused. In a multispecies model `R0` sets only the initial level
   (`R_init`), so only an intercept-only linkage (`~ 1`, a prior or fixed
   value) is accepted there.
-* **`alpha`** (productivity) and **`beta`** (density-dependence) --
+* **`alpha`** (productivity) and **`beta`** (density-dependence),
   only do work when the model has a curve: `srr_fun` (or, for the
   penalty form, `srr_pred_fun`) is `"BevertonHolt"` or `"Ricker"`.
 
@@ -815,7 +815,7 @@ fit$quantities$q_linkage_offset      # [n_flt, nyrs]
 
 Restrict a spec to particular fleets with the `fleet` argument of
 `linkage_spec()`, and attach priors the same way as any other process. Name
-the fleets rather than numbering them -- the names are checked against
+the fleets rather than numbering them: the names are checked against
 `fleet_control$Fleet_name` when the model is assembled, whereas a
 `Fleet_code` typo that stays in range quietly links the wrong survey:
 
@@ -829,11 +829,11 @@ The `Catchability = "Environmental"` / `Time_varying_q` column pair does
 the same thing by naming covariates by their position in a comma-separated
 list of `env_data` column indices; a model set up that way still fits, with
 a deprecation warning pointing at `build_catchability()`. As a linkage the
-effect is written as a formula, carries priors/bounds/phase, and names the
+effect is written as a formula, holds priors/bounds/phase, and names the
 fleet explicitly.
 
 An intercept-bearing formula (`~ temp`) leaves the base catchability
-estimable to carry the level and fixes the intercept row at 0, exactly as
+estimable to hold the level and fixes the intercept row at 0, exactly as
 the growth/M/recruitment intercepts re-target their base parameters.
 
 ### A prior on the survey catchability
@@ -879,7 +879,7 @@ year shared by the sexes, so a sex difference in F can only come from
 selectivity, and no form has a height parameter of its own. `apical`
 multiplies one sex's whole curve by `exp(log_sel_apical)`, bin by bin, after
 the form and before normalization, so it works for every estimated form. Name
-the fleet and the sex that carries it; the other sex is the reference, as in
+the fleet and the sex that holds it; the other sex is the reference, as in
 Stock Synthesis's male-offset option:
 
 ```r
@@ -892,7 +892,7 @@ The multiplier equals the ratio of the sexes' peak heights only where their
 shapes peak equally, which the logistic family does on an age axis; for a
 dome with sex-specific shape it is the pointwise multiplier, and the peak ratio
 is read from `fit$quantities$sel_at_age`. Only the contrast between the sexes
-is identified, so the fit is refused when both sexes or no sex carry it, when
+is identified, so the fit is refused when both sexes or no sex hold it, when
 no fleet is named, on a one-sex species, on a `Fixed`, AR1 or mirror fleet,
 with `link = "identity"`, and where `Sel_norm_scope = "WithinSex"`
 normalization would divide the offset out (use `"AcrossSexes"`, under which
@@ -920,13 +920,13 @@ As with every process, `link = "log"` makes the effect multiplicative on
 the natural parameter and `link = "identity"` makes it additive, so you can
 link the log-space slope and the natural-space inflection independently.
 
-**Supported forms:** the parametric selectivities -- `Logistic`,
+**Supported forms:** the parametric selectivities, `Logistic`,
 `DoubleLogistic`, `DescendingLogistic`, `DoubleNormal`, and `LogisticPM`.
 A linkage on any other form errors at fit time naming the fleet, rather than
 being estimated to no effect. `apical` is the exception: it multiplies the
 finished curve, so every estimated form takes it. The non-parametric forms (`coff`) are
 excluded on principle: they mean-center their coefficients every year, so a
-per-year offset applied across all bins cancels exactly -- a per-bin
+per-year offset applied across all bins cancels exactly, a per-bin
 covariate would be needed, which the formula grammar does not express.
 `Time_varying_sel` process-error deviates are a separate mechanism and
 compose additively with a selectivity linkage.
@@ -939,7 +939,7 @@ tuning: instead of
 iterating an external weight, it estimates each composition dataset's
 **effective sample size** as part of the fit. That works well when a fleet has
 many comp years, but the weight can be poorly identified when a fleet has only
-a handful -- the fit may push the effective sample size to an implausible
+a handful, the fit may push the effective sample size to an implausible
 extreme. A prior on the DM weight keeps it in a believable range without
 reverting to hand-tuning:
 
@@ -978,7 +978,7 @@ actually estimating that weight, so a `theta_*` linkage on a fleet or predator
 whose likelihood is **not** `DirichletMultinomial` errors up front rather than
 sitting inert. And because the weight is a single number per fleet, not a
 time series, this is a **prior only**: a covariate (`~ temp`), an `init`, or an
-`est_phase` on a composition spec is rejected -- start or fix the weight
+`est_phase` on a composition spec is rejected, start or fix the weight
 through the model's usual `inits` / `map` if you need to.
 
 ## A multi-process example
@@ -1001,7 +1001,7 @@ growth_spec <- build_growth(
                      PDO  = normal(0, 0.5))
     ),
     m    = linkage_spec(
-      formula = ~ 1,             # intercept only -- no env effect
+      formula = ~ 1,             # intercept only, no env effect
       by      = ~ species
     )
   )
@@ -1028,8 +1028,8 @@ build_growth(
 #> Error: linkages$m is only valid with fun = 'Richards'; ...
 ```
 
-Growth, M, and recruitment can all be linked in the same fit --
-each `build_*()` output carries its own linkages list and
+Growth, M, and recruitment can all be linked in the same fit,
+each `build_*()` output holds its own linkages list and
 `fit_mod()` pools them against a single shared design matrix:
 
 ```{r}
@@ -1068,10 +1068,10 @@ table(fit$data_list$linkage_table$process)
 A few diagnostics worth knowing:
 
 ```{r}
-# The materialized table -- one row per estimated coefficient.
+# The materialized table, one row per estimated coefficient.
 fit$data_list$linkage_table
 
-# The shared design matrix -- one column per unique RHS term.
+# The shared design matrix, one column per unique RHS term.
 fit$data_list$linkage_X
 
 # Per-(species, sex, growth_param, year) offsets actually applied to
@@ -1091,11 +1091,11 @@ fit$quantities$jnll_comp["Linkage-table priors", ]
 ## Behind the scenes: automatic base-parameter handling
 
 For three species × two sexes × `~ temp` (intercept + slope) the
-pooled table has 12 rows -- an `(Intercept)` and a `temp` slope per
+pooled table has 12 rows, an `(Intercept)` and a `temp` slope per
 (species, sex). Priors and inits supplied for `(Intercept)` flow to
 the *base parameter* (`K`, `M1`, `R0`, ...); the slope rows hold the
 year-by-year offset that combines with the base. The exact behavior
-depends on whether the formula carries an intercept:
+depends on whether the formula holds an intercept:
 
 | Formula                      | Base parameter                            | Slope rows |
 |------------------------------|-------------------------------------------|------------|
@@ -1103,16 +1103,16 @@ depends on whether the formula carries an intercept:
 | `~ temp` (intercept + slope) | estimable; init from spec or default      | estimated |
 | `~ 0 + temp` (slope only)    | fixed (not estimated); value from spec or default | estimated |
 
-**Intercept-bearing formulas (`~ 1`, `~ temp`)** -- the base parameter
+**Intercept-bearing formulas (`~ 1`, `~ temp`)**: the base parameter
 remains estimable; for example `R0` for
 species `s` lives on `rec_pars[s, 1]` exactly as it does without any
 linkages. The `(Intercept)` row of the table exists for bookkeeping
 and as a hook for `init`/`prior` (see below) but its `beta_linkage`
 slot is held at `0` and not estimated. The recruitment, mortality, and
-growth processes use `base + offset(yr)` each year -- with the
+growth processes use `base + offset(yr)` each year, with the
 intercept fixed at zero, the offset is exactly the slope contribution.
 
-**Slope-only formulas (`~ 0 + temp`)** -- there is no `(Intercept)`
+**Slope-only formulas (`~ 0 + temp`)**: there is no `(Intercept)`
 row, so the base parameter is held fixed and stays at the
 default initial value, or the value supplied by the `inits` argument in `fit_mod`, or
 the value supplied by `init = list("(Intercept)"= ...)` on the spec.
@@ -1123,10 +1123,10 @@ the value supplied by `init = list("(Intercept)"= ...)` on the spec.
 base parameter** rather than to the linkage row. The linkage row's
 `beta_linkage` slot stays at `0`; the base parameter starts at `X`.
 This is the recommended way to set a sensible starting value for
-intercept-bearing linkages -- it composes naturally with phasing
+intercept-bearing linkages, it composes naturally with phasing
 (the base parameter goes through the existing per-process phase
 logic) and keeps the optimizer grounded. With `est_phase = 0` the base
-parameter is held at `X` even when `fit_mod(inits = )` carries another
+parameter is held at `X` even when `fit_mod(inits = )` holds another
 value; for an estimated intercept `X` is only a starting value, and
 `inits` win.
 
@@ -1162,20 +1162,20 @@ asking for `by = ~ species + sex` produces a warning: there is only
 one sex level available, so the sex stratum collapses to a single
 shared level. The result is equivalent to `by = ~ species`. Models
 with mixed `nsex` (some single-sex, some two-sex species) emit one
-sex level per species automatically -- single-sex species get one row
+sex level per species automatically, single-sex species get one row
 per parameter, two-sex species get two.
 
 ## Random effects
 
-A linkage formula may carry a **random effect**, so a parameter varies
+A linkage formula may hold a **random effect**, so a parameter varies
 year-to-year (or over any grouping) as a set of deviations damped by an
 estimated density rather than fixed covariate slopes:
 
-* `~ (1 | Year)` -- **IID** deviations, `N(0, sigma)`;
-* `rw(1 | Year)` -- a **random walk**, `N(0, sigma)` on first differences
-  (first deviate fixed so the base parameter carries the level -- fixed at its
+* `~ (1 | Year)`, **IID** deviations, `N(0, sigma)`;
+* `rw(1 | Year)`: a **random walk**, `N(0, sigma)` on first differences
+  (first deviate fixed so the base parameter holds the level, fixed at its
   `inits` value, 0 unless you supply another);
-* `ar1(1 | Year)` -- a stationary **AR1**, `SCALE(AR1(rho), sigma)` with
+* `ar1(1 | Year)`: a stationary **AR1**, `SCALE(AR1(rho), sigma)` with
   `sigma` the marginal SD and `rho` the correlation.
 
 These random-effect structures are the general way to express a
@@ -1192,16 +1192,16 @@ time-varying selectivity becomes a linkage on the relevant selectivity parameter
 (e.g. `inf_asc = linkage_spec(~ rw(1 | Year), by = ~ fleet)`), and a time-varying
 natural-mortality `M1_re` model becomes
 `build_M1(linkages = list(M1 = linkage_spec(~ (1 | Year))))`. The
-`Time_varying_*` / `M1_re` switches are soft-deprecated -- they still fit with
-their exact numerics, and `fit_mod()` emits a nudge when it sees them -- while
+`Time_varying_*` / `M1_re` switches are soft-deprecated; they still fit with
+their exact numerics, and `fit_mod()` emits a nudge when it sees them, while
 the grammar additionally lets you put a **prior** on the deviation SD (or
 estimate it freely) rather than fixing it at an input value.
 
 Note that `sigma` means different things across structures. For `rw()` it is
-the **innovation** (step) SD -- the SD of each `year-to-year` change -- because
+the **innovation** (step) SD, the SD of each `year-to-year` change, because
 a random walk is non-stationary and has no overall spread. For `ar1()` it is
-the **marginal** (stationary) SD -- the overall spread of the deviations
-(`sigma_marginal = sigma_innovation / sqrt(1 - rho^2)`) -- following the
+the **marginal** (stationary) SD, the overall spread of the deviations
+(`sigma_marginal = sigma_innovation / sqrt(1 - rho^2)`), following the
 `glmmTMB` convention. The two agree at `rho = 0` (where `ar1` reduces to `IID`),
 but if you switch a group from `rw()` to `ar1()` the estimated `sigma` is not
 directly comparable across the two.
@@ -1216,14 +1216,14 @@ numeric grouping variable (a real elapsed-time lag).
 
 ### Integrated or penalized
 
-By default the deviations are **integrated out** by the Laplace approximation --
+By default the deviations are **integrated out** by the Laplace approximation,
 they are random effects in the usual sense. Many reference assessments instead
 treat time-varying deviations as **penalized fixed effects**: the deviations stay
 in the objective as a plain penalty with a *fixed* SD and are never integrated.
 That is what ADMB/AMAK models do, and what Rceattle's own legacy
 `Time_varying_sel` / `Time_varying_q` switches do. The two are genuinely
-different models -- the marginal likelihood carries a log-determinant term the
-penalized form has no counterpart for -- so an integrated `rw()` will not
+different models, the marginal likelihood holds a log-determinant term the
+penalized form has no counterpart for, so an integrated `rw()` will not
 reproduce a penalized reference fit.
 
 `integrate = FALSE` asks for the penalized treatment:
@@ -1239,7 +1239,7 @@ A variance is consistently estimated only by integrating the deviations out;
 estimating the deviations *and* their SD jointly as fixed effects is degenerate,
 since the objective improves without bound as both go to zero. This is the same
 reason `goa_pk` fixes `sigmaR` when it treats recruitment deviations as
-penalized. It cannot be combined with `observe = ` -- an observed latent state
+penalized. It cannot be combined with `observe = `, an observed latent state
 must stay integrated for the observation to identify it.
 
 One model may mix the two treatments: an integrated state-space catchability
@@ -1256,14 +1256,14 @@ error via `ADREPORT`). The effect size and the AR1 SD are separately identified
 only when `obs_sd` is informative (small relative to the latent's SD); an
 uninformatively large `obs_sd` lets the observation stop pinning the latent, so
 use the measured series' actual measurement error. (`obs_sd` is held fixed by
-default; set `obs_sd_est = TRUE` to estimate it instead -- as the reference
-`Estimate_q = 6` model does -- but freely estimated it collapses toward 0 on a
+default; set `obs_sd_est = TRUE` to estimate it instead, as the reference
+`Estimate_q = 6` model does, but freely estimated it collapses toward 0 on a
 smooth covariate, so keep it fixed unless the covariate is informative.)
 
 The observed covariate need **not** span the whole series: if `env_data` starts
 after the model start year (e.g. a survey that began mid-series), it is
 auto-extended to `styr` with `NA` for the missing years and the observation is
-applied **only** where the covariate is present — the latent AR1 still runs over
+applied **only** where the covariate is present, the latent AR1 still runs over
 all years, but no observation is fabricated for the un-surveyed ones.
 
 The AR1 latent is **zero-mean** (no estimated level), so its mean is confounded
@@ -1273,15 +1273,15 @@ of the covariate observation come from `osa_residuals(fit, source = "ecov")`,
 residualized first against its own series as in WHAM.
 
 `rw()` / `ar1()` couple *consecutive* deviations with a unit lag, so their time
-points must be **equally spaced** -- a gap (a missing year) would be silently
+points must be **equally spaced**: a gap (a missing year) would be silently
 treated as a single step. A grid with gaps errors rather than mis-specifying
 the process.
 
 `env_data` is applied to model years **by row position**: row 1 is the model
 start year, and years beyond the last row get a zero offset (so `env_data` may
-stop short of the projection horizon). When `env_data` carries a `Year` column
+stop short of the projection horizon). When `env_data` holds a `Year` column
 it must be contiguous and start at `styr`; a gappy or unsorted `Year`, or one
-carrying `NA`, errors rather than applying a covariate/deviate to the wrong
+holding `NA`, errors rather than applying a covariate/deviate to the wrong
 year. Rows *before* `styr` are dropped with a warning, since they would shift
 every later row. Rows *after* the model years are kept: alignment runs from the
 front, so they change no offset, but `cut()`, `poly()` and `scale()` are
@@ -1292,7 +1292,7 @@ design matrix that was already right.
 
 * **Time-variation switches are not auto-translated.** The soft-deprecated
   `Time_varying_q` / `Time_varying_sel` / `M1_re` switches (above) are not
-  rewritten into the grammar for you -- rewrite the spec by hand when you want the
+  rewritten into the grammar for you, rewrite the spec by hand when you want the
   grammar's features. The switches estimate their deviations as penalized fixed
   effects with a fixed SD, so a faithful rewrite pairs `rw()` with
   `integrate = FALSE` and `init = list(sigma = )` set to the switch's
@@ -1309,7 +1309,7 @@ design matrix that was already right.
 * **Only the grammar's random effects are simulated.** `sim_mod(process = )` and
   `self_test(process = )` redraw catchability and selectivity where they are
   written as a random linkage; the legacy `Time_varying_q` / `Time_varying_sel`
-  deviations carry densities in the model but no draw, so they keep their
+  deviations hold densities in the model but no draw, so they keep their
   fitted values and `sim_mod()` warns that they did. Recruitment and M are drawn
   from their own switches (`M1_re`) as well as from linkages. Observed AR1
   (Rogers QAR1) linkages are the one grammar form that is deliberately not
@@ -1320,17 +1320,17 @@ design matrix that was already right.
 * **`sigma` means different things in the two systems.** In a linkage,
   `init = list(sigma = )` under `ar1()` is the **marginal** standard deviation.
   The `M1_re` and 2DAR1/3DAR1 selectivity switches instead take the AR(1)
-  **innovation** SD, and scale it to a marginal of `sigma / sqrt(1 - rho^2)` —
+  **innovation** SD, and scale it to a marginal of `sigma / sqrt(1 - rho^2)`,
   the WHAM convention. The two coincide only at `rho = 0`.
-* **Age-dependent linkages on processes other than M** -- the
+* **Age-dependent linkages on processes other than M**: the
   `age_bin` stratum is consumed by the M accumulator today (a
   row's `age_bin == NA` broadcasts across ages; specific values
   pin the offset to that age slice). The schema is reserved for
   other processes that may eventually vary by age.
-* **Non-parametric selectivity** -- a `coff` linkage needs a per-bin
+* **Non-parametric selectivity**: a `coff` linkage needs a per-bin
   covariate, since a per-year scalar cancels under the annual
   mean-centring; the formula grammar does not yet express that.
-* **Legacy retirement** -- `srr_fun %in% c(1, 3, 5)` and `srr_indices`
+* **Legacy retirement**: `srr_fun %in% c(1, 3, 5)` and `srr_indices`
   are errors from 5.32.0: express the environmental effect as a
   recruitment linkage. `M1_indices` and `M1_model %in% c(4, 5)` remain
   deprecated. See the migration table in `NEWS.md`.

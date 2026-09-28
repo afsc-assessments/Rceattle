@@ -30,7 +30,7 @@ the `Rceattle/` self-exclusion silently stops matching, so every internal call s
 as a consumer hit.
 
 ```
-grep -rn "$ARGUMENTS" --include="*.R" "../Rceattle-models" "../GOA-ATF-ESP" "../GOA-multispecies-assessment" "../Climate_MSE"
+grep -rn "$ARGUMENTS" --include="*.R" "../Rceattle-models" "../GOA-ATF-ESP" "../GOA-multispecies-assessment"
 ```
 
 To widen to the other sibling run directories, add them by name (`../CEATTLE`,

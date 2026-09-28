@@ -155,15 +155,16 @@ user a shifted curve, not a lowered one.
 `NonParametric` charges its shape penalties on each year's realized curve, so under
 `random_sel = TRUE` the Laplace approximation integrates a tilted density and the reported
 deviation SD is not the SD of the deviations. Rather than move the penalty and change every
-penalized AMAK fit, two forms were added that carry a proper density:
-`NonParametricIID` (13) and `NonParametricRW` (14), one per combination the guard refuses.
+penalized AMAK fit, one form was added that carries a proper density:
+`NonParametricIntegrable` (13), with `Time_varying_sel` picking the structure it covers.
 `NonParametric` and `NonParametricPM` are bit-identical and still refuse `random_sel = TRUE`;
-the refusal names the new forms. **The two refusals have different reasons**, and the pointers
+the refusal names the new form. **The two refusals have different reasons**, and the pointers
 in `NEWS.md` and in `build_map()`'s roxygen land here for both: under `IID` the shape penalties are
 charged on the realized curve, so the SD absorbs a term belonging to the normalizer; under
 `RandomWalk` the per-year renormalization additionally leaves the LEVEL of each year's
-coefficients improper, which no penalty change reaches. Form 14 fixes the second by
-constructing the walk as a base plus a running sum of increments and centring only for output.
+coefficients improper, which no penalty change reaches. Form 13 under
+`Time_varying_sel = "RandomWalk"` fixes the second by constructing the walk as a base plus a
+running sum of increments and centring only for output.
 
 **The superseded design is still in the template as comments.** Five `PROPOSED` blocks in
 `ceattle.cpp` sketch moving the penalty onto `sel_coff` in place. That approach was rejected in

@@ -1,8 +1,8 @@
-# Simulation recovery of the selectivity-deviation SD under NonParametricIID.
+# Simulation recovery of the selectivity-deviation SD under NonParametricIntegrable.
 #
 # The form exists so that random_sel = TRUE integrates a complete density and
 # the reported SD means the SD of the deviations. This harness fits Atka2022's
-# fishery as NonParametricIID with the SD held at 0.35, draws iid deviates at a
+# fishery as NonParametricIntegrable with the SD held at 0.35, draws iid deviates at a
 # known SD for the estimated coefficient bins (sim_mod() has no draw for the
 # Time_varying_sel deviates yet; see inst/dev/CLEANUP_BACKLOG.md), simulates the
 # observations from that operating model, and refits with random_sel = TRUE
@@ -26,7 +26,7 @@ seed0   <- if (length(args) >= 3) as.integer(args[3]) else 5000L
 
 suppressMessages(pkgload::load_all(".", compile = FALSE, quiet = TRUE))
 d <- Rceattle::Atka2022
-d$fleet_control$Selectivity[2]      <- "NonParametricIID"
+d$fleet_control$Selectivity[2]      <- "NonParametricIntegrable"
 d$fleet_control$Time_varying_sel[2] <- "IID"
 
 qfit <- function(dat, inits = NULL, mode = "Hindcast", random_sel = FALSE, sd = FALSE, phase = FALSE) {

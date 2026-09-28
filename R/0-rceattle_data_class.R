@@ -250,9 +250,9 @@
 
 #' Print method for an Rceattle data list
 #'
-#' Shows the model specification as an indented tree -- dimensions, fleets and
+#' Shows the model specification as an indented tree, dimensions, fleets and
 #' their selectivity / catchability forms, configured processes, active
-#' linkages, and any attached [model_config()] -- rather than dumping the full
+#' linkages, and any attached [model_config()], rather than dumping the full
 #' data list.
 #'
 #' `print()` includes the configuration block; `summary()` omits it and reports
@@ -261,7 +261,7 @@
 #' @param x An `"Rceattle_data"` object from [build_data()].
 #' @param config Show the attached [model_config()] block. Defaults to `TRUE`
 #'   for `print()` and `FALSE` for `summary()`. Has no effect on an object that
-#'   carries no configuration.
+#'   holds no configuration.
 #' @param ... Currently unused.
 #' @return `x`, invisibly.
 #' @export

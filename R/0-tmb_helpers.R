@@ -56,7 +56,9 @@
     stop("Optimization failed in .fit_tmb fallback (install TMBhelper for richer diagnostics).")
   }
 
-  # Optional Newton steps to refine the gradient
+  # Optional Newton steps to refine the gradient. These are UNCONSTRAINED, as
+  # TMBhelper's own are, so a parameter nlminb parked on a bound can be pushed
+  # past it; convergence_diagnostics() reports that as parameters_outside_bounds.
   if (newtonsteps > 0) {
     par <- best$par
     for (i in seq_len(newtonsteps)) {
@@ -112,7 +114,7 @@
 #' @description
 #' With `getsd = TRUE`, `TMBhelper::fit_tmb()` factorizes the fixed-effect
 #' Hessian before calling `sdreport`. If that `chol()` fails it warns and
-#' returns `list(opt = <estimates>, h = <Hessian>)` -- a *different shape* from
+#' returns `list(opt = <estimates>, h = <Hessian>)`, a *different shape* from
 #' its documented return, with no `$objective`, `$max_gradient` or
 #' `$Convergence_check` at the top level.
 #'
@@ -123,11 +125,11 @@
 #' actually occurred.
 #'
 #' Unwrap it back to the estimates and record the verdict `fit_tmb()` itself
-#' uses when `sdreport` returns `pdHess = FALSE` -- what it would have said had
+#' uses when `sdreport` returns `pdHess = FALSE`, what it would have said had
 #' it not returned early. `$SD` stays absent, so `fit_mod()` still records
 #' `sdrep = NULL` and `.check_sdreport_failed()` still fires.
 #'
-#' The Hessian is carried over as `$hessian`, the name
+#' The Hessian is kept as `$hessian`, the name
 #' `fit_tmb(getHessian = TRUE)` gives it. Nothing in the package reads it; it is
 #' kept only so the unwrap does not discard something the malformed shape used
 #' to expose (as `$opt$h`), since it is the one artifact that says *how* the
@@ -136,7 +138,7 @@
 #' A no-op for every converged fit and for the whole `getsd = FALSE` path.
 #'
 #' Indexes with `[[` throughout, so the guard reads exactly the names it means
-#' -- `$` partially matches on lists, and this discriminates between two shapes
+#', `$` partially matches on lists, and this discriminates between two shapes
 #' by which names are present.
 #'
 #' @param x The value returned by [TMBhelper::fit_tmb()].
@@ -184,7 +186,7 @@
 #' The objective `nlminb` reported must survive a fresh evaluation of the object
 #' it came from. Both sides are the MARGINAL objective. `obj$report()$jnll` is
 #' the JOINT negative log-likelihood at the random-effect mode, a Laplace
-#' correction away, so it cannot check a model carrying random effects.
+#' correction away, so it cannot check a model holding random effects.
 #'
 #' Evaluated at `last.par.best`, the best point TMB saw. That is not always the
 #' iterate `nlminb` returned, and stopping on a worse one is itself the

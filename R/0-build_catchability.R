@@ -14,8 +14,8 @@ Q_LINKAGE_PARAMS <- c("q")
 #' Catchability specification
 #'
 #' @description
-#' Carry environmental linkages on survey/index catchability `q`. The effect of
-#' an `env_data` covariate is written as a formula and can carry priors, bounds,
+#' Holds environmental linkages on survey/index catchability `q`. The effect of
+#' an `env_data` covariate is written as a formula and can hold priors, bounds,
 #' and an estimation phase like any other linkage.
 #'
 #' @param linkages Optional named list of [linkage_spec()] objects keyed by

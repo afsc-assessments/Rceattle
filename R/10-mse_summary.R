@@ -74,7 +74,7 @@
 #'
 #' @return A named list, one element per entity dimension so each metric lives
 #'   only where it applies (no NA padding):
-#'   * `species` -- a data.frame with one row per species (keyed by `Species`)
+#'   * `species`, a data.frame with one row per species (keyed by `Species`)
 #'     of the conservation / status metrics: per-species average catch, catch
 #'     inter-annual variability (IAV), and P(Closed) = the probability the
 #'     fishery is closed (catch ~ 0); the relative mean-squared error of
@@ -84,16 +84,16 @@
 #'     (estimation model disagrees with the operating-model truth); and terminal
 #'     biomass, SSB, dynamic SB0, SSB depletion (equilibrium and dynamic),
 #'     average SSB depletion, and SSB-collapse counts.
-#'   * `fleet` -- a data.frame with one row per fishery fleet (keyed by
+#'   * `fleet`, a data.frame with one row per fishery fleet (keyed by
 #'     `Fleet_code` / `Fleet_name`) of average catch, catch IAV, and P(Closed).
-#'   * `total` -- a named numeric of the across-fleet total average catch and
+#'   * `total`, a named numeric of the across-fleet total average catch and
 #'     catch IAV.
-#'   * `meta` -- run provenance (`nsim`, `nspp`, `nflts`, `HCR`, projection-year
+#'   * `meta`, run provenance (`nsim`, `nspp`, `nflts`, `HCR`, projection-year
 #'     range).
 #'
 #'   All metrics are averaged across projection years and simulations.
 #'
-#'   Metric columns carry syntactic names, so they can be typed without
+#'   Metric columns hold syntactic names, so they can be typed without
 #'   backticks: `avg_catch`, `catch_iav`, `p_closed`, `ssb_rmse_avg`,
 #'   `ssb_rmse_terminal`, `em_p_overfishing`, `em_p_overfished`,
 #'   `om_p_overfishing`, `om_p_overfished`, `p_overfishing_false_pos`,
@@ -126,7 +126,7 @@
 #'   The collapse metrics compare the OM with `OM_no_F`, the OM refit with no
 #'   fishing after the original operating model's `endyr` ([remove_F()]).
 #'
-#'   Each frame carries a `"labels"` attribute mapping those names to the long
+#'   Each frame holds a `"labels"` attribute mapping those names to the long
 #'   display strings (e.g. `om_terminal_depletion_dynamic` ->
 #'   `"OM: Terminal SSB Depletion (Dynamic)"`) for plots and tables:
 #'   `attr(summ$species, "labels")`.
@@ -809,9 +809,9 @@ mse_summary <- function(mse, om_only = FALSE){
 
 #' Print method for an MSE summary
 #'
-#' @description Says what the summary holds. The object is deliberately ragged --
+#' @description Says what the summary holds. The object is deliberately ragged,
 #' per-species, per-fleet and whole-system metrics have different shapes and
-#' cannot share one frame -- so it reports the blocks and their dimensions rather
+#' cannot share one frame, so it reports the blocks and their dimensions rather
 #' than printing them end to end.
 #'
 #' @param x An `"Rceattle_mse_summary"` object from [mse_summary()].

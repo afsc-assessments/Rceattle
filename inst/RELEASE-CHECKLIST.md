@@ -105,7 +105,7 @@ From a clean R session on a different machine (or in a `renv` sandbox):
 # A temporary library, so verifying a release does not overwrite the
 # working install in the middle of an assessment.
 withr::with_temp_libpaths(
-  remotes::install_github("grantdadams/Rceattle@X.Y.Z"))
+  remotes::install_github("afsc-assessments/Rceattle@X.Y.Z"))
 library(Rceattle)
 packageVersion("Rceattle")  # should match X.Y.Z
 citation("Rceattle")        # should list all references

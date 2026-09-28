@@ -31,9 +31,9 @@ preprint arXiv:1509.00660.
 \seealso{
 Useful links:
 \itemize{
-  \item \url{https://grantdadams.github.io/Rceattle/}
-  \item \url{https://github.com/grantdadams/Rceattle}
-  \item Report bugs at \url{https://github.com/grantdadams/Rceattle/issues}
+  \item \url{https://afsc-assessments.github.io/Rceattle/}
+  \item \url{https://github.com/afsc-assessments/Rceattle}
+  \item Report bugs at \url{https://github.com/afsc-assessments/Rceattle/issues}
 }
 
 }

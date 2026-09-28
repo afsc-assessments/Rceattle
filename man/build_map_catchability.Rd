@@ -22,8 +22,8 @@ Updated \code{map_list}.
 \description{
 Maps catchability base parameters (\code{index_log_q}),
 time-varying deviations (\code{index_q_dev}), and environmental linkages
-(\code{index_q_beta}) for every fleet that carries
-fitted \code{index_data} -- a fishery with a CPUE series as much as a
+(\code{index_q_beta}) for every fleet that holds
+fitted \code{index_data}, a fishery with a CPUE series as much as a
 survey. A fleet with no index rows gets none of them, whatever its
 \code{Catchability} says, since a q with no index to inform it is a flat
 direction. Sharing overrides this: \code{adjust_map_shared_params()} then

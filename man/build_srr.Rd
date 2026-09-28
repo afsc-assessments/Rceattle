@@ -70,7 +70,7 @@ The Beverton-Holt and Ricker curves above are the deterministic mean; realized
 recruitment applies the annual log deviation, \eqn{R_y \cdot exp(R_{dev,y})}, as in the
 mean form. For numerical stability the Ricker \eqn{\beta_{srr}} is estimated on a scale
 divided by 1,000,000, so the fitted \code{beta} is 1e6 times the density-dependence
-coefficient in the equation above; \code{Bmsy_lim} (\eqn{\approx 1/\beta_{srr}}) carries
+coefficient in the equation above; \code{Bmsy_lim} (\eqn{\approx 1/\beta_{srr}}) holds
 the same scaling.
 
 When \code{srr_pred_fun > 0} and \code{srr_fun = 0} recruitment in the hindcast is estimated as in \code{srr_fun = 0} \deqn{R_y = exp(R0 + R_{dev,y})}, but an additional stock recruitment relationship defined by \code{srr_pred_fun} is estimated between \code{srr_hat_styr} and \code{srr_hat_endyr} and treated as an additional penalty. The stock recruitment relationship defined by \code{srr_pred_fun} is then used in the projection.
@@ -125,7 +125,7 @@ starts at \code{srr_prior} (default 4) wherever that is an alpha, and at
 with \code{srr_alpha_init} / \code{srr_beta_init} or a linkage \code{init};
 supplying \code{srr_prior} as alpha's starting value is deprecated. \eqn{\beta} sets the density dependence in
 \eqn{R = \alpha S / (1 + \beta S)}, so it must be on the order of
-\eqn{(\alpha - 1/\phi_0) / R_0} -- typically \eqn{10^{-3}} or smaller for a
+\eqn{(\alpha - 1/\phi_0) / R_0}, typically \eqn{10^{-3}} or smaller for a
 stock measured in tonnes; starting three orders of magnitude away drives
 predicted recruitment to near zero and the optimizer returns
 \code{NA/NaN gradient evaluation}. From a steepness \eqn{h} and unfished

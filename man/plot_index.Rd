@@ -46,7 +46,7 @@ A \code{ggplot} object.
 }
 \description{
 Plots fitted index series: observed points with 95\% observation intervals and
-the model-predicted index, faceted by fleet. Every fleet carrying
+the model-predicted index, faceted by fleet. Every fleet holding
 \code{index_data} is drawn, a fishery with a CPUE series as much as a survey.
 }
 \details{

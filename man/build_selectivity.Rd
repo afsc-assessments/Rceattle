@@ -16,7 +16,7 @@ a spec to particular fleets.}
 A list of selectivity settings for \code{\link[=fit_mod]{fit_mod()}}.
 }
 \description{
-Carries environmental linkages on selectivity parameters. The effect on a
+Holds environmental linkages on selectivity parameters. The effect on a
 parameter is written as a formula and composes additively with any
 \code{Time_varying_sel} process error on the same fleet (the two are separate
 mechanisms: a covariate effect versus a deviation).
@@ -33,7 +33,7 @@ aliased \code{peak} / \code{right_floor}.}
 \item{\code{coff}}{non-parametric selectivity-at-bin coefficients.}
 \item{\code{apical}}{a multiplier on one sex's whole curve (log scale),
 applied after the form and before normalization, so every estimated
-form takes it. Name the fleet and the sex that carries it
+form takes it. Name the fleet and the sex that holds it
 (\code{by = ~ fleet + sex}, \code{fleet = 3}, \code{sex = "male"}), as Stock
 Synthesis's male-offset option does; the other sex is the reference.
 See Details.}
@@ -54,9 +54,12 @@ of the sexes' peak heights only where their shapes peak equally (the
 logistic family on an age axis); for a dome with sex-specific shape, read
 it as the multiplier on that sex's curve and take the peak ratio from
 \code{fit$quantities$sel_at_age}. Only the contrast between the sexes is
-identified (the common level is \code{log_F}), so one sex carries it and the fit
+identified (the common level is \code{log_F}), so one sex holds it and the fit
 is refused if both do, if no fleet or no sex is named, if the species has
-one sex, or on a \code{Fixed}, AR1 or mirror fleet. It is also refused where
+one sex, on a \code{Fixed}, AR1 or \code{Fleet_type = "Off"} fleet, on a fleet that
+shares another's \code{Selectivity_index} block, or under \code{link = "identity"},
+which could drive the multiplier negative; use the default \code{link = "log"}.
+It is also refused where
 \code{Sel_norm_scope = "WithinSex"} normalization would divide it straight back
 out; use \code{"AcrossSexes"}, under which the more-selected sex peaks at 1, or
 turn \code{Sel_norm_bin} off. The contrast is informed only by joint composition
@@ -68,7 +71,7 @@ Naming \code{fleet} and \code{sex} is enough: \code{by} defaults to \code{~ flee
 this parameter.
 An intercept prior is on the multiplier's natural scale (\code{lognormal()}
 centred on 1 means no offset). Like every selectivity linkage, a covariate
-on it acts in the hindcast years; projection years carry the last hindcast
+on it acts in the hindcast years; projection years hold the last hindcast
 year's curve.
 
 \strong{Priors on a selectivity parameter.} An intercept-only formula (\code{~ 1}) with
@@ -80,13 +83,14 @@ See Examples for a normal prior on the ascending inflection. This mirrors the
 prior-only \code{\link[=build_composition]{build_composition()}} path.
 
 A selectivity prior targets one parameter, so in a two-sex model an
-unstratified \code{~ 1} prior constrains sex 1 only -- use \code{by = ~ sex} for a
+unstratified \code{~ 1} prior constrains sex 1 only, use \code{by = ~ sex} for a
 per-sex prior. An \code{init} on a selectivity intercept has no effect (the
 starting value comes from the data), and a prior on the double-normal
 \code{right_floor} is not supported.
-For a fleet that mirrors another fleet's selectivity (shared
-\code{Selectivity_index}), place the prior on the lead fleet so the shared
-parameter block is not penalized more than once.
+Fleets sharing a \code{Selectivity_index} estimate one parameter block, so place
+the prior on the group's lead fleet (its first fleet that is not \code{Off}); a
+prior on a follower would penalize the shared block once per sharing fleet.
+A prior on an \code{Off} fleet is refused: its selectivity is not estimated.
 }
 \examples{
 \donttest{

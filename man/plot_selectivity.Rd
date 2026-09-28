@@ -59,7 +59,7 @@ transparency, i.e. under \code{colour_by = "model"}.}
 \code{"auto"} (the default) for year with a single model and model with several.}
 
 \item{add_ci}{Add a 95\% confidence interval. Only available where the
-plotted quantity carries standard errors; warns and draws none otherwise.}
+plotted quantity holds standard errors; warns and draws none otherwise.}
 }
 \value{
 A \code{ggplot}, or for a model mixing age- and length-based fleets a
@@ -81,7 +81,7 @@ short retrospective peel stops short of solid. \code{colour_by} overrides the
 choice either way, and \code{alpha} sets the faintest end.
 
 Line type separates the sexes, and \code{lty} supplies its values. Panels are
-fleets, so \code{spnames} does not label anything here -- it only lets \code{species}
+fleets, so \code{spnames} does not label anything here, it only lets \code{species}
 select by name.
 }
 
@@ -89,13 +89,13 @@ select by name.
 \code{add_ci = TRUE} draws \verb{exp(log(sel) +/- 1.96 * sd)}, so the band is positive
 and right-skewed. It needs a fit run with \code{fit_control(selectivity_se = TRUE)}.
 
-Only estimated, age-based fleets carry one. A length-based fleet is drawn on
-\code{sel_at_length}, which is what was fitted and carries no error; a
+Only estimated, age-based fleets hold one. A length-based fleet is drawn on
+\code{sel_at_length}, which is what was fitted and holds no error; a
 \code{Selectivity = "Fixed"} fleet estimates nothing; and no fleet gets a band
-below its first selected bin (\code{Bin_first_selected}, a 1-based bin ordinal --
+below its first selected bin (\code{Bin_first_selected}, a 1-based bin ordinal,
 not an absolute age), where selectivity is 0 by construction. A
 fleet mirroring another's \code{Selectivity_index} has no errors of its own and
-borrows its lead's, but only where the two curves agree -- \code{data_check()} only
+borrows its lead's, but only where the two curves agree, \code{data_check()} only
 warns when a shared group differs in a shaping column such as \code{Sel_norm_bin}.
 
 Every year drawn gets its own band, so a time-varying fleet is dense. Pair it

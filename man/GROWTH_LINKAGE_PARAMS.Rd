@@ -12,7 +12,7 @@ Von Bertalanffy uses \code{K}, \code{L1}, \code{Linf}; Richards adds \code{m}.
 \code{sd_L1} / \code{sd_Linf} are the standard deviations of length-at-age
 anchored at \code{L1} and \code{Linf} (the SD-at-age interpolation endpoints).
 Only intercept-only specs (\code{~ 1}) are honored
-on the SD endpoints -- they thread through \code{init} / \code{bounds} /
+on the SD endpoints, they thread through \code{init} / \code{bounds} /
 \code{priors} onto the growth SD-at-age but do not vary by year.
 The empirical weight-at-age model admits no linkages.
 }

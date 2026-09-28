@@ -185,7 +185,7 @@
 
 #' Look up what a CEATTLE parameter is
 #'
-#' The TMB parameter vector uses transformed, abbreviated names --
+#' The TMB parameter vector uses transformed, abbreviated names,
 #' `log_M1`, `R_log_sd`, `index_log_q`. This returns the table mapping each one
 #' to the quantity it represents on its natural scale, which process it belongs
 #' to, what it means, and its dimensions.

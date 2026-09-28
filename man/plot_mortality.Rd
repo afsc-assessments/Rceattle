@@ -68,6 +68,6 @@ A \code{ggplot}.
 \description{
 Mortality-at-age over the hindcast for one model: predation
 mortality (\code{M2}, the default) or residual natural mortality (\code{M1}). One
-component at a time, never their sum -- \code{\link[=plot_m_at_age]{plot_m_at_age()}} draws total M
+component at a time, never their sum, \code{\link[=plot_m_at_age]{plot_m_at_age()}} draws total M
 (M1 + M2) as a time series.
 }

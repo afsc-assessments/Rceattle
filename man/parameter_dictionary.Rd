@@ -21,7 +21,7 @@ A data frame with one row per parameter and columns \code{internal},
 \code{natural}, \code{process}, \code{meaning} and \code{dims}.
 }
 \description{
-The TMB parameter vector uses transformed, abbreviated names --
+The TMB parameter vector uses transformed, abbreviated names,
 \code{log_M1}, \code{R_log_sd}, \code{index_log_q}. This returns the table mapping each one
 to the quantity it represents on its natural scale, which process it belongs
 to, what it means, and its dimensions.

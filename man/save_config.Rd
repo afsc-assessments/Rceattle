@@ -7,7 +7,7 @@
 save_config(x, file = "Rceattle_config.yaml", ...)
 }
 \arguments{
-\item{x}{A fitted Rceattle object, a data list carrying \verb{$model_config}, an
+\item{x}{A fitted Rceattle object, a data list holding \verb{$model_config}, an
 \code{Rceattle_run_config}, or an \code{Rceattle_model_config}.}
 
 \item{file}{Output path for the \code{.yaml} file.}
@@ -19,8 +19,8 @@ save_config(x, file = "Rceattle_config.yaml", ...)
 Invisibly, the \code{Rceattle_run_config} that was written.
 }
 \description{
-Round-trips a full run configuration -- the \code{\link[=model_config]{model_config()}} structure plus
-the estimation controls and \code{\link[=fit_control]{fit_control()}} bundle -- to a
+Round-trips a full run configuration, the \code{\link[=model_config]{model_config()}} structure plus
+the estimation controls and \code{\link[=fit_control]{fit_control()}} bundle, to a
 git-diffable YAML file, with each field's documentation emitted as a comment
 and a spec-tree + provenance header. Only fields that differ from their
 defaults are written, so two configurations diff to just their real

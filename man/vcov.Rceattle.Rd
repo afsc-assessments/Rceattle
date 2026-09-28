@@ -17,6 +17,6 @@ A numeric matrix, or \code{NULL} if \code{sdreport} was not run
 }
 \description{
 Returns the fixed-effect covariance matrix produced by
-\code{\link[TMB:sdreport]{TMB::sdreport()}}. Random-effect covariance is not returned here --
+\code{\link[TMB:sdreport]{TMB::sdreport()}}. Random-effect covariance is not returned here,
 use \code{object$sdrep} for the full report.
 }
