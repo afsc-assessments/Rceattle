@@ -435,8 +435,13 @@ rearrange_data <- function(data_list, build_osa = FALSE){
   #   structure rather than from a hindcast year, and because leaving it in
   #   catch_ctl would index year -1 in section 9.1 (an out-of-bounds read, not
   #   an error). The remaining rows are the hindcast and projection as before.
-  .equil <- data_list$catch_data$Year == (data_list$styr - 1L)
-  .equil[is.na(.equil)] <- FALSE
+  # Only a mode that estimates Finit reads a styr - 1 row as an equilibrium
+  # catch; under any other the row is ordinary catch history and is dropped
+  # below, exactly as it was before this existed.
+  .equil <- .rce_equil_catch_rows(data_list$catch_data, data_list$styr,
+                                  data_list$initMode)
+  .hist  <- !is.na(data_list$catch_data$Year) &
+    data_list$catch_data$Year == (data_list$styr - 1L) & !.equil
   data_list$equil_catch_ctl <- data_list$catch_data[.equil, , drop = FALSE] %>%
     dplyr::select(Fleet_code, Species) %>%
     dplyr::mutate_all(as.integer) %>%
@@ -450,7 +455,11 @@ rearrange_data <- function(data_list, build_osa = FALSE){
     data_list$equil_catch_ctl <- matrix(0L, 0, 2)
     data_list$equil_catch_obs <- matrix(0,  0, 2)
   }
-  data_list$catch_data <- data_list$catch_data[!.equil, , drop = FALSE]
+  data_list$catch_data <- data_list$catch_data[!(.equil | .hist), , drop = FALSE]
+  # Drop the row names the subset carries over. They are an artifact of
+  # splitting the equilibrium rows out, and catch_obs is built from this frame:
+  # named rows there would travel into obsvec's OSA bookkeeping.
+  rownames(data_list$catch_data) <- NULL
 
   # - Seperate catch metadata from observation
   data_list$catch_ctl <- data_list$catch_data %>%

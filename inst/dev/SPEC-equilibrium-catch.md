@@ -148,6 +148,23 @@ Note that negative `Year` values are already reserved: `run_mse()` splices
 negative-Year catch rows back in as the next assessment's data. `styr - 1` is a real
 year and does not collide with that.
 
+> **RESOLVED, 5.46.0, and this paragraph was half right.** `styr - 1` does not collide
+> with the negative-Year reservation, but it does collide with ordinary catch history:
+> `GOA2018SS` carries 23 catch rows before `styr`, two of them on 1976. Reading those
+> as equilibrium observations under the default `initMode` predicted 0 and took
+> `log(0)`, so every GOA fit returned a non-finite objective and the golden references
+> failed with `optimHess: non-finite value supplied by optim`.
+>
+> A `-999` sentinel was tried and reverted: `abs(-999) = 999` passes `run_mse()`'s
+> `abs(Year) <= endyr` window filters, so the row survives as year 999 — exactly the
+> reservation this paragraph warns about.
+>
+> What shipped is `styr - 1` **gated on `initMode`**: the row is read only under a
+> mode that estimates `Finit`, `data_check()` names the fleets whose rows it read
+> whenever it reads any, and two rows for one fleet or a non-positive value are
+> refused. Under any other mode the row is history and is dropped as before, which is
+> what keeps `GOA2018SS` and the golden references unchanged.
+
 **Alternative: `fleet_control$Equilibrium_catch` + `Equilibrium_catch_sd`.** Two new
 columns, but immune to the silent-drop hazard, and defensible because the prediction
 path is separate from the hindcast catch loop anyway. Rejected as the default

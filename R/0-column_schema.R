@@ -6,6 +6,28 @@
 #' a probability, and every row then failed the sums-to-1 check.
 #' @keywords internal
 #' @noRd
+# An initial equilibrium catch is a catch_data row at Year == styr - 1: the catch
+# the stock yielded under the initial fishing mortality before the hindcast began.
+# It shares that year with ordinary catch history -- GOA2018SS carries 23 rows
+# back to 1961 -- so it is only READ as an equilibrium catch under an initMode
+# that estimates Finit, and data_check() names the rows when it is. A negative
+# sentinel cannot be used: run_mse() reserves negative Year for data it splices in
+# as the next assessment's.
+.RCE_FINIT_INITMODES <- c("FishedNonEquilibrium", "FishedNonEquilibriumScaled",
+                          "FishedNonEquilibriumSelected")
+
+# TRUE where a catch_data row is the initial equilibrium catch. `initMode` may be
+# a code or a name; absent, switch_check() announces NonEquilibrium, which holds
+# Finit at 0 and therefore reads no equilibrium catch.
+.rce_equil_catch_rows <- function(catch_data, styr, initMode) {
+  if (is.null(catch_data) || !nrow(catch_data) || is.null(styr)) return(logical(0))
+  im <- if (is.null(initMode) || !length(initMode) || all(is.na(initMode))) {
+    "NonEquilibrium"
+  } else .canon_switch(initMode, initMode_map)
+  if (!isTRUE(im %in% .RCE_FINIT_INITMODES)) return(rep(FALSE, nrow(catch_data)))
+  !is.na(catch_data$Year) & catch_data$Year == (styr - 1L)
+}
+
 .RCE_AGE_ERROR_META <- c("Species", "True_age", "Ageing_error_index",
                          "Ageing_error_name")
 

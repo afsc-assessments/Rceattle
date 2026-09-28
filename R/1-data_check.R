@@ -1381,6 +1381,46 @@ data_check <- function(data_list) {
     errors <- c(errors, "catch_data$Catch must be >= 0")
   }
 
+  # Initial equilibrium catch ----
+  # A catch_data row at styr - 1 is read as the catch the stock yielded under the
+  # initial fishing mortality, but ONLY under an initMode that estimates Finit:
+  # the prediction is Baranov at Finit, so a mode holding Finit at 0 would predict
+  # 0 and the lognormal likelihood would take log(0). That year is also ordinary
+  # catch history in real data (GOA2018SS carries 23 rows before styr), so the
+  # rows are named here whenever they ARE read, and nothing is reinterpreted
+  # silently. SS3 pairs the observation and the parameter the same way
+  # (SS_readcontrol_330.tpl).
+  if (has_data(data_list$catch_data) && "Year" %in% colnames(data_list$catch_data)) {
+    .eq <- .rce_equil_catch_rows(data_list$catch_data, data_list$styr,
+                                 data_list$initMode)
+    if (any(.eq)) {
+      .flt <- data_list$catch_data$Fleet_code[.eq]
+      .nm  <- if ("Fleet_name" %in% colnames(data_list$catch_data)) {
+        data_list$catch_data$Fleet_name[.eq]
+      } else .flt
+      message("Initial equilibrium catch read from catch_data at Year ",
+              data_list$styr - 1L, " for fleet(s) ",
+              paste(unique(.nm), collapse = ", "),
+              ". Finit is fitted to it; remove the row to leave Finit ",
+              "unidentified, or use an initMode that holds Finit at 0 to treat ",
+              "the row as catch history.")
+      if (anyDuplicated(.flt)) {
+        errors <- c(errors, paste0(
+          "More than one initial equilibrium catch at Year ",
+          data_list$styr - 1L, " for fleet(s) ",
+          paste(unique(.flt[duplicated(.flt)]), collapse = ", "),
+          ". A fleet has one initial F and so one equilibrium catch."))
+      }
+      .eqc <- suppressWarnings(as.numeric(data_list$catch_data$Catch[.eq]))
+      if (any(!is.finite(.eqc) | .eqc <= 0)) {
+        errors <- c(errors, paste0(
+          "An initial equilibrium catch (Year ", data_list$styr - 1L,
+          ") must be positive; it is the observation Finit is fitted to, and a ",
+          "zero or blank one leaves Finit with nothing to identify it."))
+      }
+    }
+  }
+
   # MVN survey covariance requirement ----
   # A fleet using Index_distribution == "MVN" or "MVNORM" must supply a square,
   # symmetric variance-covariance matrix in data_list$index_cov (keyed by

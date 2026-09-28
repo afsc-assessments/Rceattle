@@ -166,10 +166,10 @@ clean_data <- function(data_list){
     }
   }
 
-  # catch_data admits one year more than the others: styr - 1 holds the initial
-  # equilibrium catch, the catch the stock yielded under the initial F before
-  # the hindcast began. It is an observation, not a hindcast year, and
-  # rearrange_data() splits it out before catch_ctl is built.
+  # catch_data admits one year more than the others: styr - 1 may hold the
+  # initial equilibrium catch. Whether it does depends on initMode, which
+  # rearrange_data() applies -- under a mode that holds Finit at 0 the row is
+  # ordinary history and is dropped there, as it always was.
   if(!is.null(data_list$catch_data)) {
     data_list$catch_data <- data_list$catch_data |>
       dplyr::filter(abs(Year) >= (data_list$styr - 1L) & abs(Year) <= data_list$projyr)
