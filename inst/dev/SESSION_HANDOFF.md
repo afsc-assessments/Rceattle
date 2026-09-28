@@ -5,6 +5,37 @@ session. Maintained by `/handoff`.
 
 ## Now
 
+**`cod-bridge` is at 5.46.0 and open as a PR into `dev`.** It merges `dev` (5.45.0) and carries
+seven features from the SS3 cod bridge: `initMode 6`, the SS3 growth / maturity / length-bin
+options, `Selectivity = "DoubleNormalSS3"` (code 15), length-based selectivity on the population
+bins, the initial equilibrium catch, and a per-fleet ageing error matrix. **Full suite 9,932
+assertions / 0 failures / 0 errors** and **golden 20 / 0**, both at `50cb628b`, serial, R 4.5.1.
+
+**The thing to know before touching the equilibrium catch.** It is a `catch_data` row at
+`styr - 1`, and that year is NOT a free marker: `GOA2018SS` carries 23 catch rows before `styr`,
+two of them on 1976. An earlier version of this read those as equilibrium observations, predicted
+0 under an `initMode` that holds `Finit` at 0, took `log(0)`, and failed all four golden
+references with `optimHess: non-finite value supplied by optim`. **That failure was recorded for
+most of a session as a pre-existing `goa_ss` problem. It was not; it was this.** A negative
+sentinel cannot be used instead -- `run_mse()` reserves negative `Year` for rows it splices in as
+the next assessment's data, and its window filters are on `abs(Year)`, so `-999` survives as year
+999. What ships is the same marker gated on `initMode`, with `data_check()` naming the fleets
+whose rows it reads. `.rce_equil_catch_rows()` holds the rule so `clean_data()`,
+`rearrange_data()` and `data_check()` cannot drift.
+
+**Two lessons from the merge worth carrying.** The branch's selectivity codes were stale --
+it had 13/14 as two integrable forms where `dev` now has a single 13 -- and the merged C++ had
+already resolved to dev's design, so the R maps were made to match the template rather than the
+other way round. And five registries owed entries for this branch's features
+(`not_a_column`, `.QUANT_INFO`, the jnll axis scanner, `R/data.R`'s `@format`, the pinned
+fleet_control defaults); every one was caught by a schema test rather than by reading the diff.
+
+**Read the suite from testthat, not from the log.** `grep` for failures missed golden's error
+three times in one session, because testthat writes `── 1. Error (...)` and the pattern looked
+for `^ERROR`. `as.data.frame(testthat::test_local(reporter = "silent"))` gives the counts
+directly. A capped run also aborts on max-failures, so "N failures" from a capped log is a floor.
+
+
 **`dev` is at 5.45.0 and `main` at 5.33.0.** The next step is one `dev` -> `main` release
 covering 5.34.0 through 5.45.0, per `inst/RELEASE-CHECKLIST.md`. Read that file's pkgdown note
 before tagging: the `release: published` event has silently failed to fire once already.
