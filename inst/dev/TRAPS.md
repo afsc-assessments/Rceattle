@@ -742,9 +742,11 @@ bit-identical is this, not a numeric regression. Diagnose it from the gradient a
 basin but by taking it out of the gate: `test-golden-regression.R` now evaluates the likelihood
 AT the committed reference parameters (`tests/testthat/fixtures/golden-reference.rds`,
 `estimateMode = 3`) and asserts they are still a stationary point, with the cold-start fits kept
-as a separate convergence-only test. The second minimum is still there, and a real change that
-moved the model into it would now show as a gradient failure at the reference rather than as a
-52.9 objective delta.
+as `tools/verify/verify-golden-cold-start.R`. The second minimum is still there, and the gate no
+longer sees it at all: a change that moves the OPTIMIZER into the other basin without touching
+the likelihood leaves both the objective and the gradient at the reference exactly where they
+were. That class -- phases, starting values, bounds inactive at the reference -- is what the
+cold-start harness is for, and it is the price of a deterministic gate.
 
 ## Prior centring shares `bias_adjust_proc` with the recruitment deviations
 

@@ -35,18 +35,36 @@ A change to the model moves the objective; a change to the optimizer's path
 cannot. The check still asserts the reference is a stationary point, so a pin
 cannot drift to a number that merely reproduces somewhere flat.
 
-Measured at 5.45.0: all four reproduce their pinned objective to 1e-12 absolute,
-1e-16 relative, at gradients between 1.1e-11 and 3.3e-06 against the 1e-4
-threshold. The multispecies pair was the open question, since predation iterates
-inside `fit_mod()`, and the iteration reaches the same state from the reference
-parameters. The gate's tolerance is 1e-8 relative, a hundred times tighter than
-the 1e-6 it replaces; a 0.01 shift in the objective (9.8e-7 relative) fails it,
-verified by mutating the template and reverting.
+The fixture pins the parameters and the objective at the SAME point, which is
+not free: `newtonsteps` moves `opt$par` and `opt$objective`, while
+`estimated_params` and `quantities` stay at TMB's `last.par.best`. On `goa_ss`
+those are 2.3e-08 apart in parameter space -- 9.1e-12 in objective, and a
+gradient of 3.2e-06 rather than 1.3e-11. Pinning from one point (the polished
+one) makes the reproduction exact and leaves the gradient gate its margin.
 
-The cold-start fits are kept as their own test, asserting **convergence only**.
-Both of `goa_ss`'s minima are stationary points, so the gradient holds whichever
-is reached, and a failure there means the optimizer or the phasing stopped
-working rather than that the model changed.
+Measured at 5.45.1: all four reproduce their pinned objective to 7e-12 absolute,
+which is the rounding of the 15-digit literal itself and not a model difference,
+at gradients between 1.3e-11 and 5.0e-11 against a 1e-8 threshold. The
+multispecies pair was the open question, since predation iterates inside
+`fit_mod()`, and the iteration reaches the same state from the reference
+parameters. The objective gate is 1e-10 relative, about 1e-06 nats. That is not
+a hundredfold gain in sensitivity over the 1e-6 it replaces -- the old gate's
+real discrimination floor on the GOA pair was the 52.9-nat basin gap, 4e-03
+relative. What this buys is determinism. A 0.01 shift in the objective fails it,
+verified by mutating `jnll` in the template and reverting.
+
+The cold-start fits move to `tools/verify/verify-golden-cold-start.R`. They are
+a harness rather than a test because their failure mode is the platform-dependent
+one this change exists to remove: whether the higher minimum is as well polished
+as the lower one is **unmeasured**, so a gradient assertion there could fail for
+a reason that is not a regression. The harness asserts the direction that cannot
+flake -- a cold fit must not land BELOW the reference, which is a likelihood
+change and not a basin lottery -- and reports the rest.
+
+**What this gives up**: an edit confined to the optimization path no longer fails
+the gate. A phase order, a starting value or a bound that is inactive at the
+reference can now move a cold fit into the other basin with the gate green. Run
+the cold-start harness when touching those.
 
 Regenerate the fixture with `tools/verify/regenerate-golden-reference.R`, and
 only when a model change is intended. The script refuses to write a reference
