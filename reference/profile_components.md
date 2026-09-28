@@ -149,10 +149,10 @@ comps <- profile_components(prof)
 head(comps)
 #>   slot_1 fit component unit  axis series     value
 #> 1   0.20   1     Total <NA> model  Total 28.479708
-#> 2   0.25   2     Total <NA> model  Total 23.399627
-#> 3   0.30   3     Total <NA> model  Total 18.451669
+#> 2   0.25   2     Total <NA> model  Total 23.399626
+#> 3   0.30   3     Total <NA> model  Total 18.451668
 #> 4   0.35   4     Total <NA> model  Total 13.636791
 #> 5   0.40   5     Total <NA> model  Total  8.955937
-#> 6   0.45   6     Total <NA> model  Total  4.410035
+#> 6   0.45   6     Total <NA> model  Total  4.410034
 # }
 ```
