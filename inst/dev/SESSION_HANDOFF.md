@@ -5,6 +5,21 @@ session. Maintained by `/handoff`.
 
 ## Now
 
+**5.45.0 is released.** Tagged `5.45.0` on `main`'s merge commit `b4506079` and published
+2026-09-28; the `release: published` event fired pkgdown (the 5.21.0 silent failure did not
+recur), `deep-checks` was dispatched, and **checklist section 4 passed**: installed from the tag
+into a temporary library in a clean session, `packageVersion()` reads 5.45.0, `citation()` and
+the `fit_mod` example resolve. `dev` carries 5.45.1, the `golden` robustness fix.
+
+**Read this before trusting `deep-checks` `golden` again.** It is reworked at 5.45.1, so the
+expected signature has changed: a `goa_ss` delta of 52.9 is no longer the thing to look for,
+because the gate no longer re-optimizes. And the red seen at the 5.45.0 release (run
+36433121293) was **not** the 52.9 at all -- it was the MVN/Normal configuration pin failing its
+GRADIENT assertion, 3.5e-04 on ubuntu against a 1e-4 gate where local macOS gives 2.5e-05, with
+its objective reproducing and the other 19 assertions passing. That gate is 1e-3 from 5.45.1,
+with the reason recorded in the test. `TMBhelper` is installed on the runner, so a different
+optimizer explains neither. See the 5.45.1 NEWS entry and `TRAPS.md`.
+
 **`cod-bridge` is at 5.46.0 and open as a PR into `dev`.** It merges `dev` (5.45.0) and carries
 seven features from the SS3 cod bridge: `initMode 6`, the SS3 growth / maturity / length-bin
 options, `Selectivity = "DoubleNormalSS3"` (code 15), length-based selectivity on the population
@@ -36,7 +51,7 @@ for `^ERROR`. `as.data.frame(testthat::test_local(reporter = "silent"))` gives t
 directly. A capped run also aborts on max-failures, so "N failures" from a capped log is a floor.
 
 
-**`dev` is at 5.45.0 and `main` at 5.33.0.** The next step is one `dev` -> `main` release
+**`dev` is at 5.45.2 and `main` at 5.45.0.** The next step is one `dev` -> `main` release
 covering 5.34.0 through 5.45.0, per `inst/RELEASE-CHECKLIST.md`. Read that file's pkgdown note
 before tagging: the `release: published` event has silently failed to fire once already.
 **The tag is the DESCRIPTION version, so read it off `DESCRIPTION` at the moment you tag; it

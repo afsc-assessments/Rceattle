@@ -323,6 +323,20 @@ selectivity linkage adds a per-sex height multiplier to any estimated form, so a
 "none" here means the shape cannot hold the difference, not that the model cannot.
 The multiplier is applied after the form's own centring or normalization.
 
+**The form's own parameters are already per sex, and stay that way.** Each sex
+gets its own copy: a two-sex `Logistic` fleet estimates a slope and an
+inflection for each. An `apical` linkage adds a height on top of two
+already-free shapes, so that fleet estimates five parameters -- slope and
+inflection per sex, plus one multiplier on the sex named. This is where the
+Stock Synthesis analogy stops. An SS male offset is usually an offset from the
+female *shape*, so the shape is shared and one parameter carries the sex
+difference; here both shapes stay free and the offset carries only the height.
+The distinction matters when the sexes' compositions are thin: each shape is
+informed by every row for that sex, but the height is informed only by the
+joint-sex rows (`Sex = 3`). Sharing a shape across the sexes is not a switch
+today -- it needs a hand-edited `map` that points one sex's cells at the
+other's.
+
 Measured on `GOAatf`'s two-sex fishery, as the ratio of male to female maximum
 selectivity: `Logistic` 1.00, `DoubleLogistic` 1.97, `2DAR1` 4.53. The same
 `DoubleLogistic` fit under `"WithinSex"` returns to 1.00, which is the column

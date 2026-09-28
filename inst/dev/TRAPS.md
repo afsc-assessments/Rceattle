@@ -725,6 +725,17 @@ across the boundary.
   `sd_plus_group` included — is never exercised. Covered constructively by the
   `test-growth-*.R` files.
 
+**The `golden` job's red on `main` at the 5.45.0 release was NOT the 52.9 basin — measured
+2026-09-28, run 36433121293.** It failed on the MVN/Normal index-family configuration pin, at
+the GRADIENT: `max|gradient|` 3.5e-04 on `ubuntu-latest` against a 1e-4 gate, where local
+macOS/arm64 gives 2.5e-05. The objective it pins reproduced to its 1e-6 tolerance on the same
+run, and the other 19 assertions passed, so nothing about the model moved. That configuration
+sits on the q-versus-population-scale ridge, softened 11.5x by compound symmetry in `Sigma`, so
+its gradient records where the optimizer stopped rather than what the model is; the gate is 1e-3
+from 5.45.1. Two lessons: the four integration references were not the only platform-dependent
+thing in that file, and `TMBhelper` **is** installed on the runner (1.4.0 from
+`kaskr/TMB_contrib_R@d275e52`), so a different optimizer is not the explanation for any of it.
+
 **`goa_ms` (fixed-M GOA multispecies) sits on a flat likelihood ridge:** the same objective at
 different `par`/`ssb` across *different* code, though deterministic on same-code re-runs. Judge
 it on `obj`/`jnll`, not `par`/`ssb`.
@@ -738,8 +749,15 @@ minimum with `newtonsteps = 3` in place. HEAD reproduces the reference (12867.99
 52.9 that `golden-check.md` attributes to tolerance-stopping (commit `1a172677`) is the same
 gap; polishing did not remove it. A `goa_ss` delta of 52.9 with the other three models
 bit-identical is this, not a numeric regression. Diagnose it from the gradient at the reference
-`par`, not from the objective. A robustness fix (a warm start from the reference `par`, or a
-second start keeping the lower minimum) is open; see `CLEANUP_BACKLOG.md`.
+`par`, not from the objective. **Fixed at 5.45.1**, not by making the optimizer land in one
+basin but by taking it out of the gate: `test-golden-regression.R` now evaluates the likelihood
+AT the committed reference parameters (`tests/testthat/fixtures/golden-reference.rds`,
+`estimateMode = 3`) and asserts they are still a stationary point, with the cold-start fits kept
+as `tools/verify/verify-golden-cold-start.R`. The second minimum is still there, and the gate no
+longer sees it at all: a change that moves the OPTIMIZER into the other basin without touching
+the likelihood leaves both the objective and the gradient at the reference exactly where they
+were. That class -- phases, starting values, bounds inactive at the reference -- is what the
+cold-start harness is for, and it is the price of a deterministic gate.
 
 ## Prior centring shares `bias_adjust_proc` with the recruitment deviations
 
