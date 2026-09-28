@@ -76,11 +76,19 @@ testthat::test_that("the age-length key and weight-at-age integrate over the pop
   for (a in seq_len(na)) {
     mu <- q$length_hat[1, 1, a, 1]
     p  <- ss3_alk(mu, ss3_sd(m, a, mu, a == na), fine)
-    # Population bins summed into the data bins they sit in
+    # growth_matrix is stored at POPULATION resolution: SS3 forms sel(L) * P(L|age)
+    # on the population grid and bins the result, so the key itself is not
+    # pre-aggregated. The summing into data bins happens later, in pred_CAAL,
+    # which is what the length compositions are built from.
+    testthat::expect_equal(unname(q$growth_matrix[1, 1, a, seq_along(fine), 1]),
+                           as.numeric(p), tolerance = 1e-10)
+    # ... and that aggregation is still exactly the data-bin key.
     to_data <- findInterval(fine + 1e-8, edges)
-    testthat::expect_equal(unname(q$growth_matrix[1, 1, a, seq_along(edges), 1]),
-                           as.numeric(tapply(p, factor(to_data, levels = seq_along(edges)), sum)),
-                           tolerance = 1e-10)
+    testthat::expect_equal(
+      as.numeric(tapply(unname(q$growth_matrix[1, 1, a, seq_along(fine), 1]),
+                        factor(to_data, levels = seq_along(edges)), sum)),
+      as.numeric(tapply(p, factor(to_data, levels = seq_along(edges)), sum)),
+      tolerance = 1e-10)
     testthat::expect_equal(unname(q$weight_hat[1, 1, a, 1]), sum(p * alpha * ss3_mid(fine)^beta),
                            tolerance = 1e-10)
   }

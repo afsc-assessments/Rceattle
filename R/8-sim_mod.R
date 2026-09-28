@@ -905,12 +905,19 @@ sim_mod <- function(object = NULL, simulate = FALSE, process = FALSE, Rceattle =
     # sim_mod() call. Calling it again here would give catch a draw from a
     # different replicate than the index, and consume twice the random numbers.
     catch_sim <- .sim_report_obs(sim_rep, "catch_obs_sim")
-    .sim_check_rows(nrow(catch_sim), nrow(dat_sim$catch_data), "catch")
+    # A catch_data row at styr - 1 is never a fitted catch row: rearrange_data()
+    # either splits it out as the initial equilibrium catch or drops it as
+    # history, depending on initMode. The model therefore draws nothing for it
+    # either way, and it must be held out of the row-for-row write-back.
+    # dat_sim is the pre-rearrange list, which still carries it.
+    .fit_rows <- is.na(dat_sim$catch_data$Year) |
+      dat_sim$catch_data$Year != (dat_sim$styr - 1L)
+    .sim_check_rows(nrow(catch_sim), sum(.fit_rows), "catch")
     # Column 1 is the observation; the model writes the natural scale there
     # (obsvec holds its log). Column 2 is the supplied sd, untouched.
-    dat_sim$catch_data$Catch <-
+    dat_sim$catch_data$Catch[.fit_rows] <-
       .sim_warn_unusable(as.numeric(catch_sim[, 1]),
-                         dat_sim$catch_data$Fleet_code, "catch")
+                         dat_sim$catch_data$Fleet_code[.fit_rows], "catch")
   } else {
     # Expected values
     dat_sim$catch_data$Catch <- catch_hat

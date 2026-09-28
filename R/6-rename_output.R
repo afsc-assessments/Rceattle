@@ -163,7 +163,12 @@ rename_output <- function(data_list = NULL, quantities = NULL){
   }
   # The age-length key and selectivity-at-length are on the POPULATION length
   # bins, which equal the data bins unless the data supplied a separate grid.
-  max_length_pop <- if (!is.null(data_list$nlengths_pop)) max(data_list$nlengths_pop) else max_length
+  # Read the count off the arrays themselves: `data_list` here is the
+  # pre-rearrange_data() list, which carries no nlengths_pop, so anything derived
+  # from it falls back to the DATA bins and mislabels a model that supplied its
+  # own population grid.
+  .dim_or <- function(x, i, alt) if (!is.null(x) && length(dim(x)) >= i) dim(x)[i] else alt
+  max_length_pop <- .dim_or(quantities$growth_matrix, 4L, max_length)
   dimnames(quantities$growth_matrix) <- list(
     c(paste(rep(data_list$spnames, each = 2), rep(c("biomass weight", "spawn weight"), data_list$nspp)), data_list$fleet_control$Fleet_name),
     sex_labels, paste0("Age", 1:max_age), paste0("PopBin", 1:max_length_pop), yrs_proj)
@@ -171,7 +176,8 @@ rename_output <- function(data_list = NULL, quantities = NULL){
   # - Fleet
   dimnames(quantities$F_flt_age) <- list(data_list$fleet_control$Fleet_name, sex_labels, paste0("Age", 1:max_age), yrs_proj)
   dimnames(quantities$sel_at_age) <- list(data_list$fleet_control$Fleet_name, sex_labels, paste0("Age", 1:max_age), yrs_proj)
-  dimnames(quantities$sel_at_length) <- list(data_list$fleet_control$Fleet_name, sex_labels, paste0("PopBin", 1:max_length_pop), yrs_proj)
+  dimnames(quantities$sel_at_length) <- list(data_list$fleet_control$Fleet_name, sex_labels,
+    paste0("PopBin", 1:.dim_or(quantities$sel_at_length, 3L, max_length_pop)), yrs_proj)
 
   # * 5D arrays ----
   dimnames(quantities$B_eaten) <- list(paste("Pred:", data_list$spnames, rep(sex_labels, each = data_list$nspp)),
