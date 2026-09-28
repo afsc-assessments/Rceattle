@@ -20,11 +20,12 @@ its objective reproducing and the other 19 assertions passing. That gate is 1e-3
 with the reason recorded in the test. `TMBhelper` is installed on the runner, so a different
 optimizer explains neither. See the 5.45.1 NEWS entry and `TRAPS.md`.
 
-**`cod-bridge` is at 5.46.0 and open as a PR into `dev`.** It merges `dev` (5.45.0) and carries
+**`cod-bridge` is at 5.46.0 and open as PR #178 into `dev`.** It merges `dev` (5.45.2) and carries
 seven features from the SS3 cod bridge: `initMode 6`, the SS3 growth / maturity / length-bin
 options, `Selectivity = "DoubleNormalSS3"` (code 15), length-based selectivity on the population
-bins, the initial equilibrium catch, and a per-fleet ageing error matrix. **Full suite 9,932
-assertions / 0 failures / 0 errors** and **golden 20 / 0**, both at `50cb628b`, serial, R 4.5.1.
+bins, the initial equilibrium catch, and a per-fleet ageing error matrix. The suite and golden
+counts recorded for it (9,932 assertions / 0 / 0, golden 20 / 0) were taken at `50cb628b`, before
+that merge and against the pre-5.45.1 golden gate; both need re-taking at the merged head.
 
 **The thing to know before touching the equilibrium catch.** It is a `catch_data` row at
 `styr - 1`, and that year is NOT a free marker: `GOA2018SS` carries 23 catch rows before `styr`,
@@ -52,7 +53,7 @@ directly. A capped run also aborts on max-failures, so "N failures" from a cappe
 
 
 **`dev` is at 5.45.2 and `main` at 5.45.0.** The next step is one `dev` -> `main` release
-covering 5.34.0 through 5.45.0, per `inst/RELEASE-CHECKLIST.md`. Read that file's pkgdown note
+covering 5.45.1 and 5.45.2, per `inst/RELEASE-CHECKLIST.md`. Read that file's pkgdown note
 before tagging: the `release: published` event has silently failed to fire once already.
 **The tag is the DESCRIPTION version, so read it off `DESCRIPTION` at the moment you tag; it
 has moved four times during this release (5.41.0 -> 5.42.1 -> 5.43.0 -> 5.45.0) as review and
