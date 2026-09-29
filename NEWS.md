@@ -90,10 +90,20 @@ documentation now says so.
   -999 is unscaled and its parameter fixed. The curve is not normalized, as in
   SS3. All six parameters take selectivity linkages, under the SS3 manual's
   names (`dn_peak`, `top_logit`, `ascend_se`, `descend_se`, `start_logit`,
-  `end_logit`) or `dn_` aliases, so SS3 block replacement is
-  `linkage_spec(~ cut(Year, breaks), link = "identity")` and SS3's annual devs
-  (`dev_link` 1) are a log-link `(1 | Year)` term with `integrate = FALSE` and a
-  fixed SD. `Time_varying_sel` must be `"Off"` for this form.
+  `end_logit`) or `dn_` aliases. A `link = "identity"` block is
+  `linkage_spec(~ cut(Year, breaks), link = "identity")` and **adds** to the base
+  parameter, which is SS3's `Blk_Fxn = 1` (`temp = baseparm + parm`,
+  `SS_timevaryparm.tpl`); it is not `Blk_Fxn = 2`, which assigns the block value
+  directly (`temp = parm`). Porting a `Blk_Fxn = 2` model means entering each
+  block as its difference from the base, not the block value itself. SS3's annual
+  devs (`dev_link` 1) are a log-link `(1 | Year)` term with `integrate = FALSE`
+  and a fixed SD. `Time_varying_sel` must be `"Off"` for this form.
+* On a two-sex species both sexes must agree on whether an end is scaled, since
+  one flag serves the fleet: SS3's -999 switches the formula rather than a value,
+  so a disagreement would fit one sex with the other's curve shape while leaving
+  its own end parameter estimated and reaching nothing. Refused with the fleet
+  named. Mixing the two *ends* is unaffected and is what SS3 models usually do —
+  AI cod's fishery leaves `start_logit` at -999 and scales `end_logit`.
 
 ## An initial equilibrium catch, so `Finit` has something to fit
 

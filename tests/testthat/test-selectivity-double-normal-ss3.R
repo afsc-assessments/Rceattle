@@ -68,6 +68,49 @@ testthat::test_that("an end at SS3's -999 is unscaled and its parameter fixed", 
                          tolerance = 1e-10)
 })
 
+# The configuration the AI cod bridge actually uses: control.ss gives its fishery
+# Size_DblN_start_logit = -999 (unscaled) and Size_DblN_end_logit = 4 (scaled).
+# Only both-on and both-off were covered, so the mixed case the bridge relies on
+# went unexercised.
+testthat::test_that("one end scaled and one at -999 is SS3 pattern 24", {
+  m0 <- dn6_build(d)
+  P  <- c(55, -3, 4.5, 5.5, -999, 0.5)
+  ip <- m0$estimated_params
+  ip$sel_dn6[, fl, ] <- P
+  m  <- dn6_build(d, inits = ip)
+
+  # The unscaled end's parameter is fixed, the scaled one stays estimated.
+  testthat::expect_true(is.na(m$map$mapList$sel_dn6[5, fl, 1]))
+  testthat::expect_false(is.na(m$map$mapList$sel_dn6[6, fl, 1]))
+  testthat::expect_equal(unname(m$quantities$sel_at_length[fl, 1, seq_along(edges), 1]),
+                         ss3_pattern24(mids, P, init_on = FALSE, final_on = TRUE),
+                         tolerance = 1e-10)
+})
+
+# One end flag serves both sexes, so a two-sex species whose sexes disagree would
+# have had one sex fitted with the other's curve shape -- its own end parameter
+# estimated, entering nothing, at zero gradient.
+testthat::test_that("the sexes must agree on whether an end is scaled", {
+  a <- array(0, dim = c(6, 2, 2))
+  a[5:6, 1, ] <- -999                      # both ends off, both sexes
+  a[5, 2, ] <- -999; a[6, 2, ] <- -3       # start off, end on: allowed
+  nm <- c("A", "B")
+
+  # Mixed ENDS is SS3's own configuration and stays allowed.
+  testthat::expect_equal(
+    Rceattle:::.rce_dn6_ends(a, c(2, 2), c(1, 1), nm),
+    matrix(c(0L, 0L, 0L, 1L), ncol = 2, byrow = TRUE))
+
+  # Mixed SEXES on the same end is refused.
+  b <- a; b[5, 2, 2] <- -4
+  testthat::expect_error(Rceattle:::.rce_dn6_ends(b, c(2, 2), c(1, 1), nm),
+                         "sexes disagree")
+  # A one-sex species has no second sex to disagree, so it is unaffected.
+  testthat::expect_equal(
+    Rceattle:::.rce_dn6_ends(b, c(1, 1), c(1, 1), nm),
+    matrix(c(0L, 0L, 0L, 1L), ncol = 2, byrow = TRUE))
+})
+
 testthat::test_that("block linkages replace a parameter, SS3 Blk_Fxn 2", {
   yrs <- d$styr:d$endyr
   brk <- c(-Inf, yrs[4] - 0.5, Inf)                   # two blocks

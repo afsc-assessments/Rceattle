@@ -8,6 +8,40 @@
 # build (all fixed at the build default), so the older fit still refits.
 .RCE_ADDED_PARAMS <- c(log_sel_apical = "5.38.0", sel_dn6 = "5.46.0")
 
+#' DoubleNormalSS3 end-scaling flags, one row per fleet
+#'
+#' SS3's -999 on `start_logit` or `end_logit` drops that end's scaling, which
+#' switches the formula rather than a value, so the template reads it as data.
+#' One flag serves both sexes, so on a two-sex species they must agree: otherwise
+#' one sex is fitted with the other's curve shape while its own end parameter
+#' stays estimated and reaches nothing.
+#'
+#' @param sel_dn6 Starting values, `[6, n_flt, max_sex]`.
+#' @param nsex Number of sexes per species.
+#' @param species Species of each fleet, in `fleet_control` row order.
+#' @param fleet_names Fleet names, for the refusal message.
+#' @return An integer matrix, `[n_flt, 2]`: 1 scales that end, 0 is SS3's -999.
+#' @keywords internal
+#' @noRd
+.rce_dn6_ends <- function(sel_dn6, nsex, species, fleet_names) {
+  on <- sel_dn6[5:6, , , drop = FALSE] > -999
+  nsx <- as.integer(nsex)[as.integer(species)]
+  nsx[is.na(nsx)] <- 1L
+  mixed <- vapply(seq_len(dim(on)[2]), function(i) {
+    s <- seq_len(min(dim(on)[3], nsx[i]))
+    if (length(s) < 2) return(FALSE)
+    any(on[1, i, s] != on[1, i, s[1]]) || any(on[2, i, s] != on[2, i, s[1]])
+  }, logical(1))
+  if (any(mixed)) {
+    stop("Fleet(s) ", paste(as.character(fleet_names[mixed]), collapse = ", "),
+         ": the sexes disagree on whether a 'DoubleNormalSS3' end is scaled. ",
+         "SS3's -999 switches the formula for the whole fleet, so give both ",
+         "sexes a value or give both -999, for 'start_logit' and for ",
+         "'end_logit'.", call. = FALSE)
+  }
+  matrix(as.integer(on[, , 1, drop = FALSE]), ncol = 2, byrow = TRUE)
+}
+
 #' Fit the CEATTLE assessment model
 #' @description Estimate CEATTLE population parameters by maximum likelihood, and
 #'   optionally project the stock and apply a harvest control rule.
@@ -1255,9 +1289,9 @@ fit_mod <-
     # DoubleNormalSS3 ends: an end left at SS3's -999 is unscaled, read by the
     # template as data because it switches the formula, not just a value.
     if (!is.null(start_par$sel_dn6)) {
-      data_list_reorganized$sel_dn6_ends <- matrix(
-        as.integer(start_par$sel_dn6[5:6, , 1, drop = FALSE] > -999),
-        ncol = 2, byrow = TRUE)
+      data_list_reorganized$sel_dn6_ends <- .rce_dn6_ends(
+        start_par$sel_dn6, data_list$nsex,
+        data_list$fleet_control$Species, data_list$fleet_control$Fleet_name)
     }
 
     # Starting parameters as the model uses them: the blocks above set
