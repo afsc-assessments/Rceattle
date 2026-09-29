@@ -20,23 +20,49 @@ its objective reproducing and the other 19 assertions passing. That gate is 1e-3
 with the reason recorded in the test. `TMBhelper` is installed on the runner, so a different
 optimizer explains neither. See the 5.45.1 NEWS entry and `TRAPS.md`.
 
-**`cod-bridge` is at 5.46.0 and open as PR #178 into `dev`.** It merges `dev` (5.45.2) and carries
-seven features from the SS3 cod bridge: `initMode 6`, the SS3 growth / maturity / length-bin
-options, `Selectivity = "DoubleNormalSS3"` (code 15), length-based selectivity on the population
-bins, the initial equilibrium catch, and a per-fleet ageing error matrix. The suite and golden
-counts recorded for it (9,932 assertions / 0 / 0, golden 20 / 0) were taken at `50cb628b`, before
-that merge and against the pre-5.45.1 golden gate; both need re-taking at the merged head.
+**`cod-bridge` is at 5.46.0 and open as PR #178 into `dev`.** It carries seven features from the
+SS3 cod bridge: `initMode 6`, the SS3 growth / maturity / length-bin options,
+`Selectivity = "DoubleNormalSS3"` (code 15), length-based selectivity on the population bins,
+the initial equilibrium catch, and a per-fleet ageing error matrix.
+
+**Its review fixes are on `fix/cod-bridge-blockers`, not yet merged into it.** That branch merges
+`dev` (5.45.2) and fixes three blockers, each reproduced before it was fixed:
+
+- **`catch_data` lost its alignment with `catch_hat`.** `clean_data()` kept the `styr - 1` row and
+  `fit_mod()` stores the pre-`rearrange_data()` list, so on `GOA2018SS` `catch_data` was 372 rows
+  against a `catch_hat` of 370. `plot_catch()`, `residuals(source = "catch")` and
+  `sim_mod(simulate = FALSE)` threw; `run_mse()` indexes `catch_hat` by `catch_data` row position,
+  so it shifted all 160 projection rows by two years and wrote `NA` into the last two. The rows now
+  live in `data_list$equil_catch_data`.
+- **Length selectivity was normalized and projected on the DATA bins** while the curve had moved to
+  the population bins. On a 20-data / 96-population fixture, projected `sel_at_length` came back
+  zero on every bin, and with it projected F, catch and the reference points.
+- **The equilibrium catch was read under `initMode` 3 and 4**, whose initial age structure is not
+  built at the `Finit * selectivity` the prediction assumes. Restricted to mode 6.
+
+Measured at `14040f5d`, serial, R 4.5.1: **suite 9,976 / 0 / 0** (3 skips), **golden 21 / 0**,
+**Pacific hake MSE reproduces all four reference objectives exactly** (2440.0942, 2440.6633,
+2447.0049, 2669.3776), `verify-mse-hindcast-invariant` 0.000e+00, `verify-sim-recovery` and
+`verify-sim-centering` both clean.
+
+**Two things found on the way that outlive this PR.** `TMB::compile()` tracks no header
+dependency, so a `.hpp`-only edit leaves the old object and `load_all()` reports success while
+running the previous model -- see `TRAPS.md`, and treat any number measured after a header-only
+edit as suspect. And `combine_data()` errors on the bundled datasets (`plyr::rbind.fill` on
+`GOA2018SS`'s `maturity` / `sex_ratio`, a different error on `BS2017SS`) before reaching any of
+this code; pre-existing, worth its own issue.
 
 **The thing to know before touching the equilibrium catch.** It is a `catch_data` row at
 `styr - 1`, and that year is NOT a free marker: `GOA2018SS` carries 23 catch rows before `styr`,
-two of them on 1976. An earlier version of this read those as equilibrium observations, predicted
-0 under an `initMode` that holds `Finit` at 0, took `log(0)`, and failed all four golden
-references with `optimHess: non-finite value supplied by optim`. **That failure was recorded for
-most of a session as a pre-existing `goa_ss` problem. It was not; it was this.** A negative
-sentinel cannot be used instead -- `run_mse()` reserves negative `Year` for rows it splices in as
-the next assessment's data, and its window filters are on `abs(Year)`, so `-999` survives as year
-999. What ships is the same marker gated on `initMode`, with `data_check()` naming the fleets
-whose rows it reads. `.rce_equil_catch_rows()` holds the rule so `clean_data()`,
+two of them on 1976, and it is the only bundled dataset that does. An earlier version read those
+as equilibrium observations, predicted 0 under an `initMode` that holds `Finit` at 0, took
+`log(0)`, and returned a non-finite objective on both GOA golden references. **That failure was
+recorded for most of a session as a pre-existing `goa_ss` problem. It was not; it was this.** A
+negative sentinel cannot be used instead -- `run_mse()` reserves negative `Year` for rows it
+splices in as the next assessment's data, and its window filters are on `abs(Year)`, so `-999`
+survives as year 999. What ships is the year, read only under `initMode 6`, with `data_check()`
+naming the fleets whose rows it reads and saying when a mode will not read them.
+`.rce_equil_catch_rows()` and `.rce_equil_catch_candidates()` hold the rule so `clean_data()`,
 `rearrange_data()` and `data_check()` cannot drift.
 
 **Two lessons from the merge worth carrying.** The branch's selectivity codes were stale --
