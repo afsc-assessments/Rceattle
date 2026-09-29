@@ -233,6 +233,49 @@ weight at the fleet's month. A length-selective fleet takes the larger fish of a
 young age class, so the age-class mean understated its catch weight; this is
 also Stock Synthesis's catch weight. Age-selective fleets and empirical-weight
 models are unchanged, including all four golden references.
+# Rceattle 5.45.3
+
+## Bug fixes
+
+* **An aggregated composition figure no longer pools two observation
+  structures into one normalization.** A fleet can carry more than one --
+  sexes combined in the early years of a series and disaggregated later -- and
+  the likelihood scores one density per structure. The aggregate pooled every
+  row for a fleet and comp type into one panel and renormalized across the
+  whole of it, so neither the combined series nor the sex-specific ones summed
+  to 1 and the two were not on comparable axes. `plot_comp()` now keys the
+  panel on the structure as well, but **only for a fleet that mixes them**: a
+  fleet with one structure, which is every bundled data set, keeps its previous
+  panel and title exactly. The effective-sample-size annotation on the same
+  figure already grouped on the key the likelihood scores a density over
+  (fleet, species, sex, year); the aggregate now follows it.
+
+  Reported by an external user running a two-sex model, who was otherwise going
+  to add a mirrored fleet to work around it -- changing the model to fix a
+  figure.
+
+* **A joint-sex OSA series says it is half of one unit.** A `Sex = 3`
+  composition is appended as a single decomposition unit over the stacked
+  female-then-male vector, with one cell dropped for the sum-to-one constraint
+  rather than one per sex, which the OSA figure then re-bases onto a common bin
+  axis so both halves can be read. Labelled ` - male` / ` - female`, that reads
+  as two separate distributions: the same external user asked why the residual
+  structure did not match the likelihood structure. It does -- the residuals
+  were never computed per sex -- so the labels are now ` - joint, male` /
+  ` - joint, female`, and a single-sex row, which genuinely is its own density,
+  stays unlabelled. No residual changes.
+
+## Documentation
+
+* **`CONTRIBUTING.md` now states a code style.** R follows the tidyverse style
+  guide and C++ the Google C++ style guide, as tie-breakers where the
+  surrounding file does not settle the question; TMB idiom outranks both, and
+  neither is a reason to reformat untouched code. Three package-specific habits
+  go with them: read a list or `fleet_control` column with `[[ ]]` rather than
+  `$`, which partial-matches silently; write in the idiom of the file you are in
+  rather than converting base R and dplyr into each other inside the fitting
+  pipeline; and keep reformatting out of a change that can move a number.
+
 # Rceattle 5.45.2
 
 ## Documentation

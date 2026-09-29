@@ -217,3 +217,52 @@ test_that("a missing assumed sd gives NA rather than a partial effective N", {
   sd0 <- matrix(Inf, Y, B)
   expect_equal(.comp_aggregate(make_long(p, p, N, sd = sd0))$ESS[1], 0)
 })
+
+
+# A fleet can carry more than one observation structure -- sexes combined in the
+# early years, disaggregated later. The likelihood scores one density per
+# structure, so pooling them into one panel divides both by a shared total:
+# neither series sums to 1 and the two are not on comparable axes. Reported by an
+# IPHC user running a two-sex model, 2026-09-28.
+test_that("a fleet mixing sex structures gets one panel per structure", {
+  # Two rows for one fleet and comp type: a sexes-combined year and a joint-sex
+  # year, built as .comp_resid_long() labels them.
+  long <- data.frame(
+    Fleet = 1L, Fleet_name = "f", Species = 1L, comp_type = 0L,
+    Sex = c(0L, 0L, 3L, 3L), Year = c(1L, 1L, 2L, 2L), N = 100,
+    bin = c(1L, 2L, 1L, 2L), obs = c(0.5, 0.5, 0.5, 0.5),
+    hat = c(0.5, 0.5, 0.5, 0.5), Sd = 0.05,
+    sex_grp = c("combined", "combined", "female", "male"),
+    norm_grp = c("sexes combined", "sexes combined", "joint-sex", "joint-sex"),
+    bin_lab = "Age", type_lab = "age", stringsAsFactors = FALSE)
+  long$panel <- paste0(long$Fleet_name, " - ", long$type_lab, " comp (",
+                       long$norm_grp, ")")
+
+  # Two panels, and each aggregates to a composition that sums to 1 on its own.
+  panels <- unique(long$panel)
+  expect_length(panels, 2L)
+  for (nm in panels) {
+    agg <- Rceattle:::.comp_aggregate(long[long$panel == nm, , drop = FALSE])
+    expect_equal(sum(agg$obs), 1)
+    expect_equal(sum(agg$hat), 1)
+  }
+
+  # Pooled into one panel, as before the split, neither structure sums to 1:
+  # that is the defect, and it is what the panel key now prevents.
+  both <- Rceattle:::.comp_aggregate(long)
+  expect_equal(sum(both$obs), 1)                       # across BOTH structures
+  expect_lt(sum(both$obs[both$sex_grp == "combined"]), 1)
+})
+
+test_that("a fleet with one sex structure keeps its original panel name", {
+  # The overwhelming majority, and every bundled data set: the label must not
+  # gain a suffix, or every existing figure's title changes.
+  fit <- readRDS(testthat::test_path("fixtures", "fit_baseline.rds"))
+  long <- Rceattle:::.comp_resid_long(fit)
+  skip_if(is.null(long) || !nrow(long), "no composition rows in the fixture")
+  by_fleet <- split(long$norm_grp, paste(long$Fleet_name, long$type_lab))
+  skip_if(any(vapply(by_fleet, function(x) length(unique(x)) > 1L, logical(1))),
+          "fixture has a mixed-structure fleet")
+  expect_false(any(grepl("\\(", long$panel, fixed = FALSE) &
+                     grepl("only|combined|joint", long$panel)))
+})
