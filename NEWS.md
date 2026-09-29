@@ -196,6 +196,19 @@ compositions are built from, sums each data bin's own run of population bins.
 once; with a single grid every run is one bin and both the work and the arithmetic
 are what they were.
 
+Everything that walks the curve walks the population grid with it: the
+normalization reference and the division, the zeroing below `Bin_first_selected`,
+and the projection copy that carries the terminal hindcast year forward. Bounded
+by the data-bin count instead, a finer grid kept only the lowest lengths, where
+an ascending curve is close to zero, so projected selectivity-at-age came back
+identically zero -- and with it projected F, catch and the reference points.
+
+The columns that name a bin stay **data-bin ordinals**, which is what the user
+has and what `data_check()` bounds. `rearrange_data()` translates
+`Bin_first_selected` and `Sel_norm_bin` onto the population grid, taking that
+data bin's first population bin, and `Sel_norm_bin_upper` its last, so each still
+covers the lengths it names. A species with no separate grid is unchanged.
+
 `DoubleNormalSS3` also gains the two things SS3 does that the first port did not:
 the ascending limb is anchored at `startbin`, the first population bin reaching
 the first composition data bin, and the bins below it take SS3's quadratic ramp.

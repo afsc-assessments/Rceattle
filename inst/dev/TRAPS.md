@@ -8,6 +8,17 @@ Verified against source, 2026-08.
 
 ## Build and test
 
+**Editing only a `.hpp` does not rebuild the model.** `TMB::compile()` decides from
+`ceattle.cpp` alone and tracks no header dependency, so a change confined to
+`selectivity.hpp`, `growth.hpp`, `predation.hpp` or any other header leaves the old
+`src/TMB/ceattle.o` in place. `load_all()` then reports success and you go on testing the
+**previous** model. Measured: a one-line fix in `selectivity.hpp` left the defect it fixed
+still reproducing, twice, until `ceattle.cpp` was touched. Deleting the `.o` is not enough
+either — `touch src/TMB/ceattle.cpp` before `load_all()`, and treat a rebuild that finishes in
+seconds as proof nothing was compiled (a real one is ~60–140 s). Anything measured after a
+header-only edit — a test run, a golden number, a bridge comparison — is suspect until the
+rebuild is confirmed.
+
 **Dev builds are `-O2`, not pkgbuild's `-O0`.** The repo `.Rprofile` sets
 `options(pkg.build_extra_flags = FALSE)`, so `load_all()` compiles the TMB model with the same
 optimization as a production `R CMD INSTALL` — `fit_mod()` runs ~10x faster than an

@@ -20,7 +20,8 @@
  * @param flt_sel_dim Age or length based selectivity.
  * @param bin_first_selected Array/function returning the minimum age/length bin of selection for a fleet.
  * @param nages Array/function returning the number of ages for a species.
- * @param nlengths Array/function returning the number of length bins for a species.
+ * @param nlengths_pop Array/function returning the number of POPULATION length
+ *        bins for a species, the grid a length-based curve is built on.
  * @param nsex Array/function returning the number of sexes for a species.
  * @param sel_norm_bin1 Array/function returning the normalization age or control flag.
  * @param sel_norm_bin2 Array/function returning the upper bound for age-range normalization.
@@ -40,7 +41,7 @@ void normalize_and_project_selectivity(
     const vector<int>&  flt_sel_dim,
     const vector<int>&  bin_first_selected,
     const vector<int>&  nages,
-    const vector<int>&  nlengths,
+    const vector<int>&  nlengths_pop,
     const vector<int>&  nsex,
     const vector<int>&  sel_norm_bin1,
     const vector<int>&  sel_norm_bin2,
@@ -49,7 +50,9 @@ void normalize_and_project_selectivity(
 ) {
   int sp = flt_spp(flt);
   int sel_type = flt_sel_type(flt);
-  int nbins = (flt_sel_dim(flt) == 0) ? nages(sp) : nlengths(sp);
+  // A length-based curve is built on the POPULATION bins, so every bin of it
+  // must be zeroed, normalized and projected -- not just the first nlengths.
+  int nbins = (flt_sel_dim(flt) == 0) ? nages(sp) : nlengths_pop(sp);
 
   // Ages not selected
   for(int yr = 0; yr < nyrs_hind; yr++) {
@@ -763,7 +766,7 @@ void calculate_selectivity(
 
     // --- 3. NORMALIZATION & PROJECTION ---
     normalize_and_project_selectivity(
-      flt, nyrs_hind, nyrs, flt_spp, flt_sel_type, flt_sel_dim, bin_first_selected, nages, nlengths, nsex,
+      flt, nyrs_hind, nyrs, flt_spp, flt_sel_type, flt_sel_dim, bin_first_selected, nages, nlengths_pop, nsex,
       sel_norm_bin1, sel_norm_bin2, sel_norm_scope,
       is_length_based ? sel_at_length : sel_at_age
     );
