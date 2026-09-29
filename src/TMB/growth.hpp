@@ -36,9 +36,8 @@ Type length_sd_at_age(Type current_age, Type age_L1, bool plus_group,
  * Length is normal with mean `mu` and SD `sd` (cm). Probabilities are taken on
  * the population length bins `lengths_pop` (lower edges): the first bin is a
  * minus group below the second edge and the last a plus group above the last
- * edge (SS3's convention). They are then summed into the data length bins
- * through `pop_to_data_bin`, which is the identity when no population grid
- * is supplied.
+ * edge (SS3's convention). They stay on that grid; the consumers that need data
+ * bins sum each bin's run of population bins themselves.
  *
  * Weight-at-age is \f$\sum_l P(l|a) \alpha L_{mid}^\beta\f$ at population-bin
  * midpoints (kg); the last bin's midpoint sits half a bin width above its lower
@@ -49,10 +48,8 @@ Type length_sd_at_age(Type current_age, Type age_L1, bool plus_group,
 template<class Type>
 void fill_age_length_key(int wtind, int sp, int sex, int age, int yr,
                          Type mu, Type sd,
-                         const vector<int>& nlengths,
                          const vector<int>& nlengths_pop,
                          matrix<Type>& lengths_pop,
-                         const matrix<int>& pop_to_data_bin,
                          matrix<Type>& weight_length_pars,
                          const vector<int>& mat_len_use,
                          matrix<Type>& mat_len_pars,
@@ -60,15 +57,10 @@ void fill_age_length_key(int wtind, int sp, int sex, int age, int yr,
                          array<Type>& weight_hat,
                          array<Type>& mat_weight_hat) {
   int np = nlengths_pop(sp);
-  // The key is kept on the POPULATION bins, not summed into the data bins here.
-  // Everything that reads it multiplies it by selectivity-at-length, and SS3
-  // forms that product at population resolution before binning the result, so
-  // aggregating first would apply one bin-average selectivity to a whole data
-  // bin. Consumers aggregate through pop_to_data_bin where they need data bins
-  // (pred_CAAL); where they integrate over all lengths (selectivity-at-age,
-  // selectivity-weighted weight-at-age) they simply sum every population bin.
-  // Identical either way whenever the two grids coincide, which is the case
-  // for every model that supplies no pop_lengths.
+  // Kept on the POPULATION bins. Its readers multiply it by
+  // selectivity-at-length, and SS3 forms that product at population resolution
+  // before binning, so aggregating here would apply one bin-average selectivity
+  // across a data bin. Consumers bin through pop_to_data_bin where they need to.
   for(int lp = 0; lp < np; lp++) growth_matrix(wtind, sex, age, lp, yr) = Type(0.0);
 
   Type expected_weight = 0.0;
@@ -132,7 +124,7 @@ void fill_age_length_key(int wtind, int sp, int sex, int age, int yr,
  * - **SD-at-Age**: length_sd_at_age(); `growth_sd_form` makes the two
  *   endpoints SDs (cm) or CVs.
  * - **Size Transition**: fill_age_length_key(), on the population length
- *   bins, summed into the data length bins.
+ *   bins; consumers bin the product with selectivity, not the key itself.
  *
  * @param wtind Weight index slot to write into.
  * @param sp Species index.
@@ -302,14 +294,9 @@ void estimate_growth(
 
         // 2. Plus-Group Mean Length (Oldest Age Only) ---
         // The plus group holds fish older than the oldest age, so its mean length
-        // sits between L(oldest age) and L-infinity. growth_plus_length picks how:
-        //   1 = weights exp(-M1 a), M1 the oldest age's base natural mortality
-        //       (F and predation excluded), lengths interpolated to L-infinity;
-        //   2 = no adjustment (SS3 Linf_decay = -998);
-        //   3 = SS3.24 form (SS3 Linf_decay = -999): weights exp(-0.2 a) over
-        //       a = 0..A, lengths interpolated to L-infinity, A the oldest age;
-        //   4 = SS3 decay form: 2A further ages each grown one year on the von
-        //       Bertalanffy curve, weighted exp(-d) per year (d = plus_group_decay).
+        // (cm) sits between L(oldest age) and L-infinity. growth_plus_length picks
+        // the form: 1 = M1-weighted, 2/3/4 = SS3's Linf_decay -998/-999/d. See
+        // ?build_growth.
         if(growth_model(sp) < 3 && age == (nages(sp) - 1)) {
           Type current_size = length_hat(wtind,  sex, age, yr);
           Type diff = linf - current_size;
@@ -349,8 +336,8 @@ void estimate_growth(
           Type sd = length_sd_at_age(current_age, age_L1, age == (nages(sp) - 1),
                                      growth_sd_style(sp), growth_sd_form(sp), l1, linf, len,
                                      growth_log_sd(sp, sex, 0), growth_log_sd(sp, sex, 1));
-          fill_age_length_key(wtind, sp, sex, age, yr, len, sd, nlengths, nlengths_pop,
-                              lengths_pop, pop_to_data_bin, weight_length_pars,
+          fill_age_length_key(wtind, sp, sex, age, yr, len, sd, nlengths_pop,
+                              lengths_pop, weight_length_pars,
                               mat_len_use, mat_len_pars, growth_matrix, weight_hat, mat_weight_hat);
         }
       } // age
@@ -382,8 +369,8 @@ void estimate_growth(
  *   that length through the year; under the SS3 forms (2-4) it grows within the
  *   year like every other age, as in SS3.
  * - **SD-at-Age**: length_sd_at_age(), as in `estimate_growth()`.
- * - **Size Transition**: fill_age_length_key(), on the population length bins,
- *   summed into the data length bins.
+ * - **Size Transition**: fill_age_length_key(), on the population length bins;
+ *   consumers bin the product with selectivity, not the key itself.
  *
  * @param wtind Weight index for population/fleet.
  * @param id_pop Index for population (Jan-1) weight-at-age; the within-year
@@ -543,8 +530,8 @@ void estimate_growth_within_yr(
           Type sd = length_sd_at_age(current_age, age_L1, age == (nages(sp) - 1),
                                      growth_sd_style(sp), growth_sd_form(sp), l1, linf, len,
                                      growth_log_sd(sp, sex, 0), growth_log_sd(sp, sex, 1));
-          fill_age_length_key(wtind, sp, sex, age, yr, len, sd, nlengths, nlengths_pop,
-                              lengths_pop, pop_to_data_bin, weight_length_pars,
+          fill_age_length_key(wtind, sp, sex, age, yr, len, sd, nlengths_pop,
+                              lengths_pop, weight_length_pars,
                               mat_len_use, mat_len_pars, growth_matrix, weight_hat, mat_weight_hat);
         }
       } // age

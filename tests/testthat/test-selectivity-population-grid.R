@@ -49,23 +49,39 @@ testthat::test_that("a finer population grid fills every projection bin", {
                          unname(m$quantities$sel_at_age[flt, 1, , nh]))
 })
 
-testthat::test_that("the bin columns name DATA bins on either grid", {
-  testthat::skip_if_not_installed("TMB")
+# Every column that names a selectivity bin is a DATA bin ordinal, so on a finer
+# population grid it cannot address the grid the curve is built on. Translating
+# one column and not the rest is worse than refusing: Bin_first_selected on the
+# population grid against N_sel_bins on the data grid gives the non-parametric
+# base curve a negative length, which aborts R inside MakeADFun.
+testthat::test_that("a bin-naming column on a finer grid is refused", {
   d <- pg_data$d; flt <- pg_data$flt
-  # Bin_first_selected is a 1-based data-bin ordinal, so bins below the 5th data
-  # bin's lower edge are zeroed whether or not a population grid is supplied.
-  d$fleet_control$Bin_first_selected[flt] <- 5L
-  cut_at <- pg_edges[5]
+  fine <- list(pg_fine, pg_fine)
 
-  coarse <- pg_fit(d)
-  fine   <- pg_fit(d, pop_lengths = list(pg_fine, pg_fine))
-  nh <- d$endyr - d$styr + 1
-
-  zero_below <- function(m, edges) {
-    s <- m$quantities$sel_at_length[flt, 1, seq_along(edges), nh]
-    c(below = max(s[edges < cut_at]), at_or_above = max(s[edges >= cut_at]))
+  refused <- function(dd) {
+    dd$pop_lengths <- fine
+    inherits(tryCatch(suppressMessages(suppressWarnings(
+      Rceattle:::data_check(Rceattle::switch_check(dd)))),
+      error = function(e) e), "error")
   }
-  testthat::expect_equal(unname(zero_below(coarse, pg_edges)["below"]), 0)
-  testthat::expect_equal(unname(zero_below(fine, pg_fine)["below"]), 0)
-  testthat::expect_gt(unname(zero_below(fine, pg_fine)["at_or_above"]), 0)
+  # A parametric curve naming no bin is a function of length: allowed, and it is
+  # what the population grid exists for.
+  testthat::expect_false(refused(d))
+
+  for (cl in c("Bin_first_selected", "Sel_norm_bin", "Sel_norm_bin_upper")) {
+    dd <- d; dd$fleet_control[[cl]][flt] <- 5L
+    testthat::expect_true(refused(dd), info = cl)
+  }
+  # ... and a bin-indexed form, whatever its columns say.
+  dd <- d
+  dd$fleet_control$Selectivity[flt] <- "NonParametric"
+  dd$fleet_control$Sel_curve_pen1[flt] <- 10
+  dd$fleet_control$Sel_curve_pen2[flt] <- 10
+  testthat::expect_true(refused(dd))
+
+  # The same fleets are fine when the two grids coincide.
+  dd <- d; dd$fleet_control$Sel_norm_bin[flt] <- 5L
+  testthat::expect_false(inherits(tryCatch(suppressMessages(suppressWarnings(
+    Rceattle:::data_check(Rceattle::switch_check(dd)))),
+    error = function(e) e), "error"))
 })

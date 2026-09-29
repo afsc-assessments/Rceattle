@@ -50,8 +50,8 @@ void normalize_and_project_selectivity(
 ) {
   int sp = flt_spp(flt);
   int sel_type = flt_sel_type(flt);
-  // A length-based curve is built on the POPULATION bins, so every bin of it
-  // must be zeroed, normalized and projected -- not just the first nlengths.
+  // A length-based curve lives on the POPULATION bins, so the zeroing,
+  // normalization and projection below all run over that grid.
   int nbins = (flt_sel_dim(flt) == 0) ? nages(sp) : nlengths_pop(sp);
 
   // Ages not selected

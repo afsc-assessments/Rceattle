@@ -238,14 +238,17 @@ term whose whole lesson is that it is invisible in the total.
 
 ### 3.4 Interaction with `initMode`
 
-Only meaningful where the population starts fished, i.e. `initMode` 3, 4 or 6
-(`FishedNonEquilibrium`, `FishedNonEquilibriumScaled`,
-`FishedNonEquilibriumSelected`). Each builds a different `mort_sum`, so `Z_eq` must
-be read from whichever the mode built rather than reconstructed -- the same
-invariant `init_state_from_ss3_natage_mode4()` already relies on.
+**Read only under `initMode = 6` (`FishedNonEquilibriumSelected`).** The
+prediction is Baranov at `Finit * s_a`, and mode 6 is the only mode that builds
+the initial age structure with that mortality: mode 3 accumulates a flat
+`M1 + Finit` over ages and mode 4 adds `Finit` once outside the cumulative loop.
+Scoring the observation under 3 or 4 fits `Finit` to a catch the population was
+never subject to, and it converges, so nothing says so.
 
-SS3's convention is mode 6. For 3 and 4 the equilibrium catch is still well defined,
-just on that mode's own decay.
+That was the shipped behaviour for one review round and is recorded here because
+`SS3-bridge/ss3_to_rceattle.R` and `run_g3.R` still set modes 3 and 4: they now
+read no equilibrium catch, and `data_check()` says so. The AI-cod parity run in
+section 4.3 needs `initMode = 6` to reproduce.
 
 ### 3.5 Refusals
 

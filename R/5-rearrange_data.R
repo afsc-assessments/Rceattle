@@ -452,8 +452,10 @@ rearrange_data <- function(data_list, build_osa = FALSE){
       dplyr::mutate_all(as.numeric) %>%
       as.matrix()
   }
-  # catch_data holds the fitted catch only. catch_obs is built from this frame,
-  # and row names here would travel into obsvec's OSA bookkeeping.
+  # catch_data holds the fitted catch only: a styr - 1 row in the catch equation
+  # would index F_flt_age(..., -1), an out-of-bounds read rather than an error.
+  # catch_obs is built from this frame, and row names here would travel into
+  # obsvec's OSA bookkeeping.
   data_list$catch_data <- data_list$catch_data[
     is.na(data_list$catch_data$Year) |
       data_list$catch_data$Year != (data_list$styr - 1L), , drop = FALSE]
@@ -548,27 +550,10 @@ rearrange_data <- function(data_list, build_osa = FALSE){
   # bins above. A species without its own grid uses its data bins.
   data_list <- .rce_pop_length_bins(data_list)
 
-  # A length-based curve is built on the population bins, but the columns that
-  # name a bin are written and checked as DATA bin ordinals, which is what the
-  # user has. Translate them onto the population grid: the first selected bin
-  # and a normalization reference take that data bin's first population bin, an
-  # upper range bound its last, so each still covers the lengths it names. A
-  # species with no separate grid is unchanged, every run being one bin long.
-  .len_flt <- which(as.character(data_list$fleet_control$Selectivity_dimension) == "Length")
-  for (i in .len_flt) {
-    sp <- as.integer(data_list$fleet_control$Species[i])
-    if (is.na(sp) || data_list$nlengths_pop[sp] == data_list$nlengths[sp]) next
-    map <- data_list$pop_to_data_bin[sp, seq_len(data_list$nlengths_pop[sp])]
-    to_pop <- function(b, last = FALSE) {
-      if (is.na(b) || b < 0) return(b)             # -99 / -999 are not bins
-      run <- which(map == b)
-      if (!length(run)) return(b)
-      as.integer(if (last) run[length(run)] else run[1]) - 1L
-    }
-    data_list$bin_first_selected[i] <- to_pop(data_list$bin_first_selected[i])
-    data_list$sel_norm_bin1[i]      <- to_pop(data_list$sel_norm_bin1[i])
-    data_list$sel_norm_bin2[i]      <- to_pop(data_list$sel_norm_bin2[i], last = TRUE)
-  }
+  # The columns that name a selectivity bin stay DATA bin ordinals on either
+  # grid. data_check() refuses a fleet that sets one on a species whose
+  # population grid is finer, because a data ordinal cannot address a finer
+  # grid without picking a reading, and the readings differ.
 
   # * Maturity-at-length ----
   # Logistic in length (cm); a species with no L50 / slope keeps the age-based

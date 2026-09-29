@@ -220,11 +220,11 @@ Type objective_function<Type>::operator() () {
   // bins, which are the data bins whenever no pop_lengths is supplied.
   int max_nlengths_pop = imax(nlengths_pop);
 
-  // First and last population bin falling in each data bin, per species. The
-  // map is monotone, so each data bin owns a contiguous run and anything that
-  // has to report per data bin (pred_CAAL, and the length compositions built
-  // from it) can sum that run. With one grid every run is a single bin, so the
-  // arithmetic and the work are exactly what they were.
+  // -- 2.3c. First and last population bin in each data bin, per species. SS3
+  // forms sel(L) * P(L|age) at population resolution and bins the result, so
+  // pred_CAAL and the length compositions sum each data bin's run rather than
+  // applying one bin-average selectivity across it. The map is monotone, so the
+  // runs are contiguous; with one grid every run is a single bin.
   matrix<int> pop_bin_lo(nspp, max_nlengths); pop_bin_lo.setZero();
   matrix<int> pop_bin_hi(nspp, max_nlengths); pop_bin_hi.setZero();
   for(int sp_i = 0; sp_i < nspp; sp_i++){
@@ -409,12 +409,8 @@ Type objective_function<Type>::operator() () {
   DATA_IMATRIX( caal_ctl );               // Info on observed CAAL; columns = Survey_name, Survey_code, Species, Year
   DATA_MATRIX( caal_n );                  // Sample size on CAAL; ONE column = Sample size. Unlike comp_n there is no month: a CAAL observation is placed at its fleet's Month, and the age-length key is annual.
 
-  // -- 2.4.4. Initial equilibrium catch
-  // The catch the stock yielded under the initial F, in the year before the
-  // hindcast. Written by the user as a catch_data row at styr - 1 and split out
-  // by rearrange_data(), because it is predicted from the deviation-free
-  // equilibrium age structure rather than from a hindcast year. Empty (0 rows)
-  // unless the data supply one, which is the case for every bundled dataset.
+  // -- 2.4.4. Initial equilibrium catch: the catch yielded under the initial F,
+  // in the year before the hindcast. 0 rows unless the data supply one.
   DATA_IMATRIX( equil_catch_ctl );        // columns = Fleet_code, Species
   DATA_MATRIX( equil_catch_obs );         // columns = Catch, Log_sd
   DATA_MATRIX( caal_obs );                // Observed CAAL; cols = Comp_1, Comp_2, etc. can be proportion
@@ -1337,12 +1333,10 @@ Type objective_function<Type>::operator() () {
     sel_dn6, sel_dn6_off, sel_dn6_off_nat, sel_dn6_ends   // DoubleNormalSS3
   );
 
-  // -- Selected body weight. A length-selective fleet catches (or samples) the
-  //    larger or smaller fish of each age class, so its weight-at-age is the
-  //    mean weight of the fish it selects, sum_l P(l|a) s(l) w(l) / sum_l
-  //    P(l|a) s(l) (kg; Stock Synthesis's "bodywt"), not the age class's mean.
-  //    Catch and survey biomass both read it. Needs the fleet's age-length key,
-  //    so estimated growth only.
+  // -- Selected body weight (kg): sum_l P(l|a) s(l) w(l) / sum_l P(l|a) s(l),
+  //    SS3's "bodywt". A length-selective fleet takes the larger or smaller fish
+  //    of an age class, so its catch and survey biomass weigh that class by the
+  //    fish it selects, not by the class mean. Estimated growth only.
   for(flt = 0; flt < n_flt; flt++){
     sp = flt_spp(flt);
     if(growth_model(sp) == 0 || flt_sel_dim(flt) != 1 || flt_sel_type(flt) == 0) continue;
@@ -1494,18 +1488,10 @@ Type objective_function<Type>::operator() () {
 
   // 5.12.1. FISHERY SELECTIVITY AT AGE FOR THE INITIAL STATE (initMode 6 only)
   //
-  // SS3 decays the initial equilibrium with InitF weighted by the fleet's
-  // selectivity, so a size-selective fishery leaves the young ages nearly
-  // untouched. This is the mean over the species' FISHERY fleets in the first
-  // hindcast year: exact for the single-fishery case, which is what SS3's
-  // per-fleet InitF reduces to here, and the mean shape otherwise, because
-  // Rceattle carries one Finit per species rather than one per fleet.
-  //
-  // Every other mode leaves this at 1, so their initial numbers and their
-  // SPRFinit are exactly what they were before this mode existed. It has to be
-  // filled HERE, after selectivity is complete and before section 6.3 reads it
-  // for SPRFinit -- filling it later leaves zeros in that block, which moves
-  // R_init for any model with a stock-recruit curve and a non-zero Finit.
+  // SS3's InitF convention: the initial equilibrium decays at Finit weighted by
+  // fishery selectivity, so a size-selective fishery barely touches the young
+  // ages. Mean over the species' fishery fleets in year 1; every other mode
+  // leaves it at 1. Filled before section 6.3 reads it for SPRFinit.
   for(sp = 0; sp < nspp; sp++){
     for(sex = 0; sex < nsex(sp); sex++){
       for(age = 0; age < nages(sp); age++){
@@ -2935,11 +2921,9 @@ Type objective_function<Type>::operator() () {
   //   Z_a  = M1_a + Finit * s_a
   //
   // Baranov on the deviation-free equilibrium age structure, at the fleet's own
-  // selectivity and body weight in the first hindcast year; SS3's Equil_catch
-  // (SS_popdyn.tpl, Do_Equil_Calc). Read only under initMode 6, the one mode
-  // that builds N_eq at this same Finit * selectivity. Rceattle carries one
-  // Finit per species, so on a stock with more than one fishery N_eq decays at
-  // the mean fishery selectivity while the prediction uses this fleet's.
+  // selectivity and weight in the first hindcast year; SS3's Equil_catch
+  // (SS_popdyn.tpl, Do_Equil_Calc). R supplies these rows only under initMode
+  // 6, the one mode that builds N_eq at this same Finit * selectivity.
   vector<Type> equil_catch_hat(equil_catch_ctl.rows()); equil_catch_hat.setZero();
   for(int eq_ind = 0; eq_ind < equil_catch_ctl.rows(); eq_ind++){
     flt = equil_catch_ctl(eq_ind, 0) - 1;
@@ -3065,10 +3049,8 @@ Type objective_function<Type>::operator() () {
             case 1: // - Fishery
               if(flt_sel_dim(flt) == 1){ // Length based
                 {
-                  // sel(L) * P(L|age) summed over the POPULATION bins in this
-                  // data bin: SS3 forms that product at population resolution
-                  // and bins the result, rather than applying one bin-average
-                  // selectivity to the whole data bin.
+                  // sel(L) * P(L|age) over this data bin's population bins
+                  // (section 2.3c).
                   Type ps_ln = 0.0;
                   for(int lp = pop_bin_lo(sp, ln); lp <= pop_bin_hi(sp, ln); lp++){
                     ps_ln += sel_at_length(flt, sex, lp, yr) * growth_matrix(wtind, sex, age, lp, yr);
@@ -3082,10 +3064,8 @@ Type objective_function<Type>::operator() () {
             case 2: // - Survey
               if(flt_sel_dim(flt) == 1){ // Length based
                 {
-                  // sel(L) * P(L|age) summed over the POPULATION bins in this
-                  // data bin: SS3 forms that product at population resolution
-                  // and bins the result, rather than applying one bin-average
-                  // selectivity to the whole data bin.
+                  // sel(L) * P(L|age) over this data bin's population bins
+                  // (section 2.3c).
                   Type ps_ln = 0.0;
                   for(int lp = pop_bin_lo(sp, ln); lp <= pop_bin_hi(sp, ln); lp++){
                     ps_ln += sel_at_length(flt, sex, lp, yr) * growth_matrix(wtind, sex, age, lp, yr);
@@ -3366,10 +3346,8 @@ Type objective_function<Type>::operator() () {
       case 1: // - Fishery
         if(flt_sel_dim(flt) == 1){
           {
-                  // sel(L) * P(L|age) summed over the POPULATION bins in this
-                  // data bin: SS3 forms that product at population resolution
-                  // and bins the result, rather than applying one bin-average
-                  // selectivity to the whole data bin.
+                  // sel(L) * P(L|age) over this data bin's population bins
+                  // (section 2.3c).
                   Type ps_ln = 0.0;
                   for(int lp = pop_bin_lo(sp, ln); lp <= pop_bin_hi(sp, ln); lp++){
                     ps_ln += sel_at_length(flt, sex, lp, yr) * growth_matrix(wtind, sex, age, lp, yr);
@@ -3383,10 +3361,8 @@ Type objective_function<Type>::operator() () {
       case 2: // - Survey
         if(flt_sel_dim(flt) == 1){
           {
-                  // sel(L) * P(L|age) summed over the POPULATION bins in this
-                  // data bin: SS3 forms that product at population resolution
-                  // and bins the result, rather than applying one bin-average
-                  // selectivity to the whole data bin.
+                  // sel(L) * P(L|age) over this data bin's population bins
+                  // (section 2.3c).
                   Type ps_ln = 0.0;
                   for(int lp = pop_bin_lo(sp, ln); lp <= pop_bin_hi(sp, ln); lp++){
                     ps_ln += sel_at_length(flt, sex, lp, yr) * growth_matrix(wtind, sex, age, lp, yr);

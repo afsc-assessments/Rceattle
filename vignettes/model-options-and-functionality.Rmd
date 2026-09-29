@@ -70,6 +70,31 @@ Codes (also accept the string aliases listed):
 | `5` | `"OffsetEquilibrium"` | Unfished equilibrium, F<sub>init</sub> = 0, displaced by the year-1 recruitment deviation instead of sitting at R<sub>init</sub>; init devs off, no init-dev penalty (Cole Monnahan / AFSC GOA pollock convention) |
 | `6` | `"FishedNonEquilibriumSelected"` | As `3`, but F<sub>init</sub> is weighted by the fishery's selectivity at age before it accumulates, so the first year decays with &sum;(M1 + F<sub>init</sub> s<sub>a</sub>). Stock Synthesis's InitF convention; F<sub>init</sub> is the apical initial F. Use this where the fishery is size-selective, since `3` charges unselected young ages the full F<sub>init</sub> and `4` applies it once |
 
+#### The initial equilibrium catch
+
+Modes `3`, `4` and `6` estimate F<sub>init</sub>, but nothing identifies it unless
+you give it an observation: the catch the stock yielded under that initial fishing
+mortality, in the year before the hindcast. Write it as an ordinary `catch_data`
+row at `styr - 1`, with the fleet's `Catch` and `Log_sd`. No new columns.
+
+**It is read only under mode `6`.** The prediction is Baranov at
+F<sub>init</sub> &times; selectivity, and mode `6` is the only mode that builds the
+initial age structure with that same mortality, so scoring it under `3` or `4`
+would fit F<sub>init</sub> to a catch the population was never subject to. Under
+any other mode the row is dropped, and `data_check()` says so.
+
+That year also holds ordinary catch history — `GOA2018SS` carries 23 rows before
+`styr`, two of them on `styr - 1` — so `data_check()` names the fleets whose rows
+it reads whenever it reads any. It refuses two rows for one fleet, a non-positive
+catch or `Log_sd`, a fleet that is not an active fishery, and a species with more
+than one fishery (Rceattle carries one F<sub>init</sub> per species, so there is no
+per-fleet split to predict with).
+
+`clean_data()` moves the row into `data_list$equil_catch_data` so `catch_data`
+keeps one row per fitted catch; `write_data()` writes it back into the catch
+sheet. The prediction is reported as `quantities$equil_catch_hat` and scored on
+its own `jnll_comp` row, `"Initial equilibrium catch"`.
+
 ### `estimateMode`, what does `fit_mod()` actually do?
 
 | Value | Behavior |

@@ -6,7 +6,7 @@
 # Parameter blocks added after fits were already being saved. `inits` and a
 # stored `map` from an older fit lack them; both are filled from the fresh
 # build (all fixed at the build default), so the older fit still refits.
-.RCE_ADDED_PARAMS <- c(log_sel_apical = "5.38.0", sel_dn6 = "5.42.0")
+.RCE_ADDED_PARAMS <- c(log_sel_apical = "5.38.0", sel_dn6 = "5.46.0")
 
 #' Fit the CEATTLE assessment model
 #' @description Estimate CEATTLE population parameters by maximum likelihood, and

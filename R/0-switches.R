@@ -481,14 +481,11 @@ fleet_map <- c(
 #     penalty (Cole Monnahan / AFSC GOA pollock convention). Modes 1 and 5 both
 #     start from R_init; 5 displaces it by the year-1 recruitment deviation,
 #     which is the only term separating them (init_log_scalar in ceattle.cpp).
-# 6 = FishedNonEquilibriumSelected: like 3, but Finit is weighted by the
-#     fishery's selectivity at age before it accumulates, so the initial age
-#     structure decays with sum(M1 + Finit * sel(a)). This is Stock Synthesis's
-#     InitF convention. Mode 3 applies the same Finit to every age and mode 4
-#     applies it once, and neither is an equilibrium under a size-selective
-#     fishery: they charge unselected young ages the full initial F (mode 3) or
-#     none of it past the first age (mode 4). Finit is the APICAL initial F,
-#     since the selectivity is normalized to a maximum of 1.
+# 6 = FishedNonEquilibriumSelected: like 3, but the initial age structure decays
+#     with sum(M1 + Finit * sel(a)), Stock Synthesis's InitF convention -- the
+#     only one of the three that is an equilibrium under a size-selective
+#     fishery. Finit is then the apical initial F, for a single fishery whose
+#     selectivity is normalized to 1. See ?fit_mod.
 initMode_map <- c(
   "FreeParams"                 = 0,
   "Equilibrium"                = 1,

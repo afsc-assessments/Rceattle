@@ -1382,15 +1382,20 @@ data_check <- function(data_list) {
   }
 
   # Initial equilibrium catch ----
-  # A catch_data row at styr - 1 is the catch the stock yielded under the initial
-  # fishing mortality, read only under FishedNonEquilibriumSelected, the one mode
-  # whose initial age structure decays at the same Finit * selectivity. That year
-  # also holds ordinary catch history, so the fleets are named whenever the rows
-  # ARE read. SS3 pairs the observation and the parameter the same way
+  # A catch_data row at styr - 1, read only under FishedNonEquilibriumSelected.
+  # That year also holds ordinary catch history, so the fleets are named whenever
+  # the rows ARE read. SS3 pairs observation and parameter the same way
   # (SS_readcontrol_330.tpl).
   .eq_rows <- .rce_equil_catch_candidates(data_list)
   if (!is.null(.eq_rows) && nrow(.eq_rows)) {
     .eq <- .rce_equil_catch_rows(.eq_rows, data_list$styr, data_list$initMode)
+    if (!any(.eq)) {
+      # Present but not read: the rows leave catch_data either way, so say so
+      # rather than let them vanish.
+      message("catch_data rows at Year ", data_list$styr - 1L,
+              " are dropped: an initial equilibrium catch is read only under ",
+              "initMode = 'FishedNonEquilibriumSelected'.")
+    }
     if (any(.eq)) {
       .flt <- .eq_rows$Fleet_code[.eq]
       .nm  <- if ("Fleet_name" %in% colnames(.eq_rows)) {
@@ -1400,8 +1405,7 @@ data_check <- function(data_list) {
               data_list$styr - 1L, " for fleet(s) ",
               paste(unique(.nm), collapse = ", "),
               ". Finit is fitted to it; remove the row to leave Finit ",
-              "unidentified, or use another initMode to treat the row as ",
-              "catch history.")
+              "unidentified.")
       if (anyDuplicated(.flt)) {
         errors <- c(errors, paste0(
           "More than one initial equilibrium catch at Year ",
@@ -1445,17 +1449,43 @@ data_check <- function(data_list) {
                 paste(.flt[.off], collapse = ", "), "."))
             }
           }
-          # Only a fishery takes catch. The template scores an equilibrium catch
-          # on flt_type == 1 alone, so a survey's row would be dropped from the
-          # catch history and fitted by nothing.
+          # The template scores an equilibrium catch on flt_type == 1 alone, so
+          # on any other fleet the row leaves the catch history and is fitted by
+          # nothing. An Off fleet is named separately: turning a fishery off is
+          # an ordinary thing to do, and the fix is to drop the row with it.
           .type <- .canon_switch(data_list$fleet_control$Fleet_type[.row], fleet_map)
-          .not_fsh <- which(!is.na(.type) & .type != "Fishery")
-          if (length(.not_fsh)) {
+          .off <- which(.type == "Off")
+          .srv <- which(.type != "Off" & .type != "Fishery")
+          if (length(.srv)) {
             errors <- c(errors, paste0(
               "An initial equilibrium catch is on fleet(s) ",
-              paste(.flt[.not_fsh], collapse = ", "),
+              paste(.flt[.srv], collapse = ", "),
               ", which are not fisheries. It is the catch the stock yielded ",
               "under the initial fishing mortality, so it belongs to a fishery."))
+          }
+          if (length(.off)) {
+            errors <- c(errors, paste0(
+              "An initial equilibrium catch is on fleet(s) ",
+              paste(.flt[.off], collapse = ", "),
+              ", whose Fleet_type is 'Off'. An Off fleet is not fitted, so the ",
+              "row would be scored by nothing; remove it along with the fleet."))
+          }
+          # Finit is per species, and the initial age structure decays at the
+          # MEAN fishery selectivity, so on a species with more than one fishery
+          # the prediction and the population it is taken from disagree. There
+          # is no per-fleet split of a pooled Finit to fall back on.
+          .sp <- data_list$fleet_control$Species[.row]
+          .nfsh <- vapply(.sp, function(x) sum(
+            .canon_switch(data_list$fleet_control$Fleet_type, fleet_map) == "Fishery" &
+              data_list$fleet_control$Species == x), integer(1))
+          if (any(.nfsh > 1L)) {
+            errors <- c(errors, paste0(
+              "An initial equilibrium catch is on fleet(s) ",
+              paste(.flt[.nfsh > 1L], collapse = ", "),
+              ", whose species has more than one fishery. Finit is per species ",
+              "and the initial age structure decays at the mean fishery ",
+              "selectivity, so the prediction would not match the population ",
+              "it is taken from."))
           }
         }
       }
@@ -1909,38 +1939,54 @@ data_check <- function(data_list) {
     }
   }
 
-  # A length-based selectivity curve is built on the POPULATION length bins, so
-  # a form whose PARAMETERS are indexed by bin only means what the user intended
-  # when the two grids coincide. Non-parametric and AR1 forms carry one
-  # coefficient per bin, and their centring and random walk are defined ACROSS
-  # bins, so evaluating them on a finer grid would change the model rather than
-  # its resolution; a time-varying deviation penalty reads Sel_pen_first_bin /
-  # Sel_pen_last_bin as bin indices with the same ambiguity. Refuse rather than
-  # pick a reading. Parametric forms are functions of length and are unaffected.
+  # A length-based curve is built on the population bins, but every column that
+  # names a selectivity bin is a DATA bin ordinal. On a finer population grid
+  # the two cannot both be honoured, so a fleet that indexes bins -- by form, by
+  # a time-varying deviation penalty, or by naming a bin in a column -- is
+  # refused. A parametric form that names no bin is a function of length and is
+  # unaffected, which is the case the population grid exists to serve.
   if (has_data(data_list$fleet_control) && !is.null(data_list$pop_lengths)) {
     fc <- data_list$fleet_control
-    .bin_indexed <- c("NonParametric", "NonParametricPM", "NonParametricIID",
-                      "NonParametricRW", "AR1", "AR1_3D", 2, 5, 6, 7, 9, 13, 14)
+    # nlengths_pop is built by rearrange_data(), which runs after this, so the
+    # grid is resolved here from the same helper rather than read off data_list.
+    .pop <- tryCatch(.rce_pop_length_bins(data_list)$nlengths_pop,
+                     error = function(e) NULL)
+    .bin_indexed <- unname(sel_map[c("NonParametric", "Hake", "2DAR1", "3DAR1",
+                                     "NonParametricPM",
+                                     "NonParametricIntegrable")])
+    # Columns read as a bin ordinal on a length fleet. Bin_first_selected is
+    # 1-based, so 1 names the first bin and needs no translation.
+    .bin_cols <- c("N_sel_bins", "Sel_norm_bin", "Sel_norm_bin_upper",
+                   "Sel_pen_first_bin", "Sel_pen_last_bin", "Sel_cap_bin")
     len_based <- as.character(fc$Selectivity_dimension) == "Length"
-    np_form   <- as.character(fc$Selectivity) %in% as.character(.bin_indexed)
+    np_form   <- .canon_switch(fc$Selectivity, sel_map) %in%
+                   names(sel_map)[match(.bin_indexed, sel_map)]
     tv_on     <- !is.na(fc$Time_varying_sel) &
                  !(as.character(fc$Time_varying_sel) %in% c("0", "Off"))
+    names_bin <- suppressWarnings(as.integer(fc$Bin_first_selected)) > 1L
+    names_bin[is.na(names_bin)] <- FALSE
+    for (cl in intersect(.bin_cols, names(fc))) {
+      v <- suppressWarnings(as.integer(fc[[cl]]))
+      names_bin <- names_bin | (!is.na(v) & v >= 0)
+    }
     coarse <- vapply(seq_len(nrow(fc)), function(i) {
       sp <- suppressWarnings(as.integer(fc$Species[i]))
-      if (is.na(sp) || is.null(data_list$nlengths_pop)) return(FALSE)
-      isTRUE(data_list$nlengths_pop[sp] != data_list$nlengths[sp])
+      if (is.na(sp) || is.null(.pop) || sp > length(.pop)) return(FALSE)
+      isTRUE(.pop[sp] != data_list$nlengths[sp])
     }, logical(1))
-    bad <- which(len_based & coarse & (np_form | tv_on))
+    bad <- which(len_based & coarse & (np_form | tv_on | names_bin))
     if (length(bad)) {
       errors <- c(errors, paste0(
         "Fleet(s) ", paste(as.character(fc$Fleet_name[bad]), collapse = ", "),
-        " have a length-based selectivity whose parameters are indexed by bin ",
-        "(non-parametric/AR1, or a time-varying deviation penalty) on a species ",
-        "whose population length grid is finer than its data length grid. The ",
-        "curve is built on the population bins, so those per-bin coefficients, ",
-        "their centring and their random walk would no longer mean what the ",
-        "data grid implied. Use a parametric form, or give the species one ",
-        "length grid (drop pop_lengths)."))
+        " have a length-based selectivity that is indexed by bin -- a ",
+        "non-parametric or AR1 form, a time-varying deviation penalty, or a ",
+        "column naming a bin (", paste(c("Bin_first_selected", .bin_cols),
+                                       collapse = ", "),
+        ") -- on a species whose population length grid is finer than its data ",
+        "grid. Those bin numbers are data bins, and the curve is built on the ",
+        "population bins, so the model would not be the one the numbers ",
+        "describe. Use a parametric form that names no bin, or give the ",
+        "species one length grid (drop pop_lengths)."))
     }
   }
 

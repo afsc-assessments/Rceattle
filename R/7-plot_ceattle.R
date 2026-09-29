@@ -836,7 +836,10 @@ plot_selectivity <-
                   "; skipping fleet ", fc$Fleet_name[i], ".", call. = FALSE)
           next
         }
-        nbin <- if (is_len) nlen[sp] else nages[sp]
+        # sel_at_length is on the POPULATION length bins, which equal the data
+        # bins unless the model supplied its own grid, so the count comes off
+        # the array rather than from nlengths.
+        nbin <- if (is_len) dim(sel)[3] else nages[sp]
         if (is.na(nbin) || nbin < 1L) next
         # Length bins are 1-based ordinals (see the column schema); ages are
         # offset by the species' minage.

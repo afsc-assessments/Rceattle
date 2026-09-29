@@ -154,11 +154,8 @@ rename_output <- function(data_list = NULL, quantities = NULL){
     dimnames(quantities$spawn_output) <- list(data_list$spnames, paste0("Age", 1:max_age), yrs_proj)
   }
   # The age-length key and selectivity-at-length are on the POPULATION length
-  # bins, which equal the data bins unless the data supplied a separate grid.
-  # Read the count off the arrays themselves: `data_list` here is the
-  # pre-rearrange_data() list, which carries no nlengths_pop, so anything derived
-  # from it falls back to the DATA bins and mislabels a model that supplied its
-  # own population grid.
+  # bins. The count comes off the arrays, since `data_list` here is the
+  # pre-rearrange_data() list and carries no nlengths_pop.
   .dim_or <- function(x, i, alt) if (!is.null(x) && length(dim(x)) >= i) dim(x)[i] else alt
   max_length_pop <- .dim_or(quantities$growth_matrix, 4L, max_length)
   dimnames(quantities$growth_matrix) <- list(

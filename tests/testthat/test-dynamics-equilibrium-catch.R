@@ -2,9 +2,10 @@
 # under initMode 6 (FishedNonEquilibriumSelected).
 #
 # That year is not a free marker: GOA2018SS carries 23 catch rows before styr, two
-# of them on 1976. Reading those as equilibrium observations under a mode that
-# holds Finit at 0 predicts 0, takes log(0), and returns a non-finite objective on
-# all four golden references. A negative Year cannot be the marker either --
+# of them on 1976, and it is the only bundled dataset that does. Reading those as
+# equilibrium observations under a mode that holds Finit at 0 predicts 0, takes
+# log(0), and returns a non-finite objective on both GOA golden references, which
+# is how this surfaced. A negative Year cannot be the marker either --
 # run_mse() reserves those for rows it splices in as the next assessment's data,
 # and its window filters are on abs(Year).
 #
@@ -31,9 +32,10 @@ testthat::test_that("catch history at styr - 1 is not read as an equilibrium cat
   testthat::expect_length(f$quantities$equil_catch_hat, 0)
 })
 
-# Modes 3 and 4 estimate Finit but decay the initial age structure at a flat
-# Finit, not at Finit * selectivity, so the equilibrium catch would be scored
-# against a population that mortality never produced.
+# Modes 3 and 4 estimate Finit but reach an age with it differently -- 3
+# accumulates a flat Finit over ages, 4 applies it once -- so the equilibrium
+# catch, which is Baranov at Finit * selectivity, would be scored against a
+# population that mortality never produced.
 testthat::test_that("the other fished modes do not read it", {
   testthat::skip_if_not_installed("TMB")
   testthat::skip_if_not(exists("GOA2018SS"))
