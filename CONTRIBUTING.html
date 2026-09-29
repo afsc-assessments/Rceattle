@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -53,7 +53,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Contributing to Rceattle</h1>
-      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.45.2/CONTRIBUTING.md" class="external-link"><code>CONTRIBUTING.md</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/CONTRIBUTING.md" class="external-link"><code>CONTRIBUTING.md</code></a></small>
     </div>
 
 <div id="contributing-to-rceattle" class="section level1">
@@ -119,6 +119,14 @@
 <code>src/TMB/linkage.hpp</code> and <code>R/0-linkage_encode.R</code> hold the same process and parameter codes; change one, change both.</li>
 <li>The repositories in <code>inst/dev/SIBLING-REPOS.md</code> consume this API. Sweep them after a breaking change.</li>
 </ol></div>
+<div class="section level2">
+<h2 id="code-style">Code style<a class="anchor" aria-label="anchor" href="#code-style"></a></h2>
+<p>Follow the file you are editing. Where it does not settle the question, R follows the <a href="https://style.tidyverse.org" class="external-link">tidyverse style guide</a> and C++ the <a href="https://google.github.io/styleguide/cppguide.html" class="external-link">Google C++ style guide</a>: snake_case, two-space indents, about 80 columns, full words over abbreviations. Neither guide is a reason to reformat code you did not otherwise need to touch, and TMB idiom outranks both — the C++ keeps its snake_case function names.</p>
+<p>Three habits are specific to this package:</p>
+<ul><li>Read a list or a <code>fleet_control</code> column with <code>[[ ]]</code>, not <code>$</code>. <code>$</code> partial-matches without a warning, so where <code>Time_varying_sel</code> is missing, <code>fleet_control$Time_varying_sel</code> hands back <code>Time_varying_sel_sd</code>. Ten pairs among the schema’s 83 columns have that shape.</li>
+<li>Write in the idiom of the file you are in, and do not convert one to the other. The plotters and <code>R/5-rearrange_data.R</code> use dplyr and the pipe; most of <code>R/1-*</code> to <code>R/6-*</code> is base R. Inside the fitting pipeline a rewrite is how a fit moves silently — a verb that reorders rows, drops a dimension name or returns a tibble does not error, and the C++ template reads the type it gets.</li>
+<li>Keep a pull request to one concern, and keep reformatting out of a change that can move a number. A reviewer checking a fit change should not have to read past whitespace to find it. Ask before adding a dependency.</li>
+</ul></div>
 <div class="section level2">
 <h2 id="writing-comments-and-documentation">Writing comments and documentation<a class="anchor" aria-label="anchor" href="#writing-comments-and-documentation"></a></h2>
 <p>Write for a fisheries scientist who was not in the room: the assessment reason, the units and the convention, in one or two lines. The “Comments” and “Domain vocabulary” sections of <code>CLAUDE.md</code> give the rules and a before-and-after example; <code>src/TMB/recruitment.hpp</code> is the C++ header to emulate.</p>

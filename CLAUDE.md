@@ -217,6 +217,58 @@ rcmdcheck::rcmdcheck()                 # what CI runs (slow; usually backgrounde
   assessment scripts keep running. Keep them; document them as ignored,
   with the ggplot equivalent.
 
+## Code style
+
+Two external guides settle what this file doesn’t: the [tidyverse style
+guide](https://style.tidyverse.org) for R, the [Google C++ style
+guide](https://google.github.io/styleguide/cppguide.html) for C++. They
+are tie-breakers, not licence to reformat — the surrounding file wins,
+and so does TMB/Eigen idiom. Both already describe most of what is here
+(snake_case, two-space R indents, ~80 columns: 36,203 of 39,236 R
+lines), so what matters is where they don’t:
+
+- **C++ free functions stay snake_case** — `calculate_ration()`,
+  `first_difference()` — not Google’s `CamelCase`. The headers are one
+  template-on-`Type` function per process; Google governs spacing,
+  braces, `const`-correctness and where a comment sits, never a rename.
+- **R internal helpers keep the `.` prefix** (`.rce_year_filter()`,
+  `.as_colour()`). That prefix is how a reader knows it is unexported,
+  and `@noRd` goes with it.
+- **`[[` over `$` for a new read.** `$` partial-matches on a list *and*
+  on a data.frame, silently and with no warning (checked, R 4.5.1):
+  where `Time_varying_sel` is absent from a `fleet_control`,
+  `fleet_control$Time_varying_sel` hands back `Time_varying_sel_sd`. Ten
+  pairs among the 83 columns the schema declares have that shape, and
+  three of the shorter names (`Time_varying_sel`, `Time_varying_q`,
+  `Sel_norm_bin`) have exactly one longer sibling — the case that
+  resolves silently, since an ambiguous prefix returns NULL. So a `$`
+  read is safe only while its column is guaranteed present.
+  `.pull_int()` in `5-rearrange_data.R` already does it right —
+  `fc[[col]]`. Don’t sweep the ~8,300 existing `$`; write `[[` in new
+  code, and always when the name is computed.
+- **Match the file’s idiom; never translate between them.** dplyr and
+  the pipe are load-bearing in the `7-*` plotters, the `0-*` data prep
+  and `5-rearrange_data.R` (105 lines of it); most of `1-*` to `6-*` is
+  base R. Neither is more correct here, and rewriting one as the other
+  inside the fit pipeline is how a fit moves unannounced: `.pull_int0()`
+  is pinned to the exact result type of the
+  `pull() %>% as.integer() - 1` it replaced, because the C++ template
+  reads that type. A verb that reorders rows, drops a dimname or returns
+  a tibble does not error.
+
+**Scope discipline.** One concern per commit, and never a
+formatting-only hunk inside a numeric change — whoever reviews a fit
+change should see only the lines that can move it. Don’t refactor next
+to the fix. No new dependency without asking; `DESCRIPTION` already
+imports 20.
+
+**Clear beats clever.** No abstraction for a single caller; no registry,
+wrapper or config layer until a second consumer exists; no second
+grammar for something the linkage formula already expresses (rule 12).
+Tests and comments are part of the change, not a follow-up (rules 2, 5,
+8). If the structure of a change needs a paragraph to justify it,
+propose it before writing it.
+
 ## Comments: write for a fisheries scientist, not a programmer
 
 The reader knows fish and knows management. They may not know R or C++
@@ -305,6 +357,10 @@ a process argument:
   DSEM-linked models: formula/path grammar, and how linkage structure is
   specified and reported. DSEM lives on the `dsem-v5-integration`
   branch, not here.
+- [**FIMS**](https://github.com/NOAA-FIMS/FIMS) —
+  `.github/copilot-instructions.md`, where the two style guides and the
+  scope discipline above come from; `tests/` as the pattern an agent
+  copies rather than reinventing.
 
 ## Known traps
 

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -53,9 +53,25 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.45.2/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="5.45.3" id="rceattle-5453">Rceattle 5.45.3<a class="anchor" aria-label="anchor" href="#rceattle-5453"></a></h2>
+<div class="section level3">
+<h3 id="bug-fixes-5-45-3">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-5-45-3"></a></h3>
+<ul><li>
+<p><strong>An aggregated composition figure no longer pools two observation structures into one normalization.</strong> A fleet can carry more than one – sexes combined in the early years of a series and disaggregated later – and the likelihood scores one density per structure. The aggregate pooled every row for a fleet and comp type into one panel and renormalized across the whole of it, so neither the combined series nor the sex-specific ones summed to 1 and the two were not on comparable axes. <code><a href="../reference/plot_comp.html">plot_comp()</a></code> now keys the panel on the structure as well, but <strong>only for a fleet that mixes them</strong>: a fleet with one structure, which is every bundled data set, keeps its previous panel and title exactly. The effective-sample-size annotation on the same figure already grouped on the key the likelihood scores a density over (fleet, species, sex, year); the aggregate now follows it.</p>
+<p>Reported by an external user running a two-sex model, who was otherwise going to add a mirrored fleet to work around it – changing the model to fix a figure.</p>
+</li>
+<li><p><strong>A joint-sex OSA series says it is half of one unit.</strong> A <code>Sex = 3</code> composition is appended as a single decomposition unit over the stacked female-then-male vector, with one cell dropped for the sum-to-one constraint rather than one per sex, which the OSA figure then re-bases onto a common bin axis so both halves can be read. Labelled <code>- male</code> / <code>- female</code>, that reads as two separate distributions: the same external user asked why the residual structure did not match the likelihood structure. It does – the residuals were never computed per sex – so the labels are now <code>- joint, male</code> / <code>- joint, female</code>, and a single-sex row, which genuinely is its own density, stays unlabelled. No residual changes.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="documentation-5-45-3">Documentation<a class="anchor" aria-label="anchor" href="#documentation-5-45-3"></a></h3>
+<ul><li>
+<strong><code>CONTRIBUTING.md</code> now states a code style.</strong> R follows the tidyverse style guide and C++ the Google C++ style guide, as tie-breakers where the surrounding file does not settle the question; TMB idiom outranks both, and neither is a reason to reformat untouched code. Three package-specific habits go with them: read a list or <code>fleet_control</code> column with <code>[[ ]]</code> rather than <code>$</code>, which partial-matches silently; write in the idiom of the file you are in rather than converting base R and dplyr into each other inside the fitting pipeline; and keep reformatting out of a change that can move a number.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="5.45.2" id="rceattle-5452">Rceattle 5.45.2<a class="anchor" aria-label="anchor" href="#rceattle-5452"></a></h2>
 <div class="section level3">

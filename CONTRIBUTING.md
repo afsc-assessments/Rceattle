@@ -130,6 +130,35 @@ Stated in full under “Hard rules” in `CLAUDE.md`. In brief:
 7.  The repositories in `inst/dev/SIBLING-REPOS.md` consume this API.
     Sweep them after a breaking change.
 
+## Code style
+
+Follow the file you are editing. Where it does not settle the question,
+R follows the [tidyverse style guide](https://style.tidyverse.org) and
+C++ the [Google C++ style
+guide](https://google.github.io/styleguide/cppguide.html): snake_case,
+two-space indents, about 80 columns, full words over abbreviations.
+Neither guide is a reason to reformat code you did not otherwise need to
+touch, and TMB idiom outranks both — the C++ keeps its snake_case
+function names.
+
+Three habits are specific to this package:
+
+- Read a list or a `fleet_control` column with `[[ ]]`, not `$`. `$`
+  partial-matches without a warning, so where `Time_varying_sel` is
+  missing, `fleet_control$Time_varying_sel` hands back
+  `Time_varying_sel_sd`. Ten pairs among the schema’s 83 columns have
+  that shape.
+- Write in the idiom of the file you are in, and do not convert one to
+  the other. The plotters and `R/5-rearrange_data.R` use dplyr and the
+  pipe; most of `R/1-*` to `R/6-*` is base R. Inside the fitting
+  pipeline a rewrite is how a fit moves silently — a verb that reorders
+  rows, drops a dimension name or returns a tibble does not error, and
+  the C++ template reads the type it gets.
+- Keep a pull request to one concern, and keep reformatting out of a
+  change that can move a number. A reviewer checking a fit change should
+  not have to read past whitespace to find it. Ask before adding a
+  dependency.
+
 ## Writing comments and documentation
 
 Write for a fisheries scientist who was not in the room: the assessment

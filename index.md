@@ -53,7 +53,7 @@ than tracking `main`, e.g.:
 
 ``` r
 
-remotes::install_github("afsc-assessments/Rceattle@5.45.2")
+remotes::install_github("afsc-assessments/Rceattle@5.45.3")
 ```
 
 The maintainer email in `DESCRIPTION` (`grant.adams@noaa.gov`) is the

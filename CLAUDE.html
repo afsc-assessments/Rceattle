@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -53,7 +53,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>CLAUDE.md — Rceattle</h1>
-      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.45.2/CLAUDE.md" class="external-link"><code>CLAUDE.md</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/CLAUDE.md" class="external-link"><code>CLAUDE.md</code></a></small>
     </div>
 
 <div id="claudemd--rceattle" class="section level1">
@@ -156,6 +156,20 @@
 <strong>Base-graphics arguments from before the ggplot migration are accepted and ignored</strong> (<code>right_adj</code>, <code>top_adj</code>, <code>mod_cex</code>, <code>legend.pos</code>, <code>single.plots</code>, <code>theta</code>, <code>ymax</code>, <code>cex</code>), so the assessment scripts keep running. Keep them; document them as ignored, with the ggplot equivalent.</li>
 </ul></div>
 <div class="section level2">
+<h2 id="code-style">Code style<a class="anchor" aria-label="anchor" href="#code-style"></a></h2>
+<p>Two external guides settle what this file doesn’t: the <a href="https://style.tidyverse.org" class="external-link">tidyverse style guide</a> for R, the <a href="https://google.github.io/styleguide/cppguide.html" class="external-link">Google C++ style guide</a> for C++. They are tie-breakers, not licence to reformat — the surrounding file wins, and so does TMB/Eigen idiom. Both already describe most of what is here (snake_case, two-space R indents, ~80 columns: 36,203 of 39,236 R lines), so what matters is where they don’t:</p>
+<ul><li>
+<strong>C++ free functions stay snake_case</strong> — <code>calculate_ration()</code>, <code>first_difference()</code> — not Google’s <code>CamelCase</code>. The headers are one template-on-<code>Type</code> function per process; Google governs spacing, braces, <code>const</code>-correctness and where a comment sits, never a rename.</li>
+<li>
+<strong>R internal helpers keep the <code>.</code> prefix</strong> (<code>.rce_year_filter()</code>, <code>.as_colour()</code>). That prefix is how a reader knows it is unexported, and <code>@noRd</code> goes with it.</li>
+<li>
+<strong><code>[[</code> over <code>$</code> for a new read.</strong> <code>$</code> partial-matches on a list <em>and</em> on a data.frame, silently and with no warning (checked, R 4.5.1): where <code>Time_varying_sel</code> is absent from a <code>fleet_control</code>, <code>fleet_control$Time_varying_sel</code> hands back <code>Time_varying_sel_sd</code>. Ten pairs among the 83 columns the schema declares have that shape, and three of the shorter names (<code>Time_varying_sel</code>, <code>Time_varying_q</code>, <code>Sel_norm_bin</code>) have exactly one longer sibling — the case that resolves silently, since an ambiguous prefix returns NULL. So a <code>$</code> read is safe only while its column is guaranteed present. <code>.pull_int()</code> in <code>5-rearrange_data.R</code> already does it right — <code>fc[[col]]</code>. Don’t sweep the ~8,300 existing <code>$</code>; write <code>[[</code> in new code, and always when the name is computed.</li>
+<li>
+<strong>Match the file’s idiom; never translate between them.</strong> dplyr and the pipe are load-bearing in the <code>7-*</code> plotters, the <code>0-*</code> data prep and <code>5-rearrange_data.R</code> (105 lines of it); most of <code>1-*</code> to <code>6-*</code> is base R. Neither is more correct here, and rewriting one as the other inside the fit pipeline is how a fit moves unannounced: <code>.pull_int0()</code> is pinned to the exact result type of the <code>pull() %&gt;% as.integer() - 1</code> it replaced, because the C++ template reads that type. A verb that reorders rows, drops a dimname or returns a tibble does not error.</li>
+</ul><p><strong>Scope discipline.</strong> One concern per commit, and never a formatting-only hunk inside a numeric change — whoever reviews a fit change should see only the lines that can move it. Don’t refactor next to the fix. No new dependency without asking; <code>DESCRIPTION</code> already imports 20.</p>
+<p><strong>Clear beats clever.</strong> No abstraction for a single caller; no registry, wrapper or config layer until a second consumer exists; no second grammar for something the linkage formula already expresses (rule 12). Tests and comments are part of the change, not a follow-up (rules 2, 5, 8). If the structure of a change needs a paragraph to justify it, propose it before writing it.</p>
+</div>
+<div class="section level2">
 <h2 id="comments-write-for-a-fisheries-scientist-not-a-programmer">Comments: write for a fisheries scientist, not a programmer<a class="anchor" aria-label="anchor" href="#comments-write-for-a-fisheries-scientist-not-a-programmer"></a></h2>
 <p>The reader knows fish and knows management. They may not know R or C++ idiom, and they were not in the room when the decision was made. So:</p>
 <ul><li>
@@ -207,6 +221,8 @@
 <a href="https://github.com/nmfs-ost/ss3-source-code" class="external-link"><strong>Stock Synthesis</strong></a> — control-file reference style; exhaustive per-switch documentation with allowed values.</li>
 <li>
 <a href="https://github.com/James-Thorson-NOAA/dsem" class="external-link"><strong>dsem</strong></a> — the DSEM-linked models: formula/path grammar, and how linkage structure is specified and reported. DSEM lives on the <code>dsem-v5-integration</code> branch, not here.</li>
+<li>
+<a href="https://github.com/NOAA-FIMS/FIMS" class="external-link"><strong>FIMS</strong></a> — <code>.github/copilot-instructions.md</code>, where the two style guides and the scope discipline above come from; <code>tests/</code> as the pattern an agent copies rather than reinventing.</li>
 </ul></div>
 <div class="section level2">
 <h2 id="known-traps">Known traps<a class="anchor" aria-label="anchor" href="#known-traps"></a></h2>
