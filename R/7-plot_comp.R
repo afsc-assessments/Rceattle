@@ -312,8 +312,27 @@ plot_comp <- function(Rceattle, file = NULL, model_names = NULL, species = NULL,
 
   long$type_lab <- ifelse(long$comp_type == 1, "length", "age")
   long$bin_lab  <- ifelse(long$comp_type == 1, "Length bin", "Age bin")
-  long$panel    <- paste0(long$Fleet_name, " - ", long$type_lab, " comp")
+
+  # The structure the likelihood normalizes over, which is what an aggregate may
+  # pool: a joint row is one density across both sexes, a combined row one across
+  # the pooled sexes, a single-sex row one per sex. A fleet can carry more than
+  # one -- sexes combined early in a series, disaggregated later -- and pooling
+  # those into one panel divides them by a shared total, so neither sums to 1 and
+  # the two are not on comparable axes. Split the panel in that case only, so a
+  # fleet with one structure (every bundled data set) draws exactly as before.
+  long$norm_grp <- ifelse(long$Sex == 3, "joint-sex",
+                   ifelse(long$Sex == 1, "female only",
+                   ifelse(long$Sex == 2, "male only", "sexes combined")))
+  fleet_type_key <- paste(long$Fleet_name, long$type_lab)
+  mixed <- fleet_type_key %in% names(which(
+    vapply(split(long$norm_grp, fleet_type_key),
+           function(x) length(unique(x)) > 1L, logical(1))))
+  struct_sfx <- ifelse(mixed, paste0(" (", long$norm_grp, ")"), "")
+
+  long$panel    <- paste0(long$Fleet_name, " - ", long$type_lab, " comp",
+                          struct_sfx)
   long$source   <- paste0(long$Fleet_name, "\n", long$type_lab, " comp",
+                          struct_sfx,
                           ifelse(long$Sex == 3, paste0(" - ", long$sex_grp), ""))
   long
 }
@@ -324,7 +343,10 @@ plot_comp <- function(Rceattle, file = NULL, model_names = NULL, species = NULL,
 #' Multiplies each year's proportions by its input sample size, sums the counts
 #' over years (for one fleet x type panel), and puts the total back on the
 #' proportion scale; joint-sex groups keep their shared normalization (females +
-#' males sum to 1). Pooling counts rather than averaging proportions is what
+#' males sum to 1). A fleet carrying more than one observation structure -- say
+#' sexes combined in the early years and disaggregated later -- is split into one
+#' panel per structure upstream, so each is renormalized over the rows the
+#' likelihood scores together rather than across the two. Pooling counts rather than averaging proportions is what
 #' stops a year with 20 otoliths counting as much as one with 2000.
 #'
 #' The pooled count is a sum of independent draws, so its variance is the exact
