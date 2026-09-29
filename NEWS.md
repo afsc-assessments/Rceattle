@@ -104,6 +104,23 @@ documentation now says so.
   its own end parameter estimated and reaching nothing. Refused with the fleet
   named. Mixing the two *ends* is unaffected and is what SS3 models usually do —
   AI cod's fishery leaves `start_logit` at -999 and scales `end_logit`.
+* Fleets sharing a `Selectivity_index` must agree on their ends too. They
+  estimate one `sel_dn6` block, but the flag is per fleet and is read off each
+  fleet's own starting value, and `build_map()`'s -999 pass runs after
+  `adjust_map_shared_params()` and re-fixes a follower left at the default. The
+  group would share a parameter and still be given different curves, so a
+  disagreement is refused, naming the fleets. Members on another form are not
+  compared: nothing but `DoubleNormalSS3` reads `sel_dn6`.
+* A selectivity linkage must name a parameter the fleet's form actually reads.
+  `sel_dn6` is the only array `DoubleNormalSS3` reads, and no other form reads
+  it, so a name used the wrong way round was estimated and changed nothing — a
+  time-invariant curve and a `beta_linkage` coefficient at zero gradient, with no
+  error. `peak` (which resolves to `sel_inf`) against `dn_peak` (`sel_dn6`) is the
+  pair to watch, since both the header and `parameter_dictionary()` call form 15's
+  P1 "peak". Now refused in both directions. The same gap on the older forms —
+  `slp_asc` on a non-parametric fleet, say — is left for its own change, since
+  those configurations are in released scripts; see
+  `inst/dev/TODO-selectivity.md`, Open 3.
 
 ## An initial equilibrium catch, so `Finit` has something to fit
 

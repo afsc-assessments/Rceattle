@@ -215,6 +215,35 @@ build_selectivity <- function(linkages = NULL) {
       paste(.SEL_LINKAGE_WIRED_FORMS, collapse = ", ")), call. = FALSE)
   }
 
+  # The six DoubleNormalSS3 parameters live in sel_dn6, which only that form
+  # reads, and every other parameter lives in an array it never reads. Named the
+  # wrong way round a linkage writes a slot the curve ignores: no error, a
+  # time-invariant fit, and a coefficient at zero gradient. `peak` (sel_inf) and
+  # `dn_peak` (sel_dn6) are the pair to watch, since both name form 15's P1.
+  # A row with no fleet targets every fleet, as the form check above treats it.
+  for (k in seq_len(nrow(sel))) {
+    tgt <- if (is.na(sel$fleet[k])) seq_len(nrow(fleet_control)) else sel$fleet[k]
+    dn6_fleet <- as.character(fleet_control$Selectivity[tgt]) == "DoubleNormalSS3"
+    dn6_param <- sel$param[k] %in% .SEL_DN6_PARAMS
+    off <- tgt[if (dn6_param) !dn6_fleet else dn6_fleet]
+    if (!length(off)) next
+    nms   <- paste(fleet_control$Fleet_name[off], collapse = ", ")
+    forms <- paste(unique(as.character(fleet_control$Selectivity[off])),
+                   collapse = ", ")
+    if (dn6_param) {
+      stop("selectivity linkage `", sel$param[k], "` names fleet(s) ", nms,
+           ", whose form is ", forms, ". It is a 'DoubleNormalSS3' parameter ",
+           "and only that form reads it, so the linkage would be estimated and ",
+           "change nothing. Name only the 'DoubleNormalSS3' fleets, or use the ",
+           "parameter these forms do read.", call. = FALSE)
+    }
+    stop("selectivity linkage `", sel$param[k], "` names fleet(s) ", nms,
+         ", which are 'DoubleNormalSS3'. That form reads only its own six ",
+         "parameters, so this linkage would be estimated and change nothing. ",
+         "Use one of: ", paste(.SEL_DN6_PARAMS, collapse = ", "), ".",
+         call. = FALSE)
+  }
+
   # A PRIOR on a selectivity intercept re-targets the base parameter, whose scale
   # depends on the fleet's form and whose ownership depends on Selectivity_index.
   # Two cases the re-target cannot yet express correctly are rejected up front

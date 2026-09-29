@@ -100,6 +100,52 @@ code and no test that would have been red beforehand:
 Branch `sel-penalty-form` (`Sel_penalty_form`, 5 commits, 638 insertions) is parked by
 decision, not by defect. It generalizes which penalty a non-parametric fleet is charged.
 
+## Open 3 — a selectivity linkage on a parameter the fleet's form never reads
+
+**Status: proposed, not implemented. Its `DoubleNormalSS3` half shipped in 5.46.0; this is the
+rest.** Its own PR, because it can refuse configurations that released versions accept.
+
+`.check_sel_linkage_support()` (`R/0-build_selectivity.R:175`) validates two things
+independently: the parameter name against `.SEL_LINKAGE_WIRED_PARAMS`, and the fleet's form
+against `.SEL_LINKAGE_WIRED_FORMS`. It never checks that the *pair* is meaningful. A linkage
+naming a parameter whose array the fleet's form does not read is accepted, estimated, and
+changes nothing: no error, a time-invariant curve, and a `beta_linkage` coefficient sitting at
+zero gradient. An assessor reading the fit believes they fitted a time block.
+
+`.SEL_PARAM_TO_SLOT` maps each name onto one of four arrays, and the forms read them
+disjointly:
+
+| array | read by |
+|---|---|
+| `log_sel_slp`, `sel_inf` | the parametric forms (`Logistic`, `DoubleNormal`, `DescendingLogistic`, `LogisticPM`, ...) |
+| `sel_coff` | the non-parametric forms (2, 9, 13) and `Hake` |
+| `sel_dn6` | `DoubleNormalSS3` (15) only |
+| `log_sel_apical` | every form — checked on its own terms by `.check_sel_apical_rows()` |
+
+Verified 2026-09-29: selectivity cases 2, 9 and 13 contain **zero** references to
+`log_sel_slp` or `sel_inf`, so `slp_asc` on a `NonParametric` fleet is already a silent no-op
+on released code. The `sel_dn6` direction was the reachable half — `peak` resolves to
+`sel_inf` while `dn_peak` resolves to `sel_dn6`, and both the Doxygen header and
+`parameter_dictionary()` call form 15's P1 "peak", so the wrong name is the one a user reaches
+for. That half is refused as of 5.46.0; the rest is not.
+
+**Why it is not folded into the `DoubleNormalSS3` work.** Form 15 and the `dn_*` names were new
+and unreleased, so refusing them broke nothing. The remaining pairs are on released forms, so
+the same refusal can reject a script that runs today. Owed before it ships:
+
+- an `/ecosystem-sweep` for selectivity linkages across `Rceattle-models`,
+  `GOA-multispecies-assessment` and `GOA-ATF-ESP`, to find who it would refuse;
+- a decision per pair on error vs warning, since a no-op linkage is harmless to the *numbers*
+  and harmful only to the interpretation;
+- `coff` is already rejected for a different reason (a per-year offset cancels under
+  mean-centring), so it needs no new rule, only a consistent message.
+
+The prior-on-an-unused-limb guard in the same function has the same shape: its `used` list
+(`R/0-build_selectivity.R:110`) whitelists `Logistic` and `DescendingLogistic` alone, so a prior
+on `slp_asc` for any other form adds a constant to the reported likelihood and constrains
+nothing. Fix it in the same PR; the function's own comment says an unexplained offset is how a
+reconciliation against another model surfaces.
+
 ---
 
 ## Shipped — kept for the numbers and the caveats

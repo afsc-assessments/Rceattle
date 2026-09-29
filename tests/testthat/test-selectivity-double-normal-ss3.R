@@ -111,6 +111,60 @@ testthat::test_that("the sexes must agree on whether an end is scaled", {
     matrix(c(0L, 0L, 0L, 1L), ncol = 2, byrow = TRUE))
 })
 
+# Fleets sharing a Selectivity_index estimate one sel_dn6 block, but the end flag
+# is per fleet and read off each fleet's own start. adjust_map_shared_params()
+# shares the map and the -999 pass then NAs the follower's own cell, so the two
+# would share a parameter and still get different curves.
+testthat::test_that("a shared Selectivity_index must agree on its ends", {
+  a <- array(0, dim = c(6, 2, 1))
+  a[5:6, 1, ] <- -999                     # fleet A: both ends off
+  a[5, 2, ] <- -999; a[6, 2, ] <- -3      # fleet B: end on
+  nm <- c("A", "B")
+  both <- c(TRUE, TRUE)
+
+  testthat::expect_error(
+    Rceattle:::.rce_dn6_ends(a, 1, c(1, 1), nm, is_dn6 = both,
+                             sel_index = c(1L, 1L)),
+    "share Selectivity_index")
+
+  # Separate blocks estimate separate parameters, so they may differ.
+  testthat::expect_equal(
+    Rceattle:::.rce_dn6_ends(a, 1, c(1, 1), nm, is_dn6 = both,
+                             sel_index = c(1L, 2L)),
+    matrix(c(0L, 0L, 0L, 1L), ncol = 2, byrow = TRUE))
+
+  # A follower on another form never reads sel_dn6, so it is not compared.
+  testthat::expect_equal(
+    Rceattle:::.rce_dn6_ends(a, 1, c(1, 1), nm, is_dn6 = c(TRUE, FALSE),
+                             sel_index = c(1L, 1L)),
+    matrix(c(0L, 0L, 0L, 1L), ncol = 2, byrow = TRUE))
+})
+
+# sel_dn6 is the only array case 15 reads, and the other forms never read it, so a
+# linkage named the wrong way round is estimated and changes nothing. `peak`
+# (sel_inf) against `dn_peak` (sel_dn6) is the pair to watch: both the Doxygen and
+# parameter_dictionary() call form 15's P1 "peak".
+testthat::test_that("a linkage parameter must match the fleet's form", {
+  fc <- data.frame(Fleet_name = c("Fsh15", "Srv1"),
+                   Selectivity = c("DoubleNormalSS3", "Logistic"),
+                   stringsAsFactors = FALSE)
+  row <- function(param, fleet) {
+    data.frame(process = "sel", param = param, fleet = fleet,
+               stringsAsFactors = FALSE)
+  }
+  chk <- Rceattle:::.check_sel_linkage_support
+
+  # Each name on the form that reads it.
+  testthat::expect_silent(chk(row("dn_peak", 1L), fc))
+  testthat::expect_silent(chk(row("peak", 2L), fc))
+  # And each on the form that does not.
+  testthat::expect_error(chk(row("peak", 1L), fc), "reads only its own six")
+  testthat::expect_error(chk(row("dn_peak", 2L), fc), "only that form reads it")
+  # An unstratified row targets every fleet, as the form check above treats it.
+  testthat::expect_error(chk(row("dn_peak", NA_integer_), fc),
+                         "only that form reads it")
+})
+
 testthat::test_that("block linkages replace a parameter, SS3 Blk_Fxn 2", {
   yrs <- d$styr:d$endyr
   brk <- c(-Inf, yrs[4] - 0.5, Inf)                   # two blocks

@@ -12,18 +12,22 @@
 #'
 #' SS3's -999 on `start_logit` or `end_logit` drops that end's scaling, which
 #' switches the formula rather than a value, so the template reads it as data.
-#' One flag serves both sexes, so on a two-sex species they must agree: otherwise
-#' one sex is fitted with the other's curve shape while its own end parameter
-#' stays estimated and reaches nothing.
+#' One flag serves a fleet's sexes and, where fleets share a `Selectivity_index`,
+#' the whole block: otherwise a sex or a follower fleet is fitted with another's
+#' curve shape while its own end parameter stays estimated and reaches nothing.
 #'
 #' @param sel_dn6 Starting values, `[6, n_flt, max_sex]`.
 #' @param nsex Number of sexes per species.
 #' @param species Species of each fleet, in `fleet_control` row order.
 #' @param fleet_names Fleet names, for the refusal message.
+#' @param is_dn6 TRUE where the fleet uses `DoubleNormalSS3`; other fleets never
+#'   read `sel_dn6`, so their flags are not compared.
+#' @param sel_index `Selectivity_index` per fleet, or NULL to skip the block check.
 #' @return An integer matrix, `[n_flt, 2]`: 1 scales that end, 0 is SS3's -999.
 #' @keywords internal
 #' @noRd
-.rce_dn6_ends <- function(sel_dn6, nsex, species, fleet_names) {
+.rce_dn6_ends <- function(sel_dn6, nsex, species, fleet_names,
+                          is_dn6 = NULL, sel_index = NULL) {
   on <- sel_dn6[5:6, , , drop = FALSE] > -999
   nsx <- as.integer(nsex)[as.integer(species)]
   nsx[is.na(nsx)] <- 1L
@@ -38,6 +42,28 @@
          "SS3's -999 switches the formula for the whole fleet, so give both ",
          "sexes a value or give both -999, for 'start_logit' and for ",
          "'end_logit'.", call. = FALSE)
+  }
+
+  # Fleets sharing a Selectivity_index estimate ONE sel_dn6 block, but the flag
+  # is per fleet and is read off each fleet's own starting value. Disagreeing
+  # members would share a parameter and still get different curves, so the block
+  # has to agree. Only DoubleNormalSS3 members count; nothing else reads sel_dn6.
+  if (!is.null(sel_index) && !is.null(is_dn6) && any(is_dn6, na.rm = TRUE)) {
+    keep <- which(!is.na(sel_index) & is_dn6)
+    for (ix in unique(sel_index[keep])) {
+      grp <- keep[sel_index[keep] == ix]
+      if (length(grp) < 2) next
+      if (any(on[1, grp, 1] != on[1, grp[1], 1]) ||
+          any(on[2, grp, 1] != on[2, grp[1], 1])) {
+        stop("Fleet(s) ", paste(as.character(fleet_names[grp]), collapse = ", "),
+             " share Selectivity_index ", ix, ", so they estimate one ",
+             "'DoubleNormalSS3' block, but they disagree on whether an end is ",
+             "scaled. SS3's -999 switches the formula per fleet, so the shared ",
+             "fleets would get different curves. Give the group the same ",
+             "'start_logit' and 'end_logit' treatment, or give them separate ",
+             "Selectivity_index values.", call. = FALSE)
+      }
+    }
   }
   matrix(as.integer(on[, , 1, drop = FALSE]), ncol = 2, byrow = TRUE)
 }
@@ -1291,7 +1317,11 @@ fit_mod <-
     if (!is.null(start_par$sel_dn6)) {
       data_list_reorganized$sel_dn6_ends <- .rce_dn6_ends(
         start_par$sel_dn6, data_list$nsex,
-        data_list$fleet_control$Species, data_list$fleet_control$Fleet_name)
+        data_list$fleet_control$Species, data_list$fleet_control$Fleet_name,
+        is_dn6 = data_list$fleet_control$Selectivity %in%
+          c(15, "15", "DoubleNormalSS3"),
+        sel_index = suppressWarnings(as.integer(
+          data_list$fleet_control[["Selectivity_index"]])))
     }
 
     # Starting parameters as the model uses them: the blocks above set
