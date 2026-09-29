@@ -155,6 +155,7 @@ below (integers or strings both work):
 | `9` | `"NonParametricPM"` | Ianelli non-parametric with the ADMB AMAK ("pm") penalty; see `Sel_avgsel_pen`, `Sel_cap_bin` |
 | `11` | `"LogisticPM"` | AMAK ("pm") logistic: multiplicative inflection/slope deviations plus a free age-1 log-selectivity |
 | `13` | `"NonParametricIntegrable"` | The `NonParametric` base curve whose deviations have a proper density: the shape penalties are charged once on the base, so `random_sel = TRUE` integrates them. `Time_varying_sel` picks the structure (`Off`, `IID` or `RandomWalk`) |
+| `15` | `"DoubleNormalSS3"` | Stock Synthesis size pattern 24: the six-parameter double normal, each parameter on SS3's own scale (peak; logit top width; log ascending and descending widths; logit initial and final selectivity) in its own array `sel_dn6`. An end left at SS3's -999 is unscaled and fixed. Not normalized, as in SS3. All six take selectivity linkages under the SS3 manual's names; `Time_varying_sel` must be `"Off"` |
 
 There is no `10`: the integer codes are frozen, because renumbering one would
 silently reinterpret every saved config and every fitted `.rds` that holds it.
@@ -597,6 +598,21 @@ sheet: `Diet_distribution = 0` (multinomial) or `1` (Dirichlet-multinomial).
 
 Conditional age-at-length (CAAL) data go through their own data path
 and are weighted via `CAAL_weights` per fleet.
+
+### Ageing error, per fleet
+
+`age_error` holds one matrix per species by default, and every fleet reads its
+own species'. A stock whose ageing protocol changed part way through a series
+needs more than one — GOA Pacific cod reads its pre-2007 survey otoliths about a
+year older than its post-2007 ones — so both `age_error` and `fleet_control`
+take an optional `Ageing_error_index`: give the matrices index values, then
+point each fleet at the one that aged its samples. Omit the column, or leave it
+`NA`, and the index is the species, which is what a model with one matrix per
+species has always done.
+
+The two eras of a survey are then two fleets sharing a `Selectivity_index` and a
+`Catchability_index`, so they still estimate one selectivity and one
+catchability between them. `data_check()` refuses an index that names no matrix.
 
 ## 6. Recruitment / stock-recruit (`recFun = build_srr()`)
 

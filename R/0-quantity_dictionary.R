@@ -336,11 +336,11 @@
       "Joint negative log-likelihood, the objective the optimizer minimized.",
       "unitless", "[1]", FALSE, NA_character_),
     r("jnll_comp", "likelihood",
-      "Weighted negative log-likelihood by component and fleet or species. Rows are named; columns count FLEETS on rows 1-8, SPECIES on rows 9-20 and neither on row 21, so rowSums() pools across different axes.",
-      "unitless", "[21, max(n_flt, nspp)]", FALSE, "likelihood"),
+      "Weighted negative log-likelihood by component and fleet or species. Rows are named; columns count FLEETS on rows 1-8 and 22, SPECIES on rows 9-20 and neither on row 21, so rowSums() pools across different axes. .JNLL_ROW_AXIS is the registry.",
+      "unitless", "[22, max(n_flt, nspp)]", FALSE, "likelihood"),
     r("unweighted_jnll_comp", "likelihood",
-      "As jnll_comp before data weights are applied. Written for only 5 of its 21 rows -- composition, CAAL, stomach and the two linkage rows; every other row is structurally zero here, not small.",
-      "unitless", "[21, max(n_flt, nspp)]", FALSE, NA_character_),
+      "As jnll_comp before data weights are applied. Written for only 5 of its 22 rows -- composition, CAAL, stomach and the two linkage rows; every other row is structurally zero here, not small.",
+      "unitless", "[22, max(n_flt, nspp)]", FALSE, NA_character_),
 
     # -- linkage -----------------------------------------------------------
     r("beta_linkage", "linkage",
