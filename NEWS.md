@@ -33,6 +33,28 @@ version throughout.
   to add a mirrored fleet to work around it -- changing the model to fix a
   figure.
 
+* **A joint-sex OSA series says it is half of one unit.** A `Sex = 3`
+  composition is appended as a single decomposition unit over the stacked
+  female-then-male vector, with one cell dropped for the sum-to-one constraint
+  rather than one per sex, which the OSA figure then re-bases onto a common bin
+  axis so both halves can be read. Labelled ` - male` / ` - female`, that reads
+  as two separate distributions: the same external user asked why the residual
+  structure did not match the likelihood structure. It does -- the residuals
+  were never computed per sex -- so the labels are now ` - joint, male` /
+  ` - joint, female`, and a single-sex row, which genuinely is its own density,
+  stays unlabelled. No residual changes.
+
+## Documentation
+
+* **`CONTRIBUTING.md` now states a code style.** R follows the tidyverse style
+  guide and C++ the Google C++ style guide, as tie-breakers where the
+  surrounding file does not settle the question; TMB idiom outranks both, and
+  neither is a reason to reformat untouched code. Three package-specific habits
+  go with them: read a list or `fleet_control` column with `[[ ]]` rather than
+  `$`, which partial-matches silently; write in the idiom of the file you are in
+  rather than converting base R and dplyr into each other inside the fitting
+  pipeline; and keep reformatting out of a change that can move a number.
+
 # Rceattle 5.45.2
 
 ## Documentation

@@ -248,6 +248,13 @@ plot.rceattle_osa <- function(x, source = "all", species = NULL,
 #' This re-bases the male bins to `1..nbin` and tags the source label by sex so
 #' males and females face the same bin axis, matching [plot_comp()]. Rows with
 #' Sex != 3 (single-sex or combined) are returned unchanged.
+#'
+#' The label says "joint" because the two series are halves of ONE decomposition
+#' unit, not two: a joint row is appended as a single density over the stacked
+#' vector with one cell dropped for the sum-to-one constraint, not one per sex.
+#' An assessment author read the previous " - male" / " - female" labels as two
+#' separate distributions and asked why the residuals did not match the
+#' likelihood; they do, and the label now says so.
 #' @param df A data frame with `species`, `sex`, `index_label`, `age_length_bin`,
 #'   and `source` columns.
 #' @param nages,nlengths Per-species bin counts (or `NULL` to skip the split).
@@ -263,7 +270,8 @@ plot.rceattle_osa <- function(x, source = "all", species = NULL,
   male  <- joint & df$age_length_bin > bins_per_sex
   df$age_length_bin[male] <- df$age_length_bin[male] - bins_per_sex[male]
   df$source <- paste0(df$source,
-                      ifelse(joint, ifelse(male, " - male", " - female"), ""))
+                      ifelse(joint, ifelse(male, " - joint, male",
+                                           " - joint, female"), ""))
   df
 }
 
