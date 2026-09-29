@@ -1958,13 +1958,20 @@ data_check <- function(data_list) {
     # 1-based, so 1 names the first bin and needs no translation.
     .bin_cols <- c("N_sel_bins", "Sel_norm_bin", "Sel_norm_bin_upper",
                    "Sel_pen_first_bin", "Sel_pen_last_bin", "Sel_cap_bin")
-    len_based <- as.character(fc$Selectivity_dimension) == "Length"
-    np_form   <- .canon_switch(fc$Selectivity, sel_map) %in%
+    # Each flag carries one entry per fleet even where the column is absent:
+    # Bin_first_selected has no schema default, and a zero-length flag would
+    # silently drop every other fleet from the refusal below.
+    .col <- function(nm) {
+      if (nm %in% names(fc)) fc[[nm]] else rep(NA, nrow(fc))
+    }
+    len_based <- !is.na(.col("Selectivity_dimension")) &
+                 as.character(.col("Selectivity_dimension")) == "Length"
+    np_form   <- .canon_switch(.col("Selectivity"), sel_map) %in%
                    names(sel_map)[match(.bin_indexed, sel_map)]
-    tv_on     <- !is.na(fc$Time_varying_sel) &
-                 !(as.character(fc$Time_varying_sel) %in% c("0", "Off"))
-    names_bin <- suppressWarnings(as.integer(fc$Bin_first_selected)) > 1L
-    names_bin[is.na(names_bin)] <- FALSE
+    .tv       <- as.character(.col("Time_varying_sel"))
+    tv_on     <- !is.na(.tv) & !(.tv %in% c("0", "Off"))
+    .bfs      <- suppressWarnings(as.integer(.col("Bin_first_selected")))
+    names_bin <- !is.na(.bfs) & .bfs > 1L
     for (cl in intersect(.bin_cols, names(fc))) {
       v <- suppressWarnings(as.integer(fc[[cl]]))
       names_bin <- names_bin | (!is.na(v) & v >= 0)

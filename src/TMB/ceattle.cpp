@@ -236,7 +236,9 @@ Type objective_function<Type>::operator() () {
     }
   }
   int max_age = imax(nages);              // Integer of maximum nages to make the arrays
-  int max_bin = (max_age > max_nlengths) ? max_age : max_nlengths;
+  // Sized on the POPULATION bins: the non-parametric curves are built over
+  // nlengths_pop, so a finer grid would otherwise write past non_par_sel.
+  int max_bin = (max_age > max_nlengths_pop) ? max_age : max_nlengths_pop;
 
   // -- 2.2. M1_at_age specifications
   DATA_IVECTOR(M1_model);

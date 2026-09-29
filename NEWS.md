@@ -215,14 +215,34 @@ an ascending curve is close to zero, so projected selectivity-at-age came back
 identically zero -- and with it projected F, catch and the reference points.
 
 The columns that name a bin stay **data-bin ordinals**, which is what the user
-has and what `data_check()` bounds. `rearrange_data()` translates
-`Bin_first_selected` and `Sel_norm_bin` onto the population grid, taking that
-data bin's first population bin, and `Sel_norm_bin_upper` its last, so each still
-covers the lengths it names. A species with no separate grid is unchanged.
+has and what `data_check()` bounds. They are not translated onto the population
+grid: a data ordinal cannot address a finer grid without picking a reading, and
+the readings differ. So on a species whose population grid is finer than its data
+grid, `data_check()` **refuses** a length-based fleet that is indexed by bin --
+a non-parametric or AR1 form, a time-varying deviation penalty, or any of
+`Bin_first_selected` (above 1), `N_sel_bins`, `Sel_norm_bin`,
+`Sel_norm_bin_upper`, `Sel_pen_first_bin`, `Sel_pen_last_bin` or `Sel_cap_bin`.
+A parametric form that names no bin is a function of length and is unaffected,
+which is the case the population grid exists to serve. A species with no separate
+grid is unchanged.
 
 `DoubleNormalSS3` also gains the two things SS3 does that the first port did not:
 the ascending limb is anchored at `startbin`, the first population bin reaching
 the first composition data bin, and the bins below it take SS3's quadratic ramp.
+
+Two things the refusal depended on, both fixed here:
+
+* It is built one entry per fleet even where a column is absent. It read
+  `Bin_first_selected` first, and that column carries no schema default, so a
+  workbook without it gave a zero-length flag that excused **every** fleet —
+  including the non-parametric forms and the time-varying penalties, which the
+  column has nothing to do with. `Time_varying_sel` is read with `[[` in the same
+  block, since `$` returns `Time_varying_sel_sd` by partial match.
+* `max_bin`, which dimensions `non_par_sel`, `log_non_par_sel` and the
+  selectivity-linkage offset tensors, is sized on the population bins. The
+  non-parametric forms build their curve over `nlengths_pop`, so on a finer grid
+  they wrote past the end of those arrays. With one grid `nlengths_pop` equals
+  `nlengths`, so no existing model changes.
 
 ## Behaviour change: selected body weight for length-selective fleets
 

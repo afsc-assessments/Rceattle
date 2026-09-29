@@ -85,3 +85,24 @@ testthat::test_that("a bin-naming column on a finer grid is refused", {
     Rceattle:::data_check(Rceattle::switch_check(dd)))),
     error = function(e) e), "error"))
 })
+
+# Bin_first_selected carries no schema default, so a workbook can arrive without
+# it. The refusal above read it first and every flag inherited that length, so
+# one absent column silently excused every fleet -- including the bin-indexed
+# forms, which the column has nothing to do with.
+testthat::test_that("the refusal survives a fleet_control with no Bin_first_selected", {
+  d <- pg_data$d; flt <- pg_data$flt
+  d$fleet_control$Selectivity[flt] <- "NonParametric"
+  d$fleet_control$Sel_curve_pen1[flt] <- 10
+  d$fleet_control$Sel_curve_pen2[flt] <- 10
+  d$fleet_control$Bin_first_selected <- NULL
+  d$pop_lengths <- list(pg_fine, pg_fine)
+
+  sc <- suppressMessages(suppressWarnings(Rceattle::switch_check(d)))
+  # The premise: nothing fills the column back in.
+  testthat::expect_false("Bin_first_selected" %in% colnames(sc$fleet_control))
+
+  testthat::expect_error(
+    suppressMessages(suppressWarnings(Rceattle:::data_check(sc))),
+    "indexed by bin")
+})
