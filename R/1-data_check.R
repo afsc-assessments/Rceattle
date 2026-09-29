@@ -656,14 +656,18 @@ data_check <- function(data_list) {
     errors <- c(errors, "`age_trans_matrix` data does not span range of lengths")
   }
 
-  # Age error matrix: observed-age column count
-  if(any(data_list$age_error |>
-         as.data.frame() |>
-         dplyr::select(-c(Species, True_age)) |>
-         ncol() < data_list$nages, na.rm = TRUE)){
-    errors <- c(errors, "`age_error` observed ages do not span range of ages")
+  # Age error matrix: observed-age column count. The metadata is named, not
+  # counted off the front: with Ageing_error_index present, "everything but
+  # Species and True_age" counts one column too many and a table one observed
+  # age short passes.
+  if(has_data(data_list$age_error)){
+    .ae_ncol <- length(setdiff(colnames(as.data.frame(data_list$age_error)),
+                               .RCE_AGE_ERROR_META))
+    if(any(.ae_ncol < data_list$nages, na.rm = TRUE)){
+      errors <- c(errors, "`age_error` observed ages do not span range of ages")
+    }
   }
-  # ALK & age_error: per-species age coverage (fillable with 0s downstream -- message-level)
+  # ALK: per-species age coverage (fillable with 0s downstream -- message-level)
   for(sp in 1:data_list$nspp){
     expected_ages <- data_list$minage[sp]:(data_list$minage[sp] + data_list$nages[sp] - 1)
 
@@ -672,11 +676,38 @@ data_check <- function(data_list) {
     if(!all(expected_ages %in% atm_ages)){
       message(paste("`age_trans_matrix` data does not span range of age for species", sp, "will fill with 0s"))
     }
-
-    ae_ages <- data_list$age_error |> as.data.frame() |>
-      dplyr::filter(Species == sp) |> dplyr::pull(True_age)
-    if(!all(expected_ages %in% ae_ages)){
-      message(paste("`age_error` data does not span range of true ages for species", sp, "will fill with 0s"))
+  }
+  # age_error: coverage per MATRIX, not per species. One species can carry
+  # several matrices, and each is read on its own, so a complete matrix would
+  # otherwise vouch for an incomplete sibling whose missing true ages are left
+  # at 0 and renormalized away.
+  if(has_data(data_list$age_error)){
+    .ae <- as.data.frame(data_list$age_error)
+    .ae_idx <- if ("Ageing_error_index" %in% colnames(.ae)) {
+      suppressWarnings(as.integer(.ae[["Ageing_error_index"]]))
+    } else rep(NA_integer_, nrow(.ae))
+    .ae_sp <- suppressWarnings(as.integer(.ae[["Species"]]))
+    .ae_idx[is.na(.ae_idx)] <- .ae_sp[is.na(.ae_idx)]   # absent index = the species
+    for(ix in sort(unique(.ae_idx[!is.na(.ae_idx)]))){
+      rows <- which(.ae_idx == ix)
+      # A matrix's rows are sized and offset by its species' nages / minage, so
+      # one matrix cannot span two of them.
+      sp_ix <- unique(.ae_sp[rows])
+      sp_ix <- sp_ix[!is.na(sp_ix)]
+      if(length(sp_ix) > 1){
+        errors <- c(errors, paste0(
+          "`age_error` matrix ", ix, " gives more than one Species (",
+          paste(sp_ix, collapse = ", "), "). A matrix is read on one species' ",
+          "ages, so each Ageing_error_index belongs to a single species."))
+        next
+      }
+      if(!length(sp_ix) || sp_ix < 1 || sp_ix > data_list$nspp) next
+      expected_ages <- data_list$minage[sp_ix]:
+        (data_list$minage[sp_ix] + data_list$nages[sp_ix] - 1)
+      if(!all(expected_ages %in% suppressWarnings(as.integer(.ae$True_age[rows])))){
+        message(paste("`age_error` matrix", ix, "does not span range of true ages for species",
+                      sp_ix, "will fill with 0s"))
+      }
     }
   }
   # ALK / age_error: row sums (warning -- rearrange may renormalize)
@@ -2017,6 +2048,32 @@ data_check <- function(data_list) {
           ", available ", paste(sort(have), collapse = ", "),
           ". Give 'age_error' an 'Ageing_error_index' column naming each matrix, ",
           "or drop the fleet_control column to use one matrix per species."))
+      }
+      # The matrix must be one of the fleet's OWN species. Without the index
+      # column the index IS the species, so "2" reads as "the second matrix" to
+      # a user and "species 2's matrix" to the model: the fleet would be fitted
+      # with another species' ageing error, over another species' age range.
+      ae_sp <- suppressWarnings(as.integer(ae[["Species"]]))
+      ae_ix <- if ("Ageing_error_index" %in% colnames(ae)) {
+        suppressWarnings(as.integer(ae[["Ageing_error_index"]]))
+      } else rep(NA_integer_, nrow(ae))
+      ae_ix[is.na(ae_ix)] <- ae_sp[is.na(ae_ix)]
+      # One species per index is enforced above, so the first row settles it.
+      idx_sp <- ae_sp[match(want, ae_ix)]
+      flt_sp <- suppressWarnings(as.integer(data_list$fleet_control$Species))
+      wrong <- which(!is.na(want) & !is.na(idx_sp) & !is.na(flt_sp) &
+                       idx_sp != flt_sp)
+      if (length(wrong)) {
+        errors <- c(errors, paste0(
+          "fleet_control$Ageing_error_index names an 'age_error' matrix ",
+          "belonging to another species, on fleet(s) ",
+          paste(as.character(data_list$fleet_control$Fleet_name[wrong]),
+                collapse = ", "), ": the fleet is on species ",
+          paste(flt_sp[wrong], collapse = ", "), " and matrix ",
+          paste(want[wrong], collapse = ", "), " is on species ",
+          paste(idx_sp[wrong], collapse = ", "),
+          ". Add an 'Ageing_error_index' column to 'age_error' naming the ",
+          "fleet's own matrix."))
       }
     }
   }

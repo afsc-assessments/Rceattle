@@ -612,7 +612,15 @@ species has always done.
 
 The two eras of a survey are then two fleets sharing a `Selectivity_index` and a
 `Catchability_index`, so they still estimate one selectivity and one
-catchability between them. `data_check()` refuses an index that names no matrix.
+catchability between them.
+
+Each index belongs to one species, because a matrix's rows are sized and offset
+by that species' age range. `data_check()` refuses an index that names no matrix,
+an index whose rows give more than one `Species`, and a fleet pointed at a matrix
+belonging to another species — which is the mistake the species default invites,
+since without the column `2` means "species 2's matrix" and not "the second
+matrix". Coverage is reported per matrix, so an incomplete one is named even
+where the species' other matrices are complete.
 
 ## 6. Recruitment / stock-recruit (`recFun = build_srr()`)
 

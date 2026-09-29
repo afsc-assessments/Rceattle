@@ -184,10 +184,20 @@ Additive, and silent on anything that does not use it:
 * `age_error` gains an optional `Ageing_error_index` column. Absent, the index IS
   the species, which is what the array held before; its first dimension is now the
   matrix rather than the species.
-* `fleet_control` gains an optional `Ageing_error_index`. Absent or NA, a fleet
-  reads its own species' matrix.
-* `data_check()` refuses an index that names no matrix, listing what was asked for
-  and what exists.
+* `fleet_control` gains an optional `Ageing_error_index`. Absent or NA on a row,
+  that row reads its own species' matrix.
+* `data_check()` keys its `age_error` checks on `Ageing_error_index`, since that
+  is what the array is filled by. It refuses an index that names no matrix
+  (listing what was asked for and what exists), an index whose rows give more
+  than one `Species` — a matrix's rows are sized and offset by one species' age
+  range — and a fleet pointed at another species' matrix, which the species
+  default invites: with no index column on `age_error`, `2` means "species 2's
+  matrix", not "the second matrix". Coverage is reported per matrix, so a matrix
+  that stops short of the oldest true ages is named even where the species' other
+  matrices are complete; keyed on the species it was invisible, and the missing
+  rows stay 0 and are renormalized away.
+* The observed-age column count names the metadata columns rather than counting
+  past the first two, so `Ageing_error_index` no longer inflates it.
 
 ## Length-based selectivity is built on the population length bins
 

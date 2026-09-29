@@ -667,8 +667,16 @@ rearrange_data <- function(data_list, build_osa = FALSE){
   # matrix through fleet_control$Ageing_error_index. Absent the column the index
   # IS the species, which is what the model did when there was one matrix each.
   data_list$age_error <- as.data.frame(data_list$age_error)
-  if (is.null(data_list$age_error$Ageing_error_index)) {
-    data_list$age_error$Ageing_error_index <- data_list$age_error$Species
+  # Per ROW, not just per column: adding a second matrix by typing indices on the
+  # new rows leaves the original rows blank, and those still mean "the species'
+  # own matrix".
+  {
+    .ae_i <- data_list$age_error[["Ageing_error_index"]]
+    .ae_s <- data_list$age_error[["Species"]]
+    data_list$age_error$Ageing_error_index <- if (is.null(.ae_i)) .ae_s else {
+      v <- suppressWarnings(as.integer(as.character(.ae_i)))
+      ifelse(is.na(v), suppressWarnings(as.integer(as.character(.ae_s))), v)
+    }
   }
   n_ae <- max(as.numeric(as.character(data_list$age_error$Ageing_error_index)),
               data_list$nspp, na.rm = TRUE)
