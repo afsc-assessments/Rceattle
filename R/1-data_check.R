@@ -1383,11 +1383,11 @@ data_check <- function(data_list) {
 
   # Initial equilibrium catch ----
   # A catch_data row at styr - 1 is the catch the stock yielded under the initial
-  # fishing mortality, read only under an initMode that estimates Finit: the
-  # prediction is Baranov at Finit, so a mode holding Finit at 0 predicts 0 and
-  # the lognormal takes log(0). That year also holds ordinary catch history, so
-  # the fleets are named whenever the rows ARE read. SS3 pairs the observation
-  # and the parameter the same way (SS_readcontrol_330.tpl).
+  # fishing mortality, read only under FishedNonEquilibriumSelected, the one mode
+  # whose initial age structure decays at the same Finit * selectivity. That year
+  # also holds ordinary catch history, so the fleets are named whenever the rows
+  # ARE read. SS3 pairs the observation and the parameter the same way
+  # (SS_readcontrol_330.tpl).
   .eq_rows <- .rce_equil_catch_candidates(data_list)
   if (!is.null(.eq_rows) && nrow(.eq_rows)) {
     .eq <- .rce_equil_catch_rows(.eq_rows, data_list$styr, data_list$initMode)
@@ -1400,8 +1400,8 @@ data_check <- function(data_list) {
               data_list$styr - 1L, " for fleet(s) ",
               paste(unique(.nm), collapse = ", "),
               ". Finit is fitted to it; remove the row to leave Finit ",
-              "unidentified, or use an initMode that holds Finit at 0 to treat ",
-              "the row as catch history.")
+              "unidentified, or use another initMode to treat the row as ",
+              "catch history.")
       if (anyDuplicated(.flt)) {
         errors <- c(errors, paste0(
           "More than one initial equilibrium catch at Year ",
@@ -1432,14 +1432,30 @@ data_check <- function(data_list) {
           errors <- c(errors, paste0(
             "An initial equilibrium catch names Fleet_code(s) not in ",
             "fleet_control: ", paste(.bad, collapse = ", "), "."))
-        } else if ("Species" %in% colnames(.eq_rows)) {
-          .want <- data_list$fleet_control$Species[match(.flt, .codes)]
-          .off <- which(suppressWarnings(as.integer(.eq_rows$Species[.eq])) !=
-                          suppressWarnings(as.integer(.want)))
-          if (length(.off)) {
+        } else {
+          .row <- match(.flt, .codes)
+          if ("Species" %in% colnames(.eq_rows)) {
+            .off <- which(suppressWarnings(as.integer(.eq_rows$Species[.eq])) !=
+                            suppressWarnings(as.integer(
+                              data_list$fleet_control$Species[.row])))
+            if (length(.off)) {
+              errors <- c(errors, paste0(
+                "An initial equilibrium catch gives a Species its fleet does ",
+                "not belong to, on fleet(s) ",
+                paste(.flt[.off], collapse = ", "), "."))
+            }
+          }
+          # Only a fishery takes catch. The template scores an equilibrium catch
+          # on flt_type == 1 alone, so a survey's row would be dropped from the
+          # catch history and fitted by nothing.
+          .type <- .canon_switch(data_list$fleet_control$Fleet_type[.row], fleet_map)
+          .not_fsh <- which(!is.na(.type) & .type != "Fishery")
+          if (length(.not_fsh)) {
             errors <- c(errors, paste0(
-              "An initial equilibrium catch gives a Species its fleet does not ",
-              "belong to, on fleet(s) ", paste(.flt[.off], collapse = ", "), "."))
+              "An initial equilibrium catch is on fleet(s) ",
+              paste(.flt[.not_fsh], collapse = ", "),
+              ", which are not fisheries. It is the catch the stock yielded ",
+              "under the initial fishing mortality, so it belongs to a fishery."))
           }
         }
       }

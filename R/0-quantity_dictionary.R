@@ -136,7 +136,7 @@
       "Predicted fishery catch, one value per row of catch_data; weight or numbers per the fleet's Observation_units.",
       "mt or thousands of fish", "[nrow(catch_data)]", FALSE, "catch_predicted"),
     r("equil_catch_hat", "fishing",
-      "Predicted initial equilibrium catch, one value per Year == styr - 1 row of catch_data: the catch the deviation-free initial age structure yields at Finit, on the fleet's own selectivity. SS3's Equil_catch.",
+      "Predicted initial equilibrium catch, one value per Year == styr - 1 catch row: the catch the deviation-free initial age structure yields at Finit, on the fleet's own selectivity. SS3's Equil_catch. Empty unless initMode is FishedNonEquilibriumSelected.",
       "mt or thousands of fish", "[nrow(equil_catch)]", FALSE, NA_character_),
     r("max_catch_hat", "fishing",
       "Predicted exploitable biomass or numbers available to the fleet, the ceiling the catch equation can take.",

@@ -1,10 +1,12 @@
 # The initial equilibrium catch is a catch_data row at Year == styr - 1: the catch
-# the stock yielded under the initial fishing mortality. Only a mode that estimates
-# Finit reads one; under any other the row is catch history and is dropped. The
-# year is the marker because a negative Year cannot be: run_mse() reserves those
-# for rows it splices in as the next assessment's data.
-.RCE_FINIT_INITMODES <- c("FishedNonEquilibrium", "FishedNonEquilibriumScaled",
-                          "FishedNonEquilibriumSelected")
+# the stock yielded under the initial fishing mortality. It is Baranov on the
+# equilibrium age structure at Finit * selectivity, which is the mortality only
+# FishedNonEquilibriumSelected builds that structure with -- mode 3 charges every
+# age a flat Finit and mode 4 applies it once -- so only mode 6 reads the row.
+# Under any other mode it is catch history and is dropped. The year is the marker
+# because a negative Year cannot be: run_mse() reserves those for rows it splices
+# in as the next assessment's data.
+.RCE_FINIT_INITMODES <- "FishedNonEquilibriumSelected"
 
 # The styr - 1 rows, taken from both places they can sit: clean_data() moves them
 # out of catch_data into equil_catch_data, so a cleaned list holds them there and

@@ -99,9 +99,9 @@ documentation now says so.
 
 SS3 scores the catch the stock yielded under its initial fishing mortality in the
 year before the hindcast, and creates an `InitF` parameter only when that
-observation exists and is non-zero. Rceattle estimated `log_Finit` under three
-`initMode`s with nothing to fit it to, so `Finit` sat on a ridge with `init_dev`
--- 7.5x movement for 0.17 nats on AI Pacific cod. This supplies the missing half.
+observation exists and is non-zero. Rceattle estimated `log_Finit` with nothing
+to fit it to, so `Finit` sat on a ridge with `init_dev` -- 7.5x movement for 0.17
+nats on AI Pacific cod. This supplies the missing half.
 
 The observation is a `catch_data` row at `styr - 1`. **No new columns**:
 `Fleet_code`, `Year`, `Catch` and `Log_sd` already say everything, and
@@ -120,15 +120,26 @@ sheet by `write_data()`.
 
 **That year is shared with ordinary catch history, so the rule is gated rather
 than marked.** `GOA2018SS` carries 23 catch rows before `styr`, two of them on
-1976, and a model has no way to say which a row is. A `styr - 1` row is therefore
-read as an equilibrium catch only under an `initMode` that estimates `Finit`
-(`FishedNonEquilibrium`, `FishedNonEquilibriumScaled`,
-`FishedNonEquilibriumSelected`); under any other it is history and is dropped
-exactly as before. `data_check()` names the fleets whose rows it read whenever it
-reads any, so nothing is reinterpreted silently, and refuses two rows for one
-fleet or a non-positive value. A negative sentinel was considered and rejected:
-`run_mse()` reserves negative `Year` for rows it splices back in as the next
-assessment's data, and its window filters are on `abs(Year)`.
+1976, and a model has no way to say which a row is. A `styr - 1` row is read as
+an equilibrium catch **only under `initMode = "FishedNonEquilibriumSelected"`**;
+under any other mode it is history and is dropped exactly as before.
+
+The restriction is the prediction's, not a policy: the equilibrium catch is
+Baranov at `Finit * s_a`, and mode 6 is the only mode that builds the initial age
+structure with that same mortality. Mode 3 charges every age a flat `Finit` and
+mode 4 applies it once, so scoring this observation under either would fit
+`Finit` to a catch the population was never subject to. On a stock with more than
+one fishery there is a smaller version of the same gap, since Rceattle carries
+one `Finit` per species: `N_eq` decays at the mean fishery selectivity while the
+prediction uses the row's own fleet.
+
+`data_check()` names the fleets whose rows it read whenever it reads any, so
+nothing is reinterpreted silently. It refuses two rows for one fleet, a
+non-positive catch, a non-fishery fleet, a `Fleet_code` that is not in
+`fleet_control`, a `Species` that does not match that fleet, and a non-positive
+`Log_sd`. A negative sentinel was considered and rejected: `run_mse()` reserves
+negative `Year` for rows it splices back in as the next assessment's data, and
+its window filters are on `abs(Year)`.
 
 `rearrange_data()` turns the rows it reads into `equil_catch_ctl` /
 `equil_catch_obs`, and drops any `styr - 1` row still sitting in `catch_data`

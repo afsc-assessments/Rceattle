@@ -2008,8 +2008,8 @@ Type objective_function<Type>::operator() () {
             }
 
             // - Equilibrium or non-equilibrium estimated as function of Rinit, Finit, mortality, and init devs
-            // Finit is 0 for initMode 0, 1, 2, and 5; it is estimated only for
-            // the fished non-equilibrium modes 3 and 4 (see section 6.1).
+            // Finit is 0 for initMode 0, 1, 2 and 5; it is estimated for the
+            // fished non-equilibrium modes 3, 4 and 6 (see section 6.1).
             if(initMode > 0){
 
               // OffsetEquilibrium (initMode 5): seed the initial age-structure
@@ -2931,18 +2931,15 @@ Type objective_function<Type>::operator() () {
 
   // -- 9.1a. Initial equilibrium catch (kg)
   //
-  // The catch the stock yielded under the initial F, in the year before the
-  // hindcast, taken on the deviation-free equilibrium age structure:
-  //
   //   C_eq = sum_a Finit * s_a * w_a * N_eq_a * (1 - exp(-Z_a)) / Z_a
   //   Z_a  = M1_a + Finit * s_a
   //
-  // i.e. Baranov at equilibrium, with the fleet's own selectivity and body
-  // weight in the first hindcast year. This is SS3's equilibrium catch
-  // (SS_popdyn.tpl, Do_Equil_Calc), and it is what identifies Finit: without it
-  // the initial F is shaped only by the initial age structure and sits on a
-  // ridge with the initial deviates. N_eq rather than N_at_age because the
-  // equilibrium is what the deviates depart from.
+  // Baranov on the deviation-free equilibrium age structure, at the fleet's own
+  // selectivity and body weight in the first hindcast year; SS3's Equil_catch
+  // (SS_popdyn.tpl, Do_Equil_Calc). Read only under initMode 6, the one mode
+  // that builds N_eq at this same Finit * selectivity. Rceattle carries one
+  // Finit per species, so on a stock with more than one fishery N_eq decays at
+  // the mean fishery selectivity while the prediction uses this fleet's.
   vector<Type> equil_catch_hat(equil_catch_ctl.rows()); equil_catch_hat.setZero();
   for(int eq_ind = 0; eq_ind < equil_catch_ctl.rows(); eq_ind++){
     flt = equil_catch_ctl(eq_ind, 0) - 1;
@@ -3929,15 +3926,10 @@ Type objective_function<Type>::operator() () {
 
   // -- Initial equilibrium catch likelihood
   //
-  // The same lognormal the hindcast catch uses, on the row's own Log_sd, booked
-  // to its own jnll row: SS3 reports it separately (equ_catch_like), and it is
-  // worth seeing separately, because it is invisible in the total while
-  // carrying real gradient -- on AI cod 0.0035 nats against a gradient on the
-  // growth parameters of up to 6.6, and it is what holds Finit off its ridge.
-  //
-  // Its own loop rather than a branch inside the catch loop above, which would
-  // not run for a fleet with no hindcast catch rows. No OSA slot: a one-off
-  // equilibrium observation has no residual sequence to condition on.
+  // The lognormal the hindcast catch uses, on the row's own Log_sd, booked to
+  // its own jnll row as SS3 does (equ_catch_like). Its own loop, so it still
+  // runs for a fleet with no hindcast catch rows. No OSA slot: one observation
+  // has no residual sequence to condition on.
   for(int eq_ind = 0; eq_ind < equil_catch_ctl.rows(); eq_ind++){
     int eq_flt = equil_catch_ctl(eq_ind, 0) - 1;
     if((equil_catch_obs(eq_ind, 0) > 0) && (flt_type(eq_flt) == 1)){

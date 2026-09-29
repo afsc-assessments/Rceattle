@@ -1,21 +1,16 @@
-# The initial equilibrium catch is a catch_data row at Year == styr - 1: the catch
-# the stock yielded under the initial fishing mortality before the hindcast began.
+# The initial equilibrium catch is a catch_data row at Year == styr - 1, read only
+# under initMode 6 (FishedNonEquilibriumSelected).
 #
-# That year is NOT a free marker. Real data carries ordinary catch history there --
-# GOA2018SS has 23 catch rows before styr, two of them on styr - 1 (1976) -- and an
-# earlier version of this feature read those two as equilibrium observations. Under
-# the default initMode the predicted equilibrium catch is 0, so the likelihood took
-# log(0) and every GOA fit returned a non-finite objective, which surfaced as
-# `optimHess: non-finite value supplied by optim` in the golden references.
+# That year is not a free marker: GOA2018SS carries 23 catch rows before styr, two
+# of them on 1976. Reading those as equilibrium observations under a mode that
+# holds Finit at 0 predicts 0, takes log(0), and returns a non-finite objective on
+# all four golden references. A negative Year cannot be the marker either --
+# run_mse() reserves those for rows it splices in as the next assessment's data,
+# and its window filters are on abs(Year).
 #
-# A negative sentinel cannot be used instead: run_mse() reserves negative Year for
-# rows it splices back in as the next assessment's data, and its window filters are
-# on abs(Year), so a -999 row survives them as year 999.
-#
-# The rule is therefore gated, not marked: a styr - 1 row is read as an equilibrium
-# catch only under an initMode that estimates Finit (3, 4, 6), it is named in a
-# message whenever it IS read, and it is otherwise dropped as history exactly as it
-# was before the feature existed.
+# The rows are held in data_list$equil_catch_data rather than left in catch_data,
+# because catch_hat, catch_sd, plot_catch(), residuals(), sim_mod() and run_mse()
+# all index catch_data by position.
 
 testthat::skip_on_cran()
 
@@ -36,6 +31,39 @@ testthat::test_that("catch history at styr - 1 is not read as an equilibrium cat
   testthat::expect_length(f$quantities$equil_catch_hat, 0)
 })
 
+# Modes 3 and 4 estimate Finit but decay the initial age structure at a flat
+# Finit, not at Finit * selectivity, so the equilibrium catch would be scored
+# against a population that mortality never produced.
+testthat::test_that("the other fished modes do not read it", {
+  testthat::skip_if_not_installed("TMB")
+  testthat::skip_if_not(exists("GOA2018SS"))
+  d <- Rceattle::GOA2018SS
+  for (im in c(3, 4)) {
+    f <- fit3(d, im)
+    testthat::expect_length(f$quantities$equil_catch_hat, 0)
+    testthat::expect_true(is.finite(f$quantities$jnll))
+    testthat::expect_false(any(is.na(f$map$mapFactor$log_Finit)))  # still estimated
+  }
+})
+
+# The template scores an equilibrium catch on flt_type == 1 alone, so a survey's
+# row would leave the catch history and be fitted by nothing.
+testthat::test_that("an equilibrium catch on a survey is refused", {
+  testthat::skip_if_not(exists("GOA2018SS"))
+  d <- Rceattle::GOA2018SS; d$initMode <- 6
+  srv <- d$fleet_control$Fleet_code[d$fleet_control$Fleet_type == 2][1]
+  testthat::skip_if(is.na(srv))
+  row <- d$catch_data[d$catch_data$Year == d$styr, ][1, ]
+  row$Fleet_code <- srv
+  row$Species <- d$fleet_control$Species[d$fleet_control$Fleet_code == srv][1]
+  row$Year <- d$styr - 1L
+  e <- d; e$catch_data <- rbind(row, d$catch_data)
+  testthat::expect_error(
+    suppressMessages(suppressWarnings(
+      Rceattle:::data_check(Rceattle::switch_check(e)))),
+    "not fisheries")
+})
+
 # catch_hat has one entry per catch_data row, and plot_catch(), residuals(),
 # sim_mod() and run_mse() all pair the two by position. GOA2018SS is the only
 # bundled dataset with a styr - 1 catch row, so it is the only one that can
@@ -46,7 +74,7 @@ testthat::test_that("catch_data stays aligned with catch_hat", {
   d <- Rceattle::GOA2018SS
   testthat::expect_gt(sum(d$catch_data$Year == d$styr - 1L, na.rm = TRUE), 0)
 
-  for (im in c(2, 3)) {
+  for (im in c(2, 6)) {
     f <- fit3(d, im)
     testthat::expect_length(f$quantities$catch_hat, nrow(f$data_list$catch_data))
     testthat::expect_length(f$quantities$catch_sd,  nrow(f$data_list$catch_data))
@@ -62,7 +90,7 @@ testthat::test_that("catch_data stays aligned with catch_hat", {
 # self_test(), model_average() and run_mse()'s refits all clean a data_list that
 # has been cleaned once already. If the second pass rebuilt equil_catch_data
 # from catch_data alone it would come back empty, and the refit would quietly
-# drop the observation: 51,873 nats on GOA2018SS at initMode 3.
+# drop the observation: 51,873 nats on GOA2018SS at initMode 6.
 testthat::test_that("cleaning twice keeps the equilibrium catch", {
   testthat::skip_if_not(exists("GOA2018SS"))
   d <- Rceattle::GOA2018SS
@@ -74,8 +102,8 @@ testthat::test_that("cleaning twice keeps the equilibrium catch", {
     Rceattle::clean_data(cl))$equil_catch_data), n)
 
   testthat::skip_if_not_installed("TMB")
-  f1 <- fit3(d, 3)
-  f2 <- fit3(f1$data_list, 3)                 # what a refit path hands back in
+  f1 <- fit3(d, 6)
+  f2 <- fit3(f1$data_list, 6)                 # what a refit path hands back in
   testthat::expect_equal(f2$quantities$equil_catch_hat,
                          f1$quantities$equil_catch_hat)
   testthat::expect_equal(f2$quantities$jnll, f1$quantities$jnll)
@@ -101,7 +129,7 @@ testthat::test_that("a row added after the split is not masked", {
 # and flt_units by Fleet_code with no range test.
 testthat::test_that("an equilibrium catch gets the checks a catch row gets", {
   testthat::skip_if_not(exists("GOA2018SS"))
-  d <- Rceattle::GOA2018SS; d$initMode <- 3
+  d <- Rceattle::GOA2018SS; d$initMode <- 6
   cl <- suppressMessages(suppressWarnings(
     Rceattle::clean_data(Rceattle::switch_check(d))))
   bad <- function(f) {
@@ -146,11 +174,11 @@ testthat::test_that("a Finit-estimating mode does read it, and says so", {
   testthat::expect_message(
     suppressWarnings(Rceattle::fit_mod(
       data_list = d, file = NULL, inits = NULL, estimateMode = 3,
-      random_rec = FALSE, msmMode = 0, initMode = 3,
+      random_rec = FALSE, msmMode = 0, initMode = 6,
       fit_control = Rceattle::fit_control(phase = FALSE, getsd = FALSE, verbose = 0))),
     "Initial equilibrium catch read from catch_data")
 
-  f <- fit3(d, 3)
+  f <- fit3(d, 6)
   testthat::expect_true(is.finite(f$quantities$jnll))
   testthat::expect_length(f$quantities$equil_catch_hat, n)
 })
@@ -162,7 +190,7 @@ testthat::test_that("two equilibrium catches for one fleet are refused", {
   row <- d$catch_data[d$catch_data$Year == d$styr, ][1, ]
   row$Year <- d$styr - 1L
   e <- d; e$catch_data <- rbind(row, d$catch_data)
-  testthat::expect_error(fit3(e, 3), "More than one initial equilibrium catch")
+  testthat::expect_error(fit3(e, 6), "More than one initial equilibrium catch")
 })
 
 testthat::test_that("a non-positive equilibrium catch is refused", {
@@ -173,5 +201,5 @@ testthat::test_that("a non-positive equilibrium catch is refused", {
   i <- which(e$catch_data$Year == e$styr - 1L)
   testthat::skip_if(length(i) == 0)
   e$catch_data$Catch[i] <- 0
-  testthat::expect_error(fit3(e, 3), "must be positive")
+  testthat::expect_error(fit3(e, 6), "must be positive")
 })
