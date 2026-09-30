@@ -68,14 +68,12 @@ inline void rceattle_stratum_range(int id, int n_levels, int& lo, int& hi) {
 //     expand the stratum sentinels, then add beta * X(yr, col) into the
 //     offset tensor for every (stratum, year) the row applies to.
 //
-// `link_code` selects which rows a call consumes and therefore which
-// tensor it fills: 1 = log (added inside the exp at the consume site),
-// 0 = identity (added to the natural-scale value afterwards). The
-// consumer combines them as
-//   value_yr = exp(log_base + log_offset(yr)) + nat_offset(yr)
-// so each process is called twice, once per scale, with the matching
-// tensor. Years beyond `linkage_X.rows()` keep a zero offset: env_data
-// need not span the projection horizon.
+// `link_code` picks which rows a call consumes: 1 = log (added inside the exp),
+// 0 = identity (added to the natural-scale value after it), 3 = power
+// (raises the parameter to exp(beta * x); catchability only). The consumer combines
+// them as exp((log_base + log_offset) * exp(scale) + dev) + nat_offset. Years
+// past linkage_X.rows() keep a zero offset, so env_data need not span the
+// projection. See vignette("environmental-linkages-and-priors") for power.
 // ---------------------------------------------------------------------
 
 

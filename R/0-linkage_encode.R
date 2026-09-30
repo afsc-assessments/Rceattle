@@ -41,7 +41,8 @@ LINKAGE_PROCESS_CODES <- c(
 LINKAGE_LINK_CODES <- c(
   identity = 0L,
   log      = 1L,
-  logit    = 2L
+  logit    = 2L,
+  power    = 3L   # q ^ exp(beta * x): SS3's environmental link type 1
 )
 
 

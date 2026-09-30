@@ -39,7 +39,7 @@ LINKAGE_COLS <- c(
   fleet         = "integer",    # 1-based Fleet_code; NA = shared
   X_col         = "integer",    # column of the global design matrix
   design_col    = "character",  # name of the design matrix column
-  link          = "character",  # "identity", "log", "logit"
+  link          = "character",  # "identity", "log", "logit", "power"
   init          = "numeric",    # initial value on the linear predictor scale
   init_supplied = "logical",    # TRUE iff user explicitly supplied init
   lower         = "numeric",    # lower bound (-Inf for unbounded)
@@ -123,18 +123,27 @@ LINKAGE_PROCESSES_IMPLEMENTED <- c("recruitment", "M", "growth", "q", "sel", "co
 
 #' @rdname LINKAGE_PROCESSES
 #' @keywords internal
-LINKAGE_LINKS <- c("identity", "log", "logit")
+LINKAGE_LINKS <- c("identity", "log", "logit", "power")
 
 #' Link functions with a C++ accumulator behind them
 #'
-#' Every accumulator in `src/TMB/linkage.hpp` gates on `linkfn == 1` (log) or
-#' `linkfn == 0` (identity). `"logit"` stays reserved, the code is referenced
-#' by the C++ header, but is rejected until an accumulator implements it;
-#' the processes wired today expose only log-scale parameters.
+#' Every accumulator in `src/TMB/linkage.hpp` gates on `linkfn == 1` (log),
+#' `linkfn == 0` (identity) or `linkfn == 3` (scale). `"logit"` stays reserved,
+#' the code is referenced by the C++ header, but is rejected until an
+#' accumulator implements it.
+#'
+#' `"power"` multiplies the parameter on its stored log scale rather than
+#' shifting it, `exp((log_base + log_offset) * exp(beta * x))`. It reproduces
+#' Stock Synthesis's environmental link type 1, and ONLY where SS3 itself stores
+#' the parameter as a log. Among Rceattle's linkage targets that is catchability
+#' alone (`Svy_log_q`); SS3 holds natural mortality and growth on the natural
+#' scale, where its type 1 is `parm * exp(beta * x)` -- which is exactly what
+#' Rceattle's `"log"` link already gives. Every other process therefore refuses
+#' it, and says so.
 #'
 #' @keywords internal
 #' @noRd
-LINKAGE_LINKS_IMPLEMENTED <- c("identity", "log")
+LINKAGE_LINKS_IMPLEMENTED <- c("identity", "log", "power")
 
 
 #' Error on a reserved-but-unimplemented link function
@@ -187,6 +196,27 @@ is_linkage_table <- function(x) {
 }
 
 
+# power reproduces SS3's environmental link type 1, which multiplies a
+# parameter on the scale SS3 stores it on -- a log for catchability only
+# (SS_expval.tpl:407/418). The error below says what to use instead.
+.check_power_link <- function(tbl) {
+  if (is.null(tbl) || !nrow(tbl) || is.null(tbl$link)) return(invisible(tbl))
+  bad <- which(tbl$link == "power" & tbl$process != "q")
+  if (length(bad)) {
+    stop("link = \"power\" is only supported on catchability (process ",
+         "\"q\"), and was given on: ",
+         paste(unique(tbl$process[bad]), collapse = ", "),
+         ". It reproduces Stock Synthesis's environmental link type 1, which ",
+         "multiplies the parameter on the scale SS3 stores it on, and SS3 ",
+         "stores only catchability as a log. SS3 holds natural mortality and ",
+         "growth on the natural scale, where its type 1 is ",
+         "parm * exp(beta * x) -- which is what link = \"log\" already gives, ",
+         "so use that.", call. = FALSE)
+  }
+  invisible(tbl)
+}
+
+
 #' Validate a linkage table against the schema
 #'
 #' Checks that all required columns are present with the correct R type,
@@ -197,6 +227,7 @@ is_linkage_table <- function(x) {
 #' @return `x` invisibly, on success. Throws an error otherwise.
 #' @keywords internal
 validate_linkage_table <- function(x) {
+  .check_power_link(x)
   if (!is.data.frame(x)) {
     stop("linkage table must be a data.frame; got ", class(x)[1])
   }

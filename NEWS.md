@@ -12,6 +12,51 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.47.0
+
+## `link = "power"`: Stock Synthesis's environmental link type 1, on catchability
+
+A fourth linkage link, for catchability only, completing the progression on the
+natural-scale parameter: `"identity"` **adds** to it, `"log"` **multiplies** it,
+and `"power"` raises it to a covariate-dependent power, `q^exp(beta * x)`:
+
+    index_q_yr = exp((log_q + q_offset(yr)) * exp(sum beta * x(yr)) + q_dev(yr))
+                 + q_nat_offset(yr)
+
+This is SS3's environmental link type 1, which an SS3 parameter line requests
+with an `env-var` of `1xx`. Verified against the pinned v3.30.22.1 source:
+`parm_timevary` is seeded with the base parameter (`SS_timevaryparm.tpl:50`),
+type 1 multiplies it by `mfexp(beta * env)` (`:206-211`) where type 2 adds
+(`:215-220`), the result is `Svy_log_q` (`SS_expval.tpl:407`), q is its
+exponential (`:418`), and the `1xx` decoding is `SS_readcontrol_330.tpl:3118`.
+The deviation stays outside the multiply, matching SS3's order (env at
+`:200-245`, devs at `:252-330`).
+
+**Catchability only, and the restriction is a mapping fact rather than a gap.**
+SS3's type 1 multiplies a parameter on whatever scale SS3 stores it on. Among the
+processes a linkage can reach, catchability alone is a log in SS3; natural
+mortality (`SS_biofxn.tpl:1063`) and growth (`:270-271`) are natural-scale there.
+For a natural-scale parameter SS3's type 1 is `parm * exp(beta * x)` -- which is
+**exactly what Rceattle's `"log"` link already computes**. So bridging an SS3
+model whose `NatM` or growth line carries an `env-var` of `1xx` needs `"log"`,
+not this, and `.check_power_link()` says so rather than letting the wrong form
+through. Applied to a natural-scale parameter the form would raise it to a power,
+and on M -- where `log M` is always negative, since M < 1 -- that inverts the
+sign of the covariate effect.
+
+Worth knowing before using it even on q, and it is SS3's property rather than
+ours: because `beta` multiplies a *log*, the effect scales with how far `log q`
+sits from zero. At `q = 1` the covariate does nothing whatever `beta` is, and
+below `q = 1` its sign inverts. Pinned by a test so nobody reads it as a broken
+linkage.
+
+No fit changes: with no `power` rows the tensor stays at zero, `exp(0)` is
+exactly 1, and multiplying by it is exact in floating point.
+
+Motivation: the GOA Pacific cod SS3 bridge, whose LLSrv survey catchability
+carries this link. The bridge's own measurement of what it is worth lives in
+`Rceattle-models/SS3-bridge/GOA-estimation-parity.md`, not here.
+
 # Rceattle 5.46.0
 
 ## `initMode = "FishedNonEquilibriumSelected"` (6)
@@ -314,6 +359,7 @@ with SSB rising across a series over which SAFE declines. A 3-point move against
 a 63% gap says nothing. The case for the change rests on Stock Synthesis parity
 in `GOA cod/Bridging/` and `AI cod - Dev/Bridging/`, where the bridges match SS3
 to additive constants and SS3 weighs catch this way.
+
 
 # Rceattle 5.45.3
 

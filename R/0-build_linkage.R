@@ -78,8 +78,9 @@ NULL
 #'   catchability and selectivity linkages to give different fleets
 #'   different formulas.
 #' @param link link function relating the linear predictor to the
-#'   natural-scale target parameter. One of `"log"` (default) or
-#'   `"identity"`. With `link = "log"`, `log(param) = X * beta`, slope
+#'   natural-scale target parameter. One of `"log"` (default),
+#'   `"identity"`, or `"power"` (catchability only; reproduces Stock
+#'   Synthesis's environmental link type 1). With `link = "log"`, `log(param) = X * beta`, slope
 #'   contributions are multiplicative on the natural-scale parameter. With `link = "identity"`,
 #'   `param = X * beta`, slope contributions are additive on the
 #'   natural scale. The linkage targets are estimated on the log scale,

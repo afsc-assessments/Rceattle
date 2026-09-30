@@ -962,6 +962,7 @@ Type objective_function<Type>::operator() () {
   // q linkage was supplied, so models without one are unaffected.
   matrix<Type> q_linkage_offset(n_flt, nyrs_hind);     q_linkage_offset.setZero();
   matrix<Type> q_linkage_offset_nat(n_flt, nyrs_hind); q_linkage_offset_nat.setZero();
+  matrix<Type> q_linkage_scale(n_flt, nyrs_hind);      q_linkage_scale.setZero();
 
   rceattle_apply_q_linkages(
     q_linkage_offset,
@@ -977,13 +978,25 @@ Type objective_function<Type>::operator() () {
     linkage_age_bin, linkage_fleet, linkage_X_col, linkage_link,
     linkage_X, beta_linkage_eff, n_flt, nyrs_hind);
 
+  rceattle_apply_q_linkages(
+    q_linkage_scale,
+    /*link_code=*/ 3,   // power rows -> log-scale multiplier tensor
+    linkage_process, linkage_param, linkage_species, linkage_sex,
+    linkage_age_bin, linkage_fleet, linkage_X_col, linkage_link,
+    linkage_X, beta_linkage_eff, n_flt, nyrs_hind);
+
   REPORT(q_linkage_offset);
   REPORT(q_linkage_offset_nat);
+  REPORT(q_linkage_scale);
 
   for(flt = 0; flt < n_flt; flt++){
     for(yr = 0; yr < nyrs_hind; yr++){
-      index_q(flt, yr) = exp(index_log_q(flt) + index_q_dev(flt, yr)
-                               + q_linkage_offset(flt, yr))
+      // The deviate sits outside the multiply: SS3 applies env before devs, and
+      // inside it the deviate's effective sd would vary by year against a
+      // constant index_q_dev_sd.
+      index_q(flt, yr) = exp((index_log_q(flt) + q_linkage_offset(flt, yr))
+                               * exp(q_linkage_scale(flt, yr))
+                             + index_q_dev(flt, yr))
                            + q_linkage_offset_nat(flt, yr);              // Exponentiate
 
       // Q as a function of environmental index
@@ -1069,7 +1082,7 @@ Type objective_function<Type>::operator() () {
     nspp,
     nyrs
   );
-  REPORT(recruitment_linkage_offset);
+    REPORT(recruitment_linkage_offset);
   REPORT(recruitment_linkage_offset_nat);
 
   // - M OFFSETS
@@ -1111,7 +1124,7 @@ Type objective_function<Type>::operator() () {
     nages,
     nyrs
   );
-  REPORT(M_linkage_offset);
+    REPORT(M_linkage_offset);
   REPORT(M_linkage_offset_nat);
 
 
@@ -1152,7 +1165,7 @@ Type objective_function<Type>::operator() () {
     nsex,
     nyrs
   );
-  REPORT(growth_linkage_offset);
+    REPORT(growth_linkage_offset);
   REPORT(growth_linkage_offset_nat);
 
 

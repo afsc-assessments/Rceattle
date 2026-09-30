@@ -178,6 +178,18 @@ build_selectivity <- function(linkages = NULL) {
   sel <- linkage_table[linkage_table$process == "sel", , drop = FALSE]
   if (nrow(sel) == 0L) return(invisible())
 
+  # Selectivity stores slopes as logs, a logistic inflection naturally and a
+  # DoubleNormal floor as a logit, so one power row would mean three models.
+  if (any(sel$link == "power")) {
+    stop("link = \"power\" is not supported on selectivity linkages: it ",
+         "multiplies a parameter on its stored scale, and selectivity mixes ",
+         "log (slopes), natural (a logistic inflection) and logit (a ",
+         "DoubleNormal floor) storage in the same slots, so the form would mean ",
+         "something different for each parameter. Use link = \"log\" for a ",
+         "proportional effect on a log-stored selectivity parameter.",
+         call. = FALSE)
+  }
+
   # `apical` multiplies the finished curve, so it needs no form-specific consume
   # site and is checked on its own terms below; the form check is for the rest.
   ap  <- sel[sel$param == "apical", , drop = FALSE]

@@ -87,8 +87,9 @@ catchability and selectivity linkages to give different fleets
 different formulas.}
 
 \item{link}{link function relating the linear predictor to the
-natural-scale target parameter. One of \code{"log"} (default) or
-\code{"identity"}. With \code{link = "log"}, \code{log(param) = X * beta}, slope
+natural-scale target parameter. One of \code{"log"} (default),
+\code{"identity"}, or \code{"power"} (catchability only; reproduces Stock
+Synthesis's environmental link type 1). With \code{link = "log"}, \code{log(param) = X * beta}, slope
 contributions are multiplicative on the natural-scale parameter. With \code{link = "identity"},
 \code{param = X * beta}, slope contributions are additive on the
 natural scale. The linkage targets are estimated on the log scale,

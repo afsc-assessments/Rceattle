@@ -93,7 +93,7 @@ linkage_spec(
   species   = NULL,                 # ids or spnames
   sex       = NULL,
   fleet     = NULL,                 # Fleet_codes or Fleet_names
-  link      = "log",                # or "identity"
+  link      = "log",                # or "identity", "power"
   init      = NULL,
   bounds    = NULL,
   priors    = NULL,
@@ -124,7 +124,24 @@ Key arguments (see `?linkage_spec` for the full list):
   while a misspelled name errors and lists the fleets you do have.
 * **`link`**: relates the linear predictor to the natural-scale
   target. `"log"` (default) gives a multiplicative effect on natural
-  `param`; `"identity"` gives an additive effect on natural `param`.
+  `param`; `"identity"` gives an additive effect on natural `param`;
+  `"power"` raises the parameter to a covariate-dependent power,
+  `q^exp(beta * x)`, completing the progression: `"identity"` **adds** to the
+  natural-scale parameter, `"log"` **multiplies** it, `"power"` raises it to a
+  power. (The power is of the parameter, not of the covariate.) It is accepted
+  on **catchability only**.
+
+  This is Stock Synthesis's environmental link type 1 -- the one an SS3
+  parameter line requests with an `env-var` of `1xx` -- because SS3 multiplies
+  the parameter on the scale it stores, and it stores `Svy_log_q` as a log.
+  Natural mortality and growth it stores naturally, and there its type 1 is
+  `parm * exp(beta * x)`, which is **exactly Rceattle's `"log"` link**. So a
+  `NatM` or growth line carrying `env-var 1xx` bridges with `"log"`, not this.
+
+  Rceattle refuses `"power"` elsewhere rather than let it through, because on a
+  log-stored parameter it would raise the value to a power instead of scaling
+  it, and on M -- where `log M` is always negative, M being below 1 -- that
+  inverts the sign of the covariate effect.
 * **`init`** / **`bounds`**: named lists keyed by design-matrix
   column (`init = list(temp = 0.05)`, `bounds = list(temp = c(-2, 2))`).
 * **`priors`**: named list keyed by design-matrix column. Each
