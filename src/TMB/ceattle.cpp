@@ -1222,7 +1222,6 @@ Type objective_function<Type>::operator() () {
     lengths,
     nlengths_pop,
     lengths_pop,
-    pop_to_data_bin,
     growth_parameters,
     growth_log_sd,
     weight_length_pars,
@@ -1301,7 +1300,6 @@ Type objective_function<Type>::operator() () {
     lengths,              // Length bin boundaries matrix
     nlengths_pop,         // Population length bins per species (= nlengths when no pop grid)
     lengths_pop,          // Population length bin lower edges
-    pop_to_data_bin,      // Data bin each population bin falls in
     flt_spp,              // Fleet to species mapping
     flt_sel_type,         // Selectivity model type per fleet
     flt_varying_sel,      // Time_varying_sel per fleet (picks NonParametricIntegrable's construction)

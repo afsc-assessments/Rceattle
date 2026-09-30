@@ -299,13 +299,12 @@ void calculate_selectivity(
     const vector<int>&  nages,
     const vector<int>&  nlengths,
     matrix<Type>& lengths,
-    // A length-based curve is built on the POPULATION bins, as SS3 does, and
-    // pop_to_data_bin says which data bin each one falls in. When no population
-    // grid is supplied these equal nlengths / lengths and the map is the
-    // identity, so such a model is numerically unchanged.
+    // A length-based curve is built on the POPULATION bins, as SS3 does. When no
+    // population grid is supplied these equal nlengths / lengths, so such a
+    // model is numerically unchanged. The curve stays on that grid; ceattle.cpp
+    // sums each data bin's run of population bins where it needs data bins.
     const vector<int>&  nlengths_pop,
     matrix<Type>& lengths_pop,
-    matrix<int>&  pop_to_data_bin,
     const vector<int>&  flt_spp,
     const vector<int>&  flt_sel_type,
     const vector<int>&  flt_varying_sel,

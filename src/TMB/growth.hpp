@@ -60,7 +60,8 @@ void fill_age_length_key(int wtind, int sp, int sex, int age, int yr,
   // Kept on the POPULATION bins. Its readers multiply it by
   // selectivity-at-length, and SS3 forms that product at population resolution
   // before binning, so aggregating here would apply one bin-average selectivity
-  // across a data bin. Consumers bin through pop_to_data_bin where they need to.
+  // across a data bin. ceattle.cpp sums each data bin's run of population bins
+  // (section 2.3c) where it needs data bins.
   for(int lp = 0; lp < np; lp++) growth_matrix(wtind, sex, age, lp, yr) = Type(0.0);
 
   Type expected_weight = 0.0;
@@ -162,7 +163,6 @@ void estimate_growth(
     matrix<Type>& lengths,
     const vector<int>&  nlengths_pop,
     matrix<Type>& lengths_pop,             // Population length bins, lower edges (cm)
-    const matrix<int>&  pop_to_data_bin,   // Data length bin (0-based) holding each population bin
     array<Type>& growth_parameters,
     array<Type>& growth_log_sd,
     matrix<Type>& weight_length_pars,
@@ -312,6 +312,9 @@ void estimate_growth(
             length_hat(wtind,  sex, age, yr) = temp_sum / temp_n;
           } else if(growth_plus_length(sp) == 3) {
             Type temp_n = 0, temp_sum = 0;
+            // Survival weights at a fixed 0.2/yr, the nominal mortality SS3 uses
+            // for Linf_decay = -999 -- not this species' estimated M1, which is
+            // what form 1 above weights by.
             for(int a = 0; a <= oldest_age; a++) {
               Type weight_a = exp(Type(-0.2) * Type(a));
               temp_sum += weight_a * (current_size + (Type(a) / Type(oldest_age)) * diff);
@@ -320,6 +323,8 @@ void estimate_growth(
             length_hat(wtind,  sex, age, yr) = temp_sum / temp_n;
           } else if(growth_plus_length(sp) == 4) {
             Type size = current_size, temp_sum = current_size, temp_n = 1.0, weight_a = 1.0;
+            // Averaged over twice the oldest age, far enough past it that the
+            // decay weights leave no meaningful length behind (SS3's own span).
             for(int a = 1; a <= 2 * oldest_age; a++) {
               weight_a *= exp(-plus_group_decay(sp));
               size += (linf - size) * (Type(1.0) - exp(-kappa));
@@ -410,7 +415,6 @@ void estimate_growth_within_yr(
     matrix<Type>& lengths,
     const vector<int>&  nlengths_pop,
     matrix<Type>& lengths_pop,             // Population length bins, lower edges (cm)
-    const matrix<int>&  pop_to_data_bin,   // Data length bin (0-based) holding each population bin
     array<Type>& growth_parameters,
     array<Type>& growth_log_sd,
     matrix<Type>& weight_length_pars,
@@ -602,7 +606,6 @@ void calculate_weight(
     matrix<Type>& lengths,
     const vector<int>&  nlengths_pop,
     matrix<Type>& lengths_pop,
-    const matrix<int>&  pop_to_data_bin,
     array<Type>& growth_parameters,
     array<Type>& growth_log_sd,
     matrix<Type> weight_length_pars,
@@ -661,7 +664,6 @@ void calculate_weight(
         lengths,
         nlengths_pop,
         lengths_pop,
-        pop_to_data_bin,
         growth_parameters,
         growth_log_sd,
         weight_length_pars,
@@ -694,7 +696,6 @@ void calculate_weight(
         lengths,
         nlengths_pop,
         lengths_pop,
-        pop_to_data_bin,
         growth_parameters,
         growth_log_sd,
         weight_length_pars,
@@ -750,7 +751,6 @@ void calculate_weight(
         lengths,
         nlengths_pop,
         lengths_pop,
-        pop_to_data_bin,
         growth_parameters,
         growth_log_sd,
         weight_length_pars,
