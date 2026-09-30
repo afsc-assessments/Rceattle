@@ -93,7 +93,9 @@ rcmdcheck::rcmdcheck()                 # what CI runs (slow; usually backgrounde
 - **Toolchain:** prefix R compile/check commands with `export PATH=/usr/bin:$PATH` — system
   toolchain first, so a Homebrew clang/gfortran does not shadow the TMB build.
 - `load_all()` recompiles via `src/TMB/compile.R`; add `compile = FALSE` for R-only changes.
-  Compiled artifacts (`*.o` ~77 MB, `*.so`) are gitignored — never commit them.
+  Compiled artifacts are gitignored — never commit them. `ceattle.o` is the big one and it
+  grows with the template (89 MB at 5.45.3, 94 MB at 5.46.0), so treat any figure here as a
+  snapshot; `*.so` is a few MB.
 - **To run one test file**, make the env's parent the package namespace so internal helpers
   resolve: `e <- new.env(parent = asNamespace("Rceattle"))`, then source the shared helpers into
   it. A plain `new.env()` fails with `could not find function "data_check"`.
