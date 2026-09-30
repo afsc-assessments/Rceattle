@@ -21,107 +21,147 @@
 
 testthat::skip_on_cran()
 
-env_frame <- function(d, x) {
-  data.frame(Year = d$styr:d$projyr, xcov = x)
+.exp_env <- function(d) {
+  yrs <- d$styr:d$projyr
+  data.frame(Year = yrs, xcov = as.numeric(scale(seq_along(yrs))))
 }
 
-fit3 <- function(d, selFun = NULL, qFun = NULL) {
+.exp_fit3 <- function(d, qFun = NULL) {
   suppressMessages(suppressWarnings(Rceattle::fit_mod(
     data_list = d, file = NULL, inits = NULL, estimateMode = 3,
-    random_rec = FALSE, msmMode = 0, qFun = qFun, selFun = selFun,
-    fit_control = Rceattle::fit_control(phase = FALSE, getsd = FALSE, verbose = 0))))
+    random_rec = FALSE, msmMode = 0, qFun = qFun,
+    fit_control = Rceattle::fit_control(phase = FALSE, getsd = FALSE,
+                                        verbose = 0))))
 }
 
-testthat::test_that("an exponential-link q reproduces SS3's exponential env link exactly", {
-  testthat::skip_if_not_installed("TMB")
-  d <- make_test_data(nyrs = 20, nages = 5, seed = 42)
+# A survey q of 0.3: away from 1, so `log q` is a real number the covariate can
+# scale, and negative, which is where the sign of the effect inverts.
+.exp_data <- function(q_init = 0.3, nyrs = 20) {
+  d <- make_test_data(nyrs = nyrs, nages = 5, seed = 42)
   flt <- d$fleet_control$Fleet_code[d$fleet_control$Fleet_type == "Survey"][1]
-  testthat::skip_if(is.na(flt))
   d$fleet_control$Catchability[d$fleet_control$Fleet_code == flt] <- "Estimated"
+  d$fleet_control$Catchability_init[d$fleet_control$Fleet_code == flt] <- q_init
+  d$env_data <- .exp_env(d)
+  list(d = d, flt = flt)
+}
 
-  x <- as.numeric(scale(seq_len(length(d$styr:d$projyr))))
-  d$env_data <- env_frame(d, x)
+# Pick a coefficient by its design column. `beta_linkage` is aligned row-for-row
+# with the linkage table, but TMB drops map = NA entries from last.par.best, so
+# the parameter vector holds only the ESTIMATED rows -- an intercept-bearing q
+# formula contributes one entry, not two. Subset the table by the map first.
+.exp_beta_index <- function(fit, col) {
+  est <- !is.na(fit$map$mapList$beta_linkage)
+  which(names(fit$obj$env$last.par.best) == "beta_linkage")[
+    which(fit$data_list$linkage_table$design_col[est] == col)]
+}
 
-  fit <- fit3(d, qFun = Rceattle::build_catchability(linkages = list(
-    q = Rceattle::linkage_spec(~ xcov, by = ~ fleet, fleet = flt, link = "exponential"))))
 
-  # beta starts at 0, where the exponential and the additive forms coincide -- so set
-  # it and re-report, otherwise the comparison below is vacuous.
-  p    <- fit$obj$env$last.par.best
-  nm   <- names(p)
-  ibet <- which(nm == "beta_linkage")
-  testthat::expect_gte(length(ibet), 1)
+testthat::test_that("an exponential q reproduces SS3's env link type 1 exactly", {
+  testthat::skip_if_not_installed("TMB")
+  s <- .exp_data()
+  fit <- .exp_fit3(s$d, qFun = Rceattle::build_catchability(linkages = list(
+    q = Rceattle::linkage_spec(~ xcov, by = ~ fleet, fleet = s$flt,
+                               link = "exponential"))))
+
+  # beta starts at 0, where every link coincides, so drive it and re-report.
+  slope <- .exp_beta_index(fit, "xcov")
+  testthat::expect_length(slope, 1L)
   BETA <- 0.35
-  p[ibet[1]] <- BETA
-  rep  <- fit$obj$report(p)
+  p <- fit$obj$env$last.par.best
+  p[slope] <- BETA
+  rep <- fit$obj$report(p)
 
   q    <- rep$index_q
-  base <- as.numeric(fit$estimated_params$index_log_q)[flt]
-  nyr  <- ncol(q)
+  base <- as.numeric(fit$estimated_params$index_log_q)[s$flt]
+  x    <- s$d$env_data$xcov[seq_len(ncol(q))]
+  # The base has to be a real number, or the comparison below holds trivially.
+  testthat::expect_lt(base, -1)
 
   # SS3: log q_y = log q_base * exp(beta * env_y); Rceattle exponentiates that.
-  expect_q <- exp(base * exp(BETA * x[seq_len(nyr)]))
-  testthat::expect_equal(as.numeric(q[flt, ]), expect_q, tolerance = 1e-10)
-
+  testthat::expect_equal(as.numeric(q[s$flt, ]), exp(base * exp(BETA * x)),
+                         tolerance = 1e-10)
   # It is NOT the additive form, which is what `log` gives.
-  testthat::expect_false(isTRUE(all.equal(as.numeric(q[flt, ]),
-                                          exp(base + BETA * x[seq_len(nyr)]),
+  testthat::expect_false(isTRUE(all.equal(as.numeric(q[s$flt, ]),
+                                          exp(base + BETA * x),
                                           tolerance = 1e-6)))
-  # and the log-multiplier tensor is what carries it
-  testthat::expect_equal(as.numeric(rep$q_linkage_log_mult[flt, ]),
-                         BETA * x[seq_len(nyr)], tolerance = 1e-10)
+  # and q genuinely moves, so the assertion above is not comparing constants
+  testthat::expect_gt(stats::sd(as.numeric(q[s$flt, ])), 1e-6)
+  # the log-multiplier tensor is what carries it
+  testthat::expect_equal(as.numeric(rep$q_linkage_log_mult[s$flt, ]), BETA * x,
+                         tolerance = 1e-10)
 })
 
-testthat::test_that("a zero multiplier tensor leaves the model arithmetically unchanged", {
+
+testthat::test_that("the covariate effect inverts in sign below q = 1", {
+  # SS3's property, not ours: beta multiplies a LOG, so for q < 1 (log q < 0) a
+  # positive beta DECREASES q. Pinned so nobody reads it as a broken linkage.
+  testthat::skip_if_not_installed("TMB")
+  s <- .exp_data(q_init = 0.3)
+  fit <- .exp_fit3(s$d, qFun = Rceattle::build_catchability(linkages = list(
+    q = Rceattle::linkage_spec(~ xcov, by = ~ fleet, fleet = s$flt,
+                               link = "exponential"))))
+  p <- fit$obj$env$last.par.best
+  p[.exp_beta_index(fit, "xcov")] <- 0.5
+  q <- as.numeric(fit$obj$report(p)$index_q[s$flt, ])
+  x <- s$d$env_data$xcov[seq_len(length(q))]
+  testthat::expect_lt(stats::cor(q, x), -0.9)   # q falls as the covariate rises
+  testthat::expect_true(all(q < 1))             # and stays below 1 throughout
+})
+
+
+testthat::test_that("a zero multiplier tensor leaves the model unchanged", {
   testthat::skip_if_not_installed("TMB")
   d <- make_test_data(nyrs = 20, nages = 5, seed = 42)
   # No linkage at all: exp(0) = 1, so the new multiply is the identity.
-  testthat::expect_true(is.finite(fit3(d)$quantities$jnll))
+  testthat::expect_true(is.finite(.exp_fit3(d)$quantities$jnll))
 })
 
-testthat::test_that("the effect vanishes when the base parameter is zero on its log scale", {
-  # beta multiplies a LOG. log_base = 0 means q = 1 and the covariate cannot move
-  # it, whatever beta is. SS3 behaves the same way; pinned so nobody reads it as
-  # a broken linkage.
+
+testthat::test_that("the identified quantity is beta * log q, not beta", {
+  # Simulate an index from a known beta under q^exp(beta * x) and refit. What
+  # comes back is NOT beta: with a free base the fit is happy to cross q = 1,
+  # where log q changes sign, and re-express the same curve with the opposite
+  # sign of beta. Measured here: a truth of (q = 0.3, beta = +0.4) refits to
+  # (q = 467, beta = -0.078), and log(q) * beta is preserved to ~1% -- to first
+  # order log q_y = log q * (1 + beta * x), so log q * beta is the slope on
+  # log q and is what the index informs. Report beta with its base, never alone.
   testthat::skip_if_not_installed("TMB")
-  d <- make_test_data(nyrs = 20, nages = 5, seed = 42)
-  flt <- d$fleet_control$Fleet_code[d$fleet_control$Fleet_type == "Survey"][1]
-  testthat::skip_if(is.na(flt))
-  # Estimated, but started at q = 1 so log q = 0; estimateMode 3 does not move it.
-  d$fleet_control$Catchability[d$fleet_control$Fleet_code == flt] <- "Estimated"
-  d$fleet_control$Catchability_init[d$fleet_control$Fleet_code == flt] <- 1
-  d$env_data <- env_frame(d, as.numeric(scale(seq_len(length(d$styr:d$projyr)))))
+  s <- .exp_data(q_init = 0.3, nyrs = 60)
+  s$d$fleet_control$Index_sd[s$d$fleet_control$Fleet_code == s$flt] <- 0.1
+  qfun <- Rceattle::build_catchability(linkages = list(
+    q = Rceattle::linkage_spec(~ xcov, by = ~ fleet, fleet = s$flt,
+                               link = "exponential")))
+  fit <- .exp_fit3(s$d, qFun = qfun)
 
-  fit <- fit3(d, qFun = Rceattle::build_catchability(linkages = list(
-    q = Rceattle::linkage_spec(~ xcov, by = ~ fleet, fleet = flt, link = "exponential"))))
+  BETA <- 0.4
   p <- fit$obj$env$last.par.best
-  p[which(names(p) == "beta_linkage")[1]] <- 0.9   # a large effect, deliberately
-  q <- as.numeric(fit$obj$report(p)$index_q[flt, ])
-  testthat::expect_equal(q, rep(1, length(q)), tolerance = 1e-12)
-})
+  p[.exp_beta_index(fit, "xcov")] <- BETA
+  q_true <- as.numeric(fit$obj$report(p)$index_q[s$flt, ])
+  L_true <- as.numeric(fit$estimated_params$index_log_q)[s$flt]
+  set.seed(11)
+  sim <- fit$obj$simulate(p)
+  i <- which(s$d$index_data$Fleet_code == s$flt)
+  dsim <- s$d
+  dsim$index_data$Observation[i] <- as.numeric(sim$index_hat)[i]
 
-testthat::test_that("an unimplemented link is still refused, and names the implemented set", {
-  testthat::expect_error(
-    Rceattle::linkage_spec(~ 1, by = ~ species, link = "logit"),
-    "reserved but not yet implemented")
-  testthat::expect_true(all(c("identity", "log", "exponential") %in%
-                              Rceattle:::LINKAGE_LINKS_IMPLEMENTED))
-  # Lockstep with the C++ (CLAUDE.md rule 12).
-  testthat::expect_identical(unname(Rceattle:::LINKAGE_LINK_CODES[["exponential"]]), 3L)
-})
+  ref <- suppressMessages(suppressWarnings(Rceattle::fit_mod(
+    data_list = dsim, file = NULL, inits = NULL, estimateMode = 1,
+    random_rec = FALSE, msmMode = 0, qFun = qfun,
+    fit_control = Rceattle::fit_control(phase = FALSE, getsd = FALSE,
+                                        verbose = 0))))
+  tbl  <- ref$data_list$linkage_table
+  bhat <- as.numeric(ref$estimated_params$beta_linkage)[
+    tbl$design_col == "xcov"]
+  Lhat <- as.numeric(ref$estimated_params$index_log_q)[s$flt]
+  testthat::expect_length(bhat, 1L)
 
+  # The q series is recovered in shape (its level trades off against biomass, as
+  # any catchability does).
+  q_hat <- as.numeric(ref$quantities$index_q[s$flt, seq_along(q_true)])
+  testthat::expect_gt(stats::cor(log(q_hat), log(q_true)), 0.95)
 
-testthat::test_that("a shared q linkage row is checked on every fleet", {
-  # NA fleet is the shared sentinel and the cpp expands it to all fleets, so a
-  # shared row must be checked against fleets that have no catchability at all.
-  fc <- Rceattle::switch_check(Rceattle::clean_data(Rceattle::BS2017SS))$fleet_control
-  tbl <- Rceattle:::bind_linkage(
-    Rceattle:::linkage_row(process = "q", param = "q", X_col = 1L, fleet = 7L,
-                           design_col = "xcov", link = "log"),
-    Rceattle:::linkage_row(process = "q", param = "q", X_col = 2L,
-                           design_col = "PDO", link = "log"))
-  testthat::expect_error(Rceattle:::.check_q_linkage_support(tbl, fc),
-                         "does not estimate q")
+  # And the first-order effect on log q is recovered, while beta alone is not.
+  testthat::expect_equal(Lhat * bhat, L_true * BETA, tolerance = 0.15)
 })
 
 
@@ -246,4 +286,67 @@ testthat::test_that("a q starting at exactly 1 warns that beta has no gradient",
                            design_col = "xcov", link = "exponential"))
   testthat::expect_warning(Rceattle:::.check_q_linkage_support(tbl, fc),
                            "Catchability_init is 1")
+})
+
+
+testthat::test_that("a shared q linkage row is checked on every fleet", {
+  # NA fleet is the shared sentinel and the cpp expands it to all fleets, so a
+  # shared row must be checked against fleets that have no catchability at all.
+  fc <- Rceattle::switch_check(Rceattle::clean_data(Rceattle::BS2017SS))$fleet_control
+  tbl <- Rceattle:::bind_linkage(
+    Rceattle:::linkage_row(process = "q", param = "q", X_col = 1L, fleet = 7L,
+                           design_col = "xcov", link = "log"),
+    Rceattle:::linkage_row(process = "q", param = "q", X_col = 2L,
+                           design_col = "PDO", link = "log"))
+  testthat::expect_error(Rceattle:::.check_q_linkage_support(tbl, fc),
+                         "does not estimate q")
+})
+
+
+testthat::test_that("a fitted q that crossed 1 is flagged, not just documented", {
+  # The sign degeneracy is a silently-wrong-number shape, so it is a convergence
+  # record rather than prose: beta's meaning flips with the sign of log q, and a
+  # free base can cross q = 1 mid-fit.
+  fc <- Rceattle::switch_check(Rceattle::clean_data(Rceattle::BS2017SS))$fleet_control
+  tbl <- Rceattle:::bind_linkage(
+    Rceattle:::linkage_row(process = "q", param = "q", X_col = 1L, fleet = 7L,
+                           design_col = "(Intercept)", link = "exponential"),
+    Rceattle:::linkage_row(process = "q", param = "q", X_col = 2L, fleet = 7L,
+                           design_col = "xcov", link = "exponential"))
+  mk <- function(q_init, q_mle) {
+    fc2 <- fc; fc2$Catchability_init[7] <- q_init
+    lq <- rep(0, nrow(fc2)); lq[7] <- log(q_mle)
+    list(data_list = list(linkage_table = tbl, fleet_control = fc2),
+         estimated_params = list(index_log_q = lq))
+  }
+  # started below 1, fitted above it: the effect's sign has flipped
+  r <- Rceattle:::.check_exponential_q_sign(mk(0.3, 467))
+  testthat::expect_true("exponential_q_crossed_one" %in% names(r))
+  testthat::expect_equal(r$exponential_q_crossed_one$severity, "WARN")
+  testthat::expect_match(r$exponential_q_crossed_one$message, "OTHER side of q = 1")
+
+  # stayed on the same side: nothing to say
+  testthat::expect_length(Rceattle:::.check_exponential_q_sign(mk(0.3, 0.25)), 0L)
+
+  # fitted essentially at 1 without crossing it: beta is unidentified. Crossing
+  # takes precedence, so the fitted q has to stay on the starting side of 1.
+  r3 <- Rceattle:::.check_exponential_q_sign(mk(0.3, 1 - 1e-6))
+  testthat::expect_true("exponential_q_inert" %in% names(r3))
+  testthat::expect_false("exponential_q_crossed_one" %in% names(r3))
+
+  # and a model with no exponential linkage is untouched
+  testthat::expect_length(
+    Rceattle:::.check_exponential_q_sign(list(data_list = list())), 0L)
+})
+
+
+testthat::test_that("an unimplemented link is still refused, and the codes are in lockstep", {
+  testthat::expect_error(
+    Rceattle::linkage_spec(~ 1, by = ~ species, link = "logit"),
+    "reserved but not yet implemented")
+  testthat::expect_true(all(c("identity", "log", "exponential") %in%
+                              Rceattle:::LINKAGE_LINKS_IMPLEMENTED))
+  # Lockstep with the C++ (CLAUDE.md rule 12).
+  testthat::expect_identical(
+    unname(Rceattle:::LINKAGE_LINK_CODES[["exponential"]]), 3L)
 })

@@ -81,6 +81,22 @@ sits from zero. At `q = 1` the covariate does nothing whatever `beta` is, and
 below `q = 1` its sign inverts. Pinned by a test so nobody reads it as a broken
 linkage.
 
+**Report `beta` with its base, never alone.** To first order
+`log q_y = log q * (1 + beta * x_y)`, so the index informs the product
+`log q * beta`. With an estimated base the fit may cross `q = 1` and re-express
+the same curve with the opposite sign of `beta`: simulating from
+`q = 0.3, beta = +0.4` and refitting returned `q = 467, beta = -0.078`, with
+`log q * beta` preserved to ~1% and the fitted `q` series correlating 0.98 with
+the truth. Interpret `fit$quantities$index_q`; a `beta` quoted alone is not
+comparable between models. A q prior pins the level if `beta` itself is wanted.
+
+Because that is a silently-wrong-number shape rather than a documentation gap,
+two new `convergence_diagnostics()` records flag it on the fit itself:
+`exponential_q_crossed_one` (WARN) when a fleet's fitted q lands on the other
+side of 1 from its `Catchability_init`, so its `beta` means the opposite of one
+fitted at the starting q; and `exponential_q_inert` (WARN) when the fitted q is
+within 0.1% of 1, where `beta` is unidentified.
+
 The new reported quantity is `q_linkage_log_mult` -- the linear predictor whose
 `exp()` multiplies `log q`.
 

@@ -164,6 +164,37 @@ Key arguments (see `?linkage_spec` for the full list):
   A natural-scale `Index_distribution` warns rather than refusing: the model is
   well defined, it is just not SS3's type 1 for such a fleet.
 
+  **Report `beta` with its base, never alone.** To first order
+  `log q_y = log q * (1 + beta * x_y)`, so what the index informs is the product
+  `log q * beta`, not `beta`. With an estimated base the fit is free to cross
+  `q = 1` and re-express the same curve with the opposite sign of `beta`: in a
+  simulation-and-refit check a truth of `q = 0.3, beta = +0.4` came back as
+  `q = 467, beta = -0.078`, with `log q * beta` preserved to about 1% and the
+  fitted `q` series correlating 0.98 with the truth. The fitted catchability is
+  what to interpret and plot (`fit$quantities$index_q`); a `beta` quoted on its
+  own is not comparable between models. Pin the level with a q prior
+  (`Catchability = "Estimated-with-prior"`) if you need `beta` itself to be
+  identified. `convergence_diagnostics()` flags both hazards on the fit:
+  `exponential_q_crossed_one` when the fitted q lands on the other side of 1
+  from its starting value, and `exponential_q_inert` when it fits essentially at
+  1.
+
+  **The effect stops at the last hindcast year.** All three links accumulate
+  over `nyrs_hind` only, and a projection-year index is predicted at the last
+  hindcast year's catchability, so a covariate value for a projection year does
+  not move `q` there. SS3 carries its environmental link across the forecast
+  (`for (y1 = styr - 1; y1 <= YrMax; y1++)`), so a bridge that compares forecast
+  index predictions will diverge.
+
+  **Set a bound.** `beta` enters a double exponential here, so the usable range
+  is far narrower than for `"log"`, and it depends on the base: the exponent is
+  `log q * exp(beta * x)`, so at `q = 0.0012` (`log q = -6.7`) a `beta * x` of
+  only 5 gives `-994` and `index_q` underflows to exactly 0 -- where both the
+  likelihood and its gradient are dead and no line search can recover. Under
+  `"log"` the same `beta` is harmless, because `beta * x` enters the exponent
+  linearly and overflow starts near 709. Pass `bounds` on any `"exponential"`
+  slope; `c(-2, 2)` is ample for a standardized covariate.
+
   Rceattle refuses `"exponential"` elsewhere rather than let it through, because on a
   log-stored parameter it would raise the value to a power instead of scaling
   it, and on M -- where `log M` is always negative, M being below 1 -- that

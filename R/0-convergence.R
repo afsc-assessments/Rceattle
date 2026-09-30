@@ -803,6 +803,74 @@
 # then falls under 0.2, the stock cannot replace itself, and the implied unfished
 # recruitment (alpha - 1/SPR0)/beta is negative, which carries into the initial
 # age structure.
+#' An exponential catchability linkage whose base crossed q = 1
+#'
+#' `link = "exponential"` multiplies `log q`, so the sign of the covariate
+#' effect is the sign of `beta` times the sign of `log q`. `q = 1` is therefore
+#' a boundary at which the link is completely inert, and either side of it the
+#' SAME `beta` produces the OPPOSITE environmental effect. A free base can cross
+#' it during the fit: simulating `q = 0.3, beta = +0.4` and refitting returned
+#' `q = 467, beta = -0.078`, the same curve re-expressed. A `beta` read against a
+#' reference model's without its base then has the wrong sign.
+#'
+#' @param object a fitted Rceattle object.
+#' @return a list of convergence records.
+#' @keywords internal
+#' @noRd
+.check_exponential_q_sign <- function(object) {
+  dl <- object[["data_list"]]
+  if (is.null(dl)) return(list())
+  tbl <- dl[["linkage_table"]]
+  fc  <- dl[["fleet_control"]]
+  if (is.null(tbl) || !NROW(tbl) || is.null(fc) || is.null(tbl[["link"]])) {
+    return(list())
+  }
+  ex <- tbl[tbl[["link"]] == "exponential" & tbl[["process"]] == "q", ,
+            drop = FALSE]
+  if (!NROW(ex)) return(list())
+  flts <- .q_linkage_fleets(ex[["fleet"]], fc)
+
+  start <- suppressWarnings(as.numeric(fc[["Catchability_init"]][flts]))
+  mle   <- suppressWarnings(
+    as.numeric(object[["estimated_params"]][["index_log_q"]])[flts])
+  ok <- is.finite(start) & start > 0 & is.finite(mle)
+  if (!any(ok)) return(list())
+
+  crossed <- ok & (sign(log(start)) * sign(mle) < 0)
+  inert   <- ok & !crossed & abs(mle) < 1e-3
+  res <- list()
+  if (any(crossed)) {
+    k <- flts[crossed]
+    res$exponential_q_crossed_one <- .conv_record(
+      "exponential_q_crossed_one", "fit", "WARN",
+      sprintf(paste0(
+        "%d fleet(s) with an \"exponential\" q linkage fitted a catchability on ",
+        "the OTHER side of q = 1 from their Catchability_init: %s. beta ",
+        "multiplies log q, so the sign of the covariate effect flips with the ",
+        "sign of log q -- this beta means the opposite of one fitted at the ",
+        "starting q. Report beta with its base, and compare fitted index_q ",
+        "rather than beta."),
+        length(k), paste(fc[["Fleet_name"]][k], collapse = ", ")),
+      data.frame(fleet = fc[["Fleet_name"]][k],
+                 q_init = signif(start[crossed], 4),
+                 q_mle = signif(exp(mle[crossed]), 4)))
+  }
+  if (any(inert)) {
+    k <- flts[inert]
+    res$exponential_q_inert <- .conv_record(
+      "exponential_q_inert", "fit", "WARN",
+      sprintf(paste0(
+        "%d fleet(s) with an \"exponential\" q linkage fitted q within 0.1%% of ",
+        "1: %s. beta multiplies log q, which is ~0 there, so the covariate has ",
+        "essentially no effect whatever beta is and beta is unidentified."),
+        length(k), paste(fc[["Fleet_name"]][k], collapse = ", ")),
+      data.frame(fleet = fc[["Fleet_name"]][k],
+                 q_mle = signif(exp(mle[inert]), 6)))
+  }
+  res
+}
+
+
 .check_stock_recruit <- function(object) {
   dl <- object[["data_list"]]
   q  <- object[["quantities"]]
@@ -1020,7 +1088,8 @@ convergence_diagnostics <- function(object, ...) {
     .check_variance_collapse(object),
     .check_estimability_record(object, index),
     .check_zero_n_penalty(object),
-    .check_stock_recruit(object)
+    .check_stock_recruit(object),
+    .check_exponential_q_sign(object)
   )
   structure(
     list(status = .conv_overall(checks), checks = checks),
