@@ -844,6 +844,9 @@ plot_selectivity <-
         # Length bins are 1-based ordinals (see the column schema); ages are
         # offset by the species' minage.
         bins <- if (is_len) seq_len(nbin) else seq_len(nbin) - 1L + minage[sp]
+        # Which grid those ordinals count. A finer population grid means bin 40
+        # is not the fleet's 40th DATA length bin, so the axis has to say so.
+        on_pop_grid <- is_len && !is.na(nlen[sp]) && nbin != nlen[sp]
 
         # A mirrored fleet shares the lead's parameter block and reports no rows
         # of its own, so it borrows the lead's band.
@@ -866,6 +869,7 @@ plot_selectivity <-
               Model = model_names_use[k],
               Fleet = as.character(fc$Fleet_name[i]),
               Dimension = if (is_len) "Length" else "Age",
+              PopGrid = on_pop_grid,
               Sex   = sex_lab,
               Bin   = bins,
               Year  = hindyears[yr],
@@ -924,7 +928,10 @@ plot_selectivity <-
 # these per dimension and they differ only in the x axis label.
 .plot_selectivity_one <- function(dd, dimension, colour_by, line_col, lwd, lty,
                                   alpha, add_ci, file, width, height) {
-  xlab <- if (identical(dimension, "Length")) "Length bin" else "Age"
+  # A length curve is built on the population bins, so on a model with its own
+  # pop_lengths the ordinal is a population bin, not the fleet's data length bin.
+  xlab <- if (!identical(dimension, "Length")) "Age" else
+    if (any(dd$PopGrid, na.rm = TRUE)) "Population length bin" else "Length bin"
   # A length figure, or a dimension whose fleets are all Fixed, has no band to
   # draw even when the request stands for the age figure beside it.
   draw_ci <- isTRUE(add_ci) && any(is.finite(dd$Lower))
