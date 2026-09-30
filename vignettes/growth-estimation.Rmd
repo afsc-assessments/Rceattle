@@ -180,6 +180,42 @@ baseline_fit$opt$AIC
 vbgf_prior_fit$opt$AIC
 ```
 
+## Matching a Stock Synthesis growth specification
+
+Four options reproduce how Stock Synthesis 3.30 turns a growth curve into an
+age-length key, weight-at-age and spawning output. Each defaults to Rceattle's
+usual behaviour.
+
+| SS3 control input | Rceattle |
+|---|---|
+| Population length bins (data file) | `build_growth(pop_lengths = <lower edges, cm>)` |
+| `CV_Growth_Pattern` 0 (CV a function of length-at-age) | `build_growth(sd_form = "CV")`; `sd_L1` / `sd_Linf` are then CV_young / CV_old |
+| `CV_Growth_Pattern` 2 (SD a function of length-at-age) | `sd_form = "SD"` (default) |
+| `Growth_Age_for_L2 = 999` | `sd_plus_group = "WHAM"` (plus group at CV_old / SD_old) |
+| `Linf_decay` -998 / -999 / d > 0 | `plus_group_length = "none"` / `"SS3.24"` / `"decay"` with `plus_group_decay = d` |
+| Maturity option 1 (length logistic), fecundity = weight | control columns `L50_mat_len`, `slope_mat_len` (slope positive: SS3's sign flipped) |
+| `Growth_Age_for_L1` | `build_growth(growth_age_L1 =)` |
+
+For example, a Richards model with SS3 1-cm population bins from 0.5 to
+142.5 cm, CVs, and no plus-group adjustment:
+
+```{r, eval = FALSE}
+data_list$L50_mat_len   <- 55.43   # cm
+data_list$slope_mat_len <- 0.155   # per cm
+growth_ss3 <- build_growth(
+  fun = "Richards",
+  growth_age_L1 = 1,
+  sd_form = "CV",
+  plus_group_length = "none",
+  sd_plus_group = "WHAM",
+  pop_lengths = seq(0.5, 142.5, by = 1)
+)
+```
+
+With maturity-at-length set, spawning biomass integrates maturity x weight over
+the length distribution at spawning; the fitted object reports the per-fish
+result as `quantities$spawn_output`.
+
 ## Notes on priors through linkages
 
 - A prior on `"(Intercept)"` in a growth linkage constrains the base

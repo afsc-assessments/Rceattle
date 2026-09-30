@@ -100,7 +100,7 @@ testthat::test_that("the RE density equals -sum(dnorm(dev, 0, sigma)) exactly", 
   rep <- obj$report(p)
   # raw REPORT has no rownames; the density is the last jnll_comp row
   # (cpp row 20, 0-based).
-  reported <- sum(rep$jnll_comp[nrow(rep$jnll_comp), ])
+  reported <- sum(rep$jnll_comp[linkage_re_row(), ])
   testthat::expect_equal(reported,
     -sum(stats::dnorm(dev, 0, exp(lsig), log = TRUE)), tolerance = 1e-8)
 })
@@ -285,7 +285,7 @@ testthat::test_that("Rogers QAR1: observed ar1 adds an observation term and a be
   ar1_nll <- -stats::dnorm(re[1], 0, sigma, log = TRUE) -
     sum(stats::dnorm(re[2:n_re], rho * re[1:(n_re - 1)], sigma * sqrt(1 - rho^2), log = TRUE))
   obs_nll <- -sum(stats::dnorm(obs_series, re, 0.5, log = TRUE))
-  testthat::expect_equal(sum(rep$jnll_comp[nrow(rep$jnll_comp), ]),
+  testthat::expect_equal(sum(rep$jnll_comp[linkage_re_row(), ]),
                          ar1_nll + obs_nll, tolerance = 1e-6)
   # the latent enters q scaled by beta
   testthat::expect_equal(as.numeric(rep$q_linkage_offset[7, seq_len(n_re)]),

@@ -20,8 +20,177 @@ its objective reproducing and the other 19 assertions passing. That gate is 1e-3
 with the reason recorded in the test. `TMBhelper` is installed on the runner, so a different
 optimizer explains neither. See the 5.45.1 NEWS entry and `TRAPS.md`.
 
-**Historical, for the release that just shipped: `dev` was at 5.45.0 and `main` at 5.33.0.** The next step is one `dev` -> `main` release
-covering 5.34.0 through 5.45.0, per `inst/RELEASE-CHECKLIST.md`. Read that file's pkgdown note
+**`cod-bridge` is at 5.46.0 and open as PR #178 into `dev`.** It carries seven features from the
+SS3 cod bridge: `initMode 6`, the SS3 growth / maturity / length-bin options,
+`Selectivity = "DoubleNormalSS3"` (code 15), length-based selectivity on the population bins,
+the initial equilibrium catch, and a per-fleet ageing error matrix.
+
+**The SS3 parity numbers `NEWS.md` points here for.** Measured on the Aleutian Islands
+Pacific cod bridge (SS3 3.30.22.1, model M24_1) with SS3's MLE injected: the largest
+difference from SS3 in length-at-age fell from 1.5% to 4.5e-6, in the Jan-1 age-length key
+to 4.3e-7, and in fecundity-at-age (mature ages) from a 5-6% Jensen gap to 2.8e-6 -- all
+within `Report.sso`'s printed precision. SSB is within 1.5%, the rest being selectivity.
+`initMode 6` was found the same way: injecting SS3's MLE and inverting mode 4 left the
+initial deviates differing from SS3's `Early_InitAge` by exactly
+`const - Finit * cumsum(sel)`, residual 0.00000 at all 13 ages.
+
+**Its first round of review fixes is IN, at `88e7233f`** (what was `fix/cod-bridge-blockers`,
+which merged `dev` 5.45.2). Three blockers, each reproduced before it was fixed:
+
+- **`catch_data` lost its alignment with `catch_hat`.** `clean_data()` kept the `styr - 1` row and
+  `fit_mod()` stores the pre-`rearrange_data()` list, so on `GOA2018SS` `catch_data` was 372 rows
+  against a `catch_hat` of 370. `plot_catch()`, `residuals(source = "catch")` and
+  `sim_mod(simulate = FALSE)` threw; `run_mse()` indexes `catch_hat` by `catch_data` row position,
+  so it shifted all 160 projection rows by two years and wrote `NA` into the last two. The rows now
+  live in `data_list$equil_catch_data`.
+- **Length selectivity was normalized and projected on the DATA bins** while the curve had moved to
+  the population bins. On a 20-data / 96-population fixture, projected `sel_at_length` came back
+  zero on every bin, and with it projected F, catch and the reference points.
+- **The equilibrium catch was read under `initMode` 3 and 4**, whose initial age structure is not
+  built at the `Finit * selectivity` the prediction assumes. Restricted to mode 6.
+
+Measured at `14040f5d`, serial, R 4.5.1: **suite 9,976 / 0 / 0** (3 skips), **golden 21 / 0**,
+**Pacific hake MSE reproduces all four reference objectives exactly** (2440.0942, 2440.6633,
+2447.0049, 2669.3776), `verify-mse-hindcast-invariant` 0.000e+00, `verify-sim-recovery` and
+`verify-sim-centering` both clean.
+
+**A second review round then added five commits, `23a4d265`..`80e825d3`, pushed 2026-09-29.**
+`cod-bridge` on `afsc` is the PR's head branch; `origin` is `grantdadams`, so a push there does
+NOT update PR #178. Seven blockers, all silent-wrong-number or memory-safety:
+
+- **The population-grid refusal turned itself off.** It read `Bin_first_selected` first and that
+  column has no schema default, so `as.integer(NULL) > 1L` is `logical(0)`, `logical(0) | <n>`
+  stays length 0, and `which()` excused **every** fleet -- including the non-parametric forms and
+  time-varying penalties, which that column has nothing to do with. `Selectivity_dimension`,
+  `Selectivity` and `Time_varying_sel` collapsed the same way; the last is now read with `[[`
+  because `$` returns `Time_varying_sel_sd` by partial match.
+- **`max_bin` was still sized on the data bins** (`ceattle.cpp:239`) while selectivity cases 2, 9
+  and 13 build their curve over `nlengths_pop`. On the 20-data / 96-population fixture that is 76
+  out-of-bounds writes per fleet, sex and year into `non_par_sel` / `sel_coff_off`, reachable only
+  because the refusal above had disabled itself. Inert with one grid, so golden is unchanged.
+- **`age_error` coverage was checked per SPECIES but the array is filled per
+  `Ageing_error_index`**, so a complete matrix vouched for an incomplete sibling whose missing
+  true ages stayed 0 and were renormalized away -- a silently wrong age composition. Now per
+  matrix, and a matrix spanning two species is refused.
+- **A fleet could borrow another species' ageing error.** The index was checked for existence
+  only, and with no index column on `age_error` the index IS the species, so `2` means "species
+  2's matrix" to the model and "the second matrix" to the user.
+- **`sel_dn6_ends` was read from sex 1 alone** while `build_map()` fixes the end per sex. A
+  sex-scoped linkage (`linkage_spec()` takes `sex`) made them disagree: one sex fitted with the
+  other's curve shape, its own end parameter free at zero gradient. Refused.
+- **A shared `Selectivity_index` was un-shared after the fact.** `adjust_map_shared_params()`
+  shares the map at `R/3-build_map.R:76`; the `-999` pass at `:84-85` then re-fixes a follower left
+  at the default. Reordering would NOT fix it -- `sel_dn6_ends` reads the starting VALUES, not the
+  map -- so the block must agree, and a disagreement is refused.
+- **`.SEL_DN6_PARAMS` existed to state the form/parameter rule and was referenced only by a
+  test.** `peak` resolves to `sel_inf`, `dn_peak` to `sel_dn6`, and the header and
+  `parameter_dictionary()` both call form 15's P1 "peak", so the wrong name was the natural one
+  and wrote a slot the curve ignores. Now wired, both directions, **scoped to `sel_dn6`**: the same
+  gap on the older forms is real (cases 2/9/13 contain zero references to `log_sel_slp` or
+  `sel_inf`) but those configurations are in released scripts, so it needs a sweep -- Open 3 in
+  `TODO-selectivity.md`.
+
+Measured at `c8ecff79`, serial, R 4.5.1, after `touch src/TMB/ceattle.cpp`: **suite 10,237 / 0
+failures / 0 errors** (4 skips, 251 files), **golden 25 / 0 / 0**. Golden is gated only on
+`skip_on_cran()`, so `NOT_CRAN=true` runs it in-suite. The hake MSE and the `verify-*` harnesses
+were NOT re-run this round -- nothing touched predation, suitability, the DM likelihood,
+`sim_mod()` or `run_mse()`.
+
+**Three flags on that round.** (1) `document()` regenerates `man/dot-comp_aggregate.Rd` and
+`man/dot-osa_jointsex.Rd`, and `git diff DESCRIPTION` is empty, so this is NOT the roxygen-version
+trap: PR #179 updated the roxygen in `R/7-plot_comp.R` / `R/7-plot_osa.R` without regenerating
+`man/`. Left uncommitted deliberately, so the next `document()` will surface it again. (2) Golden
+does not run in the PR workflows (`deep-checks` only, `NOT_CRAN=false` at step level), so a green
+PR run is not golden clearance. (3) `GOA2018SS` Cod maturity reads 2.0 at ages 1-12 -- see
+`TODO-maturity.md`, Open 2; pre-existing, feeds SSB, and golden pins it rather than catching it.
+
+**What the behaviour change costs a live assessment, measured 2026-09-30.** Nobody had put a
+number on it. Refitting the 2024 GOA Pacific cod approximation (`Rceattle-models/GOA cod/
+2024_pcod.R`, 224 params, length selectivity + estimated vB growth, `maturity` forced to 1, no
+`pop_lengths`) on `dev` 5.45.3 against `cod-bridge` 5.46.0: objective 6415.8172 -> 6416.2875
+(+0.470 nats), terminal SSB 1,004,925 -> 935,106 mt (**-6.9%**), SSB series mean **-7.1%**,
+largest -12.9%, year-1 SSB -9.3%, convergence OK -> WARN (max gradient 0.0013 on R0, <= 0.00085
+SE -- benign). With maturity at 1 and no population grid, the maturity-at-length and pop-grid
+paths are the identity, so the movement is the selected-body-weight change.
+
+**Do NOT read the SAFE comparison as validation either way.** That script is an *approximation*:
+its SSB sits 63% below the accepted 2024 SAFE spawning biomass on 5.45.3 and 66% below here,
+correlation 0.68, and it RISES across a series over which SAFE declines. A 3-point move against
+a 63% gap is not evidence. The validation reference is the SS3 bridge in `GOA cod/Bridging/` and
+`AI cod - Dev/Bridging/`, not this script. Recorded because a first pass at this comparison
+printed "moves AWAY FROM SAFE", which is a meaningless verdict on a baseline that far off.
+
+**A third review round, this one about legibility rather than numbers** (uncommitted at the
+time of writing). Nothing in it can move a fit; the C++ change removes a parameter no body
+read.
+
+- **`pop_to_data_bin` was threaded through four C++ signatures and dereferenced in none.**
+  `estimate_growth()`, `estimate_growth_within_yr()`, `calculate_weight()` and
+  `calculate_selectivity()` all took it; `ceattle.cpp` §2.3c builds `pop_bin_lo`/`pop_bin_hi`
+  from the data array itself. Removed, with the two call-site arguments.
+- **Eleven linkage names for six `DoubleNormalSS3` parameters.** `top_logit`/`dn_top` and
+  four more pairs, so the refusal message offered eleven options for six slots and the
+  vignette and `NEWS.md` documented different sets. Cut to the SS3 manual's six (`dn_peak`
+  keeps its prefix because `peak` is `DoubleNormal`'s). Unreleased, so nothing is owed a
+  deprecation.
+- **Two blocks lifted out of `data_check()`**, which was one 2,330-line function: the
+  117-line equilibrium-catch check is now `.check_equil_catch()` and the population-grid
+  refusal `.check_pop_grid_bins()`. Both use `.rce_has_data()`, since `has_data()` is a
+  closure inside `data_check()` and does not reach a helper.
+- **`initMode 6` on a species with several fisheries now warns.** Only the *catch row* was
+  refused; the mode itself was silent, and there `Finit` is applied at the mean fishery
+  selectivity and is not apical. The initial state sets the SSB scale.
+- The population-grid refusal read `v >= 0` on the bin columns, counting a literal `0` as a
+  bin. `> 0` now, with a test. No bundled dataset carries one (checked all 11), and
+  `N_sel_bins` cannot take it -- a pre-existing check refuses anything outside `1:nbins`.
+- `.rce_pop_length_bins()` read `growth_model[sp]` where `data_check()` uses
+  `rep_len(..., nspp)`; a scalar from `build_growth()` made species 2 read `NA`, and
+  `isTRUE(NA == 0)` is `FALSE`, so it took the population grid. Reachable only on a direct
+  `rearrange_data()` call, since `fit_mod()` extends the vector first.
+- Docs: `quantity_dictionary()` gave `sel_at_length` and `growth_matrix` on `nlengths` while
+  `rename_output()` labels them `PopBin`; `parameter_dictionary()` did not mention that
+  `-999` on a `sel_dn6` end is the switch; `plot_selectivity()` plotted population-bin
+  ordinals under an axis reading "Length bin" (now "Population length bin" where the grids
+  differ, unchanged otherwise, which is what the two existing label tests assert).
+- `SPEC-equilibrium-catch.md` said "Status: proposed, not implemented" in the PR that
+  implements it, and its §3.1 still described reading the row under every `Finit` mode.
+  Both corrected; the user-facing half lives in the vignette, so the note could still go.
+
+**Two things found on the way that outlive this PR.** `TMB::compile()` tracks no header
+dependency, so a `.hpp`-only edit leaves the old object and `load_all()` reports success while
+running the previous model -- see `TRAPS.md`, and treat any number measured after a header-only
+edit as suspect. And `combine_data()` errors on the bundled datasets (`plyr::rbind.fill` on
+`GOA2018SS`'s `maturity` / `sex_ratio`, a different error on `BS2017SS`) before reaching any of
+this code; pre-existing, worth its own issue.
+
+**The thing to know before touching the equilibrium catch.** It is a `catch_data` row at
+`styr - 1`, and that year is NOT a free marker: `GOA2018SS` carries 23 catch rows before `styr`,
+two of them on 1976, and it is the only bundled dataset that does. An earlier version read those
+as equilibrium observations, predicted 0 under an `initMode` that holds `Finit` at 0, took
+`log(0)`, and returned a non-finite objective on both GOA golden references. **That failure was
+recorded for most of a session as a pre-existing `goa_ss` problem. It was not; it was this.** A
+negative sentinel cannot be used instead -- `run_mse()` reserves negative `Year` for rows it
+splices in as the next assessment's data, and its window filters are on `abs(Year)`, so `-999`
+survives as year 999. What ships is the year, read only under `initMode 6`, with `data_check()`
+naming the fleets whose rows it reads and saying when a mode will not read them.
+`.rce_equil_catch_rows()` and `.rce_equil_catch_candidates()` hold the rule so `clean_data()`,
+`rearrange_data()` and `data_check()` cannot drift.
+
+**Two lessons from the merge worth carrying.** The branch's selectivity codes were stale --
+it had 13/14 as two integrable forms where `dev` now has a single 13 -- and the merged C++ had
+already resolved to dev's design, so the R maps were made to match the template rather than the
+other way round. And five registries owed entries for this branch's features
+(`not_a_column`, `.QUANT_INFO`, the jnll axis scanner, `R/data.R`'s `@format`, the pinned
+fleet_control defaults); every one was caught by a schema test rather than by reading the diff.
+
+**Read the suite from testthat, not from the log.** `grep` for failures missed golden's error
+three times in one session, because testthat writes `── 1. Error (...)` and the pattern looked
+for `^ERROR`. `as.data.frame(testthat::test_local(reporter = "silent"))` gives the counts
+directly. A capped run also aborts on max-failures, so "N failures" from a capped log is a floor.
+
+
+**`dev` is at 5.45.2 and `main` at 5.45.0.** The next step is one `dev` -> `main` release
+covering 5.45.1 and 5.45.2, per `inst/RELEASE-CHECKLIST.md`. Read that file's pkgdown note
 before tagging: the `release: published` event has silently failed to fire once already.
 **The tag is the DESCRIPTION version, so read it off `DESCRIPTION` at the moment you tag; it
 has moved four times during this release (5.41.0 -> 5.42.1 -> 5.43.0 -> 5.45.0) as review and
@@ -255,6 +424,11 @@ the hake `MSE_yr2024.R` run. Both are recorded above with their results.
 - `CLEANUP_BACKLOG.md` — everything found and deliberately not fixed, in tiers. Absorbed
   `TODO-5.34-followups.md`: the PFMC `Ftarget` assignment and the `goa_ss` second minimum
   live in `TRAPS.md`, the unbounded `log_Ftarget` and the dead average-F branch here.
+- `TODO-maturity.md` — new. Whether `maturity` should carry a bin column and an age/length flag
+  as `comp_data` does, rather than an age sheet with length scalars beside it (recommendation:
+  yes, own PR, reuse `Age0_Length1` rather than inventing a fourth spelling). And `GOA2018SS`
+  Cod maturity reading 2.0 at ages 1-12 with no range check in `data_check()` — found, not
+  diagnosed, and it feeds SSB directly.
 - `TODO-projection-module.md`, `TODO-mse-horizon.md` — unchanged by this batch.
 - `TRAPS.md` — verified traps with the measured numbers behind them.
 - `PLAN-adoption-and-NOAA-transfer.md` — moving the package off a personal account to a NOAA
@@ -304,7 +478,20 @@ older line.
 
 ## Resume here
 
-**Finish the release.** Grant is doing it in a session after this one, so this is where to
+**PR #178, first.** Its head is `80e825d3` on `afsc`. CI was queued when this was written
+(2026-09-29); the runs for `c8ecff79` were cancelled by the `80e825d3` push, which is GitHub
+superseding a branch, not a failure. So:
+
+1. **Read CI on `80e825d3`**, and remember it does not cover golden.
+2. **Decide the two deferred items** before merge or after, as you prefer: the general
+   form/parameter check (`TODO-selectivity.md`, Open 3, needs an `/ecosystem-sweep`) and the
+   maturity axis question (`TODO-maturity.md`, Open 1).
+3. **`GOA2018SS` Cod maturity = 2.0** (`TODO-maturity.md`, Open 2) is the one to settle before it
+   is inherited by anything else. Do not change the data first: it moves both GOA golden
+   references.
+4. **The `man/` drift from PR #179** wants one commit, on `dev` rather than here.
+
+**Then finish the release.** Grant is doing it in a session after this one, so this is where to
 start rather than `SIMPLIFY-LOG.md`.
 
 1. **Decide #161** -- renumber and include, or hold. It is code, not docs, and its bump is

@@ -238,7 +238,7 @@ testthat::test_that("a penalized rw() reproduces legacy random-walk catchability
   # ... and the density lands in the linkage row at the value written by hand.
   expected <- -sum(stats::dnorm(diff(dev), 0, SIGMA, log = TRUE))
   r_gr <- f_gr$obj$report(p_gr)
-  testthat::expect_equal(sum(r_gr$jnll_comp[nrow(r_gr$jnll_comp), ]), expected,
+  testthat::expect_equal(sum(r_gr$jnll_comp[linkage_re_row(), ]), expected,
                          tolerance = 1e-10)
 })
 
@@ -276,7 +276,7 @@ testthat::test_that("integrating or penalizing changes the objective, not the de
   r_int <- f_int$obj$report(fill(f_int$obj, "beta_linkage_re"))
   r_pen <- f_pen$obj$report(fill(f_pen$obj, "beta_linkage_re_pen"))
 
-  row <- nrow(r_int$jnll_comp)
+  row <- linkage_re_row()
   testthat::expect_equal(sum(r_int$jnll_comp[row, ]),
                          sum(r_pen$jnll_comp[row, ]), tolerance = 1e-12)
   testthat::expect_equal(sum(r_pen$jnll_comp[row, ]),
@@ -334,7 +334,7 @@ testthat::test_that("one model can mix an integrated and a penalized group", {
   p[names(p) == "beta_linkage_re_pen"] <- d_pen[-1]
   rep <- f$obj$report(p)
   testthat::expect_equal(
-    sum(rep$jnll_comp[nrow(rep$jnll_comp), ]),
+    sum(rep$jnll_comp[linkage_re_row(), ]),
     -sum(stats::dnorm(diff(d_int), 0, SIG_S, log = TRUE)) -
       sum(stats::dnorm(diff(d_pen), 0, SIG_Q, log = TRUE)),
     tolerance = 1e-8)

@@ -94,6 +94,8 @@ LINKAGE_PARAM_CODES <- list(
   #   2/3 = sel_inf[asc/desc]      (natural: inflection, or peak/logit-floor)
   #   4   = sel_coff               (non-parametric per-bin coefficients)
   #   5   = log_sel_apical         (log-scale per-sex multiplier on the curve)
+  #   6-11 = sel_dn6[1..6]         (DoubleNormalSS3: SS3 pattern-24 P1-P6, each
+  #                                 on SS3's own scale)
   # The form-specific aliases (sigma_*, peak, right_floor) resolve to the same
   # slot, so a user names the quantity their form actually has.
   sel         = c(slp_asc     = 0L, slp_desc = 1L,
@@ -102,7 +104,15 @@ LINKAGE_PARAM_CODES <- list(
                   apical      = 5L,
                   # DoubleNormal aliases
                   sigma_asc   = 0L, sigma_desc = 1L,
-                  peak        = 2L, right_floor = 3L),
+                  peak        = 2L, right_floor = 3L,
+                  # DoubleNormalSS3 (SS3 pattern 24), P1-P6 under the SS3
+                  # manual's names. P1 is dn_peak because peak is taken above.
+                  dn_peak     = 6L,
+                  top_logit   = 7L,
+                  ascend_se   = 8L,
+                  descend_se  = 9L,
+                  start_logit = 10L,
+                  end_logit   = 11L),
   # Dirichlet-multinomial composition-weighting overdispersion. Prior-only
   # (no year-varying accumulator): the intercept re-targets the log DM scalar
   # (comp_weights / caal_weights per fleet, diet_comp_weights per predator;

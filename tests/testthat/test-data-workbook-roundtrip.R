@@ -86,7 +86,11 @@ test_that("read_data parses the control sheet by name, not position", {
 # predates alpha_wt_len / beta_wt_len.
 test_that("write_data() handles a control block missing a schema object", {
   d <- BS2017SS
-  missing_two <- c("alpha_wt_len", "beta_wt_len")
+  # Control objects BS2017SS does not carry. The weight-length pair has never
+  # been on it; L50_mat_len / slope_mat_len are the 5.46.0 maturity-at-length
+  # options, which an age-based model has no use for. All four must be dropped
+  # rather than written at a schema default -- see the comment below.
+  missing_two <- c("alpha_wt_len", "beta_wt_len", "L50_mat_len", "slope_mat_len")
   for (k in missing_two) d[[k]] <- NULL
 
   f <- tempfile(fileext = ".xlsx"); on.exit(unlink(f))

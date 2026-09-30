@@ -5,7 +5,11 @@
 #' @noRd
 SEL_LINKAGE_PARAMS <- c("slp_asc", "slp_desc", "inf_asc", "inf_desc", "coff",
                         "sigma_asc", "sigma_desc", "peak", "right_floor",
-                        "apical")
+                        "apical",
+                        # DoubleNormalSS3: the SS3 manual's own names for P1-P6.
+                        # P1 is "dn_peak" because "peak" above is DoubleNormal's.
+                        "dn_peak", "top_logit", "ascend_se", "descend_se",
+                        "start_logit", "end_logit")
 
 
 #' @keywords internal
@@ -130,7 +134,14 @@ build_selectivity <- function(linkages = NULL) {
   peak        = list(arr = "sel_inf",     slot = 1L),
   right_floor = list(arr = "sel_inf",     slot = 2L),
   coff        = list(arr = "sel_coff",    slot = NA_integer_),
-  apical      = list(arr = "log_sel_apical", slot = NA_integer_)  # [fleet, sex]
+  apical      = list(arr = "log_sel_apical", slot = NA_integer_), # [fleet, sex]
+  # DoubleNormalSS3: sel_dn6 is [6, fleet, sex], each slot on SS3's own scale
+  dn_peak     = list(arr = "sel_dn6", slot = 1L),
+  top_logit   = list(arr = "sel_dn6", slot = 2L),
+  ascend_se   = list(arr = "sel_dn6", slot = 3L),
+  descend_se  = list(arr = "sel_dn6", slot = 4L),
+  start_logit = list(arr = "sel_dn6", slot = 5L),
+  end_logit   = list(arr = "sel_dn6", slot = 6L)
 )
 
 
@@ -140,10 +151,16 @@ build_selectivity <- function(linkages = NULL) {
 # their exp. The non-parametric forms are excluded on purpose -- see the
 # `coff` note in .check_sel_linkage_support().
 .SEL_LINKAGE_WIRED_FORMS <- c("Logistic", "DoubleLogistic", "DescendingLogistic",
-                              "DoubleNormal", "LogisticPM")
+                              "DoubleNormal", "LogisticPM", "DoubleNormalSS3")
 .SEL_LINKAGE_WIRED_PARAMS <- c("slp_asc", "slp_desc", "inf_asc", "inf_desc",
                                "sigma_asc", "sigma_desc", "peak", "right_floor",
-                               "apical")
+                               "apical",
+                               "dn_peak", "top_logit", "ascend_se", "descend_se",
+                               "start_logit", "end_logit")
+
+# The six DoubleNormalSS3 parameters live in their own array, so they belong to
+# that form only, and it has no other slots (apical aside, which every form has).
+.SEL_DN6_PARAMS <- names(Filter(function(m) identical(m$arr, "sel_dn6"), .SEL_PARAM_TO_SLOT))
 
 
 #' Reject selectivity linkages the model does not yet consume
@@ -196,6 +213,35 @@ build_selectivity <- function(linkages = NULL) {
       paste(unique(as.character(fleet_control$Selectivity[bad_flt])),
             collapse = ", "),
       paste(.SEL_LINKAGE_WIRED_FORMS, collapse = ", ")), call. = FALSE)
+  }
+
+  # The six DoubleNormalSS3 parameters live in sel_dn6, which only that form
+  # reads, and every other parameter lives in an array it never reads. Named the
+  # wrong way round a linkage writes a slot the curve ignores: no error, a
+  # time-invariant fit, and a coefficient at zero gradient. `peak` (sel_inf) and
+  # `dn_peak` (sel_dn6) are the pair to watch, since both name form 15's P1.
+  # A row with no fleet targets every fleet, as the form check above treats it.
+  for (k in seq_len(nrow(sel))) {
+    tgt <- if (is.na(sel$fleet[k])) seq_len(nrow(fleet_control)) else sel$fleet[k]
+    dn6_fleet <- as.character(fleet_control$Selectivity[tgt]) == "DoubleNormalSS3"
+    dn6_param <- sel$param[k] %in% .SEL_DN6_PARAMS
+    off <- tgt[if (dn6_param) !dn6_fleet else dn6_fleet]
+    if (!length(off)) next
+    nms   <- paste(fleet_control$Fleet_name[off], collapse = ", ")
+    forms <- paste(unique(as.character(fleet_control$Selectivity[off])),
+                   collapse = ", ")
+    if (dn6_param) {
+      stop("selectivity linkage `", sel$param[k], "` names fleet(s) ", nms,
+           ", whose form is ", forms, ". It is a 'DoubleNormalSS3' parameter ",
+           "and only that form reads it, so the linkage would be estimated and ",
+           "change nothing. Name only the 'DoubleNormalSS3' fleets, or use the ",
+           "parameter these forms do read.", call. = FALSE)
+    }
+    stop("selectivity linkage `", sel$param[k], "` names fleet(s) ", nms,
+         ", which are 'DoubleNormalSS3'. That form reads only its own six ",
+         "parameters, so this linkage would be estimated and change nothing. ",
+         "Use one of: ", paste(.SEL_DN6_PARAMS, collapse = ", "), ".",
+         call. = FALSE)
   }
 
   # A PRIOR on a selectivity intercept re-targets the base parameter, whose scale

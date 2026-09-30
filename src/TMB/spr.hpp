@@ -10,8 +10,8 @@
  * SPR(F)/SPR(0) against that fraction (section 13, JNLL_REFPT_PENALTY).
  *
  * Both functions work on the female schedule (sex index 0) and report spawning
- * output per TOTAL recruit; the caller supplies a mature-at-age schedule with
- * the female fraction already folded in.
+ * output per TOTAL recruit; the caller supplies spawning output per fish with
+ * maturity folded in, and the female fraction not already in it.
  *
  * The reference points are not the only consumer. Under Beverton-Holt or Ricker
  * recruitment, SPR0 sets steepness and R0 and SPRFinit sets R_init (section
@@ -62,9 +62,11 @@ vector<Type> per_recruit_survivors(const vector<Type>& Z)
  * @param n            Numbers at age per recruit, from per_recruit_survivors().
  * @param Z            The same mortality schedule that produced `n`, reused for
  *                     the mortality served before spawning within the year.
- * @param weight       Spawning weight at age (kg).
- * @param mature_female Proportion of a recruit's cohort mature and female at age
- *                     (`mature_females`, section 5.4, times any recruitment split).
+ * @param weight       Spawning output per fish at age (kg): `spawn_output`
+ *                     (section 5.7), which already carries maturity and, for a
+ *                     one-sex species, the female fraction.
+ * @param mature_female Remaining female fraction of a recruit's cohort at age:
+ *                     the recruitment split for a two-sex species, 1 otherwise.
  * @param spawn_month  Month of spawning, 0-12; 0 spawns at the start of the year.
  * @return             Spawning biomass per recruit (kg per recruit).
  */

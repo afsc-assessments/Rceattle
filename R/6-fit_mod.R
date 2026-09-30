@@ -6,7 +6,67 @@
 # Parameter blocks added after fits were already being saved. `inits` and a
 # stored `map` from an older fit lack them; both are filled from the fresh
 # build (all fixed at the build default), so the older fit still refits.
-.RCE_ADDED_PARAMS <- c(log_sel_apical = "5.38.0")
+.RCE_ADDED_PARAMS <- c(log_sel_apical = "5.38.0", sel_dn6 = "5.46.0")
+
+#' DoubleNormalSS3 end-scaling flags, one row per fleet
+#'
+#' SS3's -999 on `start_logit` or `end_logit` drops that end's scaling, which
+#' switches the formula rather than a value, so the template reads it as data.
+#' One flag serves a fleet's sexes and, where fleets share a `Selectivity_index`,
+#' the whole block: otherwise a sex or a follower fleet is fitted with another's
+#' curve shape while its own end parameter stays estimated and reaches nothing.
+#'
+#' @param sel_dn6 Starting values, `[6, n_flt, max_sex]`.
+#' @param nsex Number of sexes per species.
+#' @param species Species of each fleet, in `fleet_control` row order.
+#' @param fleet_names Fleet names, for the refusal message.
+#' @param is_dn6 TRUE where the fleet uses `DoubleNormalSS3`; other fleets never
+#'   read `sel_dn6`, so their flags are not compared.
+#' @param sel_index `Selectivity_index` per fleet, or NULL to skip the block check.
+#' @return An integer matrix, `[n_flt, 2]`: 1 scales that end, 0 is SS3's -999.
+#' @keywords internal
+#' @noRd
+.rce_dn6_ends <- function(sel_dn6, nsex, species, fleet_names,
+                          is_dn6 = NULL, sel_index = NULL) {
+  on <- sel_dn6[5:6, , , drop = FALSE] > -999
+  nsx <- as.integer(nsex)[as.integer(species)]
+  nsx[is.na(nsx)] <- 1L
+  mixed <- vapply(seq_len(dim(on)[2]), function(i) {
+    s <- seq_len(min(dim(on)[3], nsx[i]))
+    if (length(s) < 2) return(FALSE)
+    any(on[1, i, s] != on[1, i, s[1]]) || any(on[2, i, s] != on[2, i, s[1]])
+  }, logical(1))
+  if (any(mixed)) {
+    stop("Fleet(s) ", paste(as.character(fleet_names[mixed]), collapse = ", "),
+         ": the sexes disagree on whether a 'DoubleNormalSS3' end is scaled. ",
+         "SS3's -999 switches the formula for the whole fleet, so give both ",
+         "sexes a value or give both -999, for 'start_logit' and for ",
+         "'end_logit'.", call. = FALSE)
+  }
+
+  # Fleets sharing a Selectivity_index estimate ONE sel_dn6 block, but the flag
+  # is per fleet and is read off each fleet's own starting value. Disagreeing
+  # members would share a parameter and still get different curves, so the block
+  # has to agree. Only DoubleNormalSS3 members count; nothing else reads sel_dn6.
+  if (!is.null(sel_index) && !is.null(is_dn6) && any(is_dn6, na.rm = TRUE)) {
+    keep <- which(!is.na(sel_index) & is_dn6)
+    for (ix in unique(sel_index[keep])) {
+      grp <- keep[sel_index[keep] == ix]
+      if (length(grp) < 2) next
+      if (any(on[1, grp, 1] != on[1, grp[1], 1]) ||
+          any(on[2, grp, 1] != on[2, grp[1], 1])) {
+        stop("Fleet(s) ", paste(as.character(fleet_names[grp]), collapse = ", "),
+             " share Selectivity_index ", ix, ", so they estimate one ",
+             "'DoubleNormalSS3' block, but they disagree on whether an end is ",
+             "scaled. SS3's -999 switches the formula per fleet, so the shared ",
+             "fleets would get different curves. Give the group the same ",
+             "'start_logit' and 'end_logit' treatment, or give them separate ",
+             "Selectivity_index values.", call. = FALSE)
+      }
+    }
+  }
+  matrix(as.integer(on[, , 1, drop = FALSE]), ncol = 2, byrow = TRUE)
+}
 
 #' Fit the CEATTLE assessment model
 #' @description Estimate CEATTLE population parameters by maximum likelihood, and
@@ -53,7 +113,8 @@
 #' @param initMode how the population is initialized, as a string alias or integer
 #'   code: \code{"FreeParams"} (0), \code{"Equilibrium"} (1),
 #'   \code{"NonEquilibrium"} (2, the default), \code{"FishedNonEquilibrium"} (3),
-#'   \code{"FishedNonEquilibriumScaled"} (4), \code{"OffsetEquilibrium"} (5). See
+#'   \code{"FishedNonEquilibriumScaled"} (4), \code{"OffsetEquilibrium"} (5),
+#'   \code{"FishedNonEquilibriumSelected"} (6). See
 #'   the \strong{Initial age structure} section below for what each one estimates.
 #' @param suitMode how predator-prey suitability is derived, per predator (a single value or a vector of length \code{nspp}): 0 = empirical from diet data (Holsman et al. 2015), 2 = weight-based gamma, 4 = weight-based lognormal, 6 = weight-based normal. The length-based forms (1, 3, 5) are declared but not implemented and are rejected by the data check.
 #' @param suit_styr The first year used to calculate mean suitability. A single integer is applied to every predator, or a vector of length `nspp` sets a distinct start year per predator. Defaults to `styr` in `data_list`. Used when diet data were sampled from a subset of years.
@@ -127,7 +188,19 @@
 #'     recruitment, \code{R_init * exp(rec_dev[1])}, decayed by \eqn{M1} and closed with the
 #'     usual geometric plus group. Initial deviates are turned off and no init-dev penalty is
 #'     applied. This is the Cole Monnahan / AFSC GOA pollock convention.}
+#'   \item{\code{"FishedNonEquilibriumSelected"} (6)}{As (3), but \eqn{F_{init}} is weighted by
+#'     the fishery's selectivity at age before it accumulates, so the first year decays with
+#'     \eqn{\sum_{a' < a} (M1_{a'} + F_{init} s_{a'})}. This is Stock Synthesis's InitF
+#'     convention. \eqn{F_{init}} is the apical initial F, since \eqn{s} is normalized to a
+#'     maximum of 1. The selectivity is the mean over the species' fishery fleets in the first
+#'     hindcast year, which is exact for a single fishery; Rceattle carries one \eqn{F_{init}}
+#'     per species where SS3 carries one per fleet, so a multi-fishery stock gets the mean shape.}
 #' }
+#'
+#' Modes 3, 4 and 6 differ in how \eqn{F_{init}} reaches an age. (3) charges every age the same
+#' \eqn{F_{init}}, (4) applies it once rather than accumulating it, and (6) weights it by
+#' selectivity. Under a size-selective fishery only (6) is an equilibrium: (3) kills unselected
+#' young ages at the full initial F and (4) does not decay the older ages with it at all.
 #'
 #' Modes 1 and 5 differ by exactly one term: both start from the initial equilibrium
 #' recruitment \eqn{R_{init}}, but (1) projects it forward unchanged while (5) seeds the first
@@ -513,6 +586,18 @@ fit_mod <-
     }
     gal1[is.na(gal1)] <- pmax(0.5, as.numeric(extend_length(data_list$minage)))[is.na(gal1)]
     data_list$growth_age_L1 <- gal1
+    # Growth-variability form, plus-group mean length and population length
+    # grid, resolved like growth_sd_style: build_growth() > data_list > default.
+    .inherit <- function(from_fun, from_data, default) {
+      v <- extend_length(from_fun)
+      if (!is.null(from_data)) v[is.na(v)] <- extend_length(from_data)[is.na(v)]
+      v[is.na(v)] <- default
+      v
+    }
+    data_list$growth_sd_form     <- .inherit(growthFun$growth_sd_form, data_list$growth_sd_form, 1L)      # SD in cm
+    data_list$growth_plus_length <- .inherit(growthFun$growth_plus_length, data_list$growth_plus_length, 1L) # M1-weighted
+    data_list$plus_group_decay   <- .inherit(growthFun$plus_group_decay, data_list$plus_group_decay, 0)
+    if (!is.null(growthFun$pop_lengths)) data_list$pop_lengths <- growthFun$pop_lengths
 
 
     # * HCR Switches ----
@@ -1225,6 +1310,18 @@ fit_mod <-
     # overrides above.
     if (!refit_inits) {
       start_par <- .push_linkage_intercept_inits(start_par, data_list, fixed_only = TRUE)
+    }
+
+    # DoubleNormalSS3 ends: an end left at SS3's -999 is unscaled, read by the
+    # template as data because it switches the formula, not just a value.
+    if (!is.null(start_par$sel_dn6)) {
+      data_list_reorganized$sel_dn6_ends <- .rce_dn6_ends(
+        start_par$sel_dn6, data_list$nsex,
+        data_list$fleet_control$Species, data_list$fleet_control$Fleet_name,
+        is_dn6 = data_list$fleet_control$Selectivity %in%
+          c(15, "15", "DoubleNormalSS3"),
+        sel_index = suppressWarnings(as.integer(
+          data_list$fleet_control[["Selectivity_index"]])))
     }
 
     # Starting parameters as the model uses them: the blocks above set

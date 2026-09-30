@@ -8,6 +8,17 @@ Verified against source, 2026-08.
 
 ## Build and test
 
+**Editing only a `.hpp` does not rebuild the model.** `TMB::compile()` decides from
+`ceattle.cpp` alone and tracks no header dependency, so a change confined to
+`selectivity.hpp`, `growth.hpp`, `predation.hpp` or any other header leaves the old
+`src/TMB/ceattle.o` in place. `load_all()` then reports success and you go on testing the
+**previous** model. Measured: a one-line fix in `selectivity.hpp` left the defect it fixed
+still reproducing, twice, until `ceattle.cpp` was touched. Deleting the `.o` is not enough
+either — `touch src/TMB/ceattle.cpp` before `load_all()`, and treat a rebuild that finishes in
+seconds as proof nothing was compiled (a real one is ~60–140 s). Anything measured after a
+header-only edit — a test run, a golden number, a bridge comparison — is suspect until the
+rebuild is confirmed.
+
 **Dev builds are `-O2`, not pkgbuild's `-O0`.** The repo `.Rprofile` sets
 `options(pkg.build_extra_flags = FALSE)`, so `load_all()` compiles the TMB model with the same
 optimization as a production `R CMD INSTALL` — `fit_mod()` runs ~10x faster than an
@@ -386,7 +397,7 @@ registry; `test-schema-jnll-rows.R` parses every `jnll_comp(JNLL_*, col)` write 
 and asserts each row's declared axis matches the column it is actually indexed by. Verified
 2026-08-26: 124 writes, all 21 rows covered; 133 writes at 5.41.0, same 21 rows.
 
-**`unweighted_jnll_comp` is populated for 5 of its 21 rows.** It exists so Francis and
+**`unweighted_jnll_comp` is populated for 5 of its 22 rows.** It exists so Francis and
 McAllister-Ianelli can read a composition likelihood without its `Comp_weights` multiplier, so
 only the rows carrying such a multiplier are written: composition, CAAL, stomach content, and the
 two linkage rows. Index, catch, selectivity, catchability and every penalty are **structurally
@@ -837,7 +848,7 @@ section above.
   registry, and `test-schema-quantity-dictionary.R` holds the two together.
 - **`retrospective(getsd = TRUE)` can drop peels `getsd = FALSE` keeps** — the non-PD Hessian
   check only runs when an `sdreport` exists — so Mohn's rho can differ between the two.
-- **`unweighted_jnll_comp` is written for 5 of its 21 rows** — composition, CAAL, stomach and the
+- **`unweighted_jnll_comp` is written for 5 of its 22 rows** — composition, CAAL, stomach and the
   two linkage rows. Everything else is structurally zero there, not small.
 - **`fit_mod(d, config = cfg)` replaces `d$model_config` with the config's** — a config from
   `run_config(model_config(), ...)` silently drops every linkage on `d` (57 REs → 0). Build it

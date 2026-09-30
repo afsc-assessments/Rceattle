@@ -29,7 +29,8 @@ test_that("schema pins the exact fleet_control defaults switch_check applies", {
     Sel_norm_scope = "AcrossSexes",
     Selectivity_dimension = "Age", Comp_distribution = "MultinomialAFSC",
     CAAL_distribution = "Multinomial", Index_distribution = "Lognormal",
-    CAAL_weights = 1, Comp_accum_young = NA, Comp_accum_old = NA, Month = 0)
+    CAAL_weights = 1, Comp_accum_young = NA, Comp_accum_old = NA, Month = 0,
+    Ageing_error_index = NA)
 
   schema <- .rce_column_schema()
   fc_defaulted <- vapply(

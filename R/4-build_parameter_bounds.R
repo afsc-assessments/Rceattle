@@ -154,7 +154,7 @@ build_bounds <- function(param_list = NULL, data_list) {
         # stored logged except sel_inf, whose inflections are ages or length
         # midpoints held unlogged -- a lower bound of 0 is ordinary there, and
         # impossible to carry across anywhere else.
-        logged   <- !(identical(sel_slot$arr, "sel_inf"))
+        logged   <- !(identical(sel_slot$arr, "sel_inf") || identical(sel_slot$arr, "sel_dn6"))
         if (logged && !(lo > 0)) {
           warning(sprintf("Linkage (Intercept) bound lower = %g <= 0 for ",
                           lo),
@@ -226,6 +226,9 @@ build_bounds <- function(param_list = NULL, data_list) {
                      } else if (identical(sel_slot$arr, "sel_inf")) {
                        lower_bnd$sel_inf[sel_slot$slot, idx$fleet, sx] <- lo
                        upper_bnd$sel_inf[sel_slot$slot, idx$fleet, sx] <- hi
+                     } else if (identical(sel_slot$arr, "sel_dn6")) {
+                       lower_bnd$sel_dn6[sel_slot$slot, idx$fleet, sx] <- lo
+                       upper_bnd$sel_dn6[sel_slot$slot, idx$fleet, sx] <- hi
                      } else if (identical(sel_slot$arr, "log_sel_apical")) {
                        lower_bnd$log_sel_apical[idx$fleet, sx] <- log(lo)
                        upper_bnd$log_sel_apical[idx$fleet, sx] <- log(hi)

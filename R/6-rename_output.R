@@ -150,14 +150,23 @@ rename_output <- function(data_list = NULL, quantities = NULL){
   dimnames(quantities$weight_hat) <- dimnames(quantities$length_hat) <- list(
     c(paste(rep(data_list$spnames, each = 2), rep(c("biomass length", "spawn length"), data_list$nspp)), data_list$fleet_control$Fleet_name),
     sex_labels, paste0("Age", 1:max_age), yrs_proj)
+  if (!is.null(quantities$spawn_output)) {
+    dimnames(quantities$spawn_output) <- list(data_list$spnames, paste0("Age", 1:max_age), yrs_proj)
+  }
+  # The age-length key and selectivity-at-length are on the POPULATION length
+  # bins. The count comes off the arrays, since `data_list` here is the
+  # pre-rearrange_data() list and carries no nlengths_pop.
+  .dim_or <- function(x, i, alt) if (!is.null(x) && length(dim(x)) >= i) dim(x)[i] else alt
+  max_length_pop <- .dim_or(quantities$growth_matrix, 4L, max_length)
   dimnames(quantities$growth_matrix) <- list(
     c(paste(rep(data_list$spnames, each = 2), rep(c("biomass weight", "spawn weight"), data_list$nspp)), data_list$fleet_control$Fleet_name),
-    sex_labels, paste0("Age", 1:max_age), paste0("Bin", 1:max_length), yrs_proj)
+    sex_labels, paste0("Age", 1:max_age), paste0("PopBin", 1:max_length_pop), yrs_proj)
 
   # - Fleet
   dimnames(quantities$F_flt_age) <- list(data_list$fleet_control$Fleet_name, sex_labels, paste0("Age", 1:max_age), yrs_proj)
   dimnames(quantities$sel_at_age) <- list(data_list$fleet_control$Fleet_name, sex_labels, paste0("Age", 1:max_age), yrs_proj)
-  dimnames(quantities$sel_at_length) <- list(data_list$fleet_control$Fleet_name, sex_labels, paste0("Bin", 1:max_length), yrs_proj)
+  dimnames(quantities$sel_at_length) <- list(data_list$fleet_control$Fleet_name, sex_labels,
+    paste0("PopBin", 1:.dim_or(quantities$sel_at_length, 3L, max_length_pop)), yrs_proj)
 
   # * 5D arrays ----
   dimnames(quantities$B_eaten) <- list(paste("Pred:", data_list$spnames, rep(sex_labels, each = data_list$nspp)),
@@ -201,7 +210,8 @@ rename_output <- function(data_list = NULL, quantities = NULL){
     "Ration penalties",
     "Stomach content data",
     "Linkage-table priors",
-    "Linkage random effects"
+    "Linkage random effects",
+    "Initial equilibrium catch"
   )
 
   return(quantities)

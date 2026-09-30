@@ -79,6 +79,12 @@ build_map <- function(data_list, params, debug = FALSE, random_rec = FALSE,
 
   map_list <- build_map_fixed_natage(map_list, data_list)
 
+  # DoubleNormalSS3: an end whose starting value is SS3's -999 (or -1000) is not
+  # scaled, so its parameter does not enter the curve and is fixed.
+  if (!is.null(params$sel_dn6) && !is.null(map_list$sel_dn6)) {
+    for (k in 5:6) map_list$sel_dn6[k, , ][params$sel_dn6[k, , , drop = FALSE][1, , ] <= -999] <- NA
+  }
+
   # --- Debug Mode ---
   map_list <- build_map_debug(map_list, debug)
 
@@ -781,7 +787,8 @@ build_map_selectivity <- function(map_list, data_list, nyrs_hind, random_sel) {
   # -- Map out parameters (then turned on)
   sel_params <- c("sel_coff", "sel_coff_dev", "log_sel_slp", "sel_inf",
                   "log_sel_slp_dev", "sel_inf_dev", "sel_dev_log_sd", "sel_curve_pen",
-                  "log_sel_apical")
+                  "log_sel_apical", "sel_dn6")
+  ind_dn6 <- 1
   map_list[sel_params] <- lapply(map_list[sel_params], function(x) replace(x, values = NA))
 
   # The per-sex apical height is estimated only where a selectivity linkage on
@@ -1139,6 +1146,19 @@ build_map_selectivity <- function(map_list, data_list, nyrs_hind, random_sel) {
             map_list$log_sel_slp[1, flt, sex] <- NA
             map_list$log_sel_slp[2, flt, sex] <- NA
           }
+        }
+      }
+
+
+      # * DoubleNormalSS3 ----
+      # Six parameters in their own array, all estimable; time variation comes
+      # only through linkages. A linkage intercept at est_phase = 0 fixes a slot
+      # (map_linkage_adjuster), and an end left at SS3's -999 is fixed by
+      # build_map() once the starting values are known.
+      if (sel_type == "DoubleNormalSS3") {
+        for (sex in 1:nsex) {
+          map_list$sel_dn6[, flt, sex] <- ind_dn6 + 0:5
+          ind_dn6 <- ind_dn6 + 6
         }
       }
 
@@ -1523,6 +1543,7 @@ adjust_map_shared_params <- function(map_list, data_list) {
         map_list$sel_dev_log_sd[flt] <- map_list$sel_dev_log_sd[sel_duplicate]
         map_list$sel_curve_pen[flt,] <- map_list$sel_curve_pen[sel_duplicate,]
         map_list$log_sel_apical[flt,] <- map_list$log_sel_apical[sel_duplicate,]
+        map_list$sel_dn6[, flt,] <- map_list$sel_dn6[, sel_duplicate,]
       }
     }
 
@@ -1590,7 +1611,8 @@ build_map_f_and_data_weights <- function(map_list, data_list, nyrs_hind) {
   map_list$proj_F_prop <- map_list$proj_F_prop * NA
 
   # -- Map out initial F if starting at equilibrium
-  if(!(data_list$initMode %in% c("FishedNonEquilibrium", "FishedNonEquilibriumScaled"))){
+  if(!(data_list$initMode %in% c("FishedNonEquilibrium", "FishedNonEquilibriumScaled",
+                                 "FishedNonEquilibriumSelected"))){
     map_list$log_Finit <- rep(NA, data_list$nspp)
   }
 
@@ -1704,6 +1726,7 @@ build_map_fixed_natage <- function(map_list, data_list) {
       map_list$sel_coff_dev[flts,,,] <- NA
       map_list$log_sel_slp[, flts, ] <- NA
       map_list$sel_inf[, flts, ] <- NA
+      map_list$sel_dn6[, flts, ] <- NA
       map_list$log_sel_slp_dev[, flts, ,] <- NA
       map_list$sel_inf_dev[, flts, ,] <- NA
       map_list$sel_dev_log_sd[flts] <- NA
@@ -1947,6 +1970,8 @@ map_linkage_adjuster <- function(map_list, data_list) {
             map_list$sel_coff[idx$fleet, sx(map_list$sel_coff, 2L), ] <- NA
           } else if (m$arr == "log_sel_apical") {
             map_list$log_sel_apical[idx$fleet, sx(map_list$log_sel_apical, 2L)] <- NA
+          } else if (m$arr == "sel_dn6") {
+            map_list$sel_dn6[m$slot, idx$fleet, sx(map_list$sel_dn6, 3L)] <- NA
           }
         }
       }

@@ -193,6 +193,9 @@ build_params <- function(data_list) {
 
   param_list$growth_log_sd <- array(0, dim = c(data_list$nspp, max_sex, 2),
                                    dimnames = list(data_list$spnames, sex_labels, c("log_sd_minage", "log_sd_maxage")))
+  # Endpoints read as CVs (sd_form = "CV") start at a CV of 0.1; as SDs, at 1 cm.
+  cv_sp <- which(rep_len(data_list$growth_sd_form %||% 1L, data_list$nspp) == 2L)
+  param_list$growth_log_sd[cv_sp, , ] <- log(0.1)
   param_list$weight_length_pars <- matrix(0, nrow = data_list$nspp, ncol = 2,
                                           dimnames = list(data_list$spnames, c("a", "b")))  # Weight-length parameters
   param_list$weight_length_pars[,1] <- data_list$alpha_wt_len
@@ -357,6 +360,26 @@ build_params <- function(data_list) {
     if (length(logisticpm_flts) > 0) {
       param_list$sel_inf[2, logisticpm_flts, ] <- 0
     }
+  }
+
+  # - DoubleNormalSS3 (SS3 size pattern 24): six parameters on SS3's own
+  #   scales -- peak (cm or age), logit top width, log ascending and descending
+  #   widths, logit initial and final selectivity. The start is a dome with
+  #   neither end scaled (SS3's -999 for P5 and P6), so only the first four are
+  #   estimated unless the ends are given values.
+  param_list$sel_dn6 <- array(0, dim = c(6, n_selectivities, max_sex),
+                              dimnames = list(c("peak", "top_logit", "ascend_se", "descend_se", "start_logit", "end_logit"),
+                                              data_list$fleet_control$Fleet_name, sex_labels))
+  dn6_flts <- which(data_list$fleet_control$Selectivity %in% c(15, "15", "DoubleNormalSS3"))
+  for (flt in dn6_flts) {
+    is_len <- isTRUE(tolower(data_list$fleet_control$Selectivity_dimension[flt]) == "length")
+    sp <- data_list$fleet_control$Species[flt]
+    param_list$sel_dn6[, flt, ] <- c(
+      if (is_len) length_midpoint(sp) else (data_list$nages[sp] + 1) / 2,  # peak
+      -5,                                        # top width, logit: narrow
+      if (is_len) 5 else log(4),                 # ascending width, log
+      if (is_len) 5 else log(4),                 # descending width, log
+      -999, -999)                                # ends unscaled
   }
 
   # - Annual selectivity slope deviation for logistic
@@ -542,6 +565,13 @@ build_params <- function(data_list) {
             }
             for (s in idx$species) {
               param_list$sel_inf[slot$slot, idx$fleet,
+                                 idx$per_sp[[as.character(s)]]$sex] <- init_val
+            }
+          } else if (identical(slot$arr, "sel_dn6")) {
+            # DoubleNormalSS3 holds each parameter on SS3's scale, so the init
+            # is the value as an SS3 control file gives it.
+            for (s in idx$species) {
+              param_list$sel_dn6[slot$slot, idx$fleet,
                                  idx$per_sp[[as.character(s)]]$sex] <- init_val
             }
           } else if (identical(slot$arr, "log_sel_apical")) {
