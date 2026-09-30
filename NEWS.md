@@ -35,9 +35,12 @@ per fleet, so a multi-fishery stock gets the mean shape.
 Every other mode leaves the weight at 1 and is bit-for-bit unchanged, including
 `SPRFinit` and therefore \eqn{R_{init}} under a stock-recruit curve.
 
-Found while bridging the 2024 AI Pacific cod SS3 assessment: injecting SS3's MLE and
-inverting mode 4 left the initial deviates differing from SS3's `Early_InitAge` by
-exactly `const - Finit * cumsum(sel)`, with residual 0.00000 at all 13 ages.
+On a species with more than one fishery, `Finit` is applied at the MEAN selectivity of
+those fisheries and so is not the apical initial F of any one of them. `data_check()`
+now warns, naming the species: the initial state sets the SSB scale.
+
+Found while bridging the 2024 AI Pacific cod SS3 assessment; the derivation against
+SS3's `Early_InitAge` is in `inst/dev/SESSION_HANDOFF.md`.
 
 ## Stock Synthesis growth, maturity and length-bin options
 
@@ -70,12 +73,11 @@ existing models and the golden references are unchanged.
 Spawning biomass, SB0/SBF, dynamic B0 and the SPR reference points now all read
 one reported array, `spawn_output` (`[nspp, nages, nyrs]`, kg per fish).
 
-Measured on the Aleutian Islands Pacific cod bridge (SS3 3.30.22.1, model M24_1),
-with SS3's MLE injected: the largest difference from SS3 in length-at-age fell
-from 1.5% to 4.5e-6, in the Jan-1 age-length key to 4.3e-7, and in
-fecundity-at-age (mature ages) from a 5-6% Jensen gap to 2.8e-6 -- all within
-Report.sso's printed precision. SSB is now within 1.5%, the rest being
-selectivity.
+With all four set, the Aleutian Islands Pacific cod bridge (SS3 3.30.22.1, model
+M24_1) reproduces SS3's length-at-age, Jan-1 age-length key and fecundity-at-age to
+within Report.sso's printed precision, against gaps of 1.5% and 5-6% before. SSB is
+within 1.5%, the rest being selectivity. Term-by-term numbers are in
+`inst/dev/SESSION_HANDOFF.md`.
 
 `sd_plus_group`: when SS3's `Growth_Age_for_L2` is 999, SS3 pins the plus
 group to CV_old, which is `sd_plus_group = "WHAM"` here, not `"SS3"`. The
@@ -90,7 +92,7 @@ documentation now says so.
   -999 is unscaled and its parameter fixed. The curve is not normalized, as in
   SS3. All six parameters take selectivity linkages, under the SS3 manual's
   names (`dn_peak`, `top_logit`, `ascend_se`, `descend_se`, `start_logit`,
-  `end_logit`) or `dn_` aliases. A `link = "identity"` block is
+  `end_logit`), one name each. A `link = "identity"` block is
   `linkage_spec(~ cut(Year, breaks), link = "identity")` and **adds** to the base
   parameter, which is SS3's `Blk_Fxn = 1` (`temp = baseparm + parm`,
   `SS_timevaryparm.tpl`); it is not `Blk_Fxn = 2`, which assigns the block value
@@ -104,13 +106,11 @@ documentation now says so.
   its own end parameter estimated and reaching nothing. Refused with the fleet
   named. Mixing the two *ends* is unaffected and is what SS3 models usually do —
   AI cod's fishery leaves `start_logit` at -999 and scales `end_logit`.
-* Fleets sharing a `Selectivity_index` must agree on their ends too. They
-  estimate one `sel_dn6` block, but the flag is per fleet and is read off each
-  fleet's own starting value, and `build_map()`'s -999 pass runs after
-  `adjust_map_shared_params()` and re-fixes a follower left at the default. The
-  group would share a parameter and still be given different curves, so a
-  disagreement is refused, naming the fleets. Members on another form are not
-  compared: nothing but `DoubleNormalSS3` reads `sel_dn6`.
+* Fleets sharing a `Selectivity_index` must agree on their ends too. They estimate
+  one `sel_dn6` block, but the flag is read off each fleet's own starting value, so
+  the group would share a parameter and still be given different curves. Refused,
+  naming the fleets. Members on another form are not compared: nothing but
+  `DoubleNormalSS3` reads `sel_dn6`.
 * A selectivity linkage must name a parameter the fleet's form actually reads.
   `sel_dn6` is the only array `DoubleNormalSS3` reads, and no other form reads
   it, so a name used the wrong way round was estimated and changed nothing — a

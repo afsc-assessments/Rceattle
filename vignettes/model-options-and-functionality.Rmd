@@ -70,6 +70,12 @@ Codes (also accept the string aliases listed):
 | `5` | `"OffsetEquilibrium"` | Unfished equilibrium, F<sub>init</sub> = 0, displaced by the year-1 recruitment deviation instead of sitting at R<sub>init</sub>; init devs off, no init-dev penalty (Cole Monnahan / AFSC GOA pollock convention) |
 | `6` | `"FishedNonEquilibriumSelected"` | As `3`, but F<sub>init</sub> is weighted by the fishery's selectivity at age before it accumulates, so the first year decays with &sum;(M1 + F<sub>init</sub> s<sub>a</sub>). Stock Synthesis's InitF convention; F<sub>init</sub> is the apical initial F. Use this where the fishery is size-selective, since `3` charges unselected young ages the full F<sub>init</sub> and `4` applies it once |
 
+Rceattle estimates one F<sub>init</sub> per species where SS3 carries one per fleet,
+so under mode `6` a species with more than one fishery decays its initial age
+structure at the **mean** selectivity of those fisheries. F<sub>init</sub> is then not
+the apical initial F of any one of them, and `data_check()` warns — the initial state
+sets the SSB scale.
+
 #### The initial equilibrium catch
 
 Modes `3`, `4` and `6` estimate F<sub>init</sub>, but nothing identifies it unless

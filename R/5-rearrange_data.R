@@ -1048,10 +1048,14 @@ rearrange_dat <- function(data_list){
 .rce_pop_length_bins <- function(data_list) {
   nspp <- data_list$nspp
   pop  <- data_list$pop_lengths
+  # Recycled to nspp, as data_check() reads the same switch: build_growth() may
+  # return one value for every species, and an NA here would read as estimated
+  # growth and hand species 2 a grid it does not use.
+  gm <- rep_len(data_list$growth_model %||% 0, nspp)
   grids <- lapply(seq_len(nspp), function(sp) {
     data_edges <- as.numeric(data_list$lengths[sp, seq_len(data_list$nlengths[sp])])
     g <- if (is.list(pop)) (if (sp <= length(pop)) pop[[sp]] else NULL) else pop
-    if (is.null(g) || isTRUE(data_list$growth_model[sp] == 0)) g <- data_edges
+    if (is.null(g) || isTRUE(gm[sp] == 0)) g <- data_edges
     missing_edge <- data_edges[vapply(data_edges, function(e) !any(abs(g - e) < 1e-8), logical(1))]
     if (length(missing_edge)) {
       stop(sprintf("pop_lengths for species %d must include every data length-bin lower edge; missing: %s",

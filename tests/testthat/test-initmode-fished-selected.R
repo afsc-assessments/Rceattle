@@ -128,3 +128,32 @@ testthat::test_that("the other initModes are untouched by mode 6 existing", {
                           info = paste("initMode", m))
   }
 })
+
+# Rceattle estimates ONE Finit per species where SS3 carries one per fleet, so on
+# a species with several fisheries mode 6 decays the initial age structure at
+# their MEAN selectivity and Finit is not the apical initial F of any of them.
+# Only the equilibrium-catch ROW was refused for this; the mode itself was silent,
+# and the initial state sets the SSB scale.
+testthat::test_that("mode 6 warns where a species has more than one fishery", {
+  data(BS2017SS, package = "Rceattle")
+  d <- BS2017SS
+  # BT_Pollock is species 1's survey; as a fishery, species 1 has two.
+  d$fleet_control$Fleet_type[4] <- "Fishery"
+  d$initMode <- 6
+
+  warns <- function(dd) {
+    w <- character(0)
+    withCallingHandlers(
+      tryCatch(suppressMessages(Rceattle:::data_check(Rceattle::switch_check(dd))),
+               error = function(e) NULL),
+      warning = function(x) { w <<- c(w, conditionMessage(x)); invokeRestart("muffleWarning") })
+    w
+  }
+  testthat::expect_match(paste(warns(d), collapse = " | "),
+                         "more than one fishery")
+
+  # One fishery per species says nothing, and neither does another initMode.
+  testthat::expect_false(any(grepl("more than one fishery", warns(BS2017SS))))
+  d2 <- d; d2$initMode <- 2
+  testthat::expect_false(any(grepl("more than one fishery", warns(d2))))
+})

@@ -72,6 +72,14 @@ testthat::test_that("a bin-naming column on a finer grid is refused", {
     dd <- d; dd$fleet_control[[cl]][flt] <- 5L
     testthat::expect_true(refused(dd), info = cl)
   }
+  # On the normalization columns a value at or below the first selected bin is
+  # the "normalize by the max" sentinel, not the zeroth bin, so a literal 0 must
+  # not refuse a parametric fleet. (N_sel_bins has no such sentinel -- the schema
+  # refuses anything outside 1:nbins before this check is reached.)
+  for (cl in c("Sel_norm_bin", "Sel_norm_bin_upper")) {
+    dd <- d; dd$fleet_control[[cl]][flt] <- 0L
+    testthat::expect_false(refused(dd), info = cl)
+  }
   # ... and a bin-indexed form, whatever its columns say.
   dd <- d
   dd$fleet_control$Selectivity[flt] <- "NonParametric"
