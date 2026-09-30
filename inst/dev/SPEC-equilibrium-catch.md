@@ -1,11 +1,15 @@
-# Spec: fitting an initial equilibrium catch
+# SS3's initial equilibrium catch, and how Rceattle fits it
 
-Status: proposed, not implemented. Written while bridging the 2024 AI Pacific cod
-SS3 assessment (branch `cod-bridge`).
+**Status: SHIPPED in 5.46.0.** Written as a proposal while bridging the 2024 AI
+Pacific cod SS3 assessment, and kept for its SS3 reading (section 2) and the
+`styr - 1` marker trap. What a *user* needs is in
+`vignette("model-options-and-functionality")`, "The initial equilibrium catch";
+sections 3-5 below record why the shipped design is what it is, and where they
+disagree with the code, the code is right.
 
-Rceattle has no equilibrium-catch concept anywhere in `R/` or `src/TMB/`. SS3 has
-one, most AFSC SS3 assessments supply it, and it is the single largest term in the
-AI cod gradient mismatch. This is what it is and what adding it would take.
+Before 5.46.0 Rceattle had no equilibrium-catch concept anywhere in `R/` or
+`src/TMB/`. SS3 has one, most AFSC SS3 assessments supply it, and it was the
+single largest term in the AI cod gradient mismatch.
 
 All SS3 references are pinned to tag **v3.30.22.1**, the version the AI cod model
 was run with. The unversioned `ss3-source-code-main` checkout under `GOA cod/`
@@ -125,7 +129,13 @@ Its lambda is `init_equ_lambda` (`SS_objfunc.tpl:1073`), like-component code 9. 
 cod leaves it unset, so 1.
 
 
-## 3. Proposed Rceattle design
+## 3. The design, as shipped in 5.46.0
+
+One thing below was overtaken by the implementation: the row is read **only** under
+`initMode = "FishedNonEquilibriumSelected"` (6), not under every mode that
+estimates `Finit`. Reading it under 3 or 4 fits `Finit` to a catch the population
+was never subject to, and under a mode holding `Finit` at 0 the predicted catch is
+0 and the likelihood takes `log(0)`.
 
 ### 3.1 Where the observation lives
 

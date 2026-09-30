@@ -25,6 +25,15 @@ SS3 cod bridge: `initMode 6`, the SS3 growth / maturity / length-bin options,
 `Selectivity = "DoubleNormalSS3"` (code 15), length-based selectivity on the population bins,
 the initial equilibrium catch, and a per-fleet ageing error matrix.
 
+**The SS3 parity numbers `NEWS.md` points here for.** Measured on the Aleutian Islands
+Pacific cod bridge (SS3 3.30.22.1, model M24_1) with SS3's MLE injected: the largest
+difference from SS3 in length-at-age fell from 1.5% to 4.5e-6, in the Jan-1 age-length key
+to 4.3e-7, and in fecundity-at-age (mature ages) from a 5-6% Jensen gap to 2.8e-6 -- all
+within `Report.sso`'s printed precision. SSB is within 1.5%, the rest being selectivity.
+`initMode 6` was found the same way: injecting SS3's MLE and inverting mode 4 left the
+initial deviates differing from SS3's `Early_InitAge` by exactly
+`const - Finit * cumsum(sel)`, residual 0.00000 at all 13 ages.
+
 **Its first round of review fixes is IN, at `88e7233f`** (what was `fix/cod-bridge-blockers`,
 which merged `dev` 5.45.2). Three blockers, each reproduced before it was fixed:
 
@@ -94,6 +103,42 @@ trap: PR #179 updated the roxygen in `R/7-plot_comp.R` / `R/7-plot_osa.R` withou
 does not run in the PR workflows (`deep-checks` only, `NOT_CRAN=false` at step level), so a green
 PR run is not golden clearance. (3) `GOA2018SS` Cod maturity reads 2.0 at ages 1-12 -- see
 `TODO-maturity.md`, Open 2; pre-existing, feeds SSB, and golden pins it rather than catching it.
+
+**A third review round, this one about legibility rather than numbers** (uncommitted at the
+time of writing). Nothing in it can move a fit; the C++ change removes a parameter no body
+read.
+
+- **`pop_to_data_bin` was threaded through four C++ signatures and dereferenced in none.**
+  `estimate_growth()`, `estimate_growth_within_yr()`, `calculate_weight()` and
+  `calculate_selectivity()` all took it; `ceattle.cpp` §2.3c builds `pop_bin_lo`/`pop_bin_hi`
+  from the data array itself. Removed, with the two call-site arguments.
+- **Eleven linkage names for six `DoubleNormalSS3` parameters.** `top_logit`/`dn_top` and
+  four more pairs, so the refusal message offered eleven options for six slots and the
+  vignette and `NEWS.md` documented different sets. Cut to the SS3 manual's six (`dn_peak`
+  keeps its prefix because `peak` is `DoubleNormal`'s). Unreleased, so nothing is owed a
+  deprecation.
+- **Two blocks lifted out of `data_check()`**, which was one 2,330-line function: the
+  117-line equilibrium-catch check is now `.check_equil_catch()` and the population-grid
+  refusal `.check_pop_grid_bins()`. Both use `.rce_has_data()`, since `has_data()` is a
+  closure inside `data_check()` and does not reach a helper.
+- **`initMode 6` on a species with several fisheries now warns.** Only the *catch row* was
+  refused; the mode itself was silent, and there `Finit` is applied at the mean fishery
+  selectivity and is not apical. The initial state sets the SSB scale.
+- The population-grid refusal read `v >= 0` on the bin columns, counting a literal `0` as a
+  bin. `> 0` now, with a test. No bundled dataset carries one (checked all 11), and
+  `N_sel_bins` cannot take it -- a pre-existing check refuses anything outside `1:nbins`.
+- `.rce_pop_length_bins()` read `growth_model[sp]` where `data_check()` uses
+  `rep_len(..., nspp)`; a scalar from `build_growth()` made species 2 read `NA`, and
+  `isTRUE(NA == 0)` is `FALSE`, so it took the population grid. Reachable only on a direct
+  `rearrange_data()` call, since `fit_mod()` extends the vector first.
+- Docs: `quantity_dictionary()` gave `sel_at_length` and `growth_matrix` on `nlengths` while
+  `rename_output()` labels them `PopBin`; `parameter_dictionary()` did not mention that
+  `-999` on a `sel_dn6` end is the switch; `plot_selectivity()` plotted population-bin
+  ordinals under an axis reading "Length bin" (now "Population length bin" where the grids
+  differ, unchanged otherwise, which is what the two existing label tests assert).
+- `SPEC-equilibrium-catch.md` said "Status: proposed, not implemented" in the PR that
+  implements it, and its §3.1 still described reading the row under every `Finit` mode.
+  Both corrected; the user-facing half lives in the vignette, so the note could still go.
 
 **Two things found on the way that outlive this PR.** `TMB::compile()` tracks no header
 dependency, so a `.hpp`-only edit leaves the old object and `load_all()` reports success while
