@@ -128,18 +128,20 @@ LINKAGE_LINKS <- c("identity", "log", "logit", "exponential")
 #' Link functions with a C++ accumulator behind them
 #'
 #' Every accumulator in `src/TMB/linkage.hpp` gates on `linkfn == 1` (log),
-#' `linkfn == 0` (identity) or `linkfn == 3` (exponential). `"logit"` stays reserved,
-#' the code is referenced by the C++ header, but is rejected until an
+#' `linkfn == 0` (identity) or `linkfn == 3` (exponential). `"logit"` stays
+#' reserved, the code is referenced by the C++ header, but is rejected until an
 #' accumulator implements it.
 #'
-#' `"exponential"` multiplies the parameter on its stored log scale rather than
+#' `"exponential"` MULTIPLIES the parameter on its stored log scale rather than
 #' shifting it, `exp((log_base + log_offset) * exp(beta * x))`. It reproduces
-#' Stock Synthesis's environmental link type 1, and ONLY where SS3 itself stores
-#' the parameter as a log. Among Rceattle's linkage targets that is catchability
-#' alone (`Svy_log_q`); SS3 holds natural mortality and growth on the natural
-#' scale, where its type 1 is `parm * exp(beta * x)` -- which is exactly what
-#' Rceattle's `"log"` link already gives. Every other process therefore refuses
-#' it, and says so.
+#' Stock Synthesis's environmental link type 1 (SS3's own name for it:
+#' `case 1: // exponential env link`, `SS_timevaryparm.tpl:206`), and is
+#' meaningful ONLY where SS3 itself stores the parameter as a log. Wired for
+#' catchability, and only for a lognormal/t survey error -- SS3 keeps `Q_parm`
+#' arithmetic under a normal index likelihood (`SS_expval.tpl:413-419`), where
+#' its type 1 is `q * exp(beta * x)`, i.e. Rceattle's `"log"`. SS3 also stores
+#' the recruitment level as a log (`SR_LN(R0)`), so the form applies there in
+#' principle, but no accumulator consumes it yet.
 #'
 #' @keywords internal
 #' @noRd
@@ -196,22 +198,34 @@ is_linkage_table <- function(x) {
 }
 
 
-# `exponential` reproduces SS3's environmental link type 1, which multiplies a
-# parameter on the scale SS3 stores it on -- a log for catchability only
-# (SS_expval.tpl:407/418). The error below says what to use instead.
+# `exponential` reproduces SS3's environmental link type 1, which MULTIPLIES a
+# parameter on whatever scale SS3 stores it on (`case 1: // exponential env
+# link`, SS_timevaryparm.tpl:206-211). Only catchability consumes it here, so the
+# right substitute for any other process depends on that process's SS3 scale --
+# which is why the message below enumerates rather than naming one link.
 .check_exponential_link <- function(tbl) {
   if (is.null(tbl) || !nrow(tbl) || is.null(tbl$link)) return(invisible(tbl))
   bad <- which(tbl$link == "exponential" & tbl$process != "q")
   if (length(bad)) {
-    stop("link = \"exponential\" is only supported on catchability (process ",
+    stop("link = \"exponential\" is only consumed by catchability (process ",
          "\"q\"), and was given on: ",
-         paste(unique(tbl$process[bad]), collapse = ", "),
-         ". It reproduces Stock Synthesis's environmental link type 1, which ",
-         "multiplies the parameter on the scale SS3 stores it on, and SS3 ",
-         "stores only catchability as a log. SS3 holds natural mortality and ",
-         "growth on the natural scale, where its type 1 is ",
-         "parm * exp(beta * x) -- which is what link = \"log\" already gives, ",
-         "so use that.", call. = FALSE)
+         paste(unique(tbl$process[bad]), collapse = ", "), ".\n",
+         "  It reproduces Stock Synthesis's environmental link type 1, which ",
+         "multiplies the parameter on\n  whatever scale SS3 stores it on, so ",
+         "the right substitute depends on the process:\n",
+         "  - M, growth: SS3 stores these on the natural scale ",
+         "(SS_biofxn.tpl:1063, :265-275), where its\n    type 1 is ",
+         "parm * exp(beta * x) -- exactly what link = \"log\" gives. Use ",
+         "\"log\".\n",
+         "  - recruitment: SS3 stores the level as a log (SR_LN(R0)), so this ",
+         "form is the right one\n    there, but no accumulator consumes it ",
+         "yet. \"log\" is SS3's type 2, NOT a substitute.\n",
+         "  - sel, comp: not supported. Selectivity mixes log (slopes), ",
+         "natural (a logistic\n    inflection) and logit (a DoubleNormal ",
+         "floor) storage in the same slots, so one\n    exponential row would ",
+         "mean a different model per parameter; comp weighting is\n    ",
+         "prior-only, with no year-varying term to multiply into.",
+         call. = FALSE)
   }
   invisible(tbl)
 }

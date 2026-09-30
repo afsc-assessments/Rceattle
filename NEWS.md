@@ -32,22 +32,30 @@ This is SS3's environmental link type 1, which an SS3 parameter line requests
 with an `env-var` of `1xx`. Verified against the pinned v3.30.22.1 source:
 `parm_timevary` is seeded with the base parameter (`SS_timevaryparm.tpl:50`),
 type 1 multiplies it by `mfexp(beta * env)` (`:206-211`) where type 2 adds
-(`:215-220`), the result is `Svy_log_q` (`SS_expval.tpl:407`), q is its
-exponential (`:418`), and the `1xx` decoding is `SS_readcontrol_330.tpl:3118`.
+(`:215-220`), the result is `Svy_log_q` (`SS_expval.tpl:408`), and the `1xx`
+decoding for `Q_parm` is `SS_readcontrol_330.tpl:3289` -- not `:3118`, which is
+the q *mirror* validation.
 The deviation stays outside the multiply, matching SS3's order (env at
 `:200-245`, devs at `:252-330`).
 
-**Catchability only, and the restriction is a mapping fact rather than a gap.**
-SS3's type 1 multiplies a parameter on whatever scale SS3 stores it on. Among the
-processes a linkage can reach, catchability alone is a log in SS3; natural
-mortality (`SS_biofxn.tpl:1063`) and growth (`:270-271`) are natural-scale there.
-For a natural-scale parameter SS3's type 1 is `parm * exp(beta * x)` -- which is
-**exactly what Rceattle's `"log"` link already computes**. So bridging an SS3
-model whose `NatM` or growth line carries an `env-var` of `1xx` needs `"log"`,
-not this, and `.check_exponential_link()` says so rather than letting the wrong form
-through. Applied to a natural-scale parameter the form would raise it to a power,
-and on M -- where `log M` is always negative, since M < 1 -- that inverts the
-sign of the covariate effect.
+**Where it applies, and where it does not.** SS3's type 1 multiplies a parameter
+on whatever scale SS3 stores it on, so the restriction follows that scale:
+
+* **Natural mortality and growth**: natural-scale in SS3
+  (`SS_biofxn.tpl:1063`, `:265-275`), where type 1 is `parm * exp(beta * x)` --
+  **exactly what Rceattle's `"log"` link already computes**. An SS3 `NatM` or
+  growth line carrying `env-var 1xx` bridges with `"log"`. Applied to a
+  natural-scale parameter this form would raise it to a power, and on M -- where
+  `log M` is always negative, since M < 1 -- that inverts the sign of the
+  covariate effect.
+* **Recruitment**: SS3 *does* store the level as a log (`SR_LN(R0)`, and
+  `SS_timevaryparm.tpl:53` seeds `parm_timevary` from `SRparm`), so this form is
+  the right one there. No accumulator consumes it yet, and the refusal says so
+  rather than offering `"log"`, which is SS3's type **2**.
+
+The previous wording said catchability alone is a log in SS3, which is wrong for
+`SR_LN(R0)`; `.check_exponential_link()` no longer hands a recruitment user
+`"log"`.
 
 Worth knowing before using it even on q, and it is SS3's property rather than
 ours: because `beta` multiplies a *log*, the effect scales with how far `log q`
@@ -62,8 +70,10 @@ No fit changes: with no `exponential` rows the tensor stays at zero, `exp(0)` is
 exactly 1, and multiplying by it is exact in floating point.
 
 Motivation: the GOA Pacific cod SS3 bridge, whose LLSrv survey catchability
-carries this link. The bridge's own measurement of what it is worth lives in
-`Rceattle-models/SS3-bridge/GOA-estimation-parity.md`, not here.
+carries this link. `Rceattle-models/SS3-bridge/GOA-estimation-parity.md` still
+lists it under "Still open" and attributes the whole `+9.9645` nats of LLSrv
+index residual to its absence; that refit has not yet been run, so what the link
+is worth there is not yet measured.
 
 # Rceattle 5.46.0
 

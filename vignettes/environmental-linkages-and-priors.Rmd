@@ -136,12 +136,20 @@ Key arguments (see `?linkage_spec` for the full list):
   predicted index to `1 + p` -- that is what `Catchability = "PowerEquation"` is
   reserved for.
 
-  This is Stock Synthesis's environmental link type 1 -- the one an SS3
-  parameter line requests with an `env-var` of `1xx` -- because SS3 multiplies
-  the parameter on the scale it stores, and it stores `Svy_log_q` as a log.
-  Natural mortality and growth it stores naturally, and there its type 1 is
-  `parm * exp(beta * x)`, which is **exactly Rceattle's `"log"` link**. So a
-  `NatM` or growth line carrying `env-var 1xx` bridges with `"log"`, not this.
+  SS3 multiplies the parameter on whatever scale it stores, so that scale
+  decides where the link belongs:
+
+  | process | SS3 scale | SS3 type 1 is | Rceattle |
+  |---|---|---|---|
+  | catchability, lognormal index | log (`Svy_log_q`) | `q^exp(beta x)` | `"exponential"` |
+  | catchability, natural-scale index | natural | `q * exp(beta x)` | `"log"` |
+  | natural mortality, growth | natural | `parm * exp(beta x)` | `"log"` |
+  | recruitment | log (`SR_LN(R0)`) | `R0^exp(beta x)` | not yet wired |
+
+  So a `NatM` or growth line carrying `env-var 1xx` bridges with `"log"`, not
+  this. Recruitment is the one case where the form *is* right and simply has no
+  accumulator yet, so the refusal says that instead of offering `"log"` (which
+  is SS3's type **2**).
 
   Rceattle refuses `"exponential"` elsewhere rather than let it through, because on a
   log-stored parameter it would raise the value to a power instead of scaling

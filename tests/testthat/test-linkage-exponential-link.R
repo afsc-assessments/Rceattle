@@ -5,13 +5,19 @@
 # Stock Synthesis's environmental link type 1, verified against the pinned
 # v3.30.22.1 source and cited so nobody has to re-derive it:
 #   SS_timevaryparm.tpl:50       parm_timevary = baseparm
-#   SS_timevaryparm.tpl:206-211  type 1 multiplies by mfexp(beta * env)
+#   SS_timevaryparm.tpl:206-211  `case 1: // exponential env link`, *= mfexp(beta * env)
 #   SS_timevaryparm.tpl:215-220  type 2 adds it (this is Rceattle's `log`)
-#   SS_expval.tpl:407/418        Svy_log_q is a log; q is its exponential
-#   SS_readcontrol_330.tpl:3118  env-var 1xx decodes to link type 1
+#   SS_expval.tpl:408            Svy_log_q = parm_timevary
+#   SS_expval.tpl:413-419        q is its exponential ONLY for errtype >= 0
+#                                (lognormal/t); errtype -1 (normal) reads it
+#                                arithmetically, where type 1 is our `log`
+#   SS_readcontrol_330.tpl:3289  env-var 1xx decodes to link type 1, for Q_parm
 #
-# Catchability only: SS3 holds M and growth naturally, where its type 1 is
-# already our `log` link. vignette("environmental-linkages-and-priors") has why.
+# Catchability only, and only where the base is estimable: SS3 holds M and growth
+# naturally (SS_biofxn.tpl:1063, :265-275), where its type 1 is already our
+# `log`. It does store the recruitment level as a log (`SR_LN(R0)`), so the form
+# applies there in principle, but no accumulator consumes it yet.
+# vignette("environmental-linkages-and-priors") has the rest.
 
 testthat::skip_on_cran()
 
@@ -104,7 +110,7 @@ testthat::test_that("exponential is refused where a parameter's storage scale is
     fit3(d, selFun = Rceattle::build_selectivity(linkages = list(
       inf_asc = Rceattle::linkage_spec(~ xcov, by = ~ fleet, fleet = flt,
                                        link = "exponential")))),
-    "only supported on catchability")
+    "only consumed by catchability")
 })
 
 testthat::test_that("an unimplemented link is still refused, and names the implemented set", {
