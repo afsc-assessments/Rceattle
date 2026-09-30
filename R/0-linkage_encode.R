@@ -105,14 +105,14 @@ LINKAGE_PARAM_CODES <- list(
                   # DoubleNormal aliases
                   sigma_asc   = 0L, sigma_desc = 1L,
                   peak        = 2L, right_floor = 3L,
-                  # DoubleNormalSS3 (SS3 pattern 24): the SS3 manual's names and
-                  # dn_ aliases for the same six parameters
+                  # DoubleNormalSS3 (SS3 pattern 24), P1-P6 under the SS3
+                  # manual's names. P1 is dn_peak because peak is taken above.
                   dn_peak     = 6L,
-                  top_logit   = 7L, dn_top   = 7L,
-                  ascend_se   = 8L, dn_asc   = 8L,
-                  descend_se  = 9L, dn_desc  = 9L,
-                  start_logit = 10L, dn_init = 10L,
-                  end_logit   = 11L, dn_final = 11L),
+                  top_logit   = 7L,
+                  ascend_se   = 8L,
+                  descend_se  = 9L,
+                  start_logit = 10L,
+                  end_logit   = 11L),
   # Dirichlet-multinomial composition-weighting overdispersion. Prior-only
   # (no year-varying accumulator): the intercept re-targets the log DM scalar
   # (comp_weights / caal_weights per fleet, diet_comp_weights per predator;

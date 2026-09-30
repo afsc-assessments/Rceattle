@@ -6,9 +6,10 @@
 SEL_LINKAGE_PARAMS <- c("slp_asc", "slp_desc", "inf_asc", "inf_desc", "coff",
                         "sigma_asc", "sigma_desc", "peak", "right_floor",
                         "apical",
-                        "dn_peak", "top_logit", "dn_top", "ascend_se", "dn_asc",
-                        "descend_se", "dn_desc", "start_logit", "dn_init",
-                        "end_logit", "dn_final")
+                        # DoubleNormalSS3: the SS3 manual's own names for P1-P6.
+                        # P1 is "dn_peak" because "peak" above is DoubleNormal's.
+                        "dn_peak", "top_logit", "ascend_se", "descend_se",
+                        "start_logit", "end_logit")
 
 
 #' @keywords internal
@@ -136,11 +137,11 @@ build_selectivity <- function(linkages = NULL) {
   apical      = list(arr = "log_sel_apical", slot = NA_integer_), # [fleet, sex]
   # DoubleNormalSS3: sel_dn6 is [6, fleet, sex], each slot on SS3's own scale
   dn_peak     = list(arr = "sel_dn6", slot = 1L),
-  top_logit   = list(arr = "sel_dn6", slot = 2L), dn_top   = list(arr = "sel_dn6", slot = 2L),
-  ascend_se   = list(arr = "sel_dn6", slot = 3L), dn_asc   = list(arr = "sel_dn6", slot = 3L),
-  descend_se  = list(arr = "sel_dn6", slot = 4L), dn_desc  = list(arr = "sel_dn6", slot = 4L),
-  start_logit = list(arr = "sel_dn6", slot = 5L), dn_init  = list(arr = "sel_dn6", slot = 5L),
-  end_logit   = list(arr = "sel_dn6", slot = 6L), dn_final = list(arr = "sel_dn6", slot = 6L)
+  top_logit   = list(arr = "sel_dn6", slot = 2L),
+  ascend_se   = list(arr = "sel_dn6", slot = 3L),
+  descend_se  = list(arr = "sel_dn6", slot = 4L),
+  start_logit = list(arr = "sel_dn6", slot = 5L),
+  end_logit   = list(arr = "sel_dn6", slot = 6L)
 )
 
 
@@ -154,9 +155,8 @@ build_selectivity <- function(linkages = NULL) {
 .SEL_LINKAGE_WIRED_PARAMS <- c("slp_asc", "slp_desc", "inf_asc", "inf_desc",
                                "sigma_asc", "sigma_desc", "peak", "right_floor",
                                "apical",
-                               "dn_peak", "top_logit", "dn_top", "ascend_se", "dn_asc",
-                        "descend_se", "dn_desc", "start_logit", "dn_init",
-                        "end_logit", "dn_final")
+                               "dn_peak", "top_logit", "ascend_se", "descend_se",
+                               "start_logit", "end_logit")
 
 # The six DoubleNormalSS3 parameters live in their own array, so they belong to
 # that form only, and it has no other slots (apical aside, which every form has).
