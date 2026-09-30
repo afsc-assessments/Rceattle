@@ -313,6 +313,11 @@ the hake `MSE_yr2024.R` run. Both are recorded above with their results.
 - `CLEANUP_BACKLOG.md` — everything found and deliberately not fixed, in tiers. Absorbed
   `TODO-5.34-followups.md`: the PFMC `Ftarget` assignment and the `goa_ss` second minimum
   live in `TRAPS.md`, the unbounded `log_Ftarget` and the dead average-F branch here.
+- `TODO-maturity.md` — new. Whether `maturity` should carry a bin column and an age/length flag
+  as `comp_data` does, rather than an age sheet with length scalars beside it (recommendation:
+  yes, own PR, reuse `Age0_Length1` rather than inventing a fourth spelling). And `GOA2018SS`
+  Cod maturity reading 2.0 at ages 1-12 with no range check in `data_check()` — found, not
+  diagnosed, and it feeds SSB directly.
 - `TODO-projection-module.md`, `TODO-mse-horizon.md` — unchanged by this batch.
 - `TRAPS.md` — verified traps with the measured numbers behind them.
 - `PLAN-adoption-and-NOAA-transfer.md` — moving the package off a personal account to a NOAA
