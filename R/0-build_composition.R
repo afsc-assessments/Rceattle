@@ -75,8 +75,8 @@ build_composition <- function(linkages = NULL) {
   fc <- data_list$fleet_control
 
   # comp is prior-only, so there is no year-varying term to multiply into.
-  if (any(cmp$link == "power")) {
-    stop("link = \"power\" is not supported on composition-weighting (comp) ",
+  if (any(cmp$link == "exponential")) {
+    stop("link = \"exponential\" is not supported on composition-weighting (comp) ",
          "linkages: they are prior-only, with no year-varying accumulator for ",
          "the scale factor to multiply.", call. = FALSE)
   }

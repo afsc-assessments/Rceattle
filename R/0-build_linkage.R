@@ -79,7 +79,7 @@ NULL
 #'   different formulas.
 #' @param link link function relating the linear predictor to the
 #'   natural-scale target parameter. One of `"log"` (default),
-#'   `"identity"`, or `"power"` (catchability only; reproduces Stock
+#'   `"identity"`, or `"exponential"` (catchability only; reproduces Stock
 #'   Synthesis's environmental link type 1). With `link = "log"`, `log(param) = X * beta`, slope
 #'   contributions are multiplicative on the natural-scale parameter. With `link = "identity"`,
 #'   `param = X * beta`, slope contributions are additive on the

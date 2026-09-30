@@ -14,14 +14,19 @@ version throughout.
 
 # Rceattle 5.47.0
 
-## `link = "power"`: Stock Synthesis's environmental link type 1, on catchability
+## `link = "exponential"`: Stock Synthesis's environmental link type 1, on catchability
 
 A fourth linkage link, for catchability only, completing the progression on the
 natural-scale parameter: `"identity"` **adds** to it, `"log"` **multiplies** it,
-and `"power"` raises it to a covariate-dependent power, `q^exp(beta * x)`:
+and `"exponential"` raises it to a covariate-dependent power, `q^exp(beta * x)`:
 
     index_q_yr = exp((log_q + q_offset(yr)) * exp(sum beta * x(yr)) + q_dev(yr))
                  + q_nat_offset(yr)
+
+The name is SS3's own for it -- `case 1: // exponential env link` -- and is
+deliberately not "power": SS3 has a separate q *power function* (`Q_setup`
+option 3, `pow(vbio, 1 + p)`, `SS_expval.tpl:429-436`), which is what
+`Catchability = "PowerEquation"` and the dormant `index_q_pow` are reserved for.
 
 This is SS3's environmental link type 1, which an SS3 parameter line requests
 with an `env-var` of `1xx`. Verified against the pinned v3.30.22.1 source:
@@ -39,7 +44,7 @@ mortality (`SS_biofxn.tpl:1063`) and growth (`:270-271`) are natural-scale there
 For a natural-scale parameter SS3's type 1 is `parm * exp(beta * x)` -- which is
 **exactly what Rceattle's `"log"` link already computes**. So bridging an SS3
 model whose `NatM` or growth line carries an `env-var` of `1xx` needs `"log"`,
-not this, and `.check_power_link()` says so rather than letting the wrong form
+not this, and `.check_exponential_link()` says so rather than letting the wrong form
 through. Applied to a natural-scale parameter the form would raise it to a power,
 and on M -- where `log M` is always negative, since M < 1 -- that inverts the
 sign of the covariate effect.
@@ -50,7 +55,10 @@ sits from zero. At `q = 1` the covariate does nothing whatever `beta` is, and
 below `q = 1` its sign inverts. Pinned by a test so nobody reads it as a broken
 linkage.
 
-No fit changes: with no `power` rows the tensor stays at zero, `exp(0)` is
+The new reported quantity is `q_linkage_log_mult` -- the linear predictor whose
+`exp()` multiplies `log q`.
+
+No fit changes: with no `exponential` rows the tensor stays at zero, `exp(0)` is
 exactly 1, and multiplying by it is exact in floating point.
 
 Motivation: the GOA Pacific cod SS3 bridge, whose LLSrv survey catchability

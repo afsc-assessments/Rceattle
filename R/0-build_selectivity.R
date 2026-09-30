@@ -179,9 +179,9 @@ build_selectivity <- function(linkages = NULL) {
   if (nrow(sel) == 0L) return(invisible())
 
   # Selectivity stores slopes as logs, a logistic inflection naturally and a
-  # DoubleNormal floor as a logit, so one power row would mean three models.
-  if (any(sel$link == "power")) {
-    stop("link = \"power\" is not supported on selectivity linkages: it ",
+  # DoubleNormal floor as a logit, so one exponential row would mean three models.
+  if (any(sel$link == "exponential")) {
+    stop("link = \"exponential\" is not supported on selectivity linkages: it ",
          "multiplies a parameter on its stored scale, and selectivity mixes ",
          "log (slopes), natural (a logistic inflection) and logit (a ",
          "DoubleNormal floor) storage in the same slots, so the form would mean ",

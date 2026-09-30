@@ -93,7 +93,7 @@ linkage_spec(
   species   = NULL,                 # ids or spnames
   sex       = NULL,
   fleet     = NULL,                 # Fleet_codes or Fleet_names
-  link      = "log",                # or "identity", "power"
+  link      = "log",                # or "identity", "exponential"
   init      = NULL,
   bounds    = NULL,
   priors    = NULL,
@@ -125,11 +125,16 @@ Key arguments (see `?linkage_spec` for the full list):
 * **`link`**: relates the linear predictor to the natural-scale
   target. `"log"` (default) gives a multiplicative effect on natural
   `param`; `"identity"` gives an additive effect on natural `param`;
-  `"power"` raises the parameter to a covariate-dependent power,
+  `"exponential"` raises the parameter to a covariate-dependent power,
   `q^exp(beta * x)`, completing the progression: `"identity"` **adds** to the
-  natural-scale parameter, `"log"` **multiplies** it, `"power"` raises it to a
-  power. (The power is of the parameter, not of the covariate.) It is accepted
-  on **catchability only**.
+  natural-scale parameter, `"log"` **multiplies** it, `"exponential"` raises it
+  to a power. (The power is of the parameter, not of the covariate.) It is
+  accepted on **catchability only**.
+
+  `"exponential"` is SS3's own name for link type 1 (`case 1: // exponential env
+  link`). It is *not* SS3's q *power function*, a separate option that raises the
+  predicted index to `1 + p` -- that is what `Catchability = "PowerEquation"` is
+  reserved for.
 
   This is Stock Synthesis's environmental link type 1 -- the one an SS3
   parameter line requests with an `env-var` of `1xx` -- because SS3 multiplies
@@ -138,7 +143,7 @@ Key arguments (see `?linkage_spec` for the full list):
   `parm * exp(beta * x)`, which is **exactly Rceattle's `"log"` link**. So a
   `NatM` or growth line carrying `env-var 1xx` bridges with `"log"`, not this.
 
-  Rceattle refuses `"power"` elsewhere rather than let it through, because on a
+  Rceattle refuses `"exponential"` elsewhere rather than let it through, because on a
   log-stored parameter it would raise the value to a power instead of scaling
   it, and on M -- where `log M` is always negative, M being below 1 -- that
   inverts the sign of the covariate effect.
@@ -828,6 +833,7 @@ fit <- fit_mod(
 
 # One coefficient set per fleet; the offset lands here:
 fit$quantities$q_linkage_offset      # [n_flt, nyrs]
+fit$quantities$q_linkage_log_mult    # [n_flt, nyrs]; exponential link only
 ```
 
 Restrict a spec to particular fleets with the `fleet` argument of

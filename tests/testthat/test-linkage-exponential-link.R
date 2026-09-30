@@ -1,4 +1,4 @@
-# `link = "power"` multiplies log q by exp(beta * x) rather than shifting it:
+# `link = "exponential"` MULTIPLIES log q by exp(beta * x) rather than shifting it:
 #
 #   index_q_yr = exp((log_q + q_offset(yr)) * exp(sum beta * x(yr)) + q_dev(yr))
 #
@@ -26,7 +26,7 @@ fit3 <- function(d, selFun = NULL, qFun = NULL) {
     fit_control = Rceattle::fit_control(phase = FALSE, getsd = FALSE, verbose = 0))))
 }
 
-testthat::test_that("a scale-link q reproduces SS3's exponential env link exactly", {
+testthat::test_that("an exponential-link q reproduces SS3's exponential env link exactly", {
   testthat::skip_if_not_installed("TMB")
   d <- make_test_data(nyrs = 20, nages = 5, seed = 42)
   flt <- d$fleet_control$Fleet_code[d$fleet_control$Fleet_type == "Survey"][1]
@@ -37,9 +37,9 @@ testthat::test_that("a scale-link q reproduces SS3's exponential env link exactl
   d$env_data <- env_frame(d, x)
 
   fit <- fit3(d, qFun = Rceattle::build_catchability(linkages = list(
-    q = Rceattle::linkage_spec(~ xcov, by = ~ fleet, fleet = flt, link = "power"))))
+    q = Rceattle::linkage_spec(~ xcov, by = ~ fleet, fleet = flt, link = "exponential"))))
 
-  # beta starts at 0, where the scale and the additive forms coincide -- so set
+  # beta starts at 0, where the exponential and the additive forms coincide -- so set
   # it and re-report, otherwise the comparison below is vacuous.
   p    <- fit$obj$env$last.par.best
   nm   <- names(p)
@@ -61,12 +61,12 @@ testthat::test_that("a scale-link q reproduces SS3's exponential env link exactl
   testthat::expect_false(isTRUE(all.equal(as.numeric(q[flt, ]),
                                           exp(base + BETA * x[seq_len(nyr)]),
                                           tolerance = 1e-6)))
-  # and the scale tensor is what carries it
-  testthat::expect_equal(as.numeric(rep$q_linkage_scale[flt, ]),
+  # and the log-multiplier tensor is what carries it
+  testthat::expect_equal(as.numeric(rep$q_linkage_log_mult[flt, ]),
                          BETA * x[seq_len(nyr)], tolerance = 1e-10)
 })
 
-testthat::test_that("a zero scale tensor leaves the model arithmetically unchanged", {
+testthat::test_that("a zero multiplier tensor leaves the model arithmetically unchanged", {
   testthat::skip_if_not_installed("TMB")
   d <- make_test_data(nyrs = 20, nages = 5, seed = 42)
   # No linkage at all: exp(0) = 1, so the new multiply is the identity.
@@ -87,14 +87,14 @@ testthat::test_that("the effect vanishes when the base parameter is zero on its 
   d$env_data <- env_frame(d, as.numeric(scale(seq_len(length(d$styr:d$projyr)))))
 
   fit <- fit3(d, qFun = Rceattle::build_catchability(linkages = list(
-    q = Rceattle::linkage_spec(~ xcov, by = ~ fleet, fleet = flt, link = "power"))))
+    q = Rceattle::linkage_spec(~ xcov, by = ~ fleet, fleet = flt, link = "exponential"))))
   p <- fit$obj$env$last.par.best
   p[which(names(p) == "beta_linkage")[1]] <- 0.9   # a large effect, deliberately
   q <- as.numeric(fit$obj$report(p)$index_q[flt, ])
   testthat::expect_equal(q, rep(1, length(q)), tolerance = 1e-12)
 })
 
-testthat::test_that("scale is refused where a parameter's storage scale is not uniform", {
+testthat::test_that("exponential is refused where a parameter's storage scale is not uniform", {
   d <- make_test_data(nyrs = 20, nages = 5, seed = 42)
   d$env_data <- env_frame(d, as.numeric(scale(seq_len(length(d$styr:d$projyr)))))
   flt <- d$fleet_control$Fleet_code[1]
@@ -103,7 +103,7 @@ testthat::test_that("scale is refused where a parameter's storage scale is not u
   testthat::expect_error(
     fit3(d, selFun = Rceattle::build_selectivity(linkages = list(
       inf_asc = Rceattle::linkage_spec(~ xcov, by = ~ fleet, fleet = flt,
-                                       link = "power")))),
+                                       link = "exponential")))),
     "only supported on catchability")
 })
 
@@ -111,8 +111,8 @@ testthat::test_that("an unimplemented link is still refused, and names the imple
   testthat::expect_error(
     Rceattle::linkage_spec(~ 1, by = ~ species, link = "logit"),
     "reserved but not yet implemented")
-  testthat::expect_true(all(c("identity", "log", "power") %in%
+  testthat::expect_true(all(c("identity", "log", "exponential") %in%
                               Rceattle:::LINKAGE_LINKS_IMPLEMENTED))
   # Lockstep with the C++ (CLAUDE.md rule 12).
-  testthat::expect_identical(unname(Rceattle:::LINKAGE_LINK_CODES[["power"]]), 3L)
+  testthat::expect_identical(unname(Rceattle:::LINKAGE_LINK_CODES[["exponential"]]), 3L)
 })
