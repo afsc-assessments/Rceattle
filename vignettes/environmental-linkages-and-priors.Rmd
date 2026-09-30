@@ -128,13 +128,12 @@ Key arguments (see `?linkage_spec` for the full list):
   `"exponential"` raises the parameter to a covariate-dependent power,
   `q^exp(beta * x)`, completing the progression: `"identity"` **adds** to the
   natural-scale parameter, `"log"` **multiplies** it, `"exponential"` raises it
-  to a power. (The power is of the parameter, not of the covariate.) It is
-  accepted on **catchability only**.
+  to a power. (The power is of the parameter, not of the covariate.)
 
-  `"exponential"` is SS3's own name for link type 1 (`case 1: // exponential env
-  link`). It is *not* SS3's q *power function*, a separate option that raises the
-  predicted index to `1 + p` -- that is what `Catchability = "PowerEquation"` is
-  reserved for.
+  This is Stock Synthesis's environmental link type 1, and `"exponential"` is
+  SS3's own name for it (`case 1: // exponential env link`). It is *not* SS3's q
+  *power function*, which is a separate option that raises the predicted index
+  to `1 + p` -- that is what `Catchability = "PowerEquation"` is reserved for.
 
   SS3 multiplies the parameter on whatever scale it stores, so that scale
   decides where the link belongs:
@@ -147,9 +146,12 @@ Key arguments (see `?linkage_spec` for the full list):
   | recruitment | log (`SR_LN(R0)`) | `R0^exp(beta x)` | not yet wired |
 
   So a `NatM` or growth line carrying `env-var 1xx` bridges with `"log"`, not
-  this. Recruitment is the one case where the form *is* right and simply has no
-  accumulator yet, so the refusal says that instead of offering `"log"` (which
-  is SS3's type **2**).
+  this, and Rceattle refuses `"exponential"` there rather than let it through:
+  on a natural-scale parameter it would raise the value to a power instead of
+  scaling it, and on M -- where `log M` is always negative, M being below 1 --
+  that inverts the sign of the covariate effect. Recruitment is the one case
+  where the form *is* right and simply has no accumulator yet, so the refusal
+  says that instead of offering `"log"` (which is SS3's type **2**).
 
   Two further conditions on catchability. The link multiplies `log q`, so the
   base has to be **estimated**: a formula with no intercept, or an intercept
@@ -161,8 +163,10 @@ Key arguments (see `?linkage_spec` for the full list):
   q deviations, express the deviations as `Time_varying_q`, whose `index_q_dev`
   the template keeps outside the multiply, as SS3 does its dev blocks.
 
-  A natural-scale `Index_distribution` warns rather than refusing: the model is
-  well defined, it is just not SS3's type 1 for such a fleet.
+  Because `beta` multiplies a *log*, the size of the effect depends on how far
+  `log q` sits from zero: at `q = 1` the covariate does nothing whatever `beta`
+  is, and below `q = 1` the sign of the effect inverts. Both are SS3's
+  properties, not Rceattle's.
 
   **Report `beta` with its base, never alone.** To first order
   `log q_y = log q * (1 + beta * x_y)`, so what the index informs is the product
@@ -194,11 +198,6 @@ Key arguments (see `?linkage_spec` for the full list):
   `"log"` the same `beta` is harmless, because `beta * x` enters the exponent
   linearly and overflow starts near 709. Pass `bounds` on any `"exponential"`
   slope; `c(-2, 2)` is ample for a standardized covariate.
-
-  Rceattle refuses `"exponential"` elsewhere rather than let it through, because on a
-  log-stored parameter it would raise the value to a power instead of scaling
-  it, and on M -- where `log M` is always negative, M being below 1 -- that
-  inverts the sign of the covariate effect.
 * **`init`** / **`bounds`**: named lists keyed by design-matrix
   column (`init = list(temp = 0.05)`, `bounds = list(temp = c(-2, 2))`).
 * **`priors`**: named list keyed by design-matrix column. Each

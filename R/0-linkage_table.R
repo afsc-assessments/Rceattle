@@ -204,15 +204,18 @@ is_linkage_table <- function(x) {
 # right substitute for any other process depends on that process's SS3 scale --
 # which is why the message below enumerates rather than naming one link.
 .check_exponential_link <- function(tbl) {
-  if (is.null(tbl) || !nrow(tbl) || is.null(tbl$link)) return(invisible(tbl))
-  is_exp <- tbl$link == "exponential"
+  if (is.null(tbl) || !is.data.frame(tbl) || nrow(tbl) == 0L) {
+    return(invisible(tbl))
+  }
+  if (is.null(tbl[["link"]])) return(invisible(tbl))
+  is_exp <- tbl[["link"]] == "exponential"
   if (!any(is_exp)) return(invisible(tbl))
 
-  bad <- which(is_exp & tbl$process != "q")
+  bad <- which(is_exp & tbl[["process"]] != "q")
   if (length(bad)) {
     stop("link = \"exponential\" is only consumed by catchability (process ",
          "\"q\"), and was given on: ",
-         paste(unique(tbl$process[bad]), collapse = ", "), ".\n",
+         paste(unique(tbl[["process"]][bad]), collapse = ", "), ".\n",
          "  It reproduces Stock Synthesis's environmental link type 1, which ",
          "multiplies the parameter on\n  whatever scale SS3 stores it on, so ",
          "the right substitute depends on the process:\n",
@@ -239,12 +242,12 @@ is_linkage_table <- function(x) {
   # SS_timevaryparm.tpl:200-245, devs at :252-330); Rceattle accumulates both
   # into q_linkage_offset, which sits inside the multiply, so the two cannot
   # currently share a fleet.
-  re_rows <- !is.na(tbl$re_struct)
+  re_rows <- !is.na(tbl[["re_struct"]])
   self_re <- which(is_exp & re_rows)
   if (length(self_re)) {
     stop("link = \"exponential\" cannot carry a random effect, and row(s) ",
          paste(self_re, collapse = ", "), " combine it with re_struct = ",
-         paste(unique(tbl$re_struct[self_re]), collapse = ", "), ".\n",
+         paste(unique(tbl[["re_struct"]][self_re]), collapse = ", "), ".\n",
          "  A deviation multiplied by exp(beta * x) has effective SD ",
          "sigma * exp(beta * x) -- year- and\n  covariate-varying -- while its ",
          "density still scores it at the constant sigma.\n",
@@ -260,10 +263,10 @@ is_linkage_table <- function(x) {
   # Same defect across specs: an RE row on the same fleet lands in
   # q_linkage_offset, which the exponential row then multiplies. NA fleet is the
   # shared sentinel and reaches every fleet, so it overlaps anything.
-  q_re <- which(re_rows & tbl$process == "q")
+  q_re <- which(re_rows & tbl[["process"]] == "q")
   if (length(q_re)) {
-    exp_flt <- tbl$fleet[is_exp]
-    re_flt  <- tbl$fleet[q_re]
+    exp_flt <- tbl[["fleet"]][is_exp]
+    re_flt  <- tbl[["fleet"]][q_re]
     clash   <- anyNA(exp_flt) || anyNA(re_flt) ||
       length(intersect(exp_flt, re_flt)) > 0L
     if (clash) {
@@ -299,7 +302,6 @@ is_linkage_table <- function(x) {
 #' @return `x` invisibly, on success. Throws an error otherwise.
 #' @keywords internal
 validate_linkage_table <- function(x) {
-  .check_exponential_link(x)
   if (!is.data.frame(x)) {
     stop("linkage table must be a data.frame; got ", class(x)[1])
   }
@@ -353,6 +355,11 @@ validate_linkage_table <- function(x) {
   for (lk in setdiff(unique(x$link), LINKAGE_LINKS_IMPLEMENTED)) {
     .check_link_implemented(lk)
   }
+  # Runs here, not at the top: it reads `link`, `process` and `re_struct`, so it
+  # needs the column and type checks above to have passed. Called at the top it
+  # met a non-data.frame with `!nrow(x)` -> logical(0) and errored out of `||`
+  # instead of reporting the class.
+  .check_exponential_link(x)
   bad_fam <- setdiff(unique(x$prior_family), PRIOR_FAMILIES)
   if (length(bad_fam) > 0) {
     stop("unknown prior family in linkage table: ",

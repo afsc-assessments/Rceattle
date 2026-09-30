@@ -74,13 +74,6 @@ build_composition <- function(linkages = NULL) {
   if (nrow(cmp) == 0L) return(invisible())
   fc <- data_list$fleet_control
 
-  # comp is prior-only, so there is no year-varying term to multiply into.
-  if (any(cmp$link == "exponential")) {
-    stop("link = \"exponential\" is not supported on composition-weighting (comp) ",
-         "linkages: they are prior-only, with no year-varying accumulator for ",
-         "the scale factor to multiply.", call. = FALSE)
-  }
-
   # (a) prior-only: only intercept rows (theta is a scalar; no accumulator).
   if (any(cmp$design_col != "(Intercept)")) {
     stop("composition-weighting (comp) linkages are prior-only: use an ",

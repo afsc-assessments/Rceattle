@@ -991,9 +991,10 @@ Type objective_function<Type>::operator() () {
 
   for(flt = 0; flt < n_flt; flt++){
     for(yr = 0; yr < nyrs_hind; yr++){
-      // The deviate sits outside the multiply: SS3 applies env before devs, and
-      // inside it the deviate's effective sd would vary by year against a
-      // constant index_q_dev_sd.
+      // Order follows SS3: an `exponential` row multiplies log q, and the
+      // index_q_dev deviate is added after that product, as SS3 applies its dev
+      // blocks after the env link. Inside it the deviate's effective sd would be
+      // sd * exp(beta * x), year-varying, against a constant index_q_dev_sd.
       index_q(flt, yr) = exp((index_log_q(flt) + q_linkage_offset(flt, yr))
                                * exp(q_linkage_log_mult(flt, yr))
                              + index_q_dev(flt, yr))
@@ -1040,7 +1041,10 @@ Type objective_function<Type>::operator() () {
   //                            to the natural-scale parameter after exp.
   // Combine at the consume site as:
   //   param_nat_yr = exp(log_base + log_offset) + nat_offset.
-  // With no linkages, both tensors stay at zero so the result is
+  // Catchability has a third tensor, `q_linkage_log_mult`, from
+  // exponential-link rows (linkfn == 3), which MULTIPLIES the log
+  // rather than shifting it; see 5.3 for the q form.
+  // With no linkages, the tensors stay at zero so the result is
   // identical to the pre-linkage formula.
   //
   // - RECRUITMENT OFFSETS
@@ -1082,7 +1086,7 @@ Type objective_function<Type>::operator() () {
     nspp,
     nyrs
   );
-    REPORT(recruitment_linkage_offset);
+  REPORT(recruitment_linkage_offset);
   REPORT(recruitment_linkage_offset_nat);
 
   // - M OFFSETS
@@ -1124,7 +1128,7 @@ Type objective_function<Type>::operator() () {
     nages,
     nyrs
   );
-    REPORT(M_linkage_offset);
+  REPORT(M_linkage_offset);
   REPORT(M_linkage_offset_nat);
 
 
@@ -1165,7 +1169,7 @@ Type objective_function<Type>::operator() () {
     nsex,
     nyrs
   );
-    REPORT(growth_linkage_offset);
+  REPORT(growth_linkage_offset);
   REPORT(growth_linkage_offset_nat);
 
 
@@ -4777,18 +4781,18 @@ Type objective_function<Type>::operator() () {
     }
 
     // Penalized/random deviate likelihood
-    if(((index_varying_q(flt) == 1) || (index_varying_q(flt) == 2))  // - Estimate_q = 1 (free parameter) or 2 (free parameter w/ prior)
+    if(((index_varying_q(flt) == 1) || (index_varying_q(flt) == 2))  // - Time_varying_q = 1 (penalized deviate) or 2 (random effect)
          && (flt_type(flt) > 0) &&                                    // - If survey or fishery CPUE
-           ((est_index_q(flt) == 1) || (est_index_q(flt) == 2))){        // - Time_varying_q  = 1 (penalized deviate) or 2 (random effect)
+           ((est_index_q(flt) == 1) || (est_index_q(flt) == 2))){        // - Catchability = 1 (Estimated) or 2 (Estimated-with-prior)
       for(yr = 0; yr < nyrs_hind; yr++){
         jnll_comp(JNLL_Q_DEV, flt) -= dnorm(index_q_dev(flt, yr), Type(0.0), index_q_dev_sd(flt), true );
       }
     }
 
     // Random walk
-    if((index_varying_q(flt) == 4) &&                          // - Estimate_q = 1 (free parameter) or 2 (free parameter w/ prior)
+    if((index_varying_q(flt) == 4) &&                          // - Time_varying_q = 4 (random walk)
        (flt_type(flt) > 0) &&                                  // - If survey or fishery CPUE
-       ((est_index_q(flt) == 1) || (est_index_q(flt) == 2)))   // - Time_varying_q  = 4
+       ((est_index_q(flt) == 1) || (est_index_q(flt) == 2)))   // - Catchability = 1 (Estimated) or 2 (Estimated-with-prior)
     {
       for(yr = 1; yr < nyrs_hind; yr++){
         jnll_comp(JNLL_Q_DEV, flt) -= dnorm(index_q_dev(flt, yr) - index_q_dev(flt, yr-1), Type(0.0), index_q_dev_sd(flt), true );

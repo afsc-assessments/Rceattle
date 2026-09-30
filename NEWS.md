@@ -24,19 +24,17 @@ and `"exponential"` raises it to a covariate-dependent power, `q^exp(beta * x)`:
                  + q_nat_offset(yr)
 
 The name is SS3's own for it -- `case 1: // exponential env link` -- and is
-deliberately not "power": SS3 has a separate q *power function* (`Q_setup`
-option 3, `pow(vbio, 1 + p)`, `SS_expval.tpl:429-436`), which is what
+deliberately not "power": SS3 has a separate q *power function*
+(`Q_setup` option 3, `pow(vbio, 1 + p)`, `SS_expval.tpl:429-436`), which is what
 `Catchability = "PowerEquation"` and the dormant `index_q_pow` are reserved for.
 
-This is SS3's environmental link type 1, which an SS3 parameter line requests
-with an `env-var` of `1xx`. Verified against the pinned v3.30.22.1 source:
-`parm_timevary` is seeded with the base parameter (`SS_timevaryparm.tpl:50`),
-type 1 multiplies it by `mfexp(beta * env)` (`:206-211`) where type 2 adds
-(`:215-220`), the result is `Svy_log_q` (`SS_expval.tpl:408`), and the `1xx`
-decoding for `Q_parm` is `SS_readcontrol_330.tpl:3289` -- not `:3118`, which is
-the q *mirror* validation.
-The deviation stays outside the multiply, matching SS3's order (env at
-`:200-245`, devs at `:252-330`).
+An SS3 parameter line requests type 1 with an `env-var` of `1xx`. Verified
+against the pinned v3.30.22.1 source: `parm_timevary` is seeded with the base
+parameter (`SS_timevaryparm.tpl:50`), type 1 multiplies it by
+`mfexp(beta * env)` (`:206-211`) where type 2 adds (`:215-220`), the result is
+`Svy_log_q` (`SS_expval.tpl:408`), and the `1xx` decoding for `Q_parm` is
+`SS_readcontrol_330.tpl:3289`. The deviation stays outside the multiply,
+matching SS3's order (env at `:200-245`, devs at `:252-330`).
 
 **Where it applies, and where it does not.** SS3's type 1 multiplies a parameter
 on whatever scale SS3 stores it on, so the restriction follows that scale:
@@ -52,11 +50,13 @@ on whatever scale SS3 stores it on, so the restriction follows that scale:
   `SS_timevaryparm.tpl:53` seeds `parm_timevary` from `SRparm`), so this form is
   the right one there. No accumulator consumes it yet, and the refusal says so
   rather than offering `"log"`, which is SS3's type **2**.
-
-* **Catchability**: `"exponential"` is the right form for a **lognormal** index.
-  Under a natural-scale family (`MVN`, `MVNORM`, `Normal`, `TruncatedNormal`)
-  Rceattle still holds q on the log scale, so the model is well defined, but it
-  is not SS3's type 1 -- those families **warn** that it is the wrong bridge.
+* **Catchability**: only for a **lognormal** index. SS3 exponentiates
+  `Svy_log_q` only when the survey error type is lognormal or t; under a
+  natural-scale family (`MVN`, `MVNORM`, `Normal`, `TruncatedNormal`) it reads
+  the same slot arithmetically (`SS_expval.tpl:413-419`), where type 1 is again
+  `"log"`. Rceattle holds q on the log scale whatever the index family, so the
+  model is still well defined there and those families **warn** rather than
+  refuse -- but it is the wrong bridge.
 * **Catchability, and the base must be estimated.** The link multiplies `log q`,
   so a formula with no intercept (`~ 0 + x`) or a fixed one (`est_phase = 0`)
   makes `map_linkage_adjuster()` mask `index_log_q`, freezing the value being
@@ -65,21 +65,17 @@ on whatever scale SS3 stores it on, so the restriction follows that scale:
   `beta` started at. Refused. A *free* base starting at 1 warns instead.
 * **Not with a linkage random effect on the same fleet.** Every log-link row
   accumulates into `q_linkage_offset`, which sits inside the multiply, so an
-  `ar1(1 | Year)` q linkage would have its deviations scaled by `exp(beta * x)`
-  while their density still scored them at a constant sigma. Refused on both the
-  same spec and the same fleet. An environmental effect plus q deviations is
-  still expressible with `Time_varying_q`, whose `index_q_dev` the template keeps
-  outside the multiply, as SS3 does its dev blocks.
+  `ar1(1 | Year)` q linkage would have its deviations scaled by
+  `exp(beta * x)` while their density still scored them at a constant sigma.
+  Refused on both the same spec and the same fleet. An environmental effect
+  plus q deviations is still expressible with `Time_varying_q`, whose
+  `index_q_dev` the template keeps outside the multiply, as SS3 does its dev
+  blocks.
 
-The previous wording said catchability alone is a log in SS3, which is wrong for
-`SR_LN(R0)`; `.check_exponential_link()` no longer hands a recruitment user
-`"log"`.
-
-Worth knowing before using it even on q, and it is SS3's property rather than
-ours: because `beta` multiplies a *log*, the effect scales with how far `log q`
-sits from zero. At `q = 1` the covariate does nothing whatever `beta` is, and
-below `q = 1` its sign inverts. Pinned by a test so nobody reads it as a broken
-linkage.
+Worth knowing even on q, and it is SS3's property rather than ours: because
+`beta` multiplies a *log*, the effect scales with how far `log q` sits from
+zero, and below `q = 1` its sign inverts. Both are pinned by tests so nobody
+reads them as a broken linkage.
 
 **Report `beta` with its base, never alone.** To first order
 `log q_y = log q * (1 + beta * x_y)`, so the index informs the product
@@ -100,8 +96,11 @@ within 0.1% of 1, where `beta` is unidentified.
 The new reported quantity is `q_linkage_log_mult` -- the linear predictor whose
 `exp()` multiplies `log q`.
 
-No fit changes: with no `exponential` rows the tensor stays at zero, `exp(0)` is
-exactly 1, and multiplying by it is exact in floating point.
+No fit changes for a model without a q linkage: the tensor stays at zero,
+`exp(0)` is exactly 1, and `x + 0.0` and `x * 1.0` are exact, so the result is
+bit-identical. For a model that *does* carry a `log` q linkage the sum
+reassociates from `(log_q + dev) + offset` to `(log_q + offset) + dev`:
+algebraically identical, but not bit-identical.
 
 Motivation: the GOA Pacific cod SS3 bridge, whose LLSrv survey catchability
 carries this link. `Rceattle-models/SS3-bridge/GOA-estimation-parity.md` still
@@ -411,7 +410,6 @@ with SSB rising across a series over which SAFE declines. A 3-point move against
 a 63% gap says nothing. The case for the change rests on Stock Synthesis parity
 in `GOA cod/Bridging/` and `AI cod - Dev/Bridging/`, where the bridges match SS3
 to additive constants and SS3 weighs catch this way.
-
 
 # Rceattle 5.45.3
 
