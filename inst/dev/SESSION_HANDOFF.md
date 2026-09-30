@@ -104,6 +104,22 @@ does not run in the PR workflows (`deep-checks` only, `NOT_CRAN=false` at step l
 PR run is not golden clearance. (3) `GOA2018SS` Cod maturity reads 2.0 at ages 1-12 -- see
 `TODO-maturity.md`, Open 2; pre-existing, feeds SSB, and golden pins it rather than catching it.
 
+**What the behaviour change costs a live assessment, measured 2026-09-30.** Nobody had put a
+number on it. Refitting the 2024 GOA Pacific cod approximation (`Rceattle-models/GOA cod/
+2024_pcod.R`, 224 params, length selectivity + estimated vB growth, `maturity` forced to 1, no
+`pop_lengths`) on `dev` 5.45.3 against `cod-bridge` 5.46.0: objective 6415.8172 -> 6416.2875
+(+0.470 nats), terminal SSB 1,004,925 -> 935,106 mt (**-6.9%**), SSB series mean **-7.1%**,
+largest -12.9%, year-1 SSB -9.3%, convergence OK -> WARN (max gradient 0.0013 on R0, <= 0.00085
+SE -- benign). With maturity at 1 and no population grid, the maturity-at-length and pop-grid
+paths are the identity, so the movement is the selected-body-weight change.
+
+**Do NOT read the SAFE comparison as validation either way.** That script is an *approximation*:
+its SSB sits 63% below the accepted 2024 SAFE spawning biomass on 5.45.3 and 66% below here,
+correlation 0.68, and it RISES across a series over which SAFE declines. A 3-point move against
+a 63% gap is not evidence. The validation reference is the SS3 bridge in `GOA cod/Bridging/` and
+`AI cod - Dev/Bridging/`, not this script. Recorded because a first pass at this comparison
+printed "moves AWAY FROM SAFE", which is a meaningless verdict on a baseline that far off.
+
 **A third review round, this one about legibility rather than numbers** (uncommitted at the
 time of writing). Nothing in it can move a fit; the C++ change removes a parameter no body
 read.

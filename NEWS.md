@@ -290,6 +290,31 @@ weight at the fleet's month. A length-selective fleet takes the larger fish of a
 young age class, so the age-class mean understated its catch weight; this is
 also Stock Synthesis's catch weight. Age-selective fleets and empirical-weight
 models are unchanged, including all four golden references.
+
+**What it moves, measured.** The 2024 GOA Pacific cod approximation
+(`Rceattle-models/GOA cod/2024_pcod.R`, 224 parameters, length-based selectivity
+and estimated von Bertalanffy growth) is the one bundled-or-sibling model the
+change reaches. Refitting it on 5.45.3 and on this version:
+
+| | 5.45.3 | 5.46.0 |
+|---|---|---|
+| Objective | 6415.8172 | 6416.2875 (+0.470 nats) |
+| Terminal SSB (mt) | 1,004,925 | 935,106 (**-6.9%**) |
+| SSB series | | mean **-7.1%**, largest -12.9% |
+| Convergence | OK | WARN, max gradient 0.0013 |
+
+**SSB sets B40% and depletion, so read that -7% before refitting an assessment
+on this version.** The WARN is a maximum absolute gradient of 0.0013 on R0,
+worth at most 0.00085 standard errors, not a failure to converge.
+
+This is not evidence the change is an improvement, and the comparison that would
+look like evidence is not one: that script is an *approximation*, sitting 63%
+below the accepted 2024 SAFE spawning biomass on 5.45.3 and 66% below it here,
+with SSB rising across a series over which SAFE declines. A 3-point move against
+a 63% gap says nothing. The case for the change rests on Stock Synthesis parity
+in `GOA cod/Bridging/` and `AI cod - Dev/Bridging/`, where the bridges match SS3
+to additive constants and SS3 weighs catch this way.
+
 # Rceattle 5.45.3
 
 ## Bug fixes
