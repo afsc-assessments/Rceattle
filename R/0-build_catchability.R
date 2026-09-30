@@ -92,6 +92,22 @@ build_catchability <- function(linkages = NULL) {
 }
 
 
+#' Fleets a set of q linkage rows reaches
+#'
+#' `NA` is the shared sentinel: the cpp expands it to every fleet, so a single
+#' `NA` row makes the whole set apply to all of them.
+#'
+#' @param fleet the `fleet` column of the q rows.
+#' @param fleet_control the fleet control table.
+#' @return integer fleet indices.
+#' @keywords internal
+#' @noRd
+.q_linkage_fleets <- function(fleet, fleet_control) {
+  f <- unique(fleet)
+  if (anyNA(f)) seq_len(nrow(fleet_control)) else as.integer(f)
+}
+
+
 #' Reject q linkages on fleets whose catchability is not estimated
 #'
 #' @param linkage_table pooled linkage table (may be NULL / empty).
@@ -105,9 +121,11 @@ build_catchability <- function(linkages = NULL) {
   q <- linkage_table[linkage_table$process == "q", , drop = FALSE]
   if (nrow(q) == 0L) return(invisible())
 
-  flts <- unique(q$fleet)
-  flts <- flts[!is.na(flts)]
-  if (length(flts) == 0L) flts <- seq_len(nrow(fleet_control))  # NA = all fleets
+  # NA fleet is the shared sentinel, and the cpp expands it to EVERY fleet
+  # (rceattle_stratum_range), so one shared row pulls all of them into the checks
+  # below. Dropping the NAs and keeping only the named fleets let a shared row
+  # reach a fleet with no catchability at all, which is what these checks refuse.
+  flts <- .q_linkage_fleets(q$fleet, fleet_control)
   forms <- as.character(fleet_control$Catchability[flts])
   # A fleet does not estimate q if its Catchability holds q fixed / solves it from
   # the data (Fixed / Analytical), or is absent (NA) -- a fleet with no survey index

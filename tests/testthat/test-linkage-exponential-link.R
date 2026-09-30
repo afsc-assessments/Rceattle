@@ -122,3 +122,17 @@ testthat::test_that("an unimplemented link is still refused, and names the imple
   # Lockstep with the C++ (CLAUDE.md rule 12).
   testthat::expect_identical(unname(Rceattle:::LINKAGE_LINK_CODES[["exponential"]]), 3L)
 })
+
+
+testthat::test_that("a shared q linkage row is checked on every fleet", {
+  # NA fleet is the shared sentinel and the cpp expands it to all fleets, so a
+  # shared row must be checked against fleets that have no catchability at all.
+  fc <- Rceattle::switch_check(Rceattle::clean_data(Rceattle::BS2017SS))$fleet_control
+  tbl <- Rceattle:::bind_linkage(
+    Rceattle:::linkage_row(process = "q", param = "q", X_col = 1L, fleet = 7L,
+                           design_col = "xcov", link = "log"),
+    Rceattle:::linkage_row(process = "q", param = "q", X_col = 2L,
+                           design_col = "PDO", link = "log"))
+  testthat::expect_error(Rceattle:::.check_q_linkage_support(tbl, fc),
+                         "does not estimate q")
+})
