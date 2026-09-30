@@ -163,6 +163,98 @@ build_catchability <- function(linkages = NULL) {
             collapse = ", ")), call. = FALSE)
   }
 
+  ex <- q[q[["link"]] == "exponential", , drop = FALSE]
+  if (nrow(ex) > 0L) {
+    ex_flts <- intersect(.q_linkage_fleets(ex[["fleet"]], fleet_control), flts)
+
+    # SS3's type 1 multiplies the parameter on the scale SS3 stores it on, and it
+    # stores q as a log only for a lognormal/t survey: under a natural-scale
+    # index family (MVN/MVNORM/Normal/TruncatedNormal) SS3 reads the same slot
+    # arithmetically (SS_expval.tpl:413-419), where its type 1 is
+    # q * exp(beta * x) -- Rceattle's "log" link.
+    # A warning, not a refusal: Rceattle holds q on the log scale whatever the
+    # index family is, so q^exp(beta * x) is still a well-defined model here --
+    # it just is not what SS3 computes, so it is the wrong bridge.
+    nat <- .index_fleets_natural_scale(fleet_control)
+    bad_fam <- ex_flts[nat[ex_flts]]
+    if (length(bad_fam) > 0L) {
+      warning(sprintf(paste0(
+        "link = \"exponential\" on fleet(s) %s, whose Index_distribution (%s) ",
+        "scores the index on the\n  NATURAL scale. Rceattle still holds q on ",
+        "the log scale, so the model is well defined,\n  but it is NOT Stock ",
+        "Synthesis's environmental link type 1 for such a fleet: SS3 reads the ",
+        "q\n  slot arithmetically under a natural-scale survey ",
+        "(SS_expval.tpl:413-419), where its type 1 is\n  q * exp(beta * x) -- ",
+        "Rceattle's link = \"log\". If you are bridging an SS3 model, use ",
+        "\"log\"."),
+        paste(fleet_control$Fleet_name[bad_fam], collapse = ", "),
+        paste(unique(as.character(
+          fleet_control[["Index_distribution"]][bad_fam])), collapse = ", ")),
+        call. = FALSE)
+    }
+
+    # The link multiplies log q, so it needs a FREE base to multiply.
+    # map_linkage_adjuster() masks index_log_q for a group with no intercept row
+    # (slope-only) or whose intercept is fixed at 0 (est_phase 0). A frozen
+    # log q then cannot re-fit against the covariate, and at Catchability_init =
+    # 1 it is exactly 0, so beta has an identically zero gradient for every
+    # value and the fit converges on whatever beta started at.
+    grp_key <- function(d) {
+      paste(d[["param"]], ifelse(is.na(d[["fleet"]]), "*", d[["fleet"]]),
+            sep = "|")
+    }
+    q_key  <- grp_key(q)
+    # design_col is NA on a hand-built linkage_row(), which is not an intercept.
+    is_icept <- !is.na(q[["design_col"]]) &
+      q[["design_col"]] == "(Intercept)"
+    frozen <- vapply(unique(grp_key(ex)), function(k) {
+      icept <- q[q_key == k & is_icept, , drop = FALSE]
+      nrow(icept) == 0L || all(as.integer(icept[["est_phase"]]) == 0L)
+    }, logical(1))
+    if (any(frozen)) {
+      # Name only the frozen groups' fleets; the key is "param|fleet", with "*"
+      # for a shared row, which reaches all of them.
+      fk <- sub("^[^|]*\\|", "", names(frozen)[frozen])
+      bad_base <- if ("*" %in% fk) {
+        ex_flts
+      } else {
+        intersect(as.integer(fk), ex_flts)
+      }
+      stop(sprintf(paste0(
+        "link = \"exponential\" needs an estimated base catchability to ",
+        "multiply, but the linkage on\n  fleet(s) %s holds index_log_q fixed: ",
+        "the formula has no intercept (`~ 0 + x` / `~ x - 1`),\n  or its ",
+        "intercept is fixed at 0 (est_phase 0), and either makes ",
+        "map_linkage_adjuster()\n  mask index_log_q. log q is then frozen, so ",
+        "it cannot re-fit against the covariate -- and\n  at ",
+        "Catchability_init = 1 it is exactly 0, where beta has no gradient at ",
+        "all and the fit\n  converges on whatever beta started at.\n",
+        "  Give the formula an estimated intercept, or use link = \"log\"."),
+        paste(fleet_control$Fleet_name[bad_base], collapse = ", ")),
+        call. = FALSE)
+    }
+
+    # beta multiplies log q, so at q = 1 it has no effect whatever its value and
+    # its gradient is exactly 0. The base is free here and can move off 1, but
+    # nothing pushes it on the first step, so warn rather than refuse.
+    q_init <- suppressWarnings(
+      as.numeric(fleet_control[["Catchability_init"]][ex_flts]))
+    # pmax keeps log() off 0 / a negative init, which data_check refuses but a
+    # direct call to this function need not have gone through.
+    flat <- ex_flts[is.finite(q_init) & q_init > 0 &
+                      abs(log(pmax(q_init, 1e-300))) < 1e-8]
+    if (length(flat) > 0L) {
+      warning(sprintf(paste0(
+        "link = \"exponential\" on fleet(s) %s whose Catchability_init is 1, so ",
+        "log q starts at 0.\n  beta multiplies log q, so at q = 1 the covariate ",
+        "has no effect whatever beta is and\n  beta's gradient is exactly 0. ",
+        "The base is estimated and can move off 1, but give\n  ",
+        "Catchability_init a value away from 1 if beta does not move."),
+        paste(fleet_control$Fleet_name[flat], collapse = ", ")),
+        call. = FALSE)
+    }
+  }
+
   # An intercept prior and a Catchability_index group's own q prior (on its lead fleet,
   # as in the template) both penalize the shared log q. A row with no fleet targets fleet 1.
   pri <- q[q$design_col == "(Intercept)" & !is.na(q$prior_family) &

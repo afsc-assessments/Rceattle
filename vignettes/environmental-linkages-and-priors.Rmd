@@ -142,7 +142,7 @@ Key arguments (see `?linkage_spec` for the full list):
   | process | SS3 scale | SS3 type 1 is | Rceattle |
   |---|---|---|---|
   | catchability, lognormal index | log (`Svy_log_q`) | `q^exp(beta x)` | `"exponential"` |
-  | catchability, natural-scale index | natural | `q * exp(beta x)` | `"log"` |
+  | catchability, natural-scale index | natural | `q * exp(beta x)` | `"log"` (warns) |
   | natural mortality, growth | natural | `parm * exp(beta x)` | `"log"` |
   | recruitment | log (`SR_LN(R0)`) | `R0^exp(beta x)` | not yet wired |
 
@@ -150,6 +150,19 @@ Key arguments (see `?linkage_spec` for the full list):
   this. Recruitment is the one case where the form *is* right and simply has no
   accumulator yet, so the refusal says that instead of offering `"log"` (which
   is SS3's type **2**).
+
+  Two further conditions on catchability. The link multiplies `log q`, so the
+  base has to be **estimated**: a formula with no intercept, or an intercept
+  fixed at `est_phase = 0`, masks `index_log_q` and freezes the value being
+  multiplied, and is refused. And it cannot share a fleet with a **random-effect**
+  q linkage, because those deviations accumulate into `q_linkage_offset`, which
+  sits inside the multiply -- they would be scaled by `exp(beta * x)` while their
+  density still scored them at a constant sigma. For an environmental effect plus
+  q deviations, express the deviations as `Time_varying_q`, whose `index_q_dev`
+  the template keeps outside the multiply, as SS3 does its dev blocks.
+
+  A natural-scale `Index_distribution` warns rather than refusing: the model is
+  well defined, it is just not SS3's type 1 for such a fleet.
 
   Rceattle refuses `"exponential"` elsewhere rather than let it through, because on a
   log-stored parameter it would raise the value to a power instead of scaling

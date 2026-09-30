@@ -53,6 +53,24 @@ on whatever scale SS3 stores it on, so the restriction follows that scale:
   the right one there. No accumulator consumes it yet, and the refusal says so
   rather than offering `"log"`, which is SS3's type **2**.
 
+* **Catchability**: `"exponential"` is the right form for a **lognormal** index.
+  Under a natural-scale family (`MVN`, `MVNORM`, `Normal`, `TruncatedNormal`)
+  Rceattle still holds q on the log scale, so the model is well defined, but it
+  is not SS3's type 1 -- those families **warn** that it is the wrong bridge.
+* **Catchability, and the base must be estimated.** The link multiplies `log q`,
+  so a formula with no intercept (`~ 0 + x`) or a fixed one (`est_phase = 0`)
+  makes `map_linkage_adjuster()` mask `index_log_q`, freezing the value being
+  multiplied -- and at `Catchability_init = 1` that value is exactly 0, where
+  `beta` has an identically zero gradient and the fit converges on whatever
+  `beta` started at. Refused. A *free* base starting at 1 warns instead.
+* **Not with a linkage random effect on the same fleet.** Every log-link row
+  accumulates into `q_linkage_offset`, which sits inside the multiply, so an
+  `ar1(1 | Year)` q linkage would have its deviations scaled by `exp(beta * x)`
+  while their density still scored them at a constant sigma. Refused on both the
+  same spec and the same fleet. An environmental effect plus q deviations is
+  still expressible with `Time_varying_q`, whose `index_q_dev` the template keeps
+  outside the multiply, as SS3 does its dev blocks.
+
 The previous wording said catchability alone is a log in SS3, which is wrong for
 `SR_LN(R0)`; `.check_exponential_link()` no longer hands a recruitment user
 `"log"`.

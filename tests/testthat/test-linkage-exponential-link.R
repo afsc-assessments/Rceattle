@@ -100,19 +100,6 @@ testthat::test_that("the effect vanishes when the base parameter is zero on its 
   testthat::expect_equal(q, rep(1, length(q)), tolerance = 1e-12)
 })
 
-testthat::test_that("exponential is refused where a parameter's storage scale is not uniform", {
-  d <- make_test_data(nyrs = 20, nages = 5, seed = 42)
-  d$env_data <- env_frame(d, as.numeric(scale(seq_len(length(d$styr:d$projyr)))))
-  flt <- d$fleet_control$Fleet_code[1]
-
-  # Selectivity mixes log, natural and logit storage in the same slots.
-  testthat::expect_error(
-    fit3(d, selFun = Rceattle::build_selectivity(linkages = list(
-      inf_asc = Rceattle::linkage_spec(~ xcov, by = ~ fleet, fleet = flt,
-                                       link = "exponential")))),
-    "only consumed by catchability")
-})
-
 testthat::test_that("an unimplemented link is still refused, and names the implemented set", {
   testthat::expect_error(
     Rceattle::linkage_spec(~ 1, by = ~ species, link = "logit"),
@@ -135,4 +122,128 @@ testthat::test_that("a shared q linkage row is checked on every fleet", {
                            design_col = "PDO", link = "log"))
   testthat::expect_error(Rceattle:::.check_q_linkage_support(tbl, fc),
                          "does not estimate q")
+})
+
+
+testthat::test_that("exponential is refused on every process but catchability", {
+  # The correction an adversarial review forced. An earlier form of this link ran
+  # on recruitment, M and growth on the reasoning that Rceattle stores all four
+  # as logs; what matters is the scale SS3 stores, and on M -- where log M < 0 --
+  # the form inverted the sign of the covariate effect.
+  env <- data.frame(Year = 1980:1999,
+                    xcov = as.numeric(scale(seq_len(20))))
+  for (proc in c("recruitment", "M", "growth", "sel")) {
+    prm <- switch(proc, recruitment = "R0", M = "M1", growth = "Linf",
+                  sel = "inf_asc")
+    testthat::expect_error(
+      Rceattle:::materialize_linkage(
+        Rceattle::linkage_spec(~ xcov, param = prm, link = "exponential"),
+        proc, env),
+      "only consumed by catchability",
+      info = proc)
+  }
+  # and the message does not hand a recruitment user `log`, which is SS3's type 2
+  err <- tryCatch(
+    Rceattle:::materialize_linkage(
+      Rceattle::linkage_spec(~ xcov, param = "R0", link = "exponential"),
+      "recruitment", env),
+    error = conditionMessage)
+  testthat::expect_match(err, "SR_LN\\(R0\\)")
+  testthat::expect_match(err, "NOT a substitute")
+})
+
+
+testthat::test_that("exponential is refused on a random-effect row", {
+  # A deviation multiplied by exp(beta * x) has effective sd sigma * exp(beta * x)
+  # while its density still scores it at a constant sigma -- the same defect the
+  # consume site avoids for index_q_dev by keeping it outside the multiply.
+  testthat::expect_error(
+    Rceattle:::linkage_row(process = "q", param = "q", X_col = 1L, fleet = 1L,
+                           link = "exponential", re_struct = "ar1",
+                           re_group = "Year"),
+    "cannot carry a random effect")
+})
+
+
+testthat::test_that("exponential and a random-effect q on one fleet are refused", {
+  # Across specs: every log-link row accumulates into q_linkage_offset, which
+  # sits inside the multiply, so the deviations would be scaled too.
+  ex <- Rceattle:::linkage_row(process = "q", param = "q", X_col = 1L,
+                               fleet = 3L, link = "exponential")
+  re <- Rceattle:::linkage_row(process = "q", param = "q", X_col = 2L,
+                               fleet = 3L, link = "log",
+                               re_struct = "ar1", re_group = "Year")
+  testthat::expect_error(Rceattle:::bind_linkage(ex, re),
+                         "random-effect catchability linkage")
+  # a shared (NA fleet) row reaches every fleet, so it clashes too
+  re_all <- Rceattle:::linkage_row(process = "q", param = "q", X_col = 2L,
+                                   link = "log", re_struct = "ar1",
+                                   re_group = "Year")
+  testthat::expect_error(Rceattle:::bind_linkage(ex, re_all),
+                         "random-effect catchability linkage")
+})
+
+
+testthat::test_that("exponential warns on a natural-scale index family", {
+  # SS3 stores q as a log only for a lognormal/t survey (SS_expval.tpl:413-419);
+  # under MVN / Normal / TruncatedNormal it reads the same slot arithmetically,
+  # where its type 1 is q * exp(beta * x) -- our `log` link. A warning rather
+  # than a refusal: Rceattle holds q on the log scale whatever the index family,
+  # so the model is well defined, it is just the wrong bridge.
+  fc <- Rceattle::switch_check(Rceattle::clean_data(Rceattle::BS2017SS))$fleet_control
+  # Intercept-bearing, so only the index-family check can fire here.
+  tbl <- Rceattle:::bind_linkage(
+    Rceattle:::linkage_row(process = "q", param = "q", X_col = 1L, fleet = 7L,
+                           design_col = "(Intercept)", link = "exponential"),
+    Rceattle:::linkage_row(process = "q", param = "q", X_col = 2L, fleet = 7L,
+                           design_col = "xcov", link = "exponential"))
+  fc$Index_distribution[fc$Fleet_code == 7L] <- "Normal"
+  testthat::expect_warning(
+    Rceattle:::.check_q_linkage_support(tbl, fc),
+    "NATURAL scale")
+  fc$Index_distribution[fc$Fleet_code == 7L] <- "Lognormal"
+  testthat::expect_silent(Rceattle:::.check_q_linkage_support(tbl, fc))
+})
+
+
+testthat::test_that("exponential is refused where index_log_q is mapped out", {
+  # It multiplies log q, so it needs a free base. A slope-only formula, or an
+  # intercept fixed at 0, makes map_linkage_adjuster() mask index_log_q: log q is
+  # then frozen at log(Catchability_init), and at 1 that is exactly 0, where beta
+  # has an identically zero gradient for every value it could take.
+  fc <- Rceattle::switch_check(Rceattle::clean_data(Rceattle::BS2017SS))$fleet_control
+  slope_only <- Rceattle:::linkage_row(process = "q", param = "q", X_col = 1L,
+                                       fleet = 7L, design_col = "xcov",
+                                       link = "exponential")
+  testthat::expect_error(Rceattle:::.check_q_linkage_support(slope_only, fc),
+                         "needs an estimated base catchability")
+
+  fixed_icept <- Rceattle:::bind_linkage(
+    Rceattle:::linkage_row(process = "q", param = "q", X_col = 1L, fleet = 7L,
+                           design_col = "(Intercept)", link = "exponential",
+                           est_phase = 0L),
+    Rceattle:::linkage_row(process = "q", param = "q", X_col = 2L, fleet = 7L,
+                           design_col = "xcov", link = "exponential"))
+  testthat::expect_error(Rceattle:::.check_q_linkage_support(fixed_icept, fc),
+                         "needs an estimated base catchability")
+
+  ok <- Rceattle:::bind_linkage(
+    Rceattle:::linkage_row(process = "q", param = "q", X_col = 1L, fleet = 7L,
+                           design_col = "(Intercept)", link = "exponential"),
+    Rceattle:::linkage_row(process = "q", param = "q", X_col = 2L, fleet = 7L,
+                           design_col = "xcov", link = "exponential"))
+  testthat::expect_error(Rceattle:::.check_q_linkage_support(ok, fc), NA)
+})
+
+
+testthat::test_that("a q starting at exactly 1 warns that beta has no gradient", {
+  fc <- Rceattle::switch_check(Rceattle::clean_data(Rceattle::BS2017SS))$fleet_control
+  fc$Catchability_init[fc$Fleet_code == 7L] <- 1
+  tbl <- Rceattle:::bind_linkage(
+    Rceattle:::linkage_row(process = "q", param = "q", X_col = 1L, fleet = 7L,
+                           design_col = "(Intercept)", link = "exponential"),
+    Rceattle:::linkage_row(process = "q", param = "q", X_col = 2L, fleet = 7L,
+                           design_col = "xcov", link = "exponential"))
+  testthat::expect_warning(Rceattle:::.check_q_linkage_support(tbl, fc),
+                           "Catchability_init is 1")
 })

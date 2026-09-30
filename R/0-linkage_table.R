@@ -205,7 +205,10 @@ is_linkage_table <- function(x) {
 # which is why the message below enumerates rather than naming one link.
 .check_exponential_link <- function(tbl) {
   if (is.null(tbl) || !nrow(tbl) || is.null(tbl$link)) return(invisible(tbl))
-  bad <- which(tbl$link == "exponential" & tbl$process != "q")
+  is_exp <- tbl$link == "exponential"
+  if (!any(is_exp)) return(invisible(tbl))
+
+  bad <- which(is_exp & tbl$process != "q")
   if (length(bad)) {
     stop("link = \"exponential\" is only consumed by catchability (process ",
          "\"q\"), and was given on: ",
@@ -226,6 +229,61 @@ is_linkage_table <- function(x) {
          "mean a different model per parameter; comp weighting is\n    ",
          "prior-only, with no year-varying term to multiply into.",
          call. = FALSE)
+  }
+
+  # The link multiplies log q by exp(beta * x), so a deviation inside that
+  # product has effective SD sigma * exp(beta * x) -- year- and
+  # covariate-varying -- while its density still scores it at the constant
+  # sigma, and beta rescales the very deviations being integrated out. SS3
+  # applies the environmental link and the deviations separately (env at
+  # SS_timevaryparm.tpl:200-245, devs at :252-330); Rceattle accumulates both
+  # into q_linkage_offset, which sits inside the multiply, so the two cannot
+  # currently share a fleet.
+  re_rows <- !is.na(tbl$re_struct)
+  self_re <- which(is_exp & re_rows)
+  if (length(self_re)) {
+    stop("link = \"exponential\" cannot carry a random effect, and row(s) ",
+         paste(self_re, collapse = ", "), " combine it with re_struct = ",
+         paste(unique(tbl$re_struct[self_re]), collapse = ", "), ".\n",
+         "  A deviation multiplied by exp(beta * x) has effective SD ",
+         "sigma * exp(beta * x) -- year- and\n  covariate-varying -- while its ",
+         "density still scores it at the constant sigma.\n",
+         "  Drop the random term from this spec, or use link = \"log\" for a ",
+         "deviation on log q.\n",
+         "  An environmental effect plus q deviations is still expressible: ",
+         "SS3 applies its dev blocks\n  after the env link, and the Rceattle ",
+         "equivalent is Time_varying_q, whose index_q_dev the\n  template keeps ",
+         "outside the multiply.",
+         call. = FALSE)
+  }
+
+  # Same defect across specs: an RE row on the same fleet lands in
+  # q_linkage_offset, which the exponential row then multiplies. NA fleet is the
+  # shared sentinel and reaches every fleet, so it overlaps anything.
+  q_re <- which(re_rows & tbl$process == "q")
+  if (length(q_re)) {
+    exp_flt <- tbl$fleet[is_exp]
+    re_flt  <- tbl$fleet[q_re]
+    clash   <- anyNA(exp_flt) || anyNA(re_flt) ||
+      length(intersect(exp_flt, re_flt)) > 0L
+    if (clash) {
+      shared <- if (anyNA(exp_flt) || anyNA(re_flt)) {
+        "all fleets (a spec with no `fleet =` is shared)"
+      } else {
+        paste(sort(unique(intersect(exp_flt, re_flt))), collapse = ", ")
+      }
+      stop("an \"exponential\" catchability linkage and a random-effect ",
+           "catchability linkage both target\n  fleet(s) ", shared,
+           ". Every log-link row accumulates into q_linkage_offset, which the\n",
+           "  exponential link multiplies, so the deviations would be scaled ",
+           "by exp(beta * x) while\n  their density still scores them at a ",
+           "constant sigma.\n",
+           "  Put the environmental effect and the deviations on different ",
+           "fleets, or drop one. For both on\n  one fleet, express the ",
+           "deviations as Time_varying_q, which the template keeps outside\n",
+           "  the multiply, as SS3 does its dev blocks.",
+           call. = FALSE)
+    }
   }
   invisible(tbl)
 }
