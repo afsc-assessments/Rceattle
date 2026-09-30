@@ -25,8 +25,8 @@ SS3 cod bridge: `initMode 6`, the SS3 growth / maturity / length-bin options,
 `Selectivity = "DoubleNormalSS3"` (code 15), length-based selectivity on the population bins,
 the initial equilibrium catch, and a per-fleet ageing error matrix.
 
-**Its review fixes are on `fix/cod-bridge-blockers`, not yet merged into it.** That branch merges
-`dev` (5.45.2) and fixes three blockers, each reproduced before it was fixed:
+**Its first round of review fixes is IN, at `88e7233f`** (what was `fix/cod-bridge-blockers`,
+which merged `dev` 5.45.2). Three blockers, each reproduced before it was fixed:
 
 - **`catch_data` lost its alignment with `catch_hat`.** `clean_data()` kept the `styr - 1` row and
   `fit_mod()` stores the pre-`rearrange_data()` list, so on `GOA2018SS` `catch_data` was 372 rows
@@ -44,6 +44,56 @@ Measured at `14040f5d`, serial, R 4.5.1: **suite 9,976 / 0 / 0** (3 skips), **go
 **Pacific hake MSE reproduces all four reference objectives exactly** (2440.0942, 2440.6633,
 2447.0049, 2669.3776), `verify-mse-hindcast-invariant` 0.000e+00, `verify-sim-recovery` and
 `verify-sim-centering` both clean.
+
+**A second review round then added five commits, `23a4d265`..`80e825d3`, pushed 2026-09-29.**
+`cod-bridge` on `afsc` is the PR's head branch; `origin` is `grantdadams`, so a push there does
+NOT update PR #178. Seven blockers, all silent-wrong-number or memory-safety:
+
+- **The population-grid refusal turned itself off.** It read `Bin_first_selected` first and that
+  column has no schema default, so `as.integer(NULL) > 1L` is `logical(0)`, `logical(0) | <n>`
+  stays length 0, and `which()` excused **every** fleet -- including the non-parametric forms and
+  time-varying penalties, which that column has nothing to do with. `Selectivity_dimension`,
+  `Selectivity` and `Time_varying_sel` collapsed the same way; the last is now read with `[[`
+  because `$` returns `Time_varying_sel_sd` by partial match.
+- **`max_bin` was still sized on the data bins** (`ceattle.cpp:239`) while selectivity cases 2, 9
+  and 13 build their curve over `nlengths_pop`. On the 20-data / 96-population fixture that is 76
+  out-of-bounds writes per fleet, sex and year into `non_par_sel` / `sel_coff_off`, reachable only
+  because the refusal above had disabled itself. Inert with one grid, so golden is unchanged.
+- **`age_error` coverage was checked per SPECIES but the array is filled per
+  `Ageing_error_index`**, so a complete matrix vouched for an incomplete sibling whose missing
+  true ages stayed 0 and were renormalized away -- a silently wrong age composition. Now per
+  matrix, and a matrix spanning two species is refused.
+- **A fleet could borrow another species' ageing error.** The index was checked for existence
+  only, and with no index column on `age_error` the index IS the species, so `2` means "species
+  2's matrix" to the model and "the second matrix" to the user.
+- **`sel_dn6_ends` was read from sex 1 alone** while `build_map()` fixes the end per sex. A
+  sex-scoped linkage (`linkage_spec()` takes `sex`) made them disagree: one sex fitted with the
+  other's curve shape, its own end parameter free at zero gradient. Refused.
+- **A shared `Selectivity_index` was un-shared after the fact.** `adjust_map_shared_params()`
+  shares the map at `R/3-build_map.R:76`; the `-999` pass at `:84-85` then re-fixes a follower left
+  at the default. Reordering would NOT fix it -- `sel_dn6_ends` reads the starting VALUES, not the
+  map -- so the block must agree, and a disagreement is refused.
+- **`.SEL_DN6_PARAMS` existed to state the form/parameter rule and was referenced only by a
+  test.** `peak` resolves to `sel_inf`, `dn_peak` to `sel_dn6`, and the header and
+  `parameter_dictionary()` both call form 15's P1 "peak", so the wrong name was the natural one
+  and wrote a slot the curve ignores. Now wired, both directions, **scoped to `sel_dn6`**: the same
+  gap on the older forms is real (cases 2/9/13 contain zero references to `log_sel_slp` or
+  `sel_inf`) but those configurations are in released scripts, so it needs a sweep -- Open 3 in
+  `TODO-selectivity.md`.
+
+Measured at `c8ecff79`, serial, R 4.5.1, after `touch src/TMB/ceattle.cpp`: **suite 10,237 / 0
+failures / 0 errors** (4 skips, 251 files), **golden 25 / 0 / 0**. Golden is gated only on
+`skip_on_cran()`, so `NOT_CRAN=true` runs it in-suite. The hake MSE and the `verify-*` harnesses
+were NOT re-run this round -- nothing touched predation, suitability, the DM likelihood,
+`sim_mod()` or `run_mse()`.
+
+**Three flags on that round.** (1) `document()` regenerates `man/dot-comp_aggregate.Rd` and
+`man/dot-osa_jointsex.Rd`, and `git diff DESCRIPTION` is empty, so this is NOT the roxygen-version
+trap: PR #179 updated the roxygen in `R/7-plot_comp.R` / `R/7-plot_osa.R` without regenerating
+`man/`. Left uncommitted deliberately, so the next `document()` will surface it again. (2) Golden
+does not run in the PR workflows (`deep-checks` only, `NOT_CRAN=false` at step level), so a green
+PR run is not golden clearance. (3) `GOA2018SS` Cod maturity reads 2.0 at ages 1-12 -- see
+`TODO-maturity.md`, Open 2; pre-existing, feeds SSB, and golden pins it rather than catching it.
 
 **Two things found on the way that outlive this PR.** `TMB::compile()` tracks no header
 dependency, so a `.hpp`-only edit leaves the old object and `load_all()` reports success while
@@ -367,7 +417,20 @@ older line.
 
 ## Resume here
 
-**Finish the release.** Grant is doing it in a session after this one, so this is where to
+**PR #178, first.** Its head is `80e825d3` on `afsc`. CI was queued when this was written
+(2026-09-29); the runs for `c8ecff79` were cancelled by the `80e825d3` push, which is GitHub
+superseding a branch, not a failure. So:
+
+1. **Read CI on `80e825d3`**, and remember it does not cover golden.
+2. **Decide the two deferred items** before merge or after, as you prefer: the general
+   form/parameter check (`TODO-selectivity.md`, Open 3, needs an `/ecosystem-sweep`) and the
+   maturity axis question (`TODO-maturity.md`, Open 1).
+3. **`GOA2018SS` Cod maturity = 2.0** (`TODO-maturity.md`, Open 2) is the one to settle before it
+   is inherited by anything else. Do not change the data first: it moves both GOA golden
+   references.
+4. **The `man/` drift from PR #179** wants one commit, on `dev` rather than here.
+
+**Then finish the release.** Grant is doing it in a session after this one, so this is where to
 start rather than `SIMPLIFY-LOG.md`.
 
 1. **Decide #161** -- renumber and include, or hold. It is code, not docs, and its bump is
