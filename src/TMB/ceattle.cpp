@@ -2009,6 +2009,12 @@ Type objective_function<Type>::operator() () {
               if(initMode == 5){
                 init_log_scalar = rec_dev(sp, 0);
               }
+              // A free initial recruitment level: the stock starts at a
+              // recruitment other than R0 without paying the init_dev penalty to
+              // sit there (SS3 carries this as an unpenalised SR_regime block on
+              // the year before the hindcast). Log scale, so -1.39 is a quarter
+              // of R0. Read at year 0 because the initial state is one year.
+              init_log_scalar += recruitment_linkage_offset(sp, RCEATTLE_REC_INIT, 0);
 
               // Sum M1 until age - 1. OffsetEquilibrium (5) uses the same
               // standard departing-age cumulative-M decay as the equilibrium

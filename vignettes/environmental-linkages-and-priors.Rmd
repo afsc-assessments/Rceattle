@@ -686,7 +686,7 @@ vector `beta_linkage` indexes both.
 
 ## Recruitment
 
-`build_srr()` accepts the same `linkages` argument with three
+`build_srr()` accepts the same `linkages` argument with four
 allowed parameter keys:
 
 * **`R0`**: acts under mean recruitment (`srr_fun = "mean"`, penalty
@@ -699,6 +699,21 @@ allowed parameter keys:
 * **`alpha`** (productivity) and **`beta`** (density-dependence),
   only do work when the model has a curve: `srr_fun` (or, for the
   penalty form, `srr_pred_fun`) is `"BevertonHolt"` or `"Ricker"`.
+* **`init`**: the initial recruitment **level**, a log-scale multiplier on the
+  initial age-structure, read at year 0 because the initial state is one year.
+  Use it where the series begins after a regime shift, so the stock starts at a
+  recruitment other than \(R_0\): without it the level has to go into `init_dev`,
+  which is penalised per age, and the fit pays a recruitment-deviate penalty for
+  sitting where the data say it sits. Unlike the three above it has no base
+  parameter in `rec_pars`, so an intercept-only `~ 1` keeps the level on its own
+  estimated coefficient. It needs `link = "log"`, and is refused under
+  `initMode = "FreeParams"` (which never reads \(R_{init}\)) and
+  `"OffsetEquilibrium"` (which already scales the same ages by `rec_dev[, 1]`).
+
+```{r}
+# A free initial level, as Stock Synthesis's unpenalised SR_regime block.
+init_spec <- build_srr(linkages = list(init = linkage_spec(formula = ~ 1)))
+```
 
 ```{r}
 # Mean-recruitment with a temperature linkage on R0.
