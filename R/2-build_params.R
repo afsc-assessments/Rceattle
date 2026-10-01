@@ -217,19 +217,9 @@ build_params <- function(data_list) {
     # parameter to re-target, so nothing else holds the level. Given on the
     # natural scale -- a multiplier on R0, as every other intercept's `init` is
     # natural-scale -- and stored logged, because the level is added inside the
-    # exp() that builds the initial numbers-at-age. The table's unset default
-    # is 0, which is not a multiplier any stock can have, so it reads as 1:
-    # no shift off R0.
-    is_level <- .is_level_intercept(lt)
-    if (any(is_level)) {
-      lvl <- init_vals[is_level]
-      if (any(lvl < 0)) {
-        stop("a recruitment `R_init` linkage takes a natural-scale `init` -- a ",
-             "multiplier on R0, so it cannot be negative. Got ",
-             paste(unique(lvl[lvl < 0]), collapse = ", "), ".", call. = FALSE)
-      }
-      lvl[lvl == 0] <- 1
-      init_vals[is_level] <- log(lvl)
+    # exp() that builds the initial numbers-at-age.
+    for (r in which(.is_level_intercept(lt))) {
+      init_vals[r] <- .r_init_log_start(init_vals[r], lt[["init_supplied"]][r])
     }
     param_list$beta_linkage <- init_vals
   } else {
@@ -501,15 +491,25 @@ build_params <- function(data_list) {
   if (!is.null(data_list$linkage_table) &&
       nrow(data_list$linkage_table) > 0L) {
     lt <- data_list$linkage_table
-    intercepts <- lt[lt$design_col == "(Intercept)" & lt$init_supplied &
-                       (!fixed_only | as.integer(lt$est_phase) == 0L), , drop = FALSE]
-    if (any(is.na(intercepts$init))) {
+    int_rows <- which(lt$design_col == "(Intercept)" & lt$init_supplied &
+                        (!fixed_only | as.integer(lt$est_phase) == 0L))
+    if (any(is.na(lt$init[int_rows]))) {
       stop("Initial value provided for '(Intercept)' is NA.", call. = FALSE)
     }
-    for (i in seq_len(nrow(intercepts))) {
-      row <- intercepts[i, , drop = FALSE]
+    for (ri in int_rows) {
+      row <- lt[ri, , drop = FALSE]
       idx <- .linkage_row_indices(row, data_list)
       init_val <- as.numeric(row$init)
+      # `R_init` is the one intercept whose level lives in beta_linkage rather
+      # than in a base parameter, so this is where a fixed (est_phase = 0)
+      # level is re-applied over supplied `inits`. Without it a warm start
+      # would overwrite the level and the mapped-out row would hold the wrong
+      # value for the whole fit.
+      if (.is_level_intercept(row)) {
+        param_list$beta_linkage[ri] <-
+          .r_init_log_start(init_val, row[["init_supplied"]])
+        next
+      }
       switch(row$process,
         growth = {
           .stop_unless_positive(init_val, row$param, "the growth parameter")

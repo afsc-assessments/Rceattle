@@ -245,8 +245,17 @@ all six processes until recruitment `R_init` (5.48.0), which multiplies the init
 and has NO base parameter — so `~ 1` produced zero estimable `beta_linkage` entries and moved
 nothing, while every builder reported success. The R sites now share `.is_pinned_intercept()` and
 its complement `.is_level_intercept()` (`R/0-linkage_encode.R`), both keyed off
-`.is_r_init_linkage_row()`. **There are FIVE sites, not four** — the fifth is in the C++, see the
-next entry. Note too that a linkage TABLE row is not an estimated parameter: `print()` on the
+`.is_r_init_linkage_row()`. **Counted out, there are SEVEN conditions, not four**: the three
+builders (`build_params`, `build_map_linkages`, `build_bounds` — the last twice),
+`.push_linkage_intercept_inits()`, `map_linkage_adjuster()`, `data_check`'s refusal, and one in
+the C++ (next entry). Two of them read the `.REC_PARAM_TO_INDEX` `NA` instead of the predicate:
+that is correct in `map_linkage_adjuster()` (there is no base parameter to mask) and was a defect
+in `.push_linkage_intercept_inits()`, which is where `fit_mod()` re-applies an `est_phase = 0`
+intercept over supplied `inits` so a FIXED value beats a warm start. `R_init` is the one
+parameter whose fixed value lives in `beta_linkage`, so it was the one fixed level a warm start
+silently overwrote — and the row is mapped `NA`, so the wrong value was then held for the whole
+fit. The golden recipe and the GOA cod bridge both warm-start, so that is the normal path, not an
+exotic one. Note too that a linkage TABLE row is not an estimated parameter: `print()` on the
 table said "1 coefficient(s)" for the inert case. Count `beta_linkage` in
 `obj$env$last.par.best` to tell the difference.
 
@@ -261,6 +270,21 @@ contract as `log_sel_apical`). The growth branch beside it already had the patte
 (`if (param < RCEATTLE_N_GROWTH_PARAMS)`). **A natural-scale `init`/`bounds` on such a parameter
 has to be logged onto the coefficient too**, since there is no base parameter to log it onto;
 read raw, `init = 0.5` ("half of R0") starts the level at `exp(0.5)` = 1.65x R0.
+
+**A free initial recruitment level has a FLAT TAIL at the low end, and about one fit in ten
+converges into it with a clean gradient.** `R_init` is informed only by the first year's
+observations, so once the level is low enough that the initial cohorts are effectively
+annihilated the data cannot distinguish one tiny level from another: at `beta = -30` the
+objective is flat to `1.7e-08` while still finite. `tools/verify/verify-sim-recovery-r-init.R`
+measures, at a true multiplier of 0.5 over 60 replicates: **6 of 60 ran away** to 5e-05 or below
+with `max|grad|` around 1e-04, so a gradient filter does NOT find them and `convergence` reports
+success. Over the 54 that stay put the level recovers with a **low bias of 0.11 log units
+(z = -3.3, empirical sd 0.24, 65% of replicates below truth)** — the estimator is left-skewed
+with an unbounded low tail, not merely noisy, which is also why the mean sits low.
+**Bound the level on a real assessment**: `bounds` on this intercept are natural-scale, so
+`bounds = list(`(Intercept)` = c(0.05, 20))` keeps a fit out of the tail. Read the estimated
+multiplier, never just the convergence flag. This is a property of the parameter, not of a bug
+— it was measured after the 5.48.0 defects were fixed.
 
 **`N_eq` is an equilibrium only if every age of it carries the same recruitment level.** Its one
 consumer is `equil_catch_hat`, which integrates Baranov over all ages including age 0, so an

@@ -124,7 +124,7 @@ test_that("the R_init param code is in lockstep between R and linkage.hpp", {
   expect_true(is.na(Rceattle:::.REC_PARAM_TO_INDEX["R_init"]))
 })
 
-test_that("an R_init linkage is refused when more than one column is given", {
+test_that("an R_init linkage is refused when more than one coefficient is given", {
   skip_on_cran()
   d <- make_test_data()
   d$env_data <- data.frame(Year = d$styr:d$projyr, lvl = 1,
@@ -135,14 +135,24 @@ test_that("an R_init linkage is refused when more than one column is given", {
               R_init = linkage_spec(formula = ~ temp))),
             estimateMode = "DebugBuild", initMode = "NonEquilibrium",
             msmMode = 0, random_rec = FALSE),
-    "one design column")
+    "one coefficient per species")
   # A per-year random effect estimates deviates no year but the first reads.
   expect_error(
     fit_mod(d, recFun = build_srr(linkages = list(
               R_init = linkage_spec(formula = ~ 0 + (1 | Year)))),
             estimateMode = "DebugBuild", initMode = "NonEquilibrium",
             msmMode = 0, random_rec = FALSE),
-    "one design column")
+    "one coefficient per species")
+  # Two specs naming the SAME column are the flat ridge in its purest form:
+  # two free coefficients multiplying one year-0 number. Counting distinct
+  # column NAMES would wave this through.
+  expect_error(
+    fit_mod(d, recFun = build_srr(linkages = list(
+              R_init = list(linkage_spec(formula = ~ 0 + lvl),
+                            linkage_spec(formula = ~ 0 + lvl)))),
+            estimateMode = "DebugBuild", initMode = "NonEquilibrium",
+            msmMode = 0, random_rec = FALSE),
+    "one coefficient per species")
 })
 
 
@@ -170,7 +180,44 @@ test_that("a natural-scale `init` lands logged on the R_init coefficient", {
 
   # A multiplier cannot be negative, and log() would hand back NaN in silence.
   expect_error(r_init_fit(formula = ~ 1, init = list(`(Intercept)` = -0.5)),
-               "cannot be negative")
+               "must be greater than 0")
+
+  # An explicitly typed 0 is as invalid as a negative one. It must NOT be
+  # absorbed by the unset-default rule above and come back as "no shift".
+  expect_error(r_init_fit(formula = ~ 1, init = list(`(Intercept)` = 0)),
+               "must be greater than 0")
+})
+
+test_that("a fixed R_init level beats a warm start", {
+  skip_on_cran()
+  # fit_mod() re-applies every est_phase = 0 intercept over supplied `inits`,
+  # so a level the user pinned must survive one. R_init is the only parameter
+  # whose fixed value lives in beta_linkage rather than a base parameter, and
+  # the row is mapped out, so a warm start that won here would be held for the
+  # whole fit -- silently, at the wrong initial abundance. The golden recipe
+  # and the GOA cod bridge both warm-start, so this is the ordinary path.
+  pinned <- function(inits) {
+    d <- make_test_data()
+    d$env_data <- data.frame(Year = d$styr:d$projyr, lvl = 1)
+    fit_mod(d,
+            recFun = build_srr(linkages = list(
+              R_init = linkage_spec(formula = ~ 1, est_phase = 0,
+                                    init = list(`(Intercept)` = 0.25)))),
+            inits = inits, estimateMode = "DebugBuild",
+            initMode = "NonEquilibrium", msmMode = 0, random_rec = FALSE,
+            fit_control = fit_control(verbose = 0))
+  }
+  cold <- pinned(NULL)
+  warm_inits <- cold$estimated_params
+  warm_inits$beta_linkage <- log(4)       # a stale level, 16x the pinned one
+  warm <- pinned(warm_inits)
+
+  expect_equal(unname(warm$estimated_params$beta_linkage), log(0.25),
+               tolerance = 1e-12)
+  ages <- 2:cold$data_list$nages[1]
+  expect_equal(warm$quantities$N_at_age[1, 1, ages, 1],
+               cold$quantities$N_at_age[1, 1, ages, 1],
+               tolerance = 1e-10)
 })
 
 test_that("a natural-scale `bounds` lands logged on the R_init coefficient", {

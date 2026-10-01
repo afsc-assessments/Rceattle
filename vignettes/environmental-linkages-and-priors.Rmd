@@ -792,11 +792,22 @@ allowed parameter keys:
   `initMode = "FreeParams"` (which never reads \(R_{init}\)) and
   `"OffsetEquilibrium"` (which already scales the same ages by `rec_dev[, 1]`).
 
+The level is informed only by the first year's observations, so it is weakly
+identified at the low end: once the initial cohorts are effectively annihilated
+the data cannot tell one very small level from another, and a fit can settle
+there with a clean gradient. Bound it on a real assessment — the bound is the
+natural-scale multiplier — and read the estimated multiplier rather than the
+convergence flag alone. `tools/verify/verify-sim-recovery-r-init.R` measures
+both the recovery and the rate at which a replicate runs away.
+
 ```{r}
 # A free initial level, as Stock Synthesis's unpenalised SR_regime block.
 # It must travel through build_srr(): fit_mod() overwrites data_list$srr_linkages
 # from recFun, so assigning the spec onto the data_list drops it silently.
-init_spec <- build_srr(linkages = list(R_init = linkage_spec(formula = ~ 1)))
+init_spec <- build_srr(linkages = list(R_init = linkage_spec(
+  formula = ~ 1,
+  init    = list(`(Intercept)` = 0.25),   # start at a quarter of R0
+  bounds  = list(`(Intercept)` = c(0.05, 20)))))
 ```
 
 ```{r}

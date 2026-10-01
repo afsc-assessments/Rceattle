@@ -1969,13 +1969,15 @@ Type objective_function<Type>::operator() () {
         sex_ratio(sp, 0) = 1.0;
       }
 
+      // A free initial recruitment level, log scale (0 without an R_init
+      // linkage, which leaves every expression below unchanged). Read at year 0
+      // because the initial state is one year, and per species because that is
+      // the stratum it is estimated on. Only the estimated branch below reads
+      // it; a species with input numbers-at-age has no initial state to scale.
+      Type init_level = recruitment_linkage_offset(sp, RCEATTLE_REC_R_INIT, 0);
+
       for(age = 0; age < nages(sp); age++){
         for(sex = 0; sex < nsex(sp); sex ++){
-
-
-          // A free initial recruitment level, log scale (0 without an R_init
-          // linkage). Read at year 0 because the initial state is one year.
-          Type init_level = recruitment_linkage_offset(sp, RCEATTLE_REC_R_INIT, 0);
 
           switch(estDynamics(sp)){
           case 0: // Estimated

@@ -75,6 +75,29 @@ LINKAGE_PROCESS_CODES <- c(
 }
 
 
+#' The log-scale starting coefficient for a natural-scale `R_init` level
+#'
+#' `build_params()` writes the level's starting value, and `fit_mod()` writes it
+#' again for an `est_phase = 0` row so a fixed level beats a warm start. Both go
+#' through here so they cannot disagree about the scale.
+#'
+#' @param init_val The `init` column value, a natural-scale multiplier on R0.
+#' @param supplied The row's `init_supplied` flag.
+#' @keywords internal
+#' @noRd
+.r_init_log_start <- function(init_val, supplied) {
+  if (init_val < 0 || (isTRUE(supplied) && init_val == 0)) {
+    stop("a recruitment `R_init` linkage takes a natural-scale `init` -- a ",
+         "multiplier on R0, so it must be greater than 0. Got ", init_val, ".",
+         call. = FALSE)
+  }
+  # An unset `init` comes through as the table's default of 0, which is no
+  # multiplier at all, so it reads as 1: no shift off R0.
+  if (init_val == 0) return(0)
+  log(init_val)
+}
+
+
 # Process names as a message reads them.
 .LINKAGE_PROCESS_LABELS <- c(
   recruitment = "recruitment", M = "natural mortality", growth = "growth",

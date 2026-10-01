@@ -100,10 +100,12 @@ linkage targets are estimated on the log scale, so \code{"log"} is the default.}
 \item{init}{optional named list of initial values keyed by the
 design-matrix column name (e.g. \code{list(`(Intercept)` = 4, temp = 0)}),
 an intercept on the parameter's natural scale and a slope on the link
-scale; missing entries default to \code{0}.}
+scale; missing entries default to \code{0}. An intercept's natural-scale value
+is logged onto the parameter's base (\code{rec_pars}, \code{log_M1}, ...), or, for
+recruitment \code{R_init}, which has no base, onto the coefficient itself.}
 
 \item{bounds}{optional named list of \code{c(lower, upper)} keyed the same
-way as \code{init}.}
+way as \code{init}, and read on the same scales.}
 
 \item{priors}{optional named list of \link{Rceattle_priors} objects, keyed by
 design-matrix column name. Inside this argument you may write \code{normal()},

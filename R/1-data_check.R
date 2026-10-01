@@ -2437,23 +2437,29 @@ data_check <- function(data_list) {
       paste(sQuote(bad), collapse = " / ")), call. = FALSE)
   }
 
-  # Only year 0 is read, so one design column is all the initial state can
-  # identify: two coefficients would share a single number (a flat ridge), and a
+  # Only year 0 is read, so ONE coefficient is all the initial state can
+  # identify: a second would share the same single number (a flat ridge), and a
   # per-year random effect would estimate deviates no year but the first reads.
-  # Counted within a stratum, so per-species specs naming different covariates
-  # are each judged on their own column.
+  # Counted as rows within a stratum, not distinct column names -- two specs
+  # naming the SAME column are the flat ridge in its purest form -- and per
+  # stratum, so per-species specs naming different covariates each stand alone.
   cols    <- as.character(lt[["design_col"]][rows])
-  stratum <- paste(lt[["species"]][rows], lt[["sex"]][rows],
+  species <- lt[["species"]][rows]
+  stratum <- paste(species, lt[["sex"]][rows],
                    lt[["age_bin"]][rows], lt[["fleet"]][rows], sep = "/")
-  n_cols  <- tapply(cols, stratum, function(x) length(unique(x)))
-  if (any(n_cols > 1L)) {
-    worst <- unique(cols[stratum == names(n_cols)[which.max(n_cols)]])
+  n_rows  <- tapply(cols, stratum, length)
+  bad     <- names(n_rows)[n_rows > 1L]
+  if (length(bad)) {
+    detail <- vapply(bad, function(k) sprintf(
+      "species %s has %d (%s)", as.character(species[stratum == k][1]),
+      sum(stratum == k), paste(sQuote(cols[stratum == k]), collapse = ", ")),
+      character(1))
     stop(sprintf(paste0(
-      "a recruitment `R_init` linkage must have one design column per ",
-      "species; this one has %d (%s). The initial recruitment level is read ",
-      "in the first year only, so anything more is not identified. Use `~ 1` ",
-      "for a free level, or `~ 0 + x` for one covariate."),
-      length(worst), paste(sQuote(worst), collapse = ", ")), call. = FALSE)
+      "a recruitment `R_init` linkage must have one coefficient per species; ",
+      "%s. The initial recruitment level is read in the first year only, so ",
+      "anything more is not identified. Use `~ 1` for a free level, or ",
+      "`~ 0 + x` for one covariate."),
+      paste(detail, collapse = "; ")), call. = FALSE)
   }
 
   # initMode reaches here as the caller gave it -- a canonical string alias or

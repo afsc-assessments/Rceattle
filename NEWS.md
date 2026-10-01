@@ -61,11 +61,14 @@ Refused rather than silently inert:
 
 * `link = "identity"`. The level is added inside the `exp()`, so a natural-scale offset
   would add metric tons to a log multiplier.
-* more than one design column within a species. Only year 0 is read, so two
-  coefficients would share one number (a flat ridge) and a per-year random effect would
-  estimate deviates no year but the first reads. Per-species specs naming different
-  covariates are each judged on their own column.
-* a negative `init` or bound on the level, which is a multiplier on \eqn{R_0}.
+* more than one coefficient within a species, whether two different design columns or
+  two specs naming the same one. Only year 0 is read, so a second coefficient would
+  share that one number (a flat ridge), and a per-year random effect would estimate
+  deviates no year but the first reads. Per-species specs naming different covariates
+  each stand on their own.
+* an `init` or bound on the level that is not greater than 0, since it is a multiplier
+  on \eqn{R_0}. An *unset* `init` arrives as the table's default of 0 and reads as a
+  multiplier of 1, i.e. no shift.
 * `initMode = "FreeParams"`, which estimates the initial numbers-at-age directly as
   `init_dev` and never reads \eqn{R_{init}}.
 * `initMode = "OffsetEquilibrium"`, which already scales the same ages by
@@ -78,6 +81,17 @@ per-sex apical selectivity multiplier.
 Under `initMode = "FishedNonEquilibriumSelected"` (6) the level scales every age of the
 equilibrium age-structure, age 0 included, so the predicted initial equilibrium catch is
 proportional to it.
+
+A level fixed with `est_phase = 0` survives a warm start: `fit_mod()` re-applies it over
+any `inits`, as it already did for the intercepts whose level lives in a base parameter.
+
+**Bound the level on a real assessment.** It is informed only by the first year's
+observations, so it is weakly identified at the low end: once the initial cohorts are
+effectively annihilated, the data cannot separate one very small level from another.
+`tools/verify/verify-sim-recovery-r-init.R` measures, at a true multiplier of 0.5 over
+60 replicates, 6 fits running away to 5e-05 or below *with a clean gradient*, and a
+0.11 log unit low bias over the rest. A natural-scale
+`bounds = list(`(Intercept)` = c(0.05, 20))` keeps a fit out of that tail.
 
 A model with no `R_init` linkage is unchanged, including all four golden references.
 
