@@ -86,12 +86,13 @@ the same curve with the opposite sign of `beta`: simulating from
 the truth. Interpret `fit$quantities$index_q`; a `beta` quoted alone is not
 comparable between models. A q prior pins the level if `beta` itself is wanted.
 
-Because that is a silently-wrong-number shape rather than a documentation gap,
-two new `convergence_diagnostics()` records flag it on the fit itself:
-`exponential_q_crossed_one` (WARN) when a fleet's fitted q lands on the other
-side of 1 from its `Catchability_init`, so its `beta` means the opposite of one
-fitted at the starting q; and `exponential_q_inert` (WARN) when the fitted q is
-within 0.1% of 1, where `beta` is unidentified.
+Because that is a silently-wrong-number shape rather than a documentation gap, a
+new `convergence_diagnostics()` record flags it on the fit itself:
+`exponential_q_near_one` (WARN) when a fleet's **fitted** catchability is within
+0.1% of 1, where `beta` is unidentified. It reads the fitted base rather than the
+starting value, because an intercept `init`, `fit_mod(inits = )` and a shared
+`Catchability_index` group each make `Catchability_init` something other than
+where `index_log_q` began.
 
 The new reported quantity is `q_linkage_log_mult` -- the linear predictor whose
 `exp()` multiplies `log q`.
@@ -414,6 +415,18 @@ to additive constants and SS3 weighs catch this way.
 # Rceattle 5.45.3
 
 ## Bug fixes
+
+* A **shared** catchability linkage row is now checked against every fleet.
+  `NA` is the shared-stratum sentinel and the template expands it to all fleets,
+  but `.check_q_linkage_support()` only expanded it when *every* row was `NA`, so
+  a table mixing a shared q spec with a per-fleet one was checked against the
+  named fleet alone. The shared row then reached fleets whose `Catchability` is
+  `NA`, `Fixed`, `Analytical`/`AnalyticalArith` or `Environmental` -- the forms
+  that check exists to refuse -- turning a fixed q time-varying, or leaving a
+  coefficient free with no gradient. Such a configuration now errors with
+  "catchability linkage on fleet(s) ... does not estimate q"; restrict the spec
+  with `linkage_spec(fleet = )`.
+
 
 * **An aggregated composition figure no longer pools two observation
   structures into one normalization.** A fleet can carry more than one --

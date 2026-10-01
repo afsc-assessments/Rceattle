@@ -178,15 +178,14 @@ Key arguments (see `?linkage_spec` for the full list):
   what to interpret and plot (`fit$quantities$index_q`); a `beta` quoted on its
   own is not comparable between models. Pin the level with a q prior
   (`Catchability = "Estimated-with-prior"`) if you need `beta` itself to be
-  identified. `convergence_diagnostics()` flags both hazards on the fit:
-  `exponential_q_crossed_one` when the fitted q lands on the other side of 1
-  from its starting value, and `exponential_q_inert` when it fits essentially at
-  1.
+  identified. `convergence_diagnostics()` flags the second on the fit, as
+  `exponential_q_near_one`.
 
-  **The effect stops at the last hindcast year.** All three links accumulate
-  over `nyrs_hind` only, and a projection-year index is predicted at the last
-  hindcast year's catchability, so a covariate value for a projection year does
-  not move `q` there. SS3 carries its environmental link across the forecast
+  **On catchability the effect stops at the last hindcast year.** The q linkage
+  tensors are built over hindcast years only (the recruitment, M and growth
+  tensors do span the projection), and a projection-year index is predicted at
+  the last hindcast year's catchability, so a covariate value for a projection
+  year does not move `q` there. SS3 carries its environmental link across the forecast
   (`for (y1 = styr - 1; y1 <= YrMax; y1++)`), so a bridge that compares forecast
   index predictions will diverge.
 
@@ -197,7 +196,10 @@ Key arguments (see `?linkage_spec` for the full list):
   likelihood and its gradient are dead and no line search can recover. Under
   `"log"` the same `beta` is harmless, because `beta * x` enters the exponent
   linearly and overflow starts near 709. Pass `bounds` on any `"exponential"`
-  slope; `c(-2, 2)` is ample for a standardized covariate.
+  slope, and scale them to the base: underflow starts once
+  `|beta * x| > log(709 / |log q|)`, which at `log q = -6.7` is `beta * x` of
+  about 4.7 -- so a bound of `c(-2, 2)` is *not* safe there, since a standardized
+  covariate reaches `x = 2.4` over a long series.
 * **`init`** / **`bounds`**: named lists keyed by design-matrix
   column (`init = list(temp = 0.05)`, `bounds = list(temp = c(-2, 2))`).
 * **`priors`**: named list keyed by design-matrix column. Each
