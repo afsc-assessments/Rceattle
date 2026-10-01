@@ -5,6 +5,37 @@ session. Maintained by `/handoff`.
 
 ## Now
 
+**5.47.0 is `link = "exponential"`, open as PR #181 into `dev`** (`feat/linkage-power-link`,
+head `267a951d`, 13 commits). Stock Synthesis's environmental link type 1 on catchability:
+`q^exp(beta * x)`, which multiplies `log q` where `"log"` shifts it. Suite **10,057 / 0**,
+golden **21 / 0**, on a stable tree.
+
+It began as `link = "power"` and an adversarial review rebuilt it. The rename is not
+cosmetic: SS3's own word for type 1 is `exponential`, and `power` is SS3's *other* q link
+(`Q_setup` option 3) which Rceattle reserves as `Catchability = "PowerEquation"` /
+`index_q_pow` -- and the GOA cod control file uses **both** in one model, so the collision
+was live. The SS3 mapping was wrong in both directions and is corrected: `SR_LN(R0)` *is* a
+log, so recruitment is "not yet wired" rather than "use `log`" (which is SS3's type 2), and
+q is a log only for a lognormal/t survey. Two cited line numbers pointed at unrelated code.
+Four configurations that computed something other than type 1 are now refused -- a
+random-effect row on the same fleet (whose deviations the multiply would rescale against a
+constant sigma), a masked base, the wrong process, and a shared row reaching every fleet --
+and `convergence_diagnostics()` carries `exponential_q_near_one`, because `beta` multiplies a
+log and is not identified on its own.
+
+**Its acceptance test passed.** The GOA Pacific cod bridge closes **9.9646** nats with the
+link, **9.96459** of it on LLSrv's index, against `GOA-estimation-parity.md`'s predicted
+`+9.9645`; no other `jnll_comp` row moves by more than 1e-6. Running it also exposed a false
+positive in one of the new guards, now removed: `Catchability_init` is never the starting
+`log q` when `fit_mod(inits = )`, an intercept `init`, or a shared `Catchability_index` group
+is involved, so a start-based check cannot be right in this package.
+
+Left before merge: golden on the **merged** tree with `feat/srr-init-level` (this branch
+changes the `index_q` AD tape; that one changes `build_params` / `build_map` /
+`build_parameter_bounds`, so neither suite proves the combination); `NEWS.md` and the
+`DESCRIPTION` version line are the real conflict, not the code; `/pkgdown-check` not run.
+Bridge state: `Rceattle-models/SS3-bridge/HANDOFF.md`.
+
 **5.45.0 is released.** Tagged `5.45.0` on `main`'s merge commit `b4506079` and published
 2026-09-28; the `release: published` event fired pkgdown (the 5.21.0 silent failure did not
 recur), `deep-checks` was dispatched, and **checklist section 4 passed**: installed from the tag
@@ -20,7 +51,7 @@ its objective reproducing and the other 19 assertions passing. That gate is 1e-3
 with the reason recorded in the test. `TMBhelper` is installed on the runner, so a different
 optimizer explains neither. See the 5.45.1 NEWS entry and `TRAPS.md`.
 
-**`cod-bridge` is at 5.46.0 and open as PR #178 into `dev`.** It carries seven features from the
+**`cod-bridge` was 5.46.0 and is MERGED into `dev` as PR #178.** It carries seven features from the
 SS3 cod bridge: `initMode 6`, the SS3 growth / maturity / length-bin options,
 `Selectivity = "DoubleNormalSS3"` (code 15), length-based selectivity on the population bins,
 the initial equilibrium catch, and a per-fleet ageing error matrix.
