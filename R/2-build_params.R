@@ -210,11 +210,27 @@ build_params <- function(data_list) {
   # length-0 vector.
   if (!is.null(data_list$linkage_table) &&
       nrow(data_list$linkage_table) > 0L) {
-    init_vals <- as.numeric(data_list$linkage_table$init)
-    # An `init` intercept keeps its own starting value: it has no base
-    # parameter to re-target, so nothing else holds the level.
-    lt <- data_list$linkage_table
-    init_vals[lt$design_col == "(Intercept)" & !.is_init_linkage_row(lt)] <- 0
+    lt <- data_list[["linkage_table"]]
+    init_vals <- as.numeric(lt[["init"]])
+    init_vals[.is_pinned_intercept(lt)] <- 0
+    # An `R_init` intercept keeps its own starting value: it has no base
+    # parameter to re-target, so nothing else holds the level. Given on the
+    # natural scale -- a multiplier on R0, as every other intercept's `init` is
+    # natural-scale -- and stored logged, because the level is added inside the
+    # exp() that builds the initial numbers-at-age. The table's unset default
+    # is 0, which is not a multiplier any stock can have, so it reads as 1:
+    # no shift off R0.
+    is_level <- .is_level_intercept(lt)
+    if (any(is_level)) {
+      lvl <- init_vals[is_level]
+      if (any(lvl < 0)) {
+        stop("a recruitment `R_init` linkage takes a natural-scale `init` -- a ",
+             "multiplier on R0, so it cannot be negative. Got ",
+             paste(unique(lvl[lvl < 0]), collapse = ", "), ".", call. = FALSE)
+      }
+      lvl[lvl == 0] <- 1
+      init_vals[is_level] <- log(lvl)
+    }
     param_list$beta_linkage <- init_vals
   } else {
     param_list$beta_linkage <- numeric(0)
@@ -522,9 +538,12 @@ build_params <- function(data_list) {
           }
         },
         recruitment = {
-          .stop_unless_positive(init_val, row$param, "rec_pars")
+          # `R_init` has no rec_pars column -- its starting value was logged
+          # onto beta_linkage above, so there is nothing to push to a base
+          # parameter and nothing here to check against one.
           par_idx <- .REC_PARAM_TO_INDEX[row$param]
           if (is.na(par_idx)) next
+          .stop_unless_positive(init_val, row$param, "rec_pars")
           param_list$rec_pars[idx$species, par_idx] <- log(init_val)
         },
         q = {

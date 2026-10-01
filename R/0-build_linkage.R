@@ -90,9 +90,11 @@ NULL
 #' @param init optional named list of initial values keyed by the
 #'   design-matrix column name (e.g. \code{list(`(Intercept)` = 4, temp = 0)}),
 #'   an intercept on the parameter's natural scale and a slope on the link
-#'   scale; missing entries default to `0`.
+#'   scale; missing entries default to `0`. An intercept's natural-scale value
+#'   is logged onto the parameter's base (`rec_pars`, `log_M1`, ...), or, for
+#'   recruitment `R_init`, which has no base, onto the coefficient itself.
 #' @param bounds optional named list of `c(lower, upper)` keyed the same
-#'   way as `init`.
+#'   way as `init`, and read on the same scales.
 #' @param priors optional named list of [Rceattle_priors] objects, keyed by
 #'   design-matrix column name. Inside this argument you may write `normal()`,
 #'   `lognormal()`, `gamma()`, or `beta()` directly, e.g.

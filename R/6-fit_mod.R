@@ -711,9 +711,9 @@ fit_mod <-
     # Catchability_index, so it can break a group data_check() has already
     # passed. Checked here because the table above is what it reads.
     if (!isTRUE(quiet_data_check)) .warn_q_linkage_shared_group(data_list)
-    # Refused whatever `quiet_data_check` says: an init level the initMode cannot
-    # carry is estimated and silently moves nothing.
-    .check_init_linkage(data_list)
+    # Refused whatever `quiet_data_check` says: an R_init level the initMode
+    # cannot carry is estimated and silently moves nothing.
+    .check_r_init_linkage(data_list)
     # (Fixed-effect covariates with missing years are rejected earlier, in
     # materialize_linkage(), before model.matrix() can silently drop NA rows.)
 

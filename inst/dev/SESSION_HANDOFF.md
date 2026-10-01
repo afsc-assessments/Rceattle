@@ -72,7 +72,7 @@ build-time check on `Catchability_init` was removed rather than taught about ove
 column is not the start once `inits`, an intercept init writing `log(init_val)` into
 `index_log_q`, or a shared group's GEOMETRIC MEAN is involved.
 
-**`feat/srr-init-level`, 5.48.0** -- recruitment `init`, a fourth recruitment linkage parameter
+**`feat/srr-init-level`, 5.48.0** -- recruitment `R_init`, a fourth recruitment linkage parameter
 (code 3). A log-scale multiplier on the initial age structure, read at year 0 only, carrying no
 deviate penalty. It exists because `init_dev` is penalised per age, so a stock starting away from
 `R0` paid a recruitment-deviate penalty to sit where its data say it sits -- and the optimiser
@@ -91,9 +91,12 @@ Two things for anyone merging across it:
   `beta_linkage` at `NA`, `build_params` zeroed its starting value, and
   `build_parameter_bounds` loosened its bound and propagated it to the base parameter -- all on
   the premise that a base parameter exists to carry the level. True for all six processes until
-  `init`, which has none, so `~ 1` estimated nothing and moved nothing while every builder
-  reported success. The four sites now share `.is_init_linkage_row()`
-  (`R/0-linkage_encode.R`); that predicate must stay in each condition.
+  `R_init`, which has none, so `~ 1` estimated nothing and moved nothing while every builder
+  reported success. The R sites now share `.is_pinned_intercept()` and its complement
+  `.is_level_intercept()` (`R/0-linkage_encode.R`); those predicates must stay in each condition.
+  **There is a FIFTH site in the C++**: slot 19's prior block re-targets an intercept prior onto
+  `rec_pars(sp, param)`, which for code 3 reads past a `nspp x 3` `PARAMETER_MATRIX`. Guarded, so
+  the prior stays on `beta_linkage(i)`. See TRAPS.md.
 
 **Neither branch's green suite covers the combination.** PR #181 changes the q computation (an
 AD-tape change) and the init branch changes `build_params` / `build_map` /

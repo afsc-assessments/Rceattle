@@ -14,7 +14,7 @@ version throughout.
 
 # Rceattle 5.48.0
 
-## A free initial recruitment level, `srr_linkages = list(init = ...)`
+## A free initial recruitment level, `build_srr(linkages = list(R_init = ...))`
 
 A stock whose series begins after a regime shift starts at a recruitment other than
 \eqn{R_0}, and Rceattle had nowhere to say so. The level had to go into `init_dev`,
@@ -29,14 +29,25 @@ support, while terminal SSB moves only -1.35%. \eqn{SB_0}, \eqn{B_{40\%}} and de
 all scale with \eqn{R_0}, so a penalty on the initial state was moving the quantities
 that set the catch limit.
 
-`init` is a fourth recruitment linkage parameter, alongside `R0`, `alpha` and `beta`. It
-is a **log-scale multiplier on the initial age-structure**, read at year 0 because the
-initial state is one year, and it carries no deviate penalty:
+`R_init` is a fourth recruitment linkage parameter, alongside `R0`, `alpha` and `beta`.
+It is a **log-scale multiplier on the initial age-structure**, read at year 0 because the
+initial state is one year, and it carries no deviate penalty. The spec has to travel
+through `build_srr()`: `fit_mod()` overwrites `data_list$srr_linkages` from `recFun`, so
+assigning one onto the `data_list` drops it in silence.
 
 ```r
 d$env_data <- data.frame(Year = d$styr:d$projyr, lvl = 1)
-d$srr_linkages <- list(init = linkage_spec(formula = ~ 0 + lvl))
+fit <- fit_mod(d, recFun = build_srr(linkages = list(
+  R_init = linkage_spec(formula = ~ 1, init = list(`(Intercept)` = 0.25))
+)), initMode = "NonEquilibrium")
 ```
+
+`R_init` is the only linkage parameter with no base parameter in `rec_pars`, so its
+`(Intercept)` is the one that stays estimable rather than being pinned at `NA`. Its
+`init` and `bounds` on that intercept are therefore the **natural-scale multiplier on
+\eqn{R_0}** — `init = 0.25` is a quarter, as every other intercept's `init` is
+natural-scale — and are logged onto the coefficient in place of a base parameter. Only
+year 0 is read, so one design column per species is all the initial state identifies.
 
 Measured on GOA Pacific cod 2024, where Stock Synthesis carries this as an unpenalised
 `SR_regime` block on the year before the hindcast (\eqn{-1.3879}, a quarter of
@@ -50,12 +61,26 @@ Refused rather than silently inert:
 
 * `link = "identity"`. The level is added inside the `exp()`, so a natural-scale offset
   would add metric tons to a log multiplier.
+* more than one design column within a species. Only year 0 is read, so two
+  coefficients would share one number (a flat ridge) and a per-year random effect would
+  estimate deviates no year but the first reads. Per-species specs naming different
+  covariates are each judged on their own column.
+* a negative `init` or bound on the level, which is a multiplier on \eqn{R_0}.
 * `initMode = "FreeParams"`, which estimates the initial numbers-at-age directly as
   `init_dev` and never reads \eqn{R_{init}}.
 * `initMode = "OffsetEquilibrium"`, which already scales the same ages by
   `rec_dev[, 1]`, so the two are not separable.
 
-A model with no `init` linkage is unchanged, including all four golden references.
+A prior on the level is read on its own coefficient, i.e. on the multiplier, so
+`lognormal(0, 0.5)` is centred on no shift off \eqn{R_0} — the same contract as the
+per-sex apical selectivity multiplier.
+
+Under `initMode = "FishedNonEquilibriumSelected"` (6) the level scales every age of the
+equilibrium age-structure, age 0 included, so the predicted initial equilibrium catch is
+proportional to it.
+
+A model with no `R_init` linkage is unchanged, including all four golden references.
+
 # Rceattle 5.47.0
 
 ## `link = "exponential"`: Stock Synthesis's environmental link type 1, on catchability

@@ -29,20 +29,49 @@ LINKAGE_PROCESS_CODES <- c(
   comp        = 5L
 )
 
-#' Rows of a linkage table that are the recruitment `init` parameter
+#' Rows of a linkage table that are the recruitment `R_init` parameter
 #'
-#' `init` multiplies the initial age-structure and is the one linkage parameter
-#' with no base parameter in `rec_pars`, so its `(Intercept)` coefficient stays
-#' estimable where every other parameter's is pinned: nothing else holds the
-#' level. Shared by the three builders and by `data_check()` so they cannot
-#' disagree about which rows those are.
+#' `R_init` multiplies the initial age-structure and is the one linkage
+#' parameter with no base parameter in `rec_pars`, so nothing else holds the
+#' level. Shared by the builders and by `data_check()` so they cannot disagree
+#' about which rows those are.
 #'
 #' @param tbl A pooled `linkage_table`.
 #' @keywords internal
 #' @noRd
-.is_init_linkage_row <- function(tbl) {
-  as.character(tbl[["process"]]) %in% c("recruitment", "0") &
-    as.character(tbl[["param"]]) %in% c("init", "3")
+.is_r_init_linkage_row <- function(tbl) {
+  tbl[["process"]] == "recruitment" & tbl[["param"]] == "R_init"
+}
+
+
+#' Intercept rows whose coefficient is pinned at `NA`
+#'
+#' An `(Intercept)` coefficient is pinned because the process's own base
+#' parameter (`rec_pars`, `log_M1`, `index_log_q`, ...) already carries the
+#' level, so estimating both would be a flat ridge. `R_init` has no base
+#' parameter, so its intercept IS the level and stays estimable.
+#'
+#' @param tbl A pooled `linkage_table`.
+#' @keywords internal
+#' @noRd
+.is_pinned_intercept <- function(tbl) {
+  tbl[["design_col"]] == "(Intercept)" & !.is_r_init_linkage_row(tbl)
+}
+
+
+#' The one intercept row that carries a level instead of pinning one
+#'
+#' The complement of `.is_pinned_intercept()` among intercept rows: the
+#' `R_init` intercept IS the initial recruitment level. Its `init` and `bounds`
+#' are natural-scale multipliers on R0, like every other intercept's, and land
+#' on a log coefficient, so the builders log them. A slope row on the same
+#' linkage is on the link scale and is deliberately excluded.
+#'
+#' @param tbl A pooled `linkage_table`.
+#' @keywords internal
+#' @noRd
+.is_level_intercept <- function(tbl) {
+  tbl[["design_col"]] == "(Intercept)" & .is_r_init_linkage_row(tbl)
 }
 
 
@@ -104,9 +133,9 @@ LINKAGE_PARAM_CODES <- list(
   growth      = c(K = 0L, L1 = 1L, Linf = 2L, m = 3L,
                   sd_L1 = 4L, sd_Linf = 5L),
   M           = c(M1 = 0L),
-  # `init` is the initial recruitment LEVEL, read at year 0 only (the initial
+  # `R_init` is the initial recruitment LEVEL, read at year 0 only (the initial
   # state is one year), and carries no deviate penalty.
-  recruitment = c(R0 = 0L, alpha = 1L, beta = 2L, init = 3L),
+  recruitment = c(R0 = 0L, alpha = 1L, beta = 2L, R_init = 3L),
   q           = c(q = 0L),
   # Selectivity codes index the underlying parameter slots, which are shared
   # across the parametric forms:

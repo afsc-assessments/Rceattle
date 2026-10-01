@@ -42,7 +42,7 @@
 #define RCEATTLE_REC_R0    0
 #define RCEATTLE_REC_ALPHA 1
 #define RCEATTLE_REC_BETA  2
-#define RCEATTLE_REC_INIT  3
+#define RCEATTLE_REC_R_INIT 3
 
 /**
  * @brief Expand a stratum sentinel id into the half-open iteration range [lo, hi).

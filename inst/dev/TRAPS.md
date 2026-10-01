@@ -241,13 +241,33 @@ shape as `Index_distribution`'s second registry. Grep every registry before addi
 own base parameter carries the level.** `R/3-build_map.R` masks `beta_linkage` for intercept rows,
 `build_params` forces their starting value to 0, and `build_parameter_bounds` loosens their bound
 to ±Inf and propagates the caller's bound to the base parameter instead. That premise held for
-all six processes until recruitment `init` (5.48.0), which multiplies the initial age-structure
+all six processes until recruitment `R_init` (5.48.0), which multiplies the initial age-structure
 and has NO base parameter — so `~ 1` produced zero estimable `beta_linkage` entries and moved
-nothing, while every builder reported success. The four sites now share
-`.linkage_intercept_is_level()`, keyed off `.LINKAGE_PARAMS_WITHOUT_BASE`. **Adding a linkage
-parameter with no base parameter means checking all four**, and note that a linkage TABLE row is
-not an estimated parameter: `print()` on the table said "1 coefficient(s)" for the inert case.
-Count `beta_linkage` in `obj$env$last.par.best` to tell the difference.
+nothing, while every builder reported success. The R sites now share `.is_pinned_intercept()` and
+its complement `.is_level_intercept()` (`R/0-linkage_encode.R`), both keyed off
+`.is_r_init_linkage_row()`. **There are FIVE sites, not four** — the fifth is in the C++, see the
+next entry. Note too that a linkage TABLE row is not an estimated parameter: `print()` on the
+table said "1 coefficient(s)" for the inert case. Count `beta_linkage` in
+`obj$env$last.par.best` to tell the difference.
+
+**The C++ linkage-prior block re-targets an `(Intercept)` prior onto the base parameter, and will
+read off the end of the matrix for a parameter that has none.** `ceattle.cpp` slot 19 sets
+`b = rec_pars(sp_idx, param)` for every recruitment intercept; `rec_pars` is `nspp x 3` and
+`R_init` is code 3, so a prior on an `R_init` intercept read one element past a
+`PARAMETER_MATRIX` and promoted adjacent heap memory to an AD variable — no crash guaranteed, no
+R-side refusal. Guarded at 5.48.0 so the prior stays on `beta_linkage(i)`, which IS the level, so
+the density reads on the multiplier (`lognormal(0, sd)` centres on no shift off R0 — the same
+contract as `log_sel_apical`). The growth branch beside it already had the pattern
+(`if (param < RCEATTLE_N_GROWTH_PARAMS)`). **A natural-scale `init`/`bounds` on such a parameter
+has to be logged onto the coefficient too**, since there is no base parameter to log it onto;
+read raw, `init = 0.5` ("half of R0") starts the level at `exp(0.5)` = 1.65x R0.
+
+**`N_eq` is an equilibrium only if every age of it carries the same recruitment level.** Its one
+consumer is `equil_catch_hat`, which integrates Baranov over all ages including age 0, so an
+age-0 term left at `R_init` while ages 1+ carry a level makes the "equilibrium" sit at two levels
+at once. Age 0 of `N_at_age` is deliberately NOT scaled — year-1 recruitment is a recruitment
+year with its own deviate, not part of the pre-hindcast level — so the two arrays diverge here on
+purpose. Live only under `initMode = 6`, the one mode that reads an equilibrium catch.
 
 **A process linkage assigned straight onto a `data_list` is silently discarded.**
 `fit_mod()` overwrites `data_list$srr_linkages` from `recFun` (`R/6-fit_mod.R:533`), and does the
