@@ -78,12 +78,15 @@ NULL
 #'   catchability and selectivity linkages to give different fleets
 #'   different formulas.
 #' @param link link function relating the linear predictor to the
-#'   natural-scale target parameter. One of `"log"` (default) or
-#'   `"identity"`. With `link = "log"`, `log(param) = X * beta`, slope
-#'   contributions are multiplicative on the natural-scale parameter. With `link = "identity"`,
-#'   `param = X * beta`, slope contributions are additive on the
-#'   natural scale. The linkage targets are estimated on the log scale,
-#'   so `"log"` is the default.
+#'   natural-scale target parameter: one of `"log"` (default), `"identity"`,
+#'   or `"exponential"`. With `link = "log"`, `log(param) = X * beta`, slope
+#'   contributions are multiplicative on the natural-scale parameter. With
+#'   `link = "identity"`, `param = X * beta`, slope contributions are additive
+#'   on the natural scale. With `link = "exponential"` the linear predictor
+#'   MULTIPLIES the log instead of shifting it, `param^exp(X * beta)`; it
+#'   reproduces Stock Synthesis's environmental link type 1 and is accepted on
+#'   catchability only, for a lognormal index, with an estimated intercept. The
+#'   linkage targets are estimated on the log scale, so `"log"` is the default.
 #' @param init optional named list of initial values keyed by the
 #'   design-matrix column name (e.g. \code{list(`(Intercept)` = 4, temp = 0)}),
 #'   an intercept on the parameter's natural scale and a slope on the link

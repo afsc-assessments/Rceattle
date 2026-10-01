@@ -93,7 +93,7 @@ linkage_spec(
   species   = NULL,                 # ids or spnames
   sex       = NULL,
   fleet     = NULL,                 # Fleet_codes or Fleet_names
-  link      = "log",                # or "identity"
+  link      = "log",                # or "identity", "exponential"
   init      = NULL,
   bounds    = NULL,
   priors    = NULL,
@@ -124,7 +124,86 @@ Key arguments (see `?linkage_spec` for the full list):
   while a misspelled name errors and lists the fleets you do have.
 * **`link`**: relates the linear predictor to the natural-scale
   target. `"log"` (default) gives a multiplicative effect on natural
-  `param`; `"identity"` gives an additive effect on natural `param`.
+  `param`; `"identity"` gives an additive effect on natural `param`;
+  `"exponential"` raises the parameter to a covariate-dependent power,
+  `q^exp(beta * x)`, completing the progression: `"identity"` **adds** to the
+  natural-scale parameter, `"log"` **multiplies** it, `"exponential"` raises it
+  to a power. (The power is of the parameter, not of the covariate.)
+
+  This is Stock Synthesis's environmental link type 1, and `"exponential"` is
+  SS3's own name for it (`case 1: // exponential env link`). It is *not* SS3's q
+  *power function*, which is a separate option that raises the predicted index
+  to `1 + p` -- that is what `Catchability = "PowerEquation"` is reserved for.
+
+  SS3 multiplies the parameter on whatever scale it stores, so that scale
+  decides where the link belongs:
+
+  | process | SS3 scale | SS3 type 1 is | Rceattle |
+  |---|---|---|---|
+  | catchability, lognormal index | log (`Svy_log_q`) | `q^exp(beta x)` | `"exponential"` |
+  | catchability, natural-scale index | natural | `q * exp(beta x)` | `"log"` (warns) |
+  | natural mortality, growth | natural | `parm * exp(beta x)` | `"log"` |
+  | recruitment | log (`SR_LN(R0)`) | `R0^exp(beta x)` | not yet wired |
+
+  So a `NatM` or growth line carrying `env-var 1xx` bridges with `"log"`, not
+  this, and Rceattle refuses `"exponential"` there rather than let it through:
+  on a natural-scale parameter it would raise the value to a power instead of
+  scaling it, and on M -- where `log M` is always negative, M being below 1 --
+  that inverts the sign of the covariate effect. Recruitment is the one case
+  where the form *is* right and simply has no accumulator yet, so the refusal
+  says that instead of offering `"log"` (which is SS3's type **2**).
+
+  Two further conditions on catchability. The link multiplies `log q`, so the
+  base has to be **estimated**: a formula with no intercept, or an intercept
+  fixed at `est_phase = 0`, masks `index_log_q` and freezes the value being
+  multiplied, and is refused. A free base is not second-guessed at build time:
+  `fit_mod(inits = )` and an intercept `init` both override `Catchability_init`,
+  so where `log q` really starts is only knowable once the model is built. And it cannot share a fleet with a **random-effect**
+  q linkage, because those deviations accumulate into `q_linkage_offset`, which
+  sits inside the multiply -- they would be scaled by `exp(beta * x)` while their
+  density still scored them at a constant sigma. For an environmental effect plus
+  q deviations, express the deviations as `Time_varying_q`, whose `index_q_dev`
+  the template keeps outside the multiply, as SS3 does its dev blocks.
+
+  Because `beta` multiplies a *log*, the size of the effect depends on how far
+  `log q` sits from zero: at `q = 1` the covariate does nothing whatever `beta`
+  is, and below `q = 1` the sign of the effect inverts. Both are SS3's
+  properties, not Rceattle's.
+
+  **Report `beta` with its base, never alone.** To first order
+  `log q_y = log q * (1 + beta * x_y)`, so what the index informs is the product
+  `log q * beta`, not `beta`. With an estimated base the fit is free to cross
+  `q = 1` and re-express the same curve with the opposite sign of `beta`: in the
+  simulate-and-refit check in `test-linkage-exponential-link.R`, a truth of
+  `q = 0.3, beta = +0.4` came back as `q = 467.0, beta = -0.0775`, preserving
+  `log q * beta` to 1.1% with the fitted `q` series correlating 0.984 with the
+  truth. The test asserts that invariant rather than those values, which are from
+  one platform. The fitted catchability is
+  what to interpret and plot (`fit$quantities$index_q`); a `beta` quoted on its
+  own is not comparable between models. Pin the level with a q prior
+  (`Catchability = "Estimated-with-prior"`) if you need `beta` itself to be
+  identified. `convergence_diagnostics()` flags the second on the fit, as
+  `exponential_q_near_one`.
+
+  **On catchability the effect stops at the last hindcast year.** The q linkage
+  tensors are built over hindcast years only (the recruitment, M and growth
+  tensors do span the projection), and a projection-year index is predicted at
+  the last hindcast year's catchability, so a covariate value for a projection
+  year does not move `q` there. SS3 carries its environmental link across the forecast
+  (`for (y1 = styr - 1; y1 <= YrMax; y1++)`), so a bridge that compares forecast
+  index predictions will diverge.
+
+  **Set a bound.** `beta` enters a double exponential here, so the usable range
+  is far narrower than for `"log"`, and it depends on the base: the exponent is
+  `log q * exp(beta * x)`, so at `q = 0.0012` (`log q = -6.7`) a `beta * x` of
+  only 5 gives `-994` and `index_q` underflows to exactly 0 -- where both the
+  likelihood and its gradient are dead and no line search can recover. Under
+  `"log"` the same `beta` is harmless, because `beta * x` enters the exponent
+  linearly and overflow starts near 709. Pass `bounds` on any `"exponential"`
+  slope, and scale them to the base: underflow starts once
+  `|beta * x| > log(709 / |log q|)`, which at `log q = -6.7` is `beta * x` of
+  about 4.7 -- so a bound of `c(-2, 2)` is *not* safe there, since a standardized
+  covariate reaches `x = 2.4` over a long series.
 * **`init`** / **`bounds`**: named lists keyed by design-matrix
   column (`init = list(temp = 0.05)`, `bounds = list(temp = c(-2, 2))`).
 * **`priors`**: named list keyed by design-matrix column. Each
@@ -811,6 +890,7 @@ fit <- fit_mod(
 
 # One coefficient set per fleet; the offset lands here:
 fit$quantities$q_linkage_offset      # [n_flt, nyrs]
+fit$quantities$q_linkage_log_mult    # [n_flt, nyrs]; exponential link only
 ```
 
 Restrict a spec to particular fleets with the `fleet` argument of

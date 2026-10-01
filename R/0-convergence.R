@@ -159,6 +159,54 @@
 }
 
 
+#' An exponential catchability linkage fitted near q = 1
+#'
+#' `link = "exponential"` multiplies `log q`, so the covariate effect is
+#' `beta * log q`: `q = 1` makes the link inert whatever `beta` is, and the sign
+#' of the effect is the sign of `beta` times the sign of `log q`. A `beta` is
+#' therefore only interpretable alongside its fitted base, and near `q = 1` it
+#' is not identified at all. Read the FITTED log q, never the starting value: an
+#' intercept `init`, `fit_mod(inits = )` and a shared `Catchability_index` group
+#' each make `Catchability_init` something other than where `index_log_q` began.
+#'
+#' @param object a fitted Rceattle object.
+#' @return a list of convergence records.
+#' @keywords internal
+#' @noRd
+.check_exponential_q_sign <- function(object) {
+  dl <- object[["data_list"]]
+  if (is.null(dl)) return(list())
+  tbl <- dl[["linkage_table"]]
+  fc  <- dl[["fleet_control"]]
+  if (is.null(tbl) || !NROW(tbl) || is.null(fc) || is.null(tbl[["link"]])) {
+    return(list())
+  }
+  ex <- tbl[tbl[["link"]] == "exponential" & tbl[["process"]] == "q", ,
+            drop = FALSE]
+  if (!NROW(ex)) return(list())
+
+  flts <- .q_linkage_fleets(ex[["fleet"]], fc)
+  mle  <- suppressWarnings(
+    as.numeric(object[["estimated_params"]][["index_log_q"]])[flts])
+  # 1e-3 on the log scale is a q within 0.1% of 1, where exp(beta * x) scales a
+  # value indistinguishable from 0 and beta moves the index by nothing.
+  flat <- flts[is.finite(mle) & abs(mle) < 1e-3]
+  if (!length(flat)) return(list())
+  list(exponential_q_near_one = .conv_record(
+    "exponential_q_near_one", "fit", "WARN",
+    sprintf(paste0(
+      "%d fleet(s) with an \"exponential\" q linkage fitted a catchability ",
+      "within 0.1%% of 1: %s. beta multiplies log q, which is ~0 there, so ",
+      "the ",
+      "covariate moves q by essentially nothing whatever beta is and beta is ",
+      "unidentified. Report beta with its fitted base, and compare ",
+      "fitted index_q rather than beta."),
+      length(flat), paste(fc[["Fleet_name"]][flat], collapse = ", ")),
+    data.frame(fleet = fc[["Fleet_name"]][flat],
+               q_mle = signif(exp(mle[is.finite(mle) & abs(mle) < 1e-3]), 6))))
+}
+
+
 #' Did a diagnostic re-fit converge well enough to keep?
 #'
 #' @description
@@ -1020,7 +1068,8 @@ convergence_diagnostics <- function(object, ...) {
     .check_variance_collapse(object),
     .check_estimability_record(object, index),
     .check_zero_n_penalty(object),
-    .check_stock_recruit(object)
+    .check_stock_recruit(object),
+    .check_exponential_q_sign(object)
   )
   structure(
     list(status = .conv_overall(checks), checks = checks),

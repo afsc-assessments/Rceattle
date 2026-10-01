@@ -12,7 +12,7 @@ testthat::test_that("logit is reserved in the schema but not implemented", {
   testthat::expect_true("logit" %in% Rceattle:::LINKAGE_LINKS)
   testthat::expect_false("logit" %in% Rceattle:::LINKAGE_LINKS_IMPLEMENTED)
   testthat::expect_setequal(Rceattle:::LINKAGE_LINKS_IMPLEMENTED,
-                            c("identity", "log"))
+                            c("identity", "log", "exponential"))
 })
 
 
@@ -25,6 +25,10 @@ testthat::test_that("linkage_spec() rejects link = 'logit'", {
 
 
 testthat::test_that("linkage_spec() still accepts the implemented links", {
+  # linkage_spec() does not know the process -- that is supplied by whichever
+  # build_*() consumes the spec -- so a per-process restriction like
+  # `exponential`'s cannot be applied here. materialize_linkage() refuses it at
+  # the first point the process is known; see test-linkage-exponential-link.R.
   for (lk in Rceattle:::LINKAGE_LINKS_IMPLEMENTED) {
     spec <- Rceattle::linkage_spec(~temp, param = "M1", link = lk)
     testthat::expect_s3_class(spec, "Rceattle_linkage_spec")

@@ -12,6 +12,109 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.47.0
+
+## `link = "exponential"`: Stock Synthesis's environmental link type 1, on catchability
+
+A fourth linkage link, for catchability only, completing the progression on the
+natural-scale parameter: `"identity"` **adds** to it, `"log"` **multiplies** it,
+and `"exponential"` raises it to a covariate-dependent power, `q^exp(beta * x)`:
+
+    index_q_yr = exp((log_q + q_offset(yr)) * exp(sum beta * x(yr)) + q_dev(yr))
+                 + q_nat_offset(yr)
+
+The name is SS3's own for it -- `case 1: // exponential env link` -- and is
+deliberately not "power": SS3 has a separate q *power function*
+(`Q_setup` option 3, `pow(vbio, 1 + p)`, `SS_expval.tpl:429-436`), which is what
+`Catchability = "PowerEquation"` and the dormant `index_q_pow` are reserved for.
+
+An SS3 parameter line requests type 1 with an `env-var` of `1xx`. Verified
+against the pinned v3.30.22.1 source: `parm_timevary` is seeded with the base
+parameter (`SS_timevaryparm.tpl:50`), type 1 multiplies it by
+`mfexp(beta * env)` (`:206-211`) where type 2 adds (`:215-220`), the result is
+`Svy_log_q` (`SS_expval.tpl:408`), and the `1xx` decoding for `Q_parm` is
+`SS_readcontrol_330.tpl:3289`. The deviation stays outside the multiply,
+matching SS3's order (env at `:200-245`, devs at `:252-330`).
+
+**Where it applies, and where it does not.** SS3's type 1 multiplies a parameter
+on whatever scale SS3 stores it on, so the restriction follows that scale:
+
+* **Natural mortality and growth**: natural-scale in SS3
+  (`SS_biofxn.tpl:1063`, `:265-275`), where type 1 is `parm * exp(beta * x)` --
+  **exactly what Rceattle's `"log"` link already computes**. An SS3 `NatM` or
+  growth line carrying `env-var 1xx` bridges with `"log"`. Applied to a
+  natural-scale parameter this form would raise it to a power, and on M -- where
+  `log M` is always negative, since M < 1 -- that inverts the sign of the
+  covariate effect.
+* **Recruitment**: SS3 *does* store the level as a log (`SR_LN(R0)`, and
+  `SS_timevaryparm.tpl:53` seeds `parm_timevary` from `SRparm`), so this form is
+  the right one there. No accumulator consumes it yet, and the refusal says so
+  rather than offering `"log"`, which is SS3's type **2**.
+* **Catchability**: only for a **lognormal** index. SS3 exponentiates
+  `Svy_log_q` only when the survey error type is lognormal or t; under a
+  natural-scale family (`MVN`, `MVNORM`, `Normal`, `TruncatedNormal`) it reads
+  the same slot arithmetically (`SS_expval.tpl:413-419`), where type 1 is again
+  `"log"`. Rceattle holds q on the log scale whatever the index family, so the
+  model is still well defined there and those families **warn** rather than
+  refuse -- but it is the wrong bridge.
+* **Catchability, and the base must be estimated.** The link multiplies `log q`,
+  so a formula with no intercept (`~ 0 + x`) or a fixed one (`est_phase = 0`)
+  makes `map_linkage_adjuster()` mask `index_log_q`, freezing the value being
+  multiplied -- and at `Catchability_init = 1` that value is exactly 0, where
+  `beta` has an identically zero gradient and the fit converges on whatever
+  `beta` started at. Refused. A *free* base is left alone: where it starts is not
+  knowable at build time, because `fit_mod(inits = )` and an intercept `init`
+  both override `Catchability_init`, so the fitted value is what
+  `exponential_q_near_one` reads instead.
+* **Not with a linkage random effect on the same fleet.** Every log-link row
+  accumulates into `q_linkage_offset`, which sits inside the multiply, so an
+  `ar1(1 | Year)` q linkage would have its deviations scaled by
+  `exp(beta * x)` while their density still scored them at a constant sigma.
+  Refused on both the same spec and the same fleet. An environmental effect
+  plus q deviations is still expressible with `Time_varying_q`, whose
+  `index_q_dev` the template keeps outside the multiply, as SS3 does its dev
+  blocks.
+
+Worth knowing even on q, and it is SS3's property rather than ours: because
+`beta` multiplies a *log*, the effect scales with how far `log q` sits from
+zero, and below `q = 1` its sign inverts. Both are pinned by tests so nobody
+reads them as a broken linkage.
+
+**Report `beta` with its base, never alone.** To first order
+`log q_y = log q * (1 + beta * x_y)`, so the index informs the product
+`log q * beta`. With an estimated base the fit may cross `q = 1` and re-express
+the same curve with the opposite sign of `beta`: simulating from
+`q = 0.3, beta = +0.4` and refitting returned `q = 467.0, beta = -0.0775`,
+preserving `log q * beta` to 1.1% (-0.4761 against -0.4816) with the fitted `q`
+series correlating 0.984 with the truth. Those figures are the
+simulate-and-refit check in `tests/testthat/test-linkage-exponential-link.R` at
+its own seed on one platform; the test asserts the invariant, not the values,
+since an optimizer path need not be identical everywhere. Interpret `fit$quantities$index_q`; a `beta` quoted alone is not
+comparable between models. A q prior pins the level if `beta` itself is wanted.
+
+Because that is a silently-wrong-number shape rather than a documentation gap, a
+new `convergence_diagnostics()` record flags it on the fit itself:
+`exponential_q_near_one` (WARN) when a fleet's **fitted** catchability is within
+0.1% of 1, where `beta` is unidentified. It reads the fitted base rather than the
+starting value, because an intercept `init`, `fit_mod(inits = )` and a shared
+`Catchability_index` group each make `Catchability_init` something other than
+where `index_log_q` began.
+
+The new reported quantity is `q_linkage_log_mult` -- the linear predictor whose
+`exp()` multiplies `log q`.
+
+No fit changes for a model without a q linkage: the tensor stays at zero,
+`exp(0)` is exactly 1, and `x + 0.0` and `x * 1.0` are exact, so the result is
+bit-identical. For a model that *does* carry a `log` q linkage the sum
+reassociates from `(log_q + dev) + offset` to `(log_q + offset) + dev`:
+algebraically identical, but not bit-identical.
+
+Motivation: the GOA Pacific cod SS3 bridge, whose LLSrv survey catchability
+carries this link. `Rceattle-models/SS3-bridge/GOA-estimation-parity.md` still
+lists it under "Still open" and attributes the whole `+9.9645` nats of LLSrv
+index residual to its absence; that refit has not yet been run, so what the link
+is worth there is not yet measured.
+
 # Rceattle 5.46.0
 
 ## `initMode = "FishedNonEquilibriumSelected"` (6)
@@ -318,6 +421,18 @@ to additive constants and SS3 weighs catch this way.
 # Rceattle 5.45.3
 
 ## Bug fixes
+
+* A **shared** catchability linkage row is now checked against every fleet.
+  `NA` is the shared-stratum sentinel and the template expands it to all fleets,
+  but `.check_q_linkage_support()` only expanded it when *every* row was `NA`, so
+  a table mixing a shared q spec with a per-fleet one was checked against the
+  named fleet alone. The shared row then reached fleets whose `Catchability` is
+  `NA`, `Fixed`, `Analytical`/`AnalyticalArith` or `Environmental` -- the forms
+  that check exists to refuse -- turning a fixed q time-varying, or leaving a
+  coefficient free with no gradient. Such a configuration now errors with
+  "catchability linkage on fleet(s) ... does not estimate q"; restrict the spec
+  with `linkage_spec(fleet = )`.
+
 
 * **An aggregated composition figure no longer pools two observation
   structures into one normalization.** A fleet can carry more than one --
