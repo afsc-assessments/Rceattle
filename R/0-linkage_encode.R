@@ -29,6 +29,23 @@ LINKAGE_PROCESS_CODES <- c(
   comp        = 5L
 )
 
+#' Rows of a linkage table that are the recruitment `init` parameter
+#'
+#' `init` multiplies the initial age-structure and is the one linkage parameter
+#' with no base parameter in `rec_pars`, so its `(Intercept)` coefficient stays
+#' estimable where every other parameter's is pinned: nothing else holds the
+#' level. Shared by the three builders and by `data_check()` so they cannot
+#' disagree about which rows those are.
+#'
+#' @param tbl A pooled `linkage_table`.
+#' @keywords internal
+#' @noRd
+.is_init_linkage_row <- function(tbl) {
+  as.character(tbl[["process"]]) %in% c("recruitment", "0") &
+    as.character(tbl[["param"]]) %in% c("init", "3")
+}
+
+
 # Process names as a message reads them.
 .LINKAGE_PROCESS_LABELS <- c(
   recruitment = "recruitment", M = "natural mortality", growth = "growth",
@@ -87,7 +104,9 @@ LINKAGE_PARAM_CODES <- list(
   growth      = c(K = 0L, L1 = 1L, Linf = 2L, m = 3L,
                   sd_L1 = 4L, sd_Linf = 5L),
   M           = c(M1 = 0L),
-  recruitment = c(R0 = 0L, alpha = 1L, beta = 2L),
+  # `init` is the initial recruitment LEVEL, read at year 0 only (the initial
+  # state is one year), and carries no deviate penalty.
+  recruitment = c(R0 = 0L, alpha = 1L, beta = 2L, init = 3L),
   q           = c(q = 0L),
   # Selectivity codes index the underlying parameter slots, which are shared
   # across the parametric forms:

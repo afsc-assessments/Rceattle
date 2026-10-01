@@ -2405,6 +2405,68 @@ data_check <- function(data_list) {
 }
 
 
+#' Refuse a recruitment `init` linkage the initial age-structure cannot carry
+#'
+#' `init` is a log-scale multiplier on the initial age-structure, applied through
+#' `init_log_scalar`. Two `initMode`s cannot carry one: `FreeParams` builds the
+#' initial numbers straight from `init_dev` and never reads `R_init`, so the
+#' offset would be estimated and move nothing, and `OffsetEquilibrium` already
+#' fixes `init_log_scalar` at `rec_dev(sp, 0)`, which scales the same ages.
+#'
+#' Separate from `data_check()` because the linkage table does not exist yet when
+#' that runs: `fit_mod()` pools it after the check.
+#'
+#' @param data_list A `data_list` holding `linkage_table` and `initMode`.
+#' @keywords internal
+#' @noRd
+.check_init_linkage <- function(data_list) {
+  lt <- data_list$linkage_table
+  if (is.null(lt) || is.null(nrow(lt)) || !nrow(lt)) return(invisible())
+  rows <- .is_init_linkage_row(lt)
+  if (!any(rows)) return(invisible())
+
+  # The level is added inside the exp(), so only a log-scale offset means
+  # anything: an identity offset would add metric tons to a log multiplier.
+  bad <- setdiff(unique(as.character(lt[["link"]][rows])), c("log", "1"))
+  if (length(bad)) {
+    stop(sprintf(paste0(
+      "a recruitment `init` linkage needs link = \"log\". The initial ",
+      "recruitment level is a log-scale multiplier on the initial ",
+      "age-structure, so link = %s has no meaning there."),
+      paste(sQuote(bad), collapse = " / ")), call. = FALSE)
+  }
+
+  # Only year 0 is read, so one design column is all the initial state can
+  # identify: two coefficients would share a single number (a flat ridge), and a
+  # per-year random effect would estimate deviates no year but the first reads.
+  cols <- unique(as.character(lt[["design_col"]][rows]))
+  if (length(cols) > 1L) {
+    stop(sprintf(paste0(
+      "a recruitment `init` linkage must have one design column; this one has ",
+      "%d (%s). The initial recruitment level is read in the first year only, ",
+      "so anything more is not identified. Use `~ 1` for a free level, or ",
+      "`~ 0 + x` for one covariate."),
+      length(cols), paste(sQuote(cols), collapse = ", ")), call. = FALSE)
+  }
+
+  mode <- as.character(data_list$initMode)
+  if (mode %in% c("FreeParams", "0")) {
+    stop("a recruitment `init` linkage cannot be used with initMode = ",
+         "\"FreeParams\": that mode estimates the initial numbers-at-age ",
+         "directly as init_dev and never reads R_init, so the level would be ",
+         "estimated and change nothing.", call. = FALSE)
+  }
+  if (mode %in% c("OffsetEquilibrium", "5")) {
+    stop("a recruitment `init` linkage cannot be used with initMode = ",
+         "\"OffsetEquilibrium\": that mode already scales the initial ",
+         "age-structure by the first-year recruitment deviation rec_dev[, 1], ",
+         "so the two are not separable. Use initMode = \"NonEquilibrium\" to ",
+         "estimate the level instead.", call. = FALSE)
+  }
+  invisible()
+}
+
+
 #' Check an initial equilibrium catch, the `catch_data` row at `styr - 1`
 #'
 #' Returns a character vector of errors, empty where there is nothing to say,

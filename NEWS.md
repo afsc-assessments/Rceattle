@@ -12,6 +12,50 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.48.0
+
+## A free initial recruitment level, `srr_linkages = list(init = ...)`
+
+A stock whose series begins after a regime shift starts at a recruitment other than
+\eqn{R_0}, and Rceattle had nowhere to say so. The level had to go into `init_dev`,
+which is penalised \eqn{N(-\sigma^2/2, \sigma_R)} per age, so the model paid a
+recruitment-deviate penalty for sitting where the data say it sits.
+
+**That penalty biases the reference points.** `init_dev` is
+\eqn{\log N_{target} - \log R_{init} + \sum M}, so the optimiser can retire the penalty
+by lowering \eqn{R_0} -- and does. On GOA Pacific cod it lowers it 0.37 log units, taking
+the penalty from 54.98 to 17.72 and leaving \eqn{R_0} 31% below the value the same data
+support, while terminal SSB moves only -1.35%. \eqn{SB_0}, \eqn{B_{40\%}} and depletion
+all scale with \eqn{R_0}, so a penalty on the initial state was moving the quantities
+that set the catch limit.
+
+`init` is a fourth recruitment linkage parameter, alongside `R0`, `alpha` and `beta`. It
+is a **log-scale multiplier on the initial age-structure**, read at year 0 because the
+initial state is one year, and it carries no deviate penalty:
+
+```r
+d$env_data <- data.frame(Year = d$styr:d$projyr, lvl = 1)
+d$srr_linkages <- list(init = linkage_spec(formula = ~ 0 + lvl))
+```
+
+Measured on GOA Pacific cod 2024, where Stock Synthesis carries this as an unpenalised
+`SR_regime` block on the year before the hindcast (\eqn{-1.3879}, a quarter of
+\eqn{R_0}): moving the level out of `init_dev` drops the objective **49.91 nats**, all of
+it in the `Initial abundance deviates` row (54.975 to 5.062), with the index, catch,
+length-composition and CAAL components unchanged to 1.9e-04 and the recruitment deviates
+unchanged exactly. The stock-recruit curve is untouched -- \eqn{R_0} is the unfished
+level and does not move with the initial state.
+
+Refused rather than silently inert:
+
+* `link = "identity"`. The level is added inside the `exp()`, so a natural-scale offset
+  would add metric tons to a log multiplier.
+* `initMode = "FreeParams"`, which estimates the initial numbers-at-age directly as
+  `init_dev` and never reads \eqn{R_{init}}.
+* `initMode = "OffsetEquilibrium"`, which already scales the same ages by
+  `rec_dev[, 1]`, so the two are not separable.
+
+A model with no `init` linkage is unchanged, including all four golden references.
 # Rceattle 5.47.0
 
 ## `link = "exponential"`: Stock Synthesis's environmental link type 1, on catchability

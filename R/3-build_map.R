@@ -1789,7 +1789,9 @@ build_map_linkages <- function(map_list, data_list) {
   }
   tbl <- data_list$linkage_table
   est_phase   <- as.integer(tbl$est_phase)
-  is_intercept <- tbl$design_col == "(Intercept)"
+  # An `init` intercept is NOT pinned: it has no base parameter to carry the
+  # level, so the coefficient itself is the level.
+  is_intercept <- tbl$design_col == "(Intercept)" & !.is_init_linkage_row(tbl)
   # Random-effect indicator rows carry their deviation in beta_linkage_re (which
   # holds the density), so the fixed beta_linkage entry is pinned at 0. Key on
   # re_index -- the registry marker -- so a fixed row that merely inherited a

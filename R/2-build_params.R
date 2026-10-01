@@ -211,7 +211,10 @@ build_params <- function(data_list) {
   if (!is.null(data_list$linkage_table) &&
       nrow(data_list$linkage_table) > 0L) {
     init_vals <- as.numeric(data_list$linkage_table$init)
-    init_vals[data_list$linkage_table$design_col == "(Intercept)"] <- 0
+    # An `init` intercept keeps its own starting value: it has no base
+    # parameter to re-target, so nothing else holds the level.
+    lt <- data_list$linkage_table
+    init_vals[lt$design_col == "(Intercept)" & !.is_init_linkage_row(lt)] <- 0
     param_list$beta_linkage <- init_vals
   } else {
     param_list$beta_linkage <- numeric(0)

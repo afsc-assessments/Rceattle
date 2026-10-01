@@ -115,7 +115,8 @@ build_bounds <- function(param_list = NULL, data_list) {
     # beta_linkage bound for those rows to [-Inf, Inf] so the "inits within
     # bounds" check downstream doesn't trip on the 0 init vs the
     # user-supplied natural-scale bound (e.g. Linf [70, 130]).
-    is_int <- tbl$design_col == "(Intercept)"
+    # An `init` intercept is estimated here, so it keeps the caller's bound.
+    is_int <- tbl$design_col == "(Intercept)" & !.is_init_linkage_row(tbl)
     lower_bnd$beta_linkage[is_int] <- -Inf
     upper_bnd$beta_linkage[is_int] <- Inf
 
@@ -128,6 +129,7 @@ build_bounds <- function(param_list = NULL, data_list) {
     # optimizer can wander into degenerate regions (K -> 0.07 etc).
     # Inputs are natural-scale; base params are log-scale -> apply log.
     int_rows <- which(tbl$design_col == "(Intercept)" &
+                        !.is_init_linkage_row(tbl) &
                         is.finite(as.numeric(tbl$lower)) &
                         is.finite(as.numeric(tbl$upper)))
     if (length(int_rows) > 0) {
