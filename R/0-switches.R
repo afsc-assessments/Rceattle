@@ -419,15 +419,14 @@ index_distribution_map <- c(
   if (is.null(idx) || !nrow(idx) || is.null(fc)) return(logical(0))
   nat <- .index_fleets_natural_scale(fc)
   if (!length(nat)) return(rep(FALSE, nrow(idx)))
-  out <- nat[match(idx$Fleet_code, fc$Fleet_code)]
+  out <- nat[match(idx[["Fleet_code"]], fc[["Fleet_code"]])]
   out[is.na(out)] <- FALSE
   out
 }
 
 
-# The per-fleet form of .index_rows_natural_scale(), which calls it. This is the
-# one place the family codes are classified, so a new natural-scale family is
-# added here and nowhere else.
+# The per-fleet form of .index_rows_natural_scale(), which calls it; the one
+# place the family codes are classified, so a new family is added here only.
 .index_fleets_natural_scale <- function(fleet_control) {
   fam <- fleet_control[["Index_distribution"]]
   if (is.null(fam)) return(rep(FALSE, nrow(fleet_control)))

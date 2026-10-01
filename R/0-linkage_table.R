@@ -198,11 +198,8 @@ is_linkage_table <- function(x) {
 }
 
 
-# `exponential` reproduces SS3's environmental link type 1, which MULTIPLIES a
-# parameter on whatever scale SS3 stores it on (`case 1: // exponential env
-# link`, SS_timevaryparm.tpl:206-211). Only catchability consumes it here, so the
-# right substitute for any other process depends on that process's SS3 scale --
-# which is why the message below enumerates rather than naming one link.
+# `exponential` is SS3's environmental link type 1, which multiplies a parameter
+# on whatever scale SS3 stores it on (SS_timevaryparm.tpl:206-211).
 .check_exponential_link <- function(tbl) {
   if (is.null(tbl) || !is.data.frame(tbl) || nrow(tbl) == 0L) {
     return(invisible(tbl))
@@ -231,12 +228,8 @@ is_linkage_table <- function(x) {
          call. = FALSE)
   }
 
-  # A deviation inside the multiply has effective sd sigma * exp(beta * x) --
-  # year- and covariate-varying -- while its density still scores it at the
-  # constant sigma, and beta rescales the very deviations being integrated out.
-  # Every RE row lands in q_linkage_offset, which the exponential row multiplies,
-  # whether it came from the same spec or another. NA fleet is the shared
-  # sentinel and reaches every fleet, so it overlaps anything.
+  # Every RE row lands in q_linkage_offset, which this link multiplies, so its
+  # deviations would be scored at a constant sigma while varying by covariate.
   q_re <- which(!is.na(tbl[["re_struct"]]) & tbl[["process"]] == "q")
   if (length(q_re)) {
     exp_flt <- tbl[["fleet"]][is_exp]
@@ -329,10 +322,8 @@ validate_linkage_table <- function(x) {
   for (lk in setdiff(unique(x$link), LINKAGE_LINKS_IMPLEMENTED)) {
     .check_link_implemented(lk)
   }
-  # Runs here, not at the top: it reads `link`, `process` and `re_struct`, so it
-  # needs the column and type checks above to have passed. Called at the top it
-  # met a non-data.frame with `!nrow(x)` -> logical(0) and errored out of `||`
-  # instead of reporting the class.
+  # After the type checks: it reads `link`, `process` and `re_struct`, and at the
+  # top a non-data.frame errored out of `||` instead of reporting its class.
   .check_exponential_link(x)
   bad_fam <- setdiff(unique(x$prior_family), PRIOR_FAMILIES)
   if (length(bad_fam) > 0) {

@@ -92,8 +92,8 @@ build_catchability <- function(linkages = NULL) {
 }
 
 
-# Fleets a set of q linkage rows reaches. NA is the shared sentinel, which the
-# cpp expands to every fleet, so one NA row applies the whole set to all of them.
+# Fleets a set of q linkage rows reaches; NA is the shared sentinel, which the
+# cpp expands to every fleet.
 .q_linkage_fleets <- function(fleet, fleet_control) {
   f <- unique(fleet)
   if (anyNA(f)) seq_len(nrow(fleet_control)) else as.integer(f)
@@ -113,11 +113,9 @@ build_catchability <- function(linkages = NULL) {
   q <- linkage_table[linkage_table$process == "q", , drop = FALSE]
   if (nrow(q) == 0L) return(invisible())
 
-  # NA fleet is the shared sentinel, and the cpp expands it to EVERY fleet
-  # (rceattle_stratum_range), so one shared row pulls all of them into the checks
-  # below. Dropping the NAs and keeping only the named fleets let a shared row
-  # reach a fleet with no catchability at all, which is what these checks refuse.
-  flts <- .q_linkage_fleets(q$fleet, fleet_control)
+  # The cpp expands the NA sentinel to EVERY fleet, so a shared row has to be
+  # checked against all of them, not only the fleets other rows name.
+  flts <- .q_linkage_fleets(q[["fleet"]], fleet_control)
   forms <- as.character(fleet_control$Catchability[flts])
   # A fleet does not estimate q if its Catchability holds q fixed / solves it from
   # the data (Fixed / Analytical), or is absent (NA) -- a fleet with no survey index
@@ -159,14 +157,8 @@ build_catchability <- function(linkages = NULL) {
   if (nrow(ex) > 0L) {
     ex_flts <- intersect(.q_linkage_fleets(ex[["fleet"]], fleet_control), flts)
 
-    # SS3's type 1 multiplies the parameter on the scale SS3 stores it on, and it
-    # stores q as a log only for a lognormal/t survey: under a natural-scale
-    # index family (MVN/MVNORM/Normal/TruncatedNormal) SS3 reads the same slot
-    # arithmetically (SS_expval.tpl:413-419), where its type 1 is
-    # q * exp(beta * x) -- Rceattle's "log" link.
-    # A warning, not a refusal: Rceattle holds q on the log scale whatever the
-    # index family is, so q^exp(beta * x) is still a well-defined model here --
-    # it just is not what SS3 computes, so it is the wrong bridge.
+    # SS3 stores q as a log only for a lognormal/t survey (SS_expval.tpl:413-419),
+    # so this is the wrong bridge elsewhere -- but a well-defined model, so warn.
     nat <- .index_fleets_natural_scale(fleet_control)
     bad_fam <- ex_flts[nat[ex_flts]]
     if (length(bad_fam) > 0L) {
@@ -185,13 +177,9 @@ build_catchability <- function(linkages = NULL) {
         call. = FALSE)
     }
 
-    # The link multiplies log q, so it needs a FREE base to multiply.
-    # map_linkage_adjuster() masks index_log_q for a group with no intercept row
-    # (slope-only) or whose intercept is fixed at 0 (est_phase 0). log q is then
-    # frozen, so it cannot re-fit against the covariate -- and at a starting q of
-    # 1 it is exactly 0, where beta has an identically zero gradient for every
-    # value it could take. NA is the shared sentinel, and NA %in% NA is TRUE, so
-    # a shared intercept frees a shared slope.
+    # The link multiplies log q, so it needs a base map_linkage_adjuster() leaves
+    # free: a slope-only group or a fixed intercept freezes it. NA %in% NA is TRUE,
+    # so the shared sentinel frees a shared slope.
     is_icept <- !is.na(q[["design_col"]]) & q[["design_col"]] == "(Intercept)"
     free <- q[["fleet"]][is_icept & as.integer(q[["est_phase"]]) != 0L]
     frozen <- unique(ex[["fleet"]][!(ex[["fleet"]] %in% free)])
@@ -209,10 +197,8 @@ build_catchability <- function(linkages = NULL) {
         call. = FALSE)
     }
 
-    # beta multiplies log q, so at q = 1 the covariate does nothing whatever beta
-    # is and beta's gradient is exactly 0. The base is free here and can move off
-    # 1, so warn rather than refuse. An intercept `init` is what actually seeds
-    # index_log_q when supplied (build_params section 1.3c), so read that first.
+    # At q = 1 beta has no gradient, but a free base can move off it, so warn. An
+    # intercept `init` seeds index_log_q when supplied, so it is the real start.
     icept_init <- stats::setNames(
       q[["init"]][is_icept & !is.na(q[["init_supplied"]]) &
                     q[["init_supplied"]]],

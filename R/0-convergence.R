@@ -164,10 +164,10 @@
 #' `link = "exponential"` multiplies `log q`, so the covariate effect is
 #' `beta * log q`: `q = 1` makes the link inert whatever `beta` is, and the sign
 #' of the effect is the sign of `beta` times the sign of `log q`. A `beta` is
-#' therefore only interpretable alongside its fitted base, and near `q = 1` it is
-#' not identified at all. Read off the FITTED log q, never the starting value: an
+#' therefore only interpretable alongside its fitted base, and near `q = 1` it
+#' is not identified at all. Read the FITTED log q, never the starting value: an
 #' intercept `init`, `fit_mod(inits = )` and a shared `Catchability_index` group
-#' each make `Catchability_init` something other than where `index_log_q` started.
+#' each make `Catchability_init` something other than where `index_log_q` began.
 #'
 #' @param object a fitted Rceattle object.
 #' @return a list of convergence records.
@@ -196,7 +196,8 @@
     "exponential_q_near_one", "fit", "WARN",
     sprintf(paste0(
       "%d fleet(s) with an \"exponential\" q linkage fitted a catchability ",
-      "within 0.1%% of 1: %s. beta multiplies log q, which is ~0 there, so the ",
+      "within 0.1%% of 1: %s. beta multiplies log q, which is ~0 there, so ",
+      "the ",
       "covariate moves q by essentially nothing whatever beta is and beta is ",
       "unidentified. Report beta with its fitted base, and compare ",
       "fitted index_q rather than beta."),
