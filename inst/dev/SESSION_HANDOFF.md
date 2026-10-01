@@ -53,6 +53,55 @@ optimizer explains neither. See the 5.45.1 NEWS entry and `TRAPS.md`.
 
 **`cod-bridge` was 5.46.0 and is MERGED into `dev` as PR #178.** It carries seven features from the
 SS3 cod bridge: `initMode 6`, the SS3 growth / maturity / length-bin options,
+## In flight above `dev` (5.46.0)
+
+Two branches, both off `e2fd61e4`, independent in content. **Merge PR #181 first**, then rebase
+the init branch on the result: they conflict only in `NEWS.md` (both insert above the same
+`# Rceattle 5.46.0` heading, which is shared context -- a merge has already filed two unrelated
+feature sets under one heading on this line of work) and in the `DESCRIPTION` version line.
+Every code hunk is comfortably separated.
+
+**`feat/linkage-power-link`, PR #181, 5.47.0** (head `a0749821`). `link = "exponential"`, SS3's
+environmental link type 1 on catchability: `q_yr = exp(log(q) * exp(beta * x))`, catchability
+only. Named for SS3's own word because `control.ss_new:199` puts `SPAWN(8)` on Q link type 3,
+the q POWER function, in the same control file -- so `power` would have named two different
+things in one model. Acceptance test paid: on GOA Pacific cod the LLSrv index residual closes
+**9.96459** against a predicted 9.9645, with no other `jnll_comp` row moving past 1e-6.
+`exponential_q_near_one` records a fitted q within 0.1% of 1, where the form is inert. A
+build-time check on `Catchability_init` was removed rather than taught about overrides: that
+column is not the start once `inits`, an intercept init writing `log(init_val)` into
+`index_log_q`, or a shared group's GEOMETRIC MEAN is involved.
+
+**`feat/srr-init-level`, 5.48.0** -- recruitment `init`, a fourth recruitment linkage parameter
+(code 3). A log-scale multiplier on the initial age structure, read at year 0 only, carrying no
+deviate penalty. It exists because `init_dev` is penalised per age, so a stock starting away from
+`R0` paid a recruitment-deviate penalty to sit where its data say it sits -- and the optimiser
+retires that penalty by LOWERING `R0`. On GOA cod that is 0.37 log units, `R0` 31% below what the
+same data support, while terminal SSB moves only -1.35%; `SB0`, `B40%` and depletion all scale
+with `R0`, so a penalty on the initial state was displacing the quantities that set the catch
+limit. Measured: moving the level out of `init_dev` drops the objective 49.9133 nats, all of it
+in `Initial abundance deviates` (54.97530 -> 5.06184), every fitted component unchanged to
+1.9e-04.
+
+Two things for anyone merging across it:
+
+- `RCEATTLE_N_REC_PARAMS` goes 3 -> 4 in `linkage.hpp`; it dimensions
+  `recruitment_linkage_offset`, so a textual merge taking one side mis-sizes the tensor.
+- **The shared-intercept machinery changed.** `build_map` pinned EVERY `(Intercept)`
+  `beta_linkage` at `NA`, `build_params` zeroed its starting value, and
+  `build_parameter_bounds` loosened its bound and propagated it to the base parameter -- all on
+  the premise that a base parameter exists to carry the level. True for all six processes until
+  `init`, which has none, so `~ 1` estimated nothing and moved nothing while every builder
+  reported success. The four sites now share `.is_init_linkage_row()`
+  (`R/0-linkage_encode.R`); that predicate must stay in each condition.
+
+**Neither branch's green suite covers the combination.** PR #181 changes the q computation (an
+AD-tape change) and the init branch changes `build_params` / `build_map` /
+`build_parameter_bounds`, which every model goes through. Run `/golden-check` on the MERGED tree.
+
+**`cod-bridge` MERGED into `dev` as PR #178** at `e2fd61e4`, carrying `dev` to 5.46.0. So
+anything branched from `dev` now has it, and the SS3 bridge needs no separate checkout for
+`DoubleNormalSS3`. It carried seven features from the SS3 cod bridge: `initMode 6`, the SS3 growth / maturity / length-bin options,
 `Selectivity = "DoubleNormalSS3"` (code 15), length-based selectivity on the population bins,
 the initial equilibrium catch, and a per-fleet ageing error matrix.
 
@@ -86,8 +135,8 @@ Measured at `14040f5d`, serial, R 4.5.1: **suite 9,976 / 0 / 0** (3 skips), **go
 `verify-sim-centering` both clean.
 
 **A second review round then added five commits, `23a4d265`..`80e825d3`, pushed 2026-09-29.**
-`cod-bridge` on `afsc` is the PR's head branch; `origin` is `grantdadams`, so a push there does
-NOT update PR #178. Seven blockers, all silent-wrong-number or memory-safety:
+`cod-bridge` on `afsc` was the PR's head branch; `origin` is `grantdadams`, so a push there did
+NOT update PR #178 -- which is still how every PR on this repo behaves. Seven blockers, all silent-wrong-number or memory-safety:
 
 - **The population-grid refusal turned itself off.** It read `Bin_first_selected` first and that
   column has no schema default, so `as.integer(NULL) > 1L` is `logical(0)`, `logical(0) | <n>`
@@ -220,7 +269,7 @@ for `^ERROR`. `as.data.frame(testthat::test_local(reporter = "silent"))` gives t
 directly. A capped run also aborts on max-failures, so "N failures" from a capped log is a floor.
 
 
-**`dev` is at 5.45.2 and `main` at 5.45.0.** The next step is one `dev` -> `main` release
+**At the time of that release `dev` was at 5.45.2 and `main` at 5.45.0.** The next step was one `dev` -> `main` release
 covering 5.45.1 and 5.45.2, per `inst/RELEASE-CHECKLIST.md`. Read that file's pkgdown note
 before tagging: the `release: published` event has silently failed to fire once already.
 **The tag is the DESCRIPTION version, so read it off `DESCRIPTION` at the moment you tag; it

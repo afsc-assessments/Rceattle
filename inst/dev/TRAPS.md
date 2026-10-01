@@ -229,6 +229,33 @@ than switch on `estimateMode`.
 
 ## Silent-wrong-number traps
 
+**A linkage parameter has THREE registries, and the rule-12 pair is only two of them.**
+`LINKAGE_PARAM_CODES` (`R/0-linkage_encode.R`) must match `linkage.hpp`, which is rule 12 — but
+`build_srr()` keeps its own whitelist in `RECRUITMENT_LINKAGE_PARAMS` (`R/0-build_srr.R`), and
+`.REC_PARAM_TO_INDEX` beside it maps a linkage param to its `rec_pars` column. Add a parameter to
+the rule-12 pair alone and `build_srr()` rejects it with "unknown recruitment linkage
+parameter(s)"; the other processes have the equivalent (`.SEL_PARAM_TO_SLOT`). This is the same
+shape as `Index_distribution`'s second registry. Grep every registry before adding one.
+
+**Every `(Intercept)` linkage coefficient is pinned at `NA`, on the premise that the process's
+own base parameter carries the level.** `R/3-build_map.R` masks `beta_linkage` for intercept rows,
+`build_params` forces their starting value to 0, and `build_parameter_bounds` loosens their bound
+to ±Inf and propagates the caller's bound to the base parameter instead. That premise held for
+all six processes until recruitment `init` (5.48.0), which multiplies the initial age-structure
+and has NO base parameter — so `~ 1` produced zero estimable `beta_linkage` entries and moved
+nothing, while every builder reported success. The four sites now share
+`.linkage_intercept_is_level()`, keyed off `.LINKAGE_PARAMS_WITHOUT_BASE`. **Adding a linkage
+parameter with no base parameter means checking all four**, and note that a linkage TABLE row is
+not an estimated parameter: `print()` on the table said "1 coefficient(s)" for the inert case.
+Count `beta_linkage` in `obj$env$last.par.best` to tell the difference.
+
+**A process linkage assigned straight onto a `data_list` is silently discarded.**
+`fit_mod()` overwrites `data_list$srr_linkages` from `recFun` (`R/6-fit_mod.R:533`), and does the
+same for the other processes from their own `build_*()` objects. So
+`d$srr_linkages <- list(...)` followed by `fit_mod(d)` fits a model with no linkage at all and
+says nothing. Build the spec through `build_srr(linkages = ...)`. Same shape as
+`fit_mod(d, config = cfg)` dropping every linkage unless `cfg` came from `run_config()`.
+
 **Which fleet leads a `Selectivity_index` group is row-order dependent, so a group's penalty
 weights can change meaning when rows move.** `.group_lead()` picks the group's first fleet that
 is not `Off`, and `Fleet_code` must equal the row number, so inserting or reordering a fleet —
