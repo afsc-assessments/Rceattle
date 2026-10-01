@@ -235,6 +235,13 @@ The checks cover:
   dependence), when a Ricker peaks below the lowest observed SSB, when log alpha
   or log beta sits at its +/-30 bound, or when a log-scale standard error exceeds
   10. A curve held at its inputs is a `NOTE`.
+- **`exponential_q_near_one`**: a fleet carrying an `exponential` catchability
+  linkage whose FITTED catchability is within 0.1% of 1. That link multiplies
+  `log q`, so at `q = 1` the covariate moves the index by nothing whatever the
+  coefficient is, and the coefficient is unidentified. `WARN`. Read it off the
+  fitted base, not the starting value: an intercept `init`, `fit_mod(inits = )`
+  and a shared `Catchability_index` group each make `Catchability_init` something
+  other than where `index_log_q` began.
 - **`phasing`**: phases that ended with a high gradient, localizing which
   parameter block is hard to fit.
 - **`estimability`**: surfaces `TMBhelper::check_estimability` when it ran.

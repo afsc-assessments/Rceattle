@@ -89,6 +89,11 @@ testthat::test_that("an exponential q reproduces SS3's env link type 1 exactly",
   # the log-multiplier tensor is what carries it
   testthat::expect_equal(as.numeric(rep$q_linkage_log_mult[s$flt, ]), BETA * x,
                          tolerance = 1e-10)
+
+  # and the identifiability record runs on a real fit: q here is 0.3, well away
+  # from 1, so it must stay silent rather than merely not erroring.
+  testthat::expect_false("exponential_q_near_one" %in%
+                           names(fit$convergence$checks))
 })
 
 
@@ -178,7 +183,7 @@ testthat::test_that("exponential is refused on every process but catchability", 
     testthat::expect_error(
       Rceattle:::materialize_linkage(
         Rceattle::linkage_spec(~ xcov, param = prm, link = "exponential"),
-        proc, env),
+        proc, env, strata = list(species = 1L, sex = 1L, fleet = 1L)),
       "only consumed by catchability",
       info = proc)
   }
@@ -186,22 +191,23 @@ testthat::test_that("exponential is refused on every process but catchability", 
   err <- tryCatch(
     Rceattle:::materialize_linkage(
       Rceattle::linkage_spec(~ xcov, param = "R0", link = "exponential"),
-      "recruitment", env),
+      "recruitment", env, strata = list(species = 1L)),
     error = conditionMessage)
   testthat::expect_match(err, "SR_LN\\(R0\\)")
-  testthat::expect_match(err, "NOT a substitute")
+  testthat::expect_match(err, "rather than a substitute")
 })
 
 
 testthat::test_that("exponential is refused on a random-effect row", {
   # A deviation multiplied by exp(beta * x) has effective sd sigma * exp(beta * x)
   # while its density still scores it at a constant sigma -- the same defect the
-  # consume site avoids for index_q_dev by keeping it outside the multiply.
+  # consume site avoids for index_q_dev by keeping it outside the multiply. One
+  # row that is both is caught by the same fleet-overlap check as two rows.
   testthat::expect_error(
     Rceattle:::linkage_row(process = "q", param = "q", X_col = 1L, fleet = 1L,
                            link = "exponential", re_struct = "ar1",
                            re_group = "Year"),
-    "cannot carry a random effect")
+    "random-effect catchability linkage")
 })
 
 
@@ -285,7 +291,7 @@ testthat::test_that("a q starting at exactly 1 warns that beta has no gradient",
     Rceattle:::linkage_row(process = "q", param = "q", X_col = 2L, fleet = 7L,
                            design_col = "xcov", link = "exponential"))
   testthat::expect_warning(Rceattle:::.check_q_linkage_support(tbl, fc),
-                           "Catchability_init is 1")
+                           "starts at q = 1", fixed = TRUE)
 })
 
 
@@ -303,37 +309,29 @@ testthat::test_that("a shared q linkage row is checked on every fleet", {
 })
 
 
-testthat::test_that("a fitted q that crossed 1 is flagged, not just documented", {
-  # The sign degeneracy is a silently-wrong-number shape, so it is a convergence
-  # record rather than prose: beta's meaning flips with the sign of log q, and a
-  # free base can cross q = 1 mid-fit.
+testthat::test_that("a q fitted at 1 is flagged on the fit, not just documented", {
+  # The identifiability hazard is a silently-wrong-number shape, so it is a
+  # convergence record. It reads the FITTED log q: Catchability_init is not where
+  # index_log_q started once an intercept `init`, fit_mod(inits = ) or a shared
+  # Catchability_index group is involved, so a start-based test false-positives.
   fc <- Rceattle::switch_check(Rceattle::clean_data(Rceattle::BS2017SS))$fleet_control
   tbl <- Rceattle:::bind_linkage(
     Rceattle:::linkage_row(process = "q", param = "q", X_col = 1L, fleet = 7L,
                            design_col = "(Intercept)", link = "exponential"),
     Rceattle:::linkage_row(process = "q", param = "q", X_col = 2L, fleet = 7L,
                            design_col = "xcov", link = "exponential"))
-  mk <- function(q_init, q_mle) {
-    fc2 <- fc; fc2$Catchability_init[7] <- q_init
-    lq <- rep(0, nrow(fc2)); lq[7] <- log(q_mle)
-    list(data_list = list(linkage_table = tbl, fleet_control = fc2),
+  mk <- function(q_mle) {
+    lq <- rep(0, nrow(fc)); lq[7] <- log(q_mle)
+    list(data_list = list(linkage_table = tbl, fleet_control = fc),
          estimated_params = list(index_log_q = lq))
   }
-  # started below 1, fitted above it: the effect's sign has flipped
-  r <- Rceattle:::.check_exponential_q_sign(mk(0.3, 467))
-  testthat::expect_true("exponential_q_crossed_one" %in% names(r))
-  testthat::expect_equal(r$exponential_q_crossed_one$severity, "WARN")
-  testthat::expect_match(r$exponential_q_crossed_one$message, "OTHER side of q = 1")
-
-  # stayed on the same side: nothing to say
-  testthat::expect_length(Rceattle:::.check_exponential_q_sign(mk(0.3, 0.25)), 0L)
-
-  # fitted essentially at 1 without crossing it: beta is unidentified. Crossing
-  # takes precedence, so the fitted q has to stay on the starting side of 1.
-  r3 <- Rceattle:::.check_exponential_q_sign(mk(0.3, 1 - 1e-6))
-  testthat::expect_true("exponential_q_inert" %in% names(r3))
-  testthat::expect_false("exponential_q_crossed_one" %in% names(r3))
-
+  r <- Rceattle:::.check_exponential_q_sign(mk(1 + 1e-6))
+  testthat::expect_true("exponential_q_near_one" %in% names(r))
+  testthat::expect_equal(r$exponential_q_near_one$severity, "WARN")
+  testthat::expect_match(r$exponential_q_near_one$message, "within 0.1% of 1",
+                         fixed = TRUE)
+  # a q well away from 1 has nothing to say, whatever it started at
+  testthat::expect_length(Rceattle:::.check_exponential_q_sign(mk(0.25)), 0L)
   # and a model with no exponential linkage is untouched
   testthat::expect_length(
     Rceattle:::.check_exponential_q_sign(list(data_list = list())), 0L)

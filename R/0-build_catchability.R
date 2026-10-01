@@ -92,16 +92,8 @@ build_catchability <- function(linkages = NULL) {
 }
 
 
-#' Fleets a set of q linkage rows reaches
-#'
-#' `NA` is the shared sentinel: the cpp expands it to every fleet, so a single
-#' `NA` row makes the whole set apply to all of them.
-#'
-#' @param fleet the `fleet` column of the q rows.
-#' @param fleet_control the fleet control table.
-#' @return integer fleet indices.
-#' @keywords internal
-#' @noRd
+# Fleets a set of q linkage rows reaches. NA is the shared sentinel, which the
+# cpp expands to every fleet, so one NA row applies the whole set to all of them.
 .q_linkage_fleets <- function(fleet, fleet_control) {
   f <- unique(fleet)
   if (anyNA(f)) seq_len(nrow(fleet_control)) else as.integer(f)
@@ -195,61 +187,49 @@ build_catchability <- function(linkages = NULL) {
 
     # The link multiplies log q, so it needs a FREE base to multiply.
     # map_linkage_adjuster() masks index_log_q for a group with no intercept row
-    # (slope-only) or whose intercept is fixed at 0 (est_phase 0). A frozen
-    # log q then cannot re-fit against the covariate, and at Catchability_init =
-    # 1 it is exactly 0, so beta has an identically zero gradient for every
-    # value and the fit converges on whatever beta started at.
-    grp_key <- function(d) {
-      paste(d[["param"]], ifelse(is.na(d[["fleet"]]), "*", d[["fleet"]]),
-            sep = "|")
-    }
-    q_key  <- grp_key(q)
-    # design_col is NA on a hand-built linkage_row(), which is not an intercept.
-    is_icept <- !is.na(q[["design_col"]]) &
-      q[["design_col"]] == "(Intercept)"
-    frozen <- vapply(unique(grp_key(ex)), function(k) {
-      icept <- q[q_key == k & is_icept, , drop = FALSE]
-      nrow(icept) == 0L || all(as.integer(icept[["est_phase"]]) == 0L)
-    }, logical(1))
-    if (any(frozen)) {
-      # Name only the frozen groups' fleets; the key is "param|fleet", with "*"
-      # for a shared row, which reaches all of them.
-      fk <- sub("^[^|]*\\|", "", names(frozen)[frozen])
-      bad_base <- if ("*" %in% fk) {
-        ex_flts
-      } else {
-        intersect(as.integer(fk), ex_flts)
-      }
+    # (slope-only) or whose intercept is fixed at 0 (est_phase 0). log q is then
+    # frozen, so it cannot re-fit against the covariate -- and at a starting q of
+    # 1 it is exactly 0, where beta has an identically zero gradient for every
+    # value it could take. NA is the shared sentinel, and NA %in% NA is TRUE, so
+    # a shared intercept frees a shared slope.
+    is_icept <- !is.na(q[["design_col"]]) & q[["design_col"]] == "(Intercept)"
+    free <- q[["fleet"]][is_icept & as.integer(q[["est_phase"]]) != 0L]
+    frozen <- unique(ex[["fleet"]][!(ex[["fleet"]] %in% free)])
+    if (length(frozen)) {
+      bad_base <- if (anyNA(frozen)) ex_flts else
+        intersect(as.integer(frozen), ex_flts)
       stop(sprintf(paste0(
         "link = \"exponential\" needs an estimated base catchability to ",
         "multiply, but the linkage on\n  fleet(s) %s holds index_log_q fixed: ",
         "the formula has no intercept (`~ 0 + x` / `~ x - 1`),\n  or its ",
         "intercept is fixed at 0 (est_phase 0), and either makes ",
-        "map_linkage_adjuster()\n  mask index_log_q. log q is then frozen, so ",
-        "it cannot re-fit against the covariate -- and\n  at ",
-        "Catchability_init = 1 it is exactly 0, where beta has no gradient at ",
-        "all and the fit\n  converges on whatever beta started at.\n",
+        "map_linkage_adjuster()\n  mask index_log_q.\n",
         "  Give the formula an estimated intercept, or use link = \"log\"."),
         paste(fleet_control$Fleet_name[bad_base], collapse = ", ")),
         call. = FALSE)
     }
 
-    # beta multiplies log q, so at q = 1 it has no effect whatever its value and
-    # its gradient is exactly 0. The base is free here and can move off 1, but
-    # nothing pushes it on the first step, so warn rather than refuse.
-    q_init <- suppressWarnings(
-      as.numeric(fleet_control[["Catchability_init"]][ex_flts]))
-    # pmax keeps log() off 0 / a negative init, which data_check refuses but a
-    # direct call to this function need not have gone through.
-    flat <- ex_flts[is.finite(q_init) & q_init > 0 &
-                      abs(log(pmax(q_init, 1e-300))) < 1e-8]
+    # beta multiplies log q, so at q = 1 the covariate does nothing whatever beta
+    # is and beta's gradient is exactly 0. The base is free here and can move off
+    # 1, so warn rather than refuse. An intercept `init` is what actually seeds
+    # index_log_q when supplied (build_params section 1.3c), so read that first.
+    icept_init <- stats::setNames(
+      q[["init"]][is_icept & !is.na(q[["init_supplied"]]) &
+                    q[["init_supplied"]]],
+      q[["fleet"]][is_icept & !is.na(q[["init_supplied"]]) &
+                     q[["init_supplied"]]])
+    start <- vapply(ex_flts, function(f) {
+      k <- match(as.character(f), names(icept_init))
+      if (!is.na(k)) icept_init[[k]] else
+        suppressWarnings(as.numeric(fleet_control[["Catchability_init"]][f]))
+    }, numeric(1))
+    flat <- ex_flts[is.finite(start) & abs(start - 1) < 1e-8]
     if (length(flat) > 0L) {
       warning(sprintf(paste0(
-        "link = \"exponential\" on fleet(s) %s whose Catchability_init is 1, so ",
-        "log q starts at 0.\n  beta multiplies log q, so at q = 1 the covariate ",
-        "has no effect whatever beta is and\n  beta's gradient is exactly 0. ",
-        "The base is estimated and can move off 1, but give\n  ",
-        "Catchability_init a value away from 1 if beta does not move."),
+        "link = \"exponential\" on fleet(s) %s starts at q = 1, so log q starts ",
+        "at 0, where beta has\n  no gradient at all. The base is estimated and ",
+        "can move off 1, but give it a starting\n  value away from 1 if beta ",
+        "does not move."),
         paste(fleet_control$Fleet_name[flat], collapse = ", ")),
         call. = FALSE)
     }
