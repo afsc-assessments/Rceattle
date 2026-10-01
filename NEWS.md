@@ -62,7 +62,10 @@ on whatever scale SS3 stores it on, so the restriction follows that scale:
   makes `map_linkage_adjuster()` mask `index_log_q`, freezing the value being
   multiplied -- and at `Catchability_init = 1` that value is exactly 0, where
   `beta` has an identically zero gradient and the fit converges on whatever
-  `beta` started at. Refused. A *free* base starting at 1 warns instead.
+  `beta` started at. Refused. A *free* base is left alone: where it starts is not
+  knowable at build time, because `fit_mod(inits = )` and an intercept `init`
+  both override `Catchability_init`, so the fitted value is what
+  `exponential_q_near_one` reads instead.
 * **Not with a linkage random effect on the same fleet.** Every log-link row
   accumulates into `q_linkage_offset`, which sits inside the multiply, so an
   `ar1(1 | Year)` q linkage would have its deviations scaled by

@@ -156,7 +156,9 @@ Key arguments (see `?linkage_spec` for the full list):
   Two further conditions on catchability. The link multiplies `log q`, so the
   base has to be **estimated**: a formula with no intercept, or an intercept
   fixed at `est_phase = 0`, masks `index_log_q` and freezes the value being
-  multiplied, and is refused. And it cannot share a fleet with a **random-effect**
+  multiplied, and is refused. A free base is not second-guessed at build time:
+  `fit_mod(inits = )` and an intercept `init` both override `Catchability_init`,
+  so where `log q` really starts is only knowable once the model is built. And it cannot share a fleet with a **random-effect**
   q linkage, because those deviations accumulate into `q_linkage_offset`, which
   sits inside the multiply -- they would be scaled by `exp(beta * x)` while their
   density still scored them at a constant sigma. For an environmental effect plus

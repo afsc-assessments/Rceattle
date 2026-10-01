@@ -284,19 +284,6 @@ testthat::test_that("exponential is refused where index_log_q is mapped out", {
 })
 
 
-testthat::test_that("a q starting at exactly 1 warns that beta has no gradient", {
-  fc <- Rceattle::switch_check(Rceattle::clean_data(Rceattle::BS2017SS))$fleet_control
-  fc$Catchability_init[fc$Fleet_code == 7L] <- 1
-  tbl <- Rceattle:::bind_linkage(
-    Rceattle:::linkage_row(process = "q", param = "q", X_col = 1L, fleet = 7L,
-                           design_col = "(Intercept)", link = "exponential"),
-    Rceattle:::linkage_row(process = "q", param = "q", X_col = 2L, fleet = 7L,
-                           design_col = "xcov", link = "exponential"))
-  testthat::expect_warning(Rceattle:::.check_q_linkage_support(tbl, fc),
-                           "starts at q = 1", fixed = TRUE)
-})
-
-
 testthat::test_that("a shared q linkage row is checked on every fleet", {
   # NA fleet is the shared sentinel and the cpp expands it to all fleets, so a
   # shared row must be checked against fleets that have no catchability at all.

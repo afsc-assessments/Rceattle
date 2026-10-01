@@ -197,28 +197,6 @@ build_catchability <- function(linkages = NULL) {
         call. = FALSE)
     }
 
-    # At q = 1 beta has no gradient, but a free base can move off it, so warn. An
-    # intercept `init` seeds index_log_q when supplied, so it is the real start.
-    icept_init <- stats::setNames(
-      q[["init"]][is_icept & !is.na(q[["init_supplied"]]) &
-                    q[["init_supplied"]]],
-      q[["fleet"]][is_icept & !is.na(q[["init_supplied"]]) &
-                     q[["init_supplied"]]])
-    start <- vapply(ex_flts, function(f) {
-      k <- match(as.character(f), names(icept_init))
-      if (!is.na(k)) icept_init[[k]] else
-        suppressWarnings(as.numeric(fleet_control[["Catchability_init"]][f]))
-    }, numeric(1))
-    flat <- ex_flts[is.finite(start) & abs(start - 1) < 1e-8]
-    if (length(flat) > 0L) {
-      warning(sprintf(paste0(
-        "link = \"exponential\" on fleet(s) %s starts at q = 1, so log q starts ",
-        "at 0, where beta has\n  no gradient at all. The base is estimated and ",
-        "can move off 1, but give it a starting\n  value away from 1 if beta ",
-        "does not move."),
-        paste(fleet_control$Fleet_name[flat], collapse = ", ")),
-        call. = FALSE)
-    }
   }
 
   # An intercept prior and a Catchability_index group's own q prior (on its lead fleet,
