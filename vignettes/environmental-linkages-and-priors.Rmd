@@ -171,10 +171,12 @@ Key arguments (see `?linkage_spec` for the full list):
   **Report `beta` with its base, never alone.** To first order
   `log q_y = log q * (1 + beta * x_y)`, so what the index informs is the product
   `log q * beta`, not `beta`. With an estimated base the fit is free to cross
-  `q = 1` and re-express the same curve with the opposite sign of `beta`: in a
-  simulation-and-refit check a truth of `q = 0.3, beta = +0.4` came back as
-  `q = 467, beta = -0.078`, with `log q * beta` preserved to about 1% and the
-  fitted `q` series correlating 0.98 with the truth. The fitted catchability is
+  `q = 1` and re-express the same curve with the opposite sign of `beta`: in the
+  simulate-and-refit check in `test-linkage-exponential-link.R`, a truth of
+  `q = 0.3, beta = +0.4` came back as `q = 467.0, beta = -0.0775`, preserving
+  `log q * beta` to 1.1% with the fitted `q` series correlating 0.984 with the
+  truth. The test asserts that invariant rather than those values, which are from
+  one platform. The fitted catchability is
   what to interpret and plot (`fit$quantities$index_q`); a `beta` quoted on its
   own is not comparable between models. Pin the level with a q prior
   (`Catchability = "Estimated-with-prior"`) if you need `beta` itself to be

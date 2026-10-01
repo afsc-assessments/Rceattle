@@ -81,9 +81,12 @@ reads them as a broken linkage.
 `log q_y = log q * (1 + beta * x_y)`, so the index informs the product
 `log q * beta`. With an estimated base the fit may cross `q = 1` and re-express
 the same curve with the opposite sign of `beta`: simulating from
-`q = 0.3, beta = +0.4` and refitting returned `q = 467, beta = -0.078`, with
-`log q * beta` preserved to ~1% and the fitted `q` series correlating 0.98 with
-the truth. Interpret `fit$quantities$index_q`; a `beta` quoted alone is not
+`q = 0.3, beta = +0.4` and refitting returned `q = 467.0, beta = -0.0775`,
+preserving `log q * beta` to 1.1% (-0.4761 against -0.4816) with the fitted `q`
+series correlating 0.984 with the truth. Those figures are the
+simulate-and-refit check in `tests/testthat/test-linkage-exponential-link.R` at
+its own seed on one platform; the test asserts the invariant, not the values,
+since an optimizer path need not be identical everywhere. Interpret `fit$quantities$index_q`; a `beta` quoted alone is not
 comparable between models. A q prior pins the level if `beta` itself is wanted.
 
 Because that is a silently-wrong-number shape rather than a documentation gap, a

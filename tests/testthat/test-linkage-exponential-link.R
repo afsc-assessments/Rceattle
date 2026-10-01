@@ -127,9 +127,11 @@ testthat::test_that("the identified quantity is beta * log q, not beta", {
   # comes back is NOT beta: with a free base the fit is happy to cross q = 1,
   # where log q changes sign, and re-express the same curve with the opposite
   # sign of beta. Measured here: a truth of (q = 0.3, beta = +0.4) refits to
-  # (q = 467, beta = -0.078), and log(q) * beta is preserved to ~1% -- to first
-  # order log q_y = log q * (1 + beta * x), so log q * beta is the slope on
-  # log q and is what the index informs. Report beta with its base, never alone.
+  # (q = 467.0, beta = -0.0775), preserving log(q) * beta to 1.1% -- to first
+  # order log q_y = log q * (1 + beta * x), so log q * beta is the slope on log q
+  # and is what the index informs. The assertions below pin that invariant, not
+  # those values, which are one platform's optimizer path. Report beta with its
+  # base, never alone.
   testthat::skip_if_not_installed("TMB")
   s <- .exp_data(q_init = 0.3, nyrs = 60)
   s$d$fleet_control$Index_sd[s$d$fleet_control$Fleet_code == s$flt] <- 0.1
