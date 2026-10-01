@@ -866,14 +866,6 @@ materialize_linkage <- function(spec, process, env_data, strata = list(), quiet 
   }
   process <- match.arg(process, LINKAGE_PROCESSES)
   .check_process_implemented(process)
-  # The process is known here but not in linkage_spec(), so this is the first
-  # point an `exponential` link on the wrong process can be refused with the
-  # caller's own spec in view rather than at pool time.
-  if (identical(spec$link, "exponential") && process != "q") {
-    .check_exponential_link(data.frame(
-      link = "exponential", process = process, re_struct = NA_character_,
-      stringsAsFactors = FALSE))
-  }
   if (!is.data.frame(env_data)) {
     stop("`env_data` must be a data.frame")
   }

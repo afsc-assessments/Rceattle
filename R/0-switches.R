@@ -425,19 +425,10 @@ index_distribution_map <- c(
 }
 
 
-#' Which fleets score their index on the natural scale
-#'
-#' The per-fleet form of `.index_rows_natural_scale()`, which it calls; this is
-#' the one place the family codes are classified, so a new natural-scale family
-#' is added here and nowhere else.
-#'
-#' @param fleet_control A `fleet_control` table.
-#' @return Logical, one per `fleet_control` row; `FALSE` where the fleet is
-#'   lognormal or cannot be resolved.
-#' @keywords internal
-#' @noRd
+# The per-fleet form of .index_rows_natural_scale(), which calls it. This is the
+# one place the family codes are classified, so a new natural-scale family is
+# added here and nowhere else.
 .index_fleets_natural_scale <- function(fleet_control) {
-  if (is.null(fleet_control)) return(logical(0))
   fam <- fleet_control[["Index_distribution"]]
   if (is.null(fam)) return(rep(FALSE, nrow(fleet_control)))
   chr <- trimws(as.character(fam))

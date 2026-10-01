@@ -223,57 +223,31 @@ is_linkage_table <- function(x) {
          "(SS_biofxn.tpl:1063, :265-275), where its\n    type 1 is ",
          "parm * exp(beta * x) -- exactly what link = \"log\" gives. Use ",
          "\"log\".\n",
-         "  - recruitment: SS3 stores the level as a log (SR_LN(R0)), so this ",
-         "form is the right one\n    there, but no accumulator consumes it ",
-         "yet. \"log\" is SS3's type 2, NOT a substitute.\n",
-         "  - sel, comp: not supported. Selectivity mixes log (slopes), ",
-         "natural (a logistic\n    inflection) and logit (a DoubleNormal ",
-         "floor) storage in the same slots, so one\n    exponential row would ",
-         "mean a different model per parameter; comp weighting is\n    ",
-         "prior-only, with no year-varying term to multiply into.",
+         "  - recruitment R0: SS3 stores that level as a log (SR_LN(R0)), so ",
+         "the form is right there,\n    but no accumulator consumes it yet, ",
+         "and \"log\" is SS3's type 2 rather than a substitute.\n",
+         "  See vignette(\"environmental-linkages-and-priors\") for the other ",
+         "processes.",
          call. = FALSE)
   }
 
-  # The link multiplies log q by exp(beta * x), so a deviation inside that
-  # product has effective SD sigma * exp(beta * x) -- year- and
-  # covariate-varying -- while its density still scores it at the constant
-  # sigma, and beta rescales the very deviations being integrated out. SS3
-  # applies the environmental link and the deviations separately (env at
-  # SS_timevaryparm.tpl:200-245, devs at :252-330); Rceattle accumulates both
-  # into q_linkage_offset, which sits inside the multiply, so the two cannot
-  # currently share a fleet.
-  re_rows <- !is.na(tbl[["re_struct"]])
-  self_re <- which(is_exp & re_rows)
-  if (length(self_re)) {
-    stop("link = \"exponential\" cannot carry a random effect, and row(s) ",
-         paste(self_re, collapse = ", "), " combine it with re_struct = ",
-         paste(unique(tbl[["re_struct"]][self_re]), collapse = ", "), ".\n",
-         "  A deviation multiplied by exp(beta * x) has effective SD ",
-         "sigma * exp(beta * x) -- year- and\n  covariate-varying -- while its ",
-         "density still scores it at the constant sigma.\n",
-         "  Drop the random term from this spec, or use link = \"log\" for a ",
-         "deviation on log q.\n",
-         "  An environmental effect plus q deviations is still expressible: ",
-         "SS3 applies its dev blocks\n  after the env link, and the Rceattle ",
-         "equivalent is Time_varying_q, whose index_q_dev the\n  template keeps ",
-         "outside the multiply.",
-         call. = FALSE)
-  }
-
-  # Same defect across specs: an RE row on the same fleet lands in
-  # q_linkage_offset, which the exponential row then multiplies. NA fleet is the
-  # shared sentinel and reaches every fleet, so it overlaps anything.
-  q_re <- which(re_rows & tbl[["process"]] == "q")
+  # A deviation inside the multiply has effective sd sigma * exp(beta * x) --
+  # year- and covariate-varying -- while its density still scores it at the
+  # constant sigma, and beta rescales the very deviations being integrated out.
+  # Every RE row lands in q_linkage_offset, which the exponential row multiplies,
+  # whether it came from the same spec or another. NA fleet is the shared
+  # sentinel and reaches every fleet, so it overlaps anything.
+  q_re <- which(!is.na(tbl[["re_struct"]]) & tbl[["process"]] == "q")
   if (length(q_re)) {
     exp_flt <- tbl[["fleet"]][is_exp]
     re_flt  <- tbl[["fleet"]][q_re]
-    clash   <- anyNA(exp_flt) || anyNA(re_flt) ||
-      length(intersect(exp_flt, re_flt)) > 0L
-    if (clash) {
-      shared <- if (anyNA(exp_flt) || anyNA(re_flt)) {
+    any_shared <- anyNA(exp_flt) || anyNA(re_flt)
+    both <- intersect(exp_flt, re_flt)
+    if (any_shared || length(both)) {
+      shared <- if (any_shared) {
         "all fleets (a spec with no `fleet =` is shared)"
       } else {
-        paste(sort(unique(intersect(exp_flt, re_flt))), collapse = ", ")
+        paste(sort(unique(both)), collapse = ", ")
       }
       stop("an \"exponential\" catchability linkage and a random-effect ",
            "catchability linkage both target\n  fleet(s) ", shared,

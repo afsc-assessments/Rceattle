@@ -374,7 +374,7 @@
       "Linkage offset applied to catchability, on the natural scale.",
       "multiplier", "[n_flt, nyrs_hind]", FALSE, NA_character_),
     r("q_linkage_log_mult", "linkage",
-      "Linear predictor of an `exponential` catchability linkage: `exp()` of it multiplies log catchability, including any log-link `q_linkage_offset`, so q is raised to the power `exp(this)`. Reproduces Stock Synthesis's environmental link type 1. Zero, hence a multiplier of 1, unless such a linkage was supplied.",
+      "Linear predictor of an `exponential` catchability linkage: `exp()` of it multiplies log catchability, so q is raised to the power `exp(this)`. Zero, hence a multiplier of 1, unless such a linkage was supplied.",
       "log scale (exponent of the multiplier)", "[n_flt, nyrs_hind]", FALSE, NA_character_),
     r("recruitment_linkage_offset", "linkage",
       "Linkage offset applied to each recruitment parameter, on the log scale.",
