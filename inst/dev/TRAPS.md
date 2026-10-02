@@ -1024,3 +1024,14 @@ section above.
   is 0, but the golden references all run 3.
 - **A slow fit is the model, not a regression** — `BS2017SS` has needed ~500–700 `nlminb`
   iterations since at least 2023.
+- **The reproducible-install check passes on a stale install.** `inst/RELEASE-CHECKLIST.md`
+  section 4 used `withr::with_temp_libpaths()`, which *prepends* a temporary library rather
+  than isolating: the working library stays on `.libPaths()`. If the install fails — and
+  `quiet = TRUE` hides that it did — `library(Rceattle)` loads whatever is already installed
+  and `packageVersion()` reports that version. Caught 2026-09-25 verifying the 5.42.1 branch:
+  the check reported **`packageVersion: 5.33.0`**, the copy sitting in
+  `/Library/Frameworks/R.framework/.../library/Rceattle`, and printed `INSTALL CHECK OK`. A
+  release could be signed off against a version it never installed. The recipe now installs
+  into an explicit `lib`, reads the version out of that directory's `DESCRIPTION` rather than
+  from a loaded namespace, asserts `getNamespaceInfo()$path` is under it, and drops `quiet`.
+  Use `ref = "X.Y.Z"` rather than `"repo@X.Y.Z"` so a branch name containing a `/` survives.
