@@ -36,11 +36,13 @@
 #define RCEATTLE_N_GROWTH_PARAMS 4
 
 // Number of recruitment parameters tracked in the offset tensor
-// (R0, alpha, beta -- natural-scale names; stored as log_R0 etc. in TMB).
-#define RCEATTLE_N_REC_PARAMS 3
+// (R0, alpha, beta -- natural-scale names; stored as log_R0 etc. in TMB -- plus
+// init, the initial recruitment level, which is read at year 0 only).
+#define RCEATTLE_N_REC_PARAMS 4
 #define RCEATTLE_REC_R0    0
 #define RCEATTLE_REC_ALPHA 1
 #define RCEATTLE_REC_BETA  2
+#define RCEATTLE_REC_R_INIT 3
 
 /**
  * @brief Expand a stratum sentinel id into the half-open iteration range [lo, hi).

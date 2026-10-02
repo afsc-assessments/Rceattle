@@ -1969,15 +1969,23 @@ Type objective_function<Type>::operator() () {
         sex_ratio(sp, 0) = 1.0;
       }
 
+      // A free initial recruitment level, log scale (0 without an R_init
+      // linkage, which leaves every expression below unchanged). Read at year 0
+      // because the initial state is one year, and per species because that is
+      // the stratum it is estimated on. Only the estimated branch below reads
+      // it; a species with input numbers-at-age has no initial state to scale.
+      Type init_level = recruitment_linkage_offset(sp, RCEATTLE_REC_R_INIT, 0);
+
       for(age = 0; age < nages(sp); age++){
         for(sex = 0; sex < nsex(sp); sex ++){
-
 
           switch(estDynamics(sp)){
           case 0: // Estimated
 
             // - Amin (i.e. recruitment).
             if(age == 0){
+              // Year-1 recruitment is a recruitment year with its own deviate,
+              // not part of the pre-hindcast level, so it stays at R_init.
               R(sp, 0) = R_init(sp) * exp(rec_dev(sp, 0));
               N_at_age(sp, 0, 0, 0) = R(sp, 0) * sex_ratio(sp, 0);
               // The male slot only exists where some species is two-sex; a
@@ -1987,10 +1995,12 @@ Type objective_function<Type>::operator() () {
                 N_at_age(sp, 1, 0, 0) = R(sp, 0) * (1-sex_ratio(sp, 0));
               }
               // The equilibrium carries no recruitment deviation: it is the mean
-              // level the deviates depart from.
-              N_eq(sp, 0, 0) = R_init(sp) * sex_ratio(sp, 0);
+              // level the deviates depart from. It DOES carry the initial level,
+              // on every age including this one, so the equilibrium that
+              // equil_catch_hat integrates sits at one recruitment level.
+              N_eq(sp, 0, 0) = R_init(sp) * exp(init_level) * sex_ratio(sp, 0);
               if(nsex(sp) > 1){
-                N_eq(sp, 1, 0) = R_init(sp) * (1-sex_ratio(sp, 0));
+                N_eq(sp, 1, 0) = R_init(sp) * exp(init_level) * (1-sex_ratio(sp, 0));
               }
             }
 
@@ -2015,16 +2025,17 @@ Type objective_function<Type>::operator() () {
             // fished non-equilibrium modes 3, 4 and 6 (see section 6.1).
             if(initMode > 0){
 
-              // OffsetEquilibrium (initMode 5): seed the initial age-structure
-              // off the FIRST-YEAR recruitment exp(rec_pars + rec_dev(sp, 0))
-              // rather than the mean-recruitment equilibrium R0, with init devs
-              // off (Cole Monnahan / AFSC GOA pollock convention). Scaling R_init
-              // by exp(rec_dev(sp, 0)) injects the year-0 recruitment deviation
-              // so the initial numbers track it under free estimation. All other
-              // modes leave this scalar at 0 (no change).
-              Type init_log_scalar = 0.0;
+              // How far the initial age-structure sits off the mean-recruitment
+              // equilibrium R0, on the log scale. Two sources, never both: the
+              // free R_init level (SS3's unpenalised SR_regime block on the year
+              // before the hindcast), or, under OffsetEquilibrium (5), the
+              // first-year recruitment deviation, which seeds the structure off
+              // exp(rec_pars + rec_dev(sp, 0)) with init devs off (Cole
+              // Monnahan / AFSC GOA pollock convention). An R_init linkage is
+              // refused under mode 5. 0 under neither, i.e. no change.
+              Type init_log_scalar = init_level;
               if(initMode == 5){
-                init_log_scalar = rec_dev(sp, 0);
+                init_log_scalar += rec_dev(sp, 0);
               }
 
               // Sum M1 until age - 1. OffsetEquilibrium (5) uses the same
@@ -5099,9 +5110,11 @@ Type objective_function<Type>::operator() () {
   //   3 = gamma   -- dgamma(b_nat, p1, 1/p2)  prior on natural-scale value
   //   4 = beta    -- dbeta(b_nat, p1, p2)     prior on natural-scale value
   //
-  // (Intercept) rows are mapped out (beta_linkage(i) stays at 0); for
+  // Most (Intercept) rows are mapped out (beta_linkage(i) stays at 0); for
   // those rows the prior is evaluated against the *base parameter*
-  // (`rec_pars`, `log_M1`, `log_growth_pars`) instead of beta_linkage.
+  // (`rec_pars`, `log_M1`, `log_growth_pars`) instead of beta_linkage. The
+  // recruitment `R_init` intercept has no base parameter and stays estimable,
+  // so its prior is read on beta_linkage(i) like a slope.
   for (int i = 0; i < beta_linkage.size(); ++i) {
     int fam = linkage_prior_family(i);
     if (fam == 0) continue;
@@ -5135,8 +5148,13 @@ Type objective_function<Type>::operator() () {
       int param = linkage_param(i);
       if (proc == RCEATTLE_PROC_RECRUIT) {
         // recruitment params: R0=0, alpha=1, beta=2 -> rec_pars cols 0..2
-        // (stored as log_R0, log_alpha, log_beta on the log scale)
-        b = rec_pars(sp_idx, param);
+        // (stored as log_R0, log_alpha, log_beta on the log scale). R_init (3)
+        // has NO rec_pars column -- its intercept IS the level, so the prior
+        // stays on beta_linkage(i) and reading rec_pars here would run off the
+        // end of the matrix.
+        if (param != RCEATTLE_REC_R_INIT) {
+          b = rec_pars(sp_idx, param);
+        }
       } else if (proc == RCEATTLE_PROC_M) {
         b = log_M1(sp_idx, sx_idx, ab_idx);
       } else if (proc == RCEATTLE_PROC_GROWTH) {

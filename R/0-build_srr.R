@@ -463,12 +463,16 @@ build_srr <- function(srr_fun = 0,  #srr_model
 #' work when the model has a curve (Beverton-Holt, Ricker).
 #'
 #' @keywords internal
-RECRUITMENT_LINKAGE_PARAMS <- c("R0", "alpha", "beta")
+RECRUITMENT_LINKAGE_PARAMS <- c("R0", "alpha", "beta", "R_init")
 
 
 #' Map recruitment linkage param names to columns of `rec_pars`.
 #' @keywords internal
 #' @noRd
+# `R_init` is absent deliberately: it multiplies the initial age-structure and
+# has no base parameter in rec_pars, so its level stays on its own coefficient.
+# The three readers (build_params, build_map, build_parameter_bounds) guard the
+# NA via .is_pinned_intercept().
 .REC_PARAM_TO_INDEX <- c(R0 = 1L, alpha = 2L, beta = 3L)
 
 

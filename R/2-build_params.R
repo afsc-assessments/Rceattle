@@ -210,8 +210,17 @@ build_params <- function(data_list) {
   # length-0 vector.
   if (!is.null(data_list$linkage_table) &&
       nrow(data_list$linkage_table) > 0L) {
-    init_vals <- as.numeric(data_list$linkage_table$init)
-    init_vals[data_list$linkage_table$design_col == "(Intercept)"] <- 0
+    lt <- data_list[["linkage_table"]]
+    init_vals <- as.numeric(lt[["init"]])
+    init_vals[.is_pinned_intercept(lt)] <- 0
+    # An `R_init` intercept keeps its own starting value: it has no base
+    # parameter to re-target, so nothing else holds the level. Given on the
+    # natural scale -- a multiplier on R0, as every other intercept's `init` is
+    # natural-scale -- and stored logged, because the level is added inside the
+    # exp() that builds the initial numbers-at-age.
+    for (r in which(.is_level_intercept(lt))) {
+      init_vals[r] <- .r_init_log_start(init_vals[r], lt[["init_supplied"]][r])
+    }
     param_list$beta_linkage <- init_vals
   } else {
     param_list$beta_linkage <- numeric(0)
@@ -482,15 +491,34 @@ build_params <- function(data_list) {
   if (!is.null(data_list$linkage_table) &&
       nrow(data_list$linkage_table) > 0L) {
     lt <- data_list$linkage_table
-    intercepts <- lt[lt$design_col == "(Intercept)" & lt$init_supplied &
-                       (!fixed_only | as.integer(lt$est_phase) == 0L), , drop = FALSE]
-    if (any(is.na(intercepts$init))) {
+    fixed_now <- as.integer(lt$est_phase) == 0L
+    # An `R_init` level fixed at phase 0 is re-pushed whether or not an `init`
+    # was given: unlike a base-parameter intercept, which falls back on its own
+    # build_params() default, the level's fixed value IS this row's `init`, and
+    # the table default of 0 is a well-defined multiplier of 1. Gating it on
+    # `init_supplied` left "pinned at no shift" to be overwritten by a warm
+    # start, which is the same silent hold this push exists to prevent.
+    int_rows <- which(lt$design_col == "(Intercept)" &
+                        (lt$init_supplied | (.is_level_intercept(lt) & fixed_now)) &
+                        (!fixed_only | fixed_now))
+    if (any(is.na(lt$init[int_rows]))) {
       stop("Initial value provided for '(Intercept)' is NA.", call. = FALSE)
     }
-    for (i in seq_len(nrow(intercepts))) {
-      row <- intercepts[i, , drop = FALSE]
-      idx <- .linkage_row_indices(row, data_list)
+    for (ri in int_rows) {
+      row <- lt[ri, , drop = FALSE]
       init_val <- as.numeric(row$init)
+      # `R_init` is the one intercept whose level lives in beta_linkage rather
+      # than in a base parameter, so this is where a fixed (est_phase = 0)
+      # level is re-applied over supplied `inits`. Without it a warm start
+      # would overwrite the level and the mapped-out row would hold the wrong
+      # value for the whole fit. Taken before .linkage_row_indices(), which
+      # resolves a base parameter this row does not have.
+      if (.is_level_intercept(row)) {
+        param_list$beta_linkage[ri] <-
+          .r_init_log_start(init_val, row[["init_supplied"]])
+        next
+      }
+      idx <- .linkage_row_indices(row, data_list)
       switch(row$process,
         growth = {
           .stop_unless_positive(init_val, row$param, "the growth parameter")
@@ -519,9 +547,12 @@ build_params <- function(data_list) {
           }
         },
         recruitment = {
-          .stop_unless_positive(init_val, row$param, "rec_pars")
+          # `R_init` has no rec_pars column -- its starting value was logged
+          # onto beta_linkage above, so there is nothing to push to a base
+          # parameter and nothing here to check against one.
           par_idx <- .REC_PARAM_TO_INDEX[row$param]
           if (is.na(par_idx)) next
+          .stop_unless_positive(init_val, row$param, "rec_pars")
           param_list$rec_pars[idx$species, par_idx] <- log(init_val)
         },
         q = {

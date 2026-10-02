@@ -206,6 +206,10 @@ Key arguments (see `?linkage_spec` for the full list):
   covariate reaches `x = 2.4` over a long series.
 * **`init`** / **`bounds`**: named lists keyed by design-matrix
   column (`init = list(temp = 0.05)`, `bounds = list(temp = c(-2, 2))`).
+  **A slope is on the link scale, an `(Intercept)` on the parameter's
+  natural scale** — `init = list(`(Intercept)` = 0.3)` means an M1 of
+  0.3/yr, not a log. Mind that split: it is the one place a linkage
+  value can be read on the wrong scale and still fit.
 * **`priors`**: named list keyed by design-matrix column. Each
   entry is either an `Rceattle_prior` or a list keyed by species id;
   see *Priors* below.
@@ -765,7 +769,7 @@ vector `beta_linkage` indexes both.
 
 ## Recruitment
 
-`build_srr()` accepts the same `linkages` argument with three
+`build_srr()` accepts the same `linkages` argument with four
 allowed parameter keys:
 
 * **`R0`**: acts under mean recruitment (`srr_fun = "mean"`, penalty
@@ -778,6 +782,37 @@ allowed parameter keys:
 * **`alpha`** (productivity) and **`beta`** (density-dependence),
   only do work when the model has a curve: `srr_fun` (or, for the
   penalty form, `srr_pred_fun`) is `"BevertonHolt"` or `"Ricker"`.
+* **`R_init`**: the initial recruitment **level**, a log-scale multiplier on the
+  initial age-structure, read at year 0 because the initial state is one year.
+  Use it where the series begins after a regime shift, so the stock starts at a
+  recruitment other than \(R_0\): without it the level has to go into `init_dev`,
+  which is penalised per age, and the fit pays a recruitment-deviate penalty for
+  sitting where the data say it sits. Unlike the three above it has no base
+  parameter in `rec_pars`, so an intercept-only `~ 1` keeps the level on its own
+  estimated coefficient — and `init` / `bounds` on that intercept are the
+  natural-scale multiplier on \(R_0\) (`init = 0.25` is a quarter), logged onto
+  the coefficient in place of a base parameter. One design column per species,
+  since only year 0 is read. It needs `link = "log"`, and is refused under
+  `initMode = "FreeParams"` (which never reads \(R_{init}\)) and
+  `"OffsetEquilibrium"` (which already scales the same ages by `rec_dev[, 1]`).
+
+The level is informed only by the first year's observations, so it is weakly
+identified at the low end: once the initial cohorts are effectively annihilated
+the data cannot tell one very small level from another, and a fit can settle
+there with a clean gradient. Bound it on a real assessment — the bound is the
+natural-scale multiplier — and read the estimated multiplier rather than the
+convergence flag alone. `tools/verify/verify-sim-recovery-r-init.R` measures
+both the recovery and the rate at which a replicate runs away.
+
+```{r}
+# A free initial level, as Stock Synthesis's unpenalised SR_regime block.
+# It must travel through build_srr(): fit_mod() overwrites data_list$srr_linkages
+# from recFun, so assigning the spec onto the data_list drops it silently.
+init_spec <- build_srr(linkages = list(R_init = linkage_spec(
+  formula = ~ 1,
+  init    = list(`(Intercept)` = 0.25),   # start at a quarter of R0
+  bounds  = list(`(Intercept)` = c(0.05, 20)))))
+```
 
 ```{r}
 # Mean-recruitment with a temperature linkage on R0.
@@ -1216,6 +1251,14 @@ parameter is held at `X` even when `fit_mod(inits = )` holds another
 value; for an estimated intercept `X` is only a starting value, and
 `inits` win.
 
+**Recruitment `R_init` is the exception to all of the above**, because it
+is the one linkage parameter with no base parameter to carry the level
+(see the Recruitment section). Its `(Intercept)` coefficient *is* the
+level, so it stays estimable rather than being held at `0`; its
+natural-scale `init` and `bounds` are logged onto that coefficient
+instead of onto a base parameter; and with `est_phase = 0` it is the
+coefficient, not a base parameter, that is held against `inits`.
+
 ```{r}
 # Start M1 at 0.06 without estimating an extra intercept beta.
 build_M1(
@@ -1238,8 +1281,10 @@ and `by = ~ species + sex` produces one per (species, sex). Each
 `(Intercept)` row that the user supplies an `init` for pushes that
 init into the matching base-parameter slot.
 
-This rule applies uniformly to every linkage target (`K`, `L1`,
-`Linf`, `m`, `M1`, `R0`, `alpha`, `beta`).
+This rule applies to every linkage target that has a base parameter
+(`K`, `L1`, `Linf`, `m`, `M1`, `R0`, `alpha`, `beta`, the selectivity
+and catchability targets, and the composition weights). `R_init` has
+none, and is the exception described above.
 
 ### Single-sex models and `by = ~ ... + sex`
 

@@ -241,3 +241,36 @@ testthat::test_that("an init of zero on a logged parameter is refused", {
       slp_asc = .ibp_spec(0, by = ~ fleet, fleet = flt)))),
     "not > 0")
 })
+
+
+# A pinned (Intercept) coefficient is 0 by construction and mapped out, so a
+# warm start must not leave a fitted value on it. `inits` from a slope-only
+# spec has the SAME beta_linkage length as an intercept-only one, so fit_mod()'s
+# length guard passes and nothing else would notice: measured at M1 6.69x and
+# held there for the whole fit, with no message.
+testthat::test_that("a warm start cannot leave a fitted value on a pinned intercept", {
+  testthat::skip_on_cran(); testthat::skip_if_not_installed("TMB")
+  d <- .ibp_data()
+
+  # Fit 1: slope-only, so there is no (Intercept) row and the coefficient the
+  # optimiser moves is the temp slope.
+  slope <- .ibp_fit(d, M1Fun = Rceattle::build_M1(linkages = list(
+    M1 = Rceattle::linkage_spec(~ 0 + temp))))
+  stale <- slope$estimated_params
+  stale$beta_linkage[] <- 1.9         # fitted slopes, standing in for real ones
+
+  # Fit 2: intercept-only on the same parameter. Both specs are `by = ~ species`
+  # by default, so beta_linkage has the SAME length either way and the length
+  # guard cannot catch the mismatch.
+  int_spec <- Rceattle::build_M1(linkages = list(
+    M1 = Rceattle::linkage_spec(~ 1)))
+  cold <- .ibp_fit(d, M1Fun = int_spec)
+  warm <- .ibp_fit(d, M1Fun = int_spec, inits = stale)
+
+  n_rows <- nrow(warm$data_list$linkage_table)
+  testthat::expect_equal(n_rows, length(stale$beta_linkage))
+  testthat::expect_equal(unname(warm$estimated_params$beta_linkage),
+                         rep(0, n_rows), tolerance = 1e-12)
+  testthat::expect_equal(warm$quantities$M1_at_age, cold$quantities$M1_at_age,
+                         tolerance = 1e-10)
+})

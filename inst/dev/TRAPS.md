@@ -229,6 +229,92 @@ than switch on `estimateMode`.
 
 ## Silent-wrong-number traps
 
+**A linkage parameter has THREE registries, and the rule-12 pair is only two of them.**
+`LINKAGE_PARAM_CODES` (`R/0-linkage_encode.R`) must match `linkage.hpp`, which is rule 12 — but
+`build_srr()` keeps its own whitelist in `RECRUITMENT_LINKAGE_PARAMS` (`R/0-build_srr.R`), and
+`.REC_PARAM_TO_INDEX` beside it maps a linkage param to its `rec_pars` column. Add a parameter to
+the rule-12 pair alone and `build_srr()` rejects it with "unknown recruitment linkage
+parameter(s)"; the other processes have the equivalent (`.SEL_PARAM_TO_SLOT`). This is the same
+shape as `Index_distribution`'s second registry. Grep every registry before adding one.
+
+**Every `(Intercept)` linkage coefficient is pinned at `NA`, on the premise that the process's
+own base parameter carries the level.** `R/3-build_map.R` masks `beta_linkage` for intercept rows,
+`build_params` forces their starting value to 0, and `build_parameter_bounds` loosens their bound
+to ±Inf and propagates the caller's bound to the base parameter instead. That premise held for
+all six processes until recruitment `R_init` (5.48.0), which multiplies the initial age-structure
+and has NO base parameter — so `~ 1` produced zero estimable `beta_linkage` entries and moved
+nothing, while every builder reported success. The R sites now share `.is_pinned_intercept()` and
+its complement `.is_level_intercept()` (`R/0-linkage_encode.R`), both keyed off
+`.is_r_init_linkage_row()`. **Don't trust a count — this one was published as "four", then
+"five", then "seven", and the real figure is ELEVEN conditions in R plus one in the C++.** Grep
+`.is_pinned_intercept|.is_level_intercept|.is_r_init_linkage_row|.REC_PARAM_TO_INDEX\[` and read
+every hit; as of 5.48.0 that is `R/2-build_params.R:215,221,508,544`, `R/3-build_map.R:1794,1949`,
+`R/4-build_parameter_bounds.R:144,154,166,229`, `R/1-data_check.R:2426`, and
+`src/TMB/ceattle.cpp:5138` (next entry). Three of them read the `.REC_PARAM_TO_INDEX` `NA`
+instead of the predicate: that is correct in `map_linkage_adjuster()` and in `build_bounds()`'s
+base-parameter push (there is no base parameter to mask or to bound), and was a defect
+in `.push_linkage_intercept_inits()`, which is where `fit_mod()` re-applies an `est_phase = 0`
+intercept over supplied `inits` so a FIXED value beats a warm start. `R_init` is the one
+parameter whose fixed value lives in `beta_linkage`, so it was the one fixed level a warm start
+silently overwrote — and the row is mapped `NA`, so the wrong value was then held for the whole
+fit. The golden recipe and the GOA cod bridge both warm-start, so that is the normal path, not an
+exotic one. Note too that a linkage TABLE row is not an estimated parameter: `print()` on the
+table said "1 coefficient(s)" for the inert case. Count `beta_linkage` in
+`obj$env$last.par.best` to tell the difference.
+
+**The C++ linkage-prior block re-targets an `(Intercept)` prior onto the base parameter, and will
+read off the end of the matrix for a parameter that has none.** `ceattle.cpp` slot 19 sets
+`b = rec_pars(sp_idx, param)` for every recruitment intercept; `rec_pars` is `nspp x 3` and
+`R_init` is code 3, so a prior on an `R_init` intercept read one element past a
+`PARAMETER_MATRIX` and promoted adjacent heap memory to an AD variable — no crash guaranteed, no
+R-side refusal. Guarded at 5.48.0 so the prior stays on `beta_linkage(i)`, which IS the level, so
+the density reads on the multiplier (`lognormal(0, sd)` centres on no shift off R0 — the same
+contract as `log_sel_apical`). The growth branch beside it already had the pattern
+(`if (param < RCEATTLE_N_GROWTH_PARAMS)`). **A natural-scale `init`/`bounds` on such a parameter
+has to be logged onto the coefficient too**, since there is no base parameter to log it onto;
+read raw, `init = 0.5` ("half of R0") starts the level at `exp(0.5)` = 1.65x R0.
+
+**A free initial recruitment level has a FLAT TAIL at the low end, and a few percent of fits
+converge into it with a clean gradient.** `R_init` is informed only by the first year's
+observations, so once the level is low enough that the initial cohorts are effectively
+annihilated the data cannot distinguish one tiny level from another: at `beta = -30` the
+objective is flat to `1.7e-08` while still finite. `tools/verify/verify-sim-recovery-r-init.R`
+measures, at a true multiplier of 0.5 over 60 replicates on `make_test_data(nyrs = 40)`: a few
+replicates run away to 5e-05 or below with `max|grad|` around 1e-04, so a gradient filter does
+NOT find them and `convergence` reports success. Over the rest the level recovers with a low bias
+of about 0.12 log units (z around -3.5, empirical sd 0.27, ~two thirds of replicates below
+truth). **Don't quote those figures as constants** — the harness optimizes its own base fit, so
+`ini`, the operating model and every draw inherit a machine-dependent starting vector, and the
+runaway count has come out at both 3 and 6 of 60 on identical arguments. Re-measure.
+
+The runaways are **not** a local optimum a multi-start escapes: four starting levels (truth, 0,
++1, -3) all return the same estimate to four decimals at the same objective, so the data really
+do prefer the annihilated initial state and `jitter()` will not find it. The bias is a genuine
+finite-sample property, not an artifact of the fixture's unconverged base — the score on the
+level at the truth is centred (z = 0.5 over 60 replicates, implied first-order bias 0.003) —
+but its MAGNITUDE belongs to this fixture, where the level is identified against four penalised
+`init_dev` on one year's data. Don't read 0.12 as a universal correction.
+
+**Bound the level on a real assessment**: `bounds` on this intercept are natural-scale, so
+`bounds = list(intercept = c(0.05, 20))` keeps a fit out of the tail (`intercept` is the alias
+that saves nesting backticks round the `(Intercept)` key). A lower bound of exactly 0 does NOT:
+it logs to `-Inf`, which is the same unbounded floor, so it reads as protection and gives none.
+Read the estimated multiplier, never just the convergence flag.
+
+**`N_eq` is an equilibrium only if every age of it carries the same recruitment level.** Its one
+consumer is `equil_catch_hat`, which integrates Baranov over all ages including age 0, so an
+age-0 term left at `R_init` while ages 1+ carry a level makes the "equilibrium" sit at two levels
+at once. Age 0 of `N_at_age` is deliberately NOT scaled — year-1 recruitment is a recruitment
+year with its own deviate, not part of the pre-hindcast level — so the two arrays diverge here on
+purpose. Live only under `initMode = 6`, the one mode that reads an equilibrium catch.
+
+**A process linkage assigned straight onto a `data_list` is silently discarded.**
+`fit_mod()` overwrites `data_list$srr_linkages` from `recFun` (`R/6-fit_mod.R:533`), and does the
+same for the other processes from their own `build_*()` objects. So
+`d$srr_linkages <- list(...)` followed by `fit_mod(d)` fits a model with no linkage at all and
+says nothing. Build the spec through `build_srr(linkages = ...)`. Same shape as
+`fit_mod(d, config = cfg)` dropping every linkage unless `cfg` came from `run_config()`.
+
 **Which fleet leads a `Selectivity_index` group is row-order dependent, so a group's penalty
 weights can change meaning when rows move.** `.group_lead()` picks the group's first fleet that
 is not `Off`, and `Fleet_code` must equal the row number, so inserting or reordering a fleet —

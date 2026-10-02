@@ -2405,6 +2405,97 @@ data_check <- function(data_list) {
 }
 
 
+#' Refuse a recruitment `R_init` linkage the initial age-structure cannot carry
+#'
+#' `R_init` is a log-scale multiplier on the initial age-structure, applied
+#' through `init_log_scalar`. Two `initMode`s cannot carry one: `FreeParams`
+#' builds the initial numbers straight from `init_dev` and never reads `R_init`,
+#' so the offset would be estimated and move nothing, and `OffsetEquilibrium`
+#' already fixes `init_log_scalar` at `rec_dev(sp, 0)`, which scales the same
+#' ages.
+#'
+#' Separate from `data_check()` because the linkage table does not exist yet when
+#' that runs: `fit_mod()` pools it after the check.
+#'
+#' @param data_list A `data_list` holding `linkage_table` and `initMode`.
+#' @keywords internal
+#' @noRd
+.check_r_init_linkage <- function(data_list) {
+  lt <- data_list[["linkage_table"]]
+  if (is.null(lt) || is.null(nrow(lt)) || !nrow(lt)) return(invisible())
+  rows <- .is_r_init_linkage_row(lt)
+  if (!any(rows)) return(invisible())
+
+  # The level is added inside the exp(), so only a log-scale offset means
+  # anything: an identity offset would add metric tons to a log multiplier.
+  bad <- setdiff(unique(as.character(lt[["link"]][rows])), "log")
+  if (length(bad)) {
+    stop(sprintf(paste0(
+      "a recruitment `R_init` linkage needs link = \"log\". The initial ",
+      "recruitment level is a log-scale multiplier on the initial ",
+      "age-structure, so link = %s has no meaning there."),
+      paste(sQuote(bad), collapse = " / ")), call. = FALSE)
+  }
+
+  # ONE coefficient per species is all the initial state can identify, and the
+  # species is the ONLY stratum that counts. Two reasons, both in linkage.hpp's
+  # `rceattle_apply_recruitment_linkages()`: it discards sex and age_bin
+  # outright (`(void)linkage_sex; (void)linkage_age_bin;`) and takes no fleet,
+  # and it ACCUMULATES every matching row onto one offset per species, with a
+  # `species = NA` row broadcasting to all of them. Since only year 0 is read,
+  # the whole linkage collapses there to sum_i beta_i * X(0, col_i) -- a single
+  # number per species. So any second row on a species is aliased against the
+  # first whatever its design column, covariate, sex or age bin, and counting
+  # within a species/sex/age_bin/fleet stratum lets `by = ~ species + age_bin`
+  # through as five coefficients with identical gradients.
+  nspp  <- as.integer(data_list[["nspp"]])
+  cols  <- as.character(lt[["design_col"]][rows])
+  sp_of <- lt[["species"]][rows]
+  per_sp <- vector("list", nspp)
+  for (k in seq_along(sp_of)) {
+    broadcast <- is.na(sp_of[k]) || as.integer(sp_of[k]) == 0L
+    for (s in if (broadcast) seq_len(nspp) else as.integer(sp_of[k])) {
+      per_sp[[s]] <- c(per_sp[[s]], cols[k])
+    }
+  }
+  bad <- which(vapply(per_sp, length, integer(1)) > 1L)
+  if (length(bad)) {
+    nm <- data_list[["spnames"]]
+    detail <- vapply(bad, function(s) sprintf(
+      "%s has %d (%s)",
+      if (!is.null(nm) && length(nm) >= s) nm[s] else paste("species", s),
+      length(per_sp[[s]]), paste(sQuote(per_sp[[s]]), collapse = ", ")),
+      character(1))
+    stop(sprintf(paste0(
+      "a recruitment `R_init` linkage must have one coefficient per species; ",
+      "%s. The initial recruitment level is read in the first year only, and ",
+      "every row on a species is summed into it, so anything more is not ",
+      "identified -- including one row per sex, per age bin or per fleet, ",
+      "which the initial state does not distinguish. Use `~ 1` for a free ",
+      "level, or `~ 0 + x` for one covariate."),
+      paste(detail, collapse = "; ")), call. = FALSE)
+  }
+
+  # initMode reaches here as the caller gave it -- a canonical string alias or
+  # its integer code (fit_mod() validates but does not convert).
+  mode <- as.character(data_list[["initMode"]])
+  if (mode %in% c("FreeParams", "0")) {
+    stop("a recruitment `R_init` linkage cannot be used with initMode = ",
+         "\"FreeParams\": that mode estimates the initial numbers-at-age ",
+         "directly as init_dev and never reads R_init, so the level would be ",
+         "estimated and change nothing.", call. = FALSE)
+  }
+  if (mode %in% c("OffsetEquilibrium", "5")) {
+    stop("a recruitment `R_init` linkage cannot be used with initMode = ",
+         "\"OffsetEquilibrium\": that mode already scales the initial ",
+         "age-structure by the first-year recruitment deviation rec_dev[, 1], ",
+         "so the two are not separable. Use initMode = \"NonEquilibrium\" to ",
+         "estimate the level instead.", call. = FALSE)
+  }
+  invisible()
+}
+
+
 #' Check an initial equilibrium catch, the `catch_data` row at `styr - 1`
 #'
 #' Returns a character vector of errors, empty where there is nothing to say,
