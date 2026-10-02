@@ -49,9 +49,11 @@ fit <- fit_mod(d, recFun = build_srr(linkages = list(
 natural-scale — and are logged onto the coefficient in place of a base parameter. Only
 year 0 is read, so one design column per species is all the initial state identifies.
 
-Measured on GOA Pacific cod 2024, where Stock Synthesis carries this as an unpenalised
-`SR_regime` block on the year before the hindcast (\eqn{-1.3879}, a quarter of
-\eqn{R_0}): moving the level out of `init_dev` drops the objective **49.91 nats**, all of
+Measured on GOA Pacific cod 2024, where Stock Synthesis carries this as an `SR_regime`
+block on the year before the hindcast (\eqn{-1.3879}, a quarter of \eqn{R_0}, from the
+bridging variant that sets that block's likelihood weight to 0; the production run
+shrinks it and sits at \eqn{-0.678}, half of \eqn{R_0}): moving the level out of
+`init_dev` drops the objective **49.91 nats**, all of
 it in the `Initial abundance deviates` row (54.975 to 5.062), with the index, catch,
 length-composition and CAAL components unchanged to 1.9e-04 and the recruitment deviates
 unchanged exactly. The stock-recruit curve is untouched -- \eqn{R_0} is the unfished
@@ -88,9 +90,16 @@ A level fixed with `est_phase = 0` survives a warm start: `fit_mod()` re-applies
 any `inits`, with or without an explicit `init` (the table's default of 0 is a
 well-defined multiplier of 1).
 
-**Bound the level on a real assessment.** It is informed only by the first year's
-observations, so it is weakly identified at the low end: once the initial cohorts are
-effectively annihilated, the data cannot separate one very small level from another.
+**Shrink or bound the level on a real assessment.** Stock Synthesis penalises its
+equivalent — `0.5 * (log(R1/R1_exp) / (sigma_R / ave_age))^2`, at a default likelihood
+weight of 1 (`SS_objfunc.tpl`) — and no reference package surveyed (SS3, SAM, SPoRC,
+OPAL, WHAM) leaves an initial-level scalar free. Rceattle leaves it free by design, which
+reproduces the zero-weight variant rather than SS3's default; a `lognormal(0, sigma_R /
+ave_age)` prior on the `(Intercept)` expresses SS3's convention.
+
+This matters because the level is informed only by the first year's observations and is
+weakly identified at the low end: once the initial cohorts are effectively annihilated,
+the data cannot separate one very small level from another.
 `tools/verify/verify-sim-recovery-r-init.R` measures, on its own fixture at a true
 multiplier of 0.5, a few replicates in 60 running away to 5e-05 or below *with a clean
 gradient* — no convergence filter finds them, and a multi-start does not escape them —
@@ -98,6 +107,27 @@ plus a low bias of about 0.12 log units over the rest. A natural-scale lower bou
 0 keeps a fit out of that tail; a lower bound of exactly 0 logs to `-Inf` and does not.
 
 A model with no `R_init` linkage is unchanged, including all four golden references.
+
+## Two ageing-error and selectivity configurations that fitted the wrong model are refused
+
+Both were found by reviewing 5.46.0's new features against the Stock Synthesis source.
+
+**`Ageing_error_index`'s fallback is now validated.** Omitting the column, or leaving it
+`NA`, uses the fleet's own species number — which is right while `age_error` is indexed by
+species, and wrong as soon as it carries its own `Ageing_error_index` column, because the
+fallback then points at whichever matrix sits at that position. `data_check()` validated
+only a *supplied* index, so the fallback could hand a fleet another species' ageing error,
+over another species' age range, silently: measured at **4,718 nats** on `GOA2018SS` with
+two ageing eras on species 1, and at **94,000 nats** where the fallback index had no rows
+at all and the smeared composition went flat. The effective index — the one
+`rearrange_data()` uses — is now checked to exist and to belong to the fleet's own species.
+
+**A `DoubleNormalSS3` end parameter below −1000 is refused.** Stock Synthesis reads
+`P5 < -1000` as "selectivity nil through bin `-1001 - P5`" and `P6 < -1000` as "constant
+beyond bin `-1000 - P6`, and anchor the descending limb there" (`SS_selex.tpl`, pattern
+24) — different curves, and a sub-`-1000` `P6` also moves `peak2`. Rceattle implements
+neither and honoured only `-999`, so a bridged SS3 control file using either encoding fit
+a different selectivity with no message.
 
 ## A warm start can no longer strand a fitted value on a pinned linkage intercept
 

@@ -12,11 +12,12 @@
 #' @param srr_indices Defunct: supplying it is an error; express an environmental effect through `linkages`.
 #' @param Bmsy_lim Upper limit for Ricker based SSB-MSY (e.g 1/Beta). Will add a likelihood penalty if beta is estimated above this limit. Default `NA` is not used.
 #' @param srr_mse_switchyr Year at which an MSE switches from the annual recruitment-penalty estimate to the stock-recruit function (the \code{srr_fun = 0}, \code{srr_pred_fun > 0} case).
-#' @param linkages Named list of [linkage_spec()] objects keyed by `"R0"`, `"alpha"` or `"beta"`: the recommended way to put a prior on, fix, or add an environmental effect to those parameters (see **Priors, fixed values and covariates**).
+#' @param linkages Named list of [linkage_spec()] objects keyed by `"R0"`, `"alpha"`, `"beta"` or `"R_init"`: the recommended way to put a prior on, fix, or add an environmental effect to those parameters (see **Priors, fixed values and covariates**).
 #'
 #' @description
 #' Sets the stock-recruit curve and how recruitment is estimated. Priors, fixed
-#' values and environmental effects on \code{R0}, alpha and beta go through
+#' values and environmental effects on \code{R0}, alpha, beta and \code{R_init}
+#' go through
 #' \code{linkages}; see **Priors, fixed values and covariates** below.
 #'
 #' **Stock recruitment relationships currently implemented in Rceattle:**
@@ -48,7 +49,7 @@
 #' beta go through \code{linkages}.
 #'
 #' @section Priors, fixed values and covariates:
-#' Use \code{linkages} for \code{R0}, alpha and beta. Each entry is a
+#' Use \code{linkages} for \code{R0}, alpha, beta and \code{R_init}. Each entry is a
 #' [linkage_spec()], and an intercept-only formula (\code{~ 1}) acts on the
 #' parameter itself:
 #'
@@ -460,7 +461,10 @@ build_srr <- function(srr_fun = 0,  #srr_model
 #' default log link); under a hindcast curve a single-species `R0` is
 #' derived from alpha and beta, so an `R0` linkage is refused there, and a
 #' multispecies one takes an intercept only. Linkages on `alpha` and `beta` only do
-#' work when the model has a curve (Beverton-Holt, Ricker).
+#' work when the model has a curve (Beverton-Holt, Ricker). `R_init` is the
+#' initial recruitment level, a multiplier on R0 applied to the initial
+#' age-structure only; it has no `rec_pars` column, so its intercept carries the
+#' level itself and is deliberately absent from `.REC_PARAM_TO_INDEX`.
 #'
 #' @keywords internal
 RECRUITMENT_LINKAGE_PARAMS <- c("R0", "alpha", "beta", "R_init")

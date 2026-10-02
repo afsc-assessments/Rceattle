@@ -2027,9 +2027,11 @@ Type objective_function<Type>::operator() () {
 
               // How far the initial age-structure sits off the mean-recruitment
               // equilibrium R0, on the log scale. Two sources, never both: the
-              // free R_init level (SS3's unpenalised SR_regime block on the year
-              // before the hindcast), or, under OffsetEquilibrium (5), the
-              // first-year recruitment deviation, which seeds the structure off
+              // free R_init level (SS3's SR_regime block on the year before the
+              // hindcast, which SS3 shrinks at sigmaR/ave_age and Rceattle
+              // leaves free -- put a prior on the coefficient to match SS3), or,
+              // under OffsetEquilibrium (5), the first-year recruitment
+              // deviation, which seeds the structure off
               // exp(rec_pars + rec_dev(sp, 0)) with init devs off (Cole
               // Monnahan / AFSC GOA pollock convention). An R_init linkage is
               // refused under mode 5. 0 under neither, i.e. no change.

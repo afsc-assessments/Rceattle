@@ -476,7 +476,9 @@ model, and only shows up on the next `minage != 1` species. Write
 `max(n_flt, nspp)`, and the column index is whatever loop variable wrote the cell: rows 1-8
 (index, catch, composition, CAAL, non-parametric selectivity, selectivity deviates, catchability
 prior, catchability deviates) are written inside `for(flt = 0; flt < n_flt; flt++)`, rows 9-20 by
-`sp`/`rsp`/`slot_col`, and "Linkage random effects" always into column 1. So `jnll_comp[3, 2]` is
+`sp`/`rsp`/`slot_col`, "Linkage random effects" always into column 1, and row 22 ("Initial
+equilibrium catch", added 5.46.0) back into a FLEET column -- so the fleet axis is not
+contiguous and stopping an axis guess at row 20 is wrong. So `jnll_comp[3, 2]` is
 fleet 2's composition likelihood while `jnll_comp[11, 2]` is species 2's recruitment deviates,
 and `rowSums()` pools across two different axes. `.JNLL_ROW_AXIS` (`R/9-profile.R`) is the
 registry; `test-schema-jnll-rows.R` parses every `jnll_comp(JNLL_*, col)` write in the template

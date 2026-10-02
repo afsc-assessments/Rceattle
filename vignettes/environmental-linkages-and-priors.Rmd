@@ -207,7 +207,7 @@ Key arguments (see `?linkage_spec` for the full list):
 * **`init`** / **`bounds`**: named lists keyed by design-matrix
   column (`init = list(temp = 0.05)`, `bounds = list(temp = c(-2, 2))`).
   **A slope is on the link scale, an `(Intercept)` on the parameter's
-  natural scale** — `init = list(`(Intercept)` = 0.3)` means an M1 of
+  natural scale** — `init = list(intercept = 0.3)` means an M1 of
   0.3/yr, not a log. Mind that split: it is the one place a linkage
   value can be read on the wrong scale and still fit.
 * **`priors`**: named list keyed by design-matrix column. Each
@@ -805,7 +805,9 @@ convergence flag alone. `tools/verify/verify-sim-recovery-r-init.R` measures
 both the recovery and the rate at which a replicate runs away.
 
 ```{r}
-# A free initial level, as Stock Synthesis's unpenalised SR_regime block.
+# A free initial level, Rceattle's form of Stock Synthesis's SR_regime block.
+# SS3 shrinks that block at sigma_R / ave_age; this is free, so add a
+# lognormal(0, sigma_R / ave_age) prior on the intercept to match SS3.
 # It must travel through build_srr(): fit_mod() overwrites data_list$srr_linkages
 # from recFun, so assigning the spec onto the data_list drops it silently.
 init_spec <- build_srr(linkages = list(R_init = linkage_spec(

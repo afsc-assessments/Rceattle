@@ -1031,17 +1031,23 @@ data_check <- function(data_list) {
         }
         message("Fleet '", flt_name, "': Selectivity = '", fc$Selectivity[flt], "' ", why, ".")
       }
+      # Read by [[ with an absent-column fallback: `$Time_varying_sel` on a
+      # legacy workbook without the column partial-matches
+      # `Time_varying_sel_sd`, so these two forms would be refused over a
+      # deviation sd that is not what either rule is about.
+      tvs <- if("Time_varying_sel" %in% colnames(fc)) fc[["Time_varying_sel"]][flt] else "Off"
+      sel_form <- fc[["Selectivity"]][flt]
       #  - DoubleNormalSS3 (type 15): time variation is through selectivity
       #    linkages on its six parameters (blocks as ~ cut(Year, ...), annual
       #    devs as a random-effect term), so Time_varying_sel must be "Off".
-      if(!is.na(fc$Selectivity[flt]) && fc$Selectivity[flt] == "DoubleNormalSS3" &&
-         !fc$Time_varying_sel[flt] %in% c("Off", 0)){
+      if(!is.na(sel_form) && sel_form == "DoubleNormalSS3" &&
+         !tvs %in% c("Off", 0)){
         errors <- c(errors, paste0("Fleet '", flt_name, "': for 'DoubleNormalSS3' selectivity, 'Time_varying_sel' must be 'Off'; vary its parameters with build_selectivity(linkages = ...)."))
       }
       #  - LogisticPM (ADMB AMAK "pm" BTS, type 11): random-walk deviates on
       #    slope/inflection/age-1 -> allow only "Off"/"RandomWalk".
-      if(!is.na(fc$Selectivity[flt]) && fc$Selectivity[flt] == "LogisticPM" &&
-         !fc$Time_varying_sel[flt] %in% c("Off", "RandomWalk")){
+      if(!is.na(sel_form) && sel_form == "LogisticPM" &&
+         !tvs %in% c("Off", "RandomWalk")){
         errors <- c(errors, "For 'LogisticPM' selectivity, 'Time_varying_sel' must be 'Off' or 'RandomWalk'")
       }
 
@@ -1887,17 +1893,24 @@ data_check <- function(data_list) {
   # Length-based selectivity on a finer population grid ----
   errors <- c(errors, .check_pop_grid_bins(data_list))
 
-  # Ageing_error_index must name a matrix that exists. Absent or NA means the
-  # fleet's own species, which is the one-matrix-per-species default, so only a
-  # supplied value is checked.
+  # Ageing_error_index must name a matrix that exists and belong to the fleet's
+  # own species. Absent or NA falls back to the fleet's species number, so the
+  # FALLBACK is checked too, not just a supplied value: once 'age_error' carries
+  # its own index column those numbers are no longer species numbers, and the
+  # fallback then points at whichever matrix happens to sit at that position --
+  # another species' ageing error, over another species' age range.
   if (has_data(data_list$fleet_control) && !is.null(data_list$age_error)) {
     ae <- as.data.frame(data_list$age_error)
     have <- if (!is.null(ae$Ageing_error_index))
       unique(suppressWarnings(as.integer(ae$Ageing_error_index))) else
       unique(suppressWarnings(as.integer(ae$Species)))
+    flt_sp <- suppressWarnings(as.integer(data_list$fleet_control$Species))
     want <- suppressWarnings(as.integer(data_list$fleet_control[["Ageing_error_index"]]))
+    # The effective index rearrange_data() will use (R/5-rearrange_data.R).
+    want <- if (!length(want)) flt_sp else
+      ifelse(is.na(want), flt_sp, want)
     if (length(want)) {
-      bad <- which(!is.na(want) & !(want %in% have))
+      bad <- which(!(want %in% have))
       if (length(bad)) {
         errors <- c(errors, paste0(
           "fleet_control$Ageing_error_index names matrices that 'age_error' does ",
@@ -1919,9 +1932,7 @@ data_check <- function(data_list) {
       ae_ix[is.na(ae_ix)] <- ae_sp[is.na(ae_ix)]
       # One species per index is enforced above, so the first row settles it.
       idx_sp <- ae_sp[match(want, ae_ix)]
-      flt_sp <- suppressWarnings(as.integer(data_list$fleet_control$Species))
-      wrong <- which(!is.na(want) & !is.na(idx_sp) & !is.na(flt_sp) &
-                       idx_sp != flt_sp)
+      wrong <- which(!is.na(idx_sp) & !is.na(flt_sp) & idx_sp != flt_sp)
       if (length(wrong)) {
         errors <- c(errors, paste0(
           "fleet_control$Ageing_error_index names an 'age_error' matrix ",

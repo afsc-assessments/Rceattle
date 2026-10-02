@@ -221,10 +221,9 @@ is_linkage_table <- function(x) {
          "parm * exp(beta * x) -- exactly what link = \"log\" gives. Use ",
          "\"log\".\n",
          "  - recruitment R0 and R_init: SS3 stores both levels as logs ",
-         "(SR_LN(R0), and the initial\n    level as an unpenalised SR_regime ",
-         "block), so the form is right there, but no accumulator\n    ",
-         "consumes it yet, and \"log\" is SS3's type 2 rather than a ",
-         "substitute.\n",
+         "(SR_LN(R0), and the initial\n    level as an SR_regime block), so ",
+         "the form is right there, but no accumulator\n    consumes it yet, ",
+         "and \"log\" is SS3's type 2 rather than a substitute.\n",
          "  See vignette(\"environmental-linkages-and-priors\") for the other ",
          "processes.",
          call. = FALSE)
