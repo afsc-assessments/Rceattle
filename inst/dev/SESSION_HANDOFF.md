@@ -59,25 +59,15 @@ fixture stores parameter vectors; the objectives are hardcoded in the test), via
 guards the catch limits, and the old numbers encoded the bug, so the new ones should be set
 deliberately rather than at 4am. **Do not merge this branch into `dev` until that is settled.**
 
-**`initMode 6` matching SS3 is NOT done, and needs your call, because it changes a parameter
-vector's length.** SS3 gives each fleet its own `init_F` and sums them:
-`equ_Z += sel_f(a) * Hrate(f)` (`SS_popdyn.tpl:1990-1994`), one parameter per fleet x season,
-created only where the equilibrium catch is positive (`SS_readcontrol_330.tpl:2837-2847`, FATAL
-if catch > 0 and no init_F). Rceattle has `PARAMETER_VECTOR(log_Finit)` of length `nspp` and an
-unweighted MEAN selectivity across the species' fisheries (`ceattle.cpp:1536`), and
-`.check_equil_catch()` refuses a species with more than one fishery -- so the two agree exactly
-on one fishery and cannot differ today. Matching SS3 means `log_Finit` becomes per-FLEET, which:
-
-- changes the parameter vector for every initMode 3/4/6 model, so stored fits stop refitting and
-  golden's committed reference vector no longer maps (rules 1 and 2);
-- needs a deprecation path (rule 1: deprecate, never delete) -- probably accepting a
-  length-`nspp` `inits$log_Finit` and broadcasting it to the species' fisheries;
-- lets the one-fishery refusal be lifted, which is the actual feature.
-
-Worth knowing before deciding: the AI cod bridge ALREADY matches with a combined fishery --
-`SSB_rce/SSB_ss3` (year 1) = 1.0000, 89 free parameters against SS3's 89 active, and the new
-`Initial equilibrium catch` row populated at -1.9780. So this is about enabling multi-fishery
-bridges, not about fixing a wrong number in the current one.
+**`initMode 6` per-fleet initial F is AGREED AND DEFERRED** (Grant, 2026-10-02), written up as
+section 6 of `inst/dev/SPEC-equilibrium-catch.md`. SS3 gives each fleet its own `init_F` and sums
+them; Rceattle has one `Finit` per species applied to the MEAN fishery selectivity. The two
+cannot disagree today because `.check_equil_catch()` refuses a species with more than one
+fishery, so this lifts that refusal rather than correcting the current bridge -- which already
+reproduces SS3 at a year-1 SSB ratio of 1.0000 on AI cod with a combined fishery. Deferred
+because `log_Finit` becomes per-fleet, changing a parameter vector's length, so stored fits stop
+refitting and it needs its own PR with a deprecation path. The spec records the SS3 citations,
+the files that carry the shape, and the latent `equil_catch_hat` inconsistency it would close.
 
 **Still open from the reviews, not attempted.** Two cited SS3 line numbers are wrong
 (`SS_readcontrol_330.tpl:3289` -> `:3328`, `SS_biofxn.tpl:1063` -> `:1074`); the claims
@@ -115,8 +105,13 @@ constant sigma), a masked base, the wrong process, and a shared row reaching eve
 and `convergence_diagnostics()` carries `exponential_q_near_one`, because `beta` multiplies a
 log and is not identified on its own.
 
-**Its acceptance test passed.** The GOA Pacific cod bridge closes **9.9646** nats with the
-link, **9.96459** of it on LLSrv's index, against `GOA-estimation-parity.md`'s predicted
+**Its acceptance test passed, but the figure has moved.** Re-run on `dev` at 5.48.0 the GOA
+Pacific cod bridge closes **11.254** nats with the link (`RCE_Q_ENV=true` vs `false`: Index data
+53.7116 -> 42.4573), all of it in the `Index data` row. The **9.9646** recorded below entered at
+`427ed43`, which is an ANCESTOR of the init-linkage and regime-penalty commits, so the script's
+baseline most likely moved rather than this release moving it -- that was not proven, since it
+needs a 5.45.3 A/B. Treat 9.9646 as the historical measurement and 11.254 as current. It was
+**9.96459** of it on LLSrv's index, against `GOA-estimation-parity.md`'s predicted
 `+9.9645`; no other `jnll_comp` row moves by more than 1e-6. Running it also exposed a false
 positive in one of the new guards, now removed: `Catchability_init` is never the starting
 `log q` when `fit_mod(inits = )`, an intercept `init`, or a shared `Catchability_index` group

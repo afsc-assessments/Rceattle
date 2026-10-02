@@ -11,10 +11,10 @@
 #   SS_expval.tpl:413-419        q is its exponential ONLY for errtype >= 0
 #                                (lognormal/t); errtype -1 (normal) reads it
 #                                arithmetically, where type 1 is our `log`
-#   SS_readcontrol_330.tpl:3289  env-var 1xx decodes to link type 1, for Q_parm
+#   SS_readcontrol_330.tpl:3328  env-var 1xx decodes to link type 1, for Q_parm
 #
 # Catchability only, and only where the base is estimable: SS3 holds M and growth
-# naturally (SS_biofxn.tpl:1063, :265-275), where its type 1 is already our
+# naturally (SS_biofxn.tpl:1074, :265-275), where its type 1 is already our
 # `log`. It does store the recruitment level as a log (`SR_LN(R0)`), so the form
 # applies there in principle, but no accumulator consumes it yet.
 # vignette("environmental-linkages-and-priors") has the rest.

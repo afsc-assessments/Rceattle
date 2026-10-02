@@ -23,6 +23,14 @@ Q_LINKAGE_PARAMS <- c("q")
 #'   fleet by default (`by = ~ fleet`); use the `fleet` argument of
 #'   [linkage_spec()] to restrict a spec to particular fleets.
 #'
+#' @details Catchability is the one process that accepts
+#'   `link = "exponential"`, Stock Synthesis's environmental link type 1:
+#'   `q^exp(beta * x)`, which MULTIPLIES `log q` where `"log"` shifts it. It
+#'   needs an estimated base `q` and a lognormal or t index likelihood, and
+#'   cannot share a fleet with a random-effect q linkage; each of those is
+#'   refused with the reason. See
+#'   `vignette("environmental-linkages-and-priors")`.
+#'
 #' @return A list of catchability settings for [fit_mod()].
 #'
 #' @examples

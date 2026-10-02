@@ -91,6 +91,18 @@ Fleets sharing a \code{Selectivity_index} estimate one parameter block, so place
 the prior on the group's lead fleet (its first fleet that is not \code{Off}); a
 prior on a follower would penalize the shared block once per sharing fleet.
 A prior on an \code{Off} fleet is refused: its selectivity is not estimated.
+
+The \code{linkages} keys are the parameter slots each selectivity form
+uses, so which ones apply depends on the fleet's \code{Selectivity}:
+\code{slp_asc} / \code{slp_desc} and \code{inf_asc} / \code{inf_desc} for the logistic family,
+\code{sigma_asc} / \code{sigma_desc} / \code{peak} / \code{right_floor} for the double-normal
+forms, \code{coff} for the non-parametric forms, and \code{apical} for the per-sex
+multiplier, which every form has. \code{DoubleNormalSS3} (code 15) carries its
+own six, under Stock Synthesis's own names: \code{dn_peak}, \code{top_logit},
+\code{ascend_se}, \code{descend_se}, \code{start_logit} and \code{end_logit} -- and a linkage
+is the ONLY way to vary that form over time, since \code{Time_varying_sel} is
+refused on it. A time block is \code{~ cut(Year, ...)}; annual deviations are a
+random-effect term.
 }
 \examples{
 \donttest{

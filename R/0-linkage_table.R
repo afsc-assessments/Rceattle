@@ -217,7 +217,7 @@ is_linkage_table <- function(x) {
          "multiplies the parameter on\n  whatever scale SS3 stores it on, so ",
          "the right substitute depends on the process:\n",
          "  - M, growth: SS3 stores these on the natural scale ",
-         "(SS_biofxn.tpl:1063, :265-275), where its\n    type 1 is ",
+         "(SS_biofxn.tpl:1074, :265-275), where its\n    type 1 is ",
          "parm * exp(beta * x) -- exactly what link = \"log\" gives. Use ",
          "\"log\".\n",
          "  - recruitment R0 and R_init: SS3 stores both levels as logs ",

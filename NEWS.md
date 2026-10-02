@@ -204,14 +204,14 @@ against the pinned v3.30.22.1 source: `parm_timevary` is seeded with the base
 parameter (`SS_timevaryparm.tpl:50`), type 1 multiplies it by
 `mfexp(beta * env)` (`:206-211`) where type 2 adds (`:215-220`), the result is
 `Svy_log_q` (`SS_expval.tpl:408`), and the `1xx` decoding for `Q_parm` is
-`SS_readcontrol_330.tpl:3289`. The deviation stays outside the multiply,
+`SS_readcontrol_330.tpl:3328`. The deviation stays outside the multiply,
 matching SS3's order (env at `:200-245`, devs at `:252-330`).
 
 **Where it applies, and where it does not.** SS3's type 1 multiplies a parameter
 on whatever scale SS3 stores it on, so the restriction follows that scale:
 
 * **Natural mortality and growth**: natural-scale in SS3
-  (`SS_biofxn.tpl:1063`, `:265-275`), where type 1 is `parm * exp(beta * x)` --
+  (`SS_biofxn.tpl:1074`, `:265-275`), where type 1 is `parm * exp(beta * x)` --
   **exactly what Rceattle's `"log"` link already computes**. An SS3 `NatM` or
   growth line carrying `env-var 1xx` bridges with `"log"`. Applied to a
   natural-scale parameter this form would raise it to a power, and on M -- where

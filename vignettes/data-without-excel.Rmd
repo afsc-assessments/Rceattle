@@ -43,7 +43,12 @@ library(Rceattle)
 # 1. Copy-and-edit an existing data object (a bundled dataset, a read_data()
 #    result, or a combine_data() result):
 dat <- build_data(base = BS2017SS, projyr = 2060)
+```
 
+The other two entry points need your own workbook or your own blocks, so they
+are shown rather than run here:
+
+```r
 # 2. Read a workbook, then override a few blocks:
 dat <- build_data(file = "GOA_pollock.xlsx",
                   fleet_control = fc)          # fc overrides the sheet
@@ -281,7 +286,7 @@ simData$fleet_control <- data.frame(
 
 ## 3. Survey index data
 
-One row per fleet-year combination for survey fleets. `Observation` is the log-scale biomass index (or numbers if `Observation_units = 2`). A negative `Year` value tells Rceattle to predict the index without including it in the likelihood, which is useful for model checking.
+One row per fleet-year combination for survey fleets. `Observation` is the biomass index on the **natural** scale -- mt, or thousands of fish if `Observation_units = 2` -- not a log. The likelihood takes the log itself, and `data_check()` requires it to be positive. A negative `Year` value tells Rceattle to predict the index without including it in the likelihood, which is useful for model checking.
 
 ```{r}
 simData$index_data <- data.frame(
@@ -293,7 +298,7 @@ simData$index_data <- data.frame(
   # Selectivity_block: integer index into the selectivity/Q parameter block.
   # Used when Time_varying_sel or Time_varying_q = 3 (time blocks).
   Selectivity_block = 1,
-  Observation       = rnorm(nyrs * nspp),   # replace with real log-index values
+  Observation       = rlnorm(nyrs * nspp, log(5e5), 0.2), # natural scale (mt)
   Log_sd            = 0.1                   # observation SE on the log scale
 )
 ```
@@ -581,6 +586,10 @@ plot_data(simData)
 
 sim_run <- fit_mod(
   data_list    = simData,
+  # simData carries caal_data, which is the age composition within a length bin
+  # and so is predicted from growth: it needs a parametric growth model, per the
+  # requirements table above.
+  growthFun    = build_growth(fun = "vonBertalanffy"),
   estimateMode = 3,    # change to 0 for a real fit
   msmMode      = 0,
   initMode     = 2,

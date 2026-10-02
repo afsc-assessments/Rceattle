@@ -535,6 +535,24 @@ data_check <- function(data_list) {
       nsex_sp <- if(is.null(data_list$nsex)) 1L else data_list$nsex[sp]
       need <- if(nm == "sex_ratio" && isTRUE(nsex_sp == 2)) 1L else n
 
+      # A list-column reads as NA here however finite the number inside it, so
+      # say so rather than send the reader hunting for a gap that is not there.
+      # It happens when a table is assembled with a verb that nests (dplyr's
+      # rowwise summarise, a tibble built from a list), and every age column of
+      # the bundled whamGrowthData$maturity carried one until 5.48.0.
+      listed <- vapply(tbl[, agec[seq_len(need)], drop = FALSE], is.list,
+                       logical(1))
+      if(any(listed)){
+        errors <- c(errors, paste0(
+          nm, " has list-columns, not numbers, in ", sum(listed), " of ", need,
+          " age column(s) (", paste(names(listed)[listed][seq_len(min(3L, sum(listed)))],
+                                    collapse = ", "),
+          if(sum(listed) > 3L) ", ..." else "", "). The values inside may be ",
+          "fine; the model reads the column as NA either way. Flatten with ",
+          "`unlist()` per column."))
+        next
+      }
+
       vals <- suppressWarnings(as.numeric(tbl[sp, agec[seq_len(need)]]))
       gaps <- which(!is.finite(vals))
       if(length(gaps)){
