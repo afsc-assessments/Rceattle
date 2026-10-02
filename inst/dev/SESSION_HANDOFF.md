@@ -30,6 +30,10 @@ evaluated every bin at the FIRST bin's width, so on a non-uniform grid a curve s
 off the bin it labels and disagreed with the key it multiplies -- now per-bin midpoints, SS3's
 `len_bins_m`, with one scalar `binwidth2` for `peak2` as `SS_selex.tpl:153` does).
 
+**PR #186 (`fix/release-hardening` -> `dev`) holds every review fix and is BLOCKED on one
+decision. PR #184 (`dev` -> `main`, release 5.48.0) should wait for it** -- a comment on #184
+lists what changed and the three corrections its own description needs.
+
 **GOLDEN IS RED ON `fix/release-hardening`, deliberately, and regenerating it is YOUR call.**
 The length-comp ageing-error fix moves the two GOA references and nothing else:
 
