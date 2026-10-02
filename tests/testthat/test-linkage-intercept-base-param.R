@@ -257,18 +257,20 @@ testthat::test_that("a warm start cannot leave a fitted value on a pinned interc
   slope <- .ibp_fit(d, M1Fun = Rceattle::build_M1(linkages = list(
     M1 = Rceattle::linkage_spec(~ 0 + temp))))
   stale <- slope$estimated_params
-  stale$beta_linkage[1] <- 1.9        # a fitted slope, standing in for a real one
+  stale$beta_linkage[] <- 1.9         # fitted slopes, standing in for real ones
 
-  # Fit 2: intercept-only on the same parameter. One row either way, so the
-  # length guard cannot catch the mismatch.
+  # Fit 2: intercept-only on the same parameter. Both specs are `by = ~ species`
+  # by default, so beta_linkage has the SAME length either way and the length
+  # guard cannot catch the mismatch.
   int_spec <- Rceattle::build_M1(linkages = list(
     M1 = Rceattle::linkage_spec(~ 1)))
   cold <- .ibp_fit(d, M1Fun = int_spec)
   warm <- .ibp_fit(d, M1Fun = int_spec, inits = stale)
 
-  testthat::expect_equal(nrow(warm$data_list$linkage_table), 1L)
-  testthat::expect_equal(unname(warm$estimated_params$beta_linkage), 0,
-                         tolerance = 1e-12)
+  n_rows <- nrow(warm$data_list$linkage_table)
+  testthat::expect_equal(n_rows, length(stale$beta_linkage))
+  testthat::expect_equal(unname(warm$estimated_params$beta_linkage),
+                         rep(0, n_rows), tolerance = 1e-12)
   testthat::expect_equal(warm$quantities$M1_at_age, cold$quantities$M1_at_age,
                          tolerance = 1e-10)
 })
