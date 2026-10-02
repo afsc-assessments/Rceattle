@@ -20,6 +20,15 @@ Holds environmental linkages on survey/index catchability \code{q}. The effect o
 an \code{env_data} covariate is written as a formula and can hold priors, bounds,
 and an estimation phase like any other linkage.
 }
+\details{
+Catchability is the one process that accepts
+\code{link = "exponential"}, Stock Synthesis's environmental link type 1:
+\code{q^exp(beta * x)}, which MULTIPLIES \verb{log q} where \code{"log"} shifts it. It
+needs an estimated base \code{q} and a lognormal or t index likelihood, and
+cannot share a fleet with a random-effect q linkage; each of those is
+refused with the reason. See
+\code{vignette("environmental-linkages-and-priors")}.
+}
 \examples{
 \donttest{
 # One temperature effect on q per fleet. `by = ~ fleet` is the default, and a

@@ -5,6 +5,91 @@ session. Maintained by `/handoff`.
 
 ## Now
 
+**Release 5.48.0 is open as PR #184 (`dev` -> `main`), and `fix/release-hardening` sits above
+`dev` with the review findings fixed.** Five review passes over the 5.46.0-5.48.0 delta: an
+adversarial bug hunt, a specification cross-check against the Stock Synthesis / SAM / OPAL /
+SPoRC / WHAM sources (SS3, SAM and OPAL are now cloned under
+`~/Documents/GitHub/Assessments`), a style/documentation review, a consumer-repo run, and a
+documented-workflow walk. **DO NOT merge to `main`** -- Grant does that.
+
+**The installed Rceattle on this machine is 5.33.0.** Only `GOA cod/Bridging` and
+`AI cod - Dev/Bridging` use `pkgload::load_all()`; every other consumer script calls
+`library(Rceattle)` and silently runs fifteen feature versions stale. Check
+`packageVersion("Rceattle")` before trusting any consumer result.
+
+**Four decisions Grant made, three of them done.** Length comps must not carry ageing error
+(done -- the empirical-weight branch built the length composition from `age_obs_hat`, the
+smeared composition, where the age-length key is P(length | TRUE age); SS3 likewise applies its
+matrix only to age and CAAL data). Every datum in the likelihood owes a `SIMULATE` draw (done --
+the initial equilibrium catch had none, and it is the ONLY observation informing `Finit`, hence
+the initial age-structure and the SSB scale under mode 6, so every `self_test()` replicate was
+conditioned on data its own operating model had not generated). Length grids must be checked
+(done -- `data_list$pop_lengths` bypassed `.validate_pop_lengths()`, and a decreasing grid
+returned a FINITE objective with age-length-key probabilities to -0.79; also, selectivity
+evaluated every bin at the FIRST bin's width, so on a non-uniform grid a curve sat up to 1.25 cm
+off the bin it labels and disagreed with the key it multiplies -- now per-bin midpoints, SS3's
+`len_bins_m`, with one scalar `binwidth2` for `peak2` as `SS_selex.tpl:153` does).
+
+**PR #186 (`fix/release-hardening` -> `dev`) holds every review fix and is BLOCKED on one
+decision. PR #184 (`dev` -> `main`, release 5.48.0) should wait for it** -- a comment on #184
+lists what changed and the three corrections its own description needs.
+
+**GOLDEN IS RED ON `fix/release-hardening`, deliberately, and regenerating it is YOUR call.**
+The length-comp ageing-error fix moves the two GOA references and nothing else:
+
+| | old reference | now | delta |
+|---|---|---|---|
+| `goa_ss` | 12867.9902664788 | 12867.2655060626 | **-0.7248** |
+| `goa_ms` | 12932.7902167145 | 12932.2219... | **-0.5680** |
+
+`ss` and `ms` (BS2017SS) are untouched, and the max|gradient| assertion also fails (0.60 and
+0.62 against a 1e-8 gate) because the committed reference parameters were the MLE under the OLD
+likelihood and are no longer stationary under the corrected one.
+
+**Attribution is proven, not inferred.** Reverting ONLY the one line
+(`comp_hat += age_hat(...)` back to `age_obs_hat(...)`, `ceattle.cpp` ~3300) reproduces both
+references to all ten decimals -- 12867.9902664788 and 12932.7902167145 exactly. So every other
+change on this branch is bit-identical on golden, including the 10-site per-bin midpoint rewrite
+in `selectivity.hpp`, which confirms it is a true no-op on a uniform grid.
+
+Why only GOA: BS2017SS's ageing-error matrix is the IDENTITY for all three species, so dropping
+the smear from length comps changes nothing there. GOA2018SS species 2 has a non-identity matrix
+(sum|offdiag| = 11.01) AND length comps, so it moves. Exactly the blast radius the fix should
+have.
+
+Regenerating means re-fitting GOA to a new MLE and committing new reference PARAMETERS (the
+fixture stores parameter vectors; the objectives are hardcoded in the test), via
+`tools/verify/regenerate-golden-reference.R`. I did not do it unattended: golden is the net that
+guards the catch limits, and the old numbers encoded the bug, so the new ones should be set
+deliberately rather than at 4am. **Do not merge this branch into `dev` until that is settled.**
+
+**`initMode 6` per-fleet initial F is AGREED AND DEFERRED** (Grant, 2026-10-02), written up as
+section 6 of `inst/dev/SPEC-equilibrium-catch.md`. SS3 gives each fleet its own `init_F` and sums
+them; Rceattle has one `Finit` per species applied to the MEAN fishery selectivity. The two
+cannot disagree today because `.check_equil_catch()` refuses a species with more than one
+fishery, so this lifts that refusal rather than correcting the current bridge -- which already
+reproduces SS3 at a year-1 SSB ratio of 1.0000 on AI cod with a combined fishery. Deferred
+because `log_Finit` becomes per-fleet, changing a parameter vector's length, so stored fits stop
+refitting and it needs its own PR with a deprecation path. The spec records the SS3 citations,
+the files that carry the shape, and the latent `equil_catch_hat` inconsistency it would close.
+
+**Still open from the reviews, not attempted.** Two cited SS3 line numbers are wrong
+(`SS_readcontrol_330.tpl:3289` -> `:3328`, `SS_biofxn.tpl:1063` -> `:1074`); the claims
+themselves are right, the citations land on unrelated code. `inst/dev/SPEC-equilibrium-catch.md`
+pins itself to SS3 v3.30.22.1 and no such checkout exists here (the local one is
+`v3.30.25.1-2-g2e15e27`), so its citations are unverifiable. 22 of 155 vignette chunks fail
+across 6 vignettes, including `whamGrowthData$maturity` carrying list-columns -- the only
+bundled dataset affected -- which makes the guard report "missing values" for data that is
+present and kills two whole vignettes. `estimateMode = 1` is documented in two places as
+"evaluate without re-fitting" when it fits (mode 3 is the one that does not).
+`index_data$Observation` is documented as log-scale in the vignette; it is natural scale, and
+there is no `\item{Observation}` in `R/data.R` to contradict it. The GOA cod script header's
+"9.9646 nats" for the exponential q link measures 11.254 on this tree. WHAM's
+Dirichlet-multinomial theta is a DIFFERENT family (alpha = p*exp(theta) against Rceattle's
+N*p*exp(theta)), so a theta cross-walked between them errs by a factor that grows with sample
+size.
+
+
 **5.47.0 is `link = "exponential"`, MERGED into `dev` as PR #181** at `e87183f1`, so `dev`
 carries it and the 5.48.0 `R_init` work is rebased on top. Stock Synthesis's environmental
 link type 1 on catchability:
@@ -24,8 +109,13 @@ constant sigma), a masked base, the wrong process, and a shared row reaching eve
 and `convergence_diagnostics()` carries `exponential_q_near_one`, because `beta` multiplies a
 log and is not identified on its own.
 
-**Its acceptance test passed.** The GOA Pacific cod bridge closes **9.9646** nats with the
-link, **9.96459** of it on LLSrv's index, against `GOA-estimation-parity.md`'s predicted
+**Its acceptance test passed, but the figure has moved.** Re-run on `dev` at 5.48.0 the GOA
+Pacific cod bridge closes **11.254** nats with the link (`RCE_Q_ENV=true` vs `false`: Index data
+53.7116 -> 42.4573), all of it in the `Index data` row. The **9.9646** recorded below entered at
+`427ed43`, which is an ANCESTOR of the init-linkage and regime-penalty commits, so the script's
+baseline most likely moved rather than this release moving it -- that was not proven, since it
+needs a 5.45.3 A/B. Treat 9.9646 as the historical measurement and 11.254 as current. It was
+**9.96459** of it on LLSrv's index, against `GOA-estimation-parity.md`'s predicted
 `+9.9645`; no other `jnll_comp` row moves by more than 1e-6. Running it also exposed a false
 positive in one of the new guards, now removed: `Catchability_init` is never the starting
 `log q` when `fit_mod(inits = )`, an intercept `init`, or a shared `Catchability_index` group

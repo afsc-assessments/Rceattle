@@ -46,14 +46,15 @@ build_srr(
 
 \item{Bmsy_lim}{Upper limit for Ricker based SSB-MSY (e.g 1/Beta). Will add a likelihood penalty if beta is estimated above this limit. Default \code{NA} is not used.}
 
-\item{linkages}{Named list of \code{\link[=linkage_spec]{linkage_spec()}} objects keyed by \code{"R0"}, \code{"alpha"} or \code{"beta"}: the recommended way to put a prior on, fix, or add an environmental effect to those parameters (see \strong{Priors, fixed values and covariates}).}
+\item{linkages}{Named list of \code{\link[=linkage_spec]{linkage_spec()}} objects keyed by \code{"R0"}, \code{"alpha"}, \code{"beta"} or \code{"R_init"}: the recommended way to put a prior on, fix, or add an environmental effect to those parameters (see \strong{Priors, fixed values and covariates}).}
 }
 \value{
 A \code{list} containing the stock recruitment relationship settings
 }
 \description{
 Sets the stock-recruit curve and how recruitment is estimated. Priors, fixed
-values and environmental effects on \code{R0}, alpha and beta go through
+values and environmental effects on \code{R0}, alpha, beta and \code{R_init}
+go through
 \code{linkages}; see \strong{Priors, fixed values and covariates} below.
 
 \strong{Stock recruitment relationships currently implemented in Rceattle:}
@@ -85,7 +86,7 @@ beta go through \code{linkages}.
 }
 \section{Priors, fixed values and covariates}{
 
-Use \code{linkages} for \code{R0}, alpha and beta. Each entry is a
+Use \code{linkages} for \code{R0}, alpha, beta and \code{R_init}. Each entry is a
 \code{\link[=linkage_spec]{linkage_spec()}}, and an intercept-only formula (\code{~ 1}) acts on the
 parameter itself:
 \itemize{

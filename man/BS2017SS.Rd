@@ -25,13 +25,13 @@ Control
 \item{estDynamics}{Estimate or fix numbers-at-age. Accepts integer codes or the equivalent readable strings: 0 / "Estimated" = estimate dynamics; 1 / "Fixed" = use input numbers-at-age in NByageFixed; 2 / "FixedScaled" = multiply input numbers-at-age (NByageFixed) by a single scaling coefficient, estimated under predation (msmMode > 0) and fixed at 1 otherwise.}
 \item{M1_model}{Estimate residual (multi-species mode) or total natural mortality (single-species mode). 0 = use fixed natural mortality from M1_base, 1 = estimate sex- and age-invariant M1, 2 = sex-specific (two-sex model), age-invariant M1, 3 = estimate sex- and age-specific M1.}
 \item{fleet_control}{Survey and fishery data specifications}
-\item{index_data}{Survey index in weight (mt) or numbers (thousands of fish) data}
+\item{index_data}{Survey index in weight (mt) or numbers (thousands of fish) data. The \code{Observation} column is on the NATURAL scale in the units \code{fleet_control$Observation_units} names, never a log: the likelihood takes the log itself, and a fitted observation must be positive. A negative \code{Year} predicts the row without fitting it.}
 \item{index_cov}{Optional named list of survey-index variance-covariance matrices, keyed by Fleet_name (or Fleet_code), used only by fleets whose fleet_control \code{Index_distribution == "MVN"}. Each matrix must be square and symmetric with dimension equal to the number of fitted survey observations for that fleet (Year in \code{styr:endyr}, Observation > 0), ordered as in index_data. Inverted once internally to the precision matrix used in 0.5 * r' Sigma^-1 r. Leave unset for the default lognormal likelihood.}
 \item{catch_data}{Total catch in weight (mt) or numbers (thousands of fish) data}
 \item{comp_data}{Survey/fishery age or length composition data. Note if sex is 3, put female composition data then male composition data (similar to SS).}
 \item{emp_sel}{Empirical/fixed selectivity for surveys and fisheries (leave empty if not used)}
 \item{age_trans_matrix}{Age transition matrix (e.g. growth trajectory) used to convert age to length for length comp data. Can have multiple matrices for a species specified by Age_transition_index.}
-\item{age_error}{Aging error matrices. Can have only one per species.}
+\item{age_error}{Ageing error matrices, one row per true age. One per species by default; give several and select them per fleet with the 'Ageing_error_index' column of both this table and \code{fleet_control}.}
 \item{weight}{Weight-at-age (weight) to use for calculation of derived quantities (SSB, Consumption/Ration, Suitability, Total Catch, Survey Biomass, etc). Can have multiple weight-at-age data-sets for each species, but must be full for all years of the hindcast.}
 \item{maturity}{Maturity-at-age for each species}
 \item{sex_ratio}{Percent female at age for each species}

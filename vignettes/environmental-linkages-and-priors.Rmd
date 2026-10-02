@@ -207,7 +207,7 @@ Key arguments (see `?linkage_spec` for the full list):
 * **`init`** / **`bounds`**: named lists keyed by design-matrix
   column (`init = list(temp = 0.05)`, `bounds = list(temp = c(-2, 2))`).
   **A slope is on the link scale, an `(Intercept)` on the parameter's
-  natural scale** — `init = list(`(Intercept)` = 0.3)` means an M1 of
+  natural scale** — `init = list(intercept = 0.3)` means an M1 of
   0.3/yr, not a log. Mind that split: it is the one place a linkage
   value can be read on the wrong scale and still fit.
 * **`priors`**: named list keyed by design-matrix column. Each
@@ -256,6 +256,8 @@ For programmatic prior assembly (e.g. species-specific priors built in
 a loop) call the `prior_*` constructors directly:
 
 ```{r}
+# One prior SD per species, however you derive them.
+species_specific_sds <- c(0.3, 0.7, 0.5)
 priors <- lapply(species_specific_sds, function(s) prior_normal(0, s))
 names(priors) <- c("temp", "PDO", "salinity")
 linkage_spec(formula = ~ temp + PDO + salinity, priors = priors)
@@ -729,7 +731,7 @@ M1_spec <- build_M1(
 fit <- fit_mod(
   data_list   = GOApollock,
   M1Fun       = M1_spec,
-  estimateMode = 0,
+  estimateMode = 3,   # build the objective; see ?fit_mod
   msmMode     = 0
 )
 ```
@@ -805,7 +807,9 @@ convergence flag alone. `tools/verify/verify-sim-recovery-r-init.R` measures
 both the recovery and the rate at which a replicate runs away.
 
 ```{r}
-# A free initial level, as Stock Synthesis's unpenalised SR_regime block.
+# A free initial level, Rceattle's form of Stock Synthesis's SR_regime block.
+# SS3 shrinks that block at sigma_R / ave_age; this is free, so add a
+# lognormal(0, sigma_R / ave_age) prior on the intercept to match SS3.
 # It must travel through build_srr(): fit_mod() overwrites data_list$srr_linkages
 # from recFun, so assigning the spec onto the data_list drops it silently.
 init_spec <- build_srr(linkages = list(R_init = linkage_spec(
@@ -826,6 +830,16 @@ rec_spec <- build_srr(
   )
 )
 
+# A real multi-species data_list for the fits below: the species-keyed
+# priors need more than one species, and the linkages need `temp` in
+# env_data.
+data_list <- BS2017SS
+yrs <- data_list$styr:data_list$endyr
+data_list$env_data <- data.frame(
+  Year      = yrs,
+  temp      = as.numeric(scale(sin(seq_along(yrs) / 4))),
+  cold_pool = as.numeric(scale(cos(seq_along(yrs) / 5))))
+
 # Beverton-Holt with env effects on alpha (and species-keyed
 # priors so each stock has its own sensitivity).
 rec_spec_bh <- build_srr(
@@ -844,7 +858,7 @@ rec_spec_bh <- build_srr(
 fit <- fit_mod(
   data_list   = data_list,
   recFun      = rec_spec,
-  estimateMode = 0,
+  estimateMode = 3,   # build the objective; see ?fit_mod
   msmMode     = 0
 )
 ```
@@ -912,11 +926,19 @@ species/sex/age, so its linkages use `by = ~ fleet`. `build_catchability()`
 takes the same `linkages` argument with a single parameter key, `q`:
 
 ```{r}
+# A q linkage shifts an ESTIMATED log q, so restrict it to fleets that have
+# one: a fishery carries no survey index, and a Fixed or Analytical q is
+# refused because the linkage would either have no effect or make a fixed q
+# time-varying.
+q_data <- data_list
+srv <- q_data$fleet_control$Fleet_name[q_data$fleet_control$Fleet_type == 2]
+q_data$fleet_control$Catchability[q_data$fleet_control$Fleet_type == 2] <- "Estimated"
+
 fit <- fit_mod(
-  data_list = data_list,
+  data_list = q_data,
   qFun      = build_catchability(
     linkages = list(
-      q = linkage_spec(~ temp, by = ~ fleet)   # one coefficient per fleet
+      q = linkage_spec(~ temp, by = ~ fleet, fleet = srv)  # one per survey fleet
     )
   ),
   estimateMode = 0,
@@ -1025,11 +1047,16 @@ SE 0.21), which is also the peak ratio there because both logistic curves
 saturate.
 
 ```{r}
+# Only the parametric forms are wired for selectivity linkages, so name the
+# fleets that use one -- here the Logistic surveys.
+logistic_flts <- data_list$fleet_control$Fleet_name[
+  data_list$fleet_control$Selectivity %in% c(1, "Logistic")]
+
 fit <- fit_mod(
   data_list = data_list,
   selFun    = build_selectivity(
     linkages = list(
-      inf_asc = linkage_spec(~ cold_pool, by = ~ fleet)
+      inf_asc = linkage_spec(~ cold_pool, by = ~ fleet, fleet = logistic_flts)
     )
   ),
   estimateMode = 0,
@@ -1141,12 +1168,11 @@ At fit time these specs are pooled. The result:
 Per-process logic (vB has no `m`; only Richards does) is enforced at
 build time:
 
-```{r}
+```{r, error = TRUE}
 build_growth(
   fun = "vonBertalanffy",
   linkages = list(m = linkage_spec(~ temp))
 )
-#> Error: linkages$m is only valid with fun = 'Richards'; ...
 ```
 
 Growth, M, and recruitment can all be linked in the same fit,
@@ -1154,8 +1180,11 @@ each `build_*()` output holds its own linkages list and
 `fit_mod()` pools them against a single shared design matrix:
 
 ```{r}
+# whamGrowthData, not data_list: estimating growth needs caal_data (the age
+# composition within a length bin is what informs the growth curve), and
+# BS2017SS carries none.
 fit <- fit_mod(
-  data_list   = data_list,
+  data_list   = whamGrowthData,
   growthFun   = build_growth(
     fun      = "vonBertalanffy",
     linkages = list(
@@ -1174,7 +1203,7 @@ fit <- fit_mod(
       R0 = linkage_spec(formula = ~ temp)
     )
   ),
-  estimateMode = 0,
+  estimateMode = 3,   # build the objective; see ?fit_mod
   msmMode     = 0
 )
 

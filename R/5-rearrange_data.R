@@ -1055,6 +1055,12 @@ rearrange_dat <- function(data_list){
   grids <- lapply(seq_len(nspp), function(sp) {
     data_edges <- as.numeric(data_list$lengths[sp, seq_len(data_list$nlengths[sp])])
     g <- if (is.list(pop)) (if (sp <= length(pop)) pop[[sp]] else NULL) else pop
+    # Validated here, not only in build_growth(): ?build_growth documents
+    # data_list$pop_lengths as the inherit source, so a converter or an SS3
+    # bridge can set the field directly and skip the constructor. A decreasing
+    # grid returned a FINITE objective with age-length-key probabilities down to
+    # -0.79, and a negative edge a negative weight-at-length, neither flagged.
+    if (!is.null(g)) g <- .validate_pop_lengths(g)
     if (is.null(g) || isTRUE(gm[sp] == 0)) g <- data_edges
     missing_edge <- data_edges[vapply(data_edges, function(e) !any(abs(g - e) < 1e-8), logical(1))]
     if (length(missing_edge)) {

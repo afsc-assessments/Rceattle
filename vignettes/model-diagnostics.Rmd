@@ -581,7 +581,7 @@ values or names matching `fleet_control$Fleet_name`, give ids or names, not a
 mix, since R coerces `c(1, "Survey")` to character.
 
 ```{r}
-tuned <- reweight_comps(model_1, fleets = c("Survey_1", "Fishery_1"))
+tuned <- reweight_comps(model_1, fleets = c("Bottom_trawl", "Fishery"))
 ```
 
 Only multinomial fleets are tuned. A Dirichlet-multinomial fleet estimates its
@@ -754,7 +754,9 @@ sims[[failed[1]]]$convergence          # which check failed, and on which parame
 
 `profile()` re-fits the model across a grid of fixed values for a chosen parameter and returns the NLL surface. A flat profile means the data say little about the parameter; a minimum away from the MLE means the fit has not truly settled there. It supports the recruitment standard deviation, the stock–recruit parameters, and natural mortality.
 
-Specify the parameter with a natural-scale alias: `"sigmaR"` (recruitment
+Specify the parameter with a natural-scale alias: `"sigmaR"` -- the **log-scale**
+standard deviation of the recruitment deviations, not a CV of recruitment in
+thousands of fish -- (recruitment
 standard deviation), `"M1"` (natural mortality), or the stock–recruit parameters
 `"R0"`, `"alpha"`, and `"beta"`. Aliases take natural-scale values directly.
 `slots` gives the cell(s) to profile (usually just the species index) and
@@ -785,9 +787,10 @@ prof_alpha <- profile(
 prof_M_sex <- profile(
   fitted = model_1,
   param    = "M1",
-  slots    = list(c(1, 1, 1), c(1, 2, 1)),  # males and females
-  values   = list(seq(0.10, 0.40, by = 0.05),
-                  seq(0.10, 0.40, by = 0.05))
+  # One slot per sex on a two-sex model. This one is single-sex, so sex 1 is
+  # the only slot there is -- asking for sex 2 is out of bounds for log_M1.
+  slots    = list(c(1, 1, 1)),
+  values   = list(seq(0.10, 0.40, by = 0.05))
 )
 ```
 
@@ -824,7 +827,7 @@ profiles the whole group; the others are added with a message.
 prof_q <- profile(
   fitted = model_1,
   param  = "q",
-  slots  = list("BT_Pollock"),
+  slots  = list("Bottom_trawl"),
   values = list(seq(0.5, 2.0, by = 0.1))
 )
 ```

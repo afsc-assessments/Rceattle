@@ -23,6 +23,9 @@ Rplots.pdf
 
 # Compiled artifacts (anywhere in the tree)
 *.o
+# A TMB compile in progress leaves these, and `*.o` does not match them,
+# so `git add -A` during a build would stage one.
+*.o.tmp
 *.so
 *.dll
 src/symbols.rds

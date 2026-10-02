@@ -28,6 +28,22 @@
 #' @noRd
 .rce_dn6_ends <- function(sel_dn6, nsex, species, fleet_names,
                           is_dn6 = NULL, sel_index = NULL) {
+  # SS3 reads a P5/P6 below -1000 as a bin ordinal, not as "ignore this end":
+  # P5 = -1001 - bin makes selectivity nil through that bin, P6 = -1000 - bin
+  # holds it constant beyond it and re-anchors the descending limb there
+  # (SS_selex.tpl, pattern 24). Rceattle implements neither, and -999 is the
+  # only sentinel it honours, so reading one of those as -999 would fit a
+  # different curve without saying so.
+  far <- which(sel_dn6[5:6, , , drop = FALSE] < -1000, arr.ind = TRUE)
+  if (nrow(far)) {
+    stop("Fleet(s) ", paste(unique(as.character(fleet_names[far[, 2]])),
+                            collapse = ", "),
+         ": a DoubleNormalSS3 end parameter below -1000 is Stock Synthesis's ",
+         "bin-ordinal form (selectivity nil through, or constant beyond, a ",
+         "named bin), which Rceattle does not implement. Use -999 to leave ",
+         "that end unscaled, or give the end its value on the logit scale.",
+         call. = FALSE)
+  }
   on <- sel_dn6[5:6, , , drop = FALSE] > -999
   nsx <- as.integer(nsex)[as.integer(species)]
   nsx[is.na(nsx)] <- 1L

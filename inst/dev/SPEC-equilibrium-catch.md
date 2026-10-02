@@ -315,3 +315,54 @@ factor moves from 2.621575 to 2.621589, **+0.001%** -- real but not what is movi
 anything here. It would matter for a dome-shaped fishery whose descending limb
 leaves the oldest ages lightly selected. Worth fixing with the equilibrium catch,
 since both touch the same block, but it is not the cause of anything measured above.
+
+
+## 6. Future work: per-fleet initial F, to match SS3 on a multi-fishery species
+
+**Status: AGREED, NOT STARTED** (Grant, 2026-10-02). Deliberately deferred — it
+changes the length of a parameter vector, so it wants its own PR and a
+deprecation path rather than a slot in a release that already moves SSB.
+
+SS3 gives each fleet its own `init_F` and **sums** them over the species'
+fisheries:
+
+```
+for (int ff = 1; ff <= N_catchfleets(p); ff++) {
+  f = fish_fleet_area(p, ff);
+  equ_Z(s, p, g, a1) += sel_dead_num(s, f, g, a1) * Hrate(f, t);
+}
+```
+
+(`SS_popdyn.tpl:1990-1994` in the local v3.30.25.1 checkout.) One parameter per
+fleet x season, created only where that fleet's equilibrium catch is positive
+(`SS_readcontrol_330.tpl:2837-2847`, FATAL if the catch is positive and no
+`init_F` exists).
+
+Rceattle has `PARAMETER_VECTOR(log_Finit)` of length `nspp` (`ceattle.cpp:514`)
+and applies it to the unweighted MEAN selectivity across the species' fisheries
+(`ceattle.cpp:1536`, `sel_init = acc / n_fsh`). **The two cannot disagree
+today**, because `.check_equil_catch()` refuses a species with more than one
+fishery — so this is about lifting that refusal, not about correcting a number
+in the current bridge. The AI cod bridge already reproduces SS3 at a year-1
+`SSB_rce/SSB_ss3` of 1.0000 with 89 free parameters against SS3's 89 active,
+using a combined `FshComb` fishery.
+
+What it costs, and why it is not folded in here:
+
+- `log_Finit` becomes per-FLEET, so the parameter vector changes length for
+  every `initMode` 3/4/6 model. Stored fits stop refitting and an
+  `inits$log_Finit` of length `nspp` no longer maps — rule 1 wants a
+  deprecation path (broadcast the old per-species value to the species'
+  fisheries, or refuse it with a message naming the refit).
+- `build_map()`, `build_parameter_bounds()`, `rename_output()` and the
+  parameter dictionary all carry the shape.
+- It also closes a latent inconsistency worth recording: `equil_catch_hat`
+  already uses the FLEET's own `sel_at_age` in the Baranov numerator
+  (`ceattle.cpp:2962`) while `N_eq` was depleted at the MEAN selectivity
+  (`:2088`). Harmless while >1 fishery is refused; wrong the moment it is not.
+- Rceattle has no retention concept, so `sel_at_age` stands in for SS3's
+  `sel_dead_num = sel * (retain + (1-retain)*discmort)` (`SS_param.tpl:532`).
+  Identical with no discards; worth a line in the vignette either way.
+
+Accept per-fleet `init_F` only where that fleet has a positive equilibrium
+catch, as SS3 does, or the parameter is unidentified.
