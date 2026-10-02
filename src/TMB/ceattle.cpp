@@ -3284,7 +3284,12 @@ Type objective_function<Type>::operator() () {
         }
       }
 
-      // Convert from catch-at-age to catch-at-length
+      // Convert from catch-at-age to catch-at-length.
+      //
+      // From age_hat, the TRUE ages -- not age_obs_hat. The age-length key is
+      // P(length | true age), and a measured length carries no otolith reading,
+      // so ageing error has no part in a length composition. SS3 likewise
+      // applies its age_age matrix only to age and CAAL data.
       if( comp_type == 1) {
         for(ln = 0; ln < nlengths(sp); ln++) {
           for(age = 0; age < nages(sp); age++) {
@@ -3295,7 +3300,7 @@ Type objective_function<Type>::operator() () {
             if((flt_sex > 0) & (flt_sex < 3)){
               sex = flt_sex - 1;
             }
-            comp_hat(comp_ind, ln ) += age_obs_hat(comp_ind, age) * age_trans_matrix(flt_age_transition_index(flt), sex, age, ln );
+            comp_hat(comp_ind, ln ) += age_hat(comp_ind, age) * age_trans_matrix(flt_age_transition_index(flt), sex, age, ln );
           }
         }
 
@@ -3943,6 +3948,20 @@ Type objective_function<Type>::operator() () {
       Type eq_mu = log(equil_catch_hat(eq_ind)) - bias_adjust_obs*square(eq_sd)/2.0;
       jnll_comp(JNLL_EQUIL_CATCH, eq_flt) -=
         dnorm(log(equil_catch_obs(eq_ind, 0)), eq_mu, eq_sd, true);
+
+      // -- Simulate the equilibrium catch, for sim_mod(simulate = TRUE) --
+      // Same mean as the dnorm above, bias term included. This observation is
+      // the ONLY one informing Finit, and therefore the initial age-structure
+      // and the SSB scale under initMode 6, so leaving it at its real value
+      // conditioned every self_test() replicate on data its own operating model
+      // had not generated, and reported the resulting Finit bias as real.
+      //
+      // Inside the gate, unlike the hindcast catch: every equilibrium row is a
+      // real observation that data_check() requires to be positive, so there is
+      // no projection row to fill.
+      SIMULATE {
+        equil_catch_obs(eq_ind, 0) = exp(rnorm(eq_mu, eq_sd));
+      }
     }
   }
 
@@ -3956,8 +3975,10 @@ Type objective_function<Type>::operator() () {
   // sim_mod() assembles the data_list from the per-type *_obs_sim matrices.
   SIMULATE {
     matrix<Type> catch_obs_sim = catch_obs;
+    matrix<Type> equil_catch_obs_sim = equil_catch_obs;
     vector<Type> obsvec_sim = obsvec;
     REPORT(catch_obs_sim);
+    REPORT(equil_catch_obs_sim);
     REPORT(obsvec_sim);
   }
 

@@ -1901,9 +1901,16 @@ data_check <- function(data_list) {
   # another species' ageing error, over another species' age range.
   if (has_data(data_list$fleet_control) && !is.null(data_list$age_error)) {
     ae <- as.data.frame(data_list$age_error)
-    have <- if (!is.null(ae$Ageing_error_index))
-      unique(suppressWarnings(as.integer(ae$Ageing_error_index))) else
-      unique(suppressWarnings(as.integer(ae$Species)))
+    # The index each age_error ROW carries, under the same NA fallback the
+    # fleet side uses: a blank on an age_error row also means "this species'
+    # own matrix", which is what adding one matrix by typing an index on the
+    # new rows leaves behind.
+    ae_sp <- suppressWarnings(as.integer(ae[["Species"]]))
+    ae_ix <- if ("Ageing_error_index" %in% colnames(ae)) {
+      suppressWarnings(as.integer(ae[["Ageing_error_index"]]))
+    } else rep(NA_integer_, nrow(ae))
+    ae_ix[is.na(ae_ix)] <- ae_sp[is.na(ae_ix)]
+    have <- unique(ae_ix)
     flt_sp <- suppressWarnings(as.integer(data_list$fleet_control$Species))
     want <- suppressWarnings(as.integer(data_list$fleet_control[["Ageing_error_index"]]))
     # The effective index rearrange_data() will use (R/5-rearrange_data.R).
@@ -1925,11 +1932,6 @@ data_check <- function(data_list) {
       # column the index IS the species, so "2" reads as "the second matrix" to
       # a user and "species 2's matrix" to the model: the fleet would be fitted
       # with another species' ageing error, over another species' age range.
-      ae_sp <- suppressWarnings(as.integer(ae[["Species"]]))
-      ae_ix <- if ("Ageing_error_index" %in% colnames(ae)) {
-        suppressWarnings(as.integer(ae[["Ageing_error_index"]]))
-      } else rep(NA_integer_, nrow(ae))
-      ae_ix[is.na(ae_ix)] <- ae_sp[is.na(ae_ix)]
       # One species per index is enforced above, so the first row settles it.
       idx_sp <- ae_sp[match(want, ae_ix)]
       wrong <- which(!is.na(idx_sp) & !is.na(flt_sp) & idx_sp != flt_sp)

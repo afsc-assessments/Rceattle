@@ -399,7 +399,30 @@ void calculate_selectivity(
     // population grid was supplied.
     int nbins =  is_length_based? nlengths_pop(sp) : nages(sp);
     int n_sel_bins = flt_n_sel_bins(flt);
-    Type binwidth = is_length_based ? (lengths_pop(sp, 1) - lengths_pop(sp, 0)) : Type(1.0);
+    // Bin midpoints, SS3's len_bins_m. A population length grid need not be
+    // uniform -- SS3 models routinely widen the tail bins -- so each bin takes
+    // its OWN width rather than the first bin's, which otherwise evaluated every
+    // curve away from the bin it labels and disagreed with the age-length key it
+    // multiplies. Identical on a uniform grid, so no existing model moves.
+    // A single length bin has no neighbour to take a width from, so it keeps the
+    // edge itself; nothing domed is identifiable on one bin anyway.
+    vector<Type> xmid(nbins);
+    for (int b = 0; b < nbins; b++) {
+      if (!is_length_based) {
+        xmid(b) = Type(b + 1);
+      } else if (nbins < 2) {
+        xmid(b) = lengths_pop(sp, b);
+      } else {
+        Type w = (b + 1 < nbins) ? (lengths_pop(sp, b + 1) - lengths_pop(sp, b))
+                                 : (lengths_pop(sp, b) - lengths_pop(sp, b - 1));
+        xmid(b) = lengths_pop(sp, b) + 0.5 * w;
+      }
+    }
+    // One scalar width, as SS3's binwidth2: the population width, or the middle
+    // bin's where the grid is not uniform (SS_readdata_330.tpl:1644). Only the
+    // DoubleNormalSS3 peak2 reads it, exactly as SS_selex.tpl:153 does.
+    Type binwidth = (is_length_based && nbins > 1)
+      ? (lengths_pop(sp, nbins / 2) - lengths_pop(sp, nbins / 2 - 1)) : Type(1.0);
 
     // Uncapped, per-year-centered log-selectivity, carried across years for the
     // NonParametricPM (type 9) random walk (the realized curve is then capped).
@@ -411,7 +434,7 @@ void calculate_selectivity(
         switch (sel_case) {
         case 1: // Logistic
           for (int bin = 0; bin < nbins; bin++) {
-            Type x_val = is_length_based ? (lengths_pop(sp, bin) + 0.5 * binwidth) : Type(bin + 1);
+            Type x_val = is_length_based ? xmid(bin) : Type(bin + 1);
             // slope stored on the log scale: log-link offset rides inside the
             // exp (multiplicative on the natural slope), natural-link offset
             // adds after. inflection stored natural: identity-link offset adds,
@@ -537,7 +560,7 @@ void calculate_selectivity(
 
         case 3: // Double Logistic
           for (int bin = 0; bin < nbins; bin++) {
-            Type x_val = is_length_based ? (lengths_pop(sp, bin) + 0.5 * binwidth) : Type(bin + 1);
+            Type x_val = is_length_based ? xmid(bin) : Type(bin + 1);
             Type slp1 = exp(log_sel_slp(0, flt, sex) + log_sel_slp_dev(0, flt, sex, yr)
                             + sel_slp_off(0, flt, sex, yr)) + sel_slp_off_nat(0, flt, sex, yr);
             Type inf1 = (sel_inf(0, flt, sex) + sel_inf_dev(0, flt, sex, yr)
@@ -555,7 +578,7 @@ void calculate_selectivity(
 
         case 4: // Descending Logistic
           for (int bin = 0; bin < nbins; bin++) {
-            Type x_val = is_length_based ? (lengths_pop(sp, bin) + 0.5 * binwidth) : Type(bin + 1);
+            Type x_val = is_length_based ? xmid(bin) : Type(bin + 1);
             Type slp2 = exp(log_sel_slp(1, flt, sex) + log_sel_slp_dev(1, flt, sex, yr)
                             + sel_slp_off(1, flt, sex, yr)) + sel_slp_off_nat(1, flt, sex, yr);
             Type inf2 = (sel_inf(1, flt, sex) + sel_inf_dev(1, flt, sex, yr)
@@ -622,7 +645,7 @@ void calculate_selectivity(
           Type right_floor = 1.0 / (1.0 + exp(-((sel_inf(1, flt, sex) + sel_inf_dev(1, flt, sex, yr)
                               + sel_inf_off_nat(1, flt, sex, yr)) * exp(sel_inf_off(1, flt, sex, yr)))));
           for (int bin = 0; bin < nbins; bin++) {
-            Type x_val      = is_length_based ? (lengths_pop(sp, bin) + 0.5 * binwidth) : Type(bin + 1);
+            Type x_val      = is_length_based ? xmid(bin) : Type(bin + 1);
             // Smooth logistic blend: ~0 left of peak, ~1 right of peak.
             Type w          = 1.0 / (1.0 + exp(-20.0 * (x_val - peak)));
             Type asc_gauss  = exp(-0.5 * pow((x_val - peak) / sigma_asc,  2.0));
@@ -653,15 +676,15 @@ void calculate_selectivity(
           if (is_length_based) {
             while (startbin < nbins - 1 && lengths_pop(sp, startbin) < lengths(sp, 0)) startbin++;
           }
-          Type x_first   = is_length_based ? (lengths_pop(sp, startbin) + 0.5 * binwidth) : Type(1);
-          Type x_last    = is_length_based ? (lengths_pop(sp, nbins - 1) + 0.5 * binwidth) : Type(nbins);
+          Type x_first   = is_length_based ? xmid(startbin) : Type(1);
+          Type x_last    = is_length_based ? xmid(nbins - 1) : Type(nbins);
           Type peak2     = peak + binwidth + (0.99 * x_last - peak - binwidth) / (1.0 + exp(-P(1)));
           Type point1    = 1.0 / (1.0 + exp(-P(4)));
           Type point2    = 1.0 / (1.0 + exp(-P(5)));
           Type t1min     = exp(-square(x_first - peak) / upselex);
           Type t2min     = exp(-square(x_last - peak2) / downselex);
           for (int bin = startbin; bin < nbins; bin++) {
-            Type x_val = is_length_based ? (lengths_pop(sp, bin) + 0.5 * binwidth) : Type(bin + 1);
+            Type x_val = is_length_based ? xmid(bin) : Type(bin + 1);
             Type t1    = x_val - peak;
             Type t2    = x_val - peak2;
             Type join1 = 1.0 / (1.0 + exp(-(20.0 * t1 / (1.0 + CppAD::abs(t1)))));
@@ -682,9 +705,9 @@ void calculate_selectivity(
           // above the population bins, so a single-grid model is unchanged.
           if (is_length_based && startbin > 0) {
             Type sel_start = sel_at_length(flt, sex, startbin, yr);
-            Type x_start   = lengths_pop(sp, startbin) + 0.5 * binwidth;
+            Type x_start   = xmid(startbin);
             for (int bin = 0; bin < startbin; bin++) {
-              Type x_val = lengths_pop(sp, bin) + 0.5 * binwidth;
+              Type x_val = xmid(bin);
               sel_at_length(flt, sex, bin, yr) = square(x_val / x_start) * sel_start;
             }
           }
@@ -726,7 +749,7 @@ void calculate_selectivity(
           Type inf   = (sel_inf(0, flt, sex) + sel_inf_off_nat(0, flt, sex, yr))
                          * exp(sel_inf_dev(0, flt, sex, yr) + sel_inf_off(0, flt, sex, yr));
           for (int bin = 0; bin < nbins; bin++) {
-            Type x_val = is_length_based ? (lengths_pop(sp, bin) + 0.5 * binwidth) : Type(bin + 1.5);
+            Type x_val = is_length_based ? xmid(bin) : Type(bin + 1.5);
             Type val = 1.0 / (1.0 + exp(-slope * (x_val - inf)));
             if (is_length_based) sel_at_length(flt, sex, bin, yr) = val;
             else                 sel_at_age(flt, sex, bin, yr) = val;

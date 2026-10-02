@@ -911,6 +911,26 @@ sim_mod <- function(object = NULL, simulate = FALSE, process = FALSE, Rceattle =
     dat_sim$catch_data$Catch <-
       .sim_warn_unusable(as.numeric(catch_sim[, 1]),
                          dat_sim$catch_data$Fleet_code, "catch")
+
+    # The initial equilibrium catch, drawn beside the hindcast catch under the
+    # same lognormal (ceattle.cpp, JNLL_EQUIL_CATCH). It is the only
+    # observation informing Finit, hence the initial age-structure and the SSB
+    # scale under initMode 6, so a self_test() that left it at its real value
+    # conditioned every replicate on data its own operating model had not
+    # generated.
+    #
+    # Keyed off what the MODEL carries, not the data_list: only initMode 6
+    # reads these rows, so every other mode reports a zero-row matrix while the
+    # data_list still holds them, and there is nothing to redraw.
+    eq_sim <- .sim_report_obs(sim_rep, "equil_catch_obs_sim")
+    if (NROW(eq_sim) > 0) {
+      .sim_check_rows(NROW(eq_sim), nrow(dat_sim$equil_catch_data),
+                      "initial equilibrium catch")
+      dat_sim$equil_catch_data$Catch <-
+        .sim_warn_unusable(as.numeric(eq_sim[, 1]),
+                           dat_sim$equil_catch_data$Fleet_code,
+                           "initial equilibrium catch")
+    }
   } else {
     # Expected values
     dat_sim$catch_data$Catch <- catch_hat

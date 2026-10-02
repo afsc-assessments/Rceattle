@@ -108,6 +108,44 @@ plus a low bias of about 0.12 log units over the rest. A natural-scale lower bou
 
 A model with no `R_init` linkage is unchanged, including all four golden references.
 
+## Length compositions no longer carry ageing error
+
+A length composition built from an age composition used `age_obs_hat`, the composition
+already smeared by the ageing-error matrix. The age-length key is P(length | **true** age)
+and a measured length carries no otolith reading, so the smear has no part in it; Stock
+Synthesis likewise applies its `age_age` matrix only to age and CAAL data. Now built from
+the true-age composition. No change where `age_error` is the identity, which is every
+bundled dataset and all four golden references; live on a stock with a real ageing-error
+matrix **and** length comps on the same fleet, which is the bridged GOA cod configuration.
+
+## The initial equilibrium catch is redrawn by `sim_mod()`
+
+It had no `SIMULATE` block, so `sim_mod()`, `self_test()` and `run_mse()` kept the real
+observation while redrawing everything else. That observation is the **only** one
+informing `Finit`, and therefore the initial age-structure and the SSB scale under
+`initMode = 6` — so a self-test conditioned every replicate on data its own operating
+model had not generated, and reported the resulting `Finit` bias as if it were real. Drawn
+from the same lognormal as its density, reported as `equil_catch_obs_sim`, and written back
+into `equil_catch_data`.
+
+## Length grids are validated, and a non-uniform grid is now evaluated correctly
+
+Two problems on the population length grid:
+
+* **`data_list$pop_lengths` skipped validation.** `?build_growth` documents it as the
+  inherit source, so a converter or an SS3 bridge can set the field directly and never
+  reach `build_growth()`'s validator. A decreasing grid returned a **finite** objective
+  with age-length-key probabilities down to **−0.79**, and a negative edge a negative
+  weight-at-length, neither flagged. Validated on the read path now.
+* **Selectivity evaluated every bin at the first bin's width.** The age-length key uses
+  per-bin midpoints and so does SS3 (`len_bins_m`), but `calculate_selectivity()` took a
+  single width from bin 1, so on a non-uniform grid — which SS3 models routinely use, with
+  wider tail bins — a curve was evaluated up to **1.25 cm** off the bin it labels and
+  disagreed with the probability it multiplies in the same expression. Now per-bin
+  midpoints, with one scalar width for `DoubleNormalSS3`'s `peak2` exactly as
+  `SS_selex.tpl:153` uses `binwidth2`. Identical on a uniform grid, which is every bundled
+  dataset, so no existing model moves.
+
 ## Two ageing-error and selectivity configurations that fitted the wrong model are refused
 
 Both were found by reviewing 5.46.0's new features against the Stock Synthesis source.
