@@ -491,25 +491,34 @@ build_params <- function(data_list) {
   if (!is.null(data_list$linkage_table) &&
       nrow(data_list$linkage_table) > 0L) {
     lt <- data_list$linkage_table
-    int_rows <- which(lt$design_col == "(Intercept)" & lt$init_supplied &
-                        (!fixed_only | as.integer(lt$est_phase) == 0L))
+    fixed_now <- as.integer(lt$est_phase) == 0L
+    # An `R_init` level fixed at phase 0 is re-pushed whether or not an `init`
+    # was given: unlike a base-parameter intercept, which falls back on its own
+    # build_params() default, the level's fixed value IS this row's `init`, and
+    # the table default of 0 is a well-defined multiplier of 1. Gating it on
+    # `init_supplied` left "pinned at no shift" to be overwritten by a warm
+    # start, which is the same silent hold this push exists to prevent.
+    int_rows <- which(lt$design_col == "(Intercept)" &
+                        (lt$init_supplied | (.is_level_intercept(lt) & fixed_now)) &
+                        (!fixed_only | fixed_now))
     if (any(is.na(lt$init[int_rows]))) {
       stop("Initial value provided for '(Intercept)' is NA.", call. = FALSE)
     }
     for (ri in int_rows) {
       row <- lt[ri, , drop = FALSE]
-      idx <- .linkage_row_indices(row, data_list)
       init_val <- as.numeric(row$init)
       # `R_init` is the one intercept whose level lives in beta_linkage rather
       # than in a base parameter, so this is where a fixed (est_phase = 0)
       # level is re-applied over supplied `inits`. Without it a warm start
       # would overwrite the level and the mapped-out row would hold the wrong
-      # value for the whole fit.
+      # value for the whole fit. Taken before .linkage_row_indices(), which
+      # resolves a base parameter this row does not have.
       if (.is_level_intercept(row)) {
         param_list$beta_linkage[ri] <-
           .r_init_log_start(init_val, row[["init_supplied"]])
         next
       }
+      idx <- .linkage_row_indices(row, data_list)
       switch(row$process,
         growth = {
           .stop_unless_positive(init_val, row$param, "the growth parameter")

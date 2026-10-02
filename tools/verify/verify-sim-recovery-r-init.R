@@ -44,9 +44,18 @@ ini  <- base$estimated_params
 ini$beta_linkage[1] <- true_lvl
 om   <- qfit(d, inits = ini, mode = "DebugBuild")
 
-# No reported SE: this fixture's base fit does not converge tightly enough for
-# sdreport() to return (sdrep is NULL with and without the level alike), so the
-# empirical spread over replicates is the only honest measure of precision here.
+# No reported SE. Not because the fit is poor -- it reaches max|grad| ~1e-05 --
+# but because this fixture's Hessian is rank-deficient in four directions that
+# load on log_sel_slp / sel_inf for fleets with no composition data, so
+# sdreport() returns nothing at all. The level has ZERO loading on those four
+# and a conditional curvature of ~460 (conditional SD ~0.05), so it is itself
+# identified; the empirical spread over replicates is the honest measure here.
+#
+# The replicate statistics are NOT reproducible to two significant figures:
+# `base` below is an optimization, so `ini`, the OM and every draw inherit a
+# machine-dependent starting vector. The runaway COUNT in particular moves
+# between machines (3 and 6 of 60 both observed on the same arguments). Read
+# the rate as "a few percent", and re-measure rather than quoting a past run.
 res <- data.frame()
 for (s in seq_len(n_reps)) {
   set.seed(seed0 + s)

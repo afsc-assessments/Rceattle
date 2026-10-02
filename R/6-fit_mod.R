@@ -1309,6 +1309,20 @@ fit_mod <-
       start_par$rec_pars[, 3] <- log(data_list$srr_beta_init)
     }
 
+    # A pinned (Intercept) coefficient is 0 by construction -- the process's own
+    # base parameter carries the level and the row is mapped out -- so a warm
+    # start must not leave a fitted value sitting on it. `inits` from a model
+    # whose spec was slope-only has the same beta_linkage length, so the length
+    # guard above passes and the stale slope would be HELD on the mapped-out
+    # row for the whole fit: measured at 6.69x on M1 refitting `~ 1` from a
+    # `~ 0 + temp` fit. A genuine refit already carries 0 here, so re-zeroing
+    # is a no-op for it.
+    if (!is.null(data_list$linkage_table) &&
+        nrow(data_list$linkage_table) > 0L &&
+        length(start_par$beta_linkage) == nrow(data_list$linkage_table)) {
+      start_par$beta_linkage[.is_pinned_intercept(data_list$linkage_table)] <- 0
+    }
+
     # A linkage intercept fixed at its init (est_phase = 0) wins over supplied `inits` and the
     # overrides above.
     if (!refit_inits) {

@@ -2437,28 +2437,42 @@ data_check <- function(data_list) {
       paste(sQuote(bad), collapse = " / ")), call. = FALSE)
   }
 
-  # Only year 0 is read, so ONE coefficient is all the initial state can
-  # identify: a second would share the same single number (a flat ridge), and a
-  # per-year random effect would estimate deviates no year but the first reads.
-  # Counted as rows within a stratum, not distinct column names -- two specs
-  # naming the SAME column are the flat ridge in its purest form -- and per
-  # stratum, so per-species specs naming different covariates each stand alone.
-  cols    <- as.character(lt[["design_col"]][rows])
-  species <- lt[["species"]][rows]
-  stratum <- paste(species, lt[["sex"]][rows],
-                   lt[["age_bin"]][rows], lt[["fleet"]][rows], sep = "/")
-  n_rows  <- tapply(cols, stratum, length)
-  bad     <- names(n_rows)[n_rows > 1L]
+  # ONE coefficient per species is all the initial state can identify, and the
+  # species is the ONLY stratum that counts. Two reasons, both in linkage.hpp's
+  # `rceattle_apply_recruitment_linkages()`: it discards sex and age_bin
+  # outright (`(void)linkage_sex; (void)linkage_age_bin;`) and takes no fleet,
+  # and it ACCUMULATES every matching row onto one offset per species, with a
+  # `species = NA` row broadcasting to all of them. Since only year 0 is read,
+  # the whole linkage collapses there to sum_i beta_i * X(0, col_i) -- a single
+  # number per species. So any second row on a species is aliased against the
+  # first whatever its design column, covariate, sex or age bin, and counting
+  # within a species/sex/age_bin/fleet stratum lets `by = ~ species + age_bin`
+  # through as five coefficients with identical gradients.
+  nspp  <- as.integer(data_list[["nspp"]])
+  cols  <- as.character(lt[["design_col"]][rows])
+  sp_of <- lt[["species"]][rows]
+  per_sp <- vector("list", nspp)
+  for (k in seq_along(sp_of)) {
+    broadcast <- is.na(sp_of[k]) || as.integer(sp_of[k]) == 0L
+    for (s in if (broadcast) seq_len(nspp) else as.integer(sp_of[k])) {
+      per_sp[[s]] <- c(per_sp[[s]], cols[k])
+    }
+  }
+  bad <- which(vapply(per_sp, length, integer(1)) > 1L)
   if (length(bad)) {
-    detail <- vapply(bad, function(k) sprintf(
-      "species %s has %d (%s)", as.character(species[stratum == k][1]),
-      sum(stratum == k), paste(sQuote(cols[stratum == k]), collapse = ", ")),
+    nm <- data_list[["spnames"]]
+    detail <- vapply(bad, function(s) sprintf(
+      "%s has %d (%s)",
+      if (!is.null(nm) && length(nm) >= s) nm[s] else paste("species", s),
+      length(per_sp[[s]]), paste(sQuote(per_sp[[s]]), collapse = ", ")),
       character(1))
     stop(sprintf(paste0(
       "a recruitment `R_init` linkage must have one coefficient per species; ",
-      "%s. The initial recruitment level is read in the first year only, so ",
-      "anything more is not identified. Use `~ 1` for a free level, or ",
-      "`~ 0 + x` for one covariate."),
+      "%s. The initial recruitment level is read in the first year only, and ",
+      "every row on a species is summed into it, so anything more is not ",
+      "identified -- including one row per sex, per age bin or per fleet, ",
+      "which the initial state does not distinguish. Use `~ 1` for a free ",
+      "level, or `~ 0 + x` for one covariate."),
       paste(detail, collapse = "; ")), call. = FALSE)
   }
 

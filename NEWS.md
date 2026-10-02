@@ -66,9 +66,11 @@ Refused rather than silently inert:
   share that one number (a flat ridge), and a per-year random effect would estimate
   deviates no year but the first reads. Per-species specs naming different covariates
   each stand on their own.
-* an `init` or bound on the level that is not greater than 0, since it is a multiplier
-  on \eqn{R_0}. An *unset* `init` arrives as the table's default of 0 and reads as a
-  multiplier of 1, i.e. no shift.
+* a supplied `init` on the level that is not greater than 0, and a negative bound, since
+  both are multipliers on \eqn{R_0}. An *unset* `init` arrives as the table's default of 0
+  and reads as a multiplier of 1, i.e. no shift; a *bound* of 0 is allowed and logs to
+  `-Inf`, the same unbounded floor. Note that a lower bound above 1 needs an explicit
+  `init` inside it, or the default multiplier of 1 sits below the bound.
 * `initMode = "FreeParams"`, which estimates the initial numbers-at-age directly as
   `init_dev` and never reads \eqn{R_{init}}.
 * `initMode = "OffsetEquilibrium"`, which already scales the same ages by
@@ -83,17 +85,35 @@ equilibrium age-structure, age 0 included, so the predicted initial equilibrium 
 proportional to it.
 
 A level fixed with `est_phase = 0` survives a warm start: `fit_mod()` re-applies it over
-any `inits`, as it already did for the intercepts whose level lives in a base parameter.
+any `inits`, with or without an explicit `init` (the table's default of 0 is a
+well-defined multiplier of 1).
 
 **Bound the level on a real assessment.** It is informed only by the first year's
 observations, so it is weakly identified at the low end: once the initial cohorts are
 effectively annihilated, the data cannot separate one very small level from another.
-`tools/verify/verify-sim-recovery-r-init.R` measures, at a true multiplier of 0.5 over
-60 replicates, 6 fits running away to 5e-05 or below *with a clean gradient*, and a
-0.11 log unit low bias over the rest. A natural-scale
-`bounds = list(`(Intercept)` = c(0.05, 20))` keeps a fit out of that tail.
+`tools/verify/verify-sim-recovery-r-init.R` measures, on its own fixture at a true
+multiplier of 0.5, a few replicates in 60 running away to 5e-05 or below *with a clean
+gradient* — no convergence filter finds them, and a multi-start does not escape them —
+plus a low bias of about 0.12 log units over the rest. A natural-scale lower bound above
+0 keeps a fit out of that tail; a lower bound of exactly 0 logs to `-Inf` and does not.
 
 A model with no `R_init` linkage is unchanged, including all four golden references.
+
+## A warm start can no longer strand a fitted value on a pinned linkage intercept
+
+A pinned `(Intercept)` coefficient is 0 by construction: the process's own base
+parameter carries the level and the row is mapped out of estimation. `fit_mod()` did not
+re-impose that over supplied `inits`, and a slope-only spec produces a `beta_linkage` of
+the *same length* as an intercept-only one, so the length guard passed and a stale
+fitted slope was held on the mapped-out row for the whole fit. Refitting `M1 = ~ 1` from
+the `inits` of an `M1 = ~ 0 + temp` fit put natural mortality at **6.69x** its intended
+value, with no warning and nothing in `convergence` to show it.
+
+The coefficient is now re-zeroed before the fit. This affects every process the linkage
+grammar covers, not just recruitment. A genuine refit — `retrospective()`, `jitter()`,
+`self_test()`, `model_average()`, `run_mse()` — already carries 0 there, so it is a
+no-op for those, and all four golden references are unchanged.
+
 
 # Rceattle 5.47.0
 

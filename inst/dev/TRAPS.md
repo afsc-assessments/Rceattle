@@ -245,11 +245,14 @@ all six processes until recruitment `R_init` (5.48.0), which multiplies the init
 and has NO base parameter — so `~ 1` produced zero estimable `beta_linkage` entries and moved
 nothing, while every builder reported success. The R sites now share `.is_pinned_intercept()` and
 its complement `.is_level_intercept()` (`R/0-linkage_encode.R`), both keyed off
-`.is_r_init_linkage_row()`. **Counted out, there are SEVEN conditions, not four**: the three
-builders (`build_params`, `build_map_linkages`, `build_bounds` — the last twice),
-`.push_linkage_intercept_inits()`, `map_linkage_adjuster()`, `data_check`'s refusal, and one in
-the C++ (next entry). Two of them read the `.REC_PARAM_TO_INDEX` `NA` instead of the predicate:
-that is correct in `map_linkage_adjuster()` (there is no base parameter to mask) and was a defect
+`.is_r_init_linkage_row()`. **Don't trust a count — this one was published as "four", then
+"five", then "seven", and the real figure is ELEVEN conditions in R plus one in the C++.** Grep
+`.is_pinned_intercept|.is_level_intercept|.is_r_init_linkage_row|.REC_PARAM_TO_INDEX\[` and read
+every hit; as of 5.48.0 that is `R/2-build_params.R:215,221,508,544`, `R/3-build_map.R:1794,1949`,
+`R/4-build_parameter_bounds.R:144,154,166,229`, `R/1-data_check.R:2426`, and
+`src/TMB/ceattle.cpp:5138` (next entry). Three of them read the `.REC_PARAM_TO_INDEX` `NA`
+instead of the predicate: that is correct in `map_linkage_adjuster()` and in `build_bounds()`'s
+base-parameter push (there is no base parameter to mask or to bound), and was a defect
 in `.push_linkage_intercept_inits()`, which is where `fit_mod()` re-applies an `est_phase = 0`
 intercept over supplied `inits` so a FIXED value beats a warm start. `R_init` is the one
 parameter whose fixed value lives in `beta_linkage`, so it was the one fixed level a warm start
@@ -271,20 +274,32 @@ contract as `log_sel_apical`). The growth branch beside it already had the patte
 has to be logged onto the coefficient too**, since there is no base parameter to log it onto;
 read raw, `init = 0.5` ("half of R0") starts the level at `exp(0.5)` = 1.65x R0.
 
-**A free initial recruitment level has a FLAT TAIL at the low end, and about one fit in ten
-converges into it with a clean gradient.** `R_init` is informed only by the first year's
+**A free initial recruitment level has a FLAT TAIL at the low end, and a few percent of fits
+converge into it with a clean gradient.** `R_init` is informed only by the first year's
 observations, so once the level is low enough that the initial cohorts are effectively
 annihilated the data cannot distinguish one tiny level from another: at `beta = -30` the
 objective is flat to `1.7e-08` while still finite. `tools/verify/verify-sim-recovery-r-init.R`
-measures, at a true multiplier of 0.5 over 60 replicates: **6 of 60 ran away** to 5e-05 or below
-with `max|grad|` around 1e-04, so a gradient filter does NOT find them and `convergence` reports
-success. Over the 54 that stay put the level recovers with a **low bias of 0.11 log units
-(z = -3.3, empirical sd 0.24, 65% of replicates below truth)** — the estimator is left-skewed
-with an unbounded low tail, not merely noisy, which is also why the mean sits low.
+measures, at a true multiplier of 0.5 over 60 replicates on `make_test_data(nyrs = 40)`: a few
+replicates run away to 5e-05 or below with `max|grad|` around 1e-04, so a gradient filter does
+NOT find them and `convergence` reports success. Over the rest the level recovers with a low bias
+of about 0.12 log units (z around -3.5, empirical sd 0.27, ~two thirds of replicates below
+truth). **Don't quote those figures as constants** — the harness optimizes its own base fit, so
+`ini`, the operating model and every draw inherit a machine-dependent starting vector, and the
+runaway count has come out at both 3 and 6 of 60 on identical arguments. Re-measure.
+
+The runaways are **not** a local optimum a multi-start escapes: four starting levels (truth, 0,
++1, -3) all return the same estimate to four decimals at the same objective, so the data really
+do prefer the annihilated initial state and `jitter()` will not find it. The bias is a genuine
+finite-sample property, not an artifact of the fixture's unconverged base — the score on the
+level at the truth is centred (z = 0.5 over 60 replicates, implied first-order bias 0.003) —
+but its MAGNITUDE belongs to this fixture, where the level is identified against four penalised
+`init_dev` on one year's data. Don't read 0.12 as a universal correction.
+
 **Bound the level on a real assessment**: `bounds` on this intercept are natural-scale, so
-`bounds = list(`(Intercept)` = c(0.05, 20))` keeps a fit out of the tail. Read the estimated
-multiplier, never just the convergence flag. This is a property of the parameter, not of a bug
-— it was measured after the 5.48.0 defects were fixed.
+`bounds = list(intercept = c(0.05, 20))` keeps a fit out of the tail (`intercept` is the alias
+that saves nesting backticks round the `(Intercept)` key). A lower bound of exactly 0 does NOT:
+it logs to `-Inf`, which is the same unbounded floor, so it reads as protection and gives none.
+Read the estimated multiplier, never just the convergence flag.
 
 **`N_eq` is an equilibrium only if every age of it carries the same recruitment level.** Its one
 consumer is `equil_catch_hat`, which integrates Baranov over all ages including age 0, so an

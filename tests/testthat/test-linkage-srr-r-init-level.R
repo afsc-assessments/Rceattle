@@ -220,6 +220,65 @@ test_that("a fixed R_init level beats a warm start", {
                tolerance = 1e-10)
 })
 
+test_that("a fixed R_init level with no `init` also beats a warm start", {
+  skip_on_cran()
+  # Pinning the level at "no shift" is the natural way to turn it off again
+  # after estimating it once, and it needs no `init`: the table's default of 0
+  # is a well-defined multiplier of 1. Gating the re-push on `init_supplied`
+  # left exactly this row to be overwritten by a stale level and then held,
+  # because an est_phase = 0 row is mapped out.
+  pinned <- function(inits) {
+    d <- make_test_data()
+    d$env_data <- data.frame(Year = d$styr:d$projyr, lvl = 1)
+    fit_mod(d,
+            recFun = build_srr(linkages = list(
+              R_init = linkage_spec(formula = ~ 1, est_phase = 0))),
+            inits = inits, estimateMode = "DebugBuild",
+            initMode = "NonEquilibrium", msmMode = 0, random_rec = FALSE,
+            fit_control = fit_control(verbose = 0))
+  }
+  cold <- pinned(NULL)
+  expect_equal(unname(cold$estimated_params$beta_linkage), 0, tolerance = 1e-12)
+
+  warm_inits <- cold$estimated_params
+  warm_inits$beta_linkage <- log(4)
+  warm <- pinned(warm_inits)
+  expect_equal(unname(warm$estimated_params$beta_linkage), 0, tolerance = 1e-12)
+  ages <- 2:cold$data_list$nages[1]
+  expect_equal(warm$quantities$N_at_age[1, 1, ages, 1],
+               cold$quantities$N_at_age[1, 1, ages, 1],
+               tolerance = 1e-10)
+})
+
+test_that("R_init coefficients aliased across a non-species stratum are refused", {
+  skip_on_cran()
+  # The C++ accumulator discards sex and age_bin and takes no fleet, and sums
+  # every row onto one offset per species; only year 0 is read. So a second
+  # coefficient on a species is aliased however it is stratified, and counting
+  # within a species/sex/age_bin/fleet key let these through with identical
+  # gradients on every coefficient.
+  d <- make_test_data()
+  d$env_data <- data.frame(Year = d$styr:d$projyr, lvl = 1)
+  spec_fit <- function(spec) {
+    fit_mod(d, recFun = build_srr(linkages = list(R_init = spec)),
+            estimateMode = "DebugBuild", initMode = "NonEquilibrium",
+            msmMode = 0, random_rec = FALSE,
+            fit_control = fit_control(verbose = 0))
+  }
+  # One coefficient per age bin: five aliased coefficients on one number.
+  expect_error(spec_fit(linkage_spec(formula = ~ 1, by = ~ species + age_bin)),
+               "one coefficient per species")
+  # A shared coefficient plus a per-species one: the shared row broadcasts onto
+  # the same species the second row names.
+  expect_error(
+    spec_fit(list(linkage_spec(formula = ~ 1, by = NULL),
+                  linkage_spec(formula = ~ 0 + lvl, by = ~ species))),
+    "one coefficient per species")
+  # The legitimate shapes still pass.
+  expect_no_error(spec_fit(linkage_spec(formula = ~ 1, by = NULL)))
+  expect_no_error(spec_fit(linkage_spec(formula = ~ 1)))
+})
+
 test_that("a natural-scale `bounds` lands logged on the R_init coefficient", {
   skip_on_cran()
   fit <- r_init_fit(formula = ~ 1,
