@@ -68,7 +68,11 @@ void fill_age_length_key(int wtind, int sp, int sex, int age, int yr,
   Type expected_mat_weight = 0.0;
   for(int lp = 0; lp < np; lp++) {
     Type prob;
-    if(lp == 0) {
+    if(np < 2) {
+      // One bin spans the whole length distribution, so it holds all of it.
+      // Tested before the lp == 0 branch, which would read the second edge.
+      prob = Type(1.0);
+    } else if(lp == 0) {
       prob = pnorm((lengths_pop(sp, 1) - mu) / sd);
     } else if(lp == (np - 1)) {
       prob = 1.0 - pnorm((lengths_pop(sp, np - 1) - mu) / sd);

@@ -10,10 +10,12 @@ both prediction loops read `age_hat`, and `test-golden-regression.R` pins the po
 literals (`goa_ss` 12866.8457276232, `goa_ms` 12931.8602763619). Golden on `dev` is green.
 PR #188 (`125c6dd1`, the sibling sweep note) is in as well.
 
-**Release 5.49.0 is open as PR #184 (`dev` -> `main`).** It opened as 5.48.0; a review pass over
+**Release 5.49.1 is open as PR #184 (`dev` -> `main`).** It opened as 5.48.0; a review pass over
 the whole `main...dev` delta (2026-10-02/03) found defects worth fixing before the tag, so
-`DESCRIPTION` moved to **5.49.0** and `NEWS.md` gained a 5.49.0 section. **Read `DESCRIPTION` on
-the merge commit before tagging** -- the checklist says so for exactly this reason.
+`DESCRIPTION` moved to 5.49.0 (PR #189) and then to **5.49.1** when a late reviewer found that
+5.49.0's one-bin `lengths_pop` fix was incomplete -- it guarded the bin midpoint but not the bin
+probability three lines above, which is tested first. **Read `DESCRIPTION` on the merge commit
+before tagging** -- the checklist says so for exactly this reason, and this release moved twice.
 **DO NOT merge to `main`** -- Grant does that.
 
 Review passes over the 5.46.0-5.49.0 delta: an adversarial bug hunt, a specification cross-check
@@ -287,7 +289,35 @@ is `.git` in the package directory, an artefact of checking a worktree in place.
    argument reorder would swap them silently. A `GrowthSpec<Type>` struct would cut
    `estimate_growth()` from 27 parameters to about 15. Bit-identical refactors, so
    `/golden-check` covers them completely -- but not before a release.
-8. **Smaller ones.** A non-numeric `Ageing_error_index` (`"1a"`, or a name, which
+8. **The TMB comment review's remaining items.** A late reviewer went through every new C++
+   comment. Four statements that were wrong about the code are fixed in 5.49.1; these are not:
+   * **Three new helpers have no `@param` block at all** -- `length_sd_at_age()` (10 arguments)
+     and `fill_age_length_key()` (11) in `growth.hpp`, against `recruitment.hpp`'s standard of a
+     documented unit per argument. `calculate_weight()` is missing `@param` for five new ones,
+     `plus_group_decay` (per year) most importantly, and `calculate_selectivity()` for six --
+     where `nlengths` / `lengths` are now ambiguous against `nlengths_pop` / `lengths_pop` and
+     nothing says which is the DATA grid. These are the arguments a wrong unit would silently
+     corrupt.
+   * `ceattle.cpp:225` says the length compositions sum each data bin's run of population bins.
+     They do not: `pop_bin_lo` / `pop_bin_hi` are read only inside `pred_CAAL`, and a length comp
+     takes selectivity through `sel_at_age` and lengths through the transition matrix, already on
+     the data bins.
+   * Three comments narrate the diff rather than the model ("rather than on a bin average", "so
+     such a model is numerically unchanged"), one states bug history in the past tense
+     (`ceattle.cpp`'s equilibrium-catch `SIMULATE` block, 9 lines where rule 8 allows 2), and one
+     carries an unsourced SS3 claim ("SS3 shrinks at sigmaR/ave_age") where every neighbour cites
+     a file and line -- under hard rule 9 that is exactly the shape not to guess.
+   * `spawn_output` has no section number of its own but is cited as "section 5.7", which is
+     `GROWTH`; and a block numbered 2.3c sits between 2.1 and 2.2.
+
+   **One of that reviewer's findings was checked and REJECTED**: it read `spr.hpp`'s header as
+   inverting the female-fraction convention. It does not. `spawn_output` carries `sex_ratio` for a
+   one-sex species (`ceattle.cpp` `(nsex == 1) ? sex_ratio : 1.0`, and `mature_females = maturity *
+   sex_ratio`) and not for a two-sex one, where `female_split = sex_ratio(sp, 0)` supplies it. The
+   header's "the female fraction not already in it" describes the second argument and is accurate,
+   if terse, and the `@param` block below it is explicit.
+
+9. **Smaller ones.** A non-numeric `Ageing_error_index` (`"1a"`, or a name, which
    `Ageing_error_name` invites) reads as `NA` and silently becomes the species; `bin_indexed_forms`
    in `R/1-data_check.R` is a fourth hard-coded copy of the same form set; `.rce_equil_catch_candidates()`
    and `.rce_equil_catch_rows()` are behavioural functions parked at the top of the schema registry
