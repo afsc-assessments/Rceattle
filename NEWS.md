@@ -12,6 +12,30 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.49.1
+
+## Bug fixes
+
+* **A one-bin population length grid no longer reads outside the array in the age-length key.**
+  5.49.0 guarded the bin MIDPOINT but not the bin PROBABILITY three lines above it: with one
+  population length bin, `lp == 0` is also the last bin, and the `lp == 0` branch is tested first,
+  so `fill_age_length_key()` read `lengths_pop(sp, 1)` on a grid whose only valid index is 0. The
+  model builds `safebounds = FALSE`, so that was a silent read of adjacent memory rather than an
+  error. A single bin now takes the whole length distribution, which is what it spans. Found by a
+  review that re-read the same function after the 5.49.0 fix landed -- the midpoint guard made the
+  file look done.
+
+## Comments
+
+Four statements in `src/TMB/ceattle.cpp` that were wrong about the code, so a reader could not use
+them: `sel_init` is filled in section 5.12.1 rather than 6.5 and is read to build `Z_init` and
+hence `SPRFinit` (the section number given for that was also wrong, so it now names the quantity
+instead); `Time_varying_q` 1 and 2 are `IID` and `AR1` per `tv_q_map`, not "penalized deviate" and
+"random effect" -- whether the deviations are random effects is `fit_mod(random_q = TRUE)`, and 2
+was retired in 5.16.0 and is refused by `data_check()`; and the initial equilibrium catch is in
+weight *or numbers* per the fleet's `Observation_units`, as the loop's own `flt_units == 2` branch
+and `quantity_dictionary()` both say, not kilograms.
+
 # Rceattle 5.49.0
 
 Review findings on the 5.48.0 release (PR #184), fixed before the tag. Nothing here moves a

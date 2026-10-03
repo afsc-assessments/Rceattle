@@ -587,8 +587,8 @@ Type objective_function<Type>::operator() () {
   matrix<Type>  R_hat(nspp, nyrs); R_hat.setZero();                                 // Expected recruitment given SR curve
   matrix<Type>  mort_sum(nspp, max_age); mort_sum.setZero();
   // Fishery selectivity at age used by initMode 6 to spread Finit over ages.
-  // Filled in section 6.5 from the species' fisheries in the first hindcast
-  // year; 1 everywhere for every other mode, which leaves them unchanged.
+  // Filled in section 5.12.1 from the species' fishery fleets in the first
+  // hindcast year; 1 everywhere for every other mode, which leaves them unchanged.
   array<Type>   sel_init(nspp, max_sex, max_age); sel_init.setZero();
   // Initial age structure WITHOUT the initial deviates, i.e. the equilibrium the
   // deviates are applied to. Only the equilibrium catch reads it, and that is
@@ -1512,7 +1512,8 @@ Type objective_function<Type>::operator() () {
   // SS3's InitF convention: the initial equilibrium decays at Finit weighted by
   // fishery selectivity, so a size-selective fishery barely touches the young
   // ages. Mean over the species' fishery fleets in year 1; every other mode
-  // leaves it at 1. Filled before section 6.3 reads it for SPRFinit.
+  // leaves it at 1. Filled before the SPR reference points build Z_init, and so
+  // SPRFinit, from it.
   for(sp = 0; sp < nspp; sp++){
     for(sex = 0; sex < nsex(sp); sex++){
       for(age = 0; age < nages(sp); age++){
@@ -2949,7 +2950,8 @@ Type objective_function<Type>::operator() () {
     }
   }
 
-  // -- 9.1a. Initial equilibrium catch (kg)
+  // -- 9.1a. Initial equilibrium catch, in weight or numbers per the fleet's
+  //    Observation_units, as catch_hat is
   //
   //   C_eq = sum_a Finit * s_a * w_a * N_eq_a * (1 - exp(-Z_a)) / Z_a
   //   Z_a  = M1_a + Finit * s_a
@@ -4819,7 +4821,7 @@ Type objective_function<Type>::operator() () {
     }
 
     // Penalized/random deviate likelihood
-    if(((index_varying_q(flt) == 1) || (index_varying_q(flt) == 2))  // - Time_varying_q = 1 (penalized deviate) or 2 (random effect)
+    if(((index_varying_q(flt) == 1) || (index_varying_q(flt) == 2))  // - Time_varying_q = 1 (IID) or 2 (AR1, retired -- scored as IID)
          && (flt_type(flt) > 0) &&                                    // - If survey or fishery CPUE
            ((est_index_q(flt) == 1) || (est_index_q(flt) == 2))){        // - Catchability = 1 (Estimated) or 2 (Estimated-with-prior)
       for(yr = 0; yr < nyrs_hind; yr++){
@@ -4828,7 +4830,7 @@ Type objective_function<Type>::operator() () {
     }
 
     // Random walk
-    if((index_varying_q(flt) == 4) &&                          // - Time_varying_q = 4 (random walk)
+    if((index_varying_q(flt) == 4) &&                          // - Time_varying_q = 4 (RandomWalk)
        (flt_type(flt) > 0) &&                                  // - If survey or fishery CPUE
        ((est_index_q(flt) == 1) || (est_index_q(flt) == 2)))   // - Catchability = 1 (Estimated) or 2 (Estimated-with-prior)
     {
