@@ -5,8 +5,11 @@ session. Maintained by `/handoff`.
 
 ## Now
 
-**Release 5.48.0 is open as PR #184 (`dev` -> `main`), and `fix/release-hardening` sits above
-`dev` with the review findings fixed.** Five review passes over the 5.46.0-5.48.0 delta: an
+**PR #186 merged into `dev` while its golden was deliberately red AND while the length-comp fix
+was half-applied, so `dev` is currently red on golden: `ceattle.cpp` carries one of the two
+smeared sites and `test-golden-regression.R` still pins the pre-fix GOA literals. The branch
+`fix/length-comp-joint-sex` closes both and is the PR to merge next.** Release 5.48.0 is still
+open as PR #184 (`dev` -> `main`) and must not go before that. Five review passes over the 5.46.0-5.48.0 delta: an
 adversarial bug hunt, a specification cross-check against the Stock Synthesis / SAM / OPAL /
 SPoRC / WHAM sources (SS3, SAM and OPAL are now cloned under
 `~/Documents/GitHub/Assessments`), a style/documentation review, a consumer-repo run, and a
@@ -30,38 +33,65 @@ evaluated every bin at the FIRST bin's width, so on a non-uniform grid a curve s
 off the bin it labels and disagreed with the key it multiplies -- now per-bin midpoints, SS3's
 `len_bins_m`, with one scalar `binwidth2` for `peak2` as `SS_selex.tpl:153` does).
 
-**PR #186 (`fix/release-hardening` -> `dev`) holds every review fix and is BLOCKED on one
-decision. PR #184 (`dev` -> `main`, release 5.48.0) should wait for it** -- a comment on #184
-lists what changed and the three corrections its own description needs.
+**PR #186 is MERGED** (2026-10-03, at `6d019ded`); its branch was deleted, so the review fixes
+are on `dev` apart from the half-applied length-comp site and the golden re-pin, which are on
+`fix/length-comp-joint-sex`. **PR #184 (`dev` -> `main`, release 5.48.0) must wait for that** --
+a comment on #184 lists what changed and the three corrections its own description needs.
 
-**GOLDEN IS RED ON `fix/release-hardening`, deliberately, and regenerating it is YOUR call.**
-The length-comp ageing-error fix moves the two GOA references and nothing else:
+**THE LENGTH-COMP FIX SHIPPED HALF-APPLIED, and an adversarial review caught it after a golden
+re-pin had already encoded it.** `ceattle.cpp` predicts a joint-sex composition in two loops --
+females over the first `nlengths` bins, males in a second loop under `if(flt_sex == 3)` -- and
+`6d70df51` changed only the first. The row is then normalized by a shared sum, so the corrected
+half was contaminated by the uncorrected one and still summed to 1. **Every length-comp row in
+`GOAatf`, `GOAatf2023` and `GOA2018SS` species 2 is `Sex == 3`**, so the unfixed loop was the
+only one those fits exercised. Both loops now read `age_hat`.
 
-| | old reference | now | delta |
-|---|---|---|---|
-| `goa_ss` | 12867.9902664788 | 12867.2655060626 | **-0.7248** |
-| `goa_ms` | 12932.7902167145 | 12932.2219... | **-0.5680** |
+What that invalidated: the "-0.7248, proven by reverting one line" attribution measured the
+female half only, and the first re-pin (`goa_ss` 12867.2117850977) encoded a half-applied model.
+Both are superseded by the numbers below.
 
-`ss` and `ms` (BS2017SS) are untouched, and the max|gradient| assertion also fails (0.60 and
-0.62 against a 1e-8 gate) because the committed reference parameters were the MLE under the OLD
-likelihood and are no longer stationary under the corrected one.
+Measured dev -> fixed, cold phased fits at `newtonsteps = 0`:
 
-**Attribution is proven, not inferred.** Reverting ONLY the one line
-(`comp_hat += age_hat(...)` back to `age_obs_hat(...)`, `ceattle.cpp` ~3300) reproduces both
-references to all ten decimals -- 12867.9902664788 and 12932.7902167145 exactly. So every other
-change on this branch is bit-identical on golden, including the 10-site per-bin midpoint rewrite
-in `selectivity.hpp`, which confirms it is a true no-op on a uniform grid.
+| | objective | terminal SSB |
+|---|---|---|
+| `GOAatf` | 394.107372 -> 393.165732 (**-0.9416**) | 877676 -> 879629 mt (**+0.223%**) |
+| `NorthernRockfish2022` | 2297.164467 -> 2294.262293 (**-2.9022**) | 77293 -> 77307 mt (+0.019%) |
+| `GOA2018SS` | 12867.990267 -> 12866.845728 (**-1.1445**) | sp 2 +1678 mt (+0.161%) |
+
+Two of those cross-check the mechanism: `NorthernRockfish2022`'s delta is IDENTICAL to the
+half-applied one because it has no joint-sex length rows, while `GOAatf` went from -0.5806 to
+-0.9416 because all of its are.
+
+**The 52.9-nat basin flip was the half-applied model, not the fix.** A cold fit under dev
+behaviour reproduces the old reference exactly (12867.990267); under the complete fix it lands at
+12866.845728, the same basin; only the half-applied build reached 12920.1030998153. So nothing
+else on this branch moves the optimizer, and the cold path is intact.
+
+`regenerate-golden-reference.R` now fits each reference from TWO starts -- the recipe that
+created it, and the committed reference -- and pins the LOWER. Pinning the recipe alone can move
+a reference to the worse minimum (it did); pinning the reference's own basin alone would hide a
+change that moves the optimizer on the cold path assessment scripts take. It also prints
+`max|dparam|` per block, since the fixture is a binary and the parameters move invisibly in a
+diff. `test-likelihood-length-comp-ageing-error.R` pins both loops by invariance: a length comp
+must not change when `age_error` is scrambled, with a finiteness guard because an alternative
+model returning `NaN` differs from the base everywhere and passes a difference check for free.
+
+**Attribution is proven, and the proof had to be redone.** Reverting BOTH length-comp lines to
+`age_obs_hat` -- i.e. building the package at dev's behaviour -- reproduces the old
+references exactly (a cold phased fit gives 12867.990267). So every other change on this branch
+is a no-op on golden, including the 10-site per-bin midpoint rewrite in `selectivity.hpp`, which
+confirms it is a true no-op on a uniform grid. The earlier version of this claim rested on
+reverting ONE line, which measured the female half only and is why the half-applied state
+survived; a single-site revert is not an attribution here.
 
 Why only GOA: BS2017SS's ageing-error matrix is the IDENTITY for all three species, so dropping
 the smear from length comps changes nothing there. GOA2018SS species 2 has a non-identity matrix
 (sum|offdiag| = 11.01) AND length comps, so it moves. Exactly the blast radius the fix should
 have.
 
-Regenerating means re-fitting GOA to a new MLE and committing new reference PARAMETERS (the
-fixture stores parameter vectors; the objectives are hardcoded in the test), via
-`tools/verify/regenerate-golden-reference.R`. I did not do it unattended: golden is the net that
-guards the catch limits, and the old numbers encoded the bug, so the new ones should be set
-deliberately rather than at 4am. **Do not merge this branch into `dev` until that is settled.**
+The fixture holds parameter vectors only; the objectives are literals in
+`test-golden-regression.R`, so a re-pin reads as changed text in the diff. Both verify harnesses
+and `.claude/commands/golden-check.md` carry the same four numbers and were updated with it.
 
 **`initMode 6` per-fleet initial F is AGREED AND DEFERRED** (Grant, 2026-10-02), written up as
 section 6 of `inst/dev/SPEC-equilibrium-catch.md`. SS3 gives each fleet its own `init_F` and sums

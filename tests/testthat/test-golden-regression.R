@@ -22,15 +22,26 @@
 # The GOA reference objectives changed in 5.33.0 (goa_ss -0.0150, goa_ms -0.0030):
 # GOA2018SS fleet 2 has a q prior, which is now mean-centred under bias_adjust_proc.
 #
+# They changed again in 5.48.0 (goa_ss -1.1445, goa_ms -0.9299): length
+# compositions no longer pass through the ageing-error matrix. A length
+# measurement carries no otolith reading, so the age-length key is applied to
+# the true ages. GOA2018SS species 2 is the only reference with both a
+# non-identity ageing-error matrix and length comps, which is why the Bering
+# Sea pair is unchanged -- and all 45 of its length-comp rows are joint-sex, so
+# the second of the two loops that predict a composition is the one that moved
+# these numbers. Both GOA references reached these objectives from a cold
+# phased fit AND from the previous reference's parameters, to ten decimals.
+#
 # WHAT THIS PINS, AND WHY IT NO LONGER RE-OPTIMIZES. The question golden exists
 # to answer is "is this still the same likelihood". Re-fitting answered a second
 # question as well -- "does a cold phased optimization find the lower of two
 # minima on this machine" -- and that one has a platform-dependent answer:
-# `goa_ss` has a second local minimum 52.9 units up, a one-ULP change in a single
-# log_F gradient element is enough for nlminb to reach it, and `goa_ms` inherits
-# the basin through its warm start. The two GOA references therefore moved
-# together on the CI runners while reproducing exactly on local macOS, and the
-# job that runs this file was red on `main` for weeks over a summation order.
+# `goa_ss` has a second local minimum 52.9 units up, and a one-ULP change in a
+# single log_F gradient element is enough for nlminb to reach it. The two GOA
+# references moved together on the CI runners while reproducing exactly on local
+# macOS, and the job that runs this file was red on `main` for weeks over a
+# summation order. `goa_ms` has reached its own reference objective from both
+# `goa_ss` basins, so it does not always follow `goa_ss` out of the lower one.
 #
 # The likelihood is now evaluated AT the reference parameters, which removes the
 # optimizer from the gate entirely: `fit_mod(estimateMode = 3)` builds the object
@@ -60,8 +71,8 @@ testthat::test_that("the likelihood at the reference parameters is unchanged", {
   # holds the parameters they were measured at, and nothing else.
   ref_obj <- c(ss     = 10241.0304272585,
                ms     = 10267.2478324443,
-               goa_ss = 12867.9902664788,
-               goa_ms = 12932.7902167145)
+               goa_ss = 12866.8457276232,
+               goa_ms = 12931.8602763619)
 
   ref <- readRDS(testthat::test_path("fixtures", "golden-reference.rds"))
 
