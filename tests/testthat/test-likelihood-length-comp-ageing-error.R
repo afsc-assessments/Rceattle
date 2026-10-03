@@ -19,7 +19,7 @@ ae_scrambled <- function(d) {
   # One row per TRUE age, and only that many Obs_age columns carry the matrix --
   # the sheet is padded to the widest species, so the rest stay NA.
   obs <- grep("^Obs_age", names(d$age_error))
-  nage <- nrow(d$age_error)
+  nage <- min(nrow(d$age_error), length(obs))
   # Row-stochastic and markedly different: 60% on the true age, 40% read one
   # year older, the oldest age absorbing its own.
   a <- diag(nage)
@@ -61,6 +61,34 @@ testthat::test_that("a length composition ignores the ageing-error matrix", {
 
   # Power check: without it, a matrix that never reached the model would make
   # the invariance above pass for free. Age comps DO read the matrix.
+  testthat::expect_false(isTRUE(all.equal(base[!is_len, , drop = FALSE],
+                                          alt[!is_len, , drop = FALSE])))
+})
+
+# The test above runs on joint-sex rows, which exercise BOTH prediction loops
+# (females over the first `nlengths` bins, males in a second loop under
+# `flt_sex == 3`). What it does not cover is a fleet that is not joint-sex, where
+# only the first loop runs: no bundled fit with a non-identity ageing-error matrix
+# did. NorthernRockfish2022 is that case -- 31 combined-sex (`Sex == 0`) length
+# rows against a 50-age matrix -- so this pins the single-sex branch on its own
+# rather than as half of a joint-sex row.
+testthat::test_that("a single-sex length composition ignores the ageing-error matrix", {
+  testthat::skip_if_not_installed("TMB")
+
+  d <- Rceattle::NorthernRockfish2022
+  is_len <- d$comp_data$Age0_Length1 == 1
+  testthat::expect_true(any(is_len))
+  # Not joint-sex: this is the other loop.
+  testthat::expect_false(any(d$comp_data$Sex[is_len] == 3))
+
+  base <- comp_hat_of(d)
+  alt  <- comp_hat_of(ae_scrambled(d))
+
+  testthat::expect_true(all(is.finite(base)))
+  testthat::expect_true(all(is.finite(alt)))
+
+  testthat::expect_equal(base[is_len, , drop = FALSE],
+                         alt[is_len, , drop = FALSE], tolerance = 0)
   testthat::expect_false(isTRUE(all.equal(base[!is_len, , drop = FALSE],
                                           alt[!is_len, , drop = FALSE])))
 })

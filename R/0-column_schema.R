@@ -41,14 +41,36 @@
 
 #' Metadata columns of `age_error`; every other column is an observed-age probability
 #'
-#' Read by both `data_check()` and `rearrange_data()`. Each previously took
-#' "the columns after the first two", which silently mis-read the table as soon
-#' as a metadata column was added -- Ageing_error_index was summed as if it were
-#' a probability, and every row then failed the sums-to-1 check.
+#' Read by both `data_check()` and `rearrange_data()`, which name the metadata rather
+#' than counting past the leading columns, so adding a metadata column cannot shift
+#' which columns are read as observed-age probabilities.
 #' @keywords internal
 #' @noRd
 .RCE_AGE_ERROR_META <- c("Species", "True_age", "Ageing_error_index",
                          "Ageing_error_name")
+
+#' The ageing-error matrix a table's rows resolve to
+#'
+#' Absent or blank means the row's own species, which reproduces the behaviour
+#' from when there was one matrix per species. Read by `data_check()` and
+#' `rearrange_data()` on both the `age_error` and the `fleet_control` side, so
+#' that a fleet cannot be validated against one matrix and fitted with another:
+#' the coercion has to be identical everywhere, and `as.integer()` on a
+#' factor-typed column returns the LEVEL CODE rather than the number typed in
+#' the workbook.
+#'
+#' @param df Data frame carrying `Species` and optionally `Ageing_error_index`.
+#' @param species_col Name of the species column.
+#' @return Integer vector, one element per row of `df`.
+#' @keywords internal
+#' @noRd
+.rce_ageing_error_index <- function(df, species_col = "Species") {
+  sp <- suppressWarnings(as.integer(as.character(df[[species_col]])))
+  ix <- df[["Ageing_error_index"]]
+  if (is.null(ix) || !length(ix)) return(sp)
+  ix <- suppressWarnings(as.integer(as.character(ix)))
+  ifelse(is.na(ix), sp, ix)
+}
 
 # =============================================================================
 # Canonical workbook-column schema

@@ -53,6 +53,13 @@
 #' [linkage_spec()], and an intercept-only formula (\code{~ 1}) acts on the
 #' parameter itself:
 #'
+#' The \code{linkages} key \code{R_init} is a unitless, log-scale MULTIPLIER on the
+#' initial age-structure. It is not the reported quantity \code{R_init}, which is
+#' equilibrium recruitment at \eqn{F = F_{init}} in thousands of fish; the key scales
+#' that quantity, so \code{init = 0.25} starts the stock at a quarter of it. Unlike
+#' \code{R0}, alpha and beta it has no \code{rec_pars} column, so its
+#' \code{(Intercept)} stays estimable and carries the level itself.
+#'
 #' - **Prior:** \code{priors = list(`(Intercept)` = prior_lognormal(log(m), s))}
 #'   is lognormal with mean \code{m} (median \code{m} when
 #'   \code{bias_adjust_proc = FALSE}) and log-scale SD \code{s};
@@ -80,7 +87,9 @@
 #' @section Starting values:
 #' Mean recruitment (\code{R0}) starts at \eqn{e^9 = 8103} thousand fish; under
 #' a curve fitted in the hindcast of a multispecies model the same slot is the
-#' free initial recruitment level \code{R_init}, with the same start. Alpha
+#' free initial recruitment level \eqn{R_{init}} -- the reported quantity, equilibrium
+#' recruitment at \eqn{F = F_{init}} in thousands of fish, NOT the \code{linkages} key
+#' of the same name -- with the same start. Alpha
 #' starts at \code{srr_prior} (default 4) wherever that is an alpha, and at
 #' \eqn{e^3} otherwise; beta starts at 3. None of them knows the stock's scale. Set them
 #' with \code{srr_alpha_init} / \code{srr_beta_init} or a linkage \code{init};

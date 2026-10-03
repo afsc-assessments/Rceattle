@@ -182,9 +182,9 @@ vbgf_prior_fit$opt$AIC
 
 ## Matching a Stock Synthesis growth specification
 
-Four options reproduce how Stock Synthesis 3.30 turns a growth curve into an
-age-length key, weight-at-age and spawning output. Each defaults to Rceattle's
-usual behaviour.
+These options let an estimated-growth model reproduce how Stock Synthesis 3.30
+turns a growth curve into an age-length key, weight-at-age and spawning output.
+Each defaults to Rceattle's usual behaviour, so nothing changes until you set one.
 
 | SS3 control input | Rceattle |
 |---|---|
@@ -200,8 +200,8 @@ For example, a Richards model with SS3 1-cm population bins from 0.5 to
 142.5 cm, CVs, and no plus-group adjustment:
 
 ```{r, eval = FALSE}
-data_list$L50_mat_len   <- 55.43   # cm
-data_list$slope_mat_len <- 0.155   # per cm
+whamGrowthData$L50_mat_len   <- 55.43   # cm
+whamGrowthData$slope_mat_len <- 0.155   # per cm
 growth_ss3 <- build_growth(
   fun = "Richards",
   growth_age_L1 = 1,

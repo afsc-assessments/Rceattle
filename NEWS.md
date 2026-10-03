@@ -12,6 +12,117 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.49.0
+
+Review findings on the 5.48.0 release (PR #184), fixed before the tag. Nothing here moves a
+fitted number on a configuration that was already valid: the four golden references reproduce
+their pinned objectives, the Pacific hake `04-mse.R` chain reproduces all four of its stages to
+every digit before and after these changes, and reading every `.xlsx` in the four consumer repos
+through `read_data()` + `data_check()` gives the same verdict on all 375 as 5.48.0 does -- which
+matters here because two of the changes below are new refusals and two loosen existing ones.
+
+## Breaking changes
+
+Two configurations that could not fit the model they named are now refused. Both are
+unreachable on a model that was converging, so a stored fit only stops refitting if it was
+already producing a non-finite objective or a prior on the wrong scale.
+
+* **An initial equilibrium catch on a species with `estDynamics > 0` is refused.** The
+  equilibrium age structure `N_eq` is built only where the numbers-at-age are estimated
+  (`src/TMB/ceattle.cpp`, section 6, `case 0` of the `estDynamics` switch). Under
+  `estDynamics` 1 or 2 the numbers come from `NByageFixed`, `N_eq` stays zero, and the
+  Baranov prediction is zero -- so the lognormal took `log(0)` and the objective was not
+  finite, which reads as a failed optimisation rather than as a configuration error.
+  `build_map()` also maps `log_Finit` out on such a species, so the row was fitted by
+  nothing in any case.
+
+* **A `lognormal`, `gamma` or `beta` prior on a `DoubleNormalSS3` slot other than `dn_peak`
+  is refused.** Of that form's six parameters only `dn_peak` is stored on its natural scale
+  (a length, cm). `top_logit`, `start_logit` and `end_logit` hold logits and `ascend_se` /
+  `descend_se` hold logs, so a family with positive support was evaluated on the transformed
+  value: `lognormal` on a negative logit gives `NaN`, and on `ascend_se` it is a prior on
+  \eqn{\log\log(\text{width})} rather than on the width -- silently a different prior
+  than the one written. A `normal` prior on the stored value is well defined and is still
+  accepted. This extends to form 15 the refusal `DoubleNormal`'s `right_floor` already
+  carried.
+
+## Configurations that were refused and should not have been
+
+* **A length-based *parametric* selectivity on a finer population grid fits again.**
+  `data_check()` refused any length-based fleet on a species whose population grid is finer
+  than its data grid when `Time_varying_sel` was on or `N_sel_bins` was positive. Neither is
+  a bin ordinal on a parametric curve: `sel_inf_dev` and `log_sel_slp_dev` are added to the
+  parameter, which is a length in cm, and `N_sel_bins` is read only by the bin-indexed
+  forms. The refusal now names the bin-indexed forms and the columns that really are data-bin
+  ordinals (`Bin_first_selected`, `Sel_norm_bin`, `Sel_norm_bin_upper`, `Sel_pen_first_bin`,
+  `Sel_pen_last_bin`, `Sel_cap_bin`). This was refusing the SS3-bridge configuration the
+  population grid was added to serve -- a size-selective fleet with time blocks.
+
+* **A selectivity linkage on an integer-coded `Selectivity` column fits again.**
+  `.check_sel_linkage_support()` compared the column to form NAMES as a string, so a workbook
+  storing `Selectivity` as `1` or `15` was refused with "whose form (15) is not yet wired for
+  linkages" -- a form that is wired. It now reads the column through the schema's own
+  resolver. `fit_mod()` canonicalises before this runs, so only the exported
+  `build_selectivity()` path was affected.
+
+## Bug fixes
+
+* **`sim_mod(simulate = FALSE)` now returns the expected initial equilibrium catch.** The
+  `simulate = TRUE` branch redraws it (5.48.0), but the expected-value branch left it at its
+  observed value -- so `self_test(simulate = FALSE)` handed the estimation model the one real
+  observation beside expected values for everything else, and under
+  `initMode = "FishedNonEquilibriumSelected"` that row is the only thing informing `Finit`,
+  hence the initial age structure and the SSB scale.
+
+* **`data_check()` and `rearrange_data()` resolve `Ageing_error_index` through one function.**
+  Five copies of the "absent or blank means the row's own species" rule had drifted into two
+  different coercions: one went through `as.character()` and four did not, and `as.integer()`
+  on a factor-typed column returns the level code rather than the number typed in the
+  workbook. A factor-typed `Ageing_error_index` could therefore be validated against one
+  matrix and fitted with another. `.rce_ageing_error_index()` is now the single reading.
+
+* **`write_data()` warns about the growth fields it cannot write.** `pop_lengths`,
+  `growth_sd_form`, `growth_plus_length`, `plus_group_decay`, `growth_sd_style` and
+  `growth_age_L1` reach `data_list` from `build_growth()` and have no workbook column, so they
+  round-tripped to nothing in silence -- the `index_cov` trap again. Losing `pop_lengths` is
+  the worst of the six: the grid falls back to the data bins, which is a different age-length
+  key, a different weight-at-length and a different length-selectivity grid, and a
+  configuration `data_check()` would have refused becomes one it accepts, because that
+  refusal is conditioned on `pop_lengths` being present. The warning names the fields, as the
+  `model_config` one already did.
+
+* **A single-bin population length grid no longer reads outside the array.** The midpoint of
+  the last bin takes the previous bin's width, so a one-bin grid read `lengths_pop(sp, -1)` in
+  `growth.hpp` and in the new selected-body-weight loop in `ceattle.cpp`. The model builds
+  `safebounds = FALSE`, so that was a silent read of adjacent memory, not an error. Both now
+  keep the edge itself, which is what `selectivity.hpp` already did.
+
+## Tests and documentation
+
+* A **single-sex** length composition is now pinned against a non-identity ageing-error
+  matrix, on `NorthernRockfish2022` (31 combined-sex length rows, 50-age matrix). The existing
+  test runs on `GOAatf`, whose length-comp rows are all joint-sex and so exercise both
+  prediction loops together; no bundled fit with a non-identity matrix exercised a fleet that
+  is *not* joint-sex, where only the first loop runs. That branch is now pinned on its own.
+* `inst/dev/SPEC-equilibrium-catch.md` section 5 described the `initMode = 6` plus-group
+  divisor as an open defect; it was fixed in 5.48.0 alongside the equilibrium catch, and the
+  section now records that, with the line it lives on.
+* Corrected statements about the code in `vignettes/environmental-linkages-and-priors.Rmd`
+  (which link warns on a natural-scale index family, SS3's power function raising vulnerable
+  biomass rather than the index, the q tensors' hindcast-only dimensions, which
+  `convergence_diagnostics()` check fires, the growth SD endpoints as linkage targets with a
+  base parameter, and `BS2017SS` being three species fitted in single-species mode),
+  `vignettes/growth-estimation.Rmd`, `vignettes/model-diagnostics.Rmd` and
+  `vignettes/data-without-excel.Rmd` (whose `initMode` list stopped at 5).
+* `vignettes/data-without-excel.Rmd` attaches the package in its setup chunk. Its first
+  executable chunk calls `write_template()` and the narrative `library(Rceattle)` came
+  afterwards, so the vignette failed on its first line whenever the chunks were actually
+  executed -- which is why the weekly `vignettes` workflow had been red since at least
+  2026-09-07.
+* `CLAUDE.md` and `inst/dev/TRAPS.md` carried the pre-5.48.0 `jnll_comp` row count (21) and
+  axis ranges in their short-form entries, and `TRAPS.md` claimed every `(Intercept)` linkage
+  coefficient is pinned, which `R_init` is not.
+
 # Rceattle 5.48.0
 
 ## A free initial recruitment level, `build_srr(linkages = list(R_init = ...))`
@@ -23,9 +134,8 @@ recruitment-deviate penalty for sitting where the data say it sits.
 
 **That penalty biases the reference points.** `init_dev` is
 \eqn{\log N_{target} - \log R_{init} + \sum M}, so the optimiser can retire the penalty
-by lowering \eqn{R_0} -- and does. On GOA Pacific cod it lowers it 0.37 log units, taking
-the penalty from 54.98 to 17.72 and leaving \eqn{R_0} 31% below the value the same data
-support, while terminal SSB moves only -1.35%. \eqn{SB_0}, \eqn{B_{40\%}} and depletion
+by lowering \eqn{R_0} -- and does. On GOA Pacific cod it lowers it 0.37 log units, leaving
+\eqn{R_0} 31% below the value the same data support, while terminal SSB moves only -1.35%. \eqn{SB_0}, \eqn{B_{40\%}} and depletion
 all scale with \eqn{R_0}, so a penalty on the initial state was moving the quantities
 that set the catch limit.
 
@@ -61,7 +171,8 @@ level and does not move with the initial state.
 
 Refused rather than silently inert:
 
-* `link = "identity"`. The level is added inside the `exp()`, so a natural-scale offset
+* any link other than `"log"` (today only `"identity"` is reachable). The level is added
+  inside the `exp()`, so a natural-scale offset
   would add metric tons to a log multiplier.
 * more than one coefficient within a species, whether two different design columns or
   two specs naming the same one. Only year 0 is read, so a second coefficient would
@@ -79,8 +190,10 @@ Refused rather than silently inert:
   `rec_dev[, 1]`, so the two are not separable.
 
 A prior on the level is read on its own coefficient, i.e. on the multiplier, so
-`lognormal(0, 0.5)` is centred on no shift off \eqn{R_0} — the same contract as the
-per-sex apical selectivity multiplier.
+`lognormal(0, 0.5)` gives the multiplier a prior MEAN of 1 -- no shift off \eqn{R_0} --
+the same contract as the per-sex apical selectivity multiplier. Under the default
+`bias_adjust_proc = TRUE` that puts its median at \eqn{e^{-\sigma^2/2}}; pass
+`bias_adjust_proc = FALSE` to centre the median on 1 instead.
 
 Under `initMode = "FishedNonEquilibriumSelected"` (6) the level scales every age of the
 equilibrium age-structure, age 0 included, so the predicted initial equilibrium catch is
@@ -95,15 +208,21 @@ equivalent — `0.5 * (log(R1/R1_exp) / (sigma_R / ave_age))^2`, at a default li
 weight of 1 (`SS_objfunc.tpl`) — and no reference package surveyed (SS3, SAM, SPoRC,
 OPAL, WHAM) leaves an initial-level scalar free. Rceattle leaves it free by design, which
 reproduces the zero-weight variant rather than SS3's default; a `lognormal(0, sigma_R /
-ave_age)` prior on the `(Intercept)` expresses SS3's convention.
+ave_age)` prior on the `(Intercept)` expresses SS3's convention under
+`bias_adjust_proc = FALSE`, which is the setting that centres the prior's median on a
+multiplier of exactly 1, as SS3's penalty is.
 
 This matters because the level is informed only by the first year's observations and is
 weakly identified at the low end: once the initial cohorts are effectively annihilated,
 the data cannot separate one very small level from another.
 `tools/verify/verify-sim-recovery-r-init.R` measures, on its own fixture at a true
 multiplier of 0.5, a few replicates in 60 running away to 5e-05 or below *with a clean
-gradient* — no convergence filter finds them, and a multi-start does not escape them —
-plus a low bias of about 0.12 log units over the rest. A natural-scale lower bound above
+gradient* — no convergence filter finds them — plus a low bias of about 0.12 log units
+over the rest. Four starting levels return the same estimate to four decimals at the same
+objective (`inst/dev/TRAPS.md`), so these are not a local optimum a multi-start or
+`jitter()` escapes: the data really do prefer the annihilated state. The counts are
+machine-dependent — the harness has returned both 3 and 6 of 60 on identical arguments —
+so re-measure rather than quoting them. A natural-scale lower bound above
 0 keeps a fit out of that tail; a lower bound of exactly 0 logs to `-Inf` and does not.
 
 A model with no `R_init` linkage is unchanged, including all four golden references.
@@ -292,10 +411,13 @@ reassociates from `(log_q + dev) + offset` to `(log_q + offset) + dev`:
 algebraically identical, but not bit-identical.
 
 Motivation: the GOA Pacific cod SS3 bridge, whose LLSrv survey catchability
-carries this link. `Rceattle-models/SS3-bridge/GOA-estimation-parity.md` still
-lists it under "Still open" and attributes the whole `+9.9645` nats of LLSrv
-index residual to its absence; that refit has not yet been run, so what the link
-is worth there is not yet measured.
+carries this link. `Rceattle-models/SS3-bridge/GOA-estimation-parity.md` predicted
+`+9.9645` nats of LLSrv index residual from its absence. Re-run on this version the
+bridge closes **11.254** nats with the link (`Index data` 53.7116 -> 42.4573), all of it
+in the `Index data` row, and no other `jnll_comp` row moves by more than 1e-6. The
+earlier `9.9646` was measured on an ancestor of the initial-level and regime-penalty
+commits, so the bridge's own baseline most likely moved rather than this release moving
+it; that was not proven, and would need a 5.45.3 A/B.
 
 # Rceattle 5.46.0
 

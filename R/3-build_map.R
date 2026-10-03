@@ -79,8 +79,9 @@ build_map <- function(data_list, params, debug = FALSE, random_rec = FALSE,
 
   map_list <- build_map_fixed_natage(map_list, data_list)
 
-  # DoubleNormalSS3: an end whose starting value is SS3's -999 (or -1000) is not
-  # scaled, so its parameter does not enter the curve and is fixed.
+  # DoubleNormalSS3: an end at SS3's -999 sentinel is not scaled, so its parameter
+  # does not enter the curve and is fixed. The test is `<= -999` because fit_mod()
+  # refuses anything below -1000 as SS3's bin-ordinal form.
   if (!is.null(params$sel_dn6) && !is.null(map_list$sel_dn6)) {
     for (k in 5:6) map_list$sel_dn6[k, , ][params$sel_dn6[k, , , drop = FALSE][1, , ] <= -999] <- NA
   }

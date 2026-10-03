@@ -38,6 +38,25 @@ write_data <- function(data_list, file = "Rceattle_data.xlsx") {
             "model_config(), or persist it with save_config()/load_config().", call. = FALSE)
   }
 
+  # The Stock Synthesis growth options reach data_list from build_growth() rather
+  # than from a workbook column, so they have no schema row and the control block
+  # below cannot write them. Losing `pop_lengths` silently is the worst of the
+  # four: the grid falls back to the data bins, which is a different age-length
+  # key, a different weight-at-length and a different length-selectivity grid --
+  # and a configuration data_check() would have REFUSED becomes one it accepts,
+  # because that refusal is conditioned on pop_lengths being present.
+  .growth_unwritten <- c("pop_lengths", "growth_sd_form", "growth_plus_length",
+                         "plus_group_decay", "growth_sd_style", "growth_age_L1")
+  .gu <- .growth_unwritten[vapply(.growth_unwritten,
+                                  function(n) !is.null(data_list[[n]]), logical(1))]
+  if (length(.gu)) {
+    warning("data_list$", paste(.gu, collapse = ", data_list$"),
+            " ", if (length(.gu) == 1L) "is" else "are",
+            " not written to the xlsx workbook and will be lost on read_data(); ",
+            "re-apply with build_growth(), or persist with ",
+            "save_config()/load_config().", call. = FALSE)
+  }
+
   # Setup a workbook
   data_names <- names(data_list)
   names_used <- c()

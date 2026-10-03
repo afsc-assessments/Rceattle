@@ -315,11 +315,7 @@ rearrange_data <- function(data_list, build_osa = FALSE){
   #        species, which reproduces the one-matrix-per-species behaviour
   #        exactly, so an existing fleet_control needs no new column.
   {
-    .ae <- data_list$fleet_control[["Ageing_error_index"]]
-    .sp <- as.integer(data_list$fleet_control$Species)
-    .ae <- if (is.null(.ae)) .sp else {
-      v <- suppressWarnings(as.integer(.ae)); ifelse(is.na(v), .sp, v)
-    }
+    .ae <- .rce_ageing_error_index(data_list$fleet_control)
     data_list$flt_ageing_error_index <- as.integer(.ae) - 1L   # 0-based for C++
   }
 
@@ -671,20 +667,15 @@ rearrange_data <- function(data_list, build_osa = FALSE){
   # new rows leaves the original rows blank, and those still mean "the species'
   # own matrix".
   {
-    .ae_i <- data_list$age_error[["Ageing_error_index"]]
-    .ae_s <- data_list$age_error[["Species"]]
-    data_list$age_error$Ageing_error_index <- if (is.null(.ae_i)) .ae_s else {
-      v <- suppressWarnings(as.integer(as.character(.ae_i)))
-      ifelse(is.na(v), suppressWarnings(as.integer(as.character(.ae_s))), v)
-    }
+    data_list$age_error$Ageing_error_index <-
+      .rce_ageing_error_index(data_list$age_error)
   }
   n_ae <- max(as.numeric(as.character(data_list$age_error$Ageing_error_index)),
               data_list$nspp, na.rm = TRUE)
   arm <- array(0, dim = c(n_ae, max_age, max_age))
 
-  # The observed-age columns were read positionally as "everything after the
-  # first two". Name the metadata instead, so adding a column cannot silently
-  # shift which columns are read as probabilities.
+  # The observed-age columns are everything but the named metadata, so adding a
+  # metadata column cannot shift which columns are read as probabilities.
   .ae_obs  <- setdiff(colnames(data_list$age_error), .RCE_AGE_ERROR_META)
 
   for (i in seq_len(nrow(data_list$age_error))) {

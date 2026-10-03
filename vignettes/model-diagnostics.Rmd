@@ -754,11 +754,11 @@ sims[[failed[1]]]$convergence          # which check failed, and on which parame
 
 `profile()` re-fits the model across a grid of fixed values for a chosen parameter and returns the NLL surface. A flat profile means the data say little about the parameter; a minimum away from the MLE means the fit has not truly settled there. It supports the recruitment standard deviation, the stock–recruit parameters, and natural mortality.
 
-Specify the parameter with a natural-scale alias: `"sigmaR"` -- the **log-scale**
-standard deviation of the recruitment deviations, not a CV of recruitment in
-thousands of fish -- (recruitment
-standard deviation), `"M1"` (natural mortality), or the stock–recruit parameters
-`"R0"`, `"alpha"`, and `"beta"`. Aliases take natural-scale values directly.
+Specify the parameter with a natural-scale alias: `"sigmaR"` (the standard
+deviation of the recruitment deviations, which are on the log scale, so this is
+not a CV of recruitment in thousands of fish), `"M1"` (natural mortality), or
+the stock–recruit parameters `"R0"`, `"alpha"`, and `"beta"`. Aliases take
+natural-scale values directly.
 `slots` gives the cell(s) to profile (usually just the species index) and
 `values` gives the grid of values for each. Supplying more than one slot
 profiles over the full grid of combinations.
