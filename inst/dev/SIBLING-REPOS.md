@@ -21,6 +21,22 @@ Fitted `*.rds` are ~50 MB each. Keep them out of git.
 grep -rn "<symbol>" --include=*.R "../Rceattle-models" "../GOA-ATF-ESP" "../Climate_MSE" "../GOA-multispecies-assessment"
 ```
 
+**A workbook sweep is only a result next to a BASELINE.** Reading every consumer workbook through
+`read_data()` + `data_check()` on the release tree reports **258 of 380 failing** -- old data sets,
+dropped columns, `Fleet_code` mismatches -- and essentially all of it predates the release. Run the
+same sweep on `main` and diff, or the number says nothing. At 5.48.0 (2026-10-02): main 122 ok /
+258 error, dev 122 ok / 258 error, **0 newly broken, 0 newly passing**. One workbook
+(`BSAI pop/Data/bsai_pop_single_species_2024.xlsx`) changed its message without changing its
+verdict -- it already failed on `main` for an unrelated reason and dev additionally reports the new
+ageing-error validation. The sweep needs no compiled DLL, since both functions are pure R, so a
+`main` worktree with any `.so` dropped in will do.
+
+**The cheapest real API check is the NAMESPACE and the formals**, not a grep: diff `export(...)`
+between the two trees, then parse both trees' `R/` and compare each exported function's formal
+argument names. At 5.48.0 that was 90 exports either side with none removed or renamed, and the
+only signature change was `build_growth` GAINING `sd_form`, `plus_group_length`,
+`plus_group_decay`, `pop_lengths`. Nothing a consumer calls could break.
+
 ### `Climate_MSE`
 
 Entry point `R/Climate_MSE_GOA_runs.R`: it sources the OM and EM conditioning scripts, then
@@ -87,6 +103,38 @@ That is cheaper than it sounds: the terminal fit is under a minute for either po
 | Pacific hake MSE | `../Rceattle-models/Pacific hake/04-mse.R` |
 | Pacific hake MSE, 2024 | `../Rceattle-models/Pacific hake/MSE_yr2024.R` |
 
+**Two things about running these.** Each script opens with `library(Rceattle)`, which attaches the
+INSTALLED package -- on this machine 15 feature versions stale -- so load the release tree first
+(`pkgload::load_all(<tree>)`) or the run silently verifies the wrong code. And the pollock scripts
+resolve their relative paths from the MODEL root, where the `.Rproj` sits, not from the year
+subdirectory the table names: run them with the working directory at `GOA pollock/`, not
+`GOA pollock/2025/`.
+
+**Which live assessments the 5.48.0 length-comp ageing-error fix reaches** (a non-identity
+`age_error` AND length comps on the same species), measured 2026-10-02 by fitting each under
+`main` 5.45.3 and `dev` 5.48.0:
+
+| Model | Reached? | Objective | Terminal SSB |
+|---|---|---|---|
+| GOA arrowtooth 2026, `mod_26_0` (M fixed) | yes, all 31 length rows joint-sex | 38.6514 -> 38.0811 | 429260 -> 429746 mt (**+0.113%**) |
+| GOA arrowtooth 2026, `mod_26_1` (M estimated) | same | 0.1475 -> -0.3021 | 331426 -> 330639 mt (**-0.238%**) |
+| GOA pollock 2025 | yes -- `max|A-I|` 0.3550, 74 length rows, all COMBINED-sex | unmeasured, the script cannot run (below) | |
+| EBS pollock 2024 | no -- identity matrix, 0 length rows | 713.6765 unchanged in kind | |
+| Pacific hake (MSE_yr2024) | no | all four references reproduce exactly | |
+
+Every objective that moves, falls. **Note the SSB sign is not universal** -- the same assessment
+moves +0.11% with M fixed and -0.24% with M estimated, so do not generalise a direction from one
+model. The bundled-data figures in `NEWS.md` (`GOAatf` +0.223%) are a different, older workbook
+than the live 2026 one and are not a substitute for it. A reminder that bundled `GOApollock` has
+no length comps while the live 2025 pollock workbook has 74: the bundled blast radius is not the
+live one.
+
+**`GOA pollock 2025` cannot run as committed** (checked 2026-10-02). Its line 9 loads
+`Data/2024pollock_mfix_estSigR.Rdata` for the parameter skeleton, and that file was DELETED from
+`Rceattle-models` in commit `9d0d5c1` ("pollock profile M") -- it is not in HEAD, although
+`GOA pollock/.gitignore:15` still un-ignores it by name. So this entry point verifies nothing for
+anyone until the file is restored there or the script is pointed elsewhere.
+
 **The hake MSE is the one script that runs `run_mse()` end to end**, and the only routine
 exercise of three-species predation with estimated suitability, of `suitMode` differing per
 predator, and of Dirichlet-multinomial comps with a prior on their own weight. Golden
@@ -125,6 +173,12 @@ All six fits the script reports, not just these four, agree to every digit print
 run errored. **So 5.34.0-5.41.0 moved nothing here**; the gap against the older table is the
 script, and a reader comparing to it would see a 300-nat regression that does not exist.
 Re-record against whichever script revision you ran, and say which.
+
+**Confirmed again at 5.48.0** (2026-10-02, `MSE_yr2024.R` unchanged since): all four reproduce to
+every digit above -- 2440.0942 / 2440.6633 / 2447.0049 / 2669.3776 -- all eight fits completed and
+`run_mse()` ran end to end. 5.48.0 is the release that owed this check, because it added a
+`SIMULATE` draw for the initial equilibrium catch and a `sim_mod()` write-back for it. Hake also
+confirms the length-comp ageing-error fix does not reach it.
 
 Re-run on 5.25.0 (2026-09-01), against that day's references (stage 2 2134.4713926593, stage 4
 2260.7063099135): stages 1, 3 and 4 bit-identical, and stage 2 higher
