@@ -229,6 +229,20 @@ than switch on `estimateMode`.
 
 ## Silent-wrong-number traps
 
+**A joint-sex composition is predicted in TWO loops, and the row is normalized across both.**
+`ceattle.cpp` builds a `flt_sex == 3` composition as females over the first `nlengths` (or
+`nages`) bins and males over the next block, in a second loop under `if(flt_sex == 3)`, then
+divides the whole row by one shared sum. So changing how a composition is predicted in one loop
+and not the other is **worse than changing neither**: the normalization carries the
+inconsistency into the half that was corrected, and the row still sums to 1, so nothing
+complains. That is how the 5.48.0 length-comp ageing-error fix shipped half-applied through a
+review, a green suite and a golden re-pin — and every length-comp row in `GOAatf`,
+`GOAatf2023` and `GOA2018SS` species 2 is `Sex == 3`, so the joint loop was the ONLY one those
+fits exercise. Grep both loops, and pin the pair with an invariance test rather than a value:
+`test-likelihood-length-comp-ageing-error.R` asserts a length comp is unchanged by scrambling
+`age_error`, with a finiteness guard, because an alternative model that comes back `NaN`
+differs from the base everywhere and passes a difference check for free.
+
 **A linkage parameter has THREE registries, and the rule-12 pair is only two of them.**
 `LINKAGE_PARAM_CODES` (`R/0-linkage_encode.R`) must match `linkage.hpp`, which is rule 12 — but
 `build_srr()` keeps its own whitelist in `RECRUITMENT_LINKAGE_PARAMS` (`R/0-build_srr.R`), and
@@ -844,7 +858,17 @@ one-ULP change in one gradient element is enough to send `nlminb` there.** Recor
 5.34.0 branch (PR #144, 2026-09-14): adding code the objective never evaluates left every
 objective bit-identical and bounds-checked builds clean, but changed one `log_F` gradient
 element by 3e-16 (presumably summation order), and from there `nlminb` reached the higher
-minimum with `newtonsteps = 3` in place. HEAD reproduces the reference (12867.9902664788). The
+minimum with `newtonsteps = 3` in place. A cold phased fit reached it again at 5.48.0
+(12920.1030998153, `max|gradient|` 5.7e-11 — it polishes as well as the lower one), but **on a
+half-applied length-comp fix, not on coherent code**: under the preceding release's behaviour a
+cold fit reproduces the reference exactly (12867.990267), and with both halves of that fix in
+place it lands at 12866.845728, the same basin. An incoherent likelihood is itself a way into
+the upper minimum. `goa_ms` warm-started from those upper-basin MLEs still reached its own
+reference objective to ten decimals, so it does not always inherit `goa_ss`'s basin.
+**`regenerate-golden-reference.R` therefore fits each reference from two starts — the recipe
+that created it and the committed reference — and pins the lower**: the recipe alone can pin a
+52.9-up minimum as a model change, and the reference alone would hide a change that moves the
+optimizer on the cold path assessment scripts take. The
 52.9 that `golden-check.md` attributes to tolerance-stopping (commit `1a172677`) is the same
 gap; polishing did not remove it. A `goa_ss` delta of 52.9 with the other three models
 bit-identical is this, not a numeric regression. Diagnose it from the gradient at the reference

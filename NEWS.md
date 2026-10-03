@@ -113,10 +113,21 @@ A model with no `R_init` linkage is unchanged, including all four golden referen
 A length composition built from an age composition used `age_obs_hat`, the composition
 already smeared by the ageing-error matrix. The age-length key is P(length | **true** age)
 and a measured length carries no otolith reading, so the smear has no part in it; Stock
-Synthesis likewise applies its `age_age` matrix only to age and CAAL data. Now built from
-the true-age composition. No change where `age_error` is the identity, which is every
-bundled dataset and all four golden references; live on a stock with a real ageing-error
-matrix **and** length comps on the same fleet, which is the bridged GOA cod configuration.
+Synthesis likewise applies its `age_age` matrix only to age and CAAL data, WHAM only to its
+age and CAAL predictions, and SPoRC passes `AgeingError = NA` for a length composition.
+Now built from the true-age composition, in **both** of the loops that predict one: a joint-sex
+composition is assembled as females over the first `nlengths` bins and males over the next,
+then normalized across both halves. Every length-comp row in the affected datasets is
+joint-sex, so the second loop is the one they exercise.
+
+**This moves any fit with a non-identity `age_error` and length comps on the same species**,
+which is four bundled datasets and the external SS3 cod-bridge workbook (bundled `GOAcod` is
+not among them — its matrix is the identity). The two GOA golden
+references were re-pinned; `BS2017SS`/`BS2017MS` have an identity matrix throughout and are
+unchanged, as is `GOApollock`, whose matrix is non-identity but which fits no length comps.
+Refitting lowers every affected objective and moves the scale by a fraction of a percent:
+`GOAatf` -0.9416 nats and terminal SSB +1953 mt (+0.223%), `NorthernRockfish2022` -2.9022
+nats and +14 mt (+0.019%), `GOA2018SS` -1.1445 nats and +1678 mt on species 2 (+0.161%).
 
 ## The initial equilibrium catch is redrawn by `sim_mod()`
 
@@ -180,7 +191,7 @@ value, with no warning and nothing in `convergence` to show it.
 The coefficient is now re-zeroed before the fit. This affects every process the linkage
 grammar covers, not just recruitment. A genuine refit — `retrospective()`, `jitter()`,
 `self_test()`, `model_average()`, `run_mse()` — already carries 0 there, so it is a
-no-op for those, and all four golden references are unchanged.
+no-op for those, and leaves all four golden references bit-identical.
 
 
 # Rceattle 5.47.0

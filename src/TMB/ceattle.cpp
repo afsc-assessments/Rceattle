@@ -3318,7 +3318,7 @@ Type objective_function<Type>::operator() () {
               obs_log_tmp = ln - nlengths(sp);
               sex = 1;
 
-              comp_hat(comp_ind, ln ) += age_obs_hat(comp_ind, age) * age_trans_matrix(flt_age_transition_index(flt), sex, obs_age_tmp, obs_log_tmp );
+              comp_hat(comp_ind, ln ) += age_hat(comp_ind, age) * age_trans_matrix(flt_age_transition_index(flt), sex, obs_age_tmp, obs_log_tmp );
             }
           }
         }

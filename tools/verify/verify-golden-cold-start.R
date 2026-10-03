@@ -6,12 +6,17 @@
 # This is the half of the old golden check that test-golden-regression.R no
 # longer does. It is a harness rather than a test because its failure mode is
 # platform-dependent and the golden job must not be: `goa_ss` has a second local
-# minimum 52.9 units above the reference, a one-ULP change in one `log_F`
-# gradient element is enough for `nlminb` to reach it, and `goa_ms` inherits the
-# basin through its warm start. Whether the higher minimum is as well polished
-# as the lower one is UNMEASURED -- nobody has reproduced it on demand -- so an
-# assertion on the gradient there could fail for a reason that is not a
-# regression. That is the flake this was moved out of CI to avoid.
+# minimum 52.9 units above the reference, and a one-ULP change in one `log_F`
+# gradient element is enough for `nlminb` to reach it. A cold fit reached it at
+# 5.48.0 (12920.1030998153 at max|gradient| 5.7e-11, so the higher minimum
+# polishes as well as the lower one) -- but on a HALF-APPLIED length-comp fix,
+# and an incoherent likelihood is its own way in. On coherent code the cold path
+# holds: the preceding release reproduces the reference exactly and the completed
+# fix lands in the same basin. `goa_ms` warm-started from those upper-basin MLEs
+# still reached its own reference objective, so it does not always inherit the
+# basin. Which minimum a cold fit finds is the flake this was kept out of CI to
+# avoid; the regeneration script pins the lower of two starts for the same
+# reason.
 #
 # What it does assert is the direction that cannot flake: a cold fit must not
 # land BELOW the pinned reference. A lower objective is not a basin lottery, it
@@ -26,8 +31,8 @@ devtools::load_all(".", quiet = TRUE)
 # The same literals test-golden-regression.R pins.
 ref <- c(ss     = 10241.0304272585,
          ms     = 10267.2478324443,
-         goa_ss = 12867.9902664788,
-         goa_ms = 12932.7902167145)
+         goa_ss = 12866.8457276232,
+         goa_ms = 12931.8602763619)
 
 fc <- function(...) Rceattle::fit_control(getsd = FALSE, verbose = 0,
                                           newtonsteps = 3, ...)
@@ -74,5 +79,5 @@ if (length(bad)) {
        paste(bad, collapse = "\n  "), call. = FALSE)
 }
 message("\nNo cold fit landed below its reference. A fit ~52.9 above on goa_ss ",
-        "(and goa_ms with it) is the documented second minimum, not a regression ",
-        "-- see inst/dev/TRAPS.md.")
+        "is the documented second minimum, not a regression -- see ",
+        "inst/dev/TRAPS.md.")
