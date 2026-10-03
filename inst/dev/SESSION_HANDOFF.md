@@ -220,7 +220,9 @@ the gates and what was deliberately NOT done.
 | `pkgdown::build_reference_index()` | exit 0. No `man/*.Rd` added or removed and `NAMESPACE` unchanged, so `_pkgdown.yml` correctly needed nothing |
 | `devtools::check(--as-cran)` | **1 WARNING, 1 NOTE** -- see below |
 | Vignettes, `RCEATTLE_EVAL_VIGNETTES=true` | 13 of 13 execute, 37.5 min. `hcrs-and-mses` is 24.6 of those minutes |
-| `Pacific hake/04-mse.R` (rule 15) | all four stages reproduce the 5.33.0 references; `run_mse()` end to end |
+| `Pacific hake/04-mse.R` (rule 15) | all four stages reproduce the 5.33.0 references; `run_mse()` end to end; bit-identical across the review fixes |
+| `tools/verify/verify-safebounds.R` | **no bounds violation in 8 configurations**, `-DTMB_SAFEBOUNDS` confirmed on the compile line, including the file that crashed Windows CI and both of 5.46.0's new array extents. This is the right net for the one-bin `lengths_pop(sp, -1)` fix |
+| Consumer-workbook sweep vs `dev` | 0 newly broken, 0 newly passing, 0 changed verdicts on 375 files |
 
 **The as-cran WARNING is pre-existing and was deliberately left.** Three or more
 `-Wbitwise-instead-of-logical` warnings: `if((forecast(sp) == 0) | (estDynamics(sp) > 0))` and
