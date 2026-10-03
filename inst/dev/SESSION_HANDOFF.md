@@ -5,15 +5,22 @@ session. Maintained by `/handoff`.
 
 ## Now
 
-**PR #186 merged into `dev` while its golden was deliberately red AND while the length-comp fix
-was half-applied, so `dev` is currently red on golden: `ceattle.cpp` carries one of the two
-smeared sites and `test-golden-regression.R` still pins the pre-fix GOA literals. The branch
-`fix/length-comp-joint-sex` closes both and is the PR to merge next.** Release 5.48.0 is still
-open as PR #184 (`dev` -> `main`) and must not go before that. Five review passes over the 5.46.0-5.48.0 delta: an
-adversarial bug hunt, a specification cross-check against the Stock Synthesis / SAM / OPAL /
-SPoRC / WHAM sources (SS3, SAM and OPAL are now cloned under
-`~/Documents/GitHub/Assessments`), a style/documentation review, a consumer-repo run, and a
-documented-workflow walk. **DO NOT merge to `main`** -- Grant does that.
+**The length-comp joint-sex fix and the golden re-pin are IN**, merged as PR #187 (`97c19414`):
+both prediction loops read `age_hat`, and `test-golden-regression.R` pins the post-fix GOA
+literals (`goa_ss` 12866.8457276232, `goa_ms` 12931.8602763619). Golden on `dev` is green.
+PR #188 (`125c6dd1`, the sibling sweep note) is in as well.
+
+**Release 5.49.0 is open as PR #184 (`dev` -> `main`).** It opened as 5.48.0; a review pass over
+the whole `main...dev` delta (2026-10-02/03) found defects worth fixing before the tag, so
+`DESCRIPTION` moved to **5.49.0** and `NEWS.md` gained a 5.49.0 section. **Read `DESCRIPTION` on
+the merge commit before tagging** -- the checklist says so for exactly this reason.
+**DO NOT merge to `main`** -- Grant does that.
+
+Review passes over the 5.46.0-5.49.0 delta: an adversarial bug hunt, a specification cross-check
+against the Stock Synthesis / SAM / OPAL / SPoRC / WHAM sources (SS3, SAM and OPAL are cloned
+under `~/Documents/GitHub/Assessments`), a style/documentation review, a consumer-repo run, a
+documented-workflow walk, and the four-reviewer release pass recorded under
+"5.49.0 review pass" below.
 
 **The installed Rceattle on this machine is 5.33.0.** Only `GOA cod/Bridging` and
 `AI cod - Dev/Bridging` use `pkgload::load_all()`; every other consumer script calls
@@ -33,10 +40,10 @@ evaluated every bin at the FIRST bin's width, so on a non-uniform grid a curve s
 off the bin it labels and disagreed with the key it multiplies -- now per-bin midpoints, SS3's
 `len_bins_m`, with one scalar `binwidth2` for `peak2` as `SS_selex.tpl:153` does).
 
-**PR #186 is MERGED** (2026-10-03, at `6d019ded`); its branch was deleted, so the review fixes
-are on `dev` apart from the half-applied length-comp site and the golden re-pin, which are on
-`fix/length-comp-joint-sex`. **PR #184 (`dev` -> `main`, release 5.48.0) must wait for that** --
-a comment on #184 lists what changed and the three corrections its own description needs.
+**PR #186 is MERGED** (2026-10-02, at `53eb401d`; `6d019ded` is its tip commit, "Record the two
+open PRs in the handoff"); its branch was deleted. PR #187 then closed the half-applied
+length-comp site and re-pinned golden, and PR #188 recorded the sibling sweep, so everything that
+release needs is on `dev`.
 
 **THE LENGTH-COMP FIX SHIPPED HALF-APPLIED, and an adversarial review caught it after a golden
 re-pin had already encoded it.** `ceattle.cpp` predicts a joint-sex composition in two loops --
@@ -106,8 +113,9 @@ the files that carry the shape, and the latent `equil_catch_hat` inconsistency i
 **Still open from the reviews, not attempted.** Two cited SS3 line numbers are wrong
 (`SS_readcontrol_330.tpl:3289` -> `:3328`, `SS_biofxn.tpl:1063` -> `:1074`); the claims
 themselves are right, the citations land on unrelated code. `inst/dev/SPEC-equilibrium-catch.md`
-pins itself to SS3 v3.30.22.1 and no such checkout exists here (the local one is
-`v3.30.25.1-2-g2e15e27`), so its citations are unverifiable. 22 of 155 vignette chunks fail
+pins itself to SS3 v3.30.22.1, and that tag IS in `~/Documents/GitHub/Assessments/ss3-source-code`
+-- only the WORKING TREE is `v3.30.25.1-2-g2e15e27` -- so read its citations with
+`git show v3.30.22.1:SS_popdyn.tpl` rather than off the checked-out files. 22 of 155 vignette chunks fail
 across 6 vignettes, including `whamGrowthData$maturity` carrying list-columns -- the only
 bundled dataset affected -- which makes the guard report "missing values" for data that is
 present and kills two whole vignettes. `estimateMode = 1` is documented in two places as
@@ -179,6 +187,109 @@ optimizer explains neither. See the 5.45.1 NEWS entry and `TRAPS.md`.
 SS3 cod bridge: `initMode 6`, the SS3 growth / maturity / length-bin options,
 `Selectivity = "DoubleNormalSS3"` (code 15), length-based selectivity on the population bins,
 the initial equilibrium catch, and a per-fleet ageing error matrix.
+
+## 5.49.0 review pass on PR #184 (2026-10-02/03)
+
+Four reviewers over the whole `main...dev` delta -- C++/likelihood accuracy, R-pipeline accuracy,
+language/documentation, and concise-clean-code -- plus the release-checklist items the PR body
+listed as outstanding. What was fixed is in `NEWS.md` under 5.49.0. What follows is the state of
+the gates and what was deliberately NOT done.
+
+**Two reviewer findings were checked and REJECTED. Do not re-open them.**
+
+* `inst/RELEASE-CHECKLIST.md`'s `.libPaths(c(lib, .Library))` was reported as unable to run,
+  on the reasoning that `remotes` lives in a user library the line drops. **On this machine the
+  user's packages are IN `.Library`** (`/Library/Frameworks/R.framework/.../library`), so
+  `remotes`, `TMB` and `dplyr` all resolve after that line and the recipe runs. It would break on
+  a machine with a personal library, which is worth knowing, but the recipe is correct as
+  written here.
+* `selectivity.hpp`'s scalar `binwidth` was reported as an edge difference where SS3 uses a
+  midpoint difference. **SS3 uses an edge difference too**: `binwidth(z) = len_bins(z + 1) -
+  len_bins(z)` and `binwidth2 = binwidth(nlength / 2)`, at `SS_readdata_330.tpl:1612` and `:1640`
+  on the pinned v3.30.22.1. Rceattle matches exactly, non-uniform grids included.
+
+**Gates run for this release, with results.**
+
+| Gate | Result |
+|---|---|
+| Full suite, serial, `NOT_CRAN=true` | see the figure in the release note on #184 |
+| `golden-regression` | inside the suite; `skip_on_cran()` + `skip_on_covr()` means a run that skips it measures nothing |
+| `devtools::document()` | zero drift in `man/` and `NAMESPACE`; roxygen2 8.1.0 matches `Config/roxygen2/version` |
+| `urlchecker::url_check()` | all 22 URLs OK |
+| `devtools::spell_check()` | 414 words flagged, **no genuine typos** -- domain terms, British spellings, index notation, and three NEWS entries QUOTING historical typos (`selecitivty`, `specificed`, `dont`) |
+| `pkgdown::build_reference_index()` | exit 0. No `man/*.Rd` added or removed and `NAMESPACE` unchanged, so `_pkgdown.yml` correctly needed nothing |
+| `devtools::check(--as-cran)` | **1 WARNING, 1 NOTE** -- see below |
+| Vignettes, `RCEATTLE_EVAL_VIGNETTES=true` | 13 of 13 execute, 37.5 min. `hcrs-and-mses` is 24.6 of those minutes |
+| `Pacific hake/04-mse.R` (rule 15) | all four stages reproduce the 5.33.0 references; `run_mse()` end to end |
+
+**The as-cran WARNING is pre-existing and was deliberately left.** Three or more
+`-Wbitwise-instead-of-logical` warnings: `if((forecast(sp) == 0) | (estDynamics(sp) > 0))` and
+friends use bitwise `|` / `&` on boolean operands. **The same lines are on `main`** (e.g.
+`2b0306f3:src/TMB/ceattle.cpp:1345` is character-for-character the same), and `main` carries 23
+instances of the pattern, so this release does not regress it and the checklist's "0 warnings"
+bar has been failing quietly for some time. Fixing it is a ~23-site sweep of the model source;
+that was judged the wrong thing to do hours before a tag. **It is the first follow-up.** The NOTE
+is `.git` in the package directory, an artefact of checking a worktree in place.
+
+**Deferred findings, ranked. All are reviewed and confirmed; none blocks the release.**
+
+1. **The bitwise-boolean as-cran WARNING**, above. `R CMD check` names only three lines
+   (`ceattle.cpp` `if((forecast(sp) == 0) | (estDynamics(sp) > 0))` twice, and
+   `if((sp == flt_spp(flt)) & (flt_type(flt) == 1))`), but it truncates its "significant
+   warnings" list, so that is not the whole set: grepping `src/TMB` for a single `|` or `&`
+   between two parenthesised comparisons finds **20 candidates** across `ceattle.cpp` and
+   `diet_data.hpp`. **Enumerate them with a direct compile rather than another `R CMD check`** --
+   capture the compiler's own stderr, since the check only shows a few. Every operand is a pure
+   scalar comparison with no side effect, so `|` -> `||` and `&` -> `&&` is provably
+   semantically identical (short-circuiting changes nothing), but it is the model source, so
+   `/golden-check` after. Left out of 5.49.0 deliberately: the same lines are on `main`, so it
+   is not a regression, and a 20-site rewrite of `ceattle.cpp` hours before a tag is the wrong
+   trade.
+2. **`Ageing_error_index`'s refusal is a false positive on a partial `age_error`.** The check
+   applies to EVERY fleet, defaulting a missing index to the fleet's species, so a model whose
+   species 2 has no `age_error` rows at all -- a predator carried for diet and an index -- is
+   hard-errored although `rearrange_data()` would size the array and nothing would read the
+   empty slice. All 11 bundled datasets have full coverage, which is why the suite cannot see
+   it. Fix: restrict the refusal to fleets that actually read a matrix (age comps or CAAL) and
+   leave the rest at message level.
+3. **The three SS3 growth switches are unvalidated on the inherit path.** `growth_sd_form`,
+   `growth_plus_length` and `plus_group_decay` have no schema row, no `switch_check()` allowed
+   set and no `data_check()` rule, so an out-of-range code falls through to a different branch
+   in silence: `growth.hpp` branches on 1 / 3 / 4 and anything else reads as "no plus-group
+   correction", and `length_sd_at_age` reads anything but 2 as SD-in-cm. `plus_group_length = 4`
+   inherited without a decay rate gives `exp(0) = 1`, i.e. an UNWEIGHTED mean length over `2A`
+   further ages -- `build_growth()` refuses that pairing, the inherit path does not. 5.49.0
+   warns that these do not round-trip; it does not validate them.
+4. **The equilibrium-catch prediction has no independent numeric test.**
+   `test-dynamics-equilibrium-catch.R` asserts finiteness and length, never
+   `equil_catch_hat` against a hand-computed `sum_a Finit*s*w*N_eq*(1-exp(-Z))/Z`. The
+   `initMode = 6` plus-group is untested too: `test-initmode-fished-selected.R` loops
+   `2:(nage - 1)`, stopping one age short of the divisor this release changed. And there is no
+   `Finit` recovery harness, so the claim that the observation makes `Finit` estimable is
+   unmeasured.
+5. **The equilibrium catch always uses the row's `Log_sd`, ignoring `Estimate_catch_sd`.** This
+   matches SS3, which reads `catch_se` per row, but on a fleet with `Estimate_catch_sd` 1 or 2
+   the same fleet's two catch observations are fitted at two silently different variances, and
+   no `equil_catch_sd` is REPORTed so a user cannot see which was used. Needs a decision, then
+   either a REPORT plus a vignette sentence, or `est_sigma_fsh` honoured.
+6. **A warning raised in `sim_mod()` is lost in a `.parallel_lapply()` worker.** The new
+   `.sim_warn_unusable(..., "initial equilibrium catch")` is on `self_test()`'s dispatched path,
+   so it is visible only at `cores = 1`, which is what the suite passes. Note `CLAUDE.md`'s
+   mitigation sentence cites `sim_warns` "as `self_test()` does" -- **`sim_warns` exists nowhere
+   in the tree**, and `R/9-self_test.R` has no `withCallingHandlers`, so either build the
+   collection or correct that sentence.
+7. **C++ duplication the release paid for.** Four verbatim copies of the population-bin CAAL
+   loop (`ceattle.cpp`), three formulations of the population-bin midpoint (`growth.hpp`,
+   `selectivity.hpp`, `ceattle.cpp` -- now all three guarded), and `nlengths` / `lengths` left
+   dead in both growth functions beside their live replacements OF THE SAME TYPE, where a future
+   argument reorder would swap them silently. A `GrowthSpec<Type>` struct would cut
+   `estimate_growth()` from 27 parameters to about 15. Bit-identical refactors, so
+   `/golden-check` covers them completely -- but not before a release.
+8. **Smaller ones.** A non-numeric `Ageing_error_index` (`"1a"`, or a name, which
+   `Ageing_error_name` invites) reads as `NA` and silently becomes the species; `bin_indexed_forms`
+   in `R/1-data_check.R` is a fourth hard-coded copy of the same form set; `.rce_equil_catch_candidates()`
+   and `.rce_equil_catch_rows()` are behavioural functions parked at the top of the schema registry
+   and belong in `R/0-clean_data.R`.
 
 ## In flight above `dev` (5.47.0)
 

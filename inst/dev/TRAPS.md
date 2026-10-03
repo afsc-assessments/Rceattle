@@ -251,7 +251,7 @@ the rule-12 pair alone and `build_srr()` rejects it with "unknown recruitment li
 parameter(s)"; the other processes have the equivalent (`.SEL_PARAM_TO_SLOT`). This is the same
 shape as `Index_distribution`'s second registry. Grep every registry before adding one.
 
-**Every `(Intercept)` linkage coefficient is pinned at `NA`, on the premise that the process's
+**Every `(Intercept)` linkage coefficient but recruitment's `R_init` is pinned at `NA`, on the premise that the process's
 own base parameter carries the level.** `R/3-build_map.R` masks `beta_linkage` for intercept rows,
 `build_params` forces their starting value to 0, and `build_parameter_bounds` loosens their bound
 to ±Inf and propagates the caller's bound to the base parameter instead. That premise held for
@@ -260,11 +260,15 @@ and has NO base parameter — so `~ 1` produced zero estimable `beta_linkage` en
 nothing, while every builder reported success. The R sites now share `.is_pinned_intercept()` and
 its complement `.is_level_intercept()` (`R/0-linkage_encode.R`), both keyed off
 `.is_r_init_linkage_row()`. **Don't trust a count — this one was published as "four", then
-"five", then "seven", and the real figure is ELEVEN conditions in R plus one in the C++.** Grep
+"five", then "seven", then "eleven", and every published figure has been wrong within a release.
+So the grep is the authority, not any number here, and not a line list: the line numbers in the
+earlier version of this entry were all stale within two commits.** Grep
 `.is_pinned_intercept|.is_level_intercept|.is_r_init_linkage_row|.REC_PARAM_TO_INDEX\[` and read
-every hit; as of 5.48.0 that is `R/2-build_params.R:215,221,508,544`, `R/3-build_map.R:1794,1949`,
-`R/4-build_parameter_bounds.R:144,154,166,229`, `R/1-data_check.R:2426`, and
-`src/TMB/ceattle.cpp:5138` (next entry). Three of them read the `.REC_PARAM_TO_INDEX` `NA`
+every hit. At 5.49.0 that is 13 conditions in R — `R/2-build_params.R` (5),
+`R/4-build_parameter_bounds.R` (4), `R/3-build_map.R` (2), `R/1-data_check.R` (1),
+`R/6-fit_mod.R` (1) — plus the definitions in `R/0-linkage_encode.R` (6) and a comment in
+`R/0-build_srr.R`, which are hits but not conditions, and one guard in `src/TMB/ceattle.cpp`
+(`param != RCEATTLE_REC_R_INIT`, next entry). Three of them read the `.REC_PARAM_TO_INDEX` `NA`
 instead of the predicate: that is correct in `map_linkage_adjuster()` and in `build_bounds()`'s
 base-parameter push (there is no base parameter to mask or to bound), and was a defect
 in `.push_linkage_intercept_inits()`, which is where `fit_mod()` re-applies an `est_phase = 0`
@@ -323,7 +327,7 @@ year with its own deviate, not part of the pre-hindcast level — so the two arr
 purpose. Live only under `initMode = 6`, the one mode that reads an equilibrium catch.
 
 **A process linkage assigned straight onto a `data_list` is silently discarded.**
-`fit_mod()` overwrites `data_list$srr_linkages` from `recFun` (`R/6-fit_mod.R:533`), and does the
+`fit_mod()` overwrites `data_list$srr_linkages` from `recFun` (`R/6-fit_mod.R:549`), and does the
 same for the other processes from their own `build_*()` objects. So
 `d$srr_linkages <- list(...)` followed by `fit_mod(d)` fits a model with no linkage at all and
 says nothing. Build the spec through `build_srr(linkages = ...)`. Same shape as
@@ -497,7 +501,8 @@ fleet 2's composition likelihood while `jnll_comp[11, 2]` is species 2's recruit
 and `rowSums()` pools across two different axes. `.JNLL_ROW_AXIS` (`R/9-profile.R`) is the
 registry; `test-schema-jnll-rows.R` parses every `jnll_comp(JNLL_*, col)` write in the template
 and asserts each row's declared axis matches the column it is actually indexed by. Verified
-2026-08-26: 124 writes, all 21 rows covered; 133 writes at 5.41.0, same 21 rows.
+2026-08-26: 124 writes, all 21 rows covered; 133 writes at 5.41.0, same 21 rows; 134 writes at
+5.48.0 over 22 rows, the new one being the initial equilibrium catch.
 
 **`unweighted_jnll_comp` is populated for 5 of its 22 rows.** It exists so Francis and
 McAllister-Ianelli can read a composition likelihood without its `Comp_weights` multiplier, so
@@ -861,7 +866,7 @@ element by 3e-16 (presumably summation order), and from there `nlminb` reached t
 minimum with `newtonsteps = 3` in place. A cold phased fit reached it again at 5.48.0
 (12920.1030998153, `max|gradient|` 5.7e-11 — it polishes as well as the lower one), but **on a
 half-applied length-comp fix, not on coherent code**: under the preceding release's behaviour a
-cold fit reproduces the reference exactly (12867.990267), and with both halves of that fix in
+cold fit reproduces the then-current reference exactly (12867.990267), and with both halves of that fix in
 place it lands at 12866.845728, the same basin. An incoherent likelihood is itself a way into
 the upper minimum. `goa_ms` warm-started from those upper-basin MLEs still reached its own
 reference objective to ten decimals, so it does not always inherit `goa_ss`'s basin.
@@ -945,9 +950,11 @@ section above.
 - **`Index_distribution` has a second hand-synced registry** — a family added to
   `index_distribution_map` must also be classified in `.index_rows_natural_scale()`
   (`R/0-switches.R`), or it silently gets the log-scale residual formula.
-- **`jnll_comp` columns count fleets on rows 1–8 and species on rows 9–20**, so `rowSums()`
-  pools across two different axes. Row 21 (linkage random effects) is model-wide.
-  `.JNLL_ROW_AXIS` (`R/9-profile.R`) is the registry.
+- **`jnll_comp` columns count fleets on rows 1–8 and row 22, species on rows 9–20**, so
+  `rowSums()` pools across two different axes, and the fleet axis is NOT contiguous. Row 21
+  (linkage random effects) is model-wide; row 22 is the initial equilibrium catch, by fleet.
+  `.JNLL_ROW_AXIS` (`R/9-profile.R`) is the registry, so an axis guess that stops at row 20 is
+  wrong.
 - **A reference point CEATTLE never estimated is a number, not a gap** — `Ftarget`/`Flimit` sit
   at `exp(0) = 1` unless the HCR estimates them (gate on `build_hcr_map()`, never on `fit$map`),
   `SB0` under `msmMode > 0` is the 999 mt `MSSB0` placeholder until `MSSB0_derived` is TRUE, and

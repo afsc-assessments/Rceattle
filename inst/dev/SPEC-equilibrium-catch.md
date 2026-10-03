@@ -302,19 +302,21 @@ breaking: a `data_list` without an equilibrium catch row fits exactly as before.
 5. **Round-trip.** `write_data()` then `read_data()` must preserve the row.
 
 
-## 5. A defect found alongside this
+## 5. A defect found alongside this, and FIXED with it
 
 `initMode = "FishedNonEquilibriumSelected"` (6) decays the initial numbers with
-`M1 + Finit * sel`, but its plus-group geometric series at `ceattle.cpp:2016/2020`
-still divides by `1 - exp(-M1 - Finit)` -- the **unselected** `Finit`. SS3 uses the
-selected F there (`SS_popdyn.tpl:2023`). It should be
-`1 - exp(-M1 - Finit * sel_init(sp, sex, nages-1))`.
+`M1 + Finit * sel`, and its plus-group geometric series now divides by the same
+selected F. `ceattle.cpp:2097-2099` builds
+`Z_plus = M1 + Finit * sel_init(sp, sex, nages-1)` under mode 6 and charges the
+full `Finit` under every other mode, which is SS3's convention
+(`SS_popdyn.tpl:2023`) and leaves modes 1-5 bit-identical. Before the fix it
+divided by `1 - exp(-M1 - Finit)` -- the **unselected** `Finit`.
 
 On AI cod the fishery's selectivity at the plus group is 0.9999, so the plus-group
-factor moves from 2.621575 to 2.621589, **+0.001%** -- real but not what is moving
-anything here. It would matter for a dome-shaped fishery whose descending limb
-leaves the oldest ages lightly selected. Worth fixing with the equilibrium catch,
-since both touch the same block, but it is not the cause of anything measured above.
+factor moved from 2.621575 to 2.621589, **+0.001%** -- real but not what was moving
+anything here. It matters for a dome-shaped fishery whose descending limb leaves
+the oldest ages lightly selected. Fixed alongside the equilibrium catch because
+both touch the same block; it was not the cause of anything measured above.
 
 
 ## 6. Future work: per-fleet initial F, to match SS3 on a multi-fishery species
