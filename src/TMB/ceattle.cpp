@@ -1366,9 +1366,13 @@ Type objective_function<Type>::operator() () {
           // there, so the selectivity weighting is applied at the resolution
           // the curve is defined on rather than to a bin average.
           for(int ln = 0; ln < nlengths_pop(sp); ln++){
+            // The last bin takes the previous bin's width; a single-bin grid has
+            // no neighbour to take one from, so it keeps the edge itself.
             Type lenmid = (ln < nlengths_pop(sp) - 1)
               ? (lengths_pop(sp, ln) + lengths_pop(sp, ln + 1)) / Type(2.0)
-              : lengths_pop(sp, ln) + (lengths_pop(sp, ln) - lengths_pop(sp, ln - 1)) / Type(2.0);
+              : (nlengths_pop(sp) < 2
+                   ? lengths_pop(sp, ln)
+                   : lengths_pop(sp, ln) + (lengths_pop(sp, ln) - lengths_pop(sp, ln - 1)) / Type(2.0));
             Type p_sel = growth_matrix(wt_idx_sel, sex, age, ln, yr) * sel_at_length(flt, sex, ln, yr);
             num += p_sel * weight_length_pars(sp, 0) * pow(lenmid, weight_length_pars(sp, 1));
             den += p_sel;

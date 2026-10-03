@@ -279,7 +279,7 @@ section holds every entry below in full).
 - **Under `HCR = 0 & msmMode > 0` the depletions divide by last-projection-year biomass**, not `SB0`; don't blank them with a placeholder `SB0`.
 - **A fit reports 99 quantities**: enumerate `names(fit$quantities)`, not a `REPORT(` grep; `quantity_dictionary()` is the registry.
 - **`retrospective(getsd = TRUE)` can drop peels `getsd = FALSE` keeps**, so Mohn's rho can differ.
-- **`unweighted_jnll_comp` is written for 5 of its 21 rows**; the rest are structurally zero.
+- **`unweighted_jnll_comp` is written for 5 of its 22 rows**; the rest are structurally zero.
 - **`fit_mod(d, config = cfg)` replaces `d$model_config`**: build `cfg` with `run_config(d, ...)` or every linkage is dropped.
 - **`bias_adjust_proc` centres the lognormal priors and the recruitment deviations together** (5.33.0).
 - **A `data_list` element without `write_data()`/`read_data()` support round-trips to nothing.**

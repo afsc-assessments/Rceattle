@@ -934,6 +934,16 @@ sim_mod <- function(object = NULL, simulate = FALSE, process = FALSE, Rceattle =
   } else {
     # Expected values
     dat_sim$catch_data$Catch <- catch_hat
+    # The equilibrium catch belongs with them: left at its observed value it
+    # would be the one real observation beside expected values everywhere else,
+    # and under initMode 6 it is the only thing informing Finit.
+    eq_hat <- quantities$equil_catch_hat
+    if (NROW(eq_hat) > 0 && !is.null(dat_sim$equil_catch_data) &&
+        nrow(dat_sim$equil_catch_data) > 0) {
+      .sim_check_rows(NROW(eq_hat), nrow(dat_sim$equil_catch_data),
+                      "initial equilibrium catch")
+      dat_sim$equil_catch_data$Catch <- as.numeric(eq_hat)
+    }
   }
 
 

@@ -77,9 +77,14 @@ void fill_age_length_key(int wtind, int sp, int sex, int age, int yr,
     }
     growth_matrix(wtind, sex, age, lp, yr) = prob;
 
+    // Midpoint (cm) of the bin: lower edge plus half its own width, the last bin
+    // taking the previous bin's width. A single-bin grid has no neighbour to take
+    // a width from, so it keeps the edge itself -- as selectivity.hpp does.
     Type lenmid;
     if(lp < np - 1) {
       lenmid = (lengths_pop(sp, lp) + lengths_pop(sp, lp + 1)) / Type(2.0);
+    } else if(np < 2) {
+      lenmid = lengths_pop(sp, np - 1);
     } else {
       lenmid = lengths_pop(sp, np - 1) + (lengths_pop(sp, np - 1) - lengths_pop(sp, np - 2)) / Type(2.0);
     }

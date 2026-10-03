@@ -9,6 +9,9 @@ vignette: >
 ---
 
 ```{r setup, include=FALSE}
+# Attached here as well as in the narrative chunk below, because the first
+# executable chunk of this vignette precedes that one.
+library(Rceattle)
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
@@ -581,6 +584,9 @@ plot_data(simData)
 #               4 = non-equilibrium: F_init scales R0
 #               5 = equilibrium, F_init = 0, seeded by R_init displaced by the
 #                   year-1 recruitment deviation, no init deviations
+#               6 = non-equilibrium: F_init weighted by fishery selectivity at
+#                   age (SS3's InitF convention); the only mode that reads an
+#                   initial equilibrium catch at styr - 1
 #
 # phase:        TRUE = use parameter phasing for improved convergence (recommended)
 

@@ -211,19 +211,24 @@ build_selectivity <- function(linkages = NULL) {
       paste(.SEL_LINKAGE_WIRED_PARAMS, collapse = ", "), extra), call. = FALSE)
   }
 
+  # Read every fleet's form through the schema's own resolver rather than as a
+  # string. fit_mod() canonicalizes the column before it gets here, but a
+  # workbook that stores Selectivity as an integer reaches the exported
+  # build_selectivity() path uncanonicalized, and comparing "15" to
+  # "DoubleNormalSS3" refuses a form that IS wired.
+  sel_forms <- .canon_switch(fleet_control$Selectivity, sel_map)
+
   # Every fleet a sel row targets must use a wired selectivity form.
   flts <- unique(sel$fleet)
   flts <- flts[!is.na(flts)]
   if (length(flts) == 0L) flts <- seq_len(nrow(fleet_control))  # NA = all fleets
-  forms <- as.character(fleet_control$Selectivity[flts])
-  bad_flt <- flts[!forms %in% .SEL_LINKAGE_WIRED_FORMS]
+  bad_flt <- flts[!sel_forms[flts] %in% .SEL_LINKAGE_WIRED_FORMS]
   if (length(bad_flt) > 0) {
     stop(sprintf(
       paste0("selectivity linkage on fleet(s) %s whose form (%s) is not yet ",
              "wired for linkages.\n  Wired forms: %s."),
       paste(fleet_control$Fleet_name[bad_flt], collapse = ", "),
-      paste(unique(as.character(fleet_control$Selectivity[bad_flt])),
-            collapse = ", "),
+      paste(unique(sel_forms[bad_flt]), collapse = ", "),
       paste(.SEL_LINKAGE_WIRED_FORMS, collapse = ", ")), call. = FALSE)
   }
 
@@ -235,7 +240,7 @@ build_selectivity <- function(linkages = NULL) {
   # A row with no fleet targets every fleet, as the form check above treats it.
   for (k in seq_len(nrow(sel))) {
     tgt <- if (is.na(sel$fleet[k])) seq_len(nrow(fleet_control)) else sel$fleet[k]
-    dn6_fleet <- as.character(fleet_control$Selectivity[tgt]) == "DoubleNormalSS3"
+    dn6_fleet <- sel_forms[tgt] == "DoubleNormalSS3"
     dn6_param <- sel$param[k] %in% .SEL_DN6_PARAMS
     off <- tgt[if (dn6_param) !dn6_fleet else dn6_fleet]
     if (!length(off)) next
@@ -271,7 +276,7 @@ build_selectivity <- function(linkages = NULL) {
     # and the sigmas/slopes (log scale) are unaffected.
     dn <- prior_rows[prior_rows$param %in% c("inf_desc", "right_floor"), , drop = FALSE]
     dn_flt <- unique(vapply(dn$fleet, row_flt, integer(1)))
-    dn_flt <- dn_flt[as.character(fleet_control$Selectivity[dn_flt]) == "DoubleNormal"]
+    dn_flt <- dn_flt[sel_forms[dn_flt] == "DoubleNormal"]
     if (length(dn_flt) > 0L) {
       stop(sprintf(paste0(
         "prior on `inf_desc` / `right_floor` for DoubleNormal fleet(s) %s is not ",
@@ -279,6 +284,33 @@ build_selectivity <- function(linkages = NULL) {
         "would be applied on the logit scale. Prior the ascending peak / sigmas ",
         "instead."),
         paste(fleet_control$Fleet_name[dn_flt], collapse = ", ")), call. = FALSE)
+    }
+
+    # (a2) Of DoubleNormalSS3's six slots only `dn_peak` is stored on its natural
+    # scale (a length, cm). `top_logit` / `start_logit` / `end_logit` hold logits
+    # and `ascend_se` / `descend_se` hold logs, so a family with positive support
+    # is evaluated on the transformed value: lognormal on a negative logit is NaN,
+    # and on `ascend_se` it is a prior on log(log(width)) rather than on the width.
+    # A `normal` prior on the stored value is well defined and is allowed.
+    nat_scale_dn6 <- "dn_peak"
+    dn6 <- prior_rows[prior_rows$param %in% setdiff(.SEL_DN6_PARAMS, nat_scale_dn6) &
+                        prior_rows$prior_family %in% c("lognormal", "gamma", "beta"), ,
+                      drop = FALSE]
+    if (nrow(dn6) > 0L) {
+      dn6_flt <- unique(vapply(dn6$fleet, row_flt, integer(1)))
+      dn6_flt <- dn6_flt[sel_forms[dn6_flt] == "DoubleNormalSS3"]
+      if (length(dn6_flt) > 0L) {
+        stop(sprintf(paste0(
+          "a `%s` prior on `%s` for DoubleNormalSS3 fleet(s) %s is not supported: ",
+          "that slot holds a logit (top_logit, start_logit, end_logit) or a log ",
+          "(ascend_se, descend_se), so a prior with positive support would be ",
+          "evaluated on the transformed value rather than on the quantity it ",
+          "names. Use a `normal` prior on the stored value, or prior `dn_peak`, ",
+          "which is a length in cm."),
+          paste(unique(dn6$prior_family), collapse = "/"),
+          paste(unique(dn6$param), collapse = ", "),
+          paste(fleet_control$Fleet_name[dn6_flt], collapse = ", ")), call. = FALSE)
+      }
     }
 
     prior_flt <- unique(vapply(prior_rows$fleet, row_flt, integer(1)))

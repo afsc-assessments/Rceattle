@@ -132,8 +132,9 @@ Key arguments (see `?linkage_spec` for the full list):
 
   This is Stock Synthesis's environmental link type 1, and `"exponential"` is
   SS3's own name for it (`case 1: // exponential env link`). It is *not* SS3's q
-  *power function*, which is a separate option that raises the predicted index
-  to `1 + p` -- that is what `Catchability = "PowerEquation"` is reserved for.
+  *power function*, which is a separate option that raises the vulnerable
+  biomass to the power `1 + p` (`pow(vbio, 1 + p)`) -- that is what
+  `Catchability = "PowerEquation"` is reserved for.
 
   SS3 multiplies the parameter on whatever scale it stores, so that scale
   decides where the link belongs:
@@ -141,7 +142,7 @@ Key arguments (see `?linkage_spec` for the full list):
   | process | SS3 scale | SS3 type 1 is | Rceattle |
   |---|---|---|---|
   | catchability, lognormal index | log (`Svy_log_q`) | `q^exp(beta x)` | `"exponential"` |
-  | catchability, natural-scale index | natural | `q * exp(beta x)` | `"log"` (warns) |
+  | catchability, natural-scale index (`MVN`, `MVNORM`, `Normal`, `TruncatedNormal`) | natural | `q * exp(beta x)` | `"log"`; `"exponential"` warns here |
   | natural mortality, growth | natural | `parm * exp(beta x)` | `"log"` |
   | recruitment | log (`SR_LN(R0)`) | `R0^exp(beta x)` | not yet wired |
 
@@ -182,8 +183,9 @@ Key arguments (see `?linkage_spec` for the full list):
   what to interpret and plot (`fit$quantities$index_q`); a `beta` quoted on its
   own is not comparable between models. Pin the level with a q prior
   (`Catchability = "Estimated-with-prior"`) if you need `beta` itself to be
-  identified. `convergence_diagnostics()` flags the second on the fit, as
-  `exponential_q_near_one`.
+  identified. `convergence_diagnostics()` flags the first of those on the fit as
+  `exponential_q_near_one`, a WARN when the fitted catchability is within 0.1%
+  of 1.
 
   **On catchability the effect stops at the last hindcast year.** The q linkage
   tensors are built over hindcast years only (the recruitment, M and growth
@@ -830,9 +832,9 @@ rec_spec <- build_srr(
   )
 )
 
-# A real multi-species data_list for the fits below: the species-keyed
-# priors need more than one species, and the linkages need `temp` in
-# env_data.
+# A three-species data_list for the fits below, still fitted in single-species
+# mode (msmMode = 0): the species-keyed priors need more than one species, and
+# the linkages need `temp` in env_data.
 data_list <- BS2017SS
 yrs <- data_list$styr:data_list$endyr
 data_list$env_data <- data.frame(
@@ -946,8 +948,8 @@ fit <- fit_mod(
 )
 
 # One coefficient set per fleet; the offset lands here:
-fit$quantities$q_linkage_offset      # [n_flt, nyrs]
-fit$quantities$q_linkage_log_mult    # [n_flt, nyrs]; exponential link only
+fit$quantities$q_linkage_offset      # [n_flt, nyrs_hind]
+fit$quantities$q_linkage_log_mult    # [n_flt, nyrs_hind]; exponential link only
 ```
 
 Restrict a spec to particular fleets with the `fleet` argument of
@@ -1311,9 +1313,9 @@ and `by = ~ species + sex` produces one per (species, sex). Each
 init into the matching base-parameter slot.
 
 This rule applies to every linkage target that has a base parameter
-(`K`, `L1`, `Linf`, `m`, `M1`, `R0`, `alpha`, `beta`, the selectivity
-and catchability targets, and the composition weights). `R_init` has
-none, and is the exception described above.
+(`K`, `L1`, `Linf`, `m`, the SD endpoints `sd_L1` / `sd_Linf`, `M1`,
+`R0`, `alpha`, `beta`, the selectivity and catchability targets, and the
+composition weights). `R_init` has none, and is the exception described above.
 
 ### Single-sex models and `by = ~ ... + sex`
 

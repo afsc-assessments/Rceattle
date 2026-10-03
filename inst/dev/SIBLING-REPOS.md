@@ -31,6 +31,15 @@ verdict -- it already failed on `main` for an unrelated reason and dev additiona
 ageing-error validation. The sweep needs no compiled DLL, since both functions are pure R, so a
 `main` worktree with any `.so` dropped in will do.
 
+**Re-run for the 5.49.0 review** (2026-10-03), `dev` `527a4919` against the review tree, over
+every `.xlsx` under the four consumer repos: **0 newly broken, 0 newly passing, and not one
+workbook's verdict TEXT changed** on 375 files. That is the gate that matters for a `data_check()`
+change, and 5.49.0 adds two refusals and loosens two. Note the absolute counts from that run (17
+ok / 358 error) are **not** comparable to the 122 / 258 above: this sweep globbed every `.xlsx` in
+the trees, including report and output files with no `control` sheet, whereas the earlier figure
+came from a script that is not committed. Compare a sweep only with another sweep run the same
+way, which is the whole point of the paragraph above.
+
 **The cheapest real API check is the NAMESPACE and the formals**, not a grep: diff `export(...)`
 between the two trees, then parse both trees' `R/` and compare each exported function's formal
 argument names. At 5.48.0 that was 90 exports either side with none removed or renamed, and the
@@ -142,43 +151,42 @@ covers none of that: its four models are single- and multi-species Bering Sea an
 Alaska hindcasts, with no MSE and no estimated suitability. Run it after touching predation,
 suitability, the DM likelihood, `sim_mod()`, or `run_mse()`.
 
-Its four fits take ~3.5 min together on an M-series Mac, plus ~2 min for `nsim = 2, cores = 2`.
+**The two scripts have separate reference tables, and they are 300 nats apart.** `04-mse.R` is
+three species and lands near 2136-2267; `MSE_yr2024.R` is four and lands near 2440-2669. Read the
+table under the heading for the script you ran. Mixing them shows a 300-nat regression that does
+not exist.
+
+### `04-mse.R` — the three-species MSE
+
+Hake, arrowtooth and sablefish. Unchanged since 2026-08-17 (`72bd887`, Rceattle-models), so the
+table below is live rather than historical. Four fits plus `run_mse(nsim = 2, cores = 2)` take
+~3.75 min together on an M-series Mac.
+
 Reference objectives on 5.33.0 (2026-09-11), after its lognormal priors became mean-centred
 under `bias_adjust_proc`. The 5.32.1 values are in the right-hand column; the change comes from the DM
 `prior_lognormal(0, 2)` weights and the M prior. Survey DM theta fell from 35 to 25
 (single-species) and 32 to 23 (MSVPA); hake terminal SSB changed by at most 0.71%. Every fit kept a
 positive-definite Hessian. The 5.32.1 column is measured on dev `cff500c7`.
 
-| Stage | -log L (5.33.0) | 5.32.1 |
-|---|---|---|
-| single-species | 2136.8588547522 | 2133.8207228717 |
-| single-species + category-1 HCR | 2137.5094597505 | 2134.4713944220 |
-| MSVPA, estimated M | 2140.4295989555 | 2137.4433306648 |
-| estimated suitability | 2267.4725502601 | 2260.7063099168 |
+| Stage | -log L (5.33.0) | 5.48.0 | 5.32.1 |
+|---|---|---|---|
+| single-species | 2136.8588547522 | 2136.8588547554 | 2133.8207228717 |
+| single-species + category-1 HCR | 2137.5094597505 | 2137.5094602853 | 2134.4713944220 |
+| MSVPA, estimated M | 2140.4295989555 | 2140.4295989804 | 2137.4433306648 |
+| estimated suitability | 2267.4725502601 | 2267.4725502653 | 2260.7063099168 |
 
-**Those four are STALE against the script as it stands.** `MSE_yr2024.R` changed on 2026-09-15
-(`bc9596e`, Rceattle-models): it added lognormal intercept priors and an M prior to the existing
-fits and appended an Ianelli Beverton-Holt section, so the script now fits different models than
-it did when the table above was recorded on 2026-09-11. No input data changed. Re-measured
-2026-09-21 on the current script, running it twice against different package versions:
-
-| Fit (in script order) | 5.41.0 | 5.33.0 |
-|---|---|---|
-| single-species | 2440.0942 | 2440.0942 |
-| single-species + category-1 HCR | 2440.6633 | 2440.6633 |
-| MSVPA, estimated M | 2447.0049 | 2447.0049 |
-| estimated suitability | 2669.3776 | 2669.3776 |
-
-All six fits the script reports, not just these four, agree to every digit printed, and neither
-run errored. **So 5.34.0-5.41.0 moved nothing here**; the gap against the older table is the
-script, and a reader comparing to it would see a 300-nat regression that does not exist.
-Re-record against whichever script revision you ran, and say which.
-
-**Confirmed again at 5.48.0** (2026-10-02, `MSE_yr2024.R` unchanged since): all four reproduce to
-every digit above -- 2440.0942 / 2440.6633 / 2447.0049 / 2669.3776 -- all eight fits completed and
-`run_mse()` ran end to end. 5.48.0 is the release that owed this check, because it added a
-`SIMULATE` draw for the initial equilibrium catch and a `sim_mod()` write-back for it. Hake also
-confirms the length-comp ageing-error fix does not reach it.
+**Confirmed at 5.48.0** (2026-10-02): all four reproduce the 5.33.0 references to between 3.2e-09
+and 5.3e-07 absolute, 2.5e-10 relative at worst, and `run_mse()` ran end to end for both sims.
+**Re-run at 5.49.0** after the release review: every one of the four reproduces the 5.48.0 column
+to all 16 digits, as do both vulnerabilities, so none of that pass's fixes reaches this model --
+which is the point of running it, since hake is the only routine exercise of three-species
+predation with estimated suitability and the only model here with `estDynamics > 0`, the
+configuration 5.49.0's new equilibrium-catch refusal names.
+5.48.0 is the release that owed this check, because it added a `SIMULATE` draw for the initial
+equilibrium catch and a `sim_mod()` write-back for it. Hake also confirms the length-comp
+ageing-error fix does not reach it, and that the new equilibrium-catch validation only reports
+here: `catch_data` carries rows at 1979 against a 1980 `styr`, and under
+`initMode = "NonEquilibrium"` they are dropped with a message, exactly as they were before.
 
 Re-run on 5.25.0 (2026-09-01), against that day's references (stage 2 2134.4713926593, stage 4
 2260.7063099135): stages 1, 3 and 4 bit-identical, and stage 2 higher
@@ -186,16 +194,19 @@ by 1.8e-06 (8.3e-10 relative, below the optimizer's own tolerance). Stage 2 is t
 runs the reference-point penalty, so it is the only one that touches the SPR sum, whose factors
 5.24.1 reordered -- floating-point addition is not associative, so the last bits move and the F
 solve propagates it into the objective. **A delta of that size on stage 2 alone is the expected
-result of an SPR change, not a numeric regression.** Any of the other three moving is.
+result of an SPR change, not a numeric regression.** Any of the other three moving is. Stage 2
+still carries the largest delta at 5.48.0, for the same reason.
 
-All four were bit-identical across the two branches (delta 0.000e+00), as was the vulnerability
-matrix: 0.8172 (arrowtooth to hake) and 0.7686 (sablefish to hake). **Record which quantity that
-is next time it is measured** -- `exp(log_phi)` on the stage-4 fit prints 4.4709 and 3.3213, so
-0.8172/0.7686 is some other transform and the note does not say which. The objective above is
-bit-identical, so the parameters are unchanged either way. The script's own
-inline comments give the first three ~5 higher and the fourth as 2262.318: those are Rceattle
-5.6.1 numbers that still included the `theta_diet` prior constants. `README.md` in that folder
-records the "clean" values, which are what the current package reproduces.
+**The vulnerability quantity is `fit$quantities$vulnerability[predator, prey]`**, a 3x3 matrix,
+which answers the question this note used to leave open. On the stage-4 fit at 5.48.0 it is 0.8189
+(arrowtooth to hake, `[2, 1]`) and 0.7717 (sablefish to hake, `[3, 1]`); `exp(log_phi)` on the same
+fit prints 4.5215 and 3.3794, so it is not that transform. The 0.8172 / 0.7686 recorded on the
+5.25.0 re-run is **not** a comparison for these: it was measured against the 5.32.1-era objective
+(stage 4 2260.7063), and the mean-centring in 5.33.0 moved that fit by 6.8 nats, so a different
+optimum is the expected result rather than drift. The script's own inline comments give the first
+three ~5 higher and the fourth as 2262.318: those are Rceattle 5.6.1 numbers that still included
+the `theta_diet` prior constants. `README.md` in that folder records the "clean" values, which are
+what the current package reproduces.
 
 ### `MSE_yr2024.R` — the four-species MSE
 

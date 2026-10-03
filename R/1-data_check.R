@@ -538,8 +538,7 @@ data_check <- function(data_list) {
       # A list-column reads as NA here however finite the number inside it, so
       # say so rather than send the reader hunting for a gap that is not there.
       # It happens when a table is assembled with a verb that nests (dplyr's
-      # rowwise summarise, a tibble built from a list), and every age column of
-      # the bundled whamGrowthData$maturity carried one until 5.48.0.
+      # rowwise summarise, a tibble built from a list).
       listed <- vapply(tbl[, agec[seq_len(need)], drop = FALSE], is.list,
                        logical(1))
       if(any(listed)){
@@ -701,11 +700,8 @@ data_check <- function(data_list) {
   # at 0 and renormalized away.
   if(has_data(data_list$age_error)){
     .ae <- as.data.frame(data_list$age_error)
-    .ae_idx <- if ("Ageing_error_index" %in% colnames(.ae)) {
-      suppressWarnings(as.integer(.ae[["Ageing_error_index"]]))
-    } else rep(NA_integer_, nrow(.ae))
-    .ae_sp <- suppressWarnings(as.integer(.ae[["Species"]]))
-    .ae_idx[is.na(.ae_idx)] <- .ae_sp[is.na(.ae_idx)]   # absent index = the species
+    .ae_idx <- .rce_ageing_error_index(.ae)   # absent index = the row's species
+    .ae_sp <- suppressWarnings(as.integer(as.character(.ae[["Species"]])))
     for(ix in sort(unique(.ae_idx[!is.na(.ae_idx)]))){
       rows <- which(.ae_idx == ix)
       # A matrix's rows are sized and offset by its species' nages / minage, so
@@ -1923,17 +1919,12 @@ data_check <- function(data_list) {
     # fleet side uses: a blank on an age_error row also means "this species'
     # own matrix", which is what adding one matrix by typing an index on the
     # new rows leaves behind.
-    ae_sp <- suppressWarnings(as.integer(ae[["Species"]]))
-    ae_ix <- if ("Ageing_error_index" %in% colnames(ae)) {
-      suppressWarnings(as.integer(ae[["Ageing_error_index"]]))
-    } else rep(NA_integer_, nrow(ae))
-    ae_ix[is.na(ae_ix)] <- ae_sp[is.na(ae_ix)]
+    ae_sp <- suppressWarnings(as.integer(as.character(ae[["Species"]])))
+    ae_ix <- .rce_ageing_error_index(ae)
     have <- unique(ae_ix)
-    flt_sp <- suppressWarnings(as.integer(data_list$fleet_control$Species))
-    want <- suppressWarnings(as.integer(data_list$fleet_control[["Ageing_error_index"]]))
+    flt_sp <- suppressWarnings(as.integer(as.character(data_list$fleet_control$Species)))
     # The effective index rearrange_data() will use (R/5-rearrange_data.R).
-    want <- if (!length(want)) flt_sp else
-      ifelse(is.na(want), flt_sp, want)
+    want <- .rce_ageing_error_index(data_list$fleet_control)
     if (length(want)) {
       bad <- which(!(want %in% have))
       if (length(bad)) {
@@ -2549,7 +2540,8 @@ data_check <- function(data_list) {
     # Present but not read: the rows leave catch_data either way, so say so
     # rather than let them vanish.
     message("catch_data rows at Year ", styr_1,
-            " are dropped: an initial equilibrium catch is read only under ",
+            " are catch history outside the fitted window and are not fitted; an ",
+            "initial equilibrium catch is read from that year only under ",
             "initMode = 'FishedNonEquilibriumSelected'.")
     return(errors)
   }
@@ -2639,6 +2631,26 @@ data_check <- function(data_list) {
       "initial age structure decays at the mean fishery selectivity, so the ",
       "prediction would not match the population it is taken from."))
   }
+  # The equilibrium age structure N_eq is built only where the numbers-at-age are
+  # estimated. Under estDynamics 1 or 2 they are read from NByageFixed, N_eq stays
+  # zero, and the Baranov prediction is 0 -- so the lognormal takes log(0) and the
+  # objective is not finite. log_Finit is mapped out on such a species as well, so
+  # the row would be fitted by nothing even if the prediction were positive.
+  est_dyn <- suppressWarnings(as.integer(data_list[["estDynamics"]]))
+  if (length(est_dyn)) {
+    sp_i <- suppressWarnings(as.integer(fc[["Species"]][row_i]))
+    fixed <- which(!is.na(sp_i) & sp_i >= 1L & sp_i <= length(est_dyn) &
+                     !is.na(est_dyn[sp_i]) & est_dyn[sp_i] > 0L)
+    if (length(fixed)) {
+      errors <- c(errors, paste0(
+        "An initial equilibrium catch is on fleet(s) ",
+        paste(flt[fixed], collapse = ", "),
+        ", whose species has estDynamics > 0. Those numbers-at-age are read ",
+        "from 'NByageFixed', so there is no estimated equilibrium age structure ",
+        "for the catch to be taken from and Finit is not estimated. Remove the ",
+        "row, or estimate the dynamics for that species."))
+    }
+  }
   errors
 }
 
@@ -2661,13 +2673,20 @@ data_check <- function(data_list) {
     fc <- data_list$fleet_control
     # nlengths_pop is built by rearrange_data(), which runs after this, so the
     # grid is resolved here from the same helper rather than read off data_list.
-    npop <- tryCatch(.rce_pop_length_bins(data_list)$nlengths_pop,
-                     error = function(e) NULL)
+    # Report the grid's own refusal here rather than discarding it: a misaligned
+    # grid otherwise passes data_check() clean and is refused later by
+    # rearrange_data(), which is the failure data_check() exists to prevent.
+    grid <- tryCatch(.rce_pop_length_bins(data_list),
+                     error = function(e) conditionMessage(e))
+    if (is.character(grid)) return(c(errors, grid))
+    npop <- grid[["nlengths_pop"]]
     bin_indexed_forms <- c("NonParametric", "Hake", "2DAR1", "3DAR1",
                            "NonParametricPM", "NonParametricIntegrable")
     # Columns read as a bin ordinal on a length fleet. Bin_first_selected is
     # 1-based, so 1 names the first bin and needs no translation.
-    bin_cols <- c("N_sel_bins", "Sel_norm_bin", "Sel_norm_bin_upper",
+    # N_sel_bins is NOT here: it is read only by the bin-indexed forms, which
+    # `np_form` already names, and on a parametric fleet it is inert.
+    bin_cols <- c("Sel_norm_bin", "Sel_norm_bin_upper",
                   "Sel_pen_first_bin", "Sel_pen_last_bin", "Sel_cap_bin")
     # Each flag carries one entry per fleet even where the column is absent:
     # Bin_first_selected has no schema default, and a zero-length flag would
@@ -2679,8 +2698,6 @@ data_check <- function(data_list) {
                  as.character(col_or_na("Selectivity_dimension")) == "Length"
     np_form   <- .canon_switch(col_or_na("Selectivity"), sel_map) %in%
                    bin_indexed_forms
-    tv        <- as.character(col_or_na("Time_varying_sel"))
-    tv_on     <- !is.na(tv) & !(tv %in% c("0", "Off"))
     bfs       <- suppressWarnings(as.integer(col_or_na("Bin_first_selected")))
     names_bin <- !is.na(bfs) & bfs > 1L
     for (cl in intersect(bin_cols, names(fc))) {
@@ -2694,12 +2711,16 @@ data_check <- function(data_list) {
       if (is.na(sp) || is.null(npop) || sp > length(npop)) return(FALSE)
       isTRUE(npop[sp] != data_list$nlengths[sp])
     }, logical(1))
-    bad <- which(len_based & coarse & (np_form | tv_on | names_bin))
+    # A parametric curve is a function of centimetres: its time-varying deviates
+    # (sel_inf_dev, log_sel_slp_dev) are added to the parameter, not to a bin, so
+    # a finer grid leaves it unchanged. Only the bin-indexed forms -- whose
+    # sel_coff_dev IS per bin -- and a column naming a data bin are refused.
+    bad <- which(len_based & coarse & (np_form | names_bin))
     if (length(bad)) {
       errors <- c(errors, paste0(
         "Fleet(s) ", paste(as.character(fc$Fleet_name[bad]), collapse = ", "),
         " have a length-based selectivity that is indexed by bin -- a ",
-        "non-parametric or AR1 form, a time-varying deviation penalty, or a ",
+        "non-parametric or AR1 form, or a ",
         "column naming a bin (", paste(c("Bin_first_selected", bin_cols),
                                        collapse = ", "),
         ") -- on a species whose population length grid is finer than its data ",

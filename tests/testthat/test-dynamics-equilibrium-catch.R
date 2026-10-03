@@ -205,3 +205,33 @@ testthat::test_that("a non-positive equilibrium catch is refused", {
   e$catch_data$Catch[i] <- 0
   testthat::expect_error(fit3(e, 6), "must be positive")
 })
+
+# N_eq is built only inside `case 0` of the estDynamics switch
+# (src/TMB/ceattle.cpp, section 6). Under estDynamics 1 or 2 the numbers-at-age
+# come from NByageFixed, N_eq stays zero, and the Baranov prediction is 0 -- so
+# the lognormal takes log(0) and the objective is not finite. build_map() also
+# maps log_Finit out on such a species, so the row would be fitted by nothing
+# even if the prediction were positive. data_check() refuses it rather than
+# letting a non-finite objective be read as a bad optimum.
+testthat::test_that("an equilibrium catch on a fixed-dynamics species is refused", {
+  testthat::skip_if_not(exists("GOA2018SS"))
+  d <- Rceattle::GOA2018SS; d$initMode <- 6
+  cl <- suppressMessages(suppressWarnings(
+    Rceattle::clean_data(Rceattle::switch_check(d))))
+  testthat::skip_if(is.null(cl$equil_catch_data) || !nrow(cl$equil_catch_data))
+
+  # The species that owns an equilibrium-catch row.
+  sp <- cl$fleet_control$Species[
+    match(cl$equil_catch_data$Fleet_code[1], cl$fleet_control$Fleet_code)]
+  cl$estDynamics <- rep(0L, cl$nspp)
+  cl$estDynamics[sp] <- 1L
+  testthat::expect_error(
+    suppressMessages(suppressWarnings(Rceattle:::data_check(cl))),
+    "estDynamics")
+
+  # And it is the estDynamics value doing it, not the row: back to 0, no error
+  # from this check.
+  cl$estDynamics[sp] <- 0L
+  testthat::expect_no_error(
+    suppressMessages(suppressWarnings(Rceattle:::data_check(cl))))
+})

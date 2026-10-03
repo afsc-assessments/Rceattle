@@ -74,6 +74,35 @@ testthat::test_that("prior on DoubleNormal right_floor/inf_desc is rejected (log
   testthat::expect_silent(Rceattle:::.check_sel_linkage_support(lt, fc))
 })
 
+# Of DoubleNormalSS3's six slots only `dn_peak` is stored on its natural scale (a
+# length in cm). P2/P5/P6 hold logits and P3/P4 hold logs, so a prior family with
+# positive support is evaluated on the transformed value: lognormal on a negative
+# logit is NaN, and on `ascend_se` it is a prior on log(log(width)) rather than on
+# the width -- silently a different prior than the one written.
+testthat::test_that("a positive-support prior on a DoubleNormalSS3 logit/log slot is rejected", {
+  fc <- data.frame(Fleet_name = "F1", Selectivity = "DoubleNormalSS3",
+                   Selectivity_index = 1L, Fleet_code = 1L, stringsAsFactors = FALSE)
+  mk <- function(param, fam) data.frame(process = "sel", param = param, fleet = 1L,
+                                        prior_family = fam, stringsAsFactors = FALSE)
+  for (p in c("top_logit", "start_logit", "end_logit", "ascend_se", "descend_se")) {
+    for (fam in c("lognormal", "gamma", "beta")) {
+      testthat::expect_error(Rceattle:::.check_sel_linkage_support(mk(p, fam), fc),
+                             "transformed value", info = paste(p, fam))
+    }
+    # A normal prior on the stored value is well defined.
+    testthat::expect_silent(Rceattle:::.check_sel_linkage_support(mk(p, "normal"), fc))
+  }
+  # dn_peak is a length in cm, so a natural-scale family is correct there.
+  testthat::expect_silent(Rceattle:::.check_sel_linkage_support(mk("dn_peak", "lognormal"), fc))
+  # The form is read through the schema resolver, so an integer-coded workbook --
+  # which reaches the exported build_selectivity() path uncanonicalized -- gets
+  # the same refusal rather than "form (15) is not yet wired".
+  fc$Selectivity <- 15L
+  testthat::expect_error(Rceattle:::.check_sel_linkage_support(mk("end_logit", "lognormal"), fc),
+                         "transformed value")
+  testthat::expect_silent(Rceattle:::.check_sel_linkage_support(mk("dn_peak", "lognormal"), fc))
+})
+
 testthat::test_that("prior on a mirror fleet (shared Selectivity_index) is rejected", {
   fc <- data.frame(Fleet_name = c("F1", "F2"), Selectivity = c("Logistic", "Logistic"),
                    Selectivity_index = c(1L, 1L), Fleet_code = c(1L, 2L),
