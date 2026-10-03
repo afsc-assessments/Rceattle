@@ -31,20 +31,33 @@ verdict -- it already failed on `main` for an unrelated reason and dev additiona
 ageing-error validation. The sweep needs no compiled DLL, since both functions are pure R, so a
 `main` worktree with any `.so` dropped in will do.
 
-**Re-run for the 5.49.0 review** (2026-10-03), `dev` `527a4919` against the review tree, over
-every `.xlsx` under the four consumer repos: **0 newly broken, 0 newly passing, and not one
-workbook's verdict TEXT changed** on 375 files. That is the gate that matters for a `data_check()`
-change, and 5.49.0 adds two refusals and loosens two. Note the absolute counts from that run (17
-ok / 358 error) are **not** comparable to the 122 / 258 above: this sweep globbed every `.xlsx` in
-the trees, including report and output files with no `control` sheet, whereas the earlier figure
-came from a script that is not committed. Compare a sweep only with another sweep run the same
-way, which is the whole point of the paragraph above.
+**Re-run for the release review** (2026-10-03), **`main` 5.45.3 against `dev` 5.49.1** -- the
+comparison that actually matters before a release -- over every `.xlsx` under the four consumer
+repos: **0 newly broken, 0 newly passing, and not one workbook's verdict TEXT changed** on 375
+files. That is the gate for a `data_check()` change, and 5.49.0 added two refusals and loosened
+two.
+
+Classify the 375 before reading the headline, because the raw pass count understates the cover:
+
+| | count | what it means |
+|---|---|---|
+| no `control` / `fleet_control` sheet | 192 | not an Rceattle workbook at all -- SS3 output, reports. Tells you nothing |
+| reached `read_data()`/`data_check()` and was REFUSED | 166 | identical refusal text on both versions |
+| passed clean | 17 | the live assessments, incl. EBS pollock 2024, GOA pollock 2024/2025, GOA arrowtooth 2023, GOA Pacific cod 2024 (with CAAL), GOA northern rockfish 2022/2024, BSAI plaice 2021, BSAI POP 2024 |
+
+So **183 workbooks reach the validator and are verdict-identical**, and every live assessment
+workbook is in the 17 that pass. The absolute counts are still not comparable to the 122 / 258
+above -- that figure came from a script which is not committed, and this sweep globs every `.xlsx`
+in the trees. Compare a sweep only with another sweep run the same way.
 
 **The cheapest real API check is the NAMESPACE and the formals**, not a grep: diff `export(...)`
 between the two trees, then parse both trees' `R/` and compare each exported function's formal
-argument names. At 5.48.0 that was 90 exports either side with none removed or renamed, and the
-only signature change was `build_growth` GAINING `sd_form`, `plus_group_length`,
-`plus_group_decay`, `pop_lengths`. Nothing a consumer calls could break.
+argument names. Re-confirmed at **5.49.1** against `main` 5.45.3: `NAMESPACE` is byte-identical,
+90 exports either side with none removed or renamed, 89 of the 90 resolve by parsing, and there is
+exactly ONE signature change -- `build_growth()` GAINING `sd_form`, `plus_group_length`,
+`plus_group_decay`, `pop_lengths`, all appended with defaults, so no positional call can break.
+Nothing a consumer calls changed shape. This is the stronger of the two results, because it is
+insensitive to which workbooks happen to be on disk.
 
 ### `Climate_MSE`
 
@@ -177,8 +190,9 @@ positive-definite Hessian. The 5.32.1 column is measured on dev `cff500c7`.
 
 **Confirmed at 5.48.0** (2026-10-02): all four reproduce the 5.33.0 references to between 3.2e-09
 and 5.3e-07 absolute, 2.5e-10 relative at worst, and `run_mse()` ran end to end for both sims.
-**Re-run at 5.49.0** after the release review: every one of the four reproduces the 5.48.0 column
-to all 16 digits, as do both vulnerabilities, so none of that pass's fixes reaches this model --
+**Re-run at 5.49.0 and again at 5.49.1** after the release review: every one of the four reproduces
+the 5.48.0 column to all 16 digits at both versions, as do both vulnerabilities, so none of that
+pass's fixes reaches this model --
 which is the point of running it, since hake is the only routine exercise of three-species
 predation with estimated suitability and the only model here with `estDynamics > 0`, the
 configuration 5.49.0's new equilibrium-catch refusal names.
