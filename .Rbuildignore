@@ -22,7 +22,6 @@
 ^dev$
 ^tools/verify$
 ^data-raw$
-^src/TMB/Dev$
 ^src/TMB/Depricated$
 ^vignettes/.*[.]pptx$
 ^vignettes/articles$

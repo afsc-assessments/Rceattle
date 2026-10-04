@@ -198,26 +198,6 @@ print.summary.Rceattle <- function(x, n = 10, ...) {
 }
 
 
-# Save and restore graphics par() in the caller frame.
-#
-# Plotting functions in Rceattle modify graphics state with par(...) but
-# do not own the user's device. Calling .save_par() at the top of each
-# plot function snapshots par() and registers an on.exit() handler in
-# the caller so the user's device is restored even on error.
-#
-# Implementation note: do.call("on.exit", ..., envir = parent.frame())
-# attaches the on.exit hook to the caller, not to .save_par() itself.
-.save_par <- function() {
-  oldpar <- graphics::par(no.readonly = TRUE)
-  do.call(
-    "on.exit",
-    list(substitute(graphics::par(oldpar)), add = TRUE),
-    envir = parent.frame()
-  )
-  invisible(oldpar)
-}
-
-
 #' Plot method for fitted Rceattle models
 #'
 #' Thin S3 dispatcher around the package's existing `plot_*()` functions

@@ -11,11 +11,15 @@ Three tiers: a **known defect** is a wrong answer waiting for the right input an
 GitHub issue; a **design note** is a wish, not a bug; `TODO(review)` is a deliberate convention
 marking a judgement call for Grant, and is never resolved by an agent.
 
-57 remain as of 5.41.0 (this file's own consolidation removed the 58th, a bare
-`# TODO update` in `R/8-sim_mod.R`). Counts by area: `src/TMB/ceattle.cpp` 23 ·
-`src/TMB/predation.hpp` 5 · `src/TMB/Dev/caal.hpp` 5 · `R/10-run_mse.R` 4 ·
+**47 remain**, re-derived with the command below rather than carried forward — the old running
+total had drifted. The chain: 57 at 5.41.0, **56** on `dev` at 5.49.1 (`b066015f`), then **−7** for
+`src/TMB/Dev/` and **−2** for the Kinzey & Punt blocks, both deleted as dead code
+(`REMOVED-kinzey-and-dev-cpp.md`). Note `src/TMB/Dev/` held 7 markers, not the 5 this file
+previously attributed to `caal.hpp` alone.
+Counts by area: `src/TMB/ceattle.cpp` 23 ·
+`src/TMB/predation.hpp` 5 · `R/10-run_mse.R` 4 ·
 `R/3-build_map.R` 3 · `R/9-retro_and_jitter.R` 3 · `R/0-rceattle_class.R` 3 ·
-`src/TMB/growth.hpp` 2 · rest 1–2. Re-derive with
+`R/6-fit_mod.R` 2 · `src/TMB/growth.hpp` 1 · rest 1. Re-derive with
 `grep -rnE 'TODO|FIXME' R/ src/TMB/ | grep -v 'todo <-' | grep -v 'TODO-'` -- the `-E` is
 needed for the alternation, the first filter drops a variable in `R/6-process_residuals.R`, and
 the second drops pointers to `inst/dev/TODO-*.md` notes, which are not markers.

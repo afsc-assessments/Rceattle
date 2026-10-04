@@ -436,17 +436,7 @@ build_params <- function(data_list) {
   param_list$diet_comp_weights = data_list$Diet_comp_weights
   names(param_list$diet_comp_weights) <- paste0("Pred: ", data_list$spnames)
 
-  # # * 3.2. Kinzery predation function parameters ----
-  # param_list$logH_1 = matrix(-8.5, nrow = data_list$nspp, ncol = data_list$nspp + 1)  # Predation functional form
-  # param_list$logH_1a = rep(-3, data_list$nspp)  # Age adjustment to H_1; n = [1, nspp]; # FIXME: make matrix
-  # param_list$logH_1b = rep(0, data_list$nspp)  # Age adjustment to H_1; n = [1, nspp]; # FIXME: make matrix
-  #
-  # param_list$logH_2 = matrix(-9, nrow = data_list$nspp, ncol = data_list$nspp)  # Predation functional form; n = [nspp, nspp]
-  # param_list$logH_3 = matrix(-9, nrow = data_list$nspp, ncol = data_list$nspp)  # Predation functional form; n = [nspp, nspp]; bounds = LowerBoundH3,UpperBoundH3;
-  # param_list$H_4 = matrix(1, nrow = data_list$nspp, ncol = data_list$nspp)  # Predation functional form; n = [nspp, nspp]; bounds = LowerBoundH4,UpperBoundH4;
-  #
-  #
-  # * 3.3. Suitability parameters ----
+  # * 3.2. Suitability parameters ----
   param_list$log_gam_a = rep(0.5, data_list$nspp)  # Log predator selectivity;
   names(param_list$log_gam_a) = paste0("Pred: ", data_list$spnames)
 
@@ -454,7 +444,7 @@ build_params <- function(data_list) {
   names(param_list$log_gam_b) = paste0("Pred: ", data_list$spnames)
 
 
-  # * 3.4. Preference parameters ----
+  # * 3.3. Preference parameters ----
   param_list$log_phi = matrix(0.5, data_list$nspp, data_list$nspp,
                               dimnames = list(paste0("Pred: ", data_list$spnames), paste0("Prey: ", data_list$spnames)))
 
