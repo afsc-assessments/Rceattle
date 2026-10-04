@@ -235,3 +235,109 @@ test_that("the README pins the version in DESCRIPTION", {
   expect_gt(length(pins), 0)
   expect_equal(unique(sub("^Rceattle@", "", pins)), ver)
 })
+
+
+# The developer guide's file map claims to cover every file in R/, one row
+# each. A map that silently stops covering a new file is worse than no map: a
+# reader trusts it and concludes the file does not exist. And a map whose rows
+# are merely PRESENT is not enough -- an earlier version of this guard matched
+# filenames anywhere in the document, which let three mutations through:
+# deleting the `data.R` row (its name is a substring of six others), swapping
+# two descriptions, and emptying every description cell. So these tests anchor
+# on the table row itself, and check the description says something about the
+# file it names.
+.dg_file_rows <- function(root) {
+  g <- readLines(file.path(root, "vignettes", "articles",
+                           "developer-guide.Rmd"), warn = FALSE)
+  h <- grep("^## Every file in", g)
+  if (!length(h)) return(NULL)
+  nxt <- grep("^## ", g)
+  nxt <- nxt[nxt > h[1]][1]
+  sec <- g[h[1]:(nxt - 1L)]
+  m <- regmatches(sec, regexec("^\\| `([^`]+\\.R)` \\| (.+?) \\|\\s*$", sec))
+  m <- Filter(function(x) length(x) == 3L, m)
+  stats::setNames(vapply(m, `[`, character(1), 3L),
+                  vapply(m, `[`, character(1), 2L))
+}
+
+test_that("the developer guide has one file-map row per file in R/", {
+  root <- .docs_root()
+  rows <- .dg_file_rows(root)
+  testthat::expect_false(is.null(rows))
+
+  files <- basename(list.files(file.path(root, "R"), pattern = "[.]R$"))
+  expect_gt(length(files), 50)   # not vacuous on an empty R/
+
+  expect_setequal(names(rows), files)
+  # One row each: a duplicated row would make setequal pass but the map
+  # ambiguous.
+  expect_equal(length(rows), length(files))
+
+  # A row present but empty, or a placeholder, is a map that lies by omission.
+  short <- names(rows)[nchar(trimws(rows)) < 20L]
+  expect_true(
+    length(short) == 0L,
+    info = paste("file-map rows with no real description:",
+                 paste(short, collapse = ", ")))
+})
+
+# NOT checked here, deliberately: whether a description is CORRECT. Word
+# overlap between a row and the file it names was tried and rejected -- the
+# large files (6-fit_mod.R, 0-column_schema.R) mention nearly every concept, so
+# 17 of 67 accurate descriptions scored higher against some other file than
+# against their own, and a guard that fires on correct rows trains people to
+# ignore it. Swapping two descriptions between adjacent topics therefore passes
+# these tests. That one is on review, and it is why both reviewers of the
+# original map read every row against the code.
+
+# The converse: a filename the guide names that no longer exists sends a reader
+# to a file that is not there. test-plot-smoke.R carried two function names for
+# functions that had never existed, so this class of staleness is real here.
+test_that("every R/ filename the developer guide names exists", {
+  root <- .docs_root()
+  guide <- readLines(file.path(root, "vignettes", "articles",
+                               "developer-guide.Rmd"), warn = FALSE)
+  files <- basename(list.files(file.path(root, "R"), pattern = "[.]R$"))
+  tests <- basename(list.files(file.path(root, "tests", "testthat"),
+                               pattern = "[.]R$"))
+  raw <- basename(list.files(file.path(root, "data-raw"), pattern = "[.]R$"))
+  known <- c(files, tests, raw, "compile.R")
+
+  mentioned <- unique(unlist(regmatches(
+    guide, gregexpr("[0-9A-Za-z._-]+[.]R\\b", guide))))
+  expect_gt(length(mentioned), 20)
+  expect_true(all(mentioned %in% known),
+              info = paste("named in the guide but absent:",
+                           paste(setdiff(mentioned, known), collapse = ", ")))
+})
+
+# Symbol anchors, not just filenames. The guide told readers to find
+# `switch (sel_type)` in selectivity.hpp for three releases; the switch is on
+# `sel_case`, and the string the guide gave appears nowhere in the file. The
+# filename guards above could not see that, because the filename was right.
+test_that("every C++ switch the developer guide names exists in that file", {
+  root <- .docs_root()
+  guide <- paste(readLines(file.path(root, "vignettes", "articles",
+                                     "developer-guide.Rmd"), warn = FALSE),
+                 collapse = "\n")
+
+  # `switch (var)` quoted in the guide, and the .hpp/.cpp named near it.
+  switches <- unique(unlist(regmatches(
+    guide, gregexpr("switch \\(([A-Za-z_][A-Za-z_0-9]*)\\)", guide))))
+  vars <- unique(sub("^switch \\((.*)\\)$", "\\1", switches))
+  # `sel_type` is quoted once as the name that is NOT the switch; allow it.
+  vars <- setdiff(vars, "sel_type")
+  expect_gt(length(vars), 0)
+
+  src <- paste(unlist(lapply(
+    list.files(file.path(root, "src", "TMB"), pattern = "[.](hpp|cpp)$",
+               full.names = TRUE),
+    readLines, warn = FALSE)), collapse = "\n")
+
+  missing <- vars[!vapply(vars, function(v)
+    grepl(paste0("switch\\s*\\(\\s*", v), src), logical(1))]
+  expect_true(
+    length(missing) == 0L,
+    info = paste0("the guide names a C++ switch that does not exist in ",
+                  "src/TMB/: ", paste(missing, collapse = ", ")))
+})
