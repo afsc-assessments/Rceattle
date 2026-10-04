@@ -628,9 +628,10 @@
 #'
 #' The write-back copies by row position: `rearrange_data()` builds each `*_obs`
 #' matrix straight from its data frame, so row `i` of one is row `i` of the
-#' other. Editing `data_list` after the fit breaks that. The old R draw handed
-#' the mismatched vectors to `rnorm()`, which recycles the shorter one silently
-#' and returns a full-length wrong answer; fail instead.
+#' other. Editing `data_list` after the fit breaks that, so a length mismatch is
+#' refused here rather than at the assignment below: `$<-` recycles silently
+#' when the draw's length divides the row count, writing a wrong observation
+#' into every row, and only errors when it does not divide.
 #'
 #' @param n_sim Rows the model returned.
 #' @param n_dat Rows of the data frame being written.
@@ -674,9 +675,9 @@
 #' Warn when a simulated observation is one the model cannot be refit on
 #'
 #' A non-finite or negative draw is not quietly dropped: `data_check()` rejects
-#' it, the refit errors, and `self_test()` counts the replicate as not converged
-#', which reads as a convergence problem rather than a data one. The usual
-#' cause is an observation standard deviation that never got a value
+#' it, the refit errors, and `self_test()` counts the replicate as not
+#' converged, which reads as a convergence problem rather than a data one. The
+#' usual cause is an observation standard deviation that never got a value
 #' (`Estimate_catch_sd = 1` with `Catch_sd` blank gives `exp(log(NA))`), or, for a
 #' natural-scale survey draw, observation error large relative to the index.
 #'

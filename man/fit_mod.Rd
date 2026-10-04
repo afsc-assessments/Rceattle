@@ -117,11 +117,11 @@ defaults of each field.}
 \code{NULL} (default) applies no configuration. See Details for what it overlays.}
 
 \item{quiet_data_check}{Drop the warnings the fit-time validation raises (errors still
-stop the fit). \code{FALSE} (default) for an ordinary fit. The diagnostic refits
-, \code{\link[=retrospective]{retrospective()}}, \code{\link[=jitter]{jitter()}}, \code{\link[=self_test]{self_test()}}, \code{\link[=profile]{profile()}}, \code{\link[=run_mse]{run_mse()}},
-\code{\link[=remove_F]{remove_F()}}, \code{\link[=sample_rec]{sample_rec()}}, \code{\link[=reweight_comps]{reweight_comps()}}, set it, since they
-re-validate a \code{data_list} the caller has already fitted once and would
-otherwise repeat the same warnings per peel, jitter, or MSE iteration.
+stop the fit). \code{FALSE} (default) for an ordinary fit. The diagnostic
+refits, \code{\link[=retrospective]{retrospective()}}, \code{\link[=jitter]{jitter()}}, \code{\link[=self_test]{self_test()}}, \code{\link[=profile]{profile()}},
+\code{\link[=run_mse]{run_mse()}}, \code{\link[=remove_F]{remove_F()}}, \code{\link[=sample_rec]{sample_rec()}}, \code{\link[=reweight_comps]{reweight_comps()}}, set it,
+since they re-validate a \code{data_list} the caller has already fitted, and
+would otherwise repeat those warnings per peel, jitter, or MSE iteration.
 Also drops a linkage filter's "has no effect" warning; a filter that
 drops its whole spec still warns. Convergence and TMB warnings are unaffected.}
 
@@ -172,9 +172,8 @@ estimation controls (\code{estimateMode}, \code{random_rec} / \code{random_q} /
 arguments you did not pass, so an explicit argument always wins. The stored
 \code{model_config} is merged into the data object's \strong{field by field}, not
 wholesale: only the fields the config actually set are imposed, and the data
-object keeps the rest. Since 5.36.0 a config built with \code{\link[=model_config]{model_config()}}
-therefore no longer drops the linkages held on the data object, which it
-did when the whole structure was replaced. Where a field is set on both and
+object keeps the rest, so a config built with \code{\link[=model_config]{model_config()}} keeps the
+linkages held on the data object. Where a field is set on both and
 the two disagree, the config's value is used and the difference is reported
 as a warning naming the field. A config written before that field record
 existed is treated as having set its non-default fields.

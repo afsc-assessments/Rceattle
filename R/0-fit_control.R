@@ -244,7 +244,7 @@ fit_control <- function(
 #' move from the full-model fit and Mohn's rho is biased towards zero. Keying on
 #' the value would mean `fit_control(getsd = FALSE)`, a request about standard
 #' errors, silently un-phasing every peel, while `fit_control(getsd = TRUE)`
-#' did nothing at all. Keying on the name gives each field exactly what was
+#' would do nothing at all. Keying on the name gives each field exactly what was
 #' asked for and nothing else.
 #'
 #' @param fit_control a `fit_control()` object, or `NULL`.

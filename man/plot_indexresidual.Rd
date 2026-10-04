@@ -58,7 +58,6 @@ means the survey saw more than the model predicted. Panels hold different
 units where a model mixes the two families, which is why the y scale is free
 per fleet.
 
-Before 5.9.0 this plotted \code{predicted - observed}, the negative of what
-\code{\link[=residuals.Rceattle]{residuals.Rceattle()}} returns for the same fleet. Plots made with an earlier
-version are mirrored about zero relative to these.
+Index residual figures made before 5.9.0 are mirrored about zero relative to
+these, so a figure carried forward from one needs redrawing (see \code{NEWS.md}).
 }

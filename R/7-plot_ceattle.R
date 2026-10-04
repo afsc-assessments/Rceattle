@@ -795,9 +795,9 @@ plot_selectivity <-
     sp_sel  <- .resolve_species(models, species, spnames)
     keep_sp <- sp_sel$index
 
-    # Every model contributes: reading only the first silently dropped the rest
-    # of an overlay. Each is read with its own fleet_control and dimensions,
-    # since a comparison run may differ in both.
+    # Every model contributes, so an overlay draws all of them. Each is read
+    # with its own fleet_control and dimensions, since a comparison run may
+    # differ in both.
     se_list <- if (isTRUE(add_ci)) se_all else vector("list", length(models))
 
     df_list <- list()

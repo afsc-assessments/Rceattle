@@ -103,7 +103,8 @@ which are drawn once per replicate before the first assessment, and each
 assessment's observation draw is seeded on that assessment's own year rather
 than on wherever earlier assessments left the stream. So an assessment in
 year \code{Y} starts from the same place in every schedule that assesses \code{Y}, and
-a divergence at one assessment no longer displaces every assessment after it.
+a divergence at one assessment does not displace the random-number stream
+the later assessments draw from.
 
 Common random numbers are not complete, and the gap is worth knowing before
 designing a comparison. One \code{sim_mod()} call draws every year in the

@@ -907,8 +907,9 @@ residuals.Rceattle <- function(object, type = "response", source = "all",
 #'
 #' `switch_check()` upgrades an alias in place at build time, but a fit SAVED
 #' before a rename still holds the old spelling, and a fresh `residuals()`
-#' call on one would otherwise find nothing and fall back to the schema default
-#', the same silent wrong-family failure the canonical lookup exists to avoid.
+#' call on one would otherwise find nothing and fall back to the schema
+#' default -- the same silent wrong-family failure the canonical lookup exists
+#' to avoid.
 #' Works on a `fleet_control` data frame and on the `data_list` itself, both
 #' being `[[`-indexable.
 #'

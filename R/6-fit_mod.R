@@ -145,11 +145,11 @@
 #'   [run_config()] whose stored settings overlay the ones you did not pass;
 #'   `NULL` (default) applies no configuration. See Details for what it overlays.
 #' @param quiet_data_check Drop the warnings the fit-time validation raises (errors still
-#'   stop the fit). `FALSE` (default) for an ordinary fit. The diagnostic refits
-#', [retrospective()], [jitter()], [self_test()], [profile()], [run_mse()],
-#'   [remove_F()], [sample_rec()], [reweight_comps()], set it, since they
-#'   re-validate a `data_list` the caller has already fitted once and would
-#'   otherwise repeat the same warnings per peel, jitter, or MSE iteration.
+#'   stop the fit). `FALSE` (default) for an ordinary fit. The diagnostic
+#'   refits, [retrospective()], [jitter()], [self_test()], [profile()],
+#'   [run_mse()], [remove_F()], [sample_rec()], [reweight_comps()], set it,
+#'   since they re-validate a `data_list` the caller has already fitted, and
+#'   would otherwise repeat those warnings per peel, jitter, or MSE iteration.
 #'   Also drops a linkage filter's "has no effect" warning; a filter that
 #'   drops its whole spec still warns. Convergence and TMB warnings are unaffected.
 #' @param ... Deprecated optimizer / sdreport / phasing arguments
@@ -179,9 +179,8 @@
 #' arguments you did not pass, so an explicit argument always wins. The stored
 #' `model_config` is merged into the data object's **field by field**, not
 #' wholesale: only the fields the config actually set are imposed, and the data
-#' object keeps the rest. Since 5.36.0 a config built with [model_config()]
-#' therefore no longer drops the linkages held on the data object, which it
-#' did when the whole structure was replaced. Where a field is set on both and
+#' object keeps the rest, so a config built with [model_config()] keeps the
+#' linkages held on the data object. Where a field is set on both and
 #' the two disagree, the config's value is used and the difference is reported
 #' as a warning naming the field. A config written before that field record
 #' existed is treated as having set its non-default fields.
@@ -817,14 +816,13 @@ fit_mod <-
              "build_catchability() / build_selectivity() / build_composition(), ",
              "pass the matching qFun / selFun / compFun.", call. = FALSE)
       }
-      # Drop anything the model no longer has a parameter for, in skeleton
-      # order. `inits` from an older fit can carry a retired block (e.g.
-      # log_growth_par_devs, removed in 5.9.0). MakeADFun drops names the
+      # Keep only the parameters the template declares, in skeleton order.
+      # `inits` from an older fit can carry a retired block (e.g.
+      # log_growth_par_devs, retired in 5.9.0). MakeADFun ignores names the
       # template does not declare, but build_map() runs on start_par first and
-      # produces a map entry per element, so the stale name reached MakeADFun
-      # through the map and stopped with "Names in map must correspond to
-      # parameter names" -- a refit that failed on a parameter the model no
-      # longer has. Extra names are dropped silently because they are inert by
+      # produces a map entry per element, so a stale name would reach MakeADFun
+      # through the map and stop with "Names in map must correspond to parameter
+      # names". Extra names are dropped silently because they are inert by
       # definition; a MISSING one is the error above.
       start_par <- start_par[names(.skel)]
       rm(.skel, .missing, .shared, .badlen)

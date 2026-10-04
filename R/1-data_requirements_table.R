@@ -2,13 +2,12 @@
 # Declarative data-requirement table
 # =============================================================================
 #
-# `data_check()` historically hard-coded, at scattered sites, the *conditional
-# presence requirements* of the ~40-element Rceattle data list: e.g. "diet_data
-# is required when msmMode > 0", "NByageFixed is required when estDynamics > 0".
-# Those conditions are exactly what a user needs to know up front, and what
-# `data_requirements()` reports and `build_data()` pre-checks. Rather than let
-# the same condition live in three places (drifting apart over time), it lives
-# once here, and both `data_check()` and `data_requirements()` *consume* it.
+# The *conditional presence requirements* of the ~40-element Rceattle data
+# list: e.g. "diet_data is required when msmMode > 0", "NByageFixed is required
+# when estDynamics > 0". Those conditions are exactly what a user needs to know
+# up front, and what `data_requirements()` reports and `build_data()`
+# pre-checks. So each condition lives once, here, and `data_check()` and
+# `data_requirements()` both *consume* it rather than restating it.
 #
 # Scope, deliberately narrow: this table drives only the **pure
 # presence-requirement** gates in `data_check()`. Dimension / value /

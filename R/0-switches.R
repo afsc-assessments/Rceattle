@@ -443,7 +443,7 @@ index_distribution_map <- c(
 #' An index is a property of the data, not of the fleet type: the model scores
 #' an `index_data` row for any fleet that is not `Off`, so a fishery with a CPUE
 #' series is fitted like a survey, on that fleet's own selectivity. Selecting on
-#' `Fleet_type == "Survey"` instead is what left such a fleet with its
+#' `Fleet_type == "Survey"` instead would leave such a fleet with its
 #' catchability frozen and its index absent from `plot_index()`.
 #'
 #' @param data_list A `data_list` holding `fleet_control` and `index_data`.
