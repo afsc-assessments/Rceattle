@@ -42,7 +42,14 @@
 #' implementation the definition matches.
 #'
 #' @param object A fitted Rceattle model (the full time series).
-#' @param peels Number of peels. Passed to [retrospective()].
+#' @param peels Which peels to fit. Passed to [retrospective()], so a single
+#'   number `n` means every peel from 1 to `n`, and a vector names the depths
+#'   exactly. `peels = 3:10` is the useful form here: it drops the one- and
+#'   two-year PEELS, whose own MASE is dominated by its denominator (see
+#'   Details), and costs two fewer model fits. Note it does not drop the one-
+#'   and two-year HORIZONS -- every peel still contributes `years_ahead` 1 and 2
+#'   rows, because the thin denominator is a property of peel depth, not of
+#'   horizon. Ignored when `retro` is supplied.
 #' @param quantity Quantities to score against the full model. Any of `"ssb"`,
 #'   `"biomass"`, `"R"`. Ignored when `reference = "observed"`.
 #' @param reference What to score the projection against.
@@ -131,7 +138,7 @@ hindcast_skill <- function(object = NULL, peels = 5,
   ml <- retro$Rceattle_list
   if (length(ml) < 2L) {
     stop("No peel survived, so there is nothing to score. Inspect ",
-         "retrospective(..., peels = 1) and read its $convergence.",
+         "retrospective(..., peels = c(1, 1)) and read its $convergence.",
          call. = FALSE)
   }
   peel_models <- ml[-length(ml)]

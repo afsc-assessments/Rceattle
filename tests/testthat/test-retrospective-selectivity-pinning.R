@@ -213,15 +213,27 @@ testthat::test_that("retained years are never touched", {
   testthat::expect_true(all(!is.na(m$mapList$rec_dev[, seq_len(KEEP)])))
 })
 
-testthat::test_that("a fit predating random_vars warns and pins everything", {
+# NULL (unrecorded) and character(0) (recorded, and there were none) pin the
+# same deviations -- the map has no third option -- but they are NOT the same
+# situation, and only the first is worth telling anyone about. The warning lives
+# in retrospective(), raised once before the peels are dispatched, because a
+# warning raised in here is discarded by the parallel worker that runs the peel;
+# see test-functions-retrospective.R. This helper stays silent for both.
+testthat::test_that("an unrecorded or empty random_vars pins everything, silently", {
   NYRS <- 10L; KEEP <- 6L; PEEL <- (KEEP + 1L):NYRS
-  testthat::expect_warning(
-    m <- Rceattle:::.rce_peel_map(
-      fake_map(n_flt = 1L, nyrs = NYRS), random_vars = NULL,
-      fleet_control = fc_of("Hake"),
-      nyrs_peel = KEEP, nyrs = NYRS, nyrs_proj = NYRS + 2L),
-    "does not record which blocks were random effects")
-  testthat::expect_true(all(is.na(m$mapList$sel_coff_dev[, , , PEEL])))
+  call_with <- function(rv) Rceattle:::.rce_peel_map(
+    fake_map(n_flt = 1L, nyrs = NYRS), random_vars = rv,
+    fleet_control = fc_of("Hake"),
+    nyrs_peel = KEEP, nyrs = NYRS, nyrs_proj = NYRS + 2L)
+
+  m_null <- testthat::expect_no_warning(call_with(NULL))
+  m_none <- testthat::expect_no_warning(call_with(character(0)))
+
+  testthat::expect_true(all(is.na(m_null$mapList$sel_coff_dev[, , , PEEL])))
+  testthat::expect_true(all(is.na(m_null$mapList$rec_dev[, PEEL])))
+  # The two agree block for block, so nothing downstream has to distinguish them.
+  testthat::expect_equal(m_null$mapList, m_none$mapList)
+  testthat::expect_equal(m_null$mapFactor, m_none$mapFactor)
 })
 
 testthat::test_that("a selectivity block whose fleet dimension disagrees is an error", {

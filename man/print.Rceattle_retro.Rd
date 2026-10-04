@@ -27,6 +27,14 @@ argument rather than a constant.
 Only the terminal-year peel (\verb{Forecast year} 0) is judged. The forecast-skill
 rows are reported for information: a rho computed over a forecast horizon is
 not the quantity the +/- 0.2 rule was calibrated on.
+
+A rho averaged over a SUBSET of peels is not the quantity the band was
+calibrated on either. The band assumes the standard contiguous set, and a
+deep-peel-only relative error is systematically larger in magnitude than the
+average over \code{1:n} in any model with real retrospective bias, so the
+false-pass rate moves with the depth set. Whenever
+\code{retrospective(peels = )} was given anything but \code{1:n}, the depths are
+printed and the verdict carries a \code{NOTE}.
 }
 \references{
 Hurtado-Ferro, F., et al. 2015. Looking in the rear-view mirror:

@@ -6,7 +6,19 @@
 #' 3. Turns off all hindcast parameters, turns on F for the peeled years, and fits to the peeled catch series to update the "forecast" dynamics given projection assumptions and observed catch from the peeled years.
 #'
 #' @inheritParams rceattle-refit-args
-#' @param peels the number of retrospective peels to use in the calculation of rho and for model estimation
+#' @param peels which retrospective peels to fit. A single number `n` fits every
+#'   peel from 1 to `n`, as it always has. A VECTOR instead fits exactly the peel
+#'   depths named, so `peels = 2:10` skips the one-year peel and `peels = c(1, 5,
+#'   10)` fits three. Each element is a number of years removed from `endyr`, not
+#'   a year. Depths are sorted and de-duplicated, so the returned list runs
+#'   deepest-first whatever order they are given in. Mohn's rho is averaged over
+#'   whichever peels are fitted, so a subset changes the number it reports --
+#'   a rho from `peels = 2:10` is not comparable to one from `peels = 10`.
+#'
+#'   `peels = 5` and `peels = c(5)` are the same object in R, so a length-1
+#'   value always means 1:5 and one depth on its own cannot be written that way.
+#'   Name it twice -- `peels = c(5, 5)` de-duplicates to the 5-year peel alone --
+#'   when you want to inspect a single peel without paying for the shallower ones.
 #' @param rescale TRUE/FALSE whether to subset and rescale environmental predictors for the range of peel years.
 #' @param nyrs_forecast Number of forecast years to calculate Mohn's Rho in addition to terminal year
 #' @param forecast_rec How the peeled years get their recruitment. `"mean"`
@@ -43,11 +55,13 @@
 #'   each species.
 #'
 #'   A peel that did not converge is dropped, so \code{Rceattle_list} can be
-#'   shorter than \code{peels + 1} (a message reports how many). Each entry is
-#'   named for its own terminal year (\code{Year_2017}, ...) rather than by
-#'   position, so index it by name -- \code{Rceattle_list[[3]]} is not
-#'   necessarily the 3-year peel. With no peel left, Mohn's rho is \code{NaN}
-#'   and the function warns.
+#'   shorter than one plus the number of peels asked for (a message reports how
+#'   many); \code{peels_requested} is that number and \code{peel_depths} the
+#'   depths themselves. Each entry is named for its own terminal year
+#'   (\code{Year_2017}, ...) rather than by position, so index it by name --
+#'   \code{Rceattle_list[[3]]} is not necessarily the 3-year peel, and with a
+#'   subset such as \code{peels = 2:10} it never is. With no peel left, Mohn's
+#'   rho is \code{NaN} and the function warns.
 #'
 #'   Each peel reports its own terminal year as \code{data_list$endyr}, so plots
 #'   draw it only as far as it was fit and the peels fan out.
@@ -152,6 +166,73 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
   projyr <- object$data_list$projyr
   nyrs_proj <- projyr - styr + 1
 
+  # Which peel depths to fit. A scalar `n` keeps the historical meaning, 1:n;
+  # a vector names the depths exactly, so a caller can skip the shallow peels
+  # whose one- and two-year forecasts say more about the MASE denominator than
+  # about the projection (see hindcast_skill()). Validate here rather than let a
+  # bad value reach run_one_peel(): `endyr - i` would silently build a model
+  # ending before styr, or `(endyr_peel + 1):endyr` would count DOWN and fit the
+  # retained years as a forecast.
+  # `is.finite`, not just `anyNA`: Inf passes the whole-number check below
+  # (`Inf != round(Inf)` is FALSE), then as.integer() turns it into NA and the
+  # `< 1` test becomes `if (NA)`. So `peels = 1e10` -- a plausible typo -- used
+  # to surface as a coercion warning plus "missing value where TRUE/FALSE
+  # needed" rather than any of the messages here. A matrix is refused for the
+  # same reason: as.integer() drops its `dim` and it would run as a vector.
+  if (!is.numeric(peels) || length(peels) == 0L || !all(is.finite(peels)) ||
+      !is.null(dim(peels))) {
+    stop("`peels` must be a positive whole number, or a plain vector of peel ",
+         "depths; got ",
+         if (length(peels) == 0L) "an empty value"
+         else if (!is.null(dim(peels)))
+           paste0("a ", paste(dim(peels), collapse = "x"), " ", class(peels)[1])
+         else paste0("a ", class(peels)[1], " of length ", length(peels),
+                     # Both clauses guarded on is.numeric(): `is.finite()` has
+                     # no list method and errors outright, and on a character or
+                     # raw it returns FALSE for every element, which read as
+                     # "containing Inf" on a plain `peels = "3"`.
+                     if (is.numeric(peels) && anyNA(peels)) " containing NA"
+                     else if (is.numeric(peels) && !all(is.finite(peels)))
+                       " containing Inf"
+                     else ""), ".",
+         call. = FALSE)
+  }
+  if (any(peels != round(peels))) {
+    stop("`peels` must be whole numbers of years: got ",
+         paste(peels[peels != round(peels)], collapse = ", "), ".", call. = FALSE)
+  }
+  peels <- round(peels)
+  # Both range checks run on the DOUBLES, before as.integer(). A finite value
+  # above .Machine$integer.max -- `peels = 1e10`, the same typo -- coerces to NA
+  # with only a coercion warning, and every test after that reads `if (NA)`.
+  # The depth bound rejects it for what it is instead, since `max(peels)` is the
+  # same number whether `peels` is a scalar `n` (whose deepest peel is n) or a
+  # vector of depths.
+  if (any(peels < 1)) {
+    stop("`peels` must be at least 1: a depth of 0 is the unpeeled model, ",
+         "which is already returned. Got ",
+         paste(sort(unique(peels[peels < 1])), collapse = ", "), ".",
+         call. = FALSE)
+  }
+  # Leave at least two years fitted. One year cannot inform a selectivity or a
+  # recruitment deviation, so the peel would not be a shallower version of the
+  # same model -- the comparison Mohn's rho rests on.
+  if (max(peels) > endyr - styr - 1L) {
+    stop("`peels` asks for a ", format(max(peels), scientific = FALSE),
+         "-year peel, but the model spans ", styr, ":", endyr, " (", nyrs,
+         " years); ",
+         # On a 2-year model the bound is 0, and "the deepest peel is 0" would
+         # contradict the >= 1 rule two checks up. Such a model cannot be peeled.
+         if (endyr - styr - 1L < 1L)
+           "a model this short cannot be peeled at all and leave two years fitted."
+         else paste0("the deepest peel that leaves two years fitted is ",
+                     endyr - styr - 1L, "."),
+         call. = FALSE)
+  }
+  peels <- as.integer(peels)
+  if (length(peels) == 1L) peels <- seq_len(peels)
+  peel_seq <- sort(unique(peels))
+
   # Cross-platform parallel via parallel::parLapply on a PSOCK cluster
   # (same approach as run_mse). Respect the CRAN core limit
   # ('_R_CHECK_LIMIT_CORES_' is set during R CMD check;
@@ -164,7 +245,89 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
     cores <- max(1L, as.integer(cores))
     if (cran_cap) cores <- min(cores, 2L)
   }
-  use_parallel <- peels > 1L && cores > 1L
+  use_parallel <- length(peel_seq) > 1L && cores > 1L
+
+  #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
+  # Once-per-call warnings ----
+  # Both conditions read only the input model, so they are settled here rather
+  # than inside run_one_peel(). Gating them on the peel index got both wrong
+  # twice over: `peels = 2:10` never reaches peel 1 and lost them silently, and
+  # a PSOCK worker's warning is discarded, so under the default `cores` they
+  # never surfaced at all. The second of them is the one that says a DSEM
+  # comparison is not actually comparing anything, which is the worst of these
+  # to lose.
+  #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
+  # A fixed-effect linkage covariate may not be NA -- materialize_linkage()
+  # rejects one, because model.matrix() would drop the row and misalign the
+  # design -- so a peel keeps its post-peel values and Mohn's rho is
+  # conditional on that covariate being known. Checked against the DEEPEST peel,
+  # which is the one with the MOST post-peel rows: a deeper peel has a smaller
+  # endyr_peel, so if any peel sees a post-peel covariate value the deepest one
+  # does. Gating on the shallowest instead goes silent whenever env_data stops
+  # short of endyr - 1 -- a real configuration, since rearrange_data() full-joins
+  # a short series onto styr:projyr and mean-fills it -- while every deeper peel
+  # still carries post-peel values.
+  .env_cols_all <- setdiff(names(object$data_list$env_data), "Year")
+  .keep_all <- intersect(.env_cols_all,
+                         .rce_linkage_fixed_covariates(object$data_list))
+  if (length(.keep_all) > 0 &&
+      any(object$data_list$env_data$Year > endyr - max(peel_seq))) {
+    warning("Covariate(s) ", paste(.keep_all, collapse = ", "), " enter the model ",
+            "as fixed-effect linkage terms, which may not be NA, so each peel ",
+            "still sees their post-peel values. Mohn's rho for a model with a ",
+            "fixed-effect environmental covariate is conditional on that ",
+            "covariate being known.", call. = FALSE)
+  }
+
+  # An unrecorded `random_vars` means the peels cannot tell a random effect from
+  # a fixed one, so .rce_peel_map() pins every deviation. A pinned deviation is
+  # still scored by its density, and "the deviation was exactly zero" is the
+  # strongest possible evidence for a small process SD -- measured at -6.6% on
+  # sigma at 5 peels and monotone in peel depth, so it becomes a trend in the
+  # very quantity Mohn's rho reports.
+  #
+  # `is.null()`, not `length() == 0`: since 5.23.0 a fit that declared no random
+  # effects records character(0), and pinning every deviation is then exactly
+  # what the fit itself did -- nothing to report. Only an absent record is a
+  # problem, and only a fit made before that is absent.
+  if (is.null(object$random_vars)) {
+    warning("This fit does not record which blocks were random effects, so ",
+            "every peel pins every deviation. If any of them was a random ",
+            "effect, that shrinks the estimated process SDs with peel depth ",
+            "(-6.6% on sigma at 5 peels) and biases Mohn's rho. Refit with ",
+            "fit_mod() at estimateMode 0 or 1 for an unbiased retrospective.",
+            call. = FALSE)
+  }
+
+  # Say so when `forecast_rec = "model"` resolves to the mean anyway. A peel's
+  # forecast years are HINDCAST years, so proj_mean_rec -- a projection switch --
+  # reaching them is a surprise, and build_srr() defaults it to TRUE: every model
+  # fitted without naming it gets Mohn's rho identical under both settings, and
+  # hindcast_skill(), which defaults to "model" precisely to tell projection
+  # methods apart, cannot. Note fit_mod() sets proj_mean_rec = 0 when a DSEM
+  # carries estimate_projection = TRUE, so such a fit reads FALSE here and is
+  # correctly left alone.
+  if (identical(forecast_rec, "model") &&
+      isTRUE(as.logical(object$data_list$proj_mean_rec))) {
+    warning("forecast_rec = \"model\" is inert on this fit: proj_mean_rec = ",
+            "TRUE, so the peeled years take mean recruitment and Mohn's rho ",
+            "will match forecast_rec = \"mean\". Refit with ",
+            "build_srr(proj_mean_rec = FALSE) for the model's own process to ",
+            "supply the forecast.", call. = FALSE)
+  }
+
+  # Was this block a random effect in the HINDCAST? One definition, shared with
+  # .rce_peel_map()'s local `pin()`, and read off `object$random_vars` for the
+  # reason that function's @param gives: `obj$env$random` is empty on any fit
+  # carrying an HCR, so it would call every block a fixed effect on exactly
+  # those fits. An absent record pins everything, which is what the map does
+  # too; `retrospective()` has already warned about it above.
+  #
+  # Unprefixed because it is a local in this frame, like `run_one_peel`, not one
+  # of the package's unexported `.rce_*` helpers. The peel closure reaches it
+  # either way: FORK inherits the frame, and PSOCK serialises the closure
+  # together with its enclosing environment.
+  pin_block <- function(nm) !(nm %in% object$random_vars)
 
   #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
   # Per-peel closure ----
@@ -284,13 +447,8 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
     if (any(.post_peel) && length(.blank) > 0) {
       data_list$env_data[.post_peel, .blank] <- NA_real_
     }
-    if (any(.post_peel) && length(.keep) > 0 && i == 1L) {
-      warning("Covariate(s) ", paste(.keep, collapse = ", "), " enter the model ",
-              "as fixed-effect linkage terms, which may not be NA, so each peel ",
-              "still sees their post-peel values. Mohn's rho for a model with a ",
-              "fixed-effect environmental covariate is conditional on that ",
-              "covariate being known.", call. = FALSE)
-    }
+    # The caller was told about `.keep` once, before dispatch; see
+    # "Once-per-call warnings" above.
     if(rescale && length(.env_cols) > 0){
       # Standardize on the RETAINED years only, so the peel does not centre its
       # covariates using years it is supposed not to have seen. The centre and
@@ -442,25 +600,14 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
     # "mean" is the default so Mohn's rho keeps the convention it has always had.
     .use_model_rec <- identical(forecast_rec, "model")
     .mean_rec      <- isTRUE(as.logical(newmod$data_list$proj_mean_rec))
-    # Same source as .pin() above, or the two disagree: with random_rec = TRUE
-    # under an HCR, .pin() would pin rec_dev at 0 while this said the states
-    # supply it, and the "forecast" would be a deterministic zero deviation
-    # inherited from inits.
+    # Same source as the peel map's `pin()`, or the two disagree: with
+    # random_rec = TRUE under an HCR the map would leave rec_dev free while this
+    # said nothing supplies the forecast, and the "forecast" would be a
+    # deterministic zero deviation inherited from inits.
     .states_supply <- .use_model_rec && !.mean_rec &&
-      (.has_dsem(newmod) || !.pin("rec_dev"))
-    # Say so when `forecast_rec = "model"` resolves to the mean anyway. A peel's
-    # forecast years are HINDCAST years, so proj_mean_rec -- a projection switch
-    # -- reaching them is a surprise, and build_srr() defaults it to TRUE: every
-    # model fitted without naming it gets Mohn's rho identical under both
-    # settings, and hindcast_skill(), which defaults to "model" precisely to tell
-    # projection methods apart, cannot. Once per call, not once per peel.
-    if (.use_model_rec && .mean_rec && i == 1L) {
-      warning("forecast_rec = \"model\" is inert on this fit: proj_mean_rec = ",
-              "TRUE, so the peeled years take mean recruitment and Mohn's rho ",
-              "will match forecast_rec = \"mean\". Refit with ",
-              "build_srr(proj_mean_rec = FALSE) for the model's own process to ",
-              "supply the forecast.", call. = FALSE)
-    }
+      (.has_dsem(newmod) || !pin_block("rec_dev"))
+    # The caller was told once, before dispatch, if `.mean_rec` makes
+    # `forecast_rec = "model"` inert; see "Once-per-call warnings" above.
     if (!.states_supply) for(sp in 1:newmod$data_list$nspp){
 
       # -- where SR curve is estimated directly
@@ -616,16 +763,18 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
   # Dispatch peels (parallel via PSOCK or sequential) ----
   #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
   if (use_parallel) {
-    peel_results <- .parallel_lapply(1:peels, run_one_peel, min(cores, peels), environment())
+    peel_results <- .parallel_lapply(peel_seq, run_one_peel,
+                                     min(cores, length(peel_seq)), environment())
   } else {
-    peel_results <- lapply(1:peels, run_one_peel)
+    peel_results <- lapply(peel_seq, run_one_peel)
   }
 
   # Drop non-converged peels and prepend the original model
   peel_results <- peel_results[!vapply(peel_results, is.null, logical(1))]
   # A warning, not a message: rho below is averaged over the peels that
   # survive, so a drop changes the number that gets reported.
-  .report_dropped(peels - length(peel_results), peels, "peel", warn = TRUE)
+  .report_dropped(length(peel_seq) - length(peel_results), length(peel_seq),
+                  "peel", warn = TRUE)
   mod_list <- c(list(object), peel_results)
 
   # Mohn's rho averages the peels against the full model, so with none left the
@@ -633,8 +782,9 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
   # back 0/0. Say so rather than return a table of NaN that looks computed.
   if (length(peel_results) == 0L) {
     warning("No peel converged, so Mohn's rho is undefined (every value NaN). ",
-            "Inspect a peel with retrospective(..., peels = 1) and read its ",
-            "$convergence.", call. = FALSE)
+            "Inspect one with retrospective(..., peels = c(", peel_seq[1],
+            ", ", peel_seq[1], ")) -- a repeated depth asks for that peel ",
+            "alone -- and read its $convergence.", call. = FALSE)
   }
 
 
@@ -731,9 +881,13 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
   #
   # `peels_requested` is carried so print() can say how many were asked for. The
   # warning above is gone by the time anyone reads the object back off disk, and
-  # the list length alone cannot show a drop.
+  # the list length alone cannot show a drop. It is a COUNT, not the depths --
+  # print() subtracts it from the number kept -- so `peel_depths` carries the
+  # depths that were asked for, which a subset call cannot otherwise recover
+  # once a peel has been dropped.
   structure(list(Rceattle_list = mod_list, mohns = rbind(mohns),
-                 peels_requested = peels),
+                 peels_requested = length(peel_seq),
+                 peel_depths = peel_seq),
             class = "Rceattle_retro")
 }
 
@@ -750,6 +904,14 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
 #' Only the terminal-year peel (`Forecast year` 0) is judged. The forecast-skill
 #' rows are reported for information: a rho computed over a forecast horizon is
 #' not the quantity the +/- 0.2 rule was calibrated on.
+#'
+#' A rho averaged over a SUBSET of peels is not the quantity the band was
+#' calibrated on either. The band assumes the standard contiguous set, and a
+#' deep-peel-only relative error is systematically larger in magnitude than the
+#' average over `1:n` in any model with real retrospective bias, so the
+#' false-pass rate moves with the depth set. Whenever
+#' `retrospective(peels = )` was given anything but `1:n`, the depths are
+#' printed and the verdict carries a `NOTE`.
 #'
 #' @param x A `"Rceattle_retro"` object from [retrospective()].
 #' @param band Symmetric reference band for Mohn's rho. Default `0.2`.
@@ -776,10 +938,19 @@ print.Rceattle_retro <- function(x, band = 0.2, ...) {
   n_dropped <- if (is.null(n_asked)) 0L else max(0L, n_asked - n_kept)
   if (n_dropped > 0L) sev <- c(sev, "NOTE")
 
+  # A subset of depths is a NOTE in its own right: the band is calibrated on the
+  # contiguous set, so a rho averaged over 3:10 is not the number it judges.
+  # `peel_depths` is absent on an object saved before it was carried, which reads
+  # as "not a subset" rather than guessing.
+  depths <- x$peel_depths
+  is_subset <- !is.null(depths) && !identical(as.integer(depths),
+                                              seq_len(max(depths)))
+  if (is_subset) sev <- c(sev, "NOTE")
+
   .rce_diag_header(
     "retrospective", .rce_worst(sev),
     paste0(if (n_dropped > 0L) paste0(n_kept, " of ", n_asked, " peel(s); ")
-           else paste0(length(x$Rceattle_list), " peel(s); "),
+           else paste0(n_kept, " peel(s); "),
            .rce_n_of(n_bad, length(rho)),
            " terminal Mohn's rho outside +/-", band))
 
@@ -787,6 +958,12 @@ print.Rceattle_retro <- function(x, band = 0.2, ...) {
     cat("  ", n_dropped, " peel(s) dropped as non-converged, so rho is ",
         if (n_kept > 0L) paste("averaged over", n_kept) else "undefined",
         "\n", sep = "")
+  }
+  if (is_subset) {
+    cat("  peel depth", if (length(depths) > 1L) "s" else "", " ",
+        paste(depths, collapse = ", "),
+        " -- rho is averaged over these only; the +/-", band,
+        " band assumes the standard contiguous set\n", sep = "")
   }
 
   if (nrow(term)) {
@@ -1146,6 +1323,15 @@ print.Rceattle_jitter <- function(x, tol = 0.01, ...) {
 #'   estimateMode = 0 with a harvest control rule that object is the PROJECTION
 #'   object, whose map turns every hindcast entry off, so its `random` declaration
 #'   is empty and every block reads as a fixed effect.
+#'
+#'   `character(0)` means the fit declared no random effects, and every
+#'   deviation is then pinned because that is what the fit itself did. `NULL`
+#'   means the fit never recorded it (made before 5.10.0, or at an
+#'   `estimateMode` that does not store it) and is treated the same way, but it
+#'   is NOT the same situation: there, pinning may be wrong and shrinks the
+#'   process SDs with peel depth. Reporting that is `retrospective()`'s job --
+#'   it checks `is.null()` once before dispatching its peels, because a warning
+#'   raised in here reaches no one when the peels run on a parallel cluster.
 #' @param fleet_control the model's fleet table, for the selectivity forms.
 #' @param nyrs_peel,nyrs,nyrs_proj retained hindcast years, total hindcast years,
 #'   and total years including the projection.
@@ -1153,13 +1339,11 @@ print.Rceattle_jitter <- function(x, tol = 0.01, ...) {
 #' @noRd
 .rce_peel_map <- function(map, random_vars, fleet_control,
                           nyrs_peel, nyrs, nyrs_proj) {
-  if (is.null(random_vars)) {
-    warning("This fit does not record which blocks were random effects ",
-            "(fit_mod() before 5.10.0). The peel will pin every deviation, ",
-            "which shrinks the estimated process SDs with peel depth. Refit ",
-            "to get an unbiased retrospective.", call. = FALSE)
-    random_vars <- character(0)
-  }
+  # Silent: `retrospective()` has already reported an unrecorded `random_vars`
+  # (see the @param note). Warning here instead reached no one, because the
+  # peels run on a parallel cluster at the default `cores` and a worker's
+  # warnings are discarded.
+  if (is.null(random_vars)) random_vars <- character(0)
   pin <- function(nm) !(nm %in% random_vars)
   has <- function(nm) !is.null(map$mapList[[nm]])
   relevel <- function(nm) factor(map$mapList[[nm]])

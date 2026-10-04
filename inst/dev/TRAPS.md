@@ -145,6 +145,49 @@ are the `srr_mse_switchyr` / `srr_hat_styr` / `srr_hat_endyr` / `suit_styr` / `s
 overrides. The EM instead advances `srr_mse_switchyr` to its current assessment `endyr` each
 iteration. `tools/verify/verify-mse-hindcast-invariant.R` checks the invariant.
 
+## A warning raised inside a parallel worker is discarded
+
+**`.parallel_lapply()` dispatches to a FORK/PSOCK cluster, and a `warning()` raised in the worker
+closure never reaches the caller.** The value comes back; the condition does not. Every
+diagnostic that fans out is affected — `retrospective()`, `jitter()`, `self_test()`,
+`run_mse()` — and the default `cores` is `detectCores() - 6`, so the parallel path is what
+anyone actually runs. A warning written inside the per-item closure is therefore invisible in
+normal use and visible only at `cores = 1`, which is how these have survived: the test suite
+passes `cores = 1` almost everywhere.
+
+Two ways out, both in the tree:
+
+* **Hoist it** when the condition reads only the input model. All three of `retrospective()`'s
+  once-per-call warnings are settled before dispatch for this reason — the fixed-effect linkage
+  covariate, `forecast_rec = "model"` being inert under `proj_mean_rec = TRUE`, and an unrecorded
+  `random_vars` (which announces a *biased* Mohn's rho, measured -6.6% on sigma at 5 peels and
+  monotone in peel depth). `.rce_peel_map()` is silent as a result: it is a pure map transformer,
+  and its caller does the reporting.
+
+  The two that lived in `run_one_peel()` were additionally gated on `i == 1L`, so a subset
+  request such as `peels = 2:10` skipped them even sequentially. The `random_vars` one was NOT:
+  it sat in `.rce_peel_map()`, which has no `i` in scope, so it fired once per peel on every
+  peel — an old `cores = 1` log shows it N times, not once. Both shapes are wrong for a condition
+  that reads only the input model, and they fail differently, so check which one you are reading
+  before concluding what an old log did or did not report.
+* **Collect and re-raise** when the condition is genuinely per-item. `self_test()` accumulates
+  `sim_warns` in the parent and emits the unique set after the dispatch
+  (`R/9-self_test.R`), which is what made a no-op `process` audible again.
+
+**Still unfixed:** `retrospective()`'s per-peel "Peel *i*: could not report hindcast standard
+errors" is genuinely per-peel — it depends on whether that peel's `sdreport` threw — so hoisting
+cannot reach it and it needs the collect-and-re-raise pattern. It is lost at the default `cores`
+today, and what it hides is worse than a missing band: the error handler falls back to
+`newmod$sdrep`, which at that point is the FORECAST refit's sdreport — built with the whole
+hindcast pinned, so every hindcast standard error in it is **zero**. The report-only pass exists
+to replace exactly that. A peel whose `sdreport` threw therefore presents a zero band as a real
+one, with nothing saying so. Point estimates are unaffected.
+
+**Where else to look.** Any `warning()` whose enclosing function is dispatched through
+`.parallel_lapply()` is suspect. `grep -n 'warning(' R/9-retro_and_jitter.R R/9-self_test.R
+R/9-profile.R R/10-run_mse.R` and check, for each hit, whether it sits inside the per-item
+closure.
+
 ## The SIMULATE contract
 
 Every observation and process error is drawn in a `SIMULATE{}` block **beside the density that

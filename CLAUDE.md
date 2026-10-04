@@ -269,6 +269,12 @@ One line each; the evidence and the measured numbers are in `inst/dev/TRAPS.md`.
   horizon, the row count, or the draw order, ask what it does to a comparison of two schedules,
   not just to one run's reproducibility. Common random numbers are still incomplete between
   assessments; `inst/dev/TODO-mse-horizon.md` has the design and the measured numbers.
+- **A `warning()` raised inside a `.parallel_lapply()` worker is discarded**, and since the
+  default `cores` is `detectCores() - 6` that is the path anyone actually runs — the warning is
+  visible only at `cores = 1`, which is what the suite passes. Hoist it before dispatch when the
+  condition reads only the input model, or collect and re-raise it in the parent as
+  `self_test()` does with `sim_warns`. Never gate a once-per-call warning on the item index: it
+  is both lost in a worker and skipped by a subset request like `peels = 2:10`.
 - **The guards are not themselves guarded.** `test-golden-regression.R` is `skip_on_cran()` AND
   `skip_on_covr()`, so until 5.16.0 it ran in no CI job at all; the `deep-checks` workflow now
   runs it nightly and asserts it produced assertions. `NOT_CRAN=false` must be step-level `env:`

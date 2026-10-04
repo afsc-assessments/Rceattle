@@ -17,7 +17,14 @@ hindcast_skill(
 \arguments{
 \item{object}{A fitted Rceattle model (the full time series).}
 
-\item{peels}{Number of peels. Passed to \code{\link[=retrospective]{retrospective()}}.}
+\item{peels}{Which peels to fit. Passed to \code{\link[=retrospective]{retrospective()}}, so a single
+number \code{n} means every peel from 1 to \code{n}, and a vector names the depths
+exactly. \code{peels = 3:10} is the useful form here: it drops the one- and
+two-year PEELS, whose own MASE is dominated by its denominator (see
+Details), and costs two fewer model fits. Note it does not drop the one-
+and two-year HORIZONS -- every peel still contributes \code{years_ahead} 1 and 2
+rows, because the thin denominator is a property of peel depth, not of
+horizon. Ignored when \code{retro} is supplied.}
 
 \item{quantity}{Quantities to score against the full model. Any of \code{"ssb"},
 \code{"biomass"}, \code{"R"}. Ignored when \code{reference = "observed"}.}

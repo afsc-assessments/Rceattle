@@ -117,3 +117,146 @@ testthat::test_that("a DSEM peel keeps its covariate and reports a finite Mohn's
   ssb_rho <- rho[rho$Object == "ssb", -(1:3), drop = FALSE]
   testthat::expect_true(any(is.finite(as.matrix(ssb_rho))))
 })
+
+
+# Comparing projection methods on ONE DSEM fit.
+#
+# This is the comparison hindcast_skill() exists for: does the SEM's correlation
+# structure forecast the peeled years better than mean recruitment? Both answers
+# come from the same fit, because `forecast_rec` only changes the FORECAST refit
+# -- the peeled hindcast is identical either way -- so the projection rule is
+# isolated from everything else.
+#
+# What makes this worth a test is that the comparison is silently vacuous
+# whenever proj_mean_rec = TRUE: it takes precedence over the model's own
+# process, build_srr() defaults it to TRUE, and then both settings return the
+# same forecast. Nothing in the suite asserted the two settings differ at all, so
+# a regression that quietly made "model" behave like "mean" would have left every
+# DSEM projection comparison reading "no difference" and passed.
+#
+# The sem is LAGGED and carries a covariate (see DSEM_RETRO_SEM), so there is a
+# correlation structure for the forecast to propagate. An IID sem would show much
+# less and could not detect the failure.
+testthat::test_that("forecast_rec tells the DSEM's projection from mean recruitment", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("TMB")
+  testthat::skip_if_not_installed("dsem")
+
+  d  <- dsem_retro_data()
+  fc <- Rceattle::fit_control(phase = FALSE, getsd = FALSE, verbose = 0)
+
+  # proj_mean_rec = FALSE is the whole point: with TRUE the two settings agree
+  # by construction and the assertions below would be measuring nothing.
+  fit <- suppressWarnings(suppressMessages(Rceattle::fit_mod(
+    data_list = d, inits = NULL, file = NULL, estimateMode = 1,
+    random_rec = TRUE, msmMode = 0,
+    dsem = Rceattle::build_DSEM(sem = DSEM_RETRO_SEM, family = "fixed"),
+    recFun = Rceattle::build_srr(srr_fun = 0, proj_mean_rec = FALSE),
+    fit_control = fc)))
+  testthat::expect_false(isTRUE(as.logical(fit$data_list$proj_mean_rec)))
+
+  endyr <- fit$data_list$endyr
+  styr  <- fit$data_list$styr
+  depth <- 3L
+  nm    <- paste0("Year_", endyr - depth)
+
+  # A repeated depth asks for that one peel and nothing shallower, which keeps
+  # this to two peel fits per setting rather than six.
+  retro <- function(frec) suppressWarnings(suppressMessages(
+    Rceattle::retrospective(fit, peels = c(depth, depth), cores = 1,
+                            getsd = FALSE, forecast_rec = frec)))
+  r_mean  <- retro("mean")
+  r_model <- retro("model")
+
+  testthat::skip_if(is.null(r_mean$Rceattle_list[[nm]]) ||
+                    is.null(r_model$Rceattle_list[[nm]]),
+                    "the 3-year DSEM peel did not converge")
+  p_mean  <- r_mean$Rceattle_list[[nm]]
+  p_model <- r_model$Rceattle_list[[nm]]
+
+  hind <- seq_len(endyr - depth - styr + 1L)       # styr:endyr_peel
+  fore <- (endyr - depth - styr + 2L):(endyr - styr + 1L)
+  spp1 <- fit$data_list$spnames[1]
+
+  # The peeled hindcast is the same fit either way: `forecast_rec` is read only
+  # when the forecast refit's starting recruitment is written. If this ever
+  # fails, the setting is reaching the hindcast and the comparison is no longer
+  # isolating the projection rule.
+  testthat::expect_equal(p_mean$quantities$R[, hind],
+                         p_model$quantities$R[, hind])
+
+  # And the forecast years genuinely differ: the SEM's lagged and covariate
+  # paths carry the terminal state forward, where "mean" flattens it to the
+  # hindcast average. Species 1 is the one the sem gives a lag and a covariate.
+  R_mean  <- p_mean$quantities$R[1, fore]
+  R_model <- p_model$quantities$R[1, fore]
+  testthat::expect_gt(max(abs(R_model - R_mean)) / max(abs(R_mean)), 0.01)
+
+  # "mean" really is flat across the forecast years, which is what the DSEM is
+  # being compared against.
+  testthat::expect_lt(stats::sd(R_mean) / mean(R_mean), 1e-6)
+
+  # Both are scoreable, so the comparison can actually be read off a MASE.
+  #
+  # Scored on RECRUITMENT, not SSB. Over a 3-year horizon the recruits the two
+  # rules disagree about are not mature yet, so SSB barely moves: measured on
+  # this fixture, a 46.8% difference in forecast recruitment moved forecast SSB
+  # 0.03%, and the SSB MASE agreed to 4 significant figures for two of the three
+  # species. An SSB-scored assertion would therefore pass or fail on rounding
+  # rather than on the projection rule.
+  skill_mean  <- Rceattle::hindcast_skill(fit, retro = r_mean,  quantity = "R")
+  skill_model <- Rceattle::hindcast_skill(fit, retro = r_model, quantity = "R")
+  testthat::expect_true(all(is.finite(skill_mean$mase$mae_forecast)))
+  testthat::expect_true(all(is.finite(skill_model$mase$mae_forecast)))
+
+  # Species 1 is the one the sem gives a lag and a covariate, so it is the row
+  # the two rules must disagree on.
+  mf_mean  <- skill_mean$mase$mae_forecast[skill_mean$mase$species == spp1]
+  mf_model <- skill_model$mase$mae_forecast[skill_model$mase$species == spp1]
+  testthat::expect_length(mf_mean, 1L)
+  testthat::expect_gt(abs(mf_model - mf_mean) / mf_mean, 0.01)
+})
+
+
+# The counterpart: with proj_mean_rec = TRUE the comparison IS vacuous, and
+# retrospective() has to say so. The warning used to be raised inside the
+# per-peel closure under `i == 1L`, which meant it was discarded by a PSOCK
+# worker under the default `cores` and skipped entirely by `peels = 2:10`. It is
+# now settled once before dispatch, so a subset request still gets it.
+testthat::test_that("retrospective warns that forecast_rec is inert, whatever peels are asked for", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("TMB")
+  testthat::skip_if_not_installed("dsem")
+
+  d  <- dsem_retro_data()
+  fc <- Rceattle::fit_control(phase = FALSE, getsd = FALSE, verbose = 0)
+  fit <- suppressWarnings(suppressMessages(Rceattle::fit_mod(
+    data_list = d, inits = NULL, file = NULL, estimateMode = 1,
+    random_rec = TRUE, msmMode = 0,
+    dsem = Rceattle::build_DSEM(sem = DSEM_RETRO_SEM, family = "fixed"),
+    recFun = Rceattle::build_srr(srr_fun = 0, proj_mean_rec = TRUE),
+    fit_control = fc)))
+  testthat::expect_true(isTRUE(as.logical(fit$data_list$proj_mean_rec)))
+
+  # Raised before any peel is fitted, so a depth set that never includes 1 still
+  # gets it. Only the warning is under test, so the peels need not converge.
+  testthat::expect_warning(
+    suppressMessages(try(Rceattle::retrospective(
+      fit, peels = 2:3, cores = 1, getsd = FALSE, forecast_rec = "model"),
+      silent = TRUE)),
+    "inert on this fit")
+
+  # Not raised when the caller did not ask for the model's own process. Collect
+  # the warnings and look for this one rather than asserting none at all: a peel
+  # drop or a warm-start note is unrelated and must not fail this.
+  warned <- character(0)
+  withCallingHandlers(
+    suppressMessages(try(Rceattle::retrospective(
+      fit, peels = c(3, 3), cores = 1, getsd = FALSE, forecast_rec = "mean"),
+      silent = TRUE)),
+    warning = function(cnd) {
+      warned <<- c(warned, conditionMessage(cnd))
+      invokeRestart("muffleWarning")
+    })
+  testthat::expect_false(any(grepl("inert on this fit", warned)))
+})

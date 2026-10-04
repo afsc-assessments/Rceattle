@@ -1451,8 +1451,18 @@ fit_mod <-
       # obj$env$random is empty. Anything asking "was this block a random
       # effect?" would then get FALSE for every block, on exactly the fits that
       # carry an HCR. retrospective() asks precisely that.
+      #
+      # Stored as `character(0)`, never NULL, when the fit declared no random
+      # effects at all. `random_vars` starts life as `c()`, and assigning NULL
+      # into a list DELETES the element -- so a perfectly ordinary
+      # `random_rec = FALSE` fit came back with no `random_vars` at all, which is
+      # indistinguishable from a fit made before 5.10.0 recorded it. The two
+      # need opposite handling: with no random effects, pinning every deviation
+      # in a peel is correct, while an unrecorded one has to be reported. An
+      # empty character vector says "recorded, and there were none".
       if (estimateMode %in% c(0, 1)) {
-        mod_objects$random_vars <- random_vars
+        mod_objects$random_vars <-
+          if (is.null(random_vars)) character(0) else random_vars
       }
 
       # Capture the hindcast optimizer convergence snapshot now, before any

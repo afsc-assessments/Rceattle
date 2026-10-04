@@ -20,7 +20,18 @@ retrospective(
 \arguments{
 \item{object}{an Rceattle model fit using \code{\link[=fit_mod]{fit_mod()}}.}
 
-\item{peels}{the number of retrospective peels to use in the calculation of rho and for model estimation}
+\item{peels}{which retrospective peels to fit. A single number \code{n} fits every
+peel from 1 to \code{n}, as it always has. A VECTOR instead fits exactly the peel
+depths named, so \code{peels = 2:10} skips the one-year peel and \code{peels = c(1, 5, 10)} fits three. Each element is a number of years removed from \code{endyr}, not
+a year. Depths are sorted and de-duplicated, so the returned list runs
+deepest-first whatever order they are given in. Mohn's rho is averaged over
+whichever peels are fitted, so a subset changes the number it reports --
+a rho from \code{peels = 2:10} is not comparable to one from \code{peels = 10}.
+
+\code{peels = 5} and \code{peels = c(5)} are the same object in R, so a length-1
+value always means 1:5 and one depth on its own cannot be written that way.
+Name it twice -- \code{peels = c(5, 5)} de-duplicates to the 5-year peel alone --
+when you want to inspect a single peel without paying for the shallower ones.}
 
 \item{rescale}{TRUE/FALSE whether to subset and rescale environmental predictors for the range of peel years.}
 
@@ -64,11 +75,13 @@ a list of 1. list of Rceattle models and 2. vector of Mohn's rho for
 each species.
 
 A peel that did not converge is dropped, so \code{Rceattle_list} can be
-shorter than \code{peels + 1} (a message reports how many). Each entry is
-named for its own terminal year (\code{Year_2017}, ...) rather than by
-position, so index it by name -- \code{Rceattle_list[[3]]} is not
-necessarily the 3-year peel. With no peel left, Mohn's rho is \code{NaN}
-and the function warns.
+shorter than one plus the number of peels asked for (a message reports how
+many); \code{peels_requested} is that number and \code{peel_depths} the
+depths themselves. Each entry is named for its own terminal year
+(\code{Year_2017}, ...) rather than by position, so index it by name --
+\code{Rceattle_list[[3]]} is not necessarily the 3-year peel, and with a
+subset such as \code{peels = 2:10} it never is. With no peel left, Mohn's
+rho is \code{NaN} and the function warns.
 
 Each peel reports its own terminal year as \code{data_list$endyr}, so plots
 draw it only as far as it was fit and the peels fan out.

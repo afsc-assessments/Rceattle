@@ -66,6 +66,19 @@ digest$base <- collect(base)
 
 # sites 1,2 -- retrospective
 digest$retro     <- section(Rceattle::retrospective(base, peels = 1, getsd = FALSE))
+# ... and the same two sites reached with a SUBSET of depths, which a scalar
+# `peels` cannot express: it always dispatches 1:n. This fingerprints the vector
+# path and two deeper peels, and nothing more -- on BS2017SS it does NOT reach
+# the fixed-effect covariate branch (no `*_linkages`), the once-before-dispatch
+# warnings (random_vars is character(0), forecast_rec defaults to "mean") or
+# .parallel_lapply() (cores = 1). Those need their own fixture; see
+# test-functions-retrospective.R, which covers them.
+#
+# NOTE: adding a section name makes "bit-identical across all sections"
+# unreachable against a baseline captured before it existed -- the compare
+# reports `DIFF: retro_sub`. Re-baseline on the commit that adds this line.
+digest$retro_sub <- section(Rceattle::retrospective(base, peels = 2:3, getsd = FALSE,
+                                                    cores = 1))
 # site 3 -- jitter
 digest$jitter    <- section(Rceattle::jitter(base, njitter = 1, sd = 0.1, phase = FALSE, seed = 1))
 # site 4 -- self_test

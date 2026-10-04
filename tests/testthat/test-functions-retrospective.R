@@ -662,3 +662,269 @@ testthat::test_that("a peel reports standard errors for its own hindcast", {
   testthat::expect_true(all(vapply(r_no$Rceattle_list[no_refit],
                                    function(m) is.null(m$sdrep), logical(1))))
 })
+
+
+# `peels` as a vector of peel depths.
+#
+# A retrospective used to be a count: `peels = n` meant 1:n. The shallow peels
+# are the expensive ones to interpret -- a one-year MASE is a single
+# |naive - reference| in its denominator (see hindcast_skill()) -- and the
+# deep ones are what a projection comparison rests on, so a caller needs to be
+# able to ask for 2:10 and skip the first. Each element is a number of YEARS
+# REMOVED from endyr, not a year.
+testthat::test_that("retrospective takes a vector of peel depths", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("TMB")
+
+  d <- make_test_data()
+  fit <- suppressMessages(suppressWarnings(fit_mod(
+    data_list = d, file = NULL, estimateMode = 0,
+    fit_control = fit_control(phase = FALSE, getsd = FALSE, verbose = 0))))
+  endyr <- fit$data_list$endyr
+
+  depths <- function(r) {
+    sort(endyr - vapply(r$Rceattle_list,
+                        function(x) as.numeric(x$data_list$endyr_peel),
+                        numeric(1)))
+  }
+
+  # The named depths, and only those: no 1-year peel.
+  r <- suppressMessages(suppressWarnings(
+    retrospective(fit, peels = 2:3, cores = 1, getsd = FALSE)))
+  testthat::expect_equal(unname(depths(r)), c(0, 2, 3))  # 0 is the unpeeled model
+  testthat::expect_equal(r$peel_depths, 2:3)
+  testthat::expect_equal(r$peels_requested, 2L)
+
+  # Out of order and duplicated resolves to the same thing, so the returned list
+  # runs deepest-first however the depths were written.
+  r_msg <- suppressMessages(suppressWarnings(
+    retrospective(fit, peels = c(3, 2, 3), cores = 1, getsd = FALSE)))
+  testthat::expect_equal(r_msg$peel_depths, 2:3)
+  testthat::expect_equal(names(r_msg$Rceattle_list), names(r$Rceattle_list))
+
+  # A scalar still means 1:n.
+  r1 <- suppressMessages(suppressWarnings(
+    retrospective(fit, peels = 2, cores = 1, getsd = FALSE)))
+  testthat::expect_equal(r1$peel_depths, 1:2)
+  testthat::expect_equal(unname(depths(r1)), c(0, 1, 2))
+
+  # A peel reads only the input model, so WHICH other depths were asked for
+  # cannot move it. This is what makes a subset request legitimate: the 2-year
+  # peel from `peels = 2:3` has to be the same fit as the one from `peels = 2`.
+  nm <- paste0("Year_", endyr - 2)
+  testthat::expect_true(nm %in% names(r$Rceattle_list))
+  testthat::expect_equal(r$Rceattle_list[[nm]]$quantities$ssb,
+                         r1$Rceattle_list[[nm]]$quantities$ssb)
+  testthat::expect_equal(r$Rceattle_list[[nm]]$opt$objective,
+                         r1$Rceattle_list[[nm]]$opt$objective)
+})
+
+
+# A bad `peels` must be refused before any peel is dispatched. Left to
+# run_one_peel(), a depth of 0 makes `(endyr_peel + 1):endyr` count DOWN and the
+# retained years get fitted as a forecast, and an over-deep one builds a model
+# that ends before styr -- both silently, after paying for the fits.
+testthat::test_that("retrospective refuses an unusable `peels`", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("TMB")
+
+  d <- make_test_data()
+  fit <- suppressMessages(suppressWarnings(fit_mod(
+    data_list = d, file = NULL, estimateMode = 3,
+    fit_control = fit_control(phase = FALSE, getsd = FALSE, verbose = 0))))
+  nyr <- fit$data_list$endyr - fit$data_list$styr
+
+  testthat::expect_error(retrospective(fit, peels = 0, cores = 1),
+                         "must be at least 1")
+  testthat::expect_error(retrospective(fit, peels = c(2, 0), cores = 1),
+                         "must be at least 1")
+  testthat::expect_error(retrospective(fit, peels = -1, cores = 1),
+                         "must be at least 1")
+  testthat::expect_error(retrospective(fit, peels = 2.5, cores = 1),
+                         "whole numbers")
+  testthat::expect_error(retrospective(fit, peels = c(1, NA), cores = 1),
+                         "containing NA")
+  testthat::expect_error(retrospective(fit, peels = integer(0), cores = 1),
+                         "positive whole number")
+  testthat::expect_error(retrospective(fit, peels = "3", cores = 1),
+                         "positive whole number")
+  # A list reaches the message builder, where `is.finite()` has no list method
+  # and errors outright unless the clause is guarded on is.numeric(). And a
+  # character must not be diagnosed "containing Inf" -- is.finite("3") is FALSE,
+  # so an unguarded clause fires on every non-numeric atomic. Assert the
+  # diagnosis, not just that something was refused.
+  testthat::expect_error(retrospective(fit, peels = list(1), cores = 1),
+                         "got a list of length 1")
+  testthat::expect_error(retrospective(fit, peels = list(1, 2), cores = 1),
+                         "got a list of length 2")
+  testthat::expect_error(retrospective(fit, peels = "3", cores = 1),
+                         "got a character of length 1\\.")
+  testthat::expect_error(retrospective(fit, peels = Inf, cores = 1),
+                         "containing Inf")
+  # Deeper than the model can carry: named with the deepest depth that works,
+  # so the message is actionable rather than a convergence failure.
+  testthat::expect_error(retrospective(fit, peels = nyr, cores = 1),
+                         "deepest peel that leaves")
+  testthat::expect_error(retrospective(fit, peels = c(2, nyr + 100), cores = 1),
+                         "deepest peel that leaves")
+})
+
+
+# A length-1 `peels` cannot name a single depth -- `peels = 5` and `peels = c(5)`
+# are the same object in R, and back-compatibility fixes that to mean 1:5. The
+# de-duplicating path makes `c(5, 5)` the way to ask for one peel, which is worth
+# pinning: it is the documented workaround, not an accident to be optimized away.
+testthat::test_that("a repeated depth asks for that one peel", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("TMB")
+
+  d <- make_test_data()
+  fit <- suppressMessages(suppressWarnings(fit_mod(
+    data_list = d, file = NULL, estimateMode = 0,
+    fit_control = fit_control(phase = FALSE, getsd = FALSE, verbose = 0))))
+
+  r <- suppressMessages(suppressWarnings(
+    retrospective(fit, peels = c(3, 3), cores = 1, getsd = FALSE)))
+  testthat::expect_equal(r$peel_depths, 3L)
+  testthat::expect_equal(r$peels_requested, 1L)
+  testthat::expect_equal(
+    sort(fit$data_list$endyr - vapply(r$Rceattle_list,
+      function(x) as.numeric(x$data_list$endyr_peel), numeric(1))),
+    c(0, 3), ignore_attr = TRUE)
+})
+
+
+# An unrecorded `random_vars` is reported once, by retrospective(), before any
+# peel is dispatched.
+#
+# It used to be raised inside .rce_peel_map(), which runs inside the per-peel
+# closure, so it was discarded by the FORK/PSOCK worker that ran the peel -- and
+# the default `cores` is detectCores() - 6, so the warning had never reached
+# anyone running a multi-peel retrospective. It announces a BIASED Mohn's rho
+# (-6.6% on sigma at 5 peels, monotone in peel depth), which is the last thing
+# that should be silent.
+#
+# It also fired on fits that were perfectly fine: `random_vars` started as `c()`
+# and `mod_objects$random_vars <- NULL` DELETES the element, so an ordinary
+# random_rec = FALSE fit was indistinguishable from one made before 5.10.0
+# recorded it. fit_mod() now stores character(0) for "recorded, and there were
+# none", and only an absent record warns.
+testthat::test_that("retrospective reports an unrecorded random_vars, once, and not an empty one", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("TMB")
+
+  d <- make_test_data()
+  fit <- suppressMessages(suppressWarnings(fit_mod(
+    data_list = d, file = NULL, estimateMode = 1, random_rec = FALSE,
+    fit_control = fit_control(phase = FALSE, getsd = FALSE, verbose = 0))))
+
+  # A fit with no random effects RECORDS that fact rather than omitting it.
+  testthat::expect_true("random_vars" %in% names(fit))
+  testthat::expect_identical(fit$random_vars, character(0))
+
+  warns_of <- function(f) {
+    w <- character(0)
+    withCallingHandlers(
+      suppressMessages(try(retrospective(f, peels = c(2, 2), cores = 1,
+                                         getsd = FALSE), silent = TRUE)),
+      warning = function(cnd) {
+        w <<- c(w, conditionMessage(cnd)); invokeRestart("muffleWarning")
+      })
+    w
+  }
+
+  # Recorded-and-empty: pinning every deviation is what the fit itself did, so
+  # there is nothing to report.
+  testthat::expect_length(
+    grep("does not record which blocks", warns_of(fit)), 0L)
+
+  # Unrecorded: reported, and exactly once however many peels are asked for.
+  old <- fit
+  old$random_vars <- NULL
+  testthat::expect_length(
+    grep("does not record which blocks", warns_of(old)), 1L)
+
+  # Once per CALL, not once per peel -- and a subset that never includes peel 1
+  # still gets it, which an `i == 1L` gate inside the closure would not.
+  w3 <- character(0)
+  withCallingHandlers(
+    suppressMessages(try(retrospective(old, peels = 2:3, cores = 1,
+                                       getsd = FALSE), silent = TRUE)),
+    warning = function(cnd) {
+      w3 <<- c(w3, conditionMessage(cnd)); invokeRestart("muffleWarning")
+    })
+  testthat::expect_length(grep("does not record which blocks", w3), 1L)
+})
+
+
+# forecast_rec = "model" on a fit WITHOUT a DSEM.
+#
+# Regression: the predicate behind "do the latent states supply the forecast?"
+# called a helper `.pin()` that was never defined anywhere in the package. `&&`
+# and `||` short-circuit, so it was reached only when forecast_rec = "model" met
+# proj_mean_rec = FALSE on a fit with no DSEM -- and every DSEM test took the
+# `.has_dsem()` arm before it. That combination errored with "could not find
+# function '.pin'", which made hindcast_skill() -- whose forecast_rec DEFAULTS to
+# "model" -- unusable on every non-DSEM model.
+#
+# With rec_dev a fixed effect the forecast comes off the stock-recruit curve (a
+# zero deviation), which is the third arm of the precedence order documented on
+# `forecast_rec`; with it a random effect the states supply it. Exercise both, so
+# the predicate is evaluated either way rather than short-circuited.
+testthat::test_that("forecast_rec = 'model' runs on a fit with no DSEM", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("TMB")
+
+  d <- make_test_data()
+  run <- function(rr) {
+    fit <- suppressMessages(suppressWarnings(fit_mod(
+      data_list = d, file = NULL, estimateMode = 1, random_rec = rr,
+      recFun = build_srr(srr_fun = 0, proj_mean_rec = FALSE),
+      fit_control = fit_control(phase = FALSE, getsd = FALSE, verbose = 0))))
+    # The guard above is only meaningful if the fit really is DSEM-free and
+    # really did keep proj_mean_rec = FALSE -- otherwise the predicate is
+    # short-circuited and this test proves nothing.
+    testthat::expect_null(fit[["dsem"]])
+    testthat::expect_false(isTRUE(as.logical(fit[["data_list"]][["proj_mean_rec"]])))
+    list(fit = fit, retro = suppressMessages(suppressWarnings(
+      retrospective(fit, peels = c(2, 2), cores = 1, getsd = FALSE,
+                    forecast_rec = "model"))))
+  }
+
+  out <- list()
+  fits <- list()
+  for (rr in c(FALSE, TRUE)) {
+    z <- testthat::expect_no_error(run(rr))
+    testthat::expect_s3_class(z[["retro"]], "Rceattle_retro")
+    testthat::expect_equal(z[["retro"]][["peel_depths"]], 2L)
+    out[[as.character(rr)]]  <- z[["retro"]]
+    fits[[as.character(rr)]] <- z[["fit"]]
+  }
+
+  # The predicate behind the branch, asserted directly: it must disagree between
+  # the two arms, or `forecast_rec = "model"` cannot tell them apart at all. This
+  # is what an inverted or constant `pin_block()` would break.
+  testthat::expect_identical(fits[["FALSE"]][["random_vars"]], character(0))
+  testthat::expect_true("rec_dev" %in% fits[["TRUE"]][["random_vars"]])
+
+  # With rec_dev a FIXED effect the peeled years take the stock-recruit curve's
+  # zero deviation -- the third arm of the precedence order on `forecast_rec`.
+  endyr <- fits[["FALSE"]][["data_list"]][["endyr"]]
+  styr  <- fits[["FALSE"]][["data_list"]][["styr"]]
+  fore  <- (endyr - 2 - styr + 2L):(endyr - styr + 1L)
+  dev_of <- function(r) {
+    m <- r[["Rceattle_list"]][[paste0("Year_", endyr - 2)]]
+    as.numeric(m[["estimated_params"]][["rec_dev"]][1, fore])
+  }
+  testthat::expect_true(all(dev_of(out[["FALSE"]]) == 0))
+
+  # The random-effect arm is NOT asserted by value, deliberately. On this
+  # fixture that fit drives sigma_R to zero -- measured: every hindcast rec_dev
+  # comes back around 2e-86 -- so the data-free tail the Laplace approximation
+  # integrates out sits at the prior mean of 0 as well, and the two arms are
+  # numerically indistinguishable here for a legitimate reason. The branch where
+  # latent states really do supply a different forecast is covered on a LAGGED
+  # DSEM, where it moves recruitment 46.8% (test-dsem-retrospective.R); an
+  # IID process with no data has nothing to propagate.
+  testthat::expect_true(all(abs(dev_of(out[["TRUE"]])) < 1e-10))
+})

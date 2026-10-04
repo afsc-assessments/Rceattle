@@ -12,6 +12,102 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle (development version)
+
+Unreleased, on `dsem-v5-integration`. Deliberately not numbered: `dev` has
+already published 5.24.0, 5.24.1 and 5.24.2, so a bare `5.24.0` here would make
+an install from this branch report a version that exists and holds entirely
+different code -- the mislabelling `95153bbc` fixed when it moved this branch to
+a `.9000` suffix, and the GOA arrowtooth DSEM script installs from here. The
+5.23.0 section below explains the same divergence for 5.19.0 and 5.22.0;
+`DESCRIPTION` carries the development suffix until this work is given a release
+number of its own.
+
+## Diagnostics
+
+* **`retrospective(peels = )` takes a vector of peel depths, so a comparison can
+  skip the shallow peels.** A single number still means every peel from 1 to `n`,
+  as it always has; `peels = 2:10` now fits exactly those nine depths, and
+  `peels = c(1, 5, 10)` three. Each element is a number of years removed from
+  `endyr`, not a year, and depths are sorted and de-duplicated. This is worth
+  having because the shallow peels are the ones that cost the most to interpret:
+  a one-year peel's MASE in `hindcast_skill()` has a single
+  \eqn{|naive - reference|} in its denominator, so it says more about the
+  denominator than about the projection. `peels = 3:10` drops those and pays for
+  two fewer model fits. `$peel_depths` records the depths asked for, alongside
+  the existing `$peels_requested` count, and `print()` names them and attaches a
+  `NOTE` whenever the set is not `1:n` — a rho averaged over a subset is not the
+  quantity the +/-0.2 band was calibrated on.
+
+  `peels = 5` and `peels = c(5)` are the same object in R, so a length-1 value
+  always means `1:5`. Write `peels = c(5, 5)`, which de-duplicates, to fit one
+  depth on its own.
+
+  A bad `peels` is now refused before any peel is fitted rather than after. A
+  depth of 0 made `(endyr_peel + 1):endyr` count *down*, so the retained years
+  were fitted as a forecast; an over-deep one built a model ending before
+  `styr`; and a non-finite or out-of-integer-range value (`peels = 1e10`)
+  coerced to `NA` and surfaced as "missing value where TRUE/FALSE needed". All
+  were silent, and all were paid for first.
+
+* **Three once-per-call retrospective warnings never actually reached the
+  caller.** Each was raised inside the per-peel dispatch, where a warning raised
+  in a parallel worker is discarded — so at the default `cores` none of them
+  surfaced at all. Two were additionally gated on `i == 1L`, which a subset such
+  as `peels = 2:10` never reaches; the third sat in `.rce_peel_map()`, which has
+  no peel index in scope, and so fired once per peel instead of once per call. They are now settled once
+  before dispatch, where they belong — every one of the three conditions reads
+  only the input model. `inst/dev/TRAPS.md` records the general trap.
+
+  The three: **`forecast_rec = "model"` is inert when `proj_mean_rec = TRUE`**
+  (`proj_mean_rec` takes precedence and `build_srr()` defaults it to `TRUE`, so
+  a model fitted without naming it projects the peeled years at mean recruitment
+  whatever process it carries — and `hindcast_skill()`, which defaults to
+  `"model"` precisely to tell projection methods apart, silently cannot, which
+  means a DSEM comparison could report "the correlation structure makes no
+  difference" when the setting never engaged); **an unrecorded `random_vars`**,
+  which announces a biased Mohn's rho and is the subject of the next entry; and
+  **a fixed-effect linkage covariate** keeping its post-peel values, so rho is
+  conditional on that covariate being known. That last one is gated on the
+  DEEPEST peel, which is the one with the most post-peel rows; gating on the
+  shallowest would go silent whenever `env_data` stops short of `endyr - 1` even
+  though the deeper peels still see post-peel values.
+
+* **A fit with no random effects no longer claims its retrospective is biased.**
+  `fit_mod()` built `random_vars` as `c()` and stored it with
+  `mod_objects$random_vars <- random_vars`, and assigning `NULL` into a list
+  *deletes the element* — so an ordinary `random_rec = FALSE` fit came back with
+  no `random_vars` at all, indistinguishable from a fit made before 5.10.0
+  recorded it. `retrospective()` then told its owner that every peel pins every
+  deviation and shrinks the process SDs with peel depth, and to refit. With no
+  random effects, pinning every deviation is exactly what the fit itself did and
+  there is no bias, so the warning was false on the most common single-species
+  configuration.
+
+  `fit_mod()` now stores `character(0)` for "recorded, and there were none", and
+  only an absent record warns. **A fit returned by `estimateMode` 0 or 1 that
+  declares no random effects therefore carries `random_vars` as `character(0)`
+  where it previously had no such element** — observable on the returned object,
+  though nothing in the package or the sibling repos reads it other than
+  `retrospective()`. Nothing numeric moves: the `random=` declaration passed to
+  `MakeADFun()`, the bounds and the convergence snapshot all read a local
+  variable, not the stored one.
+
+  A fit **saved** by an earlier version still has no `random_vars`, so it still
+  draws the warning. That is correct for a pre-5.10.0 fit and a false alarm for
+  an older no-random-effect fit; refitting resolves it either way.
+
+* **`retrospective(forecast_rec = "model")` errored on any fit without a DSEM.**
+  It called a helper `.pin()` that was never defined, so the branch reached
+  whenever `forecast_rec = "model"` met `proj_mean_rec = FALSE` on a non-DSEM
+  fit died with "could not find function `.pin`". Since `hindcast_skill()`
+  *defaults* to `forecast_rec = "model"`, that function was unusable on exactly
+  the non-DSEM models built for the comparison it exists to make — those with
+  `proj_mean_rec = FALSE`. With the default `TRUE` it took the mean-recruitment
+  arm and worked. The predicate is
+  now a `pin_block()` defined once in the dispatching frame and reading
+  `object$random_vars`, the same source `.rce_peel_map()` uses.
+
 # Rceattle 5.23.0
 
 This release carries the DSEM integration that was filed as 5.19.0 while this

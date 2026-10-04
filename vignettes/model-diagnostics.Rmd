@@ -42,7 +42,7 @@ object, an overall status, and a verdict — before the detail:
   ...
 
 <Rceattle retrospective>  status: WARN
-  4 peel(s); 3 of 12 terminal Mohn's rho outside +/-0.2
+  3 peel(s); 3 of 12 terminal Mohn's rho outside +/-0.2
           quantity  N     Pollock  Cod      Arrowtooth flounder
   [WARN]  R            3  0.511    0.283    -0.221
 
@@ -364,7 +364,16 @@ The `retrospective()` function returns a list with two elements:
 
 The `nyrs_forecast` argument (default 3) also evaluates rho for years projected beyond each terminal peel, so a single call quantifies forecast skill alongside retrospective bias.
 
-A peel that did not converge is dropped and a message reports how many, so `Rceattle_list` can be shorter than `peels + 1`. Index it by name rather than position — with a peel missing, `Rceattle_list[[3]]` is not the 3-year peel. If no peel converges, Mohn's rho is `NaN` and the call warns.
+A peel that did not converge is dropped and a message reports how many, so `Rceattle_list` can be shorter than one plus the number of peels asked for. Index it by name rather than position — with a peel missing, `Rceattle_list[[3]]` is not the 3-year peel. If no peel converges, Mohn's rho is `NaN` and the call warns.
+
+`peels` can also be a **vector of peel depths** rather than a count, so a run can skip the shallow peels:
+
+```{r, eval = FALSE}
+retro <- retrospective(model_1, peels = 2:10)   # nine peels, no 1-year peel
+retro$peel_depths                               # the depths asked for
+```
+
+Each element is a number of years removed from `endyr`, not a year, and depths are sorted and de-duplicated. Mohn's rho is averaged over whichever peels are fitted, so a rho from `peels = 2:10` is not comparable to one from `peels = 10` — subset deliberately, and say which depths a reported rho covers.
 
 ## Forecast skill across peels
 
@@ -381,7 +390,36 @@ Two things to know when reading it. `reference = "observed"` scores the peel's p
 
 `hindcast_skill()` defaults to `forecast_rec = "model"`, which hands the peeled years to the model's own projection rule; `retrospective()` defaults to `"mean"`, the convention Mohn's rho has always been computed under. Without that difference every model forecasts identically and the comparison says nothing.
 
-**`forecast_rec = "model"` needs `build_srr(proj_mean_rec = FALSE)`.** `proj_mean_rec` takes precedence, and it defaults to `TRUE`, so a model fitted without naming it projects the peeled years at mean recruitment whatever process it carries — and `hindcast_skill()` then cannot tell projection methods apart, which is the one thing it exists to do. Measured on the GOA arrowtooth DSEM: `forecast_rec = "mean"` and `"model"` returned identical Mohn's rho to every digit. `retrospective()` says so when it happens.
+**`forecast_rec = "model"` needs `build_srr(proj_mean_rec = FALSE)`.** `proj_mean_rec` takes precedence, and it defaults to `TRUE`, so a model fitted without naming it projects the peeled years at mean recruitment whatever process it carries — and `hindcast_skill()` then cannot tell projection methods apart, which is the one thing it exists to do. Measured on the GOA arrowtooth DSEM: `forecast_rec = "mean"` and `"model"` returned identical Mohn's rho to every digit. `retrospective()` warns when it happens, once per call and before any peel is fitted.
+
+### Does a DSEM's correlation structure improve the projection?
+
+This is the comparison `hindcast_skill()` exists for: a DSEM's lagged and covariate paths carry information into the peeled years that mean recruitment throws away, and the MASE says whether that information helps.
+
+**Do it from one fit, not two.** Fit the DSEM with `proj_mean_rec = FALSE`, then score it both ways. The two `forecast_rec` settings differ only in the *forecast* refit — the peeled hindcast is the same fit either way — so this isolates the projection rule and nothing else:
+
+```{r, eval = FALSE}
+dsem_fit <- fit_mod(data_list = BS2017SS, dsem = build_DSEM(sem = my_sem),
+                    recFun = build_srr(srr_fun = 0, proj_mean_rec = FALSE),
+                    random_rec = TRUE, estimateMode = 1)
+
+retro_mean  <- retrospective(dsem_fit, peels = 3:10, forecast_rec = "mean")
+retro_dsem  <- retrospective(dsem_fit, peels = 3:10, forecast_rec = "model")
+
+# Score RECRUITMENT -- see below for why not SSB
+hindcast_skill(dsem_fit, retro = retro_mean, quantity = "R")$mase
+hindcast_skill(dsem_fit, retro = retro_dsem, quantity = "R")$mase
+```
+
+`"mean"` is the mean-recruitment projection and `"model"` the DSEM's; the lower MASE wins, and `peels = 3:10` keeps the horizons where the MASE denominator is not dominating.
+
+**Score recruitment, not SSB, over a short horizon.** The recruits the two rules disagree about are not mature yet, so SSB hardly responds and the MASE cannot see the projection rule. Measured on a BS2017SS DSEM (lag-1 on the recruitment deviations plus a temperature covariate) at a 3-year peel: the two rules differed by **46.8%** in forecast recruitment — `"mean"` flat at 35.2 million, the SEM decaying 35.2 → 25.8 → 18.7 million as the lagged state relaxed — and by **0.03%** in forecast SSB. The SSB MASE agreed to four significant figures for two of the three species. So `quantity = "R"` is the sharp test of a recruitment projection; SSB becomes informative only once the horizon reaches the age at maturity, which for these stocks means deeper peels than three years.
+
+Use the same run to confirm the comparison is clean: the peeled *hindcast* is identical between the two settings (measured: `max |difference|` in hindcast recruitment exactly 0), so any difference you see is the projection rule and nothing else.
+
+**Don't do it by refitting with `proj_mean_rec = TRUE` and comparing the two fits.** That changes the projection rule *and* the fit, so a MASE difference mixes the two and neither number isolates the correlation structure. `proj_mean_rec` is a property of the configuration you are fitting; `forecast_rec` is the knob for asking what a *given* fit would have forecast, which is the question here.
+
+One setting removes the choice entirely: `build_DSEM(estimate_projection = TRUE)` makes the SEM span the projection, and `fit_mod()` then sets `proj_mean_rec = FALSE` for you and says so. Such a fit reads `FALSE` here and is scored on its own process without further arrangement.
 
 ## Jitter testing
 
