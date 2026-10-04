@@ -5,18 +5,82 @@ session. Maintained by `/handoff`.
 
 ## Now
 
-**PR #111 (`dsem-v5-integration` -> `dev`) is at 5.23.0 and synced with `dev`.** `dev` released
-5.20.0, 5.21.0 and 5.22.0 while this branch was open; all are merged in.
+**`cdca670a` is pushed to `dsem-v5-integration` (2026-10-03), at `5.23.0.9001`.** It makes
+`retrospective(peels = )` take a vector of peel depths and fixes three reporting defects in the
+same function. Written up in full in the commit message; the summary is under Done & verified.
 
-**The version keeps colliding.** Both lines have now independently used 5.19.0, 5.21.0 and
-5.22.0, and each time the branch had to move up after the fact and renumber a NEWS section that
-was already written. `dev`'s number always wins, because `dev` is what releases. Before bumping
-this branch again, read `dev`'s DESCRIPTION -- or better, leave the bump until the PR is about
-to merge, since anything chosen earlier is a guess about what `dev` will not use.
+Everything below about PR #111 predates it — **#111 was CLOSED unmerged on 2026-09-09** and this
+branch is parked, now 316 commits behind `dev` and 123 ahead. Treat the #111 sections as the
+record of what the branch contains, not as an open review.
+
+**The version keeps colliding, and this session proved the guidance below is load-bearing.**
+Both lines have independently used 5.19.0, 5.21.0 and 5.22.0, and each time the branch had to
+move up after the fact and renumber a NEWS section already written. `dev`'s number always wins,
+because `dev` is what releases. Before bumping this branch again, read `dev`'s DESCRIPTION — or
+better, leave the bump until the PR is about to merge, since anything chosen earlier is a guess
+about what `dev` will not use.
+
+This session bumped to `5.24.0` anyway, against exactly that advice, and an adversarial review
+caught it: `dev` has published **5.24.0, 5.24.1 and 5.24.2** (`git show dev:NEWS.md`), and
+`dev`'s DESCRIPTION is at **5.48.0**. A bare `5.24.0` here would have made an install from this
+branch report a real release holding entirely different code — reversing `95153bbc`, the commit
+whose whole purpose was to stop that, and the GOA arrowtooth DSEM script installs from here.
+**The NEWS file's collide-and-annotate convention does NOT extend to `DESCRIPTION`**; `95153bbc`
+deliberately separates them. The section is now headed `# Rceattle (development version)` and
+`DESCRIPTION` carries a `.9001` development suffix. Do not take a bare number on this branch.
 
 The last block of work answered a report that **`self_test(process = TRUE)` did not simulate
 process error** — on a DSEM or without one. It did not, for five separate reasons; all five are
 fixed, plus two features and two crash/consistency fixes that came out of the same conversation.
+
+## Done & verified in `cdca670a` (2026-10-03)
+
+**Golden regression FAIL 0 | WARN 4 | SKIP 0 | PASS 20.** `SKIP 0` is the point — the test
+carries both `skip_on_cran()` and `skip_on_covr()`, so a green line means nothing without it.
+The four warnings are the GOA fixture's own `Time_varying_q` / `Time_varying_sel`
+soft-deprecation notices. Reference objectives unmoved: `ss = 10241.0304272585`,
+`ms = 10267.2478324443`, `goa_ss = 12868.0052289274`, `goa_ms = 12932.7931701136`.
+
+**Affected suite FAIL 0 | WARN 0 | SKIP 0 | PASS 368** across `test-functions-retrospective`,
+`test-retrospective-selectivity-pinning`, `test-diagnostics-print-contract`,
+`test-hindcast-skill`, `test-dsem-retrospective`, `test-dsem-naive-equivalence`,
+`test-vignette-api`.
+
+**`verify-refit-like.R`: all nine shared sections bit-identical** — the refit-path check golden
+does not cover (rule 3). The "before" digest came from `95153bbc` in a `git worktree`, so this
+validates the commit rather than only seeding a baseline: `base`, `retro`, `jitter`,
+`self_test`, `profile`, `remove_F`, `mse_normal`, `mse_regen` and `mse_ms` (the multispecies one,
+which is the only section exercising the pinned predation-suitability window) all `identical()`.
+The sole reported difference is `DIFF: retro_sub`, the section `cdca670a` adds.
+
+What shipped:
+
+1. **`retrospective(peels = )` takes a vector of depths.** Scalar `n` still means `1:n`;
+   `peels = 2:10` fits those nine; `peels = c(5, 5)` de-duplicates to the 5-year peel alone,
+   which is the only way to name one depth because `peels = 5` and `peels = c(5)` are the same
+   object in R. `$peel_depths` records the request and `print()` attaches a `NOTE` when the set
+   is not `1:n`.
+2. **`forecast_rec = "model"` errored on every non-DSEM fit** — it called a `.pin()` that was
+   never defined anywhere. `hindcast_skill()` *defaults* to `"model"`, so it was unusable on
+   exactly the models built for the comparison it exists to make. Now `pin_block()`, defined once
+   in `retrospective()`'s dispatching frame.
+3. **Three once-per-call warnings never reached a caller** — see Known flags.
+4. **A no-random-effect fit no longer claims a biased retrospective.** `fit_mod()` stores
+   `random_vars` as `character(0)`; previously `$<-` with a NULL deleted the element.
+
+**Measured, and it changes how the comparison should be run.** On a BS2017SS DSEM (lag-1 on the
+recruitment deviations plus a temperature covariate), 3-year peel: `forecast_rec = "mean"` vs
+`"model"` leave the peeled hindcast **bit-identical** (max difference in hindcast recruitment
+exactly 0) and move forecast recruitment **46.8%** — `"mean"` flat at 35.2 million, the SEM
+decaying 35.2 -> 25.8 -> 18.7 million — but move forecast **SSB only 0.03%**, because the
+recruits the two rules disagree about are not mature inside three years. The SSB MASE agreed to
+four significant figures for two of three species. **Compare projection rules on
+`quantity = "R"`, not the default SSB.** Peel cost is ~1 min each (they warm-start from the
+parent fit); the parent DSEM fit itself took 6.1 min.
+
+Both `proj_mean_rec` settings returned the **same objective, 10452.7**, under `estimateMode = 1`
+— the projection is not in the likelihood there — so the two-fit comparison buys nothing over
+scoring one fit both ways. `model-diagnostics.Rmd` now says so.
 
 ## Done & verified on #111
 
@@ -92,6 +156,31 @@ in `inst/dev/TRAPS.md` under "The SIMULATE contract".
 
 ## Known flags
 
+- **A `warning()` raised inside a `.parallel_lapply()` worker is DISCARDED**, and the default
+  `cores` is `detectCores() - 6`, so the parallel path is what anyone actually runs — the warning
+  is visible only at `cores = 1`, which is what the suite passes. This hid three of
+  `retrospective()`'s warnings completely; all three are now settled before dispatch
+  (`R/9-retro_and_jitter.R:245-300`). Two had also been gated on `i == 1L`, which `peels = 2:10`
+  never reaches; the third sat in `.rce_peel_map()`, which has no peel index, so it fired once
+  per peel instead of once per call — **so an old `cores = 1` log shows that one N times, not
+  once.** Hoist when the condition reads only the input model; collect and re-raise as
+  `self_test()` does with `sim_warns` when it is genuinely per-item. Now in `TRAPS.md`.
+- **`retrospective()`'s per-peel "could not report hindcast standard errors" is STILL lost**, and
+  it is the one that cannot be hoisted (it depends on whether *that peel's* `sdreport()` threw).
+  Worse than a missing band: the handler falls back to `newmod$sdrep`, which at that point is the
+  **forecast refit's** sdreport — built with the whole hindcast pinned, so every hindcast standard
+  error in it is **zero**. A peel whose `sdreport()` failed presents a zero band as real, with
+  nothing saying so. `R/9-retro_and_jitter.R:700-703`. Point estimates unaffected. Needs
+  collect-and-re-raise; not done.
+- **A saved pre-`cdca670a` fit with no random effects still draws the bias warning.**
+  `random_vars` is absent on it, which is indistinguishable from a pre-5.10.0 fit that never
+  recorded it. Correct for the latter, a false alarm for the former; refitting resolves either.
+- **`tools/verify/verify-refit-like.R` gained a `retro_sub` section in `cdca670a`**, so its
+  "bit-identical across all sections" verdict is unreachable against any baseline captured before
+  that commit — the compare reports `DIFF: retro_sub` and nothing else. Its verdict is a
+  whole-object `identical()`, then a name-based detail loop, so nothing mis-pairs. **Re-baseline
+  on `cdca670a` or later**; `dev/refit-after.rds` from the run below is one, but `dev/` is
+  untracked scratch and does not survive a clone.
 - **A `tools/verify/` harness runs in NO CI job, so a broken one is invisible.**
   `verify-dsem-equivalence.R` — the only numerical check on the vendored `dsem.hpp` — could not
   run for the whole time it sat on this branch: `cond_k` was added to `calculate_dsem()` and to
@@ -191,10 +280,30 @@ Both are fixed. It is the only net for the Windows `0xC0000005`, which is still 
 
 ## Resume here
 
-Update the PR body -- it still describes only the original DSEM work, not `bound_sd`, the
-zero-variance guard, or `$bounds$par_lower` -- read `NEWS.md` 5.23.0 once as a whole, then merge
-#111. `run_mse()` and two `process_residuals()` processes still refuse on a DSEM and are the
-remaining gap in that suite.
+**Three concrete follow-ons from `cdca670a`, in order of value:**
+
+1. **Run the projection comparison on a real assessment.** Everything in `cdca670a` was verified
+   on `BS2017SS` and synthetic fixtures; the question it was built to answer — does a DSEM's
+   correlation structure improve the projection — has not been asked of a GOA model. The recipe
+   is in `model-diagnostics.Rmd` under "Does a DSEM's correlation structure improve the
+   projection?": one fit at `build_srr(proj_mean_rec = FALSE)`, then `retrospective()` twice at
+   `forecast_rec = "mean"` and `"model"`, scored with `hindcast_skill(quantity = "R")`.
+   `peels = 3:10` is about 30 min at ~1 min per peel.
+2. **Fix the per-peel `sdreport` warning** (Known flags). It is the last of the four
+   worker-swallowed warnings and the only one that needs collect-and-re-raise rather than
+   hoisting. It currently presents **zero standard errors as real**, which is the worst failure
+   shape of the four.
+3. **Re-baseline `verify-refit-like.R`** on `cdca670a` or later (Known flags).
+
+**Then decide what this branch is for.** It is parked, #111 is closed, and it sits 316 behind
+`dev` / 123 ahead. `cdca670a` is self-contained — the `peels` vector, the `.pin()` crash fix and
+the `random_vars` fix are all independent of DSEM — so **the `.pin()` fix in particular is worth
+checking against any other branch that carries that call**, since it makes `hindcast_skill()`
+unusable on a non-DSEM fit wherever it appears.
+
+Earlier #111 notes, now historical: the PR body described only the original DSEM work, not
+`bound_sd`, the zero-variance guard, or `$bounds$par_lower`. `run_mse()` and two
+`process_residuals()` processes still refuse on a DSEM and are the remaining gap in that suite.
 
 Loose ends inherited from `dev`, none blocking:
 
