@@ -12,6 +12,55 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.49.5
+
+## Internal
+
+* **The registry guards now run on every pull request with their result made fatal.** Sixteen test
+  files assert that two hand-synced copies of something agree -- a switch map against the `case`
+  labels in `ceattle.cpp`, the column schema against `R/data.R`, the `JnllRow` enum against its
+  two R-side partners, the HCR-2 threshold against the literal source of `run_mse()` -- by reading
+  `R/*.R` and `src/TMB/*.cpp` off disk. Where they ran before, precisely: under `R CMD check` they
+  resolve `../../R` and `../../src/TMB` relative to the `.Rcheck` test directory, where neither
+  exists, so each skips and a skip is not a failure; `test-coverage` *does* run them against the
+  real source but passes `stop_on_failure = FALSE` with nothing reading the result;
+  `deep-checks.yaml` runs them properly and fatally, but nightly. So the gap was never that they
+  never ran on a PR -- it is that their result was discarded, or arrived a day late.
+* New `source-guards.yaml` runs them on a plain source checkout, `pkgload::load_all()` without the
+  TMB build, in about five seconds of R. It fails on three conditions, because two of the three are
+  how a guard dies quietly: a guard failing, a guard returning no result rows, and a
+  source-reading **block** that skipped or asserted nothing.
+* **The measured-nothing check is per block, not per file**, and that distinction is the substance
+  of this change. Two earlier drafts checked per file -- first by a `skip_on_cran()` heuristic,
+  then by a per-file `passed > 0` floor -- and adversarial review demonstrated the identical hole
+  in both: most of these files hold several `test_that()` blocks, so one can be switched off while
+  its siblings keep the file's pass count high. Adding a `skip_on_cran()` is the likeliest
+  accidental edit in this repo (it is the idiom in 181 of 255 files), and doing it to the block
+  guarding the C++ dispatch map took 33 assertions dark with the job green.
+* **Three registry assertions were already dark and are now live.**
+  `test-schema-cpp-dispatch.R`'s not-yet-implemented inventory -- the pins that non-parametric
+  growth is still stubbed and that the Kinzey & Punt predation block has no live `msmMode` branch
+  -- sat behind a `skip_on_cran()` that existed only for the fixture half of the block. The block
+  is split: the static reads run always, the fixture half still skips. That file's assertion count
+  goes from 114 to 117.
+* The guard set is pinned **by name**, not by count. An earlier draft asserted `length() == 16`,
+  and a review showed that deleting a real guard while adding one decorative test that happens to
+  match a discovery pattern keeps the count at 16 and the job green; only 5 of the 16 are named
+  anywhere else, so 11 could have gone silently. The failure now names which guard left and which
+  arrived.
+* `NOT_CRAN=false` is set as **step-level** env, per `inst/dev/TRAPS.md`, and the script asserts
+  the value it actually received -- `setup-r-dependencies` writes `NOT_CRAN=true` to
+  `$GITHUB_ENV`, and with it set this job produces eight confusing failures with nothing naming
+  the cause.
+* Recorded two facts about the suite's self-reporting that the `deep-checks.yaml` header had stale
+  or missing: **181 of the 255** test files carry `skip_on_cran()` (it said 140 of 192), and **94
+  of those carry it at file level**, outside any `test_that()` -- which produces a zero-row result,
+  so such a file reports neither a pass nor a skip and disappears from the counts rather than
+  showing up as skipped.
+
+Note that adding the workflow makes the check appear on a pull request; making it *required* is a
+branch-protection setting, not something this repo holds as code.
+
 # Rceattle 5.49.4
 
 ## Internal

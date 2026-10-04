@@ -1,0 +1,112 @@
+# The registry guards, run on every pull request with their result made fatal.
+#
+# Sixteen test files assert that two hand-synced copies of something agree: a
+# switch map against the `case` labels in `ceattle.cpp`, the column schema
+# against `R/data.R`'s field list, the `JnllRow` enum against its two R-side
+# partners, the HCR-2 threshold against the literal source of `run_mse()`, the
+# developer guide against the files and C++ switches it names. They do that by
+# reading `R/*.R` and `src/TMB/*.cpp` off disk.
+#
+# WHERE THEY RAN BEFORE THIS JOB. Two earlier drafts of this header got the
+# mechanism wrong in both directions, so it is stated exactly:
+#
+#   * `R CMD check` copies the tests to `<pkg>.Rcheck/tests/` and runs them
+#     with the working directory at `<pkg>.Rcheck/tests/testthat/`. Each guard
+#     builds its path as `test_path("..", "..", "R", ...)`, which resolves to
+#     `<pkg>.Rcheck/R` -- a directory that does not exist. (The lazy-load
+#     database sits a level deeper, at `<pkg>.Rcheck/Rceattle/R/Rceattle.rdb`,
+#     and is never on the path these tests build, so "R/ holds the .rdb" is
+#     NOT the reason.) Each guard skips, and a skip is not a failure.
+#   * `test-coverage` DOES run them against the real source -- it resolves
+#     `tests/testthat` to an absolute path in the checkout -- but passes
+#     `stop_on_failure = FALSE` and nothing reads the result, so a failure
+#     prints into a shard log and the job stays green.
+#   * `deep-checks.yaml` runs them properly and fatally, but nightly.
+#
+# So the gap was never "these never run on a pull request". It is that where
+# they run their result is discarded, or it arrives a day late. This job runs
+# them on a source checkout, on every PR, and fails on the result -- in about
+# five seconds of R, though the dependency install in front of it costs minutes.
+#
+# NOTE: adding this workflow makes the check APPEAR on a pull request. It does
+# not make it required -- that is a branch-protection setting on
+# afsc-assessments/Rceattle for `main` and `dev`, and it is not in this repo as
+# code. Until it is marked required, a red result here does not stop a merge.
+#
+# It fails on three conditions, because two of the three are how a guard dies
+# quietly: a guard failing; a guard returning NO RESULT ROWS (a file-level
+# `skip_on_cran()` aborts the file and yields zero rows, so it reports neither
+# a pass nor a skip -- 94 of the 255 test files are written that way); and a
+# source-reading BLOCK that skipped or asserted nothing.
+#
+# That last check is per BLOCK. Two earlier drafts checked per file, and an
+# adversarial review demonstrated the identical hole in both: most of these
+# files hold several `test_that()` blocks, so one can be switched off while its
+# siblings keep the file's pass count high. See tools/ci/source-guards.R.
+name: source-guards
+
+on:
+  pull_request:
+    branches: [main, master, dev]
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+concurrency:
+  group: >-
+    ${{ github.workflow }}-${{
+       github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions: read-all
+
+jobs:
+  source-guards:
+    runs-on: ubuntu-latest
+    name: registry and documentation guards
+    timeout-minutes: 45
+
+    env:
+      # Every other workflow here sets this, and DESCRIPTION carries a GitHub
+      # `Remotes:` entry (TMBhelper), so pak must hit the GitHub API to resolve
+      # it. Unauthenticated that is 60 requests an hour shared across runners,
+      # which is the classic intermittent red for r-lib workflows.
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # An unused third-party apt repo serving a bad index makes apt-get exit
+      # 100 and fails the dependency step. The other workflows in this repo
+      # carry the same step for the same reason.
+      - name: Remove third-party apt sources
+        run: |
+          sudo rm -f /etc/apt/sources.list.d/google-chrome.list \
+                     /etc/apt/sources.list.d/microsoft-prod.list
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      # The package's own dependencies, so load_all() can attach, plus
+      # testthat and pkgload. No TMB build: a missing .so makes pkgload's
+      # library.dynam2() return quietly, so the R-level registries the guards
+      # read are available without compiling. The script asserts that before
+      # running anything, so a half-built namespace fails loudly rather than
+      # making every guard error for the wrong reason.
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: |
+            any::testthat
+            any::pkgload
+
+      - name: Run the source-reading guards
+        # STEP-level, not job-level. inst/dev/TRAPS.md records that this value
+        # "did NOT hold reliably" through $GITHUB_ENV, and R-CMD-check.yaml
+        # records that setup-r-dependencies writes NOT_CRAN=true there --
+        # GitHub resolves step env last, so it beats both the job env and
+        # anything an earlier step exported. The script asserts the value it
+        # got, so a slip is a named error rather than eight confusing failures.
+        env:
+          NOT_CRAN: "false"
+        run: Rscript tools/ci/source-guards.R

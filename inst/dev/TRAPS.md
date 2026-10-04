@@ -663,6 +663,22 @@ is age 5. `minage = 1` hides it everywhere it is currently written, so the colum
 Three of this repo's most valuable checks have been guarded off in a way nothing verified. All
 the same shape: a speed optimization, or a green-looking job, that silently removes coverage.
 
+**A job that checks "did this guard measure anything" must check per BLOCK, not per file.**
+Building `source-guards.yaml` (5.49.5) produced the defect twice in a row. First a heuristic
+exempted any file whose `test_that` blocks were all followed within two lines by
+`skip_on_cran()` — one line in the suite's dominant idiom would have exempted eight of the
+sixteen guards. Replacing it with a per-file `passed > 0` floor had the identical hole: most of
+these files hold several blocks, so gating one block kept the file's total high.
+`test-schema-cpp-dispatch.R` dropped from 114 passing assertions to 81 with the job still green.
+Both were found by adversarial review, not by the job. The per-block check then immediately found
+a **third** instance already in the tree: that file's not-yet-implemented inventory — the pins
+that non-parametric growth is stubbed and that Kinzey & Punt predation has no live `msmMode`
+branch — sat behind a `skip_on_cran()` that existed only for the fixture half of the block.
+
+**Pin a guard set by NAME, not by count.** `length(targets) == 16L` is satisfied by deleting a
+real guard and adding any test that happens to match the discovery pattern. Only 5 of the 16 are
+named anywhere else in the repo, so 11 could have been deleted silently.
+
 **The bounds check measured nothing from before 5.20.0 until 2026-08-27, and reported success.**
 `deep-checks`' `safebounds` job is `continue-on-error: true`, so the run's conclusion was
 `success` while the job failed. It failed at the DLL, not on a violation: `NAMESPACE` loads
