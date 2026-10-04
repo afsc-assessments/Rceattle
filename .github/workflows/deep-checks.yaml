@@ -16,11 +16,14 @@
 #    rebuilds with bounds checking on so that class of fault is attributable
 #    rather than a mystery segfault.
 #
-# 3. THE skip_on_cran SUITE. 140 of the 192 test files carry skip_on_cran(),
+# 3. THE skip_on_cran SUITE. 181 of the 255 test files carry skip_on_cran(),
 #    which is every test that runs a real fit_mod() optimization. R-CMD-check
-#    sets NOT_CRAN=false, so it skips all of them. test-coverage does run them,
-#    but tools/ci/coverage-shard.R passes stop_on_failure = FALSE and no later
-#    step reads the result, so a failure there prints into a shard log and the
+#    sets NOT_CRAN=false, so it skips all of them. Note 94 of those carry the
+#    call at FILE level, outside any test_that(): such a file produces a
+#    zero-row result, so it reports neither a pass nor a skip and disappears
+#    from the counts rather than showing up as skipped. test-coverage does run
+#    them, but tools/ci/coverage-shard.R passes stop_on_failure = FALSE and no
+#    later step reads the result, so a failure prints into a shard log and the
 #    job stays green. Between the two, a broken regression test failed nothing.
 #    This job is where those tests can go red.
 #

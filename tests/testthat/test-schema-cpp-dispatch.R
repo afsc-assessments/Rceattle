@@ -166,9 +166,9 @@ test_that("the not-yet-implemented inventory is stated, not just tolerated", {
   # Each stubbed branch above must actually be stubbed, so the exemption cannot
   # quietly become a real-but-unreachable implementation.
   #
-  # skip_on_cran: the msmMode half builds a fixture, which is the whole runtime
-  # of this file. The dispatch comparison above stays static and sub-second.
-  testthat::skip_on_cran()
+  # Deliberately NOT skip_on_cran(): these are static reads, sub-second, and
+  # they are the registry assertions tools/ci/source-guards.R exists to keep
+  # alive. The fixture half that does need a fit is the block below.
   dir <- c("src/TMB", testthat::test_path("..", "..", "src", "TMB"))
   dir <- dir[dir.exists(dir)]
   testthat::skip_if(length(dir) == 0, "src/TMB not available")
@@ -182,8 +182,13 @@ test_that("the not-yet-implemented inventory is stated, not just tolerated", {
   pred <- paste(readLines(file.path(dir[1], "predation.hpp"), warn = FALSE), collapse = "\n")
   testthat::expect_match(pred, "switch (msmMode)", fixed = TRUE)
   testthat::expect_length(cpp_switch_cases(strip_cpp_comments(pred), "msmMode"), 0)
+})
 
-  # msmMode 3-9 must be refused in R, not silently accepted and dispatched.
+
+test_that("msmMode 3-9 is refused in R rather than dispatched", {
+  # Builds a fixture, which is the whole runtime of this file, so it is the one
+  # part of the inventory check that skips on CRAN.
+  testthat::skip_on_cran()
   d <- make_test_data(nyrs = 4, nages = 3)
   d$msmMode <- 5
   testthat::expect_error(suppressWarnings(suppressMessages(data_check(d))),
