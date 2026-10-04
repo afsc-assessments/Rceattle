@@ -12,6 +12,37 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.49.2
+
+## Internal
+
+No change to any fit. This release only deletes code that was already dead, so every objective,
+parameter and reported quantity is unchanged.
+
+* **Deleted `src/TMB/Dev/`** (`wham_v0.cpp` 2,715 lines, `caal.hpp`, `osa.hpp`, two CAAL simulation
+  scripts). It was never compiled: `src/TMB/compile.R` compiles the single translation unit
+  `ceattle.cpp`, neither `Makevars` descends into it, no `#include` names it, and
+  `.Rbuildignore` excluded it from the tarball. The now-dangling `^src/TMB/Dev$` line was removed
+  from `.Rbuildignore`.
+* **Deleted the commented-out Kinzey & Punt (2009) functional-response scaffolding** from
+  `build_params()`, `build_map_predation()`, `build_bounds()`, `set_phases()` and `plot_form()` —
+  171 lines of comments for six parameter blocks (`logH_1`, `logH_1a`, `logH_1b`, `logH_2`,
+  `logH_3`, `H_4`) that the TMB template does not declare and `data_check()` refuses
+  (`msmMode` 3-9). `build_map_predation()` goes from 101 lines to 35, of which 56 were one
+  commented block. `plot_form()` still exists and still errors, naming the modes that are
+  available; that error is behaviour and was kept. The starting values, bounds and the citation are
+  recorded in `inst/dev/REMOVED-kinzey-and-dev-cpp.md`, and the `/* */` blocks in `ceattle.cpp`
+  are deliberately left for a C++-side commit.
+* **Deleted `.save_par()`**, an unexported helper with no call site anywhere, whose docstring
+  described a contract ("calling `.save_par()` at the top of each plot function") that no plot
+  function honoured. Seven other helpers that looked unreferenced were checked and kept: all are
+  live -- two reached only from tests (`.is_timeout`, `.par_description`), one from a `data-raw/`
+  script and a test (`.rce_build_meta_data_df`), and four passed as function values rather than
+  called (`.okabe_ito_pal`, `.rce_sel_se`, `.depletion_reference_lines`, `.f_reference_lines`).
+* Renumbered the section comments left with gaps by the deletions (`build_params()` 3.3/3.4 to
+  3.2/3.3; `build_map_predation()` 4 to 2), and re-derived the `CLEANUP_BACKLOG.md` marker count,
+  which had drifted: 47 now, from 56 on 5.49.1.
+
 # Rceattle 5.49.1
 
 ## Bug fixes

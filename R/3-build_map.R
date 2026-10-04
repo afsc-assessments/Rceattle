@@ -580,75 +580,9 @@ build_map_predation <- function(map_list, data_list) {
     map_list$log_gam_a[] <- NA
     map_list$log_gam_b[] <- NA
     map_list$log_phi[] <- NA
-
-    # # Multispecies kinzey parameters
-    # map_list$logH_1 <- map_list$logH_1 * NA
-    # map_list$logH_1a <- map_list$logH_1a * NA
-    # map_list$logH_1b <- map_list$logH_1b * NA
-    #
-    # map_list$logH_2 <- map_list$logH_2 * NA
-    # map_list$logH_3 <- map_list$logH_3 * NA
-    # map_list$H_4 <- map_list$H_4 * NA
   }
 
-  # # * 2. MSVPA form ----
-  # # Turn off all functional form parameters
-  # if (data_list$msmMode %in% c(1,2)) {
-  #
-  #   # Multispecies kinzey parameters
-  #   map_list$logH_1 <- map_list$logH_1 * NA
-  #   map_list$logH_1a <- map_list$logH_1a * NA
-  #   map_list$logH_1b <- map_list$logH_1b * NA
-  #
-  #   map_list$logH_2 <- map_list$logH_2 * NA
-  #   map_list$logH_3 <- map_list$logH_3 * NA
-  #   map_list$H_4 <- map_list$H_4 * NA
-  #
-  # }
-  #
-  # # * 3. Kinzey and Punt predation equations ----
-  # if (data_list$msmMode > 2) {
-  #   # Holling Type 1
-  #   if (data_list$msmMode == 3) {
-  #     map_list$logH_2 <- replace(map_list$logH_2, values = rep(NA, length(map_list$logH_2)))
-  #     map_list$logH_3 <- replace(map_list$logH_3, values = rep(NA, length(map_list$logH_3)))
-  #     map_list$H_4 <- replace(map_list$H_4, values = rep(NA, length(map_list$H_4)))
-  #   }
-  #
-  #   # Holling Type 2
-  #   if (data_list$msmMode == 4) {
-  #     map_list$logH_3 <- map_list$logH_3 * NA
-  #     map_list$H_4 <- map_list$H_4 * NA
-  #   }
-  #
-  #   # Holling Type 3
-  #   if (data_list$msmMode == 5) {
-  #     map_list$logH_3 <- map_list$logH_3 * NA
-  #   }
-  #
-  #   # Predator interference
-  #   if (data_list$msmMode == 6) {
-  #     map_list$H_4 <- map_list$H_4 * NA
-  #   }
-  #
-  #   # Predator preemption
-  #   if (data_list$msmMode == 7) {
-  #     map_list$H_4 <- map_list$H_4 * NA
-  #   }
-  #
-  #   # Hassell-Varley
-  #   if (data_list$msmMode == 8) {
-  #     map_list$logH_3 <- map_list$logH_3 * NA
-  #   }
-  #
-  #   # Ecosim
-  #   if (data_list$msmMode == 9) {
-  #     map_list$logH_2 <- map_list$logH_2 * NA
-  #     map_list$H_4 <- map_list$H_4 * NA
-  #   }
-  # }
-
-  # * 4. Suitability (if Multi-Species) ----
+  # * 2. Suitability (if Multi-Species) ----
   map_list$diet_comp_weights[] <- NA
   if (data_list$msmMode > 0) {
     for (sp in 1:data_list$nspp) {

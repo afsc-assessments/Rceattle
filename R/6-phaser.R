@@ -141,12 +141,6 @@ set_phases <- function(){
     catch_log_sd = 2,   # Log SD for lognormal catch likelihood (usually input)
     comp_weights = 5,  # Weights for comp likelihood
     caal_weights = 5,  # Weights for CAAL likelihood
-    # ,logH_1 = 6,     # Functional form parameter (not used in MSVPA functional form)
-    # logH_1a = 6,     # Functional form parameter (not used in MSVPA functional form)
-    # logH_1b = 6,     # Functional form parameter (not used in MSVPA functional form)
-    # logH_2 = 6,      # Functional form parameter (not used in MSVPA functional form)
-    # logH_3 = 6,      # Functional form parameter (not used in MSVPA functional form)
-    # H_4 = 6,         # Functional form parameter (not used in MSVPA functional form)
     log_gam_a = 5,     # Suitability parameter (size-preference mean)
     log_gam_b = 5,     # Suitability parameter (size-preference sd)
     log_phi = 5,       # Suitability parameter (pred-prey vulnerability)

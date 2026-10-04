@@ -12,7 +12,7 @@ GENERATE_LATEX         = NO
 INPUT                  = src/TMB
 FILE_PATTERNS          = *.cpp *.hpp
 RECURSIVE              = NO
-EXCLUDE                = src/TMB/Dev src/TMB/Depricated
+EXCLUDE                = src/TMB/Depricated
 
 # Every function appears, documented or not, so the reference is a complete index
 # of the template; undocumented ones show their signature and source only.
