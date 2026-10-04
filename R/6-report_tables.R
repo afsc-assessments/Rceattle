@@ -344,10 +344,12 @@ report_tables <- function(object,
 }
 
 
-# The likelihood decomposition. jnll_comp's columns count FLEETS on rows 1-8,
-# SPECIES on rows 9-20 and neither on row 21, so the column key comes from
-# .JNLL_ROW_AXIS -- reading every column as a fleet would report a species'
-# recruitment penalty against a survey.
+# The likelihood decomposition. jnll_comp's columns count FLEETS on rows 1-8
+# AND row 22, SPECIES on rows 9-20, neither on row 21, so the fleet axis is
+# not contiguous and the column key comes from .JNLL_ROW_AXIS -- reading every
+# column as a fleet would report a species' recruitment penalty against a
+# survey, and assuming the axis stops at row 20 would miss the equilibrium
+# catch.
 .rce_tab_likelihood <- function(fit, model) {
   j <- fit$quantities$jnll_comp
   if (is.null(j)) return(NULL)
@@ -874,7 +876,8 @@ standard_output <- function(x, species = NULL, model = NULL) {
       stringsAsFactors = FALSE))
   }
 
-  # `unit` names a fleet on rows 1-8 and a species on rows 9-20, so only species
+  # `unit` names a fleet on rows 1-8 and row 22, and a species on rows 9-20, so
+  # only species
   # rows are filtered here. Fleet rows are kept whatever the species and carried
   # in the standard's `fleet` column -- they are most of the decomposition a
   # model comparison is built from (31 of 38 rows on a 16-fleet assessment).

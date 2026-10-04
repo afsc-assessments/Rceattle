@@ -107,7 +107,10 @@ testthat::test_that("each row's declared axis matches the column the template wr
   # model-wide term uses, and is legal on any row -- reference-point penalties
   # score both per species and once for the model.
   legal <- list(
-    fleet   = c("flt", "index", "0"),
+    # eq_flt is a fleet index too: the equilibrium-catch loop sets it from
+    # equil_catch_ctl(eq_ind, 0) - 1, the row's fleet on the template's 0-based
+    # scale, and indexes the column by it.
+    fleet   = c("flt", "index", "eq_flt", "0"),
     species = c("sp", "rsp", "slot_col", "0"),
     model   = "0")
 

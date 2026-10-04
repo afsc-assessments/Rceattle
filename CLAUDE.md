@@ -93,7 +93,9 @@ rcmdcheck::rcmdcheck()                 # what CI runs (slow; usually backgrounde
 - **Toolchain:** prefix R compile/check commands with `export PATH=/usr/bin:$PATH` — system
   toolchain first, so a Homebrew clang/gfortran does not shadow the TMB build.
 - `load_all()` recompiles via `src/TMB/compile.R`; add `compile = FALSE` for R-only changes.
-  Compiled artifacts (`*.o` ~77 MB, `*.so`) are gitignored — never commit them.
+  Compiled artifacts are gitignored — never commit them. `ceattle.o` is the big one and it
+  grows with the template (89 MB at 5.45.3, 94 MB at 5.46.0), so treat any figure here as a
+  snapshot; `*.so` is a few MB.
 - **To run one test file**, make the env's parent the package namespace so internal helpers
   resolve: `e <- new.env(parent = asNamespace("Rceattle"))`, then source the shared helpers into
   it. A plain `new.env()` fails with `could not find function "data_check"`.
@@ -272,12 +274,12 @@ section holds every entry below in full).
 - **`newtonsteps > 0` can return a parameter OUTSIDE its bounds**: nlminb respects them, the Newton refinement after it does not, in either `.fit_tmb()` path. `convergence` reports `parameters_outside_bounds` (FAIL); default is 0 but golden runs 3.
 - **A shared parameter block starts at the GEOMETRIC MEAN of its members' starting values**, not the lead's; inject per BLOCK, never per fleet. Cost a GOA cod survey 18% of its index.
 - **`Index_distribution` has a second registry**: a new family must also be classified in `.index_rows_natural_scale()`, or it gets the log-scale residual.
-- **`jnll_comp` columns count fleets on rows 1–8, species on 9–20, and neither on row 21** (model-wide linkage REs); `.JNLL_ROW_AXIS` is the registry, so `rowSums()` mixes axes.
+- **`jnll_comp` columns count fleets on rows 1–8 AND row 22, species on 9–20, and neither on row 21** — the fleet axis is NOT contiguous (row 21 is the model-wide linkage REs, row 22 the initial equilibrium catch, by fleet); `.JNLL_ROW_AXIS` is the registry, so `rowSums()` mixes axes and an axis guess that stops at row 20 is wrong.
 - **A reference point CEATTLE never estimated is a number, not a gap**: `Ftarget`/`Flimit` = 1, `MSSB0` = 999 mt, per-recruit quantities 0 under `msmMode > 0`.
 - **Under `HCR = 0 & msmMode > 0` the depletions divide by last-projection-year biomass**, not `SB0`; don't blank them with a placeholder `SB0`.
 - **A fit reports 99 quantities**: enumerate `names(fit$quantities)`, not a `REPORT(` grep; `quantity_dictionary()` is the registry.
 - **`retrospective(getsd = TRUE)` can drop peels `getsd = FALSE` keeps**, so Mohn's rho can differ.
-- **`unweighted_jnll_comp` is written for 5 of its 21 rows**; the rest are structurally zero.
+- **`unweighted_jnll_comp` is written for 5 of its 22 rows**; the rest are structurally zero.
 - **`fit_mod(d, config = cfg)` replaces `d$model_config`**: build `cfg` with `run_config(d, ...)` or every linkage is dropped.
 - **`bias_adjust_proc` centres the lognormal priors and the recruitment deviations together** (5.33.0).
 - **A `data_list` element without `write_data()`/`read_data()` support round-trips to nothing.**

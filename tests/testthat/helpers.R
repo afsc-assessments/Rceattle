@@ -396,3 +396,14 @@ collect_warnings <- function(expr) {
   })
   w
 }
+
+# The jnll_comp row a linkage random effect is scored on, looked up by NAME.
+# jnll_comp grows -- 5.46.0 appended the initial equilibrium catch -- so the
+# linkage row is not the last one, and obj$report() returns the matrix without
+# the dimnames rename_output() puts on fit$quantities. CLAUDE.md: address a
+# jnll_comp row by its constant, never by position.
+linkage_re_row <- function() {
+  i <- which(names(Rceattle:::.JNLL_ROW_AXIS) == "Linkage random effects")
+  stopifnot(length(i) == 1L)
+  i
+}

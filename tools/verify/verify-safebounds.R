@@ -201,6 +201,58 @@ run_case("sim_mod() draws on ragged comps", {
   invisible(suppressWarnings(suppressMessages(sim_mod(f, simulate = TRUE))))
 })
 
+# ---- 5.46.0's new array dimensions ------------------------------------------
+# Until 5.46.0 every length-indexed array was sized on nlengths. The SS3 options
+# added a SECOND length grid: growth_matrix, sel_at_length, non_par_sel and
+# log_non_par_sel are sized on max_nlengths_pop, ceattle.cpp walks each data
+# bin's run of population bins through pop_bin_lo / pop_bin_hi, and age_error
+# gained a third extent (n_ae) indexed by a user column rather than by species.
+# That is the shape of the bug this harness was built for -- an array sized from
+# one dimension and indexed by another -- so both are driven here.
+sb_env <- new.env(parent = asNamespace("Rceattle"))
+for (h in c("helpers.R", "helpers-make-msm-data.R")) {
+  f <- file.path("tests", "testthat", h)
+  if (file.exists(f)) sys.source(f, envir = sb_env)
+}
+
+# A population grid four times finer than the data bins, so every population
+# array is wider than the data array beside it and a stray index lands inside
+# the object rather than past it -- silent, and exactly what bounds checking
+# turns into an attributable error.
+run_case("finer population length grid (pop_lengths)", {
+  set.seed(11)
+  d <- sb_env$make_msm_test_data()$data_list
+  edges <- sort(unique(d$caal_data$Length[d$caal_data$Species == 1]))
+  fine  <- sort(unique(c(edges, seq(min(edges), max(edges), by = 1))))
+  d$fleet_control$Selectivity_dimension <- "Length"
+  f <- suppressWarnings(suppressMessages(fit_mod(
+    data_list = d, inits = NULL, file = NULL, estimateMode = 3, msmMode = 0,
+    random_rec = FALSE,
+    growthFun = build_growth(fun = "vonBertalanffy", pop_lengths = fine),
+    fit_control = fit_control(phase = FALSE, getsd = FALSE, verbose = 0))))
+  stopifnot(is.finite(f$obj$fn(f$obj$par)))
+  # The premise: the two grids really do differ, or this case checks nothing.
+  stopifnot(length(fine) > d$nlengths[1])
+})
+
+# A second ageing-error matrix for species 1, so n_ae exceeds nspp and a fleet
+# reads age_error on an index that is NOT its species number.
+run_case("second ageing-error matrix (n_ae > nspp)", {
+  set.seed(11)
+  d <- sb_env$make_msm_test_data()$data_list
+  ae <- as.data.frame(d$age_error)
+  extra <- ae[ae$Species == 1, , drop = FALSE]
+  ae$Ageing_error_index <- ae$Species
+  extra$Ageing_error_index <- d$nspp + 1L
+  d$age_error <- rbind(ae, extra)
+  # Point species 1's fleets at the new matrix, the deepest slice of the array.
+  sp1 <- which(d$fleet_control$Species == 1)
+  d$fleet_control$Ageing_error_index <- d$fleet_control$Species
+  d$fleet_control$Ageing_error_index[sp1] <- d$nspp + 1L
+  f <- fit3(d)
+  stopifnot(is.finite(f$obj$fn(f$obj$par)))
+})
+
 # The file the Windows worker died in, driven here rather than as a second CI
 # step. A separate step has to re-establish the bounds-checked build, and it
 # cannot: this script restores the unchecked one on exit, and TMB::compile() is

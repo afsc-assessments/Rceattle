@@ -95,7 +95,8 @@ rejected by the data check.}
 \item{initMode}{how the population is initialized, as a string alias or integer
 code: \code{"FreeParams"} (0), \code{"Equilibrium"} (1),
 \code{"NonEquilibrium"} (2, the default), \code{"FishedNonEquilibrium"} (3),
-\code{"FishedNonEquilibriumScaled"} (4), \code{"OffsetEquilibrium"} (5). See
+\code{"FishedNonEquilibriumScaled"} (4), \code{"OffsetEquilibrium"} (5),
+\code{"FishedNonEquilibriumSelected"} (6). See
 the \strong{Initial age structure} section below for what each one estimates.}
 
 \item{suitMode}{how predator-prey suitability is derived, per predator (a single value or a vector of length \code{nspp}): 0 = empirical from diet data (Holsman et al. 2015), 2 = weight-based gamma, 4 = weight-based lognormal, 6 = weight-based normal. The length-based forms (1, 3, 5) are declared but not implemented and are rejected by the data check.}
@@ -196,7 +197,19 @@ mortality \eqn{F_{init}} added to the mortality that shapes the first year.}
 recruitment, \code{R_init * exp(rec_dev[1])}, decayed by \eqn{M1} and closed with the
 usual geometric plus group. Initial deviates are turned off and no init-dev penalty is
 applied. This is the Cole Monnahan / AFSC GOA pollock convention.}
+\item{\code{"FishedNonEquilibriumSelected"} (6)}{As (3), but \eqn{F_{init}} is weighted by
+the fishery's selectivity at age before it accumulates, so the first year decays with
+\eqn{\sum_{a' < a} (M1_{a'} + F_{init} s_{a'})}. This is Stock Synthesis's InitF
+convention. \eqn{F_{init}} is the apical initial F, since \eqn{s} is normalized to a
+maximum of 1. The selectivity is the mean over the species' fishery fleets in the first
+hindcast year, which is exact for a single fishery; Rceattle carries one \eqn{F_{init}}
+per species where SS3 carries one per fleet, so a multi-fishery stock gets the mean shape.}
 }
+
+Modes 3, 4 and 6 differ in how \eqn{F_{init}} reaches an age. (3) charges every age the same
+\eqn{F_{init}}, (4) applies it once rather than accumulating it, and (6) weights it by
+selectivity. Under a size-selective fishery only (6) is an equilibrium: (3) kills unselected
+young ages at the full initial F and (4) does not decay the older ages with it at all.
 
 Modes 1 and 5 differ by exactly one term: both start from the initial equilibrium
 recruitment \eqn{R_{init}}, but (1) projects it forward unchanged while (5) seeds the first

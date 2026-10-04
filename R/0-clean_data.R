@@ -157,6 +157,12 @@ clean_data <- function(data_list){
   }
 
   # --- 1. Filter Data by Year ----
+  # The initial equilibrium catch sits at styr - 1, a year the other data do not
+  # use. It is held apart from catch_data so that frame keeps one row per fitted
+  # catch, which is what every predicted-catch quantity is indexed by.
+  .eq <- .rce_equil_catch_candidates(data_list)
+  if(!is.null(.eq)) data_list$equil_catch_data <- .eq
+
   # Data in likelihood (use absolute Year)
   abs_year_data <- c("index_data", "catch_data", "comp_data", "caal_data")
   for(df_name in abs_year_data) {

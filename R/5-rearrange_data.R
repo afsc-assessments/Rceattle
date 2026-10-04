@@ -311,6 +311,14 @@ rearrange_data <- function(data_list, build_osa = FALSE){
   # - 13) Dim3 of age transition matrix (what ALK to use)
   data_list$flt_age_transition_index <- .pull_int0(data_list$fleet_control, "Age_transition_index")
 
+  # - 13b) Ageing error matrix per fleet. Absent or NA means the fleet's own
+  #        species, which reproduces the one-matrix-per-species behaviour
+  #        exactly, so an existing fleet_control needs no new column.
+  {
+    .ae <- .rce_ageing_error_index(data_list$fleet_control)
+    data_list$flt_ageing_error_index <- as.integer(.ae) - 1L   # 0-based for C++
+  }
+
   # - 14) Parametric form of q
   data_list$est_index_q <- .pull_int(data_list$fleet_control, "Catchability")
 
@@ -417,6 +425,38 @@ rearrange_data <- function(data_list, build_osa = FALSE){
 
 
   # 3 -  Catch data ----
+  # - The initial equilibrium catch is predicted from the equilibrium age
+  #   structure rather than from a hindcast year, so it gets its own inputs.
+  #   Only a mode that estimates Finit reads it; under any other the rows are
+  #   catch history and are dropped.
+  .equil_rows <- .rce_equil_catch_candidates(data_list)
+  if (!is.null(.equil_rows) && nrow(.equil_rows)) {
+    .equil_rows <- .equil_rows[.rce_equil_catch_rows(
+      .equil_rows, data_list$styr, data_list$initMode), , drop = FALSE]
+  }
+  if (is.null(.equil_rows) || !nrow(.equil_rows)) {
+    # TMB needs a matrix with the right column count even when there are no rows.
+    data_list$equil_catch_ctl <- matrix(0L, 0, 2)
+    data_list$equil_catch_obs <- matrix(0,  0, 2)
+  } else {
+    data_list$equil_catch_ctl <- .equil_rows %>%
+      dplyr::select(Fleet_code, Species) %>%
+      dplyr::mutate_all(as.integer) %>%
+      as.matrix()
+    data_list$equil_catch_obs <- .equil_rows %>%
+      dplyr::select(Catch, Log_sd) %>%
+      dplyr::mutate_all(as.numeric) %>%
+      as.matrix()
+  }
+  # catch_data holds the fitted catch only: a styr - 1 row in the catch equation
+  # would index F_flt_age(..., -1), an out-of-bounds read rather than an error.
+  # catch_obs is built from this frame, and row names here would travel into
+  # obsvec's OSA bookkeeping.
+  data_list$catch_data <- data_list$catch_data[
+    is.na(data_list$catch_data$Year) |
+      data_list$catch_data$Year != (data_list$styr - 1L), , drop = FALSE]
+  rownames(data_list$catch_data) <- NULL
+
   # - Seperate catch metadata from observation
   data_list$catch_ctl <- data_list$catch_data %>%
     dplyr::select(Fleet_code, Species, Year) %>%
@@ -495,6 +535,29 @@ rearrange_data <- function(data_list, build_osa = FALSE){
            as rows of all 1s with Sample_size = 0")
     }
   }
+
+  # * DoubleNormalSS3 ends ----
+  # Both ends scaled unless fit_mod() finds SS3's -999 in the starting values.
+  data_list$sel_dn6_ends <- matrix(1L, nrow(data_list$fleet_control), 2)
+
+  # * Population length bins ----
+  # The age-length key, weight-at-length and maturity-at-length are computed on
+  # these finer bins (SS3's population length bins) and summed into the data
+  # bins above. A species without its own grid uses its data bins.
+  data_list <- .rce_pop_length_bins(data_list)
+
+  # The columns that name a selectivity bin stay DATA bin ordinals on either
+  # grid. data_check() refuses a fleet that sets one on a species whose
+  # population grid is finer, because a data ordinal cannot address a finer
+  # grid without picking a reading, and the readings differ.
+
+  # * Maturity-at-length ----
+  # Logistic in length (cm); a species with no L50 / slope keeps the age-based
+  # maturity sheet.
+  L50   <- as.numeric(data_list$L50_mat_len   %||% rep(NA_real_, data_list$nspp))
+  slope <- as.numeric(data_list$slope_mat_len %||% rep(NA_real_, data_list$nspp))
+  data_list$mat_len_use  <- as.integer(!is.na(L50) & !is.na(slope))
+  data_list$mat_len_pars <- cbind(ifelse(is.na(L50), 0, L50), ifelse(is.na(slope), 0, slope))
 
 
   # 6 -  Diet data ----
@@ -594,14 +657,30 @@ rearrange_data <- function(data_list, build_osa = FALSE){
 
 
   # 9 - Rearrange age_error matrices ----
-  arm <- array(0, dim = c(data_list$nspp, max_age, max_age))
-
-  # age_error may arrive as a tibble or a matrix, and the loop below mixes `$`
-  # column access with positional `[i, ]` -- the two disagree on both. Coerce to
-  # a plain data frame first so each row reads the same way whatever was passed.
+  # Indexed by Ageing_error_index, not by species, so one species can carry
+  # several matrices -- an ageing method that changed part way through a series
+  # reads the same otolith differently before and after, and a fleet picks its
+  # matrix through fleet_control$Ageing_error_index. Absent the column the index
+  # IS the species, which is what the model did when there was one matrix each.
   data_list$age_error <- as.data.frame(data_list$age_error)
+  # Per ROW, not just per column: adding a second matrix by typing indices on the
+  # new rows leaves the original rows blank, and those still mean "the species'
+  # own matrix".
+  {
+    data_list$age_error$Ageing_error_index <-
+      .rce_ageing_error_index(data_list$age_error)
+  }
+  n_ae <- max(as.numeric(as.character(data_list$age_error$Ageing_error_index)),
+              data_list$nspp, na.rm = TRUE)
+  arm <- array(0, dim = c(n_ae, max_age, max_age))
+
+  # The observed-age columns are everything but the named metadata, so adding a
+  # metadata column cannot shift which columns are read as probabilities.
+  .ae_obs  <- setdiff(colnames(data_list$age_error), .RCE_AGE_ERROR_META)
+
   for (i in seq_len(nrow(data_list$age_error))) {
     sp <- as.numeric(as.character(data_list$age_error$Species[i]))
+    idx <- as.numeric(as.character(data_list$age_error$Ageing_error_index[i]))
     true_age <- as.numeric(as.character(data_list$age_error$True_age[i])) - data_list$minage[sp] + 1
 
     if (true_age > data_list$nages[sp]) {
@@ -611,10 +690,11 @@ rearrange_data <- function(data_list, build_osa = FALSE){
       stop()
     }
 
-    arm[sp, true_age, 1:data_list$nages[sp]] <- as.numeric(as.character(data_list$age_error[i, (1:data_list$nages[sp]) + 2]))
+    arm[idx, true_age, 1:data_list$nages[sp]] <-
+      as.numeric(as.character(data_list$age_error[i, .ae_obs[1:data_list$nages[sp]]]))
 
     # Normalize
-    arm[sp, true_age, 1:data_list$nages[sp]] <- arm[sp, true_age, 1:data_list$nages[sp]] / sum(arm[sp, true_age, 1:data_list$nages[sp]], na.rm = TRUE)
+    arm[idx, true_age, 1:data_list$nages[sp]] <- arm[idx, true_age, 1:data_list$nages[sp]] / sum(arm[idx, true_age, 1:data_list$nages[sp]], na.rm = TRUE)
   }
   data_list$age_error <- arm
 
@@ -786,7 +866,7 @@ rearrange_data <- function(data_list, build_osa = FALSE){
   # spec objects), not TMB data; strip it here alongside the other list-of-spec
   # objects so it does not ride into obj$env$data (inert to the objective, but it
   # bloats the fit and relies on TMB's sanitizer tolerating an arbitrary list).
-  items_to_remove <- c("emp_sel",  "fsh_comp",    "srv_comp",    "catch_data",    "index_data", "comp_data", "caal_data", "env_data", "spnames",
+  items_to_remove <- c("emp_sel",  "fsh_comp",    "srv_comp",    "catch_data", "equil_catch_data", "index_data", "comp_data", "caal_data", "env_data", "spnames",
                        "aLW", "diet_data", "index_cov", "model_config", # "NByageFixed", "estDynamics", "Ceq",
                        "avgnMode", "minNByage", "weight", "fleet_control")
   data_list[items_to_remove] <- NULL
@@ -941,4 +1021,53 @@ rearrange_dat <- function(data_list){
   .Deprecated("rearrange_data",
               msg = "rearrange_dat() is deprecated and will be removed in Rceattle 6.0.0; use rearrange_data().")
   rearrange_data(data_list)
+}
+
+
+#' Population length bins and their map onto the data length bins
+#'
+#' Adds `lengths_pop` (lower edges, cm; species x bins), `nlengths_pop` and
+#' `pop_to_data_bin` (0-based data bin that each population bin sums into) to
+#' `data_list`. The grid comes from `data_list$pop_lengths` (one vector for every
+#' species, or a list per species); a species without one, or with empirical
+#' growth, uses its data bins, so the map is the identity. A population bin below
+#' the first data edge sums into the first data bin and one above the last edge
+#' into the last, the data bins' minus and plus groups. Every data edge must also
+#' be a population edge, so no population bin straddles two data bins.
+#' @keywords internal
+#' @noRd
+.rce_pop_length_bins <- function(data_list) {
+  nspp <- data_list$nspp
+  pop  <- data_list$pop_lengths
+  # Recycled to nspp, as data_check() reads the same switch: build_growth() may
+  # return one value for every species, and an NA here would read as estimated
+  # growth and hand species 2 a grid it does not use.
+  gm <- rep_len(data_list$growth_model %||% 0, nspp)
+  grids <- lapply(seq_len(nspp), function(sp) {
+    data_edges <- as.numeric(data_list$lengths[sp, seq_len(data_list$nlengths[sp])])
+    g <- if (is.list(pop)) (if (sp <= length(pop)) pop[[sp]] else NULL) else pop
+    # Validated here, not only in build_growth(): ?build_growth documents
+    # data_list$pop_lengths as the inherit source, so a converter or an SS3
+    # bridge can set the field directly and skip the constructor. A decreasing
+    # grid returned a FINITE objective with age-length-key probabilities down to
+    # -0.79, and a negative edge a negative weight-at-length, neither flagged.
+    if (!is.null(g)) g <- .validate_pop_lengths(g)
+    if (is.null(g) || isTRUE(gm[sp] == 0)) g <- data_edges
+    missing_edge <- data_edges[vapply(data_edges, function(e) !any(abs(g - e) < 1e-8), logical(1))]
+    if (length(missing_edge)) {
+      stop(sprintf("pop_lengths for species %d must include every data length-bin lower edge; missing: %s",
+                   sp, paste(missing_edge, collapse = ", ")), call. = FALSE)
+    }
+    bin <- pmax(findInterval(g + 1e-8, data_edges), 1L) - 1L
+    list(edges = g, bin = as.integer(bin))
+  })
+  n_pop <- vapply(grids, function(x) length(x$edges), integer(1))
+  data_list$nlengths_pop    <- as.integer(n_pop)
+  data_list$lengths_pop     <- matrix(0, nspp, max(n_pop))
+  data_list$pop_to_data_bin <- matrix(0L, nspp, max(n_pop))
+  for (sp in seq_len(nspp)) {
+    data_list$lengths_pop[sp, seq_len(n_pop[sp])]     <- grids[[sp]]$edges
+    data_list$pop_to_data_bin[sp, seq_len(n_pop[sp])] <- grids[[sp]]$bin
+  }
+  data_list
 }

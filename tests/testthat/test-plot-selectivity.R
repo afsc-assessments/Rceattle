@@ -249,3 +249,22 @@ testthat::test_that("the plotted curve is the model's own selectivity", {
     one$Selectivity[order(one$Bin)],
     as.numeric(fit$quantities$sel_at_age[flt, 1, seq_len(nag), 1]))
 })
+
+# A length-based curve is built on the POPULATION length bins, so under a finer
+# pop_lengths grid the plotted ordinal is a population bin and not the fleet's
+# 40th DATA length bin. The axis has to say which grid it is counting; with one
+# grid, which is every bundled model, it still reads "Length bin".
+testthat::test_that("the length axis names the population grid only when it differs", {
+  lf <- len_fit("Length")
+  p <- Rceattle::plot_selectivity(lf$fit)
+  testthat::expect_equal(p$labels$x, "Length bin")
+  testthat::expect_false(any(p$data$PopGrid))
+
+  # The same frame as a model whose population grid is finer than its data bins.
+  dd <- p$data
+  dd$PopGrid <- TRUE
+  p2 <- Rceattle:::.plot_selectivity_one(
+    dd, dimension = "Length", colour_by = "year", line_col = NULL, lwd = 1,
+    lty = 1, alpha = 1, add_ci = FALSE, file = NULL, width = 7, height = 5)
+  testthat::expect_equal(p2$labels$x, "Population length bin")
+})

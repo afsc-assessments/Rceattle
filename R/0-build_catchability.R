@@ -23,6 +23,14 @@ Q_LINKAGE_PARAMS <- c("q")
 #'   fleet by default (`by = ~ fleet`); use the `fleet` argument of
 #'   [linkage_spec()] to restrict a spec to particular fleets.
 #'
+#' @details Catchability is the one process that accepts
+#'   `link = "exponential"`, Stock Synthesis's environmental link type 1:
+#'   `q^exp(beta * x)`, which MULTIPLIES `log q` where `"log"` shifts it. It
+#'   needs an estimated base `q` and a lognormal or t index likelihood, and
+#'   cannot share a fleet with a random-effect q linkage; each of those is
+#'   refused with the reason. See
+#'   `vignette("environmental-linkages-and-priors")`.
+#'
 #' @return A list of catchability settings for [fit_mod()].
 #'
 #' @examples
@@ -92,6 +100,14 @@ build_catchability <- function(linkages = NULL) {
 }
 
 
+# Fleets a set of q linkage rows reaches; NA is the shared sentinel, which the
+# cpp expands to every fleet.
+.q_linkage_fleets <- function(fleet, fleet_control) {
+  f <- unique(fleet)
+  if (anyNA(f)) seq_len(nrow(fleet_control)) else as.integer(f)
+}
+
+
 #' Reject q linkages on fleets whose catchability is not estimated
 #'
 #' @param linkage_table pooled linkage table (may be NULL / empty).
@@ -105,9 +121,9 @@ build_catchability <- function(linkages = NULL) {
   q <- linkage_table[linkage_table$process == "q", , drop = FALSE]
   if (nrow(q) == 0L) return(invisible())
 
-  flts <- unique(q$fleet)
-  flts <- flts[!is.na(flts)]
-  if (length(flts) == 0L) flts <- seq_len(nrow(fleet_control))  # NA = all fleets
+  # The cpp expands the NA sentinel to EVERY fleet, so a shared row has to be
+  # checked against all of them, not only the fleets other rows name.
+  flts <- .q_linkage_fleets(q[["fleet"]], fleet_control)
   forms <- as.character(fleet_control$Catchability[flts])
   # A fleet does not estimate q if its Catchability holds q fixed / solves it from
   # the data (Fixed / Analytical), or is absent (NA) -- a fleet with no survey index
@@ -143,6 +159,52 @@ build_catchability <- function(linkages = NULL) {
       paste(fleet_control$Fleet_name[bad], collapse = ", "),
       paste(unique(as.character(fleet_control$Catchability[bad])),
             collapse = ", ")), call. = FALSE)
+  }
+
+  ex <- q[q[["link"]] == "exponential", , drop = FALSE]
+  if (nrow(ex) > 0L) {
+    ex_flts <- intersect(.q_linkage_fleets(ex[["fleet"]], fleet_control), flts)
+
+    # SS3 stores q as a log only for a lognormal/t survey (SS_expval.tpl:413-419),
+    # so this is the wrong bridge elsewhere -- but a well-defined model, so warn.
+    nat <- .index_fleets_natural_scale(fleet_control)
+    bad_fam <- ex_flts[nat[ex_flts]]
+    if (length(bad_fam) > 0L) {
+      warning(sprintf(paste0(
+        "link = \"exponential\" on fleet(s) %s, whose Index_distribution (%s) ",
+        "scores the index on the\n  NATURAL scale. Rceattle still holds q on ",
+        "the log scale, so the model is well defined,\n  but it is NOT Stock ",
+        "Synthesis's environmental link type 1 for such a fleet: SS3 reads the ",
+        "q\n  slot arithmetically under a natural-scale survey ",
+        "(SS_expval.tpl:413-419), where its type 1 is\n  q * exp(beta * x) -- ",
+        "Rceattle's link = \"log\". If you are bridging an SS3 model, use ",
+        "\"log\"."),
+        paste(fleet_control$Fleet_name[bad_fam], collapse = ", "),
+        paste(unique(as.character(
+          fleet_control[["Index_distribution"]][bad_fam])), collapse = ", ")),
+        call. = FALSE)
+    }
+
+    # The link multiplies log q, so it needs a base map_linkage_adjuster() leaves
+    # free: a slope-only group or a fixed intercept freezes it. NA %in% NA is TRUE,
+    # so the shared sentinel frees a shared slope.
+    is_icept <- !is.na(q[["design_col"]]) & q[["design_col"]] == "(Intercept)"
+    free <- q[["fleet"]][is_icept & as.integer(q[["est_phase"]]) != 0L]
+    frozen <- unique(ex[["fleet"]][!(ex[["fleet"]] %in% free)])
+    if (length(frozen)) {
+      bad_base <- if (anyNA(frozen)) ex_flts else
+        intersect(as.integer(frozen), ex_flts)
+      stop(sprintf(paste0(
+        "link = \"exponential\" needs an estimated base catchability to ",
+        "multiply, but the linkage on\n  fleet(s) %s holds index_log_q fixed: ",
+        "the formula has no intercept (`~ 0 + x` / `~ x - 1`),\n  or its ",
+        "intercept is fixed at 0 (est_phase 0), and either makes ",
+        "map_linkage_adjuster()\n  mask index_log_q.\n",
+        "  Give the formula an estimated intercept, or use link = \"log\"."),
+        paste(fleet_control$Fleet_name[bad_base], collapse = ", ")),
+        call. = FALSE)
+    }
+
   }
 
   # An intercept prior and a Catchability_index group's own q prior (on its lead fleet,

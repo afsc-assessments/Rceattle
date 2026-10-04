@@ -48,7 +48,10 @@
   # rec_pars(sp, 1) is the SRR alpha on the log scale, not steepness: ceattle.cpp
   # forms alpha = exp(rec_pars(sp, 1) + linkage offset).
   rec_pars           = c("R0/mean", "alpha", "beta"),
-  weight_length_pars = c("a", "b")
+  weight_length_pars = c("a", "b"),
+  # DoubleNormalSS3, SS3 size pattern 24 P1-P6
+  sel_dn6            = c("peak", "top_logit", "ascend_se", "descend_se",
+                         "start_logit", "end_logit")
 )
 
 # Selectivity slot meanings by `fleet_control$Selectivity`. Slot 2 is a

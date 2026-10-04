@@ -38,6 +38,25 @@ write_data <- function(data_list, file = "Rceattle_data.xlsx") {
             "model_config(), or persist it with save_config()/load_config().", call. = FALSE)
   }
 
+  # The Stock Synthesis growth options reach data_list from build_growth() rather
+  # than from a workbook column, so they have no schema row and the control block
+  # below cannot write them. Losing `pop_lengths` silently is the worst of the
+  # four: the grid falls back to the data bins, which is a different age-length
+  # key, a different weight-at-length and a different length-selectivity grid --
+  # and a configuration data_check() would have REFUSED becomes one it accepts,
+  # because that refusal is conditioned on pop_lengths being present.
+  .growth_unwritten <- c("pop_lengths", "growth_sd_form", "growth_plus_length",
+                         "plus_group_decay", "growth_sd_style", "growth_age_L1")
+  .gu <- .growth_unwritten[vapply(.growth_unwritten,
+                                  function(n) !is.null(data_list[[n]]), logical(1))]
+  if (length(.gu)) {
+    warning("data_list$", paste(.gu, collapse = ", data_list$"),
+            " ", if (length(.gu) == 1L) "is" else "are",
+            " not written to the xlsx workbook and will be lost on read_data(); ",
+            "re-apply with build_growth(), or persist with ",
+            "save_config()/load_config().", call. = FALSE)
+  }
+
   # Setup a workbook
   data_names <- names(data_list)
   names_used <- c()
@@ -99,6 +118,16 @@ write_data <- function(data_list, file = "Rceattle_data.xlsx") {
   xcel_list$fleet_control <- .fc_out[, .fc_order, drop = FALSE]
   names_used <- c(names_used, "fleet_control")
 
+
+  # The initial equilibrium catch is an ordinary catch row at styr - 1 that
+  # clean_data() holds apart. It goes back at the head of the catch sheet, so a
+  # cleaned data_list writes a workbook that reads back whole.
+  if (!is.null(data_list$equil_catch_data) && nrow(data_list$equil_catch_data) &&
+      !is.null(data_list$catch_data)) {
+    data_list$catch_data <- as.data.frame(dplyr::bind_rows(
+      data_list$equil_catch_data, data_list$catch_data))
+    rownames(data_list$catch_data) <- NULL
+  }
 
   # Composition, fleet control, fixed selectivity, n-at-age ---
   matrix_data <- c("index_data", "catch_data", "comp_data",  "caal_data", "emp_sel", "NByageFixed", "age_trans_matrix")
@@ -241,7 +270,8 @@ write_template <- function(file = "Rceattle_data_template.xlsx",
     nspp = 1, styr = 1, endyr = nyrs, projyr = nyrs + nprojyrs,
     spnames = "Species_1", nsex = 1, spawn_month = 0, nages = nages,
     minage = minage, nlengths = nages, pop_wt_index = 1, ssb_wt_index = 1,
-    alpha_wt_len = 1e-4, beta_wt_len = 3, pop_age_transition_index = 1,
+    alpha_wt_len = 1e-4, beta_wt_len = 3, L50_mat_len = NA, slope_mat_len = NA,
+    pop_age_transition_index = 1,
     sigma_rec = 1, other_food = 1e6, estDynamics = 0)
 
   # fleet_control: one survey + one fishery, on EVERY column the schema defines.

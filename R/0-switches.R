@@ -85,7 +85,8 @@ sel_map <- c(
   # Ianelli base curve whose deviations have a proper density, so random_sel can
   # integrate them. Time_varying_sel picks the structure: "Off" (none), "IID" or
   # "RandomWalk". Codes 10, 12 and 14 are unused.
-  "NonParametricIntegrable" = 13
+  "NonParametricIntegrable" = 13,
+  "DoubleNormalSS3"  = 15  # Stock Synthesis size pattern 24: six-parameter double normal, own parameter array (sel_dn6)
 )
 
 # Which selectivity forms read each Sel_curve_pen slot as a WEIGHT, with the sd
@@ -416,16 +417,24 @@ index_distribution_map <- c(
   idx <- data_list$index_data
   fc  <- data_list$fleet_control
   if (is.null(idx) || !nrow(idx) || is.null(fc)) return(logical(0))
-  fam <- fc$Index_distribution
-  if (is.null(fam)) return(rep(FALSE, nrow(idx)))
+  nat <- .index_fleets_natural_scale(fc)
+  if (!length(nat)) return(rep(FALSE, nrow(idx)))
+  out <- nat[match(idx[["Fleet_code"]], fc[["Fleet_code"]])]
+  out[is.na(out)] <- FALSE
+  out
+}
+
+
+# The per-fleet form of .index_rows_natural_scale(), which calls it; the one
+# place the family codes are classified, so a new family is added here only.
+.index_fleets_natural_scale <- function(fleet_control) {
+  fam <- fleet_control[["Index_distribution"]]
+  if (is.null(fam)) return(rep(FALSE, nrow(fleet_control)))
   chr <- trimws(as.character(fam))
   num <- suppressWarnings(as.integer(chr))
   code <- ifelse(!is.na(num), num, as.integer(index_distribution_map[chr]))
   code[is.na(code)] <- 0L
-  nat <- code %in% c(1L, 2L, 3L, 4L)   # MVN, MVNORM, Normal, TruncatedNormal
-  out <- nat[match(idx$Fleet_code, fc$Fleet_code)]
-  out[is.na(out)] <- FALSE
-  out
+  code %in% c(1L, 2L, 3L, 4L)   # MVN, MVNORM, Normal, TruncatedNormal
 }
 
 
@@ -480,13 +489,19 @@ fleet_map <- c(
 #     penalty (Cole Monnahan / AFSC GOA pollock convention). Modes 1 and 5 both
 #     start from R_init; 5 displaces it by the year-1 recruitment deviation,
 #     which is the only term separating them (init_log_scalar in ceattle.cpp).
+# 6 = FishedNonEquilibriumSelected: like 3, but the initial age structure decays
+#     with sum(M1 + Finit * sel(a)), Stock Synthesis's InitF convention -- the
+#     only one of the three that is an equilibrium under a size-selective
+#     fishery. Finit is then the apical initial F, for a single fishery whose
+#     selectivity is normalized to 1. See ?fit_mod.
 initMode_map <- c(
   "FreeParams"                 = 0,
   "Equilibrium"                = 1,
   "NonEquilibrium"             = 2,
   "FishedNonEquilibrium"       = 3,
   "FishedNonEquilibriumScaled" = 4,
-  "OffsetEquilibrium"          = 5
+  "OffsetEquilibrium"          = 5,
+  "FishedNonEquilibriumSelected" = 6
 )
 
 # Predator-prey suitability mode (per predator species)

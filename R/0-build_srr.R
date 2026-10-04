@@ -12,11 +12,12 @@
 #' @param srr_indices Defunct: supplying it is an error; express an environmental effect through `linkages`.
 #' @param Bmsy_lim Upper limit for Ricker based SSB-MSY (e.g 1/Beta). Will add a likelihood penalty if beta is estimated above this limit. Default `NA` is not used.
 #' @param srr_mse_switchyr Year at which an MSE switches from the annual recruitment-penalty estimate to the stock-recruit function (the \code{srr_fun = 0}, \code{srr_pred_fun > 0} case).
-#' @param linkages Named list of [linkage_spec()] objects keyed by `"R0"`, `"alpha"` or `"beta"`: the recommended way to put a prior on, fix, or add an environmental effect to those parameters (see **Priors, fixed values and covariates**).
+#' @param linkages Named list of [linkage_spec()] objects keyed by `"R0"`, `"alpha"`, `"beta"` or `"R_init"`: the recommended way to put a prior on, fix, or add an environmental effect to those parameters (see **Priors, fixed values and covariates**).
 #'
 #' @description
 #' Sets the stock-recruit curve and how recruitment is estimated. Priors, fixed
-#' values and environmental effects on \code{R0}, alpha and beta go through
+#' values and environmental effects on \code{R0}, alpha, beta and \code{R_init}
+#' go through
 #' \code{linkages}; see **Priors, fixed values and covariates** below.
 #'
 #' **Stock recruitment relationships currently implemented in Rceattle:**
@@ -48,9 +49,16 @@
 #' beta go through \code{linkages}.
 #'
 #' @section Priors, fixed values and covariates:
-#' Use \code{linkages} for \code{R0}, alpha and beta. Each entry is a
+#' Use \code{linkages} for \code{R0}, alpha, beta and \code{R_init}. Each entry is a
 #' [linkage_spec()], and an intercept-only formula (\code{~ 1}) acts on the
 #' parameter itself:
+#'
+#' The \code{linkages} key \code{R_init} is a unitless, log-scale MULTIPLIER on the
+#' initial age-structure. It is not the reported quantity \code{R_init}, which is
+#' equilibrium recruitment at \eqn{F = F_{init}} in thousands of fish; the key scales
+#' that quantity, so \code{init = 0.25} starts the stock at a quarter of it. Unlike
+#' \code{R0}, alpha and beta it has no \code{rec_pars} column, so its
+#' \code{(Intercept)} stays estimable and carries the level itself.
 #'
 #' - **Prior:** \code{priors = list(`(Intercept)` = prior_lognormal(log(m), s))}
 #'   is lognormal with mean \code{m} (median \code{m} when
@@ -79,7 +87,9 @@
 #' @section Starting values:
 #' Mean recruitment (\code{R0}) starts at \eqn{e^9 = 8103} thousand fish; under
 #' a curve fitted in the hindcast of a multispecies model the same slot is the
-#' free initial recruitment level \code{R_init}, with the same start. Alpha
+#' free initial recruitment level \eqn{R_{init}} -- the reported quantity, equilibrium
+#' recruitment at \eqn{F = F_{init}} in thousands of fish, NOT the \code{linkages} key
+#' of the same name -- with the same start. Alpha
 #' starts at \code{srr_prior} (default 4) wherever that is an alpha, and at
 #' \eqn{e^3} otherwise; beta starts at 3. None of them knows the stock's scale. Set them
 #' with \code{srr_alpha_init} / \code{srr_beta_init} or a linkage \code{init};
@@ -460,15 +470,22 @@ build_srr <- function(srr_fun = 0,  #srr_model
 #' default log link); under a hindcast curve a single-species `R0` is
 #' derived from alpha and beta, so an `R0` linkage is refused there, and a
 #' multispecies one takes an intercept only. Linkages on `alpha` and `beta` only do
-#' work when the model has a curve (Beverton-Holt, Ricker).
+#' work when the model has a curve (Beverton-Holt, Ricker). `R_init` is the
+#' initial recruitment level, a multiplier on R0 applied to the initial
+#' age-structure only; it has no `rec_pars` column, so its intercept carries the
+#' level itself and is deliberately absent from `.REC_PARAM_TO_INDEX`.
 #'
 #' @keywords internal
-RECRUITMENT_LINKAGE_PARAMS <- c("R0", "alpha", "beta")
+RECRUITMENT_LINKAGE_PARAMS <- c("R0", "alpha", "beta", "R_init")
 
 
 #' Map recruitment linkage param names to columns of `rec_pars`.
 #' @keywords internal
 #' @noRd
+# `R_init` is absent deliberately: it multiplies the initial age-structure and
+# has no base parameter in rec_pars, so its level stays on its own coefficient.
+# The three readers (build_params, build_map, build_parameter_bounds) guard the
+# NA via .is_pinned_intercept().
 .REC_PARAM_TO_INDEX <- c(R0 = 1L, alpha = 2L, beta = 3L)
 
 

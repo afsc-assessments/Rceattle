@@ -29,6 +29,75 @@ LINKAGE_PROCESS_CODES <- c(
   comp        = 5L
 )
 
+#' Rows of a linkage table that are the recruitment `R_init` parameter
+#'
+#' `R_init` multiplies the initial age-structure and is the one linkage
+#' parameter with no base parameter in `rec_pars`, so nothing else holds the
+#' level. Shared by the builders and by `data_check()` so they cannot disagree
+#' about which rows those are.
+#'
+#' @param tbl A pooled `linkage_table`.
+#' @keywords internal
+#' @noRd
+.is_r_init_linkage_row <- function(tbl) {
+  tbl[["process"]] == "recruitment" & tbl[["param"]] == "R_init"
+}
+
+
+#' Intercept rows whose coefficient is pinned at `NA`
+#'
+#' An `(Intercept)` coefficient is pinned because the process's own base
+#' parameter (`rec_pars`, `log_M1`, `index_log_q`, ...) already carries the
+#' level, so estimating both would be a flat ridge. `R_init` has no base
+#' parameter, so its intercept IS the level and stays estimable.
+#'
+#' @param tbl A pooled `linkage_table`.
+#' @keywords internal
+#' @noRd
+.is_pinned_intercept <- function(tbl) {
+  tbl[["design_col"]] == "(Intercept)" & !.is_r_init_linkage_row(tbl)
+}
+
+
+#' The one intercept row that carries a level instead of pinning one
+#'
+#' The complement of `.is_pinned_intercept()` among intercept rows: the
+#' `R_init` intercept IS the initial recruitment level. Its `init` and `bounds`
+#' are natural-scale multipliers on R0, like every other intercept's, and land
+#' on a log coefficient, so the builders log them. A slope row on the same
+#' linkage is on the link scale and is deliberately excluded.
+#'
+#' @param tbl A pooled `linkage_table`.
+#' @keywords internal
+#' @noRd
+.is_level_intercept <- function(tbl) {
+  tbl[["design_col"]] == "(Intercept)" & .is_r_init_linkage_row(tbl)
+}
+
+
+#' The log-scale starting coefficient for a natural-scale `R_init` level
+#'
+#' `build_params()` writes the level's starting value, and `fit_mod()` writes it
+#' again for an `est_phase = 0` row so a fixed level beats a warm start. Both go
+#' through here so they cannot disagree about the scale.
+#'
+#' @param init_val The `init` column value, a natural-scale multiplier on R0.
+#' @param supplied The row's `init_supplied` flag.
+#' @keywords internal
+#' @noRd
+.r_init_log_start <- function(init_val, supplied) {
+  if (init_val < 0 || (isTRUE(supplied) && init_val == 0)) {
+    stop("a recruitment `R_init` linkage takes a natural-scale `init` -- a ",
+         "multiplier on R0, so it must be greater than 0. Got ", init_val, ".",
+         call. = FALSE)
+  }
+  # An unset `init` comes through as the table's default of 0, which is no
+  # multiplier at all, so it reads as 1: no shift off R0.
+  if (init_val == 0) return(0)
+  log(init_val)
+}
+
+
 # Process names as a message reads them.
 .LINKAGE_PROCESS_LABELS <- c(
   recruitment = "recruitment", M = "natural mortality", growth = "growth",
@@ -39,9 +108,10 @@ LINKAGE_PROCESS_CODES <- c(
 #' Integer codes for the `link` column
 #' @keywords internal
 LINKAGE_LINK_CODES <- c(
-  identity = 0L,
-  log      = 1L,
-  logit    = 2L
+  identity    = 0L,
+  log         = 1L,
+  logit       = 2L,
+  exponential = 3L   # q ^ exp(beta * x): SS3's environmental link type 1
 )
 
 
@@ -86,7 +156,9 @@ LINKAGE_PARAM_CODES <- list(
   growth      = c(K = 0L, L1 = 1L, Linf = 2L, m = 3L,
                   sd_L1 = 4L, sd_Linf = 5L),
   M           = c(M1 = 0L),
-  recruitment = c(R0 = 0L, alpha = 1L, beta = 2L),
+  # `R_init` is the initial recruitment LEVEL, read at year 0 only (the initial
+  # state is one year), and carries no deviate penalty.
+  recruitment = c(R0 = 0L, alpha = 1L, beta = 2L, R_init = 3L),
   q           = c(q = 0L),
   # Selectivity codes index the underlying parameter slots, which are shared
   # across the parametric forms:
@@ -94,6 +166,8 @@ LINKAGE_PARAM_CODES <- list(
   #   2/3 = sel_inf[asc/desc]      (natural: inflection, or peak/logit-floor)
   #   4   = sel_coff               (non-parametric per-bin coefficients)
   #   5   = log_sel_apical         (log-scale per-sex multiplier on the curve)
+  #   6-11 = sel_dn6[1..6]         (DoubleNormalSS3: SS3 pattern-24 P1-P6, each
+  #                                 on SS3's own scale)
   # The form-specific aliases (sigma_*, peak, right_floor) resolve to the same
   # slot, so a user names the quantity their form actually has.
   sel         = c(slp_asc     = 0L, slp_desc = 1L,
@@ -102,7 +176,15 @@ LINKAGE_PARAM_CODES <- list(
                   apical      = 5L,
                   # DoubleNormal aliases
                   sigma_asc   = 0L, sigma_desc = 1L,
-                  peak        = 2L, right_floor = 3L),
+                  peak        = 2L, right_floor = 3L,
+                  # DoubleNormalSS3 (SS3 pattern 24), P1-P6 under the SS3
+                  # manual's names. P1 is dn_peak because peak is taken above.
+                  dn_peak     = 6L,
+                  top_logit   = 7L,
+                  ascend_se   = 8L,
+                  descend_se  = 9L,
+                  start_logit = 10L,
+                  end_logit   = 11L),
   # Dirichlet-multinomial composition-weighting overdispersion. Prior-only
   # (no year-varying accumulator): the intercept re-targets the log DM scalar
   # (comp_weights / caal_weights per fleet, diet_comp_weights per predator;

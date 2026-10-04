@@ -12,9 +12,755 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.49.1
+
+## Bug fixes
+
+* **A one-bin population length grid no longer reads outside the array in the age-length key.**
+  5.49.0 guarded the bin MIDPOINT but not the bin PROBABILITY three lines above it: with one
+  population length bin, `lp == 0` is also the last bin, and the `lp == 0` branch is tested first,
+  so `fill_age_length_key()` read `lengths_pop(sp, 1)` on a grid whose only valid index is 0. The
+  model builds `safebounds = FALSE`, so that was a silent read of adjacent memory rather than an
+  error. A single bin now takes the whole length distribution, which is what it spans. Found by a
+  review that re-read the same function after the 5.49.0 fix landed -- the midpoint guard made the
+  file look done.
+
+## Comments
+
+Four statements in `src/TMB/ceattle.cpp` that were wrong about the code, so a reader could not use
+them: `sel_init` is filled in section 5.12.1 rather than 6.5 and is read to build `Z_init` and
+hence `SPRFinit` (the section number given for that was also wrong, so it now names the quantity
+instead); `Time_varying_q` 1 and 2 are `IID` and `AR1` per `tv_q_map`, not "penalized deviate" and
+"random effect" -- whether the deviations are random effects is `fit_mod(random_q = TRUE)`, and 2
+was retired in 5.16.0 and is refused by `data_check()`; and the initial equilibrium catch is in
+weight *or numbers* per the fleet's `Observation_units`, as the loop's own `flt_units == 2` branch
+and `quantity_dictionary()` both say, not kilograms.
+
+# Rceattle 5.49.0
+
+Review findings on the 5.48.0 release (PR #184), fixed before the tag. Nothing here moves a
+fitted number on a configuration that was already valid: the four golden references reproduce
+their pinned objectives, the Pacific hake `04-mse.R` chain reproduces all four of its stages to
+every digit before and after these changes, and reading every `.xlsx` in the four consumer repos
+through `read_data()` + `data_check()` gives the same verdict on all 375 as 5.48.0 does -- which
+matters here because two of the changes below are new refusals and two loosen existing ones.
+
+## Breaking changes
+
+Two configurations that could not fit the model they named are now refused. Both are
+unreachable on a model that was converging, so a stored fit only stops refitting if it was
+already producing a non-finite objective or a prior on the wrong scale.
+
+* **An initial equilibrium catch on a species with `estDynamics > 0` is refused.** The
+  equilibrium age structure `N_eq` is built only where the numbers-at-age are estimated
+  (`src/TMB/ceattle.cpp`, section 6, `case 0` of the `estDynamics` switch). Under
+  `estDynamics` 1 or 2 the numbers come from `NByageFixed`, `N_eq` stays zero, and the
+  Baranov prediction is zero -- so the lognormal took `log(0)` and the objective was not
+  finite, which reads as a failed optimisation rather than as a configuration error.
+  `build_map()` also maps `log_Finit` out on such a species, so the row was fitted by
+  nothing in any case.
+
+* **A `lognormal`, `gamma` or `beta` prior on a `DoubleNormalSS3` slot other than `dn_peak`
+  is refused.** Of that form's six parameters only `dn_peak` is stored on its natural scale
+  (a length, cm). `top_logit`, `start_logit` and `end_logit` hold logits and `ascend_se` /
+  `descend_se` hold logs, so a family with positive support was evaluated on the transformed
+  value: `lognormal` on a negative logit gives `NaN`, and on `ascend_se` it is a prior on
+  \eqn{\log\log(\text{width})} rather than on the width -- silently a different prior
+  than the one written. A `normal` prior on the stored value is well defined and is still
+  accepted. This extends to form 15 the refusal `DoubleNormal`'s `right_floor` already
+  carried.
+
+## Configurations that were refused and should not have been
+
+* **A length-based *parametric* selectivity on a finer population grid fits again.**
+  `data_check()` refused any length-based fleet on a species whose population grid is finer
+  than its data grid when `Time_varying_sel` was on or `N_sel_bins` was positive. Neither is
+  a bin ordinal on a parametric curve: `sel_inf_dev` and `log_sel_slp_dev` are added to the
+  parameter, which is a length in cm, and `N_sel_bins` is read only by the bin-indexed
+  forms. The refusal now names the bin-indexed forms and the columns that really are data-bin
+  ordinals (`Bin_first_selected`, `Sel_norm_bin`, `Sel_norm_bin_upper`, `Sel_pen_first_bin`,
+  `Sel_pen_last_bin`, `Sel_cap_bin`). This was refusing the SS3-bridge configuration the
+  population grid was added to serve -- a size-selective fleet with time blocks.
+
+* **A selectivity linkage on an integer-coded `Selectivity` column fits again.**
+  `.check_sel_linkage_support()` compared the column to form NAMES as a string, so a workbook
+  storing `Selectivity` as `1` or `15` was refused with "whose form (15) is not yet wired for
+  linkages" -- a form that is wired. It now reads the column through the schema's own
+  resolver. `fit_mod()` canonicalises before this runs, so only the exported
+  `build_selectivity()` path was affected.
+
+## Bug fixes
+
+* **`sim_mod(simulate = FALSE)` now returns the expected initial equilibrium catch.** The
+  `simulate = TRUE` branch redraws it (5.48.0), but the expected-value branch left it at its
+  observed value -- so `self_test(simulate = FALSE)` handed the estimation model the one real
+  observation beside expected values for everything else, and under
+  `initMode = "FishedNonEquilibriumSelected"` that row is the only thing informing `Finit`,
+  hence the initial age structure and the SSB scale.
+
+* **`data_check()` and `rearrange_data()` resolve `Ageing_error_index` through one function.**
+  Five copies of the "absent or blank means the row's own species" rule had drifted into two
+  different coercions: one went through `as.character()` and four did not, and `as.integer()`
+  on a factor-typed column returns the level code rather than the number typed in the
+  workbook. A factor-typed `Ageing_error_index` could therefore be validated against one
+  matrix and fitted with another. `.rce_ageing_error_index()` is now the single reading.
+
+* **`write_data()` warns about the growth fields it cannot write.** `pop_lengths`,
+  `growth_sd_form`, `growth_plus_length`, `plus_group_decay`, `growth_sd_style` and
+  `growth_age_L1` reach `data_list` from `build_growth()` and have no workbook column, so they
+  round-tripped to nothing in silence -- the `index_cov` trap again. Losing `pop_lengths` is
+  the worst of the six: the grid falls back to the data bins, which is a different age-length
+  key, a different weight-at-length and a different length-selectivity grid, and a
+  configuration `data_check()` would have refused becomes one it accepts, because that
+  refusal is conditioned on `pop_lengths` being present. The warning names the fields, as the
+  `model_config` one already did.
+
+* **A single-bin population length grid no longer reads outside the array.** The midpoint of
+  the last bin takes the previous bin's width, so a one-bin grid read `lengths_pop(sp, -1)` in
+  `growth.hpp` and in the new selected-body-weight loop in `ceattle.cpp`. The model builds
+  `safebounds = FALSE`, so that was a silent read of adjacent memory, not an error. Both now
+  keep the edge itself, which is what `selectivity.hpp` already did.
+
+## Tests and documentation
+
+* A **single-sex** length composition is now pinned against a non-identity ageing-error
+  matrix, on `NorthernRockfish2022` (31 combined-sex length rows, 50-age matrix). The existing
+  test runs on `GOAatf`, whose length-comp rows are all joint-sex and so exercise both
+  prediction loops together; no bundled fit with a non-identity matrix exercised a fleet that
+  is *not* joint-sex, where only the first loop runs. That branch is now pinned on its own.
+* `inst/dev/SPEC-equilibrium-catch.md` section 5 described the `initMode = 6` plus-group
+  divisor as an open defect; it was fixed in 5.48.0 alongside the equilibrium catch, and the
+  section now records that, with the line it lives on.
+* Corrected statements about the code in `vignettes/environmental-linkages-and-priors.Rmd`
+  (which link warns on a natural-scale index family, SS3's power function raising vulnerable
+  biomass rather than the index, the q tensors' hindcast-only dimensions, which
+  `convergence_diagnostics()` check fires, the growth SD endpoints as linkage targets with a
+  base parameter, and `BS2017SS` being three species fitted in single-species mode),
+  `vignettes/growth-estimation.Rmd`, `vignettes/model-diagnostics.Rmd` and
+  `vignettes/data-without-excel.Rmd` (whose `initMode` list stopped at 5).
+* `vignettes/data-without-excel.Rmd` attaches the package in its setup chunk. Its first
+  executable chunk calls `write_template()` and the narrative `library(Rceattle)` came
+  afterwards, so the vignette failed on its first line whenever the chunks were actually
+  executed -- which is why the weekly `vignettes` workflow had been red since at least
+  2026-09-07.
+* `CLAUDE.md` and `inst/dev/TRAPS.md` carried the pre-5.48.0 `jnll_comp` row count (21) and
+  axis ranges in their short-form entries, and `TRAPS.md` claimed every `(Intercept)` linkage
+  coefficient is pinned, which `R_init` is not.
+
+# Rceattle 5.48.0
+
+## A free initial recruitment level, `build_srr(linkages = list(R_init = ...))`
+
+A stock whose series begins after a regime shift starts at a recruitment other than
+\eqn{R_0}, and Rceattle had nowhere to say so. The level had to go into `init_dev`,
+which is penalised \eqn{N(-\sigma^2/2, \sigma_R)} per age, so the model paid a
+recruitment-deviate penalty for sitting where the data say it sits.
+
+**That penalty biases the reference points.** `init_dev` is
+\eqn{\log N_{target} - \log R_{init} + \sum M}, so the optimiser can retire the penalty
+by lowering \eqn{R_0} -- and does. On GOA Pacific cod it lowers it 0.37 log units, leaving
+\eqn{R_0} 31% below the value the same data support, while terminal SSB moves only -1.35%. \eqn{SB_0}, \eqn{B_{40\%}} and depletion
+all scale with \eqn{R_0}, so a penalty on the initial state was moving the quantities
+that set the catch limit.
+
+`R_init` is a fourth recruitment linkage parameter, alongside `R0`, `alpha` and `beta`.
+It is a **log-scale multiplier on the initial age-structure**, read at year 0 because the
+initial state is one year, and it carries no deviate penalty. The spec has to travel
+through `build_srr()`: `fit_mod()` overwrites `data_list$srr_linkages` from `recFun`, so
+assigning one onto the `data_list` drops it in silence.
+
+```r
+d$env_data <- data.frame(Year = d$styr:d$projyr, lvl = 1)
+fit <- fit_mod(d, recFun = build_srr(linkages = list(
+  R_init = linkage_spec(formula = ~ 1, init = list(`(Intercept)` = 0.25))
+)), initMode = "NonEquilibrium")
+```
+
+`R_init` is the only linkage parameter with no base parameter in `rec_pars`, so its
+`(Intercept)` is the one that stays estimable rather than being pinned at `NA`. Its
+`init` and `bounds` on that intercept are therefore the **natural-scale multiplier on
+\eqn{R_0}** — `init = 0.25` is a quarter, as every other intercept's `init` is
+natural-scale — and are logged onto the coefficient in place of a base parameter. Only
+year 0 is read, so one design column per species is all the initial state identifies.
+
+Measured on GOA Pacific cod 2024, where Stock Synthesis carries this as an `SR_regime`
+block on the year before the hindcast (\eqn{-1.3879}, a quarter of \eqn{R_0}, from the
+bridging variant that sets that block's likelihood weight to 0; the production run
+shrinks it and sits at \eqn{-0.678}, half of \eqn{R_0}): moving the level out of
+`init_dev` drops the objective **49.91 nats**, all of
+it in the `Initial abundance deviates` row (54.975 to 5.062), with the index, catch,
+length-composition and CAAL components unchanged to 1.9e-04 and the recruitment deviates
+unchanged exactly. The stock-recruit curve is untouched -- \eqn{R_0} is the unfished
+level and does not move with the initial state.
+
+Refused rather than silently inert:
+
+* any link other than `"log"` (today only `"identity"` is reachable). The level is added
+  inside the `exp()`, so a natural-scale offset
+  would add metric tons to a log multiplier.
+* more than one coefficient within a species, whether two different design columns or
+  two specs naming the same one. Only year 0 is read, so a second coefficient would
+  share that one number (a flat ridge), and a per-year random effect would estimate
+  deviates no year but the first reads. Per-species specs naming different covariates
+  each stand on their own.
+* a supplied `init` on the level that is not greater than 0, and a negative bound, since
+  both are multipliers on \eqn{R_0}. An *unset* `init` arrives as the table's default of 0
+  and reads as a multiplier of 1, i.e. no shift; a *bound* of 0 is allowed and logs to
+  `-Inf`, the same unbounded floor. Note that a lower bound above 1 needs an explicit
+  `init` inside it, or the default multiplier of 1 sits below the bound.
+* `initMode = "FreeParams"`, which estimates the initial numbers-at-age directly as
+  `init_dev` and never reads \eqn{R_{init}}.
+* `initMode = "OffsetEquilibrium"`, which already scales the same ages by
+  `rec_dev[, 1]`, so the two are not separable.
+
+A prior on the level is read on its own coefficient, i.e. on the multiplier, so
+`lognormal(0, 0.5)` gives the multiplier a prior MEAN of 1 -- no shift off \eqn{R_0} --
+the same contract as the per-sex apical selectivity multiplier. Under the default
+`bias_adjust_proc = TRUE` that puts its median at \eqn{e^{-\sigma^2/2}}; pass
+`bias_adjust_proc = FALSE` to centre the median on 1 instead.
+
+Under `initMode = "FishedNonEquilibriumSelected"` (6) the level scales every age of the
+equilibrium age-structure, age 0 included, so the predicted initial equilibrium catch is
+proportional to it.
+
+A level fixed with `est_phase = 0` survives a warm start: `fit_mod()` re-applies it over
+any `inits`, with or without an explicit `init` (the table's default of 0 is a
+well-defined multiplier of 1).
+
+**Shrink or bound the level on a real assessment.** Stock Synthesis penalises its
+equivalent — `0.5 * (log(R1/R1_exp) / (sigma_R / ave_age))^2`, at a default likelihood
+weight of 1 (`SS_objfunc.tpl`) — and no reference package surveyed (SS3, SAM, SPoRC,
+OPAL, WHAM) leaves an initial-level scalar free. Rceattle leaves it free by design, which
+reproduces the zero-weight variant rather than SS3's default; a `lognormal(0, sigma_R /
+ave_age)` prior on the `(Intercept)` expresses SS3's convention under
+`bias_adjust_proc = FALSE`, which is the setting that centres the prior's median on a
+multiplier of exactly 1, as SS3's penalty is.
+
+This matters because the level is informed only by the first year's observations and is
+weakly identified at the low end: once the initial cohorts are effectively annihilated,
+the data cannot separate one very small level from another.
+`tools/verify/verify-sim-recovery-r-init.R` measures, on its own fixture at a true
+multiplier of 0.5, a few replicates in 60 running away to 5e-05 or below *with a clean
+gradient* — no convergence filter finds them — plus a low bias of about 0.12 log units
+over the rest. Four starting levels return the same estimate to four decimals at the same
+objective (`inst/dev/TRAPS.md`), so these are not a local optimum a multi-start or
+`jitter()` escapes: the data really do prefer the annihilated state. The counts are
+machine-dependent — the harness has returned both 3 and 6 of 60 on identical arguments —
+so re-measure rather than quoting them. A natural-scale lower bound above
+0 keeps a fit out of that tail; a lower bound of exactly 0 logs to `-Inf` and does not.
+
+A model with no `R_init` linkage is unchanged, including all four golden references.
+
+## Length compositions no longer carry ageing error
+
+A length composition built from an age composition used `age_obs_hat`, the composition
+already smeared by the ageing-error matrix. The age-length key is P(length | **true** age)
+and a measured length carries no otolith reading, so the smear has no part in it; Stock
+Synthesis likewise applies its `age_age` matrix only to age and CAAL data, WHAM only to its
+age and CAAL predictions, and SPoRC passes `AgeingError = NA` for a length composition.
+Now built from the true-age composition, in **both** of the loops that predict one: a joint-sex
+composition is assembled as females over the first `nlengths` bins and males over the next,
+then normalized across both halves. Every length-comp row in the affected datasets is
+joint-sex, so the second loop is the one they exercise.
+
+**This moves any fit with a non-identity `age_error` and length comps on the same species**,
+which is four bundled datasets and the external SS3 cod-bridge workbook (bundled `GOAcod` is
+not among them — its matrix is the identity). The two GOA golden
+references were re-pinned; `BS2017SS`/`BS2017MS` have an identity matrix throughout and are
+unchanged, as is `GOApollock`, whose matrix is non-identity but which fits no length comps.
+Refitting lowers every affected objective and moves the scale by a fraction of a percent:
+`GOAatf` -0.9416 nats and terminal SSB +1953 mt (+0.223%), `NorthernRockfish2022` -2.9022
+nats and +14 mt (+0.019%), `GOA2018SS` -1.1445 nats and +1678 mt on species 2 (+0.161%).
+
+## The initial equilibrium catch is redrawn by `sim_mod()`
+
+It had no `SIMULATE` block, so `sim_mod()`, `self_test()` and `run_mse()` kept the real
+observation while redrawing everything else. That observation is the **only** one
+informing `Finit`, and therefore the initial age-structure and the SSB scale under
+`initMode = 6` — so a self-test conditioned every replicate on data its own operating
+model had not generated, and reported the resulting `Finit` bias as if it were real. Drawn
+from the same lognormal as its density, reported as `equil_catch_obs_sim`, and written back
+into `equil_catch_data`.
+
+## Length grids are validated, and a non-uniform grid is now evaluated correctly
+
+Two problems on the population length grid:
+
+* **`data_list$pop_lengths` skipped validation.** `?build_growth` documents it as the
+  inherit source, so a converter or an SS3 bridge can set the field directly and never
+  reach `build_growth()`'s validator. A decreasing grid returned a **finite** objective
+  with age-length-key probabilities down to **−0.79**, and a negative edge a negative
+  weight-at-length, neither flagged. Validated on the read path now.
+* **Selectivity evaluated every bin at the first bin's width.** The age-length key uses
+  per-bin midpoints and so does SS3 (`len_bins_m`), but `calculate_selectivity()` took a
+  single width from bin 1, so on a non-uniform grid — which SS3 models routinely use, with
+  wider tail bins — a curve was evaluated up to **1.25 cm** off the bin it labels and
+  disagreed with the probability it multiplies in the same expression. Now per-bin
+  midpoints, with one scalar width for `DoubleNormalSS3`'s `peak2` exactly as
+  `SS_selex.tpl:153` uses `binwidth2`. Identical on a uniform grid, which is every bundled
+  dataset, so no existing model moves.
+
+## Two ageing-error and selectivity configurations that fitted the wrong model are refused
+
+Both were found by reviewing 5.46.0's new features against the Stock Synthesis source.
+
+**`Ageing_error_index`'s fallback is now validated.** Omitting the column, or leaving it
+`NA`, uses the fleet's own species number — which is right while `age_error` is indexed by
+species, and wrong as soon as it carries its own `Ageing_error_index` column, because the
+fallback then points at whichever matrix sits at that position. `data_check()` validated
+only a *supplied* index, so the fallback could hand a fleet another species' ageing error,
+over another species' age range, silently: measured at **4,718 nats** on `GOA2018SS` with
+two ageing eras on species 1, and at **94,000 nats** where the fallback index had no rows
+at all and the smeared composition went flat. The effective index — the one
+`rearrange_data()` uses — is now checked to exist and to belong to the fleet's own species.
+
+**A `DoubleNormalSS3` end parameter below −1000 is refused.** Stock Synthesis reads
+`P5 < -1000` as "selectivity nil through bin `-1001 - P5`" and `P6 < -1000` as "constant
+beyond bin `-1000 - P6`, and anchor the descending limb there" (`SS_selex.tpl`, pattern
+24) — different curves, and a sub-`-1000` `P6` also moves `peak2`. Rceattle implements
+neither and honoured only `-999`, so a bridged SS3 control file using either encoding fit
+a different selectivity with no message.
+
+## A warm start can no longer strand a fitted value on a pinned linkage intercept
+
+A pinned `(Intercept)` coefficient is 0 by construction: the process's own base
+parameter carries the level and the row is mapped out of estimation. `fit_mod()` did not
+re-impose that over supplied `inits`, and a slope-only spec produces a `beta_linkage` of
+the *same length* as an intercept-only one, so the length guard passed and a stale
+fitted slope was held on the mapped-out row for the whole fit. Refitting `M1 = ~ 1` from
+the `inits` of an `M1 = ~ 0 + temp` fit put natural mortality at **6.69x** its intended
+value, with no warning and nothing in `convergence` to show it.
+
+The coefficient is now re-zeroed before the fit. This affects every process the linkage
+grammar covers, not just recruitment. A genuine refit — `retrospective()`, `jitter()`,
+`self_test()`, `model_average()`, `run_mse()` — already carries 0 there, so it is a
+no-op for those, and leaves all four golden references bit-identical.
+
+
+# Rceattle 5.47.0
+
+## `link = "exponential"`: Stock Synthesis's environmental link type 1, on catchability
+
+A fourth linkage link, for catchability only, completing the progression on the
+natural-scale parameter: `"identity"` **adds** to it, `"log"` **multiplies** it,
+and `"exponential"` raises it to a covariate-dependent power, `q^exp(beta * x)`:
+
+    index_q_yr = exp((log_q + q_offset(yr)) * exp(sum beta * x(yr)) + q_dev(yr))
+                 + q_nat_offset(yr)
+
+The name is SS3's own for it -- `case 1: // exponential env link` -- and is
+deliberately not "power": SS3 has a separate q *power function*
+(`Q_setup` option 3, `pow(vbio, 1 + p)`, `SS_expval.tpl:429-436`), which is what
+`Catchability = "PowerEquation"` and the dormant `index_q_pow` are reserved for.
+
+An SS3 parameter line requests type 1 with an `env-var` of `1xx`. Verified
+against the pinned v3.30.22.1 source: `parm_timevary` is seeded with the base
+parameter (`SS_timevaryparm.tpl:50`), type 1 multiplies it by
+`mfexp(beta * env)` (`:206-211`) where type 2 adds (`:215-220`), the result is
+`Svy_log_q` (`SS_expval.tpl:408`), and the `1xx` decoding for `Q_parm` is
+`SS_readcontrol_330.tpl:3328`. The deviation stays outside the multiply,
+matching SS3's order (env at `:200-245`, devs at `:252-330`).
+
+**Where it applies, and where it does not.** SS3's type 1 multiplies a parameter
+on whatever scale SS3 stores it on, so the restriction follows that scale:
+
+* **Natural mortality and growth**: natural-scale in SS3
+  (`SS_biofxn.tpl:1074`, `:265-275`), where type 1 is `parm * exp(beta * x)` --
+  **exactly what Rceattle's `"log"` link already computes**. An SS3 `NatM` or
+  growth line carrying `env-var 1xx` bridges with `"log"`. Applied to a
+  natural-scale parameter this form would raise it to a power, and on M -- where
+  `log M` is always negative, since M < 1 -- that inverts the sign of the
+  covariate effect.
+* **Recruitment**: SS3 *does* store the level as a log (`SR_LN(R0)`, and
+  `SS_timevaryparm.tpl:53` seeds `parm_timevary` from `SRparm`), so this form is
+  the right one there. No accumulator consumes it yet, and the refusal says so
+  rather than offering `"log"`, which is SS3's type **2**.
+* **Catchability**: only for a **lognormal** index. SS3 exponentiates
+  `Svy_log_q` only when the survey error type is lognormal or t; under a
+  natural-scale family (`MVN`, `MVNORM`, `Normal`, `TruncatedNormal`) it reads
+  the same slot arithmetically (`SS_expval.tpl:413-419`), where type 1 is again
+  `"log"`. Rceattle holds q on the log scale whatever the index family, so the
+  model is still well defined there and those families **warn** rather than
+  refuse -- but it is the wrong bridge.
+* **Catchability, and the base must be estimated.** The link multiplies `log q`,
+  so a formula with no intercept (`~ 0 + x`) or a fixed one (`est_phase = 0`)
+  makes `map_linkage_adjuster()` mask `index_log_q`, freezing the value being
+  multiplied -- and at `Catchability_init = 1` that value is exactly 0, where
+  `beta` has an identically zero gradient and the fit converges on whatever
+  `beta` started at. Refused. A *free* base is left alone: where it starts is not
+  knowable at build time, because `fit_mod(inits = )` and an intercept `init`
+  both override `Catchability_init`, so the fitted value is what
+  `exponential_q_near_one` reads instead.
+* **Not with a linkage random effect on the same fleet.** Every log-link row
+  accumulates into `q_linkage_offset`, which sits inside the multiply, so an
+  `ar1(1 | Year)` q linkage would have its deviations scaled by
+  `exp(beta * x)` while their density still scored them at a constant sigma.
+  Refused on both the same spec and the same fleet. An environmental effect
+  plus q deviations is still expressible with `Time_varying_q`, whose
+  `index_q_dev` the template keeps outside the multiply, as SS3 does its dev
+  blocks.
+
+Worth knowing even on q, and it is SS3's property rather than ours: because
+`beta` multiplies a *log*, the effect scales with how far `log q` sits from
+zero, and below `q = 1` its sign inverts. Both are pinned by tests so nobody
+reads them as a broken linkage.
+
+**Report `beta` with its base, never alone.** To first order
+`log q_y = log q * (1 + beta * x_y)`, so the index informs the product
+`log q * beta`. With an estimated base the fit may cross `q = 1` and re-express
+the same curve with the opposite sign of `beta`: simulating from
+`q = 0.3, beta = +0.4` and refitting returned `q = 467.0, beta = -0.0775`,
+preserving `log q * beta` to 1.1% (-0.4761 against -0.4816) with the fitted `q`
+series correlating 0.984 with the truth. Those figures are the
+simulate-and-refit check in `tests/testthat/test-linkage-exponential-link.R` at
+its own seed on one platform; the test asserts the invariant, not the values,
+since an optimizer path need not be identical everywhere. Interpret `fit$quantities$index_q`; a `beta` quoted alone is not
+comparable between models. A q prior pins the level if `beta` itself is wanted.
+
+Because that is a silently-wrong-number shape rather than a documentation gap, a
+new `convergence_diagnostics()` record flags it on the fit itself:
+`exponential_q_near_one` (WARN) when a fleet's **fitted** catchability is within
+0.1% of 1, where `beta` is unidentified. It reads the fitted base rather than the
+starting value, because an intercept `init`, `fit_mod(inits = )` and a shared
+`Catchability_index` group each make `Catchability_init` something other than
+where `index_log_q` began.
+
+The new reported quantity is `q_linkage_log_mult` -- the linear predictor whose
+`exp()` multiplies `log q`.
+
+No fit changes for a model without a q linkage: the tensor stays at zero,
+`exp(0)` is exactly 1, and `x + 0.0` and `x * 1.0` are exact, so the result is
+bit-identical. For a model that *does* carry a `log` q linkage the sum
+reassociates from `(log_q + dev) + offset` to `(log_q + offset) + dev`:
+algebraically identical, but not bit-identical.
+
+Motivation: the GOA Pacific cod SS3 bridge, whose LLSrv survey catchability
+carries this link. `Rceattle-models/SS3-bridge/GOA-estimation-parity.md` predicted
+`+9.9645` nats of LLSrv index residual from its absence. Re-run on this version the
+bridge closes **11.254** nats with the link (`Index data` 53.7116 -> 42.4573), all of it
+in the `Index data` row, and no other `jnll_comp` row moves by more than 1e-6. The
+earlier `9.9646` was measured on an ancestor of the initial-level and regime-penalty
+commits, so the bridge's own baseline most likely moved rather than this release moving
+it; that was not proven, and would need a 5.45.3 A/B.
+
+# Rceattle 5.46.0
+
+## `initMode = "FishedNonEquilibriumSelected"` (6)
+
+A sixth initial-age-structure mode, in which the initial fishing mortality is weighted
+by the fishery's selectivity at age before it accumulates, so the first year decays
+with \eqn{\sum_{a' < a}(M1_{a'} + F_{init} s_{a'})}. This is Stock Synthesis's InitF
+convention, and \eqn{F_{init}} is the apical initial F because selectivity is
+normalized to a maximum of 1.
+
+The existing fished modes are neither of these: `3` charges every age the same
+\eqn{F_{init}}, and `4` applies it once rather than accumulating it. Under a
+size-selective fishery neither is an equilibrium -- `3` kills barely-selected young
+ages at the full initial F, and `4` does not decay the older ages with it at all.
+
+The selectivity is the mean over the species' fishery fleets in the first hindcast
+year. That is exact for a single fishery, which is what SS3's per-fleet `InitF`
+reduces to here; Rceattle carries one \eqn{F_{init}} per species where SS3 carries one
+per fleet, so a multi-fishery stock gets the mean shape.
+
+Every other mode leaves the weight at 1 and is bit-for-bit unchanged, including
+`SPRFinit` and therefore \eqn{R_{init}} under a stock-recruit curve.
+
+On a species with more than one fishery, `Finit` is applied at the MEAN selectivity of
+those fisheries and so is not the apical initial F of any one of them. `data_check()`
+now warns, naming the species: the initial state sets the SSB scale.
+
+Found while bridging the 2024 AI Pacific cod SS3 assessment; the derivation against
+SS3's `Early_InitAge` is in `inst/dev/SESSION_HANDOFF.md`.
+
+## Stock Synthesis growth, maturity and length-bin options
+
+Four options that let an estimated-growth model reproduce Stock Synthesis 3.30's
+growth and spawning output exactly. Each defaults to the current behaviour, so
+existing models and the golden references are unchanged.
+
+* **`build_growth(pop_lengths =)`: population length bins.** The age-length
+  key, weight-at-length and maturity-at-length are computed on these finer bins
+  (lower edges, cm) and then summed into the data length bins, as SS3 does with
+  its population bins. The linear growth ramp below `growth_age_L1` starts from
+  the lowest population edge. Every data-bin edge must be a population edge.
+  Default: the data bins.
+* **`build_growth(sd_form = "CV")`: growth variability as CVs.** The two
+  endpoints `sd_L1` / `sd_Linf` become coefficients of variation and the SD of
+  length-at-age is CV x mean length at every age (SS3 `CV_Growth_Pattern` 0).
+  `"SD"` (default) keeps them as SDs in cm (pattern 2).
+* **`build_growth(plus_group_length =)`: plus-group mean length.** `"M1"`
+  (default) is the current M1-weighted mean; `"none"`, `"SS3.24"` and `"decay"`
+  (with `plus_group_decay`) are SS3's `Linf_decay` = -998, -999 and a positive
+  decay rate. Under the three SS3 forms the plus group also grows within the
+  year, as SS3's does.
+* **`L50_mat_len` / `slope_mat_len`: maturity-at-length.** Two new per-species
+  control columns (cm, per cm; logistic). When set, spawning output per fish is
+  maturity x weight integrated over the length distribution at spawning, SS3's
+  fecundity-at-age, instead of weight-at-age x the age-based maturity sheet.
+  Needs estimated growth. Round-trips through `write_data()` / `read_data()` and
+  appears in `write_template()`.
+
+Spawning biomass, SB0/SBF, dynamic B0 and the SPR reference points now all read
+one reported array, `spawn_output` (`[nspp, nages, nyrs]`, kg per fish).
+
+With all four set, the Aleutian Islands Pacific cod bridge (SS3 3.30.22.1, model
+M24_1) reproduces SS3's length-at-age, Jan-1 age-length key and fecundity-at-age to
+within Report.sso's printed precision, against gaps of 1.5% and 5-6% before. SSB is
+within 1.5%, the rest being selectivity. Term-by-term numbers are in
+`inst/dev/SESSION_HANDOFF.md`.
+
+`sd_plus_group`: when SS3's `Growth_Age_for_L2` is 999, SS3 pins the plus
+group to CV_old, which is `sd_plus_group = "WHAM"` here, not `"SS3"`. The
+documentation now says so.
+
+## Stock Synthesis selectivity
+
+* **`Selectivity = "DoubleNormalSS3"` (15): SS3 size pattern 24.** The six-
+  parameter double normal, each parameter on SS3's own scale (peak; logit top
+  width; log ascending and descending widths; logit initial and final
+  selectivity), in its own parameter array `sel_dn6`. An end left at SS3's
+  -999 is unscaled and its parameter fixed. The curve is not normalized, as in
+  SS3. All six parameters take selectivity linkages, under the SS3 manual's
+  names (`dn_peak`, `top_logit`, `ascend_se`, `descend_se`, `start_logit`,
+  `end_logit`), one name each. A `link = "identity"` block is
+  `linkage_spec(~ cut(Year, breaks), link = "identity")` and **adds** to the base
+  parameter, which is SS3's `Blk_Fxn = 1` (`temp = baseparm + parm`,
+  `SS_timevaryparm.tpl`); it is not `Blk_Fxn = 2`, which assigns the block value
+  directly (`temp = parm`). Porting a `Blk_Fxn = 2` model means entering each
+  block as its difference from the base, not the block value itself. SS3's annual
+  devs (`dev_link` 1) are a log-link `(1 | Year)` term with `integrate = FALSE`
+  and a fixed SD. `Time_varying_sel` must be `"Off"` for this form.
+* On a two-sex species both sexes must agree on whether an end is scaled, since
+  one flag serves the fleet: SS3's -999 switches the formula rather than a value,
+  so a disagreement would fit one sex with the other's curve shape while leaving
+  its own end parameter estimated and reaching nothing. Refused with the fleet
+  named. Mixing the two *ends* is unaffected and is what SS3 models usually do —
+  AI cod's fishery leaves `start_logit` at -999 and scales `end_logit`.
+* Fleets sharing a `Selectivity_index` must agree on their ends too. They estimate
+  one `sel_dn6` block, but the flag is read off each fleet's own starting value, so
+  the group would share a parameter and still be given different curves. Refused,
+  naming the fleets. Members on another form are not compared: nothing but
+  `DoubleNormalSS3` reads `sel_dn6`.
+* A selectivity linkage must name a parameter the fleet's form actually reads.
+  `sel_dn6` is the only array `DoubleNormalSS3` reads, and no other form reads
+  it, so a name used the wrong way round was estimated and changed nothing — a
+  time-invariant curve and a `beta_linkage` coefficient at zero gradient, with no
+  error. `peak` (which resolves to `sel_inf`) against `dn_peak` (`sel_dn6`) is the
+  pair to watch, since both the header and `parameter_dictionary()` call form 15's
+  P1 "peak". Now refused in both directions. The same gap on the older forms —
+  `slp_asc` on a non-parametric fleet, say — is left for its own change, since
+  those configurations are in released scripts; see
+  `inst/dev/TODO-selectivity.md`, Open 3.
+
+## An initial equilibrium catch, so `Finit` has something to fit
+
+SS3 scores the catch the stock yielded under its initial fishing mortality in the
+year before the hindcast, and creates an `InitF` parameter only when that
+observation exists and is non-zero. Rceattle estimated `log_Finit` with nothing
+to fit it to, so `Finit` sat on a ridge with `init_dev` -- 7.5x movement for 0.17
+nats on AI Pacific cod. This supplies the missing half.
+
+The observation is a `catch_data` row at `styr - 1`. **No new columns**:
+`Fleet_code`, `Year`, `Catch` and `Log_sd` already say everything, and
+`write_data()` / `read_data()` round-trip it unchanged.
+
+`clean_data()` moves the row out of `catch_data` into a new `data_list` element,
+**`equil_catch_data`**, so `catch_data` keeps one row per fitted catch. Every
+predicted-catch quantity is indexed by that frame -- `catch_hat`, `catch_sd`,
+`plot_catch()`, `residuals(source = "catch")`, `sim_mod()` and `run_mse()`'s
+projection fill all pair with it row for row -- so a `catch_data` carrying an
+extra row puts the wrong year's catch in each of them. The element is read back
+by `clean_data()` itself, so cleaning twice is a no-op and a refit through
+`retrospective()`, `jitter()`, `self_test()` or `run_mse()` keeps the
+observation; it is combined by `combine_data()` and written back into the catch
+sheet by `write_data()`.
+
+**That year is shared with ordinary catch history, so the rule is gated rather
+than marked.** `GOA2018SS` carries 23 catch rows before `styr`, two of them on
+1976, and a model has no way to say which a row is. A `styr - 1` row is read as
+an equilibrium catch **only under `initMode = "FishedNonEquilibriumSelected"`**;
+under any other mode it is history and is dropped exactly as before.
+
+The restriction is the prediction's, not a policy: the equilibrium catch is
+Baranov at `Finit * s_a`, and mode 6 is the only mode that builds the initial age
+structure with that same mortality. Mode 3 charges every age a flat `Finit` and
+mode 4 applies it once, so scoring this observation under either would fit
+`Finit` to a catch the population was never subject to. On a stock with more than
+one fishery there is a smaller version of the same gap, since Rceattle carries
+one `Finit` per species: `N_eq` decays at the mean fishery selectivity while the
+prediction uses the row's own fleet.
+
+`data_check()` names the fleets whose rows it read whenever it reads any, so
+nothing is reinterpreted silently. It refuses two rows for one fleet, a
+non-positive catch, a non-fishery fleet, a `Fleet_code` that is not in
+`fleet_control`, a `Species` that does not match that fleet, and a non-positive
+`Log_sd`. A negative sentinel was considered and rejected: `run_mse()` reserves
+negative `Year` for rows it splices back in as the next assessment's data, and
+its window filters are on `abs(Year)`.
+
+`rearrange_data()` turns the rows it reads into `equil_catch_ctl` /
+`equil_catch_obs`, and drops any `styr - 1` row still sitting in `catch_data`
+for a list that reached it uncleaned: such a row in the catch equation would
+index `F_flt_age(..., -1)`, an out-of-bounds read rather than an error.
+`data_check()` reads the rows from either place, so it names the fleets whether
+or not the list has been cleaned, and gives them the checks a catch row gets --
+a `Fleet_code` that is in `fleet_control`, a `Species` that matches it, and a
+positive `Log_sd`.
+
+The prediction is Baranov on the deviation-free equilibrium age structure, using
+the fleet's own selectivity and weight in the first hindcast year:
+
+    C_eq = sum_a Finit * s_a * w_a * N_eq_a * (1 - exp(-Z_a)) / Z_a
+    Z_a  = M1_a + Finit * s_a
+
+`jnll_comp` gains a row, **`Initial equilibrium catch`**, and `equil_catch_hat`
+joins the reported quantities; both are registered in the row-axis registry and
+the quantity dictionary. Every bundled model and all four golden references are
+unchanged.
+
+**If you read a `jnll_comp` row by position, read it by name instead.** The new
+row is appended, so the last row is no longer the linkage random effects; the
+tests that did this now look the row up through `.JNLL_ROW_AXIS`.
+
+## An ageing error matrix per fleet
+
+`age_error` held one matrix per species and every read was `age_error(sp, ...)`.
+SS3 selects one per observation through its `ageerr` column, and a stock whose
+ageing protocol changed part way through a series needs more than one: GOA
+Pacific cod reads its pre-2007 survey otoliths about a year older than its
+post-2007 ones, a bias of roughly two standard deviations at every age, and
+Rceattle applied one of the two to the whole series.
+
+The selection is per fleet, mirroring `Age_transition_index`, which already picks
+among several `age_trans_matrix` matrices the same way. Two eras of one survey are
+then two fleets sharing a `Selectivity_index` and a `Catchability_index`, so they
+estimate one selectivity and one catchability between them.
+
+Additive, and silent on anything that does not use it:
+
+* `age_error` gains an optional `Ageing_error_index` column. Absent, the index IS
+  the species, which is what the array held before; its first dimension is now the
+  matrix rather than the species.
+* `fleet_control` gains an optional `Ageing_error_index`. Absent or NA on a row,
+  that row reads its own species' matrix.
+* `data_check()` keys its `age_error` checks on `Ageing_error_index`, since that
+  is what the array is filled by. It refuses an index that names no matrix
+  (listing what was asked for and what exists), an index whose rows give more
+  than one `Species` — a matrix's rows are sized and offset by one species' age
+  range — and a fleet pointed at another species' matrix, which the species
+  default invites: with no index column on `age_error`, `2` means "species 2's
+  matrix", not "the second matrix". Coverage is reported per matrix, so a matrix
+  that stops short of the oldest true ages is named even where the species' other
+  matrices are complete; keyed on the species it was invisible, and the missing
+  rows stay 0 and are renormalized away.
+* The observed-age column count names the metadata columns rather than counting
+  past the first two, so `Ageing_error_index` no longer inflates it.
+
+## Length-based selectivity is built on the population length bins
+
+`selectivity.hpp` evaluated a length-based curve at the **data** bins while
+`rearrange_data()` aggregated the age-length key to the same bins, so a model
+whose composition bins are coarser than its population bins applied one
+bin-average selectivity across a whole data bin. SS3 forms `sel(L) * P(L | age)`
+at population resolution and bins the **result**.
+
+Identical whenever the two grids coincide, which they do for any model supplying
+no `pop_lengths` -- every bundled and golden model. `growth_matrix` and
+`sel_at_length` move to the population grid, and the four places that combine them
+follow: the selectivity-at-age conversion and the selectivity-weighted
+weight-at-age sum every population bin, while `pred_CAAL`, which the length
+compositions are built from, sums each data bin's own run of population bins.
+`pop_to_data_bin` is monotone, so those runs are contiguous and are precomputed
+once; with a single grid every run is one bin and both the work and the arithmetic
+are what they were.
+
+Everything that walks the curve walks the population grid with it: the
+normalization reference and the division, the zeroing below `Bin_first_selected`,
+and the projection copy that carries the terminal hindcast year forward. Bounded
+by the data-bin count instead, a finer grid kept only the lowest lengths, where
+an ascending curve is close to zero, so projected selectivity-at-age came back
+identically zero -- and with it projected F, catch and the reference points.
+
+The columns that name a bin stay **data-bin ordinals**, which is what the user
+has and what `data_check()` bounds. They are not translated onto the population
+grid: a data ordinal cannot address a finer grid without picking a reading, and
+the readings differ. So on a species whose population grid is finer than its data
+grid, `data_check()` **refuses** a length-based fleet that is indexed by bin --
+a non-parametric or AR1 form, a time-varying deviation penalty, or any of
+`Bin_first_selected` (above 1), `N_sel_bins`, `Sel_norm_bin`,
+`Sel_norm_bin_upper`, `Sel_pen_first_bin`, `Sel_pen_last_bin` or `Sel_cap_bin`.
+A parametric form that names no bin is a function of length and is unaffected,
+which is the case the population grid exists to serve. A species with no separate
+grid is unchanged.
+
+`DoubleNormalSS3` also gains the two things SS3 does that the first port did not:
+the ascending limb is anchored at `startbin`, the first population bin reaching
+the first composition data bin, and the bins below it take SS3's quadratic ramp.
+
+Two things the refusal depended on, both fixed here:
+
+* It is built one entry per fleet even where a column is absent. It read
+  `Bin_first_selected` first, and that column carries no schema default, so a
+  workbook without it gave a zero-length flag that excused **every** fleet —
+  including the non-parametric forms and the time-varying penalties, which the
+  column has nothing to do with. `Time_varying_sel` is read with `[[` in the same
+  block, since `$` returns `Time_varying_sel_sd` by partial match.
+* `max_bin`, which dimensions `non_par_sel`, `log_non_par_sel` and the
+  selectivity-linkage offset tensors, is sized on the population bins. The
+  non-parametric forms build their curve over `nlengths_pop`, so on a finer grid
+  they wrote past the end of those arrays. With one grid `nlengths_pop` equals
+  `nlengths`, so no existing model changes.
+
+## Behaviour change: selected body weight for length-selective fleets
+
+A fleet with length-based selectivity and estimated growth now weighs its catch
+and survey biomass by the mean weight of the fish it selects,
+sum_l P(l | a) s(l) w(l) / sum_l P(l | a) s(l), not by the age class's mean
+weight at the fleet's month. A length-selective fleet takes the larger fish of a
+young age class, so the age-class mean understated its catch weight; this is
+also Stock Synthesis's catch weight. Age-selective fleets and empirical-weight
+models are unchanged, including all four golden references.
+
+**What it moves, measured.** The 2024 GOA Pacific cod approximation
+(`Rceattle-models/GOA cod/2024_pcod.R`, 224 parameters, length-based selectivity
+and estimated von Bertalanffy growth) is the one bundled-or-sibling model the
+change reaches. Refitting it on 5.45.3 and on this version:
+
+| | 5.45.3 | 5.46.0 |
+|---|---|---|
+| Objective | 6415.8172 | 6416.2875 (+0.470 nats) |
+| Terminal SSB (mt) | 1,004,925 | 935,106 (**-6.9%**) |
+| SSB series | | mean **-7.1%**, largest -12.9% |
+| Convergence | OK | WARN, max gradient 0.0013 |
+
+**SSB sets B40% and depletion, so read that -7% before refitting an assessment
+on this version.** The WARN is a maximum absolute gradient of 0.0013 on R0,
+worth at most 0.00085 standard errors, not a failure to converge.
+
+This is not evidence the change is an improvement, and the comparison that would
+look like evidence is not one: that script is an *approximation*, sitting 63%
+below the accepted 2024 SAFE spawning biomass on 5.45.3 and 66% below it here,
+with SSB rising across a series over which SAFE declines. A 3-point move against
+a 63% gap says nothing. The case for the change rests on Stock Synthesis parity
+in `GOA cod/Bridging/` and `AI cod - Dev/Bridging/`, where the bridges match SS3
+to additive constants and SS3 weighs catch this way.
+
 # Rceattle 5.45.3
 
 ## Bug fixes
+
+* A **shared** catchability linkage row is now checked against every fleet.
+  `NA` is the shared-stratum sentinel and the template expands it to all fleets,
+  but `.check_q_linkage_support()` only expanded it when *every* row was `NA`, so
+  a table mixing a shared q spec with a per-fleet one was checked against the
+  named fleet alone. The shared row then reached fleets whose `Catchability` is
+  `NA`, `Fixed`, `Analytical`/`AnalyticalArith` or `Environmental` -- the forms
+  that check exists to refuse -- turning a fixed q time-varying, or leaving a
+  coefficient free with no gradient. Such a configuration now errors with
+  "catchability linkage on fleet(s) ... does not estimate q"; restrict the spec
+  with `linkage_spec(fleet = )`.
+
 
 * **An aggregated composition figure no longer pools two observation
   structures into one normalization.** A fleet can carry more than one --

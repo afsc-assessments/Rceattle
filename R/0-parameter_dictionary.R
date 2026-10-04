@@ -109,6 +109,8 @@
       "Logistic-family age/length at 50% selection; row 1 ascending, row 2 descending.", "[2, n_sel, nsex]"),
     r("log_sel_apical", "selectivity apical height", "selectivity",
       "Log multiplier on one sex's whole curve, applied after the form and before normalization; 0 = no offset. Estimated only through a selectivity linkage on `apical`.", "[n_sel, nsex]"),
+    r("sel_dn6", "SS3 double-normal parameters", "selectivity",
+      "DoubleNormalSS3 (Stock Synthesis size pattern 24) parameters on SS3's own scales: peak (cm or age), logit top width, log ascending width, log descending width, logit initial and logit final selectivity. A starting value of -999 on either of the last two is SS3's switch for leaving that end unscaled: the parameter then drops out of the curve and is fixed. Time variation is through selectivity linkages.", "[6, n_sel, nsex]"),
     r("log_sel_slp_dev", "slope deviations", "selectivity",
       "Annual deviations on the selectivity slope.", "[2, n_sel, nsex, nyrs_hind]"),
     r("sel_inf_dev", "inflection deviations", "selectivity",

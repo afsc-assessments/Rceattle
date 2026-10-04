@@ -392,7 +392,7 @@ convention and what CI runs where are stated once, in
   which parameters are hard to estimate, and adjust their starting values.
 * **Reproducing an external model.** Supply numbers-at-age via the
   `NByageFixed` sheet and selectivity via `emp_sel` with `Selectivity = "Fixed"`,
-  set `estDynamics = 1`, and run `fit_mod(estimateMode = 1)` to evaluate without
+  set `estDynamics = 1`, and run `fit_mod(estimateMode = 3)` to evaluate without
   re-fitting. (See also the [Stock Synthesis conversion](stock-synthesis-conversion.html)
   article.)
 

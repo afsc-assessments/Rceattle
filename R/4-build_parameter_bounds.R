@@ -1,3 +1,28 @@
+#' Log the natural-scale endpoints of a recruitment `R_init` bound
+#'
+#' The level is a multiplier on R0, so its bound is given on the natural scale
+#' like every other intercept's, while the coefficient it lands on is a log.
+#' An absent bound is +/-Inf and stays there; a multiplier of 0 logs to -Inf,
+#' the same unbounded floor.
+#'
+#' @param b Bound vector over `beta_linkage` rows.
+#' @param is_level Logical, the `R_init` rows.
+#' @param side `"lower"` or `"upper"`, for the message.
+#' @keywords internal
+#' @noRd
+.log_level_bound <- function(b, is_level, side) {
+  hit <- is_level & is.finite(b)
+  if (any(hit & b < 0)) {
+    stop(sprintf(paste0(
+      "a recruitment `R_init` linkage takes a natural-scale %s bound -- a ",
+      "multiplier on R0, so it cannot be negative. Got %s."),
+      side, paste(unique(b[hit & b < 0]), collapse = ", ")), call. = FALSE)
+  }
+  b[hit] <- log(b[hit])
+  b
+}
+
+
 #' Build parameter bounds
 #'
 #' Function to build parameter bounds based on Holsman et al 2015 and Kinzey and Punt 2010
@@ -115,9 +140,20 @@ build_bounds <- function(param_list = NULL, data_list) {
     # beta_linkage bound for those rows to [-Inf, Inf] so the "inits within
     # bounds" check downstream doesn't trip on the 0 init vs the
     # user-supplied natural-scale bound (e.g. Linf [70, 130]).
-    is_int <- tbl$design_col == "(Intercept)"
+    # An `R_init` intercept is estimated here, so it keeps the caller's bound.
+    is_int <- .is_pinned_intercept(tbl)
     lower_bnd$beta_linkage[is_int] <- -Inf
     upper_bnd$beta_linkage[is_int] <- Inf
+
+    # `R_init` has no base parameter for the loop below to propagate to, so its
+    # bound stays on beta_linkage. Given on the natural scale (a multiplier on
+    # R0) like every other intercept bound, and the coefficient is a log, so
+    # log the endpoints here instead -- otherwise c(0.1, 4) would read as a
+    # floor of 1.1x R0. An absent bound is +/-Inf and stays there; a multiplier
+    # of 0 logs to -Inf, which is the same unbounded floor.
+    is_level <- .is_level_intercept(tbl)
+    lower_bnd$beta_linkage <- .log_level_bound(lower_bnd$beta_linkage, is_level, "lower")
+    upper_bnd$beta_linkage <- .log_level_bound(upper_bnd$beta_linkage, is_level, "upper")
 
     # Mirror the init-push at 2-build_params.R:218-256: for (Intercept)
     # rows the beta_linkage coefficient is mapped out and the base
@@ -127,7 +163,7 @@ build_bounds <- function(param_list = NULL, data_list) {
     # scale bounds (e.g. K in [0.1, 1.0]) have no effect and the
     # optimizer can wander into degenerate regions (K -> 0.07 etc).
     # Inputs are natural-scale; base params are log-scale -> apply log.
-    int_rows <- which(tbl$design_col == "(Intercept)" &
+    int_rows <- which(.is_pinned_intercept(tbl) &
                         is.finite(as.numeric(tbl$lower)) &
                         is.finite(as.numeric(tbl$upper)))
     if (length(int_rows) > 0) {
@@ -154,7 +190,7 @@ build_bounds <- function(param_list = NULL, data_list) {
         # stored logged except sel_inf, whose inflections are ages or length
         # midpoints held unlogged -- a lower bound of 0 is ordinary there, and
         # impossible to carry across anywhere else.
-        logged   <- !(identical(sel_slot$arr, "sel_inf"))
+        logged   <- !(identical(sel_slot$arr, "sel_inf") || identical(sel_slot$arr, "sel_dn6"))
         if (logged && !(lo > 0)) {
           warning(sprintf("Linkage (Intercept) bound lower = %g <= 0 for ",
                           lo),
@@ -226,6 +262,9 @@ build_bounds <- function(param_list = NULL, data_list) {
                      } else if (identical(sel_slot$arr, "sel_inf")) {
                        lower_bnd$sel_inf[sel_slot$slot, idx$fleet, sx] <- lo
                        upper_bnd$sel_inf[sel_slot$slot, idx$fleet, sx] <- hi
+                     } else if (identical(sel_slot$arr, "sel_dn6")) {
+                       lower_bnd$sel_dn6[sel_slot$slot, idx$fleet, sx] <- lo
+                       upper_bnd$sel_dn6[sel_slot$slot, idx$fleet, sx] <- hi
                      } else if (identical(sel_slot$arr, "log_sel_apical")) {
                        lower_bnd$log_sel_apical[idx$fleet, sx] <- log(lo)
                        upper_bnd$log_sel_apical[idx$fleet, sx] <- log(hi)

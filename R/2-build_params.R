@@ -193,6 +193,9 @@ build_params <- function(data_list) {
 
   param_list$growth_log_sd <- array(0, dim = c(data_list$nspp, max_sex, 2),
                                    dimnames = list(data_list$spnames, sex_labels, c("log_sd_minage", "log_sd_maxage")))
+  # Endpoints read as CVs (sd_form = "CV") start at a CV of 0.1; as SDs, at 1 cm.
+  cv_sp <- which(rep_len(data_list$growth_sd_form %||% 1L, data_list$nspp) == 2L)
+  param_list$growth_log_sd[cv_sp, , ] <- log(0.1)
   param_list$weight_length_pars <- matrix(0, nrow = data_list$nspp, ncol = 2,
                                           dimnames = list(data_list$spnames, c("a", "b")))  # Weight-length parameters
   param_list$weight_length_pars[,1] <- data_list$alpha_wt_len
@@ -207,8 +210,17 @@ build_params <- function(data_list) {
   # length-0 vector.
   if (!is.null(data_list$linkage_table) &&
       nrow(data_list$linkage_table) > 0L) {
-    init_vals <- as.numeric(data_list$linkage_table$init)
-    init_vals[data_list$linkage_table$design_col == "(Intercept)"] <- 0
+    lt <- data_list[["linkage_table"]]
+    init_vals <- as.numeric(lt[["init"]])
+    init_vals[.is_pinned_intercept(lt)] <- 0
+    # An `R_init` intercept keeps its own starting value: it has no base
+    # parameter to re-target, so nothing else holds the level. Given on the
+    # natural scale -- a multiplier on R0, as every other intercept's `init` is
+    # natural-scale -- and stored logged, because the level is added inside the
+    # exp() that builds the initial numbers-at-age.
+    for (r in which(.is_level_intercept(lt))) {
+      init_vals[r] <- .r_init_log_start(init_vals[r], lt[["init_supplied"]][r])
+    }
     param_list$beta_linkage <- init_vals
   } else {
     param_list$beta_linkage <- numeric(0)
@@ -359,6 +371,26 @@ build_params <- function(data_list) {
     }
   }
 
+  # - DoubleNormalSS3 (SS3 size pattern 24): six parameters on SS3's own
+  #   scales -- peak (cm or age), logit top width, log ascending and descending
+  #   widths, logit initial and final selectivity. The start is a dome with
+  #   neither end scaled (SS3's -999 for P5 and P6), so only the first four are
+  #   estimated unless the ends are given values.
+  param_list$sel_dn6 <- array(0, dim = c(6, n_selectivities, max_sex),
+                              dimnames = list(c("peak", "top_logit", "ascend_se", "descend_se", "start_logit", "end_logit"),
+                                              data_list$fleet_control$Fleet_name, sex_labels))
+  dn6_flts <- which(data_list$fleet_control$Selectivity %in% c(15, "15", "DoubleNormalSS3"))
+  for (flt in dn6_flts) {
+    is_len <- isTRUE(tolower(data_list$fleet_control$Selectivity_dimension[flt]) == "length")
+    sp <- data_list$fleet_control$Species[flt]
+    param_list$sel_dn6[, flt, ] <- c(
+      if (is_len) length_midpoint(sp) else (data_list$nages[sp] + 1) / 2,  # peak
+      -5,                                        # top width, logit: narrow
+      if (is_len) 5 else log(4),                 # ascending width, log
+      if (is_len) 5 else log(4),                 # descending width, log
+      -999, -999)                                # ends unscaled
+  }
+
   # - Annual selectivity slope deviation for logistic
   param_list$log_sel_slp_dev = array(0, dim = c(2, n_selectivities, max_sex, nyrs_hind),
                                     dimnames = list(c("Ascending" , "Descending"), data_list$fleet_control$Fleet_name, sex_labels, yrs_hind))
@@ -459,15 +491,34 @@ build_params <- function(data_list) {
   if (!is.null(data_list$linkage_table) &&
       nrow(data_list$linkage_table) > 0L) {
     lt <- data_list$linkage_table
-    intercepts <- lt[lt$design_col == "(Intercept)" & lt$init_supplied &
-                       (!fixed_only | as.integer(lt$est_phase) == 0L), , drop = FALSE]
-    if (any(is.na(intercepts$init))) {
+    fixed_now <- as.integer(lt$est_phase) == 0L
+    # An `R_init` level fixed at phase 0 is re-pushed whether or not an `init`
+    # was given: unlike a base-parameter intercept, which falls back on its own
+    # build_params() default, the level's fixed value IS this row's `init`, and
+    # the table default of 0 is a well-defined multiplier of 1. Gating it on
+    # `init_supplied` left "pinned at no shift" to be overwritten by a warm
+    # start, which is the same silent hold this push exists to prevent.
+    int_rows <- which(lt$design_col == "(Intercept)" &
+                        (lt$init_supplied | (.is_level_intercept(lt) & fixed_now)) &
+                        (!fixed_only | fixed_now))
+    if (any(is.na(lt$init[int_rows]))) {
       stop("Initial value provided for '(Intercept)' is NA.", call. = FALSE)
     }
-    for (i in seq_len(nrow(intercepts))) {
-      row <- intercepts[i, , drop = FALSE]
-      idx <- .linkage_row_indices(row, data_list)
+    for (ri in int_rows) {
+      row <- lt[ri, , drop = FALSE]
       init_val <- as.numeric(row$init)
+      # `R_init` is the one intercept whose level lives in beta_linkage rather
+      # than in a base parameter, so this is where a fixed (est_phase = 0)
+      # level is re-applied over supplied `inits`. Without it a warm start
+      # would overwrite the level and the mapped-out row would hold the wrong
+      # value for the whole fit. Taken before .linkage_row_indices(), which
+      # resolves a base parameter this row does not have.
+      if (.is_level_intercept(row)) {
+        param_list$beta_linkage[ri] <-
+          .r_init_log_start(init_val, row[["init_supplied"]])
+        next
+      }
+      idx <- .linkage_row_indices(row, data_list)
       switch(row$process,
         growth = {
           .stop_unless_positive(init_val, row$param, "the growth parameter")
@@ -496,9 +547,12 @@ build_params <- function(data_list) {
           }
         },
         recruitment = {
-          .stop_unless_positive(init_val, row$param, "rec_pars")
+          # `R_init` has no rec_pars column -- its starting value was logged
+          # onto beta_linkage above, so there is nothing to push to a base
+          # parameter and nothing here to check against one.
           par_idx <- .REC_PARAM_TO_INDEX[row$param]
           if (is.na(par_idx)) next
+          .stop_unless_positive(init_val, row$param, "rec_pars")
           param_list$rec_pars[idx$species, par_idx] <- log(init_val)
         },
         q = {
@@ -542,6 +596,13 @@ build_params <- function(data_list) {
             }
             for (s in idx$species) {
               param_list$sel_inf[slot$slot, idx$fleet,
+                                 idx$per_sp[[as.character(s)]]$sex] <- init_val
+            }
+          } else if (identical(slot$arr, "sel_dn6")) {
+            # DoubleNormalSS3 holds each parameter on SS3's scale, so the init
+            # is the value as an SS3 control file gives it.
+            for (s in idx$species) {
+              param_list$sel_dn6[slot$slot, idx$fleet,
                                  idx$per_sp[[as.character(s)]]$sex] <- init_val
             }
           } else if (identical(slot$arr, "log_sel_apical")) {

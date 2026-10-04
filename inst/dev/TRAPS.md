@@ -8,6 +8,17 @@ Verified against source, 2026-08.
 
 ## Build and test
 
+**Editing only a `.hpp` does not rebuild the model.** `TMB::compile()` decides from
+`ceattle.cpp` alone and tracks no header dependency, so a change confined to
+`selectivity.hpp`, `growth.hpp`, `predation.hpp` or any other header leaves the old
+`src/TMB/ceattle.o` in place. `load_all()` then reports success and you go on testing the
+**previous** model. Measured: a one-line fix in `selectivity.hpp` left the defect it fixed
+still reproducing, twice, until `ceattle.cpp` was touched. Deleting the `.o` is not enough
+either — `touch src/TMB/ceattle.cpp` before `load_all()`, and treat a rebuild that finishes in
+seconds as proof nothing was compiled (a real one is ~60–140 s). Anything measured after a
+header-only edit — a test run, a golden number, a bridge comparison — is suspect until the
+rebuild is confirmed.
+
 **Dev builds are `-O2`, not pkgbuild's `-O0`.** The repo `.Rprofile` sets
 `options(pkg.build_extra_flags = FALSE)`, so `load_all()` compiles the TMB model with the same
 optimization as a production `R CMD INSTALL` — `fit_mod()` runs ~10x faster than an
@@ -218,6 +229,110 @@ than switch on `estimateMode`.
 
 ## Silent-wrong-number traps
 
+**A joint-sex composition is predicted in TWO loops, and the row is normalized across both.**
+`ceattle.cpp` builds a `flt_sex == 3` composition as females over the first `nlengths` (or
+`nages`) bins and males over the next block, in a second loop under `if(flt_sex == 3)`, then
+divides the whole row by one shared sum. So changing how a composition is predicted in one loop
+and not the other is **worse than changing neither**: the normalization carries the
+inconsistency into the half that was corrected, and the row still sums to 1, so nothing
+complains. That is how the 5.48.0 length-comp ageing-error fix shipped half-applied through a
+review, a green suite and a golden re-pin — and every length-comp row in `GOAatf`,
+`GOAatf2023` and `GOA2018SS` species 2 is `Sex == 3`, so the joint loop was the ONLY one those
+fits exercise. Grep both loops, and pin the pair with an invariance test rather than a value:
+`test-likelihood-length-comp-ageing-error.R` asserts a length comp is unchanged by scrambling
+`age_error`, with a finiteness guard, because an alternative model that comes back `NaN`
+differs from the base everywhere and passes a difference check for free.
+
+**A linkage parameter has THREE registries, and the rule-12 pair is only two of them.**
+`LINKAGE_PARAM_CODES` (`R/0-linkage_encode.R`) must match `linkage.hpp`, which is rule 12 — but
+`build_srr()` keeps its own whitelist in `RECRUITMENT_LINKAGE_PARAMS` (`R/0-build_srr.R`), and
+`.REC_PARAM_TO_INDEX` beside it maps a linkage param to its `rec_pars` column. Add a parameter to
+the rule-12 pair alone and `build_srr()` rejects it with "unknown recruitment linkage
+parameter(s)"; the other processes have the equivalent (`.SEL_PARAM_TO_SLOT`). This is the same
+shape as `Index_distribution`'s second registry. Grep every registry before adding one.
+
+**Every `(Intercept)` linkage coefficient but recruitment's `R_init` is pinned at `NA`, on the premise that the process's
+own base parameter carries the level.** `R/3-build_map.R` masks `beta_linkage` for intercept rows,
+`build_params` forces their starting value to 0, and `build_parameter_bounds` loosens their bound
+to ±Inf and propagates the caller's bound to the base parameter instead. That premise held for
+all six processes until recruitment `R_init` (5.48.0), which multiplies the initial age-structure
+and has NO base parameter — so `~ 1` produced zero estimable `beta_linkage` entries and moved
+nothing, while every builder reported success. The R sites now share `.is_pinned_intercept()` and
+its complement `.is_level_intercept()` (`R/0-linkage_encode.R`), both keyed off
+`.is_r_init_linkage_row()`. **Don't trust a count — this one was published as "four", then
+"five", then "seven", then "eleven", and every published figure has been wrong within a release.
+So the grep is the authority, not any number here, and not a line list: the line numbers in the
+earlier version of this entry were all stale within two commits.** Grep
+`.is_pinned_intercept|.is_level_intercept|.is_r_init_linkage_row|.REC_PARAM_TO_INDEX\[` and read
+every hit. At 5.49.0 that is 13 conditions in R — `R/2-build_params.R` (5),
+`R/4-build_parameter_bounds.R` (4), `R/3-build_map.R` (2), `R/1-data_check.R` (1),
+`R/6-fit_mod.R` (1) — plus the definitions in `R/0-linkage_encode.R` (6) and a comment in
+`R/0-build_srr.R`, which are hits but not conditions, and one guard in `src/TMB/ceattle.cpp`
+(`param != RCEATTLE_REC_R_INIT`, next entry). Three of them read the `.REC_PARAM_TO_INDEX` `NA`
+instead of the predicate: that is correct in `map_linkage_adjuster()` and in `build_bounds()`'s
+base-parameter push (there is no base parameter to mask or to bound), and was a defect
+in `.push_linkage_intercept_inits()`, which is where `fit_mod()` re-applies an `est_phase = 0`
+intercept over supplied `inits` so a FIXED value beats a warm start. `R_init` is the one
+parameter whose fixed value lives in `beta_linkage`, so it was the one fixed level a warm start
+silently overwrote — and the row is mapped `NA`, so the wrong value was then held for the whole
+fit. The golden recipe and the GOA cod bridge both warm-start, so that is the normal path, not an
+exotic one. Note too that a linkage TABLE row is not an estimated parameter: `print()` on the
+table said "1 coefficient(s)" for the inert case. Count `beta_linkage` in
+`obj$env$last.par.best` to tell the difference.
+
+**The C++ linkage-prior block re-targets an `(Intercept)` prior onto the base parameter, and will
+read off the end of the matrix for a parameter that has none.** `ceattle.cpp` slot 19 sets
+`b = rec_pars(sp_idx, param)` for every recruitment intercept; `rec_pars` is `nspp x 3` and
+`R_init` is code 3, so a prior on an `R_init` intercept read one element past a
+`PARAMETER_MATRIX` and promoted adjacent heap memory to an AD variable — no crash guaranteed, no
+R-side refusal. Guarded at 5.48.0 so the prior stays on `beta_linkage(i)`, which IS the level, so
+the density reads on the multiplier (`lognormal(0, sd)` centres on no shift off R0 — the same
+contract as `log_sel_apical`). The growth branch beside it already had the pattern
+(`if (param < RCEATTLE_N_GROWTH_PARAMS)`). **A natural-scale `init`/`bounds` on such a parameter
+has to be logged onto the coefficient too**, since there is no base parameter to log it onto;
+read raw, `init = 0.5` ("half of R0") starts the level at `exp(0.5)` = 1.65x R0.
+
+**A free initial recruitment level has a FLAT TAIL at the low end, and a few percent of fits
+converge into it with a clean gradient.** `R_init` is informed only by the first year's
+observations, so once the level is low enough that the initial cohorts are effectively
+annihilated the data cannot distinguish one tiny level from another: at `beta = -30` the
+objective is flat to `1.7e-08` while still finite. `tools/verify/verify-sim-recovery-r-init.R`
+measures, at a true multiplier of 0.5 over 60 replicates on `make_test_data(nyrs = 40)`: a few
+replicates run away to 5e-05 or below with `max|grad|` around 1e-04, so a gradient filter does
+NOT find them and `convergence` reports success. Over the rest the level recovers with a low bias
+of about 0.12 log units (z around -3.5, empirical sd 0.27, ~two thirds of replicates below
+truth). **Don't quote those figures as constants** — the harness optimizes its own base fit, so
+`ini`, the operating model and every draw inherit a machine-dependent starting vector, and the
+runaway count has come out at both 3 and 6 of 60 on identical arguments. Re-measure.
+
+The runaways are **not** a local optimum a multi-start escapes: four starting levels (truth, 0,
++1, -3) all return the same estimate to four decimals at the same objective, so the data really
+do prefer the annihilated initial state and `jitter()` will not find it. The bias is a genuine
+finite-sample property, not an artifact of the fixture's unconverged base — the score on the
+level at the truth is centred (z = 0.5 over 60 replicates, implied first-order bias 0.003) —
+but its MAGNITUDE belongs to this fixture, where the level is identified against four penalised
+`init_dev` on one year's data. Don't read 0.12 as a universal correction.
+
+**Bound the level on a real assessment**: `bounds` on this intercept are natural-scale, so
+`bounds = list(intercept = c(0.05, 20))` keeps a fit out of the tail (`intercept` is the alias
+that saves nesting backticks round the `(Intercept)` key). A lower bound of exactly 0 does NOT:
+it logs to `-Inf`, which is the same unbounded floor, so it reads as protection and gives none.
+Read the estimated multiplier, never just the convergence flag.
+
+**`N_eq` is an equilibrium only if every age of it carries the same recruitment level.** Its one
+consumer is `equil_catch_hat`, which integrates Baranov over all ages including age 0, so an
+age-0 term left at `R_init` while ages 1+ carry a level makes the "equilibrium" sit at two levels
+at once. Age 0 of `N_at_age` is deliberately NOT scaled — year-1 recruitment is a recruitment
+year with its own deviate, not part of the pre-hindcast level — so the two arrays diverge here on
+purpose. Live only under `initMode = 6`, the one mode that reads an equilibrium catch.
+
+**A process linkage assigned straight onto a `data_list` is silently discarded.**
+`fit_mod()` overwrites `data_list$srr_linkages` from `recFun` (`R/6-fit_mod.R:549`), and does the
+same for the other processes from their own `build_*()` objects. So
+`d$srr_linkages <- list(...)` followed by `fit_mod(d)` fits a model with no linkage at all and
+says nothing. Build the spec through `build_srr(linkages = ...)`. Same shape as
+`fit_mod(d, config = cfg)` dropping every linkage unless `cfg` came from `run_config()`.
+
 **Which fleet leads a `Selectivity_index` group is row-order dependent, so a group's penalty
 weights can change meaning when rows move.** `.group_lead()` picks the group's first fleet that
 is not `Off`, and `Fleet_code` must equal the row number, so inserting or reordering a fleet —
@@ -379,14 +494,17 @@ model, and only shows up on the next `minage != 1` species. Write
 `max(n_flt, nspp)`, and the column index is whatever loop variable wrote the cell: rows 1-8
 (index, catch, composition, CAAL, non-parametric selectivity, selectivity deviates, catchability
 prior, catchability deviates) are written inside `for(flt = 0; flt < n_flt; flt++)`, rows 9-20 by
-`sp`/`rsp`/`slot_col`, and "Linkage random effects" always into column 1. So `jnll_comp[3, 2]` is
+`sp`/`rsp`/`slot_col`, "Linkage random effects" always into column 1, and row 22 ("Initial
+equilibrium catch", added 5.46.0) back into a FLEET column -- so the fleet axis is not
+contiguous and stopping an axis guess at row 20 is wrong. So `jnll_comp[3, 2]` is
 fleet 2's composition likelihood while `jnll_comp[11, 2]` is species 2's recruitment deviates,
 and `rowSums()` pools across two different axes. `.JNLL_ROW_AXIS` (`R/9-profile.R`) is the
 registry; `test-schema-jnll-rows.R` parses every `jnll_comp(JNLL_*, col)` write in the template
 and asserts each row's declared axis matches the column it is actually indexed by. Verified
-2026-08-26: 124 writes, all 21 rows covered; 133 writes at 5.41.0, same 21 rows.
+2026-08-26: 124 writes, all 21 rows covered; 133 writes at 5.41.0, same 21 rows; 134 writes at
+5.48.0 over 22 rows, the new one being the initial equilibrium catch.
 
-**`unweighted_jnll_comp` is populated for 5 of its 21 rows.** It exists so Francis and
+**`unweighted_jnll_comp` is populated for 5 of its 22 rows.** It exists so Francis and
 McAllister-Ianelli can read a composition likelihood without its `Comp_weights` multiplier, so
 only the rows carrying such a multiplier are written: composition, CAAL, stomach content, and the
 two linkage rows. Index, catch, selectivity, catchability and every penalty are **structurally
@@ -745,7 +863,17 @@ one-ULP change in one gradient element is enough to send `nlminb` there.** Recor
 5.34.0 branch (PR #144, 2026-09-14): adding code the objective never evaluates left every
 objective bit-identical and bounds-checked builds clean, but changed one `log_F` gradient
 element by 3e-16 (presumably summation order), and from there `nlminb` reached the higher
-minimum with `newtonsteps = 3` in place. HEAD reproduces the reference (12867.9902664788). The
+minimum with `newtonsteps = 3` in place. A cold phased fit reached it again at 5.48.0
+(12920.1030998153, `max|gradient|` 5.7e-11 — it polishes as well as the lower one), but **on a
+half-applied length-comp fix, not on coherent code**: under the preceding release's behaviour a
+cold fit reproduces the then-current reference exactly (12867.990267), and with both halves of that fix in
+place it lands at 12866.845728, the same basin. An incoherent likelihood is itself a way into
+the upper minimum. `goa_ms` warm-started from those upper-basin MLEs still reached its own
+reference objective to ten decimals, so it does not always inherit `goa_ss`'s basin.
+**`regenerate-golden-reference.R` therefore fits each reference from two starts — the recipe
+that created it and the committed reference — and pins the lower**: the recipe alone can pin a
+52.9-up minimum as a model change, and the reference alone would hide a change that moves the
+optimizer on the cold path assessment scripts take. The
 52.9 that `golden-check.md` attributes to tolerance-stopping (commit `1a172677`) is the same
 gap; polishing did not remove it. A `goa_ss` delta of 52.9 with the other three models
 bit-identical is this, not a numeric regression. Diagnose it from the gradient at the reference
@@ -822,9 +950,11 @@ section above.
 - **`Index_distribution` has a second hand-synced registry** — a family added to
   `index_distribution_map` must also be classified in `.index_rows_natural_scale()`
   (`R/0-switches.R`), or it silently gets the log-scale residual formula.
-- **`jnll_comp` columns count fleets on rows 1–8 and species on rows 9–20**, so `rowSums()`
-  pools across two different axes. Row 21 (linkage random effects) is model-wide.
-  `.JNLL_ROW_AXIS` (`R/9-profile.R`) is the registry.
+- **`jnll_comp` columns count fleets on rows 1–8 and row 22, species on rows 9–20**, so
+  `rowSums()` pools across two different axes, and the fleet axis is NOT contiguous. Row 21
+  (linkage random effects) is model-wide; row 22 is the initial equilibrium catch, by fleet.
+  `.JNLL_ROW_AXIS` (`R/9-profile.R`) is the registry, so an axis guess that stops at row 20 is
+  wrong.
 - **A reference point CEATTLE never estimated is a number, not a gap** — `Ftarget`/`Flimit` sit
   at `exp(0) = 1` unless the HCR estimates them (gate on `build_hcr_map()`, never on `fit$map`),
   `SB0` under `msmMode > 0` is the 999 mt `MSSB0` placeholder until `MSSB0_derived` is TRUE, and
@@ -837,7 +967,7 @@ section above.
   registry, and `test-schema-quantity-dictionary.R` holds the two together.
 - **`retrospective(getsd = TRUE)` can drop peels `getsd = FALSE` keeps** — the non-PD Hessian
   check only runs when an `sdreport` exists — so Mohn's rho can differ between the two.
-- **`unweighted_jnll_comp` is written for 5 of its 21 rows** — composition, CAAL, stomach and the
+- **`unweighted_jnll_comp` is written for 5 of its 22 rows** — composition, CAAL, stomach and the
   two linkage rows. Everything else is structurally zero there, not small.
 - **`fit_mod(d, config = cfg)` replaces `d$model_config` with the config's** — a config from
   `run_config(model_config(), ...)` silently drops every linkage on `d` (57 REs → 0). Build it
@@ -927,3 +1057,14 @@ section above.
   is 0, but the golden references all run 3.
 - **A slow fit is the model, not a regression** — `BS2017SS` has needed ~500–700 `nlminb`
   iterations since at least 2023.
+- **The reproducible-install check passes on a stale install.** `inst/RELEASE-CHECKLIST.md`
+  section 4 used `withr::with_temp_libpaths()`, which *prepends* a temporary library rather
+  than isolating: the working library stays on `.libPaths()`. If the install fails — and
+  `quiet = TRUE` hides that it did — `library(Rceattle)` loads whatever is already installed
+  and `packageVersion()` reports that version. Caught 2026-09-25 verifying the 5.42.1 branch:
+  the check reported **`packageVersion: 5.33.0`**, the copy sitting in
+  `/Library/Frameworks/R.framework/.../library/Rceattle`, and printed `INSTALL CHECK OK`. A
+  release could be signed off against a version it never installed. The recipe now installs
+  into an explicit `lib`, reads the version out of that directory's `DESCRIPTION` rather than
+  from a loaded namespace, asserts `getNamespaceInfo()$path` is under it, and drops `quiet`.
+  Use `ref = "X.Y.Z"` rather than `"repo@X.Y.Z"` so a branch name containing a `/` survives.

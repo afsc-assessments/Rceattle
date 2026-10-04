@@ -28,6 +28,30 @@ GROWTH_FUNS <- c("empirical", "vonBertalanffy", "Richards")
 .GROWTH_SD_STYLE <- c(WHAM = 1L, SS3 = 2L)
 
 
+#' Internal: what the two growth-variability endpoints are
+#'
+#' `"SD"` (1): standard deviations of length-at-age in cm, SS3
+#' `CV_Growth_Pattern` 2. `"CV"` (2): coefficients of variation, so the SD is
+#' CV x mean length at every age, SS3 `CV_Growth_Pattern` 0.
+#' @keywords internal
+#' @noRd
+.GROWTH_SD_FORM <- c(SD = 1L, CV = 2L)
+
+
+#' Internal: plus-group mean-length codes consumed by the TMB template
+#'
+#' `"M1"` (1) weights the ages pooled in the plus group by survival at the
+#' oldest age's base M1. `"none"` (2) leaves it at the growth curve's value
+#' (SS3 `Linf_decay = -998`). `"SS3.24"` (3) weights by `exp(-0.2 a)`
+#' (SS3 `Linf_decay = -999`). `"decay"` (4) grows 2A further ages on the von
+#' Bertalanffy curve, weighted by `exp(-plus_group_decay)` per year (SS3
+#' `Linf_decay > 0`). Under the three SS3 forms the plus group also grows
+#' within the year like every other age; under `"M1"` it keeps its Jan-1 length.
+#' @keywords internal
+#' @noRd
+.GROWTH_PLUS_LENGTH <- c(M1 = 1L, none = 2L, SS3.24 = 3L, decay = 4L)
+
+
 #' Allowed growth-parameter names for `linkages` in [build_growth()]
 #'
 #' Natural-scale names of the underlying growth-function parameters.
@@ -89,6 +113,8 @@ GROWTH_LINKAGE_PARAMS <- c("K", "L1", "Linf", "m", "sd_L1", "sd_Linf")
 #'   age. Accepts a string or the integer code (`1`/`2`), scalar or a
 #'   length-`nspp` vector. Default `NA` inherits `data_list$growth_sd_style`
 #'   if present (so a refit keeps the original choice), otherwise `"WHAM"`.
+#'   When SS3's `Growth_Age_for_L2` is 999, SS3 pins the plus group to the
+#'   upper anchor, which is `"WHAM"` here.
 #' @param linkages Optional named list of [linkage_spec()] objects
 #'   keyed by parameter name (must be one of [GROWTH_LINKAGE_PARAMS]).
 #'   The mean-growth keys (`K`, `L1`, `Linf`, `m`)
@@ -100,6 +126,43 @@ GROWTH_LINKAGE_PARAMS <- c("K", "L1", "Linf", "m", "sd_L1", "sd_Linf")
 #'   the SDs the same prior/fix/initial-value contract as the mean
 #'   parameters. Slope rows on SD specs raise a warning and have no
 #'   effect; slope-only formulas (`~ 0 + temp`) error.
+#' @param sd_form What the two growth-variability endpoints (`sd_L1`,
+#'   `sd_Linf`) are: `"SD"`, standard deviations of length-at-age in cm (SS3
+#'   `CV_Growth_Pattern` 2), or `"CV"`, coefficients of variation so the SD is
+#'   CV x mean length (SS3 pattern 0). Scalar or length-`nspp`; default `NA`
+#'   inherits `data_list$growth_sd_form`, otherwise `"SD"`.
+#' @param plus_group_length How the plus group's mean length is set: `"M1"`,
+#'   `"none"`, `"SS3.24"` or `"decay"` (see Details). Scalar or length-`nspp`;
+#'   default `NA` inherits `data_list$growth_plus_length`, otherwise `"M1"`.
+#' @param plus_group_decay Annual decay rate (per year) for
+#'   `plus_group_length = "decay"`, SS3's positive `Linf_decay`, roughly the
+#'   plus group's total mortality. Required for, and only used by, `"decay"`.
+#' @param pop_lengths Population length bins (lower edges, cm) on which the
+#'   age-length key, weight-at-length and maturity-at-length are computed
+#'   before being summed into the data length bins: SS3's population length
+#'   bins. A vector applies to every species, a list gives one per species.
+#'   Every data-bin lower edge must also be a population-bin edge. Default
+#'   `NULL` inherits `data_list$pop_lengths`, otherwise uses the data bins.
+#'
+#' @details
+#' **Plus-group mean length.** Fish older than the oldest age are pooled, so
+#' the plus group's mean length lies between the growth curve at the oldest age,
+#' L_A, and L-infinity:
+#' * `"M1"`: mean of L_A + (a/n)(Linf - L_A) over a = 0..n (n = `nages`),
+#'   weighted by survival at the oldest age's base M1.
+#' * `"none"`: L_A (SS3 `Linf_decay = -998`).
+#' * `"SS3.24"`: as `"M1"` with weights exp(-0.2 a) and a = 0..A, A the oldest
+#'   age (SS3 `Linf_decay = -999`).
+#' * `"decay"`: L_A and 2A further ages, each one more year along the von
+#'   Bertalanffy curve, weighted by exp(-d a) with d = `plus_group_decay`
+#'   (SS3 `Linf_decay = d`).
+#'
+#' Under `"none"`, `"SS3.24"` and `"decay"` the plus group also grows within the
+#' year like every other age, as SS3 does; under `"M1"` it keeps its Jan-1
+#' length through the year.
+#'
+#' **Maturity-at-length** is set in the data, not here: the per-species
+#' control columns `L50_mat_len` and `slope_mat_len`.
 #'
 #' @return A list of switches defining the growth model.
 #' @export
@@ -121,8 +184,22 @@ GROWTH_LINKAGE_PARAMS <- c("K", "L1", "Linf", "m", "sd_L1", "sd_Linf")
 build_growth <- function(fun = "empirical",
                          growth_age_L1 = NA,
                          sd_plus_group = NA,
-                         linkages = NULL) {
+                         linkages = NULL,
+                         sd_form = NA,
+                         plus_group_length = NA,
+                         plus_group_decay = NA,
+                         pop_lengths = NULL) {
   fun <- .coerce_growth_fun(fun)
+  sd_form_int <- if (all(is.na(sd_form))) NA_integer_ else
+    .coerce_switch_arg(sd_form, .GROWTH_SD_FORM, "sd_form")
+  plus_int <- if (all(is.na(plus_group_length))) NA_integer_ else
+    .coerce_switch_arg(plus_group_length, .GROWTH_PLUS_LENGTH, "plus_group_length")
+  if (any(plus_int %in% .GROWTH_PLUS_LENGTH["decay"]) &&
+      !(all(is.finite(plus_group_decay)) && all(plus_group_decay > 0))) {
+    stop("plus_group_length = \"decay\" needs a positive `plus_group_decay` ",
+         "(per year; SS3's Linf_decay).", call. = FALSE)
+  }
+  pop_lengths <- .validate_pop_lengths(pop_lengths)
   # NA (the default) means "inherit": fit_mod() resolves it from
   # data_list$growth_sd_style if present, else the WHAM fallback -- exactly like
   # growth_age_L1. This keeps a refit that rebuilds growth via build_growth(fun=)
@@ -153,8 +230,40 @@ build_growth <- function(fun = "empirical",
     # (default) to inherit max(0.5, minage[sp]) downstream so old
     # configurations stay unchanged at minage >= 1 and minage = 0
     # models pick up an SS3-consistent half-year anchor.
-    growth_age_L1  = growth_age_L1
+    growth_age_L1  = growth_age_L1,
+    # Growth-variability endpoints (SD or CV), plus-group mean length and the
+    # population length grid. NA / NULL = inherit, resolved in fit_mod().
+    sd_form            = names(.GROWTH_SD_FORM)[match(sd_form_int, .GROWTH_SD_FORM)],
+    growth_sd_form     = sd_form_int,
+    plus_group_length  = names(.GROWTH_PLUS_LENGTH)[match(plus_int, .GROWTH_PLUS_LENGTH)],
+    growth_plus_length = plus_int,
+    plus_group_decay   = plus_group_decay,
+    pop_lengths        = pop_lengths
   )
+}
+
+
+#' Validate `pop_lengths` for [build_growth()]
+#'
+#' A numeric vector, or a list of them with one per species (`NULL` for a
+#' species that uses its data bins): finite, strictly increasing lower edges,
+#' at least two.
+#' @keywords internal
+#' @noRd
+.validate_pop_lengths <- function(pop_lengths) {
+  if (is.null(pop_lengths)) return(NULL)
+  one <- function(x, lab) {
+    if (is.null(x)) return(NULL)
+    if (!is.numeric(x) || length(x) < 2L || any(!is.finite(x)) || any(diff(x) <= 0)) {
+      stop("`pop_lengths", lab, "` must be at least two finite, strictly ",
+           "increasing length-bin lower edges (cm).", call. = FALSE)
+    }
+    as.numeric(x)
+  }
+  if (is.list(pop_lengths)) {
+    return(lapply(seq_along(pop_lengths), function(i) one(pop_lengths[[i]], sprintf("[[%d]]", i))))
+  }
+  one(pop_lengths, "")
 }
 
 

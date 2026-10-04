@@ -65,6 +65,12 @@ git tag -a X.Y.Z origin/main -m "Rceattle X.Y.Z"
 git push origin X.Y.Z
 ```
 
+**Read `DESCRIPTION` on the merge commit and tag that version, not the one you
+remember.** While a release PR is open, anything merged into `dev` lands in the release
+and moves the target: #158 went 5.41.0 → 5.42.0 → 5.42.1 while under review. A tag
+naming the wrong version cannot be quietly fixed, because consumers pin against it.
+`git show origin/main:DESCRIPTION | grep '^Version:'` is the check.
+
 The `pkgdown` GitHub Actions workflow rebuilds the website on the
 `release` event, so a GitHub Release must be published from the tag —
 drafting one is not enough, the event is `release: published`.
@@ -101,16 +107,32 @@ gh workflow run deep-checks.yaml --ref main
 
 From a clean R session on a different machine (or in a `renv` sandbox):
 
+**This step passes on a stale install if you let it.** `withr::with_temp_libpaths()`
+*prepends* the temporary library, it does not isolate — the working library stays on
+`.libPaths()`. So if the install fails, `library(Rceattle)` loads whatever version is
+already installed and `packageVersion()` reports that, which is how this check once
+returned `5.33.0` while claiming to verify a 5.42.1 branch. Install into an explicit
+`lib`, read the version back **out of that directory**, and do not pass `quiet = TRUE`,
+which hides the failure this is meant to catch.
+
 ```r
-# A temporary library, so verifying a release does not overwrite the
-# working install in the middle of an assessment.
-withr::with_temp_libpaths(
-  remotes::install_github("afsc-assessments/Rceattle@X.Y.Z"))
-library(Rceattle)
-packageVersion("Rceattle")  # should match X.Y.Z
-citation("Rceattle")        # should list all references
+# An explicit temporary library, so verifying a release neither overwrites the
+# working install mid-assessment nor silently reads it instead.
+lib <- file.path(tempdir(), "relcheck"); dir.create(lib, showWarnings = FALSE)
+.libPaths(c(lib, .Library))          # temp library + base/recommended ONLY
+remotes::install_github("afsc-assessments/Rceattle", ref = "X.Y.Z",
+                        lib = lib, upgrade = "never", force = TRUE)
+# Read the version from the installed DESCRIPTION, not from a loaded namespace:
+# that is the assertion, and it cannot be satisfied by another copy.
+read.dcf(file.path(lib, "Rceattle", "DESCRIPTION"))[1, "Version"]   # must be X.Y.Z
+library(Rceattle, lib.loc = lib)
+dirname(getNamespaceInfo("Rceattle", "path"))   # must be `lib`, not the user library
+citation("Rceattle")                            # should list all references
 example("fit_mod", package = "Rceattle", give.lines = TRUE)
 ```
+
+`ref = "X.Y.Z"` rather than `"...@X.Y.Z"` so a branch name containing a `/` is passed
+through untouched.
 
 ## 5. Operational consumers
 

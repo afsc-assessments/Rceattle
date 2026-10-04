@@ -5,7 +5,11 @@
 #' @noRd
 SEL_LINKAGE_PARAMS <- c("slp_asc", "slp_desc", "inf_asc", "inf_desc", "coff",
                         "sigma_asc", "sigma_desc", "peak", "right_floor",
-                        "apical")
+                        "apical",
+                        # DoubleNormalSS3: the SS3 manual's own names for P1-P6.
+                        # P1 is "dn_peak" because "peak" above is DoubleNormal's.
+                        "dn_peak", "top_logit", "ascend_se", "descend_se",
+                        "start_logit", "end_logit")
 
 
 #' @keywords internal
@@ -99,6 +103,18 @@ SEL_LINKAGE_PARAMS <- c("slp_asc", "slp_desc", "inf_asc", "inf_desc", "coff",
 #'   (`by = ~ fleet`); use the `fleet` argument of [linkage_spec()] to restrict
 #'   a spec to particular fleets.
 #'
+#' @details The `linkages` keys are the parameter slots each selectivity form
+#'   uses, so which ones apply depends on the fleet's `Selectivity`:
+#'   `slp_asc` / `slp_desc` and `inf_asc` / `inf_desc` for the logistic family,
+#'   `sigma_asc` / `sigma_desc` / `peak` / `right_floor` for the double-normal
+#'   forms, `coff` for the non-parametric forms, and `apical` for the per-sex
+#'   multiplier, which every form has. `DoubleNormalSS3` (code 15) carries its
+#'   own six, under Stock Synthesis's own names: `dn_peak`, `top_logit`,
+#'   `ascend_se`, `descend_se`, `start_logit` and `end_logit` -- and a linkage
+#'   is the ONLY way to vary that form over time, since `Time_varying_sel` is
+#'   refused on it. A time block is `~ cut(Year, ...)`; annual deviations are a
+#'   random-effect term.
+#'
 #' @return A list of selectivity settings for [fit_mod()].
 #'
 #' @examples
@@ -130,7 +146,14 @@ build_selectivity <- function(linkages = NULL) {
   peak        = list(arr = "sel_inf",     slot = 1L),
   right_floor = list(arr = "sel_inf",     slot = 2L),
   coff        = list(arr = "sel_coff",    slot = NA_integer_),
-  apical      = list(arr = "log_sel_apical", slot = NA_integer_)  # [fleet, sex]
+  apical      = list(arr = "log_sel_apical", slot = NA_integer_), # [fleet, sex]
+  # DoubleNormalSS3: sel_dn6 is [6, fleet, sex], each slot on SS3's own scale
+  dn_peak     = list(arr = "sel_dn6", slot = 1L),
+  top_logit   = list(arr = "sel_dn6", slot = 2L),
+  ascend_se   = list(arr = "sel_dn6", slot = 3L),
+  descend_se  = list(arr = "sel_dn6", slot = 4L),
+  start_logit = list(arr = "sel_dn6", slot = 5L),
+  end_logit   = list(arr = "sel_dn6", slot = 6L)
 )
 
 
@@ -140,10 +163,16 @@ build_selectivity <- function(linkages = NULL) {
 # their exp. The non-parametric forms are excluded on purpose -- see the
 # `coff` note in .check_sel_linkage_support().
 .SEL_LINKAGE_WIRED_FORMS <- c("Logistic", "DoubleLogistic", "DescendingLogistic",
-                              "DoubleNormal", "LogisticPM")
+                              "DoubleNormal", "LogisticPM", "DoubleNormalSS3")
 .SEL_LINKAGE_WIRED_PARAMS <- c("slp_asc", "slp_desc", "inf_asc", "inf_desc",
                                "sigma_asc", "sigma_desc", "peak", "right_floor",
-                               "apical")
+                               "apical",
+                               "dn_peak", "top_logit", "ascend_se", "descend_se",
+                               "start_logit", "end_logit")
+
+# The six DoubleNormalSS3 parameters live in their own array, so they belong to
+# that form only, and it has no other slots (apical aside, which every form has).
+.SEL_DN6_PARAMS <- names(Filter(function(m) identical(m$arr, "sel_dn6"), .SEL_PARAM_TO_SLOT))
 
 
 #' Reject selectivity linkages the model does not yet consume
@@ -182,20 +211,54 @@ build_selectivity <- function(linkages = NULL) {
       paste(.SEL_LINKAGE_WIRED_PARAMS, collapse = ", "), extra), call. = FALSE)
   }
 
+  # Read every fleet's form through the schema's own resolver rather than as a
+  # string. fit_mod() canonicalizes the column before it gets here, but a
+  # workbook that stores Selectivity as an integer reaches the exported
+  # build_selectivity() path uncanonicalized, and comparing "15" to
+  # "DoubleNormalSS3" refuses a form that IS wired.
+  sel_forms <- .canon_switch(fleet_control$Selectivity, sel_map)
+
   # Every fleet a sel row targets must use a wired selectivity form.
   flts <- unique(sel$fleet)
   flts <- flts[!is.na(flts)]
   if (length(flts) == 0L) flts <- seq_len(nrow(fleet_control))  # NA = all fleets
-  forms <- as.character(fleet_control$Selectivity[flts])
-  bad_flt <- flts[!forms %in% .SEL_LINKAGE_WIRED_FORMS]
+  bad_flt <- flts[!sel_forms[flts] %in% .SEL_LINKAGE_WIRED_FORMS]
   if (length(bad_flt) > 0) {
     stop(sprintf(
       paste0("selectivity linkage on fleet(s) %s whose form (%s) is not yet ",
              "wired for linkages.\n  Wired forms: %s."),
       paste(fleet_control$Fleet_name[bad_flt], collapse = ", "),
-      paste(unique(as.character(fleet_control$Selectivity[bad_flt])),
-            collapse = ", "),
+      paste(unique(sel_forms[bad_flt]), collapse = ", "),
       paste(.SEL_LINKAGE_WIRED_FORMS, collapse = ", ")), call. = FALSE)
+  }
+
+  # The six DoubleNormalSS3 parameters live in sel_dn6, which only that form
+  # reads, and every other parameter lives in an array it never reads. Named the
+  # wrong way round a linkage writes a slot the curve ignores: no error, a
+  # time-invariant fit, and a coefficient at zero gradient. `peak` (sel_inf) and
+  # `dn_peak` (sel_dn6) are the pair to watch, since both name form 15's P1.
+  # A row with no fleet targets every fleet, as the form check above treats it.
+  for (k in seq_len(nrow(sel))) {
+    tgt <- if (is.na(sel$fleet[k])) seq_len(nrow(fleet_control)) else sel$fleet[k]
+    dn6_fleet <- sel_forms[tgt] == "DoubleNormalSS3"
+    dn6_param <- sel$param[k] %in% .SEL_DN6_PARAMS
+    off <- tgt[if (dn6_param) !dn6_fleet else dn6_fleet]
+    if (!length(off)) next
+    nms   <- paste(fleet_control$Fleet_name[off], collapse = ", ")
+    forms <- paste(unique(as.character(fleet_control$Selectivity[off])),
+                   collapse = ", ")
+    if (dn6_param) {
+      stop("selectivity linkage `", sel$param[k], "` names fleet(s) ", nms,
+           ", whose form is ", forms, ". It is a 'DoubleNormalSS3' parameter ",
+           "and only that form reads it, so the linkage would be estimated and ",
+           "change nothing. Name only the 'DoubleNormalSS3' fleets, or use the ",
+           "parameter these forms do read.", call. = FALSE)
+    }
+    stop("selectivity linkage `", sel$param[k], "` names fleet(s) ", nms,
+         ", which are 'DoubleNormalSS3'. That form reads only its own six ",
+         "parameters, so this linkage would be estimated and change nothing. ",
+         "Use one of: ", paste(.SEL_DN6_PARAMS, collapse = ", "), ".",
+         call. = FALSE)
   }
 
   # A PRIOR on a selectivity intercept re-targets the base parameter, whose scale
@@ -213,7 +276,7 @@ build_selectivity <- function(linkages = NULL) {
     # and the sigmas/slopes (log scale) are unaffected.
     dn <- prior_rows[prior_rows$param %in% c("inf_desc", "right_floor"), , drop = FALSE]
     dn_flt <- unique(vapply(dn$fleet, row_flt, integer(1)))
-    dn_flt <- dn_flt[as.character(fleet_control$Selectivity[dn_flt]) == "DoubleNormal"]
+    dn_flt <- dn_flt[sel_forms[dn_flt] == "DoubleNormal"]
     if (length(dn_flt) > 0L) {
       stop(sprintf(paste0(
         "prior on `inf_desc` / `right_floor` for DoubleNormal fleet(s) %s is not ",
@@ -221,6 +284,33 @@ build_selectivity <- function(linkages = NULL) {
         "would be applied on the logit scale. Prior the ascending peak / sigmas ",
         "instead."),
         paste(fleet_control$Fleet_name[dn_flt], collapse = ", ")), call. = FALSE)
+    }
+
+    # (a2) Of DoubleNormalSS3's six slots only `dn_peak` is stored on its natural
+    # scale (a length, cm). `top_logit` / `start_logit` / `end_logit` hold logits
+    # and `ascend_se` / `descend_se` hold logs, so a family with positive support
+    # is evaluated on the transformed value: lognormal on a negative logit is NaN,
+    # and on `ascend_se` it is a prior on log(log(width)) rather than on the width.
+    # A `normal` prior on the stored value is well defined and is allowed.
+    nat_scale_dn6 <- "dn_peak"
+    dn6 <- prior_rows[prior_rows$param %in% setdiff(.SEL_DN6_PARAMS, nat_scale_dn6) &
+                        prior_rows$prior_family %in% c("lognormal", "gamma", "beta"), ,
+                      drop = FALSE]
+    if (nrow(dn6) > 0L) {
+      dn6_flt <- unique(vapply(dn6$fleet, row_flt, integer(1)))
+      dn6_flt <- dn6_flt[sel_forms[dn6_flt] == "DoubleNormalSS3"]
+      if (length(dn6_flt) > 0L) {
+        stop(sprintf(paste0(
+          "a `%s` prior on `%s` for DoubleNormalSS3 fleet(s) %s is not supported: ",
+          "that slot holds a logit (top_logit, start_logit, end_logit) or a log ",
+          "(ascend_se, descend_se), so a prior with positive support would be ",
+          "evaluated on the transformed value rather than on the quantity it ",
+          "names. Use a `normal` prior on the stored value, or prior `dn_peak`, ",
+          "which is a length in cm."),
+          paste(unique(dn6$prior_family), collapse = "/"),
+          paste(unique(dn6$param), collapse = ", "),
+          paste(fleet_control$Fleet_name[dn6_flt], collapse = ", ")), call. = FALSE)
+      }
     }
 
     prior_flt <- unique(vapply(prior_rows$fleet, row_flt, integer(1)))

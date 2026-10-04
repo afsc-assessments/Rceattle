@@ -1,3 +1,77 @@
+# The initial equilibrium catch is a catch_data row at Year == styr - 1. It is
+# Baranov at Finit * selectivity, the mortality only FishedNonEquilibriumSelected
+# builds the initial age structure with, so only that mode reads the row; under
+# any other it is catch history and is dropped. The year is the marker because a
+# negative Year cannot be -- run_mse() reserves those for spliced-in data.
+.RCE_EQUIL_CATCH_INITMODES <- "FishedNonEquilibriumSelected"
+
+# The styr - 1 rows, taken from both places they can sit: clean_data() moves them
+# out of catch_data into equil_catch_data, so a cleaned list holds them there and
+# a raw one still has them in catch_data. The union, one row per fleet, keeps
+# clean_data() idempotent and stops an already-split element hiding a row the
+# user has since added to catch_data.
+.rce_equil_catch_candidates <- function(data_list) {
+  pick <- function(d) {
+    if (is.null(d) || !nrow(d) || is.null(data_list$styr) ||
+        !"Year" %in% names(d)) return(NULL)
+    d[!is.na(d$Year) & d$Year == (data_list$styr - 1L), , drop = FALSE]
+  }
+  held <- pick(data_list$equil_catch_data)
+  fresh <- pick(data_list$catch_data)
+  if (is.null(held)) return(fresh)
+  if (!is.null(fresh) && nrow(fresh)) {
+    fresh <- fresh[!(fresh$Fleet_code %in% held$Fleet_code), , drop = FALSE]
+    if (nrow(fresh)) held <- dplyr::bind_rows(held, fresh)
+  }
+  rownames(held) <- NULL
+  held
+}
+
+# TRUE where a row is read as the initial equilibrium catch. `initMode` may be a
+# code or a name; absent, switch_check() announces NonEquilibrium, which holds
+# Finit at 0.
+.rce_equil_catch_rows <- function(catch_data, styr, initMode) {
+  if (is.null(catch_data) || !nrow(catch_data) || is.null(styr)) return(logical(0))
+  im <- if (is.null(initMode) || !length(initMode) || all(is.na(initMode))) {
+    "NonEquilibrium"
+  } else .canon_switch(initMode, initMode_map)
+  if (!isTRUE(im %in% .RCE_EQUIL_CATCH_INITMODES)) return(rep(FALSE, nrow(catch_data)))
+  !is.na(catch_data$Year) & catch_data$Year == (styr - 1L)
+}
+
+#' Metadata columns of `age_error`; every other column is an observed-age probability
+#'
+#' Read by both `data_check()` and `rearrange_data()`, which name the metadata rather
+#' than counting past the leading columns, so adding a metadata column cannot shift
+#' which columns are read as observed-age probabilities.
+#' @keywords internal
+#' @noRd
+.RCE_AGE_ERROR_META <- c("Species", "True_age", "Ageing_error_index",
+                         "Ageing_error_name")
+
+#' The ageing-error matrix a table's rows resolve to
+#'
+#' Absent or blank means the row's own species, which reproduces the behaviour
+#' from when there was one matrix per species. Read by `data_check()` and
+#' `rearrange_data()` on both the `age_error` and the `fleet_control` side, so
+#' that a fleet cannot be validated against one matrix and fitted with another:
+#' the coercion has to be identical everywhere, and `as.integer()` on a
+#' factor-typed column returns the LEVEL CODE rather than the number typed in
+#' the workbook.
+#'
+#' @param df Data frame carrying `Species` and optionally `Ageing_error_index`.
+#' @param species_col Name of the species column.
+#' @return Integer vector, one element per row of `df`.
+#' @keywords internal
+#' @noRd
+.rce_ageing_error_index <- function(df, species_col = "Species") {
+  sp <- suppressWarnings(as.integer(as.character(df[[species_col]])))
+  ix <- df[["Ageing_error_index"]]
+  if (is.null(ix) || !length(ix)) return(sp)
+  ix <- suppressWarnings(as.integer(as.character(ix)))
+  ifelse(is.na(ix), sp, ix)
+}
+
 # =============================================================================
 # Canonical workbook-column schema
 # =============================================================================
@@ -101,6 +175,11 @@
     # element order exactly, not just element values.
     .rce_col("alpha_wt_len", "control", "Alpha parameter from Weight = alpha * Length ^ beta", has_default = TRUE, default = 1e-6, default_msg = "'alpha_wt_len' not specified in data, assuming 1e-6"),
     .rce_col("beta_wt_len", "control", "Beta parameter from Weight = alpha * Length ^ beta", has_default = TRUE, default = 3, default_msg = "'beta_wt_len' not specified in data, assuming 3"),
+    # Maturity-at-length. Absent or NA leaves spawning output on the age-based
+    # maturity sheet; set, it integrates maturity x weight over the length
+    # distribution at spawning, which needs estimated growth.
+    .rce_col("L50_mat_len", "control", "Numeric: length (cm) at which half of females are mature, for maturity-at-length; set with slope_mat_len. NA uses the age-based maturity sheet. Needs estimated growth.", tmb_target = "mat_len_pars"),
+    .rce_col("slope_mat_len", "control", "Numeric: slope (per cm, positive) of logistic maturity-at-length, maturity = 1 / (1 + exp(-slope_mat_len * (length - L50_mat_len))). NA uses the age-based maturity sheet.", tmb_target = "mat_len_pars"),
     .rce_col("pop_age_transition_index", "control", "Integer: age transition matrix (e.g. growth trajectory) index to use deriving length-based predation", type = "integer"),
     .rce_col("sigma_rec", "control", "Numeric: fixed or initial value of standard deviation for recruitment deviates", aliases = "sigma_rec_prior"),
     .rce_col("other_food", "control", "Numeric: other food in the ecosystem for each species (kg)"),
@@ -115,7 +194,7 @@
     .rce_col("Species", "fleet_control", "Species number", type = "integer", tmb_target = "flt_spp"),
     .rce_col("Month", "fleet_control", "Observation month for the fleet (0 = not specified).", type = "integer", meta = TRUE, has_default = TRUE, default = 0, default_msg = "'Month' not specified in 'fleet_control', assuming 0", tmb_target = "flt_month"),
     .rce_col("Selectivity_index", "fleet_control", "Index used to give fleets the SAME selectivity (otherwise, same as Fleet_code). Fleets sharing a value share one selectivity parameter block, with its penalties and priors accumulated once on the group's first non-Off fleet.\r\nSharing the parameters is not enough on its own: the columns that shape the curve are read per fleet and must agree across the group, or the fleets end up with different selectivities. data_check() reports any that differ. To mirror a fleet, copy its fleet_control row and change only the identity and catchability columns.\r\nSee vignette('model-options-and-functionality'), 'Sharing a selectivity between fleets'.", type = "integer", tmb_target = "flt_sel_lead"),
-    .rce_col("Selectivity", "fleet_control", "0 = fixed (empirical selectivity from srv_emp_sel)\r\n1 = logistic\r\n2 = non-parametric (Ianelli et al. 2018)\r\n3 = double logistic\r\n4 = descending logistic\r\n5 = non-parametric (Taylor et al. 2014, 'Hake')\r\n6 = 2D AR1 (age x year)\r\n7 = 3D AR1 (Cheng et al. 2024)\r\n8 = double normal\r\n9 = non-parametric random walk, increments penalized (AMAK 'pm'; not integrable under random_sel)\r\n11 = logistic with a free age-1 selectivity (AMAK 'pm')\r\n13 = non-parametric base curve whose deviations have a proper density, so random_sel integrates them; Time_varying_sel picks the structure (Off, IID or RandomWalk)\r\nWhether a form is age- or length-based is set by Selectivity_dimension, not by the code.", type = "switch", allowed = "sel_map", tmb_target = "flt_sel_type"),
+    .rce_col("Selectivity", "fleet_control", "0 = fixed (empirical selectivity from srv_emp_sel)\r\n1 = logistic\r\n2 = non-parametric (Ianelli et al. 2018)\r\n3 = double logistic\r\n4 = descending logistic\r\n5 = non-parametric (Taylor et al. 2014, 'Hake')\r\n6 = 2D AR1 (age x year)\r\n7 = 3D AR1 (Cheng et al. 2024)\r\n8 = double normal\r\n9 = non-parametric random walk, increments penalized (AMAK 'pm'; not integrable under random_sel)\r\n11 = logistic with a free age-1 selectivity (AMAK 'pm')\r\n13 = non-parametric base curve whose deviations have a proper density, so random_sel integrates them; Time_varying_sel picks the structure (Off, IID or RandomWalk)\r\n15 = Stock Synthesis size pattern 24 double normal (six parameters, varied through selectivity linkages)\r\nWhether a form is age- or length-based is set by Selectivity_dimension, not by the code.", type = "switch", allowed = "sel_map", tmb_target = "flt_sel_type"),
     .rce_col("Selectivity_dimension", "fleet_control", "\"Age\" or \"Length\".", type = "character", meta = TRUE, has_default = TRUE, default = "Age", default_msg = "'Selectivity_dimension' not specified in 'fleet_control', assuming 'Age'", default_msg_when = "growth_estimated", tmb_target = "flt_sel_dim", allowed = "sel_dimension_map"),
     .rce_col("N_sel_bins", "fleet_control", "Number of age or length bins to estimate for non-parametric and AR1 selectivity (Selectivity = 2, 5, 6, 7, 9, or 13).", type = "integer", aliases = "Nselages", tmb_target = "flt_n_sel_bins"),
     .rce_col("Sel_curve_pen1", "fleet_control", "Shape/smoothness penalty weight for non-parametric (type 2/9/13) and LogisticPM (11) selectivity (the intuitive alternative is Sel_shape_sd). On 13 it is charged once on the base coefficients, not on each year's curve. The 2DAR1/3DAR1 forms (6/7) reuse this column as a logit-scale AR1 correlation, across selectivity BINS (ages or length bins, per Selectivity_dimension).", has_default = TRUE, default = 0, default_msg = "'Sel_curve_pen1' not specified in 'fleet_control', assuming '0'", default_msg_when = "np_hake"),
@@ -146,6 +225,7 @@
     .rce_col("Observation_units", "fleet_control", "1 = catch/index is weight (mt) \r\n2 = catch/index is in numbers (thousands of fish) \r\nThe model works in mt and thousands of fish throughout: numbers-at-age are thousands and weight-at-age is kg, so their product is mt.", type = "integer", aliases = c("Weight1_Numbers2", "weight1_Numbers2"), tmb_target = "flt_units"),
     .rce_col("Weight_index", "fleet_control", "Weight index to use for calculation of derived quantities", type = "integer", tmb_target = "flt_wt_index"),
     .rce_col("Age_transition_index", "fleet_control", "Age transition matrix (e.g. growth trajectory) index to used convert age to length", type = "integer", tmb_target = "flt_age_transition_index"),
+    .rce_col("Ageing_error_index", "fleet_control", "Ageing error matrix index, matching 'Ageing_error_index' in 'age_error'. Fleets sharing a value read the same matrix. Omit the column (or leave NA) to use the fleet's own species, which is what a model with one matrix per species has always done -- valid only while 'age_error' is itself indexed by species, since the fallback is the species number; data_check() refuses it once the indices mean something else. Give a fleet its own index when its otoliths were read by a method that ages them differently -- an ageing protocol that changed part way through a series is the usual case, and the two eras are then separate fleets sharing a Selectivity_index.", type = "integer", meta = TRUE, has_default = TRUE, default = NA, tmb_target = "flt_ageing_error_index"),
     .rce_col("Catchability_index", "fleet_control", "Index used to give fleets the SAME catchability (otherwise, same as Fleet_code). Fleets sharing a value share one q parameter, so the group carries only one answer to whether q is estimated: the group's first non-Off fleet decides for all of them, regardless of fleet type. Give a fleet its own value when it should be estimated independently.\r\n'Analytical' and 'AnalyticalArith' are the exception -- they solve q from each fleet's own index observations, so a group containing one does NOT share a catchability. data_check() reports that case, a Fixed lead that leaves fleets on different inits, and a Catchability or Time_varying_q that differs within a group.\r\nSee vignette('model-options-and-functionality'), 'Which fleets get a catchability'.", type = "integer", aliases = "Q_index", tmb_target = "flt_q_lead"),
     .rce_col("Catchability", "fleet_control", "Catchability form. Accepts integer codes or readable strings:\r\n0 or \"Fixed\" = fixed at Catchability_init\r\n1 or \"Estimated\" = estimate as a free parameter\r\n2 or \"Estimated-with-prior\" = estimate with a lognormal prior on q, mean Catchability_init (median when bias_adjust_proc = FALSE) and log-scale SD Catchability_prior_sd\r\n3 or \"Analytical\" = geometric-mean analytical q following Ludwig and Walters 1994\r\n4 or \"PowerEquation\" = power equation (NOT YET IMPLEMENTED)\r\n5 or \"Environmental\" = linear equation log(q_y) = q_mu + beta * index_y; the environmental index is specified by Time_varying_q\r\n6 or \"AR1\" = REMOVED; data_check() errors. The deviates were never estimated, so q came back constant. Express the Rogers et al. (2024) form as a q linkage with ar1(1 | Year) and 'observe'; the error gives the call.\r\n7 or \"AnalyticalArith\" = arithmetic-mean analytical q (AMAK/ebswp form, pair with the MVN survey likelihood)\r\nApplies to any fleet carrying index_data, a fishery with a CPUE series included. A fleet with NO fitted index rows gets no catchability whatever this says, unless it follows the lead of a shared Catchability_index group. See vignette('model-options-and-functionality').", type = "switch", allowed = "q_map", aliases = "Estimate_q", tmb_target = "est_index_q"),
     .rce_col("Catchability_init", "fleet_control", "Starting value or fixed value for catchability. Must be positive on any fleet that carries index_data, whatever its Fleet_type, AND on any fleet sharing a Catchability_index group whose q is estimated, even with no index_data of its own -- it has no default, and it is logged to seed index_log_q, so a blank or zero gives a non-finite starting value. A shared group starts at the geometric mean of its members' values, so one blank or zero seeds the WHOLE group at NA or -Inf and it cannot fit; build_map() warns. Not read under Analytical or AnalyticalArith, which solve q from the data.", aliases = c("Q_prior", "Q_init"), tmb_target = "index_log_q_prior"),
@@ -495,7 +575,7 @@
   c("caal_data",       "Survey/fishery CAAL data. Note if sex is 3, put female CAAL data then male CAAL data (similar to SS)."),
   c("emp_sel",         "Empirical/fixed selectivity for surveys and fisheries (leave empty if not used)"),
   c("age_trans_matrix","Age transition matrix (e.g. growth trajectory) used to convert age to length for length comp data. \r\nCan have multiple matrices for a species specified by Age_transition_index."),
-  c("age_error",       "Aging error matrices. Can have only one per species."),
+  c("age_error",       "Aging error matrices. One per species by default; give several and select them per fleet with 'Ageing_error_index' in both this table and 'fleet_control'."),
   c("weight",          "Time-invariant or -varying empirical weight-at-age for calculation of derived quantities (SSB, Consumption/Ration, Suitability, Total Catch, Survey Biomass, etc). \r\nCan have multiple weight-at-age data-sets for each species."),
   c("maturity",        "Maturity-at-age for each species"),
   c("sex_ratio",       "Percent female at age for each species"),

@@ -8,7 +8,11 @@ build_growth(
   fun = "empirical",
   growth_age_L1 = NA,
   sd_plus_group = NA,
-  linkages = NULL
+  linkages = NULL,
+  sd_form = NA,
+  plus_group_length = NA,
+  plus_group_decay = NA,
+  pop_lengths = NULL
 )
 }
 \arguments{
@@ -32,7 +36,9 @@ plus-group SD to the upper anchor \code{exp(sd_Linf)} (the WHAM SDAA
 convention); \code{"SS3"} instead interpolates it by length like any interior
 age. Accepts a string or the integer code (\code{1}/\code{2}), scalar or a
 length-\code{nspp} vector. Default \code{NA} inherits \code{data_list$growth_sd_style}
-if present (so a refit keeps the original choice), otherwise \code{"WHAM"}.}
+if present (so a refit keeps the original choice), otherwise \code{"WHAM"}.
+When SS3's \code{Growth_Age_for_L2} is 999, SS3 pins the plus group to the
+upper anchor, which is \code{"WHAM"} here.}
 
 \item{linkages}{Optional named list of \code{\link[=linkage_spec]{linkage_spec()}} objects
 keyed by parameter name (must be one of \link{GROWTH_LINKAGE_PARAMS}).
@@ -45,12 +51,55 @@ formulas (typically \code{~ 1}), they thread \code{init}, \code{bounds}, and
 the SDs the same prior/fix/initial-value contract as the mean
 parameters. Slope rows on SD specs raise a warning and have no
 effect; slope-only formulas (\code{~ 0 + temp}) error.}
+
+\item{sd_form}{What the two growth-variability endpoints (\code{sd_L1},
+\code{sd_Linf}) are: \code{"SD"}, standard deviations of length-at-age in cm (SS3
+\code{CV_Growth_Pattern} 2), or \code{"CV"}, coefficients of variation so the SD is
+CV x mean length (SS3 pattern 0). Scalar or length-\code{nspp}; default \code{NA}
+inherits \code{data_list$growth_sd_form}, otherwise \code{"SD"}.}
+
+\item{plus_group_length}{How the plus group's mean length is set: \code{"M1"},
+\code{"none"}, \code{"SS3.24"} or \code{"decay"} (see Details). Scalar or length-\code{nspp};
+default \code{NA} inherits \code{data_list$growth_plus_length}, otherwise \code{"M1"}.}
+
+\item{plus_group_decay}{Annual decay rate (per year) for
+\code{plus_group_length = "decay"}, SS3's positive \code{Linf_decay}, roughly the
+plus group's total mortality. Required for, and only used by, \code{"decay"}.}
+
+\item{pop_lengths}{Population length bins (lower edges, cm) on which the
+age-length key, weight-at-length and maturity-at-length are computed
+before being summed into the data length bins: SS3's population length
+bins. A vector applies to every species, a list gives one per species.
+Every data-bin lower edge must also be a population-bin edge. Default
+\code{NULL} inherits \code{data_list$pop_lengths}, otherwise uses the data bins.}
 }
 \value{
 A list of switches defining the growth model.
 }
 \description{
 Specify the growth model for Rceattle
+}
+\details{
+\strong{Plus-group mean length.} Fish older than the oldest age are pooled, so
+the plus group's mean length lies between the growth curve at the oldest age,
+L_A, and L-infinity:
+\itemize{
+\item \code{"M1"}: mean of L_A + (a/n)(Linf - L_A) over a = 0..n (n = \code{nages}),
+weighted by survival at the oldest age's base M1.
+\item \code{"none"}: L_A (SS3 \code{Linf_decay = -998}).
+\item \code{"SS3.24"}: as \code{"M1"} with weights exp(-0.2 a) and a = 0..A, A the oldest
+age (SS3 \code{Linf_decay = -999}).
+\item \code{"decay"}: L_A and 2A further ages, each one more year along the von
+Bertalanffy curve, weighted by exp(-d a) with d = \code{plus_group_decay}
+(SS3 \code{Linf_decay = d}).
+}
+
+Under \code{"none"}, \code{"SS3.24"} and \code{"decay"} the plus group also grows within the
+year like every other age, as SS3 does; under \code{"M1"} it keeps its Jan-1
+length through the year.
+
+\strong{Maturity-at-length} is set in the data, not here: the per-species
+control columns \code{L50_mat_len} and \code{slope_mat_len}.
 }
 \examples{
 \donttest{

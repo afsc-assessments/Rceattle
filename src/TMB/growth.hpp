@@ -2,6 +2,107 @@
 #define GROWTH_HPP
 
 /**
+ * @brief SD of length-at-age (cm) for one age, year and sex.
+ *
+ * The variability term v is \f$e^{sd_0}\f$ at or below `age_L1`, pinned to
+ * \f$e^{sd_1}\f$ for the plus group under `sd_style == 1` (WHAM; also SS3 when
+ * Growth_Age_for_L2 = 999), and otherwise interpolated linearly in length
+ * between \f$(l_1, e^{sd_0})\f$ and \f$(L_\infty, e^{sd_1})\f$. `sd_form` says what v is:
+ * 1 = an SD in cm (SS3 CV_Growth_Pattern 2), 2 = a CV, so SD = v * L
+ * (SS3 CV_Growth_Pattern 0).
+ */
+template<class Type>
+Type length_sd_at_age(Type current_age, Type age_L1, bool plus_group,
+                      int sd_style, int sd_form, Type l1, Type linf, Type len,
+                      Type log_sd0, Type log_sd1) {
+  Type sd0 = exp(log_sd0);
+  Type sd1 = exp(log_sd1);
+  Type v;
+  if(current_age <= age_L1) {
+    v = sd0;
+  } else if(plus_group && sd_style == 1) {
+    v = sd1;
+  } else {
+    v = sd0 + (sd1 - sd0) / (linf - l1) * (len - l1);
+  }
+  if(sd_form == 2) v = v * len;
+  return v;
+}
+
+
+/**
+ * @brief Age-length key, weight-at-age and mature weight-at-age for one cell.
+ *
+ * Length is normal with mean `mu` and SD `sd` (cm). Probabilities are taken on
+ * the population length bins `lengths_pop` (lower edges): the first bin is a
+ * minus group below the second edge and the last a plus group above the last
+ * edge (SS3's convention). They stay on that grid; the consumers that need data
+ * bins sum each bin's run of population bins themselves.
+ *
+ * Weight-at-age is \f$\sum_l P(l|a) \alpha L_{mid}^\beta\f$ at population-bin
+ * midpoints (kg); the last bin's midpoint sits half a bin width above its lower
+ * edge. When the species has maturity-at-length, mature weight-at-age is the
+ * same sum with the logistic maturity \f$1/(1+e^{-s(L_{mid} - L_{50})})\f$ inside:
+ * SS3's fecundity-at-age when fecundity equals body weight.
+ */
+template<class Type>
+void fill_age_length_key(int wtind, int sp, int sex, int age, int yr,
+                         Type mu, Type sd,
+                         const vector<int>& nlengths_pop,
+                         matrix<Type>& lengths_pop,
+                         matrix<Type>& weight_length_pars,
+                         const vector<int>& mat_len_use,
+                         matrix<Type>& mat_len_pars,
+                         array<Type>& growth_matrix,
+                         array<Type>& weight_hat,
+                         array<Type>& mat_weight_hat) {
+  int np = nlengths_pop(sp);
+  // Kept on the POPULATION bins. Its readers multiply it by
+  // selectivity-at-length, and SS3 forms that product at population resolution
+  // before binning, so aggregating here would apply one bin-average selectivity
+  // across a data bin. ceattle.cpp sums each data bin's run of population bins
+  // (section 2.3c) where it needs data bins.
+  for(int lp = 0; lp < np; lp++) growth_matrix(wtind, sex, age, lp, yr) = Type(0.0);
+
+  Type expected_weight = 0.0;
+  Type expected_mat_weight = 0.0;
+  for(int lp = 0; lp < np; lp++) {
+    Type prob;
+    if(np < 2) {
+      // One bin spans the whole length distribution, so it holds all of it.
+      // Tested before the lp == 0 branch, which would read the second edge.
+      prob = Type(1.0);
+    } else if(lp == 0) {
+      prob = pnorm((lengths_pop(sp, 1) - mu) / sd);
+    } else if(lp == (np - 1)) {
+      prob = 1.0 - pnorm((lengths_pop(sp, np - 1) - mu) / sd);
+    } else {
+      prob = pnorm((lengths_pop(sp, lp + 1) - mu) / sd) - pnorm((lengths_pop(sp, lp) - mu) / sd);
+    }
+    growth_matrix(wtind, sex, age, lp, yr) = prob;
+
+    // Midpoint (cm) of the bin: lower edge plus half its own width, the last bin
+    // taking the previous bin's width. A single-bin grid has no neighbour to take
+    // a width from, so it keeps the edge itself -- as selectivity.hpp does.
+    Type lenmid;
+    if(lp < np - 1) {
+      lenmid = (lengths_pop(sp, lp) + lengths_pop(sp, lp + 1)) / Type(2.0);
+    } else if(np < 2) {
+      lenmid = lengths_pop(sp, np - 1);
+    } else {
+      lenmid = lengths_pop(sp, np - 1) + (lengths_pop(sp, np - 1) - lengths_pop(sp, np - 2)) / Type(2.0);
+    }
+    Type wt_len = weight_length_pars(sp, 0) * pow(lenmid, weight_length_pars(sp, 1));
+    expected_weight += prob * wt_len;
+    if(mat_len_use(sp) == 1) {
+      expected_mat_weight += prob * wt_len / (Type(1.0) + exp(-mat_len_pars(sp, 1) * (lenmid - mat_len_pars(sp, 0))));
+    }
+  }
+  weight_hat(wtind, sex, age, yr) = expected_weight;
+  if(mat_len_use(sp) == 1) mat_weight_hat(wtind, sex, age, yr) = expected_mat_weight;
+}
+
+/**
  * @brief Integrated Growth, Size-Transition, and Weight-at-Age Module for Month = 0.
  *
  * Computes Jan-1 mean length-at-age, the age->length probability matrix, and
@@ -26,19 +127,14 @@
  *
  * @section logic Biological Logic:
  * - **Temporal Resolution**: Jan-1 (month = 0).
- * - **Plus-Age Group**: Oldest age class is corrected via a survival-weighted
- *   mean of \f$[current\_size, ..., L_{\infty}]\f$ over \f$a = 0..nages\f$, with
- *   weights \f$\exp(-M_1 a)\f$ at the species' base natural mortality at the oldest
- *   age (`log_M1`). This is the static analogue of SS3's N-at-age-weighted
- *   recruitment correction at the season transition.
- * - **SD-at-Age**: For current_age <= age_L1, SD = \f$e^{sd_0}\f$. Otherwise
- *   linear interpolation in length between SD(\f$l_1\f$) = \f$e^{sd_0}\f$ and
- *   SD(\f$L_{\infty}\f$) = \f$e^{sd_1}\f$. The plus group is pinned to \f$e^{sd_1}\f$
- *   under `growth_sd_style == 1` (WHAM) and interpolated like every other age
- *   under `growth_sd_style == 2` (SS3), as in estimate_growth_within_yr().
- * - **Size Transition**: Converts mean length and SD into a probability
- *   matrix \f$P(\text{Length} | \text{Age})\f$ via `pnorm`. First length bin is
- *   a minus-group; last length bin is a plus-group.
+ * - **Plus-Age Group**: The oldest age's mean length is set by
+ *   `growth_plus_length`: an M1-weighted mean toward \f$L_{\infty}\f$ (1, the
+ *   default), no adjustment (2), or SS3's Linf_decay forms (3 = -999, 4 = a
+ *   decay rate). See section 2 of the body.
+ * - **SD-at-Age**: length_sd_at_age(); `growth_sd_form` makes the two
+ *   endpoints SDs (cm) or CVs.
+ * - **Size Transition**: fill_age_length_key(), on the population length
+ *   bins; consumers bin the product with selectivity, not the key itself.
  *
  * @param wtind Weight index slot to write into.
  * @param sp Species index.
@@ -69,27 +165,36 @@ void estimate_growth(
     const vector<int>&  minage,
     const vector<Type>& growth_age_L1,
     const vector<int>&  growth_model,
-    const vector<int>&  growth_sd_style,   // Plus-group SD-at-age: 1 = WHAM (pin to exp(sd_Linf)), 2 = SS3 (interpolate by length)
+    const vector<int>&  growth_sd_style,   // Plus-group SD-at-age: 1 = WHAM (pin to exp(sd_Linf)), 2 = interpolate by length
+    const vector<int>&  growth_sd_form,    // 1 = SD endpoints in cm, 2 = CV endpoints (SD = CV * L)
+    const vector<int>&  growth_plus_length,// Plus-group mean length: 1 = M1-weighted, 2 = none, 3 = SS3.24, 4 = decay
+    const vector<Type>& plus_group_decay,  // Decay rate (per year) for growth_plus_length == 4
     matrix<Type>& lengths,
+    const vector<int>&  nlengths_pop,
+    matrix<Type>& lengths_pop,             // Population length bins, lower edges (cm)
     array<Type>& growth_parameters,
     array<Type>& growth_log_sd,
     matrix<Type>& weight_length_pars,
+    const vector<int>&  mat_len_use,       // 1 = maturity-at-length for this species
+    matrix<Type>& mat_len_pars,            // [sp, 0] = L50 (cm), [sp, 1] = logistic slope (per cm)
     array<Type>& log_M1,         // Base natural mortality at age [nspp, nsex, nages], log scale
     array<Type> &length_hat,     // Modified by reference
     array<Type> &growth_matrix,  // Modified by reference
-    array<Type> &weight_hat      // Modified by reference
+    array<Type> &weight_hat,     // Modified by reference
+    array<Type> &mat_weight_hat  // Modified by reference (maturity-at-length species only)
 ) {
 
   // Initialize output and temporary storage
-  array<Type> length_sd(nsex(sp), nages(sp), nyrs); length_sd.setZero();         // SD in length-at-age
 
 
   // Calculate mean-length, SD, and growth matrix, for all years:
   // lengths is vector with lengths mm (2, 4, 6, 8, etc)
-  Type Fac1, Fac2, Slope, b_len, last_linear, current_age;
+  Type b_len, last_linear, current_age;
 
-  Type Lmin_sp = lengths(sp, 0);
-  Type Lmax_sp = lengths(sp, nlengths(sp) - 1);
+  // The linear ramp below age_L1 starts from the lowest population length
+  // edge at age 0 (SS3's len_bins(1)); with no population grid that is the
+  // lowest data bin.
+  Type Lmin_sp = lengths_pop(sp, 0);
   // age_L1 is the VB anchor age (= age at which `l1` is the length). Read
   // from data_list$growth_age_L1[sp] (= SS3's Growth_Age_for_L1 ctl input).
   // R-side fit_mod() resolves the default to max(0.5, minage[sp]) so models
@@ -196,83 +301,59 @@ void estimate_growth(
         } // Growth_model switch
 
 
-        // 2. Plus-Group Correction (Oldest Age Only) ---
-        // Ages pooled in the plus group, weighted by survival at the oldest-age base
-        // M1 (not Z: F and predation are excluded), lengths interpolated to L-infinity.
+        // 2. Plus-Group Mean Length (Oldest Age Only) ---
+        // The plus group holds fish older than the oldest age, so its mean length
+        // (cm) sits between L(oldest age) and L-infinity. growth_plus_length picks
+        // the form: 1 = M1-weighted, 2/3/4 = SS3's Linf_decay -998/-999/d. See
+        // ?build_growth.
         if(growth_model(sp) < 3 && age == (nages(sp) - 1)) {
           Type current_size = length_hat(wtind,  sex, age, yr);
-          Type temp_n = 0, temp_sum = 0, weight_a = 1.0;
           Type diff = linf - current_size;
-          Type surv = exp(-exp(log_M1(sp, sex, nages(sp) - 1)));
-          for(int a = 0; a <= nages(sp); a++) {
-            temp_sum += weight_a * (current_size + (Type(a) / Type(nages(sp))) * diff);
-            temp_n += weight_a;
-            weight_a *= surv;
+          int oldest_age = minage(sp) + nages(sp) - 1;
+          if(growth_plus_length(sp) == 1) {
+            Type temp_n = 0, temp_sum = 0, weight_a = 1.0;
+            Type surv = exp(-exp(log_M1(sp, sex, nages(sp) - 1)));
+            for(int a = 0; a <= nages(sp); a++) {
+              temp_sum += weight_a * (current_size + (Type(a) / Type(nages(sp))) * diff);
+              temp_n += weight_a;
+              weight_a *= surv;
+            }
+            length_hat(wtind,  sex, age, yr) = temp_sum / temp_n;
+          } else if(growth_plus_length(sp) == 3) {
+            Type temp_n = 0, temp_sum = 0;
+            // Survival weights at a fixed 0.2/yr, the nominal mortality SS3 uses
+            // for Linf_decay = -999 -- not this species' estimated M1, which is
+            // what form 1 above weights by.
+            for(int a = 0; a <= oldest_age; a++) {
+              Type weight_a = exp(Type(-0.2) * Type(a));
+              temp_sum += weight_a * (current_size + (Type(a) / Type(oldest_age)) * diff);
+              temp_n += weight_a;
+            }
+            length_hat(wtind,  sex, age, yr) = temp_sum / temp_n;
+          } else if(growth_plus_length(sp) == 4) {
+            Type size = current_size, temp_sum = current_size, temp_n = 1.0, weight_a = 1.0;
+            // Averaged over twice the oldest age, far enough past it that the
+            // decay weights leave no meaningful length behind (SS3's own span).
+            for(int a = 1; a <= 2 * oldest_age; a++) {
+              weight_a *= exp(-plus_group_decay(sp));
+              size += (linf - size) * (Type(1.0) - exp(-kappa));
+              temp_sum += weight_a * size;
+              temp_n += weight_a;
+            }
+            length_hat(wtind,  sex, age, yr) = temp_sum / temp_n;
           }
-          length_hat(wtind,  sex, age, yr) = temp_sum / temp_n;
         }
 
-        // 3. Calculate SD (Integrated) ---
-        // Length-based linear interpolation: SD(l1) = sd0, SD(linf) = sd1.
-        // SD-at-age: e^{sd0} up to age_L1, then linear-in-length interpolation
-        // to e^{sd1} (the plus group pinned to the upper anchor e^{sd1}).
+        // 3. SD of length-at-age, then age-length key and weight-at-age ---
         if(growth_model(sp) < 3) {
-          if((current_age) <= age_L1) {
-            length_sd(sex, age, yr) = exp(growth_log_sd(sp, sex, 0));
-          // Plus-group SD-at-age. WHAM (growth_sd_style == 1) pins it to the
-          // upper anchor exp(sd_Linf) (SDAA plus group = SD_len(1), matching
-          // estimate_growth_within_yr()); SS3 (growth_sd_style == 2) falls
-          // through to the length interpolation below, treating the plus group
-          // like any interior age.
-          } else if(age == (nages(sp) - 1) && growth_sd_style(sp) == 1) {
-            length_sd(sex, age, yr) = exp(growth_log_sd(sp, sex, 1));
-          } else {
-            Slope = (exp(growth_log_sd(sp, sex, 1)) - exp(growth_log_sd(sp, sex, 0))) / (linf - l1);
-            length_sd(sex, age, yr) = exp(growth_log_sd(sp, sex, 0)) + Slope * (length_hat(wtind,  sex, age, yr) - l1);
-          }
-
-          // Free parameters
-          if(growth_model(sp) == 3) {
-            // Slope = (exp(growth_log_sd(sp, sex, 1)) - exp(growth_log_sd(sp, sex, 0)))/(length_hat(wtind,  sex, nages(sp)-1, yr) - length_hat(wtind,  sex, 0, yr));
-            // length_sd(sex, age, yr) = exp(growth_log_sd(sp, sex, 0) + Slope * (length_hat(wtind,  sex, age, yr) - length_hat(wtind,  sex, 0, yr));
-          }
+          Type len = length_hat(wtind,  sex, age, yr);
+          Type sd = length_sd_at_age(current_age, age_L1, age == (nages(sp) - 1),
+                                     growth_sd_style(sp), growth_sd_form(sp), l1, linf, len,
+                                     growth_log_sd(sp, sex, 0), growth_log_sd(sp, sex, 1));
+          fill_age_length_key(wtind, sp, sex, age, yr, len, sd, nlengths_pop,
+                              lengths_pop, weight_length_pars,
+                              mat_len_use, mat_len_pars, growth_matrix, weight_hat, mat_weight_hat);
         }
-
-        // 4. Build Growth Matrix & Weight-at-Age simultaneously ---
-        Type expected_weight = 0.0;
-
-        for(int ln = 0; ln < nlengths(sp); ln++) {
-          Type prob;
-          if(ln == 0) {
-            Fac1 = (Lmin_sp + lengths(sp, 1) - lengths(sp, 0) - length_hat(wtind,  sex, age, yr)) / length_sd(sex, age, yr);
-            prob = pnorm(Fac1);
-          } else if(ln == (nlengths(sp) - 1)) {
-            Fac1 = (Lmax_sp - length_hat(wtind,  sex, age, yr)) / length_sd(sex, age, yr);
-            prob = 1.0 - pnorm(Fac1);
-          } else {
-            Fac1 = (lengths(sp, ln + 1) - length_hat(wtind,  sex, age, yr)) / length_sd(sex, age, yr);
-            Fac2 = (lengths(sp, ln) - length_hat(wtind,  sex, age, yr)) / length_sd(sex, age, yr);
-            prob = pnorm(Fac1) - pnorm(Fac2);
-          }
-
-          // Explicit assignment to avoid the 5D operator warning
-          growth_matrix(wtind, sex, age, ln, yr) = prob;
-
-          // Bin midpoint for weight-at-length. Supports non-uniform bins:
-          // each interior bin uses its own [ln, ln+1] midpoint, and the
-          // length plus-group extends by half the final bin's width.
-          Type lenmid;
-          if(ln < nlengths(sp) - 1) {
-            lenmid = (lengths(sp, ln) + lengths(sp, ln + 1)) / Type(2.0);
-          } else {
-            Type last_width = lengths(sp, nlengths(sp) - 1) - lengths(sp, nlengths(sp) - 2);
-            lenmid = lengths(sp, nlengths(sp) - 1) + last_width / Type(2.0);
-          }
-
-          // Weighted sum for Weight-at-Age
-          expected_weight += prob * weight_length_pars(sp, 0) * pow(lenmid, weight_length_pars(sp, 1));
-        }
-        weight_hat(wtind, sex, age, yr) = expected_weight;
       } // age
     } // yr
   } // sex
@@ -297,17 +378,13 @@ void estimate_growth(
  * @section logic_within Biological Logic:
  * - **Temporal Resolution**: Incorporates `fracyr` to allow within-year (seasonal)
  *   growth and differentiability for time-varying parameters.
- * - **Plus Group**: Advanced by within-year growth identically to other ages
- *   (SS3 convention). The recruitment-weighted-mean correction for fish promoted
- *   into the plus group is applied at every year boundary by `estimate_growth()`
- *   (month 0), so `id_pop` already carries the corrected Jan-1 length.
- * - **SD-at-Age**: Length-based linear interpolation between `SD(l1)` and
- *   `SD(linf)` above `age_L1`. The plus group is pinned to `SD(linf)` =
- *   `exp(sd_Linf)` under `growth_sd_style == 1` (WHAM) and interpolated like
- *   every other age under `growth_sd_style == 2` (SS3), as in `estimate_growth()`.
- * - **Size Transition**: Converts mean length and SD into a probability matrix
- *   \f$P(\text{Length} | \text{Age})\f$ using a cumulative normal distribution (`pnorm`).
- *   The first length bin is a minus-group on length; the last is a plus-group.
+ * - **Plus Group**: Starts from the Jan-1 plus-group length that
+ *   `estimate_growth()` set (`id_pop`). Under `growth_plus_length == 1` it keeps
+ *   that length through the year; under the SS3 forms (2-4) it grows within the
+ *   year like every other age, as in SS3.
+ * - **SD-at-Age**: length_sd_at_age(), as in `estimate_growth()`.
+ * - **Size Transition**: fill_age_length_key(), on the population length bins;
+ *   consumers bin the product with selectivity, not the key itself.
  *
  * @param wtind Weight index for population/fleet.
  * @param id_pop Index for population (Jan-1) weight-at-age; the within-year
@@ -341,26 +418,34 @@ void estimate_growth_within_yr(
     const vector<int>&  minage,
     const vector<Type>& growth_age_L1,
     const vector<int>&  growth_model,
-    const vector<int>&  growth_sd_style,   // Plus-group SD-at-age: 1 = WHAM (pin to exp(sd_Linf)), 2 = SS3 (interpolate by length)
+    const vector<int>&  growth_sd_style,   // Plus-group SD-at-age: 1 = WHAM (pin to exp(sd_Linf)), 2 = interpolate by length
+    const vector<int>&  growth_sd_form,    // 1 = SD endpoints in cm, 2 = CV endpoints (SD = CV * L)
+    const vector<int>&  growth_plus_length,// 1 = plus group held at its Jan-1 length within the year; 2-4 (SS3 forms) = it grows
     matrix<Type>& lengths,
+    const vector<int>&  nlengths_pop,
+    matrix<Type>& lengths_pop,             // Population length bins, lower edges (cm)
     array<Type>& growth_parameters,
     array<Type>& growth_log_sd,
     matrix<Type>& weight_length_pars,
+    const vector<int>&  mat_len_use,       // 1 = maturity-at-length for this species
+    matrix<Type>& mat_len_pars,            // [sp, 0] = L50 (cm), [sp, 1] = logistic slope (per cm)
     array<Type> &length_hat,     // Modified by reference
     array<Type> &growth_matrix,  // Modified by reference
-    array<Type> &weight_hat      // Modified by reference
+    array<Type> &weight_hat,     // Modified by reference
+    array<Type> &mat_weight_hat  // Modified by reference (maturity-at-length species only)
 ) {
 
   // Initialize output and temporary storage
-  array<Type> length_sd(nsex(sp), nages(sp), nyrs); length_sd.setZero();         // SD in length-at-age
 
 
   // Calculate mean-length, SD, and growth matrix, for all years:
   // lengths is vector with lengths mm (2, 4, 6, 8, etc)
-  Type Fac1, Fac2, Slope, b_len, current_age, last_linear;
+  Type b_len, current_age, last_linear;
 
-  Type Lmin_sp = lengths(sp, 0);
-  Type Lmax_sp = lengths(sp, nlengths(sp) - 1);
+  // The linear ramp below age_L1 starts from the lowest population length
+  // edge at age 0 (SS3's len_bins(1)); with no population grid that is the
+  // lowest data bin.
+  Type Lmin_sp = lengths_pop(sp, 0);
   // age_L1 is the VB anchor age (= age at which `l1` is the length). Read
   // from data_list$growth_age_L1[sp] (= SS3's Growth_Age_for_L1 ctl input).
   // R-side fit_mod() resolves the default to max(0.5, minage[sp]) so models
@@ -414,9 +499,9 @@ void estimate_growth_within_yr(
           }else if(age + 1.0 < age_L1){ // Linear + growth curve mixed
             last_linear = Lmin_sp + b_len * age_L1;
             length_hat(wtind,  sex, age, yr) = last_linear + (last_linear - linf) * (exp(-kappa * (current_age - age_L1)) - 1.0);
-          }else if(age + 1.0 == nages(sp)) { // Plus group pinned at Jan-1. Comment out for SS3 style.
+          }else if(age + 1.0 == nages(sp) && growth_plus_length(sp) == 1) { // Plus group held at its Jan-1 length; under the SS3 forms it grows like every other age
             length_hat(wtind,  sex, age, yr) = length_hat(id_pop,  sex, age, yr);
-          }else { // Growth curve (excl. plus group)
+          }else { // Growth curve
             length_hat(wtind,  sex, age, yr) = length_hat(id_pop,  sex, age, yr) + (length_hat(id_pop,  sex, age, yr) - linf) * (exp(-kappa * fracyr) - 1.0); // Add fracyr growth
           }
           break;
@@ -436,7 +521,7 @@ void estimate_growth_within_yr(
           }else if(age + 1.0 < age_L1){ // Linear + growth curve mixed
             last_linear = Lmin_sp + b_len * age_L1;
             length_hat(wtind,  sex, age, yr) = pow(pow(last_linear, m) + (pow(last_linear, m) - pow(linf, m)) * (exp(-kappa * (current_age - age_L1)) - 1.0), 1 / m);
-          }else if(age + 1.0 == nages(sp)) { // Plus group pinned at Jan-1. Comment out for SS3 style.
+          }else if(age + 1.0 == nages(sp) && growth_plus_length(sp) == 1) { // Plus group held at its Jan-1 length (see VBGF branch)
             length_hat(wtind,  sex, age, yr) = length_hat(id_pop,  sex, age, yr);
           } else {
             length_hat(wtind,  sex, age, yr) = pow(pow(length_hat(id_pop,  sex, age, yr), m) + (pow(length_hat(id_pop,  sex, age, yr), m) - pow(linf, m)) * (exp(-kappa * fracyr) - 1.0), 1 / m); // Add fracyr growth
@@ -452,66 +537,16 @@ void estimate_growth_within_yr(
           error("Invalid 'growth_model");
         } // Growth_model switch
 
-        // 2. Calculate SD (Integrated) ---
-        // SD-at-age: e^{sd0} up to age_L1, then linear-in-length interpolation
-        // to e^{sd1} (the plus group pinned to the upper anchor e^{sd1}).
+        // 2. SD of length-at-age, then age-length key and weight-at-age ---
         if(growth_model(sp) < 3) {
-          if((current_age) <= age_L1) {
-            length_sd(sex, age, yr) = exp(growth_log_sd(sp, sex, 0));
-          // Plus-group SD-at-age. WHAM (growth_sd_style == 1) pins it to the
-          // upper anchor exp(sd_Linf) (SDAA plus group = SD_len(1), matching
-          // estimate_growth()); SS3 (growth_sd_style == 2) falls through to the
-          // length interpolation below, treating the plus group like any
-          // interior age.
-          } else if(age == (nages(sp) - 1) && growth_sd_style(sp) == 1) {
-            length_sd(sex, age, yr) = exp(growth_log_sd(sp, sex, 1));
-          } else {
-            Slope = (exp(growth_log_sd(sp, sex, 1)) - exp(growth_log_sd(sp, sex, 0))) / (linf - l1);
-            length_sd(sex, age, yr) = exp(growth_log_sd(sp, sex, 0)) + Slope * (length_hat(wtind,  sex, age, yr) - l1);
-          }
-
-          // Free parameters
-          if(growth_model(sp) == 3) {
-            // Slope = (exp(growth_log_sd(sp, sex, 1)) - exp(growth_log_sd(sp, sex, 0)))/(length_hat(wtind,  sex, nages(sp)-1, yr) - length_hat(wtind,  sex, 0, yr));
-            // length_sd(sex, age, yr) = exp(growth_log_sd(sp, sex, 0) + Slope * (length_hat(wtind,  sex, age, yr) - length_hat(wtind,  sex, 0, yr));
-          }
+          Type len = length_hat(wtind,  sex, age, yr);
+          Type sd = length_sd_at_age(current_age, age_L1, age == (nages(sp) - 1),
+                                     growth_sd_style(sp), growth_sd_form(sp), l1, linf, len,
+                                     growth_log_sd(sp, sex, 0), growth_log_sd(sp, sex, 1));
+          fill_age_length_key(wtind, sp, sex, age, yr, len, sd, nlengths_pop,
+                              lengths_pop, weight_length_pars,
+                              mat_len_use, mat_len_pars, growth_matrix, weight_hat, mat_weight_hat);
         }
-
-        // 4. Build Growth Matrix & Weight-at-Age simultaneously ---
-        Type expected_weight = 0.0;
-
-        for(int ln = 0; ln < nlengths(sp); ln++) {
-          Type prob;
-          if(ln == 0) {
-            Fac1 = (Lmin_sp + lengths(sp, 1) - lengths(sp, 0) - length_hat(wtind,  sex, age, yr)) / length_sd(sex, age, yr);
-            prob = pnorm(Fac1);
-          } else if(ln == (nlengths(sp) - 1)) {
-            Fac1 = (Lmax_sp - length_hat(wtind,  sex, age, yr)) / length_sd(sex, age, yr);
-            prob = 1.0 - pnorm(Fac1);
-          } else {
-            Fac1 = (lengths(sp, ln + 1) - length_hat(wtind,  sex, age, yr)) / length_sd(sex, age, yr);
-            Fac2 = (lengths(sp, ln) - length_hat(wtind,  sex, age, yr)) / length_sd(sex, age, yr);
-            prob = pnorm(Fac1) - pnorm(Fac2);
-          }
-
-          // Explicit assignment to avoid the 5D operator warning
-          growth_matrix(wtind, sex, age, ln, yr) = prob;
-
-          // Bin midpoint for weight-at-length. Supports non-uniform bins:
-          // each interior bin uses its own [ln, ln+1] midpoint, and the
-          // length plus-group extends by half the final bin's width.
-          Type lenmid;
-          if(ln < nlengths(sp) - 1) {
-            lenmid = (lengths(sp, ln) + lengths(sp, ln + 1)) / Type(2.0);
-          } else {
-            Type last_width = lengths(sp, nlengths(sp) - 1) - lengths(sp, nlengths(sp) - 2);
-            lenmid = lengths(sp, nlengths(sp) - 1) + last_width / Type(2.0);
-          }
-
-          // Weighted sum for Weight-at-Age
-          expected_weight += prob * weight_length_pars(sp, 0) * pow(lenmid, weight_length_pars(sp, 1));
-        }
-        weight_hat(wtind, sex, age, yr) = expected_weight;
       } // age
     } // yr
   } // sex
@@ -531,7 +566,10 @@ void estimate_growth_within_yr(
  * @param growth_matrix [ref] 5D array for age-length transition matrices
  * @param weight_obs Empirical weight-at-age input (wt_index, sex, age, year), kg
  * @param growth_model Integer vector indicating growth type (0=empirical, >0=estimated)
- * @param growth_sd_style Per species, plus-group SD-at-age: 1 = pinned to exp(sd_Linf) (WHAM), 2 = interpolated by length (SS3)
+ * @param growth_sd_style Per species, plus-group SD-at-age: 1 = pinned to exp(sd_Linf) (WHAM), 2 = interpolated by length
+ * @param growth_sd_form Per species, 1 = SD endpoints in cm, 2 = CV endpoints
+ * @param growth_plus_length Per species, plus-group mean length form (see estimate_growth())
+ * @param mat_weight_hat [ref] Mature weight-at-age (kg) for maturity-at-length species
  * @param nspp Number of species
  * @param nyrs Total number of years (hindcast + projection)
  * @param nyrs_hind Number of hindcast years
@@ -552,9 +590,13 @@ void calculate_weight(
     array<Type> &weight_hat,   // Modified by reference
     array<Type> &length_hat,   // Modified by reference
     array<Type> &growth_matrix,// Modified by reference
+    array<Type> &mat_weight_hat,// Modified by reference: mature weight-at-age, maturity-at-length species only
     array<Type>& weight_obs,
     const vector<int>&  growth_model,
     const vector<int>&  growth_sd_style,
+    const vector<int>&  growth_sd_form,
+    const vector<int>&  growth_plus_length,
+    const vector<Type>& plus_group_decay,
     const int& nspp,
     const int& nyrs,
     const int& nyrs_hind,
@@ -571,9 +613,13 @@ void calculate_weight(
     const vector<int>&  flt_wt_index,
     vector<Type> spawn_month,
     matrix<Type>& lengths,
+    const vector<int>&  nlengths_pop,
+    matrix<Type>& lengths_pop,
     array<Type>& growth_parameters,
     array<Type>& growth_log_sd,
     matrix<Type> weight_length_pars,
+    const vector<int>&  mat_len_use,
+    matrix<Type>& mat_len_pars,
     array<Type>& log_M1
 ) {
   int yr_ind;
@@ -621,14 +667,22 @@ void calculate_weight(
         growth_age_L1,
         growth_model,
         growth_sd_style,
+        growth_sd_form,
+        growth_plus_length,
+        plus_group_decay,
         lengths,
+        nlengths_pop,
+        lengths_pop,
         growth_parameters,
         growth_log_sd,
         weight_length_pars,
+        mat_len_use,
+        mat_len_pars,
         log_M1,
         length_hat,     // Pass by reference
         growth_matrix,  // Pass by reference
-        weight_hat      // Pass by reference
+        weight_hat,     // Pass by reference
+        mat_weight_hat  // Pass by reference
       );
 
       // SSB weight (at month of spawning)
@@ -646,13 +700,20 @@ void calculate_weight(
         growth_age_L1,
         growth_model,
         growth_sd_style,
+        growth_sd_form,
+        growth_plus_length,
         lengths,
+        nlengths_pop,
+        lengths_pop,
         growth_parameters,
         growth_log_sd,
         weight_length_pars,
+        mat_len_use,
+        mat_len_pars,
         length_hat,     // Pass by reference
         growth_matrix,  // Pass by reference
-        weight_hat      // Pass by reference
+        weight_hat,     // Pass by reference
+        mat_weight_hat  // Pass by reference
       );
     }
   }
@@ -694,25 +755,26 @@ void calculate_weight(
         growth_age_L1,
         growth_model,
         growth_sd_style,
+        growth_sd_form,
+        growth_plus_length,
         lengths,
+        nlengths_pop,
+        lengths_pop,
         growth_parameters,
         growth_log_sd,
         weight_length_pars,
+        mat_len_use,
+        mat_len_pars,
         length_hat,     // Pass by reference
         growth_matrix,  // Pass by reference
-        weight_hat      // Pass by reference
+        weight_hat,     // Pass by reference
+        mat_weight_hat  // Pass by reference
       );
     }
   }
 }
 
 
-
-// ------------------------------------------------------------------------- //
-// TODO                                                                      //
-// ------------------------------------------------------------------------- //
-// add growth parameters to build param and build map (AR1 and variance)
-// define age_L1 and age_L1 ceiling
 
 #endif
 
