@@ -13,7 +13,7 @@ called in the NOAA standardized assessment output."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.49.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -59,7 +59,7 @@ called in the NOAA standardized assessment output."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Look up what a CEATTLE reported quantity is</h1>
-      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.45.3/R/0-quantity_dictionary.R" class="external-link"><code>R/0-quantity_dictionary.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/R/0-quantity_dictionary.R" class="external-link"><code>R/0-quantity_dictionary.R</code></a></small>
       <div class="d-none name"><code>quantity_dictionary.Rd</code></div>
     </div>
 
@@ -175,11 +175,11 @@ property of the prey stock alone.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 11                    R</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 12                log_R</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 17                 R_sd</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 52        log_index_hat</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 57       log_sel_at_age</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 87         beta_linkage</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 91     beta_linkage_obs</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 100          pop_scalar</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 53        log_index_hat</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 58       log_sel_at_age</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 89         beta_linkage</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 93     beta_linkage_obs</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 103          pop_scalar</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                                                                                                                                                                                                                                                                                                            meaning</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 1                                                                                                                                                                                                                                                                 Total stock biomass, summed over sexes and ages.</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 2                                                                                                                                                                                            Total stock biomass on the log scale; its standard error is the CV of biomass, which is the form an ABC buffer wants.</span>
@@ -191,11 +191,11 @@ property of the prey stock alone.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 11                                                                                                                                                   Recruitment: numbers entering at the youngest age bin. For a species with input numbers-at-age (estDynamics &gt; 0), the input recruits, with no standard error.</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 12                                                                                                                                                                                                                                      Recruitment on the log scale; its standard error is the CV of recruitment.</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 17                                                                                                                                                                                                                                Standard deviation of the recruitment deviations, sigma_R, on the natural scale.</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 52                                                                                                                                                                                                                                                                        Predicted survey index on the log scale.</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 57  Log selectivity at age, reported only under fit_control(selectivity_se = TRUE), for a delta-method interval on the curve. One entry per estimated age-based lead fleet, sex, age at or above the fleet's first selected bin, and hindcast year; log_sel_at_age_index says which. Use exp(value +/- 1.96 * sd).</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 87                                                                                                                                                                                                                    Fitted coefficients of the environmental linkage formulas, one per row of the linkage table.</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 91                                                                                                                                                                                                QAR1 effect size scaling the latent deviate into the linked parameter; length 0 without a state-space covariate.</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 100                                                                                                                                                                                                        Multiplier on user-supplied numbers-at-age; estimated for estDynamics = 2 under predation, 1 otherwise.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 53                                                                                                                                                                                                                                                                        Predicted survey index on the log scale.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 58  Log selectivity at age, reported only under fit_control(selectivity_se = TRUE), for a delta-method interval on the curve. One entry per estimated age-based lead fleet, sex, age at or above the fleet's first selected bin, and hindcast year; log_sel_at_age_index says which. Use exp(value +/- 1.96 * sd).</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 89                                                                                                                                                                                                                    Fitted coefficients of the environmental linkage formulas, one per row of the linkage table.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 93                                                                                                                                                                                                QAR1 effect size scaling the latent deviate into the linked parameter; length 0 without a state-space covariate.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 103                                                                                                                                                                                                        Multiplier on user-supplied numbers-at-age; estimated for estDynamics = 2 under predation, 1 otherwise.</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Every reference point</span></span></span>
 <span class="r-in"><span><span class="fu">quantity_dictionary</span><span class="op">(</span>process <span class="op">=</span> <span class="st">"reference_points"</span><span class="op">)</span></span></span>

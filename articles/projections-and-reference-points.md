@@ -62,7 +62,8 @@ values must sum to 1 per species.
 
 ``` r
 
-BS2017MS$fleet_control$Proj_F_proportion <- 1  # One fishery fleet per species
+BS2017SS$fleet_control$Proj_F_proportion <- 1  # One fishery fleet per species
+BS2017MS$fleet_control$Proj_F_proportion <- 1
 
 ms_run_proj <- fit_mod(
   data_list    = BS2017MS,

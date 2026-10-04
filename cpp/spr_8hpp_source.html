@@ -103,8 +103,8 @@ $(document).ready(function() { init_codefold(0); });
 <div class="line"><a id="l00010" name="l00010"></a><span class="lineno">   10</span><span class="comment"> * SPR(F)/SPR(0) against that fraction (section 13, JNLL_REFPT_PENALTY).</span></div>
 <div class="line"><a id="l00011" name="l00011"></a><span class="lineno">   11</span><span class="comment"> *</span></div>
 <div class="line"><a id="l00012" name="l00012"></a><span class="lineno">   12</span><span class="comment"> * Both functions work on the female schedule (sex index 0) and report spawning</span></div>
-<div class="line"><a id="l00013" name="l00013"></a><span class="lineno">   13</span><span class="comment"> * output per TOTAL recruit; the caller supplies a mature-at-age schedule with</span></div>
-<div class="line"><a id="l00014" name="l00014"></a><span class="lineno">   14</span><span class="comment"> * the female fraction already folded in.</span></div>
+<div class="line"><a id="l00013" name="l00013"></a><span class="lineno">   13</span><span class="comment"> * output per TOTAL recruit; the caller supplies spawning output per fish with</span></div>
+<div class="line"><a id="l00014" name="l00014"></a><span class="lineno">   14</span><span class="comment"> * maturity folded in, and the female fraction not already in it.</span></div>
 <div class="line"><a id="l00015" name="l00015"></a><span class="lineno">   15</span><span class="comment"> *</span></div>
 <div class="line"><a id="l00016" name="l00016"></a><span class="lineno">   16</span><span class="comment"> * The reference points are not the only consumer. Under Beverton-Holt or Ricker</span></div>
 <div class="line"><a id="l00017" name="l00017"></a><span class="lineno">   17</span><span class="comment"> * recruitment, SPR0 sets steepness and R0 and SPRFinit sets R_init (section</span></div>
@@ -157,31 +157,33 @@ $(document).ready(function() { init_codefold(0); });
 <div class="line"><a id="l00062" name="l00062"></a><span class="lineno">   62</span><span class="comment"> * @param n            Numbers at age per recruit, from per_recruit_survivors().</span></div>
 <div class="line"><a id="l00063" name="l00063"></a><span class="lineno">   63</span><span class="comment"> * @param Z            The same mortality schedule that produced `n`, reused for</span></div>
 <div class="line"><a id="l00064" name="l00064"></a><span class="lineno">   64</span><span class="comment"> *                     the mortality served before spawning within the year.</span></div>
-<div class="line"><a id="l00065" name="l00065"></a><span class="lineno">   65</span><span class="comment"> * @param weight       Spawning weight at age (kg).</span></div>
-<div class="line"><a id="l00066" name="l00066"></a><span class="lineno">   66</span><span class="comment"> * @param mature_female Proportion of a recruit&#39;s cohort mature and female at age</span></div>
-<div class="line"><a id="l00067" name="l00067"></a><span class="lineno">   67</span><span class="comment"> *                     (`mature_females`, section 5.4, times any recruitment split).</span></div>
-<div class="line"><a id="l00068" name="l00068"></a><span class="lineno">   68</span><span class="comment"> * @param spawn_month  Month of spawning, 0-12; 0 spawns at the start of the year.</span></div>
-<div class="line"><a id="l00069" name="l00069"></a><span class="lineno">   69</span><span class="comment"> * @return             Spawning biomass per recruit (kg per recruit).</span></div>
-<div class="line"><a id="l00070" name="l00070"></a><span class="lineno">   70</span><span class="comment"> */</span></div>
-<div class="line"><a id="l00071" name="l00071"></a><span class="lineno">   71</span><span class="keyword">template</span> &lt;<span class="keyword">class</span> Type&gt;</div>
-<div class="foldopen" id="foldopen00072" data-start="{" data-end="}">
-<div class="line"><a id="l00072" name="l00072"></a><span class="lineno"><a class="line" href="spr_8hpp.html#a3b6a50d148682bb564626dcc001a28a9">   72</a></span>Type <a class="code hl_function" href="spr_8hpp.html#a3b6a50d148682bb564626dcc001a28a9">spawning_biomass_per_recruit</a>(<span class="keyword">const</span> vector&lt;Type&gt;&amp; n,</div>
-<div class="line"><a id="l00073" name="l00073"></a><span class="lineno">   73</span>                                  <span class="keyword">const</span> vector&lt;Type&gt;&amp; Z,</div>
-<div class="line"><a id="l00074" name="l00074"></a><span class="lineno">   74</span>                                  <span class="keyword">const</span> vector&lt;Type&gt;&amp; weight,</div>
-<div class="line"><a id="l00075" name="l00075"></a><span class="lineno">   75</span>                                  <span class="keyword">const</span> vector&lt;Type&gt;&amp; mature_female,</div>
-<div class="line"><a id="l00076" name="l00076"></a><span class="lineno">   76</span>                                  Type spawn_month)</div>
-<div class="line"><a id="l00077" name="l00077"></a><span class="lineno">   77</span>{</div>
-<div class="line"><a id="l00078" name="l00078"></a><span class="lineno">   78</span>  Type spr = 0.0;</div>
-<div class="line"><a id="l00079" name="l00079"></a><span class="lineno">   79</span>  <span class="keywordflow">for</span>(<span class="keywordtype">int</span> age = 0; age &lt; n.size(); age++){</div>
-<div class="line"><a id="l00080" name="l00080"></a><span class="lineno">   80</span>    spr += n(age) * weight(age) * mature_female(age) *</div>
-<div class="line"><a id="l00081" name="l00081"></a><span class="lineno">   81</span>      exp(-Z(age) * spawn_month / 12.0);</div>
-<div class="line"><a id="l00082" name="l00082"></a><span class="lineno">   82</span>  }</div>
-<div class="line"><a id="l00083" name="l00083"></a><span class="lineno">   83</span>  <span class="keywordflow">return</span> spr;</div>
-<div class="line"><a id="l00084" name="l00084"></a><span class="lineno">   84</span>}</div>
+<div class="line"><a id="l00065" name="l00065"></a><span class="lineno">   65</span><span class="comment"> * @param weight       Spawning output per fish at age (kg): `spawn_output`</span></div>
+<div class="line"><a id="l00066" name="l00066"></a><span class="lineno">   66</span><span class="comment"> *                     (section 5.7), which already carries maturity and, for a</span></div>
+<div class="line"><a id="l00067" name="l00067"></a><span class="lineno">   67</span><span class="comment"> *                     one-sex species, the female fraction.</span></div>
+<div class="line"><a id="l00068" name="l00068"></a><span class="lineno">   68</span><span class="comment"> * @param mature_female Remaining female fraction of a recruit&#39;s cohort at age:</span></div>
+<div class="line"><a id="l00069" name="l00069"></a><span class="lineno">   69</span><span class="comment"> *                     the recruitment split for a two-sex species, 1 otherwise.</span></div>
+<div class="line"><a id="l00070" name="l00070"></a><span class="lineno">   70</span><span class="comment"> * @param spawn_month  Month of spawning, 0-12; 0 spawns at the start of the year.</span></div>
+<div class="line"><a id="l00071" name="l00071"></a><span class="lineno">   71</span><span class="comment"> * @return             Spawning biomass per recruit (kg per recruit).</span></div>
+<div class="line"><a id="l00072" name="l00072"></a><span class="lineno">   72</span><span class="comment"> */</span></div>
+<div class="line"><a id="l00073" name="l00073"></a><span class="lineno">   73</span><span class="keyword">template</span> &lt;<span class="keyword">class</span> Type&gt;</div>
+<div class="foldopen" id="foldopen00074" data-start="{" data-end="}">
+<div class="line"><a id="l00074" name="l00074"></a><span class="lineno"><a class="line" href="spr_8hpp.html#a3b6a50d148682bb564626dcc001a28a9">   74</a></span>Type <a class="code hl_function" href="spr_8hpp.html#a3b6a50d148682bb564626dcc001a28a9">spawning_biomass_per_recruit</a>(<span class="keyword">const</span> vector&lt;Type&gt;&amp; n,</div>
+<div class="line"><a id="l00075" name="l00075"></a><span class="lineno">   75</span>                                  <span class="keyword">const</span> vector&lt;Type&gt;&amp; Z,</div>
+<div class="line"><a id="l00076" name="l00076"></a><span class="lineno">   76</span>                                  <span class="keyword">const</span> vector&lt;Type&gt;&amp; weight,</div>
+<div class="line"><a id="l00077" name="l00077"></a><span class="lineno">   77</span>                                  <span class="keyword">const</span> vector&lt;Type&gt;&amp; mature_female,</div>
+<div class="line"><a id="l00078" name="l00078"></a><span class="lineno">   78</span>                                  Type spawn_month)</div>
+<div class="line"><a id="l00079" name="l00079"></a><span class="lineno">   79</span>{</div>
+<div class="line"><a id="l00080" name="l00080"></a><span class="lineno">   80</span>  Type spr = 0.0;</div>
+<div class="line"><a id="l00081" name="l00081"></a><span class="lineno">   81</span>  <span class="keywordflow">for</span>(<span class="keywordtype">int</span> age = 0; age &lt; n.size(); age++){</div>
+<div class="line"><a id="l00082" name="l00082"></a><span class="lineno">   82</span>    spr += n(age) * weight(age) * mature_female(age) *</div>
+<div class="line"><a id="l00083" name="l00083"></a><span class="lineno">   83</span>      exp(-Z(age) * spawn_month / 12.0);</div>
+<div class="line"><a id="l00084" name="l00084"></a><span class="lineno">   84</span>  }</div>
+<div class="line"><a id="l00085" name="l00085"></a><span class="lineno">   85</span>  <span class="keywordflow">return</span> spr;</div>
+<div class="line"><a id="l00086" name="l00086"></a><span class="lineno">   86</span>}</div>
 </div>
-<div class="line"><a id="l00085" name="l00085"></a><span class="lineno">   85</span> </div>
-<div class="line"><a id="l00086" name="l00086"></a><span class="lineno">   86</span><span class="preprocessor">#endif</span></div>
-<div class="ttc" id="aspr_8hpp_html_a3b6a50d148682bb564626dcc001a28a9"><div class="ttname"><a href="spr_8hpp.html#a3b6a50d148682bb564626dcc001a28a9">spawning_biomass_per_recruit</a></div><div class="ttdeci">Type spawning_biomass_per_recruit(const vector&lt; Type &gt; &amp;n, const vector&lt; Type &gt; &amp;Z, const vector&lt; Type &gt; &amp;weight, const vector&lt; Type &gt; &amp;mature_female, Type spawn_month)</div><div class="ttdoc">Female spawning biomass per recruit, given a survivor schedule.</div><div class="ttdef"><b>Definition</b> <a href="spr_8hpp_source.html#l00072">spr.hpp:72</a></div></div>
+<div class="line"><a id="l00087" name="l00087"></a><span class="lineno">   87</span> </div>
+<div class="line"><a id="l00088" name="l00088"></a><span class="lineno">   88</span><span class="preprocessor">#endif</span></div>
+<div class="ttc" id="aspr_8hpp_html_a3b6a50d148682bb564626dcc001a28a9"><div class="ttname"><a href="spr_8hpp.html#a3b6a50d148682bb564626dcc001a28a9">spawning_biomass_per_recruit</a></div><div class="ttdeci">Type spawning_biomass_per_recruit(const vector&lt; Type &gt; &amp;n, const vector&lt; Type &gt; &amp;Z, const vector&lt; Type &gt; &amp;weight, const vector&lt; Type &gt; &amp;mature_female, Type spawn_month)</div><div class="ttdoc">Female spawning biomass per recruit, given a survivor schedule.</div><div class="ttdef"><b>Definition</b> <a href="spr_8hpp_source.html#l00074">spr.hpp:74</a></div></div>
 <div class="ttc" id="aspr_8hpp_html_ac7750dfaef1626032c1beb65eba90358"><div class="ttname"><a href="spr_8hpp.html#ac7750dfaef1626032c1beb65eba90358">per_recruit_survivors</a></div><div class="ttdeci">vector&lt; Type &gt; per_recruit_survivors(const vector&lt; Type &gt; &amp;Z)</div><div class="ttdoc">Survivors at age from one recruit under a fixed mortality schedule.</div><div class="ttdef"><b>Definition</b> <a href="spr_8hpp_source.html#l00043">spr.hpp:43</a></div></div>
 </div><!-- fragment --></div><!-- contents -->
 <!-- start footer part -->

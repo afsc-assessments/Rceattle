@@ -199,7 +199,10 @@ SS:
 4.  Set `Selectivity = 0` (“Fixed”) for each fleet on `fleet_control`
     and `estDynamics = 1` for each species on `control` (this fixes
     N-at-age to `NByageFixed`).
-5.  Run `fit_mod(estimateMode = 1, ...)` to evaluate without re-fitting.
+5.  Run `fit_mod(estimateMode = 3, ...)` to evaluate without re-fitting.
+    Mode 3 (`"DebugBuild"`) builds the objective and stops; mode 1
+    (`"Hindcast"`) re-estimates the hindcast, which is not what you want
+    when you have just injected another model’s parameters.
 
 Differences between Rceattle and SS at this stage trace back to either
 (a) a coercion bug in the data port, (b) a different mortality

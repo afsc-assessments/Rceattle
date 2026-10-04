@@ -128,8 +128,10 @@ rcmdcheck::rcmdcheck()                 # what CI runs (slow; usually backgrounde
   `export PATH=/usr/bin:$PATH` — system toolchain first, so a Homebrew
   clang/gfortran does not shadow the TMB build.
 - `load_all()` recompiles via `src/TMB/compile.R`; add `compile = FALSE`
-  for R-only changes. Compiled artifacts (`*.o` ~77 MB, `*.so`) are
-  gitignored — never commit them.
+  for R-only changes. Compiled artifacts are gitignored — never commit
+  them. `ceattle.o` is the big one and it grows with the template (89 MB
+  at 5.45.3, 94 MB at 5.46.0), so treat any figure here as a snapshot;
+  `*.so` is a few MB.
 - **To run one test file**, make the env’s parent the package namespace
   so internal helpers resolve:
   `e <- new.env(parent = asNamespace("Rceattle"))`, then source the
@@ -377,10 +379,12 @@ One line each; the fuller text and the measured numbers are in
 - **`Index_distribution` has a second registry**: a new family must also
   be classified in `.index_rows_natural_scale()`, or it gets the
   log-scale residual.
-- **`jnll_comp` columns count fleets on rows 1–8, species on 9–20, and
-  neither on row 21** (model-wide linkage REs); `.JNLL_ROW_AXIS` is the
-  registry, so [`rowSums()`](https://rdrr.io/r/base/colSums.html) mixes
-  axes.
+- **`jnll_comp` columns count fleets on rows 1–8 AND row 22, species on
+  9–20, and neither on row 21** — the fleet axis is NOT contiguous (row
+  21 is the model-wide linkage REs, row 22 the initial equilibrium
+  catch, by fleet); `.JNLL_ROW_AXIS` is the registry, so
+  [`rowSums()`](https://rdrr.io/r/base/colSums.html) mixes axes and an
+  axis guess that stops at row 20 is wrong.
 - **A reference point CEATTLE never estimated is a number, not a gap**:
   `Ftarget`/`Flimit` = 1, `MSSB0` = 999 mt, per-recruit quantities 0
   under `msmMode > 0`.
@@ -393,7 +397,7 @@ One line each; the fuller text and the measured numbers are in
   is the registry.
 - **`retrospective(getsd = TRUE)` can drop peels `getsd = FALSE`
   keeps**, so Mohn’s rho can differ.
-- **`unweighted_jnll_comp` is written for 5 of its 21 rows**; the rest
+- **`unweighted_jnll_comp` is written for 5 of its 22 rows**; the rest
   are structurally zero.
 - **`fit_mod(d, config = cfg)` replaces `d$model_config`**: build `cfg`
   with `run_config(d, ...)` or every linkage is dropped.

@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.49.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -83,7 +83,7 @@
 Adams</h4>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.45.3/vignettes/model-options-and-functionality.Rmd" class="external-link"><code>vignettes/model-options-and-functionality.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/vignettes/model-options-and-functionality.Rmd" class="external-link"><code>vignettes/model-options-and-functionality.Rmd</code></a></small>
       <div class="d-none name"><code>model-options-and-functionality.Rmd</code></div>
     </div>
 
@@ -262,8 +262,56 @@ recruitment deviation instead of sitting at R<sub>init</sub>; init devs
 off, no init-dev penalty (Cole Monnahan / AFSC GOA pollock
 convention)</td>
 </tr>
+<tr class="odd">
+<td align="center"><code>6</code></td>
+<td><code>"FishedNonEquilibriumSelected"</code></td>
+<td>As <code>3</code>, but F<sub>init</sub> is weighted by the fishery’s
+selectivity at age before it accumulates, so the first year decays with
+∑(M1 + F<sub>init</sub> s<sub>a</sub>). Stock Synthesis’s InitF
+convention; F<sub>init</sub> is the apical initial F. Use this where the
+fishery is size-selective, since <code>3</code> charges unselected young
+ages the full F<sub>init</sub> and <code>4</code> applies it once</td>
+</tr>
 </tbody>
 </table>
+<p>Rceattle estimates one F<sub>init</sub> per species where SS3 carries
+one per fleet, so under mode <code>6</code> a species with more than one
+fishery decays its initial age structure at the <strong>mean</strong>
+selectivity of those fisheries. F<sub>init</sub> is then not the apical
+initial F of any one of them, and <code><a href="../reference/data_check.html">data_check()</a></code> warns — the
+initial state sets the SSB scale.</p>
+<div class="section level4">
+<h4 id="the-initial-equilibrium-catch">The initial equilibrium catch<a class="anchor" aria-label="anchor" href="#the-initial-equilibrium-catch"></a>
+</h4>
+<p>Modes <code>3</code>, <code>4</code> and <code>6</code> estimate
+F<sub>init</sub>, but nothing identifies it unless you give it an
+observation: the catch the stock yielded under that initial fishing
+mortality, in the year before the hindcast. Write it as an ordinary
+<code>catch_data</code> row at <code>styr - 1</code>, with the fleet’s
+<code>Catch</code> and <code>Log_sd</code>. No new columns.</p>
+<p><strong>It is read only under mode <code>6</code>.</strong> The
+prediction is Baranov at F<sub>init</sub> × selectivity, and mode
+<code>6</code> is the only mode that builds the initial age structure
+with that same mortality, so scoring it under <code>3</code> or
+<code>4</code> would fit F<sub>init</sub> to a catch the population was
+never subject to. Under any other mode the row is dropped, and
+<code><a href="../reference/data_check.html">data_check()</a></code> says so.</p>
+<p>That year also holds ordinary catch history — <code>GOA2018SS</code>
+carries 23 rows before <code>styr</code>, two of them on
+<code>styr - 1</code> — so <code><a href="../reference/data_check.html">data_check()</a></code> names the fleets
+whose rows it reads whenever it reads any. It refuses two rows for one
+fleet, a non-positive catch or <code>Log_sd</code>, a fleet that is not
+an active fishery, and a species with more than one fishery (Rceattle
+carries one F<sub>init</sub> per species, so there is no per-fleet split
+to predict with).</p>
+<p><code><a href="../reference/clean_data.html">clean_data()</a></code> moves the row into
+<code>data_list$equil_catch_data</code> so <code>catch_data</code> keeps
+one row per fitted catch; <code><a href="../reference/write_data.html">write_data()</a></code> writes it back into
+the catch sheet. The prediction is reported as
+<code>quantities$equil_catch_hat</code> and scored on its own
+<code>jnll_comp</code> row,
+<code>"Initial equilibrium catch"</code>.</p>
+</div>
 </div>
 <div class="section level3">
 <h3 id="estimatemode-what-does-fit_mod-actually-do">
@@ -485,6 +533,18 @@ proper density: the shape penalties are charged once on the base, so
 <code>random_sel = TRUE</code> integrates them.
 <code>Time_varying_sel</code> picks the structure (<code>Off</code>,
 <code>IID</code> or <code>RandomWalk</code>)</td>
+</tr>
+<tr class="odd">
+<td align="center"><code>15</code></td>
+<td><code>"DoubleNormalSS3"</code></td>
+<td>Stock Synthesis size pattern 24: the six-parameter double normal,
+each parameter on SS3’s own scale (peak; logit top width; log ascending
+and descending widths; logit initial and final selectivity) in its own
+array <code>sel_dn6</code>. An end left at SS3’s -999 is unscaled and
+fixed. Not normalized, as in SS3. All six take selectivity linkages
+under the SS3 manual’s names; <code>Time_varying_sel</code> must be
+<code>"Off"</code>
+</td>
 </tr>
 </tbody>
 </table>
@@ -1356,6 +1416,33 @@ control sheet: <code>Diet_distribution = 0</code> (multinomial) or
 <code>1</code> (Dirichlet-multinomial).</p>
 <p>Conditional age-at-length (CAAL) data go through their own data path
 and are weighted via <code>CAAL_weights</code> per fleet.</p>
+<div class="section level3">
+<h3 id="ageing-error-per-fleet">Ageing error, per fleet<a class="anchor" aria-label="anchor" href="#ageing-error-per-fleet"></a>
+</h3>
+<p><code>age_error</code> holds one matrix per species by default, and
+every fleet reads its own species’. A stock whose ageing protocol
+changed part way through a series needs more than one — GOA Pacific cod
+reads its pre-2007 survey otoliths about a year older than its post-2007
+ones — so both <code>age_error</code> and <code>fleet_control</code>
+take an optional <code>Ageing_error_index</code>: give the matrices
+index values, then point each fleet at the one that aged its samples.
+Omit the column, or leave it <code>NA</code>, and the index is the
+species, which is what a model with one matrix per species has always
+done.</p>
+<p>The two eras of a survey are then two fleets sharing a
+<code>Selectivity_index</code> and a <code>Catchability_index</code>, so
+they still estimate one selectivity and one catchability between
+them.</p>
+<p>Each index belongs to one species, because a matrix’s rows are sized
+and offset by that species’ age range. <code><a href="../reference/data_check.html">data_check()</a></code> refuses
+an index that names no matrix, an index whose rows give more than one
+<code>Species</code>, and a fleet pointed at a matrix belonging to
+another species — which is the mistake the species default invites,
+since without the column <code>2</code> means “species 2’s matrix” and
+not “the second matrix”. Coverage is reported per matrix, so an
+incomplete one is named even where the species’ other matrices are
+complete.</p>
+</div>
 </div>
 <div class="section level2">
 <h2 id="recruitment-stock-recruit-recfun-build_srr">6. Recruitment / stock-recruit
@@ -1551,6 +1638,68 @@ sheet)</td>
 <td align="center"><code>2</code></td>
 <td><code>"Richards"</code></td>
 <td>Sex-specific Richards growth</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section level3">
+<h3 id="growth-variability-plus-group-length-bins-and-maturity">Growth variability, plus group, length bins and maturity<a class="anchor" aria-label="anchor" href="#growth-variability-plus-group-length-bins-and-maturity"></a>
+</h3>
+<table class="table">
+<colgroup>
+<col width="33%">
+<col width="33%">
+<col width="33%">
+</colgroup>
+<thead><tr class="header">
+<th>Argument / column</th>
+<th>Values</th>
+<th>Description</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td><code>sd_form</code></td>
+<td>
+<code>"SD"</code> (default), <code>"CV"</code>
+</td>
+<td>Whether <code>sd_L1</code> / <code>sd_Linf</code> are SDs of
+length-at-age (cm) or CVs (SD = CV x length) – SS3
+<code>CV_Growth_Pattern</code> 2 or 0</td>
+</tr>
+<tr class="even">
+<td><code>sd_plus_group</code></td>
+<td>
+<code>"WHAM"</code> (default), <code>"SS3"</code>
+</td>
+<td>Plus-group SD pinned to the upper endpoint, or interpolated by
+length. SS3 with <code>Growth_Age_for_L2 = 999</code> is
+<code>"WHAM"</code>
+</td>
+</tr>
+<tr class="odd">
+<td><code>plus_group_length</code></td>
+<td>
+<code>"M1"</code> (default), <code>"none"</code>,
+<code>"SS3.24"</code>, <code>"decay"</code>
+</td>
+<td>Plus-group mean length: M1-weighted mean toward L-infinity, or SS3’s
+<code>Linf_decay</code> -998 / -999 / <code>plus_group_decay</code>
+</td>
+</tr>
+<tr class="even">
+<td><code>pop_lengths</code></td>
+<td>lower edges (cm); default the data bins</td>
+<td>Population length bins on which the age-length key, weight and
+maturity are integrated</td>
+</tr>
+<tr class="odd">
+<td>
+<code>L50_mat_len</code>, <code>slope_mat_len</code> (control
+sheet)</td>
+<td>cm, per cm; default NA</td>
+<td>Logistic maturity-at-length; spawning output integrates maturity x
+weight over length. NA keeps the age-based <code>maturity</code>
+sheet</td>
 </tr>
 </tbody>
 </table>

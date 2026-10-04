@@ -118,11 +118,11 @@ dict[dict$se, c("quantity", "meaning")]
 #> 11                    R
 #> 12                log_R
 #> 17                 R_sd
-#> 52        log_index_hat
-#> 57       log_sel_at_age
-#> 87         beta_linkage
-#> 91     beta_linkage_obs
-#> 100          pop_scalar
+#> 53        log_index_hat
+#> 58       log_sel_at_age
+#> 89         beta_linkage
+#> 93     beta_linkage_obs
+#> 103          pop_scalar
 #>                                                                                                                                                                                                                                                                                                            meaning
 #> 1                                                                                                                                                                                                                                                                 Total stock biomass, summed over sexes and ages.
 #> 2                                                                                                                                                                                            Total stock biomass on the log scale; its standard error is the CV of biomass, which is the form an ABC buffer wants.
@@ -134,11 +134,11 @@ dict[dict$se, c("quantity", "meaning")]
 #> 11                                                                                                                                                   Recruitment: numbers entering at the youngest age bin. For a species with input numbers-at-age (estDynamics > 0), the input recruits, with no standard error.
 #> 12                                                                                                                                                                                                                                      Recruitment on the log scale; its standard error is the CV of recruitment.
 #> 17                                                                                                                                                                                                                                Standard deviation of the recruitment deviations, sigma_R, on the natural scale.
-#> 52                                                                                                                                                                                                                                                                        Predicted survey index on the log scale.
-#> 57  Log selectivity at age, reported only under fit_control(selectivity_se = TRUE), for a delta-method interval on the curve. One entry per estimated age-based lead fleet, sex, age at or above the fleet's first selected bin, and hindcast year; log_sel_at_age_index says which. Use exp(value +/- 1.96 * sd).
-#> 87                                                                                                                                                                                                                    Fitted coefficients of the environmental linkage formulas, one per row of the linkage table.
-#> 91                                                                                                                                                                                                QAR1 effect size scaling the latent deviate into the linked parameter; length 0 without a state-space covariate.
-#> 100                                                                                                                                                                                                        Multiplier on user-supplied numbers-at-age; estimated for estDynamics = 2 under predation, 1 otherwise.
+#> 53                                                                                                                                                                                                                                                                        Predicted survey index on the log scale.
+#> 58  Log selectivity at age, reported only under fit_control(selectivity_se = TRUE), for a delta-method interval on the curve. One entry per estimated age-based lead fleet, sex, age at or above the fleet's first selected bin, and hindcast year; log_sel_at_age_index says which. Use exp(value +/- 1.96 * sd).
+#> 89                                                                                                                                                                                                                    Fitted coefficients of the environmental linkage formulas, one per row of the linkage table.
+#> 93                                                                                                                                                                                                QAR1 effect size scaling the latent deviate into the linked parameter; length 0 without a state-space covariate.
+#> 103                                                                                                                                                                                                        Multiplier on user-supplied numbers-at-age; estimated for estDynamics = 2 under predation, 1 otherwise.
 
 # Every reference point
 quantity_dictionary(process = "reference_points")

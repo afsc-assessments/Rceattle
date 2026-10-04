@@ -9,7 +9,7 @@ optionally project the stock and apply a harvest control rule."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.49.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -55,7 +55,7 @@ optionally project the stock and apply a harvest control rule."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Fit the CEATTLE assessment model</h1>
-      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.45.3/R/6-fit_mod.R" class="external-link"><code>R/6-fit_mod.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/R/6-fit_mod.R" class="external-link"><code>R/6-fit_mod.R</code></a></small>
       <div class="d-none name"><code>fit_mod.Rd</code></div>
     </div>
 
@@ -200,7 +200,8 @@ rejected by the data check.</p></dd>
 <dd><p>how the population is initialized, as a string alias or integer
 code: <code>"FreeParams"</code> (0), <code>"Equilibrium"</code> (1),
 <code>"NonEquilibrium"</code> (2, the default), <code>"FishedNonEquilibrium"</code> (3),
-<code>"FishedNonEquilibriumScaled"</code> (4), <code>"OffsetEquilibrium"</code> (5). See
+<code>"FishedNonEquilibriumScaled"</code> (4), <code>"OffsetEquilibrium"</code> (5),
+<code>"FishedNonEquilibriumSelected"</code> (6). See
 the <strong>Initial age structure</strong> section below for what each one estimates.</p></dd>
 
 
@@ -318,8 +319,21 @@ recruitment, <code>R_init * exp(rec_dev[1])</code>, decayed by \(M1\) and closed
 usual geometric plus group. Initial deviates are turned off and no init-dev penalty is
 applied. This is the Cole Monnahan / AFSC GOA pollock convention.</p></dd>
 
+<dt><code>"FishedNonEquilibriumSelected"</code> (6)</dt>
+<dd><p>As (3), but \(F_{init}\) is weighted by
+the fishery's selectivity at age before it accumulates, so the first year decays with
+\(\sum_{a' &lt; a} (M1_{a'} + F_{init} s_{a'})\). This is Stock Synthesis's InitF
+convention. \(F_{init}\) is the apical initial F, since \(s\) is normalized to a
+maximum of 1. The selectivity is the mean over the species' fishery fleets in the first
+hindcast year, which is exact for a single fishery; Rceattle carries one \(F_{init}\)
+per species where SS3 carries one per fleet, so a multi-fishery stock gets the mean shape.</p></dd>
 
-</dl><p>Modes 1 and 5 differ by exactly one term: both start from the initial equilibrium
+
+</dl><p>Modes 3, 4 and 6 differ in how \(F_{init}\) reaches an age. (3) charges every age the same
+\(F_{init}\), (4) applies it once rather than accumulating it, and (6) weights it by
+selectivity. Under a size-selective fishery only (6) is an equilibrium: (3) kills unselected
+young ages at the full initial F and (4) does not decay the older ages with it at all.</p>
+<p>Modes 1 and 5 differ by exactly one term: both start from the initial equilibrium
 recruitment \(R_{init}\), but (1) projects it forward unchanged while (5) seeds the first
 year with the realized recruitment <code>R_init * exp(rec_dev[1])</code>. On a stock whose first
 year was not average, that is not a small difference.</p>

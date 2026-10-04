@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.49.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -53,7 +53,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>CLAUDE.md — Rceattle</h1>
-      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.45.3/CLAUDE.md" class="external-link"><code>CLAUDE.md</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/CLAUDE.md" class="external-link"><code>CLAUDE.md</code></a></small>
     </div>
 
 <div id="claudemd--rceattle" class="section level1">
@@ -119,7 +119,7 @@
 <ul><li>
 <strong>Toolchain:</strong> prefix R compile/check commands with <code>export PATH=/usr/bin:$PATH</code> — system toolchain first, so a Homebrew clang/gfortran does not shadow the TMB build.</li>
 <li>
-<code>load_all()</code> recompiles via <code>src/TMB/compile.R</code>; add <code>compile = FALSE</code> for R-only changes. Compiled artifacts (<code>*.o</code> ~77 MB, <code>*.so</code>) are gitignored — never commit them.</li>
+<code>load_all()</code> recompiles via <code>src/TMB/compile.R</code>; add <code>compile = FALSE</code> for R-only changes. Compiled artifacts are gitignored — never commit them. <code>ceattle.o</code> is the big one and it grows with the template (89 MB at 5.45.3, 94 MB at 5.46.0), so treat any figure here as a snapshot; <code>*.so</code> is a few MB.</li>
 <li>
 <strong>To run one test file</strong>, make the env’s parent the package namespace so internal helpers resolve: <code>e &lt;- new.env(parent = asNamespace("Rceattle"))</code>, then source the shared helpers into it. A plain <code><a href="https://rdrr.io/r/base/environment.html" class="external-link">new.env()</a></code> fails with <code>could not find function "data_check"</code>.</li>
 <li>
@@ -234,7 +234,7 @@
 <li>
 <strong><code>Index_distribution</code> has a second registry</strong>: a new family must also be classified in <code>.index_rows_natural_scale()</code>, or it gets the log-scale residual.</li>
 <li>
-<strong><code>jnll_comp</code> columns count fleets on rows 1–8, species on 9–20, and neither on row 21</strong> (model-wide linkage REs); <code>.JNLL_ROW_AXIS</code> is the registry, so <code><a href="https://rdrr.io/r/base/colSums.html" class="external-link">rowSums()</a></code> mixes axes.</li>
+<strong><code>jnll_comp</code> columns count fleets on rows 1–8 AND row 22, species on 9–20, and neither on row 21</strong> — the fleet axis is NOT contiguous (row 21 is the model-wide linkage REs, row 22 the initial equilibrium catch, by fleet); <code>.JNLL_ROW_AXIS</code> is the registry, so <code><a href="https://rdrr.io/r/base/colSums.html" class="external-link">rowSums()</a></code> mixes axes and an axis guess that stops at row 20 is wrong.</li>
 <li>
 <strong>A reference point CEATTLE never estimated is a number, not a gap</strong>: <code>Ftarget</code>/<code>Flimit</code> = 1, <code>MSSB0</code> = 999 mt, per-recruit quantities 0 under <code>msmMode &gt; 0</code>.</li>
 <li>
@@ -244,7 +244,7 @@
 <li>
 <strong><code>retrospective(getsd = TRUE)</code> can drop peels <code>getsd = FALSE</code> keeps</strong>, so Mohn’s rho can differ.</li>
 <li>
-<strong><code>unweighted_jnll_comp</code> is written for 5 of its 21 rows</strong>; the rest are structurally zero.</li>
+<strong><code>unweighted_jnll_comp</code> is written for 5 of its 22 rows</strong>; the rest are structurally zero.</li>
 <li>
 <strong><code>fit_mod(d, config = cfg)</code> replaces <code>d$model_config</code></strong>: build <code>cfg</code> with <code>run_config(d, ...)</code> or every linkage is dropped.</li>
 <li>

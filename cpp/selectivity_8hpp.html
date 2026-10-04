@@ -93,22 +93,22 @@ $(function() {
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="func-members" name="func-members"></a>
 Functions</h2></td></tr>
-<tr class="memitem:a214e4701f38b4c8e5056331257af0a64" id="r_a214e4701f38b4c8e5056331257af0a64"><td class="memTemplParams" colspan="2">template&lt;class Type &gt; </td></tr>
-<tr class="memitem:a214e4701f38b4c8e5056331257af0a64"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="selectivity_8hpp.html#a214e4701f38b4c8e5056331257af0a64">normalize_and_project_selectivity</a> (const int &amp;flt, const int &amp;nyrs_hind, const int &amp;nyrs, const vector&lt; int &gt; &amp;flt_spp, const vector&lt; int &gt; &amp;flt_sel_type, const vector&lt; int &gt; &amp;flt_sel_dim, const vector&lt; int &gt; &amp;bin_first_selected, const vector&lt; int &gt; &amp;nages, const vector&lt; int &gt; &amp;nlengths, const vector&lt; int &gt; &amp;nsex, const vector&lt; int &gt; &amp;sel_norm_bin1, const vector&lt; int &gt; &amp;sel_norm_bin2, const vector&lt; int &gt; &amp;sel_norm_scope, array&lt; Type &gt; &amp;selectivity)</td></tr>
-<tr class="memdesc:a214e4701f38b4c8e5056331257af0a64"><td class="mdescLeft">&#160;</td><td class="mdescRight">Performs final normalization and projection of fishery selectivity (age/length) across all fleets.  <br /></td></tr>
-<tr class="separator:a214e4701f38b4c8e5056331257af0a64"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aabaee3c0482fb6a393f54476602c1d76" id="r_aabaee3c0482fb6a393f54476602c1d76"><td class="memTemplParams" colspan="2">template&lt;class Type &gt; </td></tr>
-<tr class="memitem:aabaee3c0482fb6a393f54476602c1d76"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="selectivity_8hpp.html#aabaee3c0482fb6a393f54476602c1d76">convert_length_selectivity</a> (const int &amp;flt, const int &amp;sp, const int &amp;sex, const int &amp;yr, const int &amp;wtind, const vector&lt; int &gt; &amp;nages, const vector&lt; int &gt; &amp;nlengths, array&lt; Type &gt; &amp;sel_length, array&lt; Type &gt; &amp;growth_matrix, array&lt; Type &gt; &amp;sel_at_age)</td></tr>
-<tr class="memdesc:aabaee3c0482fb6a393f54476602c1d76"><td class="mdescLeft">&#160;</td><td class="mdescRight">Converts length-based selectivity to age-based selectivity and stores it in a 4D array.  <br /></td></tr>
-<tr class="separator:aabaee3c0482fb6a393f54476602c1d76"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a37e9139b24e263b9e4a289f1defbf967" id="r_a37e9139b24e263b9e4a289f1defbf967"><td class="memTemplParams" colspan="2">template&lt;class Type &gt; </td></tr>
-<tr class="memitem:a37e9139b24e263b9e4a289f1defbf967"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="selectivity_8hpp.html#a37e9139b24e263b9e4a289f1defbf967">calculate_selectivity</a> (const int &amp;nspp, const int &amp;n_flt, const int &amp;nyrs, const int &amp;nyrs_hind, const int &amp;styr, const vector&lt; int &gt; &amp;nsex, const vector&lt; int &gt; &amp;nages, const vector&lt; int &gt; &amp;nlengths, matrix&lt; Type &gt; &amp;lengths, const vector&lt; int &gt; &amp;flt_spp, const vector&lt; int &gt; &amp;flt_sel_type, const vector&lt; int &gt; &amp;flt_varying_sel, const vector&lt; int &gt; &amp;flt_sel_dim, const vector&lt; int &gt; &amp;bin_first_selected, const vector&lt; int &gt; &amp;flt_n_sel_bins, const vector&lt; int &gt; &amp;flt_sel_cap_bin, const vector&lt; int &gt; &amp;sel_norm_bin1, const vector&lt; int &gt; &amp;sel_norm_bin2, const vector&lt; int &gt; &amp;sel_norm_scope, const vector&lt; int &gt; &amp;flt_sel_start_yr, matrix&lt; Type &gt; &amp;emp_sel_obs, matrix&lt; int &gt; &amp;emp_sel_ctl, array&lt; Type &gt; &amp;log_sel_slp, array&lt; Type &gt; &amp;log_sel_slp_dev, array&lt; Type &gt; &amp;sel_inf, array&lt; Type &gt; &amp;sel_inf_dev, array&lt; Type &gt; &amp;sel_coff, array&lt; Type &gt; &amp;sel_coff_dev, array&lt; Type &gt; &amp;avg_sel, array&lt; Type &gt; &amp;non_par_sel, array&lt; Type &gt; &amp;log_non_par_sel, array&lt; Type &gt; &amp;sel_at_length, array&lt; Type &gt; &amp;sel_at_age, array&lt; Type &gt; &amp;growth_matrix, array&lt; Type &gt; &amp;sel_slp_off, array&lt; Type &gt; &amp;sel_slp_off_nat, array&lt; Type &gt; &amp;sel_inf_off, array&lt; Type &gt; &amp;sel_inf_off_nat, array&lt; Type &gt; &amp;sel_coff_off, array&lt; Type &gt; &amp;sel_coff_off_nat, const int &amp;sel_apical_on, array&lt; Type &gt; &amp;log_sel_apical, array&lt; Type &gt; &amp;sel_apical_off, array&lt; Type &gt; &amp;sel_apical_off_nat)</td></tr>
-<tr class="memdesc:a37e9139b24e263b9e4a289f1defbf967"><td class="mdescLeft">&#160;</td><td class="mdescRight">Unified function to calculate selectivity across fleets, sexes, bins (age or length), and years.  <br /></td></tr>
-<tr class="separator:a37e9139b24e263b9e4a289f1defbf967"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a510503499bf3dbb22299bb23cbcf4aa9" id="r_a510503499bf3dbb22299bb23cbcf4aa9"><td class="memTemplParams" colspan="2">template&lt;class Type &gt; </td></tr>
+<tr class="memitem:a510503499bf3dbb22299bb23cbcf4aa9"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="selectivity_8hpp.html#a510503499bf3dbb22299bb23cbcf4aa9">normalize_and_project_selectivity</a> (const int &amp;flt, const int &amp;nyrs_hind, const int &amp;nyrs, const vector&lt; int &gt; &amp;flt_spp, const vector&lt; int &gt; &amp;flt_sel_type, const vector&lt; int &gt; &amp;flt_sel_dim, const vector&lt; int &gt; &amp;bin_first_selected, const vector&lt; int &gt; &amp;nages, const vector&lt; int &gt; &amp;nlengths_pop, const vector&lt; int &gt; &amp;nsex, const vector&lt; int &gt; &amp;sel_norm_bin1, const vector&lt; int &gt; &amp;sel_norm_bin2, const vector&lt; int &gt; &amp;sel_norm_scope, array&lt; Type &gt; &amp;selectivity)</td></tr>
+<tr class="memdesc:a510503499bf3dbb22299bb23cbcf4aa9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Performs final normalization and projection of fishery selectivity (age/length) across all fleets.  <br /></td></tr>
+<tr class="separator:a510503499bf3dbb22299bb23cbcf4aa9"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a94dac806d8bc628d9a868760c01f5dc0" id="r_a94dac806d8bc628d9a868760c01f5dc0"><td class="memTemplParams" colspan="2">template&lt;class Type &gt; </td></tr>
+<tr class="memitem:a94dac806d8bc628d9a868760c01f5dc0"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="selectivity_8hpp.html#a94dac806d8bc628d9a868760c01f5dc0">convert_length_selectivity</a> (const int &amp;flt, const int &amp;sp, const int &amp;sex, const int &amp;yr, const int &amp;wtind, const vector&lt; int &gt; &amp;nages, const vector&lt; int &gt; &amp;nlengths_pop, array&lt; Type &gt; &amp;sel_length, array&lt; Type &gt; &amp;growth_matrix, array&lt; Type &gt; &amp;sel_at_age)</td></tr>
+<tr class="memdesc:a94dac806d8bc628d9a868760c01f5dc0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Converts length-based selectivity to age-based selectivity and stores it in a 4D array.  <br /></td></tr>
+<tr class="separator:a94dac806d8bc628d9a868760c01f5dc0"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aaf5da86765fdc945bd170f4907c2150f" id="r_aaf5da86765fdc945bd170f4907c2150f"><td class="memTemplParams" colspan="2">template&lt;class Type &gt; </td></tr>
+<tr class="memitem:aaf5da86765fdc945bd170f4907c2150f"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="selectivity_8hpp.html#aaf5da86765fdc945bd170f4907c2150f">calculate_selectivity</a> (const int &amp;nspp, const int &amp;n_flt, const int &amp;nyrs, const int &amp;nyrs_hind, const int &amp;styr, const vector&lt; int &gt; &amp;nsex, const vector&lt; int &gt; &amp;nages, const vector&lt; int &gt; &amp;nlengths, matrix&lt; Type &gt; &amp;lengths, const vector&lt; int &gt; &amp;nlengths_pop, matrix&lt; Type &gt; &amp;lengths_pop, const vector&lt; int &gt; &amp;flt_spp, const vector&lt; int &gt; &amp;flt_sel_type, const vector&lt; int &gt; &amp;flt_varying_sel, const vector&lt; int &gt; &amp;flt_sel_dim, const vector&lt; int &gt; &amp;bin_first_selected, const vector&lt; int &gt; &amp;flt_n_sel_bins, const vector&lt; int &gt; &amp;flt_sel_cap_bin, const vector&lt; int &gt; &amp;sel_norm_bin1, const vector&lt; int &gt; &amp;sel_norm_bin2, const vector&lt; int &gt; &amp;sel_norm_scope, const vector&lt; int &gt; &amp;flt_sel_start_yr, matrix&lt; Type &gt; &amp;emp_sel_obs, matrix&lt; int &gt; &amp;emp_sel_ctl, array&lt; Type &gt; &amp;log_sel_slp, array&lt; Type &gt; &amp;log_sel_slp_dev, array&lt; Type &gt; &amp;sel_inf, array&lt; Type &gt; &amp;sel_inf_dev, array&lt; Type &gt; &amp;sel_coff, array&lt; Type &gt; &amp;sel_coff_dev, array&lt; Type &gt; &amp;avg_sel, array&lt; Type &gt; &amp;non_par_sel, array&lt; Type &gt; &amp;log_non_par_sel, array&lt; Type &gt; &amp;sel_at_length, array&lt; Type &gt; &amp;sel_at_age, array&lt; Type &gt; &amp;growth_matrix, array&lt; Type &gt; &amp;sel_slp_off, array&lt; Type &gt; &amp;sel_slp_off_nat, array&lt; Type &gt; &amp;sel_inf_off, array&lt; Type &gt; &amp;sel_inf_off_nat, array&lt; Type &gt; &amp;sel_coff_off, array&lt; Type &gt; &amp;sel_coff_off_nat, const int &amp;sel_apical_on, array&lt; Type &gt; &amp;log_sel_apical, array&lt; Type &gt; &amp;sel_apical_off, array&lt; Type &gt; &amp;sel_apical_off_nat, array&lt; Type &gt; &amp;sel_dn6, array&lt; Type &gt; &amp;sel_dn6_off, array&lt; Type &gt; &amp;sel_dn6_off_nat, matrix&lt; int &gt; &amp;sel_dn6_ends)</td></tr>
+<tr class="memdesc:aaf5da86765fdc945bd170f4907c2150f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Unified function to calculate selectivity across fleets, sexes, bins (age or length), and years.  <br /></td></tr>
+<tr class="separator:aaf5da86765fdc945bd170f4907c2150f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <h2 class="groupheader">Function Documentation</h2>
-<a id="a37e9139b24e263b9e4a289f1defbf967" name="a37e9139b24e263b9e4a289f1defbf967"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a37e9139b24e263b9e4a289f1defbf967">&#9670;&#160;</a></span>calculate_selectivity()</h2>
+<a id="aaf5da86765fdc945bd170f4907c2150f" name="aaf5da86765fdc945bd170f4907c2150f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aaf5da86765fdc945bd170f4907c2150f">&#9670;&#160;</a></span>calculate_selectivity()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -168,6 +168,18 @@ template&lt;class Type &gt; </div>
           <td></td>
           <td class="paramtype">matrix&lt; Type &gt; &amp;&#160;</td>
           <td class="paramname"><em>lengths</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const vector&lt; int &gt; &amp;&#160;</td>
+          <td class="paramname"><em>nlengths_pop</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">matrix&lt; Type &gt; &amp;&#160;</td>
+          <td class="paramname"><em>lengths_pop</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
@@ -377,7 +389,31 @@ template&lt;class Type &gt; </div>
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype">array&lt; Type &gt; &amp;&#160;</td>
-          <td class="paramname"><em>sel_apical_off_nat</em>&#160;</td>
+          <td class="paramname"><em>sel_apical_off_nat</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">array&lt; Type &gt; &amp;&#160;</td>
+          <td class="paramname"><em>sel_dn6</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">array&lt; Type &gt; &amp;&#160;</td>
+          <td class="paramname"><em>sel_dn6_off</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">array&lt; Type &gt; &amp;&#160;</td>
+          <td class="paramname"><em>sel_dn6_off_nat</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">matrix&lt; int &gt; &amp;&#160;</td>
+          <td class="paramname"><em>sel_dn6_ends</em>&#160;</td>
         </tr>
         <tr>
           <td></td>
@@ -394,7 +430,7 @@ template&lt;class Type &gt; </div>
 </ul>
 <h1><a class="anchor" id="functional_forms"></a>
 Selectivity Models:</h1>
-<p>The dimension (age vs length) is determined by <code>flt_sel_dim</code> (0 = age, 1 = length) and is shared across all parametric cases; the age/length distinction is handled inside each case, not by a separate case number. After calculation, length-based selectivity is converted to age-based via <code><a class="el" href="selectivity_8hpp.html#aabaee3c0482fb6a393f54476602c1d76" title="Converts length-based selectivity to age-based selectivity and stores it in a 4D array.">convert_length_selectivity()</a></code>, and all selectivities are normalized/projected via <code><a class="el" href="selectivity_8hpp.html#a214e4701f38b4c8e5056331257af0a64" title="Performs final normalization and projection of fishery selectivity (age/length) across all fleets.">normalize_and_project_selectivity()</a></code>.</p>
+<p>The dimension (age vs length) is determined by <code>flt_sel_dim</code> (0 = age, 1 = length) and is shared across all parametric cases; the age/length distinction is handled inside each case, not by a separate case number. After calculation, length-based selectivity is converted to age-based via <code><a class="el" href="selectivity_8hpp.html#a94dac806d8bc628d9a868760c01f5dc0" title="Converts length-based selectivity to age-based selectivity and stores it in a 4D array.">convert_length_selectivity()</a></code>, and all selectivities are normalized/projected via <code><a class="el" href="selectivity_8hpp.html#a510503499bf3dbb22299bb23cbcf4aa9" title="Performs final normalization and projection of fishery selectivity (age/length) across all fleets.">normalize_and_project_selectivity()</a></code>.</p>
 <ul>
 <li>Case 0: Empirical — fixed selectivity read from <code>emp_sel</code> input; assumed age-based.</li>
 <li>Case 1: Logistic — 2-parameter ascending logistic [Age or Length] sel(x) = 1 / (1 + exp(-slope * (x - inflection))) Parameters: log_sel_slp(0) = log(slope); sel_inf(0) = inflection point</li>
@@ -405,6 +441,7 @@ Selectivity Models:</h1>
 <li>Case 6: 2D AR1 (age x year) [Age or Length] Logistic-transformed bin-year deviates with AR1 correlation across age and year.</li>
 <li>Case 7: 3D AR1 (age x cohort x year, Cheng et al 2024) [Age or Length] Conditional-variance parameterisation of a 3D random field across age, cohort and year.</li>
 <li>Case 8: Double Normal [Age or Length] Four-parameter dome with a configurable right-tail floor (analogous to SS3 pattern 24 / P6). Gaussian ascending limb left of peak; Gaussian descending limb right of peak that approaches <code>right_floor</code> instead of 0; blended smoothly via a steep logistic weight so the function is twice differentiable everywhere. w(x) = 1 / (1 + exp(-20*(x - peak))) [~0 left of peak, ~1 right] asc(x) = exp(-0.5*((x-peak)/sigma_asc)^2) desc(x) = right_floor + (1 - right_floor) * exp(-0.5*((x-peak)/sigma_desc)^2) sel(x) = (1 - w(x)) * asc(x) + w(x) * desc(x) right_floor = 1 / (1 + exp(-(sel_inf(1) + sel_inf_dev(1)))) [logit] Parameters (reuses existing arrays; all four support annual deviates): sel_inf(0) = peak bin (mode); TV deviate: sel_inf_dev(0) log_sel_slp(0) = log(sigma_ascending); TV deviate: log_sel_slp_dev(0) log_sel_slp(1) = log(sigma_descending); TV deviate: log_sel_slp_dev(1) sel_inf(1) = logit(right_floor) (~SS3 P6/end_logit). logit -&gt; -Inf gives a fully dome-shaped curve; logit -&gt; +Inf collapses to logistic (ascending only). TV deviate: sel_inf_dev(1)</li>
+<li>Case 15: DoubleNormalSS3 [Age or Length] Stock Synthesis size-selectivity pattern 24 (and age pattern 20), evaluated at the bin midpoints x with SS3's own six parameters, each on SS3's scale: P1 peak (cm or age), P2 top width (logit), P3 ascending width (log), P4 descending width (log), P5 initial selectivity (logit), P6 final (logit). peak2 = P1 + w + (0.99 x_last - P1 - w) / (1 + exp(-P2)), w = bin width asc = p1 + (1 - p1)(exp(-(x-P1)^2/e^P3) - t1min)/(1 - t1min), p1 = logistic(P5) dsc = 1 + (p2 - 1)(exp(-(x-peak2)^2/e^P4) - 1)/(t2min - 1), p2 = logistic(P6) j(t) = 1/(1 + exp(-20 t/(1 + |t|))) sel = asc (1 - j(x-P1)) + j(x-P1) ((1 - j(x-peak2)) + dsc j(x-peak2)) t1min / t2min are the Gaussian limbs at the first and last bins. A P5 or P6 of -999 or -1000 in SS3 drops that end's scaling (asc = exp(-(x-P1)^2/e^P3), likewise dsc); here that choice is the data flag sel_dn6_ends. No normalization: the curve peaks at 1 by construction. Parameters live in their own array, sel_dn6[6, flt, sex]; time variation is through linkages on each of the six, value = (P + identity offset) x exp(log offset), so an SS3 block replacement (identity link, block factor) followed by multiplicative annual devs (log link) reproduces SS3's order.</li>
 <li><dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">nspp</td><td>Number of species. </td></tr>
@@ -443,14 +480,14 @@ Selectivity Models:</h1>
 </li>
 </ul>
 
-<p class="definition">Definition at line <a class="el" href="selectivity_8hpp_source.html#l00267">267</a> of file <a class="el" href="selectivity_8hpp_source.html">selectivity.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="selectivity_8hpp_source.html#l00292">292</a> of file <a class="el" href="selectivity_8hpp_source.html">selectivity.hpp</a>.</p>
 
-<p class="reference">References <a class="el" href="selectivity_8hpp_source.html#l00151">convert_length_selectivity()</a>, <a class="el" href="helper__functions_8hpp_source.html#l00059">isNA()</a>, <a class="el" href="helper__functions_8hpp_source.html#l00151">log_mean_exp()</a>, <a class="el" href="helper__functions_8hpp_source.html#l00128">max2()</a>, and <a class="el" href="selectivity_8hpp_source.html#l00034">normalize_and_project_selectivity()</a>.</p>
+<p class="reference">References <a class="el" href="selectivity_8hpp_source.html#l00156">convert_length_selectivity()</a>, <a class="el" href="helper__functions_8hpp_source.html#l00059">isNA()</a>, <a class="el" href="helper__functions_8hpp_source.html#l00151">log_mean_exp()</a>, <a class="el" href="helper__functions_8hpp_source.html#l00128">max2()</a>, <a class="el" href="selectivity_8hpp_source.html#l00035">normalize_and_project_selectivity()</a>, and <a class="el" href="helper__functions_8hpp_source.html#l00072">square()</a>.</p>
 
 </div>
 </div>
-<a id="aabaee3c0482fb6a393f54476602c1d76" name="aabaee3c0482fb6a393f54476602c1d76"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aabaee3c0482fb6a393f54476602c1d76">&#9670;&#160;</a></span>convert_length_selectivity()</h2>
+<a id="a94dac806d8bc628d9a868760c01f5dc0" name="a94dac806d8bc628d9a868760c01f5dc0"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a94dac806d8bc628d9a868760c01f5dc0">&#9670;&#160;</a></span>convert_length_selectivity()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -497,7 +534,7 @@ template&lt;class Type &gt; </div>
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype">const vector&lt; int &gt; &amp;&#160;</td>
-          <td class="paramname"><em>nlengths</em>, </td>
+          <td class="paramname"><em>nlengths_pop</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
@@ -543,22 +580,22 @@ template&lt;class Type &gt; </div>
     <tr><td class="paramname">yr</td><td>Index of the year. </td></tr>
     <tr><td class="paramname">wtind</td><td>Index for the weight-at-age/growth transition matrix type. </td></tr>
     <tr><td class="paramname">nages</td><td>Reference to vector containing number of ages per species. </td></tr>
-    <tr><td class="paramname">nlengths</td><td>Reference to vector containing number of length bins per species. </td></tr>
-    <tr><td class="paramname">sel_length</td><td>Reference to 4D array of selectivity-at-length [flt, sex, ln, yr]. </td></tr>
-    <tr><td class="paramname">growth_matrix</td><td>Reference to 5D transition matrix [wtind, sex, age, ln, yr]. </td></tr>
+    <tr><td class="paramname">nlengths_pop</td><td>Reference to vector containing number of POPULATION length bins per species. </td></tr>
+    <tr><td class="paramname">sel_length</td><td>Reference to 4D array of selectivity-at-length [flt, sex, pop bin, yr]. </td></tr>
+    <tr><td class="paramname">growth_matrix</td><td>Reference to 5D transition matrix [wtind, sex, age, pop bin, yr]. </td></tr>
     <tr><td class="paramname">sel_at_age</td><td>Reference to 4D output array [flt, sex, age, yr] to be updated in-place. </td></tr>
   </table>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="selectivity_8hpp_source.html#l00151">151</a> of file <a class="el" href="selectivity_8hpp_source.html">selectivity.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="selectivity_8hpp_source.html#l00156">156</a> of file <a class="el" href="selectivity_8hpp_source.html">selectivity.hpp</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="selectivity_8hpp_source.html#l00267">calculate_selectivity()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="selectivity_8hpp_source.html#l00292">calculate_selectivity()</a>.</p>
 
 </div>
 </div>
-<a id="a214e4701f38b4c8e5056331257af0a64" name="a214e4701f38b4c8e5056331257af0a64"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a214e4701f38b4c8e5056331257af0a64">&#9670;&#160;</a></span>normalize_and_project_selectivity()</h2>
+<a id="a510503499bf3dbb22299bb23cbcf4aa9" name="a510503499bf3dbb22299bb23cbcf4aa9"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a510503499bf3dbb22299bb23cbcf4aa9">&#9670;&#160;</a></span>normalize_and_project_selectivity()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -617,7 +654,7 @@ template&lt;class Type &gt; </div>
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype">const vector&lt; int &gt; &amp;&#160;</td>
-          <td class="paramname"><em>nlengths</em>, </td>
+          <td class="paramname"><em>nlengths_pop</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
@@ -673,7 +710,7 @@ template&lt;class Type &gt; </div>
     <tr><td class="paramname">flt_sel_dim</td><td>Age or length based selectivity. </td></tr>
     <tr><td class="paramname">bin_first_selected</td><td>Array/function returning the minimum age/length bin of selection for a fleet. </td></tr>
     <tr><td class="paramname">nages</td><td>Array/function returning the number of ages for a species. </td></tr>
-    <tr><td class="paramname">nlengths</td><td>Array/function returning the number of length bins for a species. </td></tr>
+    <tr><td class="paramname">nlengths_pop</td><td>Array/function returning the number of POPULATION length bins for a species, the grid a length-based curve is built on. </td></tr>
     <tr><td class="paramname">nsex</td><td>Array/function returning the number of sexes for a species. </td></tr>
     <tr><td class="paramname">sel_norm_bin1</td><td>Array/function returning the normalization age or control flag. </td></tr>
     <tr><td class="paramname">sel_norm_bin2</td><td>Array/function returning the upper bound for age-range normalization. </td></tr>
@@ -683,11 +720,11 @@ template&lt;class Type &gt; </div>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="selectivity_8hpp_source.html#l00034">34</a> of file <a class="el" href="selectivity_8hpp_source.html">selectivity.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="selectivity_8hpp_source.html#l00035">35</a> of file <a class="el" href="selectivity_8hpp_source.html">selectivity.hpp</a>.</p>
 
 <p class="reference">References <a class="el" href="helper__functions_8hpp_source.html#l00128">max2()</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="selectivity_8hpp_source.html#l00267">calculate_selectivity()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="selectivity_8hpp_source.html#l00292">calculate_selectivity()</a>.</p>
 
 </div>
 </div>

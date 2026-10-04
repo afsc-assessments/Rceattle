@@ -11,7 +11,7 @@ and an estimation phase like any other linkage."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.49.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -57,7 +57,7 @@ and an estimation phase like any other linkage."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Catchability specification</h1>
-      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.45.3/R/0-build_catchability.R" class="external-link"><code>R/0-build_catchability.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/R/0-build_catchability.R" class="external-link"><code>R/0-build_catchability.R</code></a></small>
       <div class="d-none name"><code>build_catchability.Rd</code></div>
     </div>
 
@@ -86,6 +86,16 @@ fleet by default (<code>by = ~ fleet</code>); use the <code>fleet</code> argumen
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A list of catchability settings for <code><a href="fit_mod.html">fit_mod()</a></code>.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>Catchability is the one process that accepts
+<code>link = "exponential"</code>, Stock Synthesis's environmental link type 1:
+<code>q^exp(beta * x)</code>, which MULTIPLIES <code>log q</code> where <code>"log"</code> shifts it. It
+needs an estimated base <code>q</code> and a lognormal or t index likelihood, and
+cannot share a fleet with a random-effect q linkage; each of those is
+refused with the reason. See
+<code><a href="../articles/environmental-linkages-and-priors.html">vignette("environmental-linkages-and-priors")</a></code>.</p>
     </div>
 
     <div class="section level2">

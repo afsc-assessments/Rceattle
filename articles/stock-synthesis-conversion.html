@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.49.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -81,7 +81,7 @@
       <h1>7. Converting from Stock Synthesis</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.45.3/vignettes/stock-synthesis-conversion.Rmd" class="external-link"><code>vignettes/stock-synthesis-conversion.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/vignettes/stock-synthesis-conversion.Rmd" class="external-link"><code>vignettes/stock-synthesis-conversion.Rmd</code></a></small>
       <div class="d-none name"><code>stock-synthesis-conversion.Rmd</code></div>
     </div>
 
@@ -562,8 +562,11 @@ sheet.</li>
 <code>fleet_control</code> and <code>estDynamics = 1</code> for each
 species on <code>control</code> (this fixes N-at-age to
 <code>NByageFixed</code>).</li>
-<li>Run <code>fit_mod(estimateMode = 1, ...)</code> to evaluate without
-re-fitting.</li>
+<li>Run <code>fit_mod(estimateMode = 3, ...)</code> to evaluate without
+re-fitting. Mode 3 (<code>"DebugBuild"</code>) builds the objective and
+stops; mode 1 (<code>"Hindcast"</code>) re-estimates the hindcast, which
+is not what you want when you have just injected another model’s
+parameters.</li>
 </ol>
 <p>Differences between Rceattle and SS at this stage trace back to
 either (a) a coercion bug in the data port, (b) a different mortality

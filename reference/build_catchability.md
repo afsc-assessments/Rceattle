@@ -27,6 +27,15 @@ build_catchability(linkages = NULL)
 A list of catchability settings for
 [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md).
 
+## Details
+
+Catchability is the one process that accepts `link = "exponential"`,
+Stock Synthesis's environmental link type 1: `q^exp(beta * x)`, which
+MULTIPLIES `log q` where `"log"` shifts it. It needs an estimated base
+`q` and a lognormal or t index likelihood, and cannot share a fleet with
+a random-effect q linkage; each of those is refused with the reason. See
+[`vignette("environmental-linkages-and-priors")`](https://afsc-assessments.github.io/Rceattle/articles/environmental-linkages-and-priors.md).
+
 ## Examples
 
 ``` r

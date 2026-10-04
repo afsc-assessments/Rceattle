@@ -3,9 +3,12 @@
 Multiplies each year's proportions by its input sample size, sums the
 counts over years (for one fleet x type panel), and puts the total back
 on the proportion scale; joint-sex groups keep their shared
-normalization (females + males sum to 1). Pooling counts rather than
-averaging proportions is what stops a year with 20 otoliths counting as
-much as one with 2000.
+normalization (females + males sum to 1). A fleet carrying more than one
+observation structure – say sexes combined in the early years and
+disaggregated later – is split into one panel per structure upstream, so
+each is renormalized over the rows the likelihood scores together rather
+than across the two. Pooling counts rather than averaging proportions is
+what stops a year with 20 otoliths counting as much as one with 2000.
 
 ## Usage
 

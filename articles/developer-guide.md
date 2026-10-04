@@ -481,7 +481,7 @@ CI runs where are stated once, in
 - **Reproducing an external model.** Supply numbers-at-age via the
   `NByageFixed` sheet and selectivity via `emp_sel` with
   `Selectivity = "Fixed"`, set `estDynamics = 1`, and run
-  `fit_mod(estimateMode = 1)` to evaluate without re-fitting. (See also
+  `fit_mod(estimateMode = 3)` to evaluate without re-fitting. (See also
   the [Stock Synthesis
   conversion](https://afsc-assessments.github.io/Rceattle/articles/stock-synthesis-conversion.md)
   article.)

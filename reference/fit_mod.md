@@ -163,8 +163,9 @@ fit_mod(
   how the population is initialized, as a string alias or integer code:
   `"FreeParams"` (0), `"Equilibrium"` (1), `"NonEquilibrium"` (2, the
   default), `"FishedNonEquilibrium"` (3), `"FishedNonEquilibriumScaled"`
-  (4), `"OffsetEquilibrium"` (5). See the **Initial age structure**
-  section below for what each one estimates.
+  (4), `"OffsetEquilibrium"` (5), `"FishedNonEquilibriumSelected"` (6).
+  See the **Initial age structure** section below for what each one
+  estimates.
 
 - suitMode:
 
@@ -336,6 +337,25 @@ What `initMode` estimates, and from what:
   usual geometric plus group. Initial deviates are turned off and no
   init-dev penalty is applied. This is the Cole Monnahan / AFSC GOA
   pollock convention.
+
+- `"FishedNonEquilibriumSelected"` (6):
+
+  As (3), but \\F\_{init}\\ is weighted by the fishery's selectivity at
+  age before it accumulates, so the first year decays with \\\sum\_{a'
+  \< a} (M1\_{a'} + F\_{init} s\_{a'})\\. This is Stock Synthesis's
+  InitF convention. \\F\_{init}\\ is the apical initial F, since \\s\\
+  is normalized to a maximum of 1. The selectivity is the mean over the
+  species' fishery fleets in the first hindcast year, which is exact for
+  a single fishery; Rceattle carries one \\F\_{init}\\ per species where
+  SS3 carries one per fleet, so a multi-fishery stock gets the mean
+  shape.
+
+Modes 3, 4 and 6 differ in how \\F\_{init}\\ reaches an age. (3) charges
+every age the same \\F\_{init}\\, (4) applies it once rather than
+accumulating it, and (6) weights it by selectivity. Under a
+size-selective fishery only (6) is an equilibrium: (3) kills unselected
+young ages at the full initial F and (4) does not decay the older ages
+with it at all.
 
 Modes 1 and 5 differ by exactly one term: both start from the initial
 equilibrium recruitment \\R\_{init}\\, but (1) projects it forward

@@ -10,5 +10,6 @@ var searchData=
   ['rceattle_5fproc_5fsel_7',['RCEATTLE_PROC_SEL',['../linkage_8hpp.html#afaba13702a6b32c4ba0b16514150951d',1,'linkage.hpp']]],
   ['rceattle_5frec_5falpha_8',['RCEATTLE_REC_ALPHA',['../linkage_8hpp.html#a495b5ad0920f2eb9e1b95b87479f06e5',1,'linkage.hpp']]],
   ['rceattle_5frec_5fbeta_9',['RCEATTLE_REC_BETA',['../linkage_8hpp.html#a32a958ddaccc36e68a3f936ca232d2bd',1,'linkage.hpp']]],
-  ['rceattle_5frec_5fr0_10',['RCEATTLE_REC_R0',['../linkage_8hpp.html#ab4572d3ce0bdd84df1b8bc480413daeb',1,'linkage.hpp']]]
+  ['rceattle_5frec_5fr0_10',['RCEATTLE_REC_R0',['../linkage_8hpp.html#ab4572d3ce0bdd84df1b8bc480413daeb',1,'linkage.hpp']]],
+  ['rceattle_5frec_5fr_5finit_11',['RCEATTLE_REC_R_INIT',['../linkage_8hpp.html#a3997b334a39a9de96070b18005b1d0c0',1,'linkage.hpp']]]
 ];

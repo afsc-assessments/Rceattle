@@ -88,36 +88,39 @@ parameter_dictionary("R_log_sd")
 
 # Everything governing selectivity
 parameter_dictionary(process = "selectivity")
-#>          internal                                        natural     process
-#> 1     log_sel_slp                              selectivity slope selectivity
-#> 2         sel_inf                         selectivity inflection selectivity
-#> 3  log_sel_apical                      selectivity apical height selectivity
-#> 4 log_sel_slp_dev                               slope deviations selectivity
-#> 5     sel_inf_dev                          inflection deviations selectivity
-#> 6        sel_coff                       selectivity coefficients selectivity
-#> 7    sel_coff_dev                         coefficient deviations selectivity
-#> 8  sel_dev_log_sd                                      sigma_sel selectivity
-#> 9   sel_curve_pen selectivity penalty weights / AR1 correlations selectivity
-#>                                                                                                                                                                                                                                                                                                                                        meaning
-#> 1                                                                                                                                                                                                                                                                        Logistic-family selectivity slope; row 1 ascending, row 2 descending.
-#> 2                                                                                                                                                                                                                                                              Logistic-family age/length at 50% selection; row 1 ascending, row 2 descending.
-#> 3                                                                                                                                                                           Log multiplier on one sex's whole curve, applied after the form and before normalization; 0 = no offset. Estimated only through a selectivity linkage on `apical`.
-#> 4                                                                                                                                                                                                                                                                                                  Annual deviations on the selectivity slope.
-#> 5                                                                                                                                                                                                                                                                                       Annual deviations on the selectivity inflection point.
-#> 6                                                                                                                                                                                                                                                                                              Non-parametric selectivity-at-bin coefficients.
-#> 7                                                                                                                                                                                                                                                                            Annual deviations on the non-parametric selectivity coefficients.
-#> 8                                                                                                                                                                                                                                                                               Standard deviation of the time-varying selectivity deviations.
-#> 9 Meaning depends on the fleet's Selectivity. For the non-parametric forms these are weights on the shape and curvature penalties, supplied via fleet_control and not estimated. For '2DAR1' and '3DAR1' the same slots hold estimated correlations: slot 1 across selectivity BINS, slot 2 across YEARS, and for 3DAR1 slot 3 across COHORTS.
-#>                                   dims
-#> 1                     [2, n_sel, nsex]
-#> 2                     [2, n_sel, nsex]
-#> 3                        [n_sel, nsex]
-#> 4          [2, n_sel, nsex, nyrs_hind]
-#> 5          [2, n_sel, nsex, nyrs_hind]
-#> 6            [n_sel, nsex, n_sel_bins]
-#> 7 [n_sel, nsex, n_sel_bins, nyrs_hind]
-#> 8                              [n_sel]
-#> 9                           [n_sel, 3]
+#>           internal                                        natural     process
+#> 1      log_sel_slp                              selectivity slope selectivity
+#> 2          sel_inf                         selectivity inflection selectivity
+#> 3   log_sel_apical                      selectivity apical height selectivity
+#> 4          sel_dn6                   SS3 double-normal parameters selectivity
+#> 5  log_sel_slp_dev                               slope deviations selectivity
+#> 6      sel_inf_dev                          inflection deviations selectivity
+#> 7         sel_coff                       selectivity coefficients selectivity
+#> 8     sel_coff_dev                         coefficient deviations selectivity
+#> 9   sel_dev_log_sd                                      sigma_sel selectivity
+#> 10   sel_curve_pen selectivity penalty weights / AR1 correlations selectivity
+#>                                                                                                                                                                                                                                                                                                                                                                                                                 meaning
+#> 1                                                                                                                                                                                                                                                                                                                                                 Logistic-family selectivity slope; row 1 ascending, row 2 descending.
+#> 2                                                                                                                                                                                                                                                                                                                                       Logistic-family age/length at 50% selection; row 1 ascending, row 2 descending.
+#> 3                                                                                                                                                                                                                                                    Log multiplier on one sex's whole curve, applied after the form and before normalization; 0 = no offset. Estimated only through a selectivity linkage on `apical`.
+#> 4  DoubleNormalSS3 (Stock Synthesis size pattern 24) parameters on SS3's own scales: peak (cm or age), logit top width, log ascending width, log descending width, logit initial and logit final selectivity. A starting value of -999 on either of the last two is SS3's switch for leaving that end unscaled: the parameter then drops out of the curve and is fixed. Time variation is through selectivity linkages.
+#> 5                                                                                                                                                                                                                                                                                                                                                                           Annual deviations on the selectivity slope.
+#> 6                                                                                                                                                                                                                                                                                                                                                                Annual deviations on the selectivity inflection point.
+#> 7                                                                                                                                                                                                                                                                                                                                                                       Non-parametric selectivity-at-bin coefficients.
+#> 8                                                                                                                                                                                                                                                                                                                                                     Annual deviations on the non-parametric selectivity coefficients.
+#> 9                                                                                                                                                                                                                                                                                                                                                        Standard deviation of the time-varying selectivity deviations.
+#> 10                                                                         Meaning depends on the fleet's Selectivity. For the non-parametric forms these are weights on the shape and curvature penalties, supplied via fleet_control and not estimated. For '2DAR1' and '3DAR1' the same slots hold estimated correlations: slot 1 across selectivity BINS, slot 2 across YEARS, and for 3DAR1 slot 3 across COHORTS.
+#>                                    dims
+#> 1                      [2, n_sel, nsex]
+#> 2                      [2, n_sel, nsex]
+#> 3                         [n_sel, nsex]
+#> 4                      [6, n_sel, nsex]
+#> 5           [2, n_sel, nsex, nyrs_hind]
+#> 6           [2, n_sel, nsex, nyrs_hind]
+#> 7             [n_sel, nsex, n_sel_bins]
+#> 8  [n_sel, nsex, n_sel_bins, nyrs_hind]
+#> 9                               [n_sel]
+#> 10                           [n_sel, 3]
 
 # Search the meanings by keyword
 dict <- parameter_dictionary()

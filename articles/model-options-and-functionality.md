@@ -57,6 +57,47 @@ Codes (also accept the string aliases listed):
 | `3` | `"FishedNonEquilibrium"` | Fished non-equilibrium with init devs; F_(init) is added to M inside geometric series |
 | `4` | `"FishedNonEquilibriumScaled"` | Fished non-equilibrium with init devs and R₀-scaled by F_(init) |
 | `5` | `"OffsetEquilibrium"` | Unfished equilibrium, F_(init) = 0, displaced by the year-1 recruitment deviation instead of sitting at R_(init); init devs off, no init-dev penalty (Cole Monnahan / AFSC GOA pollock convention) |
+| `6` | `"FishedNonEquilibriumSelected"` | As `3`, but F_(init) is weighted by the fishery’s selectivity at age before it accumulates, so the first year decays with ∑(M1 + F_(init) s_(a)). Stock Synthesis’s InitF convention; F_(init) is the apical initial F. Use this where the fishery is size-selective, since `3` charges unselected young ages the full F_(init) and `4` applies it once |
+
+Rceattle estimates one F_(init) per species where SS3 carries one per
+fleet, so under mode `6` a species with more than one fishery decays its
+initial age structure at the **mean** selectivity of those fisheries.
+F_(init) is then not the apical initial F of any one of them, and
+[`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
+warns — the initial state sets the SSB scale.
+
+#### The initial equilibrium catch
+
+Modes `3`, `4` and `6` estimate F_(init), but nothing identifies it
+unless you give it an observation: the catch the stock yielded under
+that initial fishing mortality, in the year before the hindcast. Write
+it as an ordinary `catch_data` row at `styr - 1`, with the fleet’s
+`Catch` and `Log_sd`. No new columns.
+
+**It is read only under mode `6`.** The prediction is Baranov at
+F_(init) × selectivity, and mode `6` is the only mode that builds the
+initial age structure with that same mortality, so scoring it under `3`
+or `4` would fit F_(init) to a catch the population was never subject
+to. Under any other mode the row is dropped, and
+[`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
+says so.
+
+That year also holds ordinary catch history — `GOA2018SS` carries 23
+rows before `styr`, two of them on `styr - 1` — so
+[`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
+names the fleets whose rows it reads whenever it reads any. It refuses
+two rows for one fleet, a non-positive catch or `Log_sd`, a fleet that
+is not an active fishery, and a species with more than one fishery
+(Rceattle carries one F_(init) per species, so there is no per-fleet
+split to predict with).
+
+[`clean_data()`](https://afsc-assessments.github.io/Rceattle/reference/clean_data.md)
+moves the row into `data_list$equil_catch_data` so `catch_data` keeps
+one row per fitted catch;
+[`write_data()`](https://afsc-assessments.github.io/Rceattle/reference/write_data.md)
+writes it back into the catch sheet. The prediction is reported as
+`quantities$equil_catch_hat` and scored on its own `jnll_comp` row,
+`"Initial equilibrium catch"`.
 
 ### `estimateMode`, what does `fit_mod()` actually do?
 
@@ -122,6 +163,7 @@ below (integers or strings both work):
 | `9` | `"NonParametricPM"` | Ianelli non-parametric with the ADMB AMAK (“pm”) penalty; see `Sel_avgsel_pen`, `Sel_cap_bin` |
 | `11` | `"LogisticPM"` | AMAK (“pm”) logistic: multiplicative inflection/slope deviations plus a free age-1 log-selectivity |
 | `13` | `"NonParametricIntegrable"` | The `NonParametric` base curve whose deviations have a proper density: the shape penalties are charged once on the base, so `random_sel = TRUE` integrates them. `Time_varying_sel` picks the structure (`Off`, `IID` or `RandomWalk`) |
+| `15` | `"DoubleNormalSS3"` | Stock Synthesis size pattern 24: the six-parameter double normal, each parameter on SS3’s own scale (peak; logit top width; log ascending and descending widths; logit initial and final selectivity) in its own array `sel_dn6`. An end left at SS3’s -999 is unscaled and fixed. Not normalized, as in SS3. All six take selectivity linkages under the SS3 manual’s names; `Time_varying_sel` must be `"Off"` |
 
 There is no `10`: the integer codes are frozen, because renumbering one
 would silently reinterpret every saved config and every fitted `.rds`
@@ -615,6 +657,32 @@ sheet: `Diet_distribution = 0` (multinomial) or `1`
 Conditional age-at-length (CAAL) data go through their own data path and
 are weighted via `CAAL_weights` per fleet.
 
+### Ageing error, per fleet
+
+`age_error` holds one matrix per species by default, and every fleet
+reads its own species’. A stock whose ageing protocol changed part way
+through a series needs more than one — GOA Pacific cod reads its
+pre-2007 survey otoliths about a year older than its post-2007 ones — so
+both `age_error` and `fleet_control` take an optional
+`Ageing_error_index`: give the matrices index values, then point each
+fleet at the one that aged its samples. Omit the column, or leave it
+`NA`, and the index is the species, which is what a model with one
+matrix per species has always done.
+
+The two eras of a survey are then two fleets sharing a
+`Selectivity_index` and a `Catchability_index`, so they still estimate
+one selectivity and one catchability between them.
+
+Each index belongs to one species, because a matrix’s rows are sized and
+offset by that species’ age range.
+[`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
+refuses an index that names no matrix, an index whose rows give more
+than one `Species`, and a fleet pointed at a matrix belonging to another
+species — which is the mistake the species default invites, since
+without the column `2` means “species 2’s matrix” and not “the second
+matrix”. Coverage is reported per matrix, so an incomplete one is named
+even where the species’ other matrices are complete.
+
 ## 6. Recruitment / stock-recruit (`recFun = build_srr()`)
 
 | `srr_fun` | String           | Description                      |
@@ -700,6 +768,16 @@ the deviation constant along one dimension deliberately.
 | `0` (default) | `"empirical"` | Empirical weight-at-age supplied via the `weight` data sheet. Forecasts re-use the terminal-year weight schedule. |
 | `1` | `"vonBertalanffy"` | von Bertalanffy length-at-age + length-weight allometry (`alpha_wt_len`, `beta_wt_len` on the data control sheet) |
 | `2` | `"Richards"` | Sex-specific Richards growth |
+
+### Growth variability, plus group, length bins and maturity
+
+| Argument / column | Values | Description |
+|----|----|----|
+| `sd_form` | `"SD"` (default), `"CV"` | Whether `sd_L1` / `sd_Linf` are SDs of length-at-age (cm) or CVs (SD = CV x length) – SS3 `CV_Growth_Pattern` 2 or 0 |
+| `sd_plus_group` | `"WHAM"` (default), `"SS3"` | Plus-group SD pinned to the upper endpoint, or interpolated by length. SS3 with `Growth_Age_for_L2 = 999` is `"WHAM"` |
+| `plus_group_length` | `"M1"` (default), `"none"`, `"SS3.24"`, `"decay"` | Plus-group mean length: M1-weighted mean toward L-infinity, or SS3’s `Linf_decay` -998 / -999 / `plus_group_decay` |
+| `pop_lengths` | lower edges (cm); default the data bins | Population length bins on which the age-length key, weight and maturity are integrated |
+| `L50_mat_len`, `slope_mat_len` (control sheet) | cm, per cm; default NA | Logistic maturity-at-length; spawning output integrates maturity x weight over length. NA keeps the age-based `maturity` sheet |
 
 Priors and environmental relationships can be added to growth via
 [`build_growth()`](https://afsc-assessments.github.io/Rceattle/reference/build_growth.md).

@@ -9,7 +9,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.49.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -55,7 +55,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Data inputs for single species CEATTLE of the Bering Sea from 1979 to 2017</h1>
-      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.45.3/R/data.R" class="external-link"><code>R/data.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/R/data.R" class="external-link"><code>R/data.R</code></a></small>
       <div class="d-none name"><code>BS2017SS.Rd</code></div>
     </div>
 
@@ -126,7 +126,7 @@
 <dd><p>Survey and fishery data specifications</p></dd>
 
 <dt>index_data</dt>
-<dd><p>Survey index in weight (mt) or numbers (thousands of fish) data</p></dd>
+<dd><p>Survey index in weight (mt) or numbers (thousands of fish) data. The <code>Observation</code> column is on the NATURAL scale in the units <code>fleet_control$Observation_units</code> names, never a log: the likelihood takes the log itself, and a fitted observation must be positive. A negative <code>Year</code> predicts the row without fitting it.</p></dd>
 
 <dt>index_cov</dt>
 <dd><p>Optional named list of survey-index variance-covariance matrices, keyed by Fleet_name (or Fleet_code), used only by fleets whose fleet_control <code>Index_distribution == "MVN"</code>. Each matrix must be square and symmetric with dimension equal to the number of fitted survey observations for that fleet (Year in <code>styr:endyr</code>, Observation &gt; 0), ordered as in index_data. Inverted once internally to the precision matrix used in 0.5 * r' Sigma^-1 r. Leave unset for the default lognormal likelihood.</p></dd>
@@ -144,7 +144,7 @@
 <dd><p>Age transition matrix (e.g. growth trajectory) used to convert age to length for length comp data. Can have multiple matrices for a species specified by Age_transition_index.</p></dd>
 
 <dt>age_error</dt>
-<dd><p>Aging error matrices. Can have only one per species.</p></dd>
+<dd><p>Ageing error matrices, one row per true age. One per species by default; give several and select them per fleet with the 'Ageing_error_index' column of both this table and <code>fleet_control</code>.</p></dd>
 
 <dt>weight</dt>
 <dd><p>Weight-at-age (weight) to use for calculation of derived quantities (SSB, Consumption/Ration, Suitability, Total Catch, Survey Biomass, etc). Can have multiple weight-at-age data-sets for each species, but must be full for all years of the hindcast.</p></dd>
@@ -226,7 +226,7 @@
 <dd><p>Index used to give fleets the same selectivity (otherwise, same as Fleet_code). Fleets sharing a value share one selectivity parameter block, with its penalties and priors accumulated once on the group's first non-Off fleet. Sharing the parameters is not enough on its own: the columns that shape the curve are read per fleet and must agree across the group, or the fleets end up with different selectivities. <code><a href="data_check.html">data_check()</a></code> reports any that differ. To mirror a fleet, copy its fleet_control row and change only the identity and catchability columns. See <code><a href="../articles/model-options-and-functionality.html">vignette("model-options-and-functionality")</a></code>.</p></dd>
 
 <dt>Selectivity</dt>
-<dd><p>Selectivity form: 0 = "Fixed"; 1 = "Logistic"; 2 = "NonParametric" (Ianelli et al. 2018); 3 = "DoubleLogistic"; 4 = "DescendingLogistic"; 5 = "Hake" non-parametric (Taylor et al. 2014); 6 = "2DAR1"; 7 = "3DAR1" (Cheng et al. 2024); 8 = "DoubleNormal"; 9 = "NonParametricPM" (non-parametric random walk with penalized increments, AMAK "pm"; not integrable under random_sel); 11 = "LogisticPM" (logistic with a free age-1 selectivity, AMAK "pm"); 13 = "NonParametricIntegrable" (the Ianelli base curve whose deviations have a proper density, so random_sel integrates them; Time_varying_sel picks the structure: "Off", "IID" or "RandomWalk"). Whether a form is age- or length-based is set by Selectivity_dimension.</p></dd>
+<dd><p>Selectivity form: 0 = "Fixed"; 1 = "Logistic"; 2 = "NonParametric" (Ianelli et al. 2018); 3 = "DoubleLogistic"; 4 = "DescendingLogistic"; 5 = "Hake" non-parametric (Taylor et al. 2014); 6 = "2DAR1"; 7 = "3DAR1" (Cheng et al. 2024); 8 = "DoubleNormal"; 9 = "NonParametricPM" (non-parametric random walk with penalized increments, AMAK "pm"; not integrable under random_sel); 11 = "LogisticPM" (logistic with a free age-1 selectivity, AMAK "pm"); 13 = "NonParametricIntegrable" (the Ianelli base curve whose deviations have a proper density, so random_sel integrates them; Time_varying_sel picks the structure: "Off", "IID" or "RandomWalk"); 15 = "DoubleNormalSS3" (Stock Synthesis size pattern 24, six parameters on SS3's scales, varied through selectivity linkages). Whether a form is age- or length-based is set by Selectivity_dimension.</p></dd>
 
 <dt>Selectivity_dimension</dt>
 <dd><p>"Age" or "Length".</p></dd>
@@ -309,6 +309,9 @@ NA.</p></dd>
 
 <dt>Age_transition_index</dt>
 <dd><p>Age transition matrix (e.g. growth trajectory) index to use for derived quantities to convert age to length</p></dd>
+
+<dt>Ageing_error_index</dt>
+<dd><p>Ageing error matrix index, matching <code>Ageing_error_index</code> in <code>age_error</code>. Fleets sharing a value read the same matrix. Omit the column, or leave it NA, to use the fleet's own species, which is what a model with one matrix per species has always done.</p></dd>
 
 <dt>Catchability_index</dt>
 <dd><p>Index used to give fleets the same catchability (otherwise, same as Fleet_code). Fleets sharing a value share one q parameter, so the group holds only one answer to whether q is estimated: the group's first non-Off fleet decides for all of them, regardless of fleet type. Give a fleet its own value when it should be estimated independently. "Analytical" and "AnalyticalArith" are the exception, they solve q from each fleet's own index observations, so a group containing one does <em>not</em> share a catchability. <code><a href="data_check.html">data_check()</a></code> reports that case, a Fixed lead that leaves fleets on different inits, and a <code>Catchability</code> or <code>Time_varying_q</code> that differs within a group. See <code><a href="../articles/model-options-and-functionality.html">vignette("model-options-and-functionality")</a></code>.</p></dd>

@@ -15,7 +15,7 @@ Sex != 3 (single-sex or combined) are returned unchanged."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.49.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -61,7 +61,7 @@ Sex != 3 (single-sex or combined) are returned unchanged."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Split joint-sex (Sex == 3) composition bins onto a single age/length axis</h1>
-      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.45.3/R/7-plot_osa.R" class="external-link"><code>R/7-plot_osa.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/R/7-plot_osa.R" class="external-link"><code>R/7-plot_osa.R</code></a></small>
       <div class="d-none name"><code>dot-osa_jointsex.Rd</code></div>
     </div>
 
@@ -91,6 +91,15 @@ and <code>source</code> columns.</p></dd>
 <dd><p>Per-species bin counts (or <code>NULL</code> to skip the split).</p></dd>
 
 </dl></div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>The label says "joint" because the two series are halves of ONE decomposition
+unit, not two: a joint row is appended as a single density over the stacked
+vector with one cell dropped for the sum-to-one constraint, not one per sex.
+An assessment author read the previous " - male" / " - female" labels as two
+separate distributions and asked why the residuals did not match the
+likelihood; they do, and the label now says so.</p>
+    </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>

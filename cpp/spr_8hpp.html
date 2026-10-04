@@ -108,7 +108,7 @@ Functions</h2></td></tr>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Spawning biomass per recruit, for the Amendment-56 SPR proxies. </p>
 <p>F40% and F35% are the F that leave a target fraction of unfished spawning output per recruit; the template searches for them by penalising SPR(F)/SPR(0) against that fraction (section 13, JNLL_REFPT_PENALTY).</p>
-<p>Both functions work on the female schedule (sex index 0) and report spawning output per TOTAL recruit; the caller supplies a mature-at-age schedule with the female fraction already folded in.</p>
+<p>Both functions work on the female schedule (sex index 0) and report spawning output per TOTAL recruit; the caller supplies spawning output per fish with maturity folded in, and the female fraction not already in it.</p>
 <p>The reference points are not the only consumer. Under Beverton-Holt or Ricker recruitment, SPR0 sets steepness and R0 and SPRFinit sets R_init (section 6.3), and R_init scales the initial age structure (section 6.5) &ndash; so these values reach the hindcast and the objective under any harvest control rule.</p>
 <p>Not defined under predation: total mortality then carries M2, which scales with predator abundance, so spawning output per recruit is not a property of the prey stock alone. data_check() refuses the switch combinations that would read it. </p>
 
@@ -198,15 +198,15 @@ template&lt;class Type &gt; </div>
   <table class="params">
     <tr><td class="paramname">n</td><td>Numbers at age per recruit, from <a class="el" href="spr_8hpp.html#ac7750dfaef1626032c1beb65eba90358" title="Survivors at age from one recruit under a fixed mortality schedule.">per_recruit_survivors()</a>. </td></tr>
     <tr><td class="paramname">Z</td><td>The same mortality schedule that produced <code>n</code>, reused for the mortality served before spawning within the year. </td></tr>
-    <tr><td class="paramname">weight</td><td>Spawning weight at age (kg). </td></tr>
-    <tr><td class="paramname">mature_female</td><td>Proportion of a recruit's cohort mature and female at age (<code>mature_females</code>, section 5.4, times any recruitment split). </td></tr>
+    <tr><td class="paramname">weight</td><td>Spawning output per fish at age (kg): <code>spawn_output</code> (section 5.7), which already carries maturity and, for a one-sex species, the female fraction. </td></tr>
+    <tr><td class="paramname">mature_female</td><td>Remaining female fraction of a recruit's cohort at age: the recruitment split for a two-sex species, 1 otherwise. </td></tr>
     <tr><td class="paramname">spawn_month</td><td>Month of spawning, 0-12; 0 spawns at the start of the year. </td></tr>
   </table>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Spawning biomass per recruit (kg per recruit). </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="spr_8hpp_source.html#l00072">72</a> of file <a class="el" href="spr_8hpp_source.html">spr.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="spr_8hpp_source.html#l00074">74</a> of file <a class="el" href="spr_8hpp_source.html">spr.hpp</a>.</p>
 
 </div>
 </div>

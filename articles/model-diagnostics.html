@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.49.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -80,9 +80,9 @@
 
       <h1>3. Model diagnostics</h1>
             
-            <h4 data-toc-skip class="date">2026-09-29</h4>
+            <h4 data-toc-skip class="date">2026-10-04</h4>
       
-      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.45.3/vignettes/model-diagnostics.Rmd" class="external-link"><code>vignettes/model-diagnostics.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/vignettes/model-diagnostics.Rmd" class="external-link"><code>vignettes/model-diagnostics.Rmd</code></a></small>
       <div class="d-none name"><code>model-diagnostics.Rmd</code></div>
     </div>
 
@@ -342,6 +342,17 @@ standard error exceeds</p>
 <li>A curve held at its inputs is a <code>NOTE</code>.</li>
 </ol>
 </li>
+<li><p><strong><code>exponential_q_near_one</code></strong>: a fleet
+carrying an <code>exponential</code> catchability linkage whose FITTED
+catchability is within 0.1% of 1. That link multiplies
+<code>log q</code>, so at <code>q = 1</code> the covariate moves the
+index by nothing whatever the coefficient is, and the coefficient is
+unidentified. <code>WARN</code>. Read it off the fitted base, not the
+starting value: an intercept <code>init</code>,
+<code>fit_mod(inits = )</code> and a shared
+<code>Catchability_index</code> group each make
+<code>Catchability_init</code> something other than where
+<code>index_log_q</code> began.</p></li>
 <li><p><strong><code>phasing</code></strong>: phases that ended with a
 high gradient, localizing which parameter block is hard to fit.</p></li>
 <li><p><strong><code>estimability</code></strong>: surfaces
@@ -819,7 +830,7 @@ either <code>Fleet_code</code> values or names matching
 <code>fleet_control$Fleet_name</code>, give ids or names, not a mix,
 since R coerces <code>c(1, "Survey")</code> to character.</p>
 <div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">tuned</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/reweight_comps.html">reweight_comps</a></span><span class="op">(</span><span class="va">model_1</span>, fleets <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Survey_1"</span>, <span class="st">"Fishery_1"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="va">tuned</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/reweight_comps.html">reweight_comps</a></span><span class="op">(</span><span class="va">model_1</span>, fleets <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Bottom_trawl"</span>, <span class="st">"Fishery"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <p>Only multinomial fleets are tuned. A Dirichlet-multinomial fleet
 estimates its own weight inside the likelihood, so tuning it externally
 would compete with that estimate; those fleets are named and
@@ -1166,13 +1177,15 @@ from the MLE means the fit has not truly settled there. It supports the
 recruitment standard deviation, the stock–recruit parameters, and
 natural mortality.</p>
 <p>Specify the parameter with a natural-scale alias:
-<code>"sigmaR"</code> (recruitment standard deviation),
-<code>"M1"</code> (natural mortality), or the stock–recruit parameters
-<code>"R0"</code>, <code>"alpha"</code>, and <code>"beta"</code>.
-Aliases take natural-scale values directly. <code>slots</code> gives the
-cell(s) to profile (usually just the species index) and
-<code>values</code> gives the grid of values for each. Supplying more
-than one slot profiles over the full grid of combinations.</p>
+<code>"sigmaR"</code> (the standard deviation of the recruitment
+deviations, which are on the log scale, so this is not a CV of
+recruitment in thousands of fish), <code>"M1"</code> (natural
+mortality), or the stock–recruit parameters <code>"R0"</code>,
+<code>"alpha"</code>, and <code>"beta"</code>. Aliases take
+natural-scale values directly. <code>slots</code> gives the cell(s) to
+profile (usually just the species index) and <code>values</code> gives
+the grid of values for each. Supplying more than one slot profiles over
+the full grid of combinations.</p>
 <div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># 1-D profile: sigmaR for species 1 (natural-scale alias)</span></span>
 <span><span class="va">prof_sigmaR</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/profile.html" class="external-link">profile</a></span><span class="op">(</span></span>
@@ -1197,9 +1210,10 @@ than one slot profiles over the full grid of combinations.</p>
 <span><span class="va">prof_M_sex</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/profile.html" class="external-link">profile</a></span><span class="op">(</span></span>
 <span>  fitted <span class="op">=</span> <span class="va">model_1</span>,</span>
 <span>  param    <span class="op">=</span> <span class="st">"M1"</span>,</span>
-<span>  slots    <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">1</span>, <span class="fl">1</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span>,  <span class="co"># males and females</span></span>
-<span>  values   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">0.10</span>, <span class="fl">0.40</span>, by <span class="op">=</span> <span class="fl">0.05</span><span class="op">)</span>,</span>
-<span>                  <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">0.10</span>, <span class="fl">0.40</span>, by <span class="op">=</span> <span class="fl">0.05</span><span class="op">)</span><span class="op">)</span></span>
+<span>  <span class="co"># One slot per sex on a two-sex model. This one is single-sex, so sex 1 is</span></span>
+<span>  <span class="co"># the only slot there is -- asking for sex 2 is out of bounds for log_M1.</span></span>
+<span>  slots    <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">1</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>  values   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">0.10</span>, <span class="fl">0.40</span>, by <span class="op">=</span> <span class="fl">0.05</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <div class="section level3">
 <h3 id="moving-a-set-of-cells-together">Moving a set of cells together<a class="anchor" aria-label="anchor" href="#moving-a-set-of-cells-together"></a>
@@ -1236,7 +1250,7 @@ profiles the whole group; the others are added with a message.</p>
 <code class="sourceCode R"><span><span class="va">prof_q</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/profile.html" class="external-link">profile</a></span><span class="op">(</span></span>
 <span>  fitted <span class="op">=</span> <span class="va">model_1</span>,</span>
 <span>  param  <span class="op">=</span> <span class="st">"q"</span>,</span>
-<span>  slots  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="st">"BT_Pollock"</span><span class="op">)</span>,</span>
+<span>  slots  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="st">"Bottom_trawl"</span><span class="op">)</span>,</span>
 <span>  values <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">0.5</span>, <span class="fl">2.0</span>, by <span class="op">=</span> <span class="fl">0.1</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p><code><a href="https://rdrr.io/r/stats/profile.html" class="external-link">profile()</a></code> returns <code>Rceattle_list</code> (one fit

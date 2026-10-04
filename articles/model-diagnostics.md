@@ -258,6 +258,15 @@ The checks cover:
 
   10. A curve held at its inputs is a `NOTE`.
 
+- **`exponential_q_near_one`**: a fleet carrying an `exponential`
+  catchability linkage whose FITTED catchability is within 0.1% of 1.
+  That link multiplies `log q`, so at `q = 1` the covariate moves the
+  index by nothing whatever the coefficient is, and the coefficient is
+  unidentified. `WARN`. Read it off the fitted base, not the starting
+  value: an intercept `init`, `fit_mod(inits = )` and a shared
+  `Catchability_index` group each make `Catchability_init` something
+  other than where `index_log_q` began.
+
 - **`phasing`**: phases that ended with a high gradient, localizing
   which parameter block is hard to fit.
 
@@ -662,7 +671,7 @@ ids or names, not a mix, since R coerces `c(1, "Survey")` to character.
 
 ``` r
 
-tuned <- reweight_comps(model_1, fleets = c("Survey_1", "Fishery_1"))
+tuned <- reweight_comps(model_1, fleets = c("Bottom_trawl", "Fishery"))
 ```
 
 Only multinomial fleets are tuned. A Dirichlet-multinomial fleet
@@ -1004,13 +1013,14 @@ minimum away from the MLE means the fit has not truly settled there. It
 supports the recruitment standard deviation, the stock–recruit
 parameters, and natural mortality.
 
-Specify the parameter with a natural-scale alias: `"sigmaR"`
-(recruitment standard deviation), `"M1"` (natural mortality), or the
-stock–recruit parameters `"R0"`, `"alpha"`, and `"beta"`. Aliases take
-natural-scale values directly. `slots` gives the cell(s) to profile
-(usually just the species index) and `values` gives the grid of values
-for each. Supplying more than one slot profiles over the full grid of
-combinations.
+Specify the parameter with a natural-scale alias: `"sigmaR"` (the
+standard deviation of the recruitment deviations, which are on the log
+scale, so this is not a CV of recruitment in thousands of fish), `"M1"`
+(natural mortality), or the stock–recruit parameters `"R0"`, `"alpha"`,
+and `"beta"`. Aliases take natural-scale values directly. `slots` gives
+the cell(s) to profile (usually just the species index) and `values`
+gives the grid of values for each. Supplying more than one slot profiles
+over the full grid of combinations.
 
 ``` r
 
@@ -1037,9 +1047,10 @@ prof_alpha <- profile(
 prof_M_sex <- profile(
   fitted = model_1,
   param    = "M1",
-  slots    = list(c(1, 1, 1), c(1, 2, 1)),  # males and females
-  values   = list(seq(0.10, 0.40, by = 0.05),
-                  seq(0.10, 0.40, by = 0.05))
+  # One slot per sex on a two-sex model. This one is single-sex, so sex 1 is
+  # the only slot there is -- asking for sex 2 is out of bounds for log_M1.
+  slots    = list(c(1, 1, 1)),
+  values   = list(seq(0.10, 0.40, by = 0.05))
 )
 ```
 
@@ -1080,7 +1091,7 @@ message.
 prof_q <- profile(
   fitted = model_1,
   param  = "q",
-  slots  = list("BT_Pollock"),
+  slots  = list("Bottom_trawl"),
   values = list(seq(0.5, 2.0, by = 0.1))
 )
 ```

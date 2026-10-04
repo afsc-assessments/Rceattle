@@ -5,13 +5,19 @@ recruitment (the offset is added to log mean recruitment with the
 default log link); under a hindcast curve a single-species R0 is
 derived from alpha and beta, so an R0 linkage is refused there, and a
 multispecies one takes an intercept only. Linkages on alpha and beta only do
-work when the model has a curve (Beverton-Holt, Ricker)."><meta property="og:description" content="Natural-scale names of the underlying recruitment parameters
+work when the model has a curve (Beverton-Holt, Ricker). R_init is the
+initial recruitment level, a multiplier on R0 applied to the initial
+age-structure only; it has no rec_pars column, so its intercept carries the
+level itself and is deliberately absent from .REC_PARAM_TO_INDEX."><meta property="og:description" content="Natural-scale names of the underlying recruitment parameters
 that the linkage system can address. Linkages on R0 act under mean
 recruitment (the offset is added to log mean recruitment with the
 default log link); under a hindcast curve a single-species R0 is
 derived from alpha and beta, so an R0 linkage is refused there, and a
 multispecies one takes an intercept only. Linkages on alpha and beta only do
-work when the model has a curve (Beverton-Holt, Ricker)."></head><body>
+work when the model has a curve (Beverton-Holt, Ricker). R_init is the
+initial recruitment level, a multiplier on R0 applied to the initial
+age-structure only; it has no rec_pars column, so its intercept carries the
+level itself and is deliberately absent from .REC_PARAM_TO_INDEX."></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -19,7 +25,7 @@ work when the model has a curve (Beverton-Holt, Ricker)."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.49.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -65,7 +71,7 @@ work when the model has a curve (Beverton-Holt, Ricker)."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Allowed recruitment-parameter names for <code>linkages</code> in <code><a href="build_srr.html">build_srr()</a></code></h1>
-      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.45.3/R/0-build_srr.R" class="external-link"><code>R/0-build_srr.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/R/0-build_srr.R" class="external-link"><code>R/0-build_srr.R</code></a></small>
       <div class="d-none name"><code>RECRUITMENT_LINKAGE_PARAMS.Rd</code></div>
     </div>
 
@@ -76,7 +82,10 @@ recruitment (the offset is added to log mean recruitment with the
 default log link); under a hindcast curve a single-species <code>R0</code> is
 derived from alpha and beta, so an <code>R0</code> linkage is refused there, and a
 multispecies one takes an intercept only. Linkages on <code>alpha</code> and <code>beta</code> only do
-work when the model has a curve (Beverton-Holt, Ricker).</p>
+work when the model has a curve (Beverton-Holt, Ricker). <code>R_init</code> is the
+initial recruitment level, a multiplier on R0 applied to the initial
+age-structure only; it has no <code>rec_pars</code> column, so its intercept carries the
+level itself and is deliberately absent from <code>.REC_PARAM_TO_INDEX</code>.</p>
     </div>
 
     <div class="section level2">

@@ -6,7 +6,11 @@ linkage system can address. Linkages on `R0` act under mean recruitment
 under a hindcast curve a single-species `R0` is derived from alpha and
 beta, so an `R0` linkage is refused there, and a multispecies one takes
 an intercept only. Linkages on `alpha` and `beta` only do work when the
-model has a curve (Beverton-Holt, Ricker).
+model has a curve (Beverton-Holt, Ricker). `R_init` is the initial
+recruitment level, a multiplier on R0 applied to the initial
+age-structure only; it has no `rec_pars` column, so its intercept
+carries the level itself and is deliberately absent from
+`.REC_PARAM_TO_INDEX`.
 
 ## Usage
 

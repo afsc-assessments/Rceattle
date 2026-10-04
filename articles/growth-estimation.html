@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.49.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -81,7 +81,7 @@
       <h1>Growth estimation with linkages and priors</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.45.3/vignettes/growth-estimation.Rmd" class="external-link"><code>vignettes/growth-estimation.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/vignettes/growth-estimation.Rmd" class="external-link"><code>vignettes/growth-estimation.Rmd</code></a></small>
       <div class="d-none name"><code>growth-estimation.Rmd</code></div>
     </div>
 
@@ -255,6 +255,84 @@ redrawn by <code>sim_mod(process = "growth")</code>.</p>
 <span></span>
 <span><span class="va">baseline_fit</span><span class="op">$</span><span class="va">opt</span><span class="op">$</span><span class="va">AIC</span></span>
 <span><span class="va">vbgf_prior_fit</span><span class="op">$</span><span class="va">opt</span><span class="op">$</span><span class="va">AIC</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="matching-a-stock-synthesis-growth-specification">Matching a Stock Synthesis growth specification<a class="anchor" aria-label="anchor" href="#matching-a-stock-synthesis-growth-specification"></a>
+</h2>
+<p>These options let an estimated-growth model reproduce how Stock
+Synthesis 3.30 turns a growth curve into an age-length key,
+weight-at-age and spawning output. Each defaults to Rceattle’s usual
+behaviour, so nothing changes until you set one.</p>
+<table class="table">
+<colgroup>
+<col width="50%">
+<col width="50%">
+</colgroup>
+<thead><tr class="header">
+<th>SS3 control input</th>
+<th>Rceattle</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td>Population length bins (data file)</td>
+<td><code>build_growth(pop_lengths = &lt;lower edges, cm&gt;)</code></td>
+</tr>
+<tr class="even">
+<td>
+<code>CV_Growth_Pattern</code> 0 (CV a function of
+length-at-age)</td>
+<td>
+<code>build_growth(sd_form = "CV")</code>; <code>sd_L1</code> /
+<code>sd_Linf</code> are then CV_young / CV_old</td>
+</tr>
+<tr class="odd">
+<td>
+<code>CV_Growth_Pattern</code> 2 (SD a function of
+length-at-age)</td>
+<td>
+<code>sd_form = "SD"</code> (default)</td>
+</tr>
+<tr class="even">
+<td><code>Growth_Age_for_L2 = 999</code></td>
+<td>
+<code>sd_plus_group = "WHAM"</code> (plus group at CV_old /
+SD_old)</td>
+</tr>
+<tr class="odd">
+<td>
+<code>Linf_decay</code> -998 / -999 / d &gt; 0</td>
+<td>
+<code>plus_group_length = "none"</code> / <code>"SS3.24"</code> /
+<code>"decay"</code> with <code>plus_group_decay = d</code>
+</td>
+</tr>
+<tr class="even">
+<td>Maturity option 1 (length logistic), fecundity = weight</td>
+<td>control columns <code>L50_mat_len</code>, <code>slope_mat_len</code>
+(slope positive: SS3’s sign flipped)</td>
+</tr>
+<tr class="odd">
+<td><code>Growth_Age_for_L1</code></td>
+<td><code>build_growth(growth_age_L1 =)</code></td>
+</tr>
+</tbody>
+</table>
+<p>For example, a Richards model with SS3 1-cm population bins from 0.5
+to 142.5 cm, CVs, and no plus-group adjustment:</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">whamGrowthData</span><span class="op">$</span><span class="va">L50_mat_len</span>   <span class="op">&lt;-</span> <span class="fl">55.43</span>   <span class="co"># cm</span></span>
+<span><span class="va">whamGrowthData</span><span class="op">$</span><span class="va">slope_mat_len</span> <span class="op">&lt;-</span> <span class="fl">0.155</span>   <span class="co"># per cm</span></span>
+<span><span class="va">growth_ss3</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/build_growth.html">build_growth</a></span><span class="op">(</span></span>
+<span>  fun <span class="op">=</span> <span class="st">"Richards"</span>,</span>
+<span>  growth_age_L1 <span class="op">=</span> <span class="fl">1</span>,</span>
+<span>  sd_form <span class="op">=</span> <span class="st">"CV"</span>,</span>
+<span>  plus_group_length <span class="op">=</span> <span class="st">"none"</span>,</span>
+<span>  sd_plus_group <span class="op">=</span> <span class="st">"WHAM"</span>,</span>
+<span>  pop_lengths <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">0.5</span>, <span class="fl">142.5</span>, by <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>With maturity-at-length set, spawning biomass integrates maturity x
+weight over the length distribution at spawning; the fitted object
+reports the per-fish result as <code>quantities$spawn_output</code>.</p>
 </div>
 <div class="section level2">
 <h2 id="notes-on-priors-through-linkages">Notes on priors through linkages<a class="anchor" aria-label="anchor" href="#notes-on-priors-through-linkages"></a>

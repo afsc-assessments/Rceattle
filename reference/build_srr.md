@@ -1,8 +1,9 @@
 # Specify the stock-recruit relationship (SRR) for Rceattle
 
 Sets the stock-recruit curve and how recruitment is estimated. Priors,
-fixed values and environmental effects on `R0`, alpha and beta go
-through `linkages`; see **Priors, fixed values and covariates** below.
+fixed values and environmental effects on `R0`, alpha, beta and `R_init`
+go through `linkages`; see **Priors, fixed values and covariates**
+below.
 
 **Stock recruitment relationships currently implemented in Rceattle:**
 
@@ -149,9 +150,9 @@ build_srr(
 
   Named list of
   [`linkage_spec()`](https://afsc-assessments.github.io/Rceattle/reference/linkage_spec.md)
-  objects keyed by `"R0"`, `"alpha"` or `"beta"`: the recommended way to
-  put a prior on, fix, or add an environmental effect to those
-  parameters (see **Priors, fixed values and covariates**).
+  objects keyed by `"R0"`, `"alpha"`, `"beta"` or `"R_init"`: the
+  recommended way to put a prior on, fix, or add an environmental effect
+  to those parameters (see **Priors, fixed values and covariates**).
 
 ## Value
 
@@ -159,7 +160,7 @@ A `list` containing the stock recruitment relationship settings
 
 ## Priors, fixed values and covariates
 
-Use `linkages` for `R0`, alpha and beta. Each entry is a
+Use `linkages` for `R0`, alpha, beta and `R_init`. Each entry is a
 [`linkage_spec()`](https://afsc-assessments.github.io/Rceattle/reference/linkage_spec.md),
 and an intercept-only formula (`~ 1`) acts on the parameter itself:
 

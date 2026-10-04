@@ -71,8 +71,9 @@ exclusion list in `selectivity.hpp` (`sel_type != 12`); and 14 was
 advertised as a second integrable form before being collapsed into 13,
 which means `meta_data_names.xlsx` – the template every workbook is
 built from – carried `14 = ...` on `dev` for six days. A `Selectivity`
-column written in that window holds it. Retired is not free: **the next
-form takes 15.**
+column written in that window holds it. Retired is not free. 15 was
+taken in 5.46.0 by `DoubleNormalSS3`, Stock Synthesis size pattern 24,
+so **the next form takes 16.**
 
 ## The files, in pipeline order
 

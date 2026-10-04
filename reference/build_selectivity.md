@@ -110,6 +110,18 @@ fleet (its first fleet that is not `Off`); a prior on a follower would
 penalize the shared block once per sharing fleet. A prior on an `Off`
 fleet is refused: its selectivity is not estimated.
 
+The `linkages` keys are the parameter slots each selectivity form uses,
+so which ones apply depends on the fleet's `Selectivity`: `slp_asc` /
+`slp_desc` and `inf_asc` / `inf_desc` for the logistic family,
+`sigma_asc` / `sigma_desc` / `peak` / `right_floor` for the
+double-normal forms, `coff` for the non-parametric forms, and `apical`
+for the per-sex multiplier, which every form has. `DoubleNormalSS3`
+(code 15) carries its own six, under Stock Synthesis's own names:
+`dn_peak`, `top_logit`, `ascend_se`, `descend_se`, `start_logit` and
+`end_logit` – and a linkage is the ONLY way to vary that form over time,
+since `Time_varying_sel` is refused on it. A time block is
+`~ cut(Year, ...)`; annual deviations are a random-effect term.
+
 ## Examples
 
 ``` r

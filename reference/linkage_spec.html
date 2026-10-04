@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.49.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -53,7 +53,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Capture a linkage specification</h1>
-      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.45.3/R/0-build_linkage.R" class="external-link"><code>R/0-build_linkage.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/R/0-build_linkage.R" class="external-link"><code>R/0-build_linkage.R</code></a></small>
       <div class="d-none name"><code>linkage_spec.Rd</code></div>
     </div>
 
@@ -165,24 +165,29 @@ different formulas.</p></dd>
 
 <dt id="arg-link">link<a class="anchor" aria-label="anchor" href="#arg-link"></a></dt>
 <dd><p>link function relating the linear predictor to the
-natural-scale target parameter. One of <code>"log"</code> (default) or
-<code>"identity"</code>. With <code>link = "log"</code>, <code>log(param) = X * beta</code>, slope
-contributions are multiplicative on the natural-scale parameter. With <code>link = "identity"</code>,
-<code>param = X * beta</code>, slope contributions are additive on the
-natural scale. The linkage targets are estimated on the log scale,
-so <code>"log"</code> is the default.</p></dd>
+natural-scale target parameter: one of <code>"log"</code> (default), <code>"identity"</code>,
+or <code>"exponential"</code>. With <code>link = "log"</code>, <code>log(param) = X * beta</code>, slope
+contributions are multiplicative on the natural-scale parameter. With
+<code>link = "identity"</code>, <code>param = X * beta</code>, slope contributions are additive
+on the natural scale. With <code>link = "exponential"</code> the linear predictor
+MULTIPLIES the log instead of shifting it, <code>param^exp(X * beta)</code>; it
+reproduces Stock Synthesis's environmental link type 1 and is accepted on
+catchability only, for a lognormal index, with an estimated intercept. The
+linkage targets are estimated on the log scale, so <code>"log"</code> is the default.</p></dd>
 
 
 <dt id="arg-init">init<a class="anchor" aria-label="anchor" href="#arg-init"></a></dt>
 <dd><p>optional named list of initial values keyed by the
 design-matrix column name (e.g. <code>list(`(Intercept)` = 4, temp = 0)</code>),
 an intercept on the parameter's natural scale and a slope on the link
-scale; missing entries default to <code>0</code>.</p></dd>
+scale; missing entries default to <code>0</code>. An intercept's natural-scale value
+is logged onto the parameter's base (<code>rec_pars</code>, <code>log_M1</code>, ...), or, for
+recruitment <code>R_init</code>, which has no base, onto the coefficient itself.</p></dd>
 
 
 <dt id="arg-bounds">bounds<a class="anchor" aria-label="anchor" href="#arg-bounds"></a></dt>
 <dd><p>optional named list of <code>c(lower, upper)</code> keyed the same
-way as <code>init</code>.</p></dd>
+way as <code>init</code>, and read on the same scales.</p></dd>
 
 
 <dt id="arg-priors">priors<a class="anchor" aria-label="anchor" href="#arg-priors"></a></dt>

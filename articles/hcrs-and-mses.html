@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.49.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -83,7 +83,7 @@
 Adams</h4>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.45.3/vignettes/hcrs-and-mses.Rmd" class="external-link"><code>vignettes/hcrs-and-mses.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/vignettes/hcrs-and-mses.Rmd" class="external-link"><code>vignettes/hcrs-and-mses.Rmd</code></a></small>
       <div class="d-none name"><code>hcrs-and-mses.Rmd</code></div>
     </div>
 
@@ -488,7 +488,11 @@ over time while the EM keeps assuming stationary recruitment.</p>
 <span><span class="va">projnyrs</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">projyrs</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Env data</span></span>
-<span><span class="va">nrdata</span><span class="op">$</span><span class="va">env_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/merge.html" class="external-link">merge</a></span><span class="op">(</span><span class="va">nrdata</span><span class="op">$</span><span class="va">env_data</span>, <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>Year <span class="op">=</span> <span class="va">projyrs</span>, EnvIndex <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">0</span>,<span class="fl">1</span>, length.out <span class="op">=</span> <span class="va">projnyrs</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co"># A fixed-effect covariate must cover every model year, so build the table</span></span>
+<span><span class="co"># over styr:projyr rather than merging into whatever years are already there</span></span>
+<span><span class="co"># (merge() inner-joins, which drops the rest and leaves EnvIndex NA).</span></span>
+<span><span class="va">nrdata</span><span class="op">$</span><span class="va">env_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>Year <span class="op">=</span> <span class="va">projyrs</span>,</span>
+<span>                              EnvIndex <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">1</span>, length.out <span class="op">=</span> <span class="va">projnyrs</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Fit OM</span></span>
 <span><span class="va">om2</span> <span class="op">&lt;-</span> <span class="fu">Rceattle</span><span class="fu">::</span><span class="fu"><a href="../reference/fit_mod.html">fit_mod</a></span><span class="op">(</span></span>

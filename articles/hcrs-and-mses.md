@@ -437,7 +437,11 @@ projyrs <- nrdata$styr:nrdata$projyr
 projnyrs <- length(projyrs)
 
 # Env data
-nrdata$env_data <- merge(nrdata$env_data, data.frame(Year = projyrs, EnvIndex = seq(0,1, length.out = projnyrs)))
+# A fixed-effect covariate must cover every model year, so build the table
+# over styr:projyr rather than merging into whatever years are already there
+# (merge() inner-joins, which drops the rest and leaves EnvIndex NA).
+nrdata$env_data <- data.frame(Year = projyrs,
+                              EnvIndex = seq(0, 1, length.out = projnyrs))
 
 # Fit OM
 om2 <- Rceattle::fit_mod(

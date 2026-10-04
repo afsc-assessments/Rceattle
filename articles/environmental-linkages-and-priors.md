@@ -80,7 +80,7 @@ linkage_spec(
   species   = NULL,                 # ids or spnames
   sex       = NULL,
   fleet     = NULL,                 # Fleet_codes or Fleet_names
-  link      = "log",                # or "identity"
+  link      = "log",                # or "identity", "exponential"
   init      = NULL,
   bounds    = NULL,
   priors    = NULL,
@@ -98,12 +98,15 @@ for the full list):
   [`model.matrix()`](https://rdrr.io/r/stats/model.matrix.html)
   understands: `~ 1`, `~ temp`, `~ temp + PDO`, `~ poly(temp, 2)`,
   factor predictors, etc.).
+
 - **`param`**: target parameter name (e.g. `"K"`). Filled in
   automatically when the spec is registered under a
   `linkages = list(K = ...)` list key.
+
 - **`by`**: stratifying factors (default `~species`); use
   `~species + sex` for per-(species, sex) coefficients, or `NULL` to
   share a single coefficient set.
+
 - **`species`** / **`sex`** / **`fleet`**: restrict a spec to specific
   strata. Use with the multi-spec form (*Per-species* / *Per-sex
   formulas* below) to give different species, sexes, or fleets different
@@ -113,14 +116,114 @@ for the full list):
   case-insensitive). Prefer names for fleets: an id that is wrong but in
   range attaches the linkage to a different fleet and the model still
   fits, while a misspelled name errors and lists the fleets you do have.
+
 - **`link`**: relates the linear predictor to the natural-scale target.
   `"log"` (default) gives a multiplicative effect on natural `param`;
-  `"identity"` gives an additive effect on natural `param`.
+  `"identity"` gives an additive effect on natural `param`;
+  `"exponential"` raises the parameter to a covariate-dependent power,
+  `q^exp(beta * x)`, completing the progression: `"identity"` **adds**
+  to the natural-scale parameter, `"log"` **multiplies** it,
+  `"exponential"` raises it to a power. (The power is of the parameter,
+  not of the covariate.)
+
+  This is Stock Synthesis’s environmental link type 1, and
+  `"exponential"` is SS3’s own name for it
+  (`case 1: // exponential env link`). It is *not* SS3’s q *power
+  function*, which is a separate option that raises the vulnerable
+  biomass to the power `1 + p` (`pow(vbio, 1 + p)`) – that is what
+  `Catchability = "PowerEquation"` is reserved for.
+
+  SS3 multiplies the parameter on whatever scale it stores, so that
+  scale decides where the link belongs:
+
+  | process | SS3 scale | SS3 type 1 is | Rceattle |
+  |----|----|----|----|
+  | catchability, lognormal index | log (`Svy_log_q`) | `q^exp(beta x)` | `"exponential"` |
+  | catchability, natural-scale index (`MVN`, `MVNORM`, `Normal`, `TruncatedNormal`) | natural | `q * exp(beta x)` | `"log"`; `"exponential"` warns here |
+  | natural mortality, growth | natural | `parm * exp(beta x)` | `"log"` |
+  | recruitment | log (`SR_LN(R0)`) | `R0^exp(beta x)` | not yet wired |
+
+  So a `NatM` or growth line carrying `env-var 1xx` bridges with
+  `"log"`, not this, and Rceattle refuses `"exponential"` there rather
+  than let it through: on a natural-scale parameter it would raise the
+  value to a power instead of scaling it, and on M – where `log M` is
+  always negative, M being below 1 – that inverts the sign of the
+  covariate effect. Recruitment is the one case where the form *is*
+  right and simply has no accumulator yet, so the refusal says that
+  instead of offering `"log"` (which is SS3’s type **2**).
+
+  Two further conditions on catchability. The link multiplies `log q`,
+  so the base has to be **estimated**: a formula with no intercept, or
+  an intercept fixed at `est_phase = 0`, masks `index_log_q` and freezes
+  the value being multiplied, and is refused. A free base is not
+  second-guessed at build time: `fit_mod(inits = )` and an intercept
+  `init` both override `Catchability_init`, so where `log q` really
+  starts is only knowable once the model is built. And it cannot share a
+  fleet with a **random-effect** q linkage, because those deviations
+  accumulate into `q_linkage_offset`, which sits inside the multiply –
+  they would be scaled by `exp(beta * x)` while their density still
+  scored them at a constant sigma. For an environmental effect plus q
+  deviations, express the deviations as `Time_varying_q`, whose
+  `index_q_dev` the template keeps outside the multiply, as SS3 does its
+  dev blocks.
+
+  Because `beta` multiplies a *log*, the size of the effect depends on
+  how far `log q` sits from zero: at `q = 1` the covariate does nothing
+  whatever `beta` is, and below `q = 1` the sign of the effect inverts.
+  Both are SS3’s properties, not Rceattle’s.
+
+  **Report `beta` with its base, never alone.** To first order
+  `log q_y = log q * (1 + beta * x_y)`, so what the index informs is the
+  product `log q * beta`, not `beta`. With an estimated base the fit is
+  free to cross `q = 1` and re-express the same curve with the opposite
+  sign of `beta`: in the simulate-and-refit check in
+  `test-linkage-exponential-link.R`, a truth of `q = 0.3, beta = +0.4`
+  came back as `q = 467.0, beta = -0.0775`, preserving `log q * beta` to
+  1.1% with the fitted `q` series correlating 0.984 with the truth. The
+  test asserts that invariant rather than those values, which are from
+  one platform. The fitted catchability is what to interpret and plot
+  (`fit$quantities$index_q`); a `beta` quoted on its own is not
+  comparable between models. Pin the level with a q prior
+  (`Catchability = "Estimated-with-prior"`) if you need `beta` itself to
+  be identified.
+  [`convergence_diagnostics()`](https://afsc-assessments.github.io/Rceattle/reference/convergence_diagnostics.md)
+  flags the first of those on the fit as `exponential_q_near_one`, a
+  WARN when the fitted catchability is within 0.1% of 1.
+
+  **On catchability the effect stops at the last hindcast year.** The q
+  linkage tensors are built over hindcast years only (the recruitment, M
+  and growth tensors do span the projection), and a projection-year
+  index is predicted at the last hindcast year’s catchability, so a
+  covariate value for a projection year does not move `q` there. SS3
+  carries its environmental link across the forecast
+  (`for (y1 = styr - 1; y1 <= YrMax; y1++)`), so a bridge that compares
+  forecast index predictions will diverge.
+
+  **Set a bound.** `beta` enters a double exponential here, so the
+  usable range is far narrower than for `"log"`, and it depends on the
+  base: the exponent is `log q * exp(beta * x)`, so at `q = 0.0012`
+  (`log q = -6.7`) a `beta * x` of only 5 gives `-994` and `index_q`
+  underflows to exactly 0 – where both the likelihood and its gradient
+  are dead and no line search can recover. Under `"log"` the same `beta`
+  is harmless, because `beta * x` enters the exponent linearly and
+  overflow starts near 709. Pass `bounds` on any `"exponential"` slope,
+  and scale them to the base: underflow starts once
+  `|beta * x| > log(709 / |log q|)`, which at `log q = -6.7` is
+  `beta * x` of about 4.7 – so a bound of `c(-2, 2)` is *not* safe
+  there, since a standardized covariate reaches `x = 2.4` over a long
+  series.
+
 - **`init`** / **`bounds`**: named lists keyed by design-matrix column
-  (`init = list(temp = 0.05)`, `bounds = list(temp = c(-2, 2))`).
+  (`init = list(temp = 0.05)`, `bounds = list(temp = c(-2, 2))`). **A
+  slope is on the link scale, an `(Intercept)` on the parameter’s
+  natural scale** — `init = list(intercept = 0.3)` means an M1 of
+  0.3/yr, not a log. Mind that split: it is the one place a linkage
+  value can be read on the wrong scale and still fit.
+
 - **`priors`**: named list keyed by design-matrix column. Each entry is
   either an `Rceattle_prior` or a list keyed by species id; see *Priors*
   below.
+
 - **`re_group`** / **`est_phase`**: random-effects grouping
   (placeholder) and estimation phase ordinal (`0` fixes, `1+`
   estimates).
@@ -171,6 +274,8 @@ loop) call the `prior_*` constructors directly:
 
 ``` r
 
+# One prior SD per species, however you derive them.
+species_specific_sds <- c(0.3, 0.7, 0.5)
 priors <- lapply(species_specific_sds, function(s) prior_normal(0, s))
 names(priors) <- c("temp", "PDO", "salinity")
 linkage_spec(formula = ~ temp + PDO + salinity, priors = priors)
@@ -667,7 +772,7 @@ M1_spec <- build_M1(
 fit <- fit_mod(
   data_list   = GOApollock,
   M1Fun       = M1_spec,
-  estimateMode = 0,
+  estimateMode = 3,   # build the objective; see ?fit_mod
   msmMode     = 0
 )
 ```
@@ -711,7 +816,7 @@ rows for both processes, and the underlying coefficient vector
 ## Recruitment
 
 [`build_srr()`](https://afsc-assessments.github.io/Rceattle/reference/build_srr.md)
-accepts the same `linkages` argument with three allowed parameter keys:
+accepts the same `linkages` argument with four allowed parameter keys:
 
 - **`R0`**: acts under mean recruitment (`srr_fun = "mean"`, penalty
   form included); the right target if recruitment should respond to env
@@ -723,6 +828,43 @@ accepts the same `linkages` argument with three allowed parameter keys:
 - **`alpha`** (productivity) and **`beta`** (density-dependence), only
   do work when the model has a curve: `srr_fun` (or, for the penalty
   form, `srr_pred_fun`) is `"BevertonHolt"` or `"Ricker"`.
+- **`R_init`**: the initial recruitment **level**, a log-scale
+  multiplier on the initial age-structure, read at year 0 because the
+  initial state is one year. Use it where the series begins after a
+  regime shift, so the stock starts at a recruitment other than $`R_0`$:
+  without it the level has to go into `init_dev`, which is penalised per
+  age, and the fit pays a recruitment-deviate penalty for sitting where
+  the data say it sits. Unlike the three above it has no base parameter
+  in `rec_pars`, so an intercept-only `~ 1` keeps the level on its own
+  estimated coefficient — and `init` / `bounds` on that intercept are
+  the natural-scale multiplier on $`R_0`$ (`init = 0.25` is a quarter),
+  logged onto the coefficient in place of a base parameter. One design
+  column per species, since only year 0 is read. It needs
+  `link = "log"`, and is refused under `initMode = "FreeParams"` (which
+  never reads $`R_{init}`$) and `"OffsetEquilibrium"` (which already
+  scales the same ages by `rec_dev[, 1]`).
+
+The level is informed only by the first year’s observations, so it is
+weakly identified at the low end: once the initial cohorts are
+effectively annihilated the data cannot tell one very small level from
+another, and a fit can settle there with a clean gradient. Bound it on a
+real assessment — the bound is the natural-scale multiplier — and read
+the estimated multiplier rather than the convergence flag alone.
+`tools/verify/verify-sim-recovery-r-init.R` measures both the recovery
+and the rate at which a replicate runs away.
+
+``` r
+
+# A free initial level, Rceattle's form of Stock Synthesis's SR_regime block.
+# SS3 shrinks that block at sigma_R / ave_age; this is free, so add a
+# lognormal(0, sigma_R / ave_age) prior on the intercept to match SS3.
+# It must travel through build_srr(): fit_mod() overwrites data_list$srr_linkages
+# from recFun, so assigning the spec onto the data_list drops it silently.
+init_spec <- build_srr(linkages = list(R_init = linkage_spec(
+  formula = ~ 1,
+  init    = list(`(Intercept)` = 0.25),   # start at a quarter of R0
+  bounds  = list(`(Intercept)` = c(0.05, 20)))))
+```
 
 ``` r
 
@@ -736,6 +878,16 @@ rec_spec <- build_srr(
     )
   )
 )
+
+# A three-species data_list for the fits below, still fitted in single-species
+# mode (msmMode = 0): the species-keyed priors need more than one species, and
+# the linkages need `temp` in env_data.
+data_list <- BS2017SS
+yrs <- data_list$styr:data_list$endyr
+data_list$env_data <- data.frame(
+  Year      = yrs,
+  temp      = as.numeric(scale(sin(seq_along(yrs) / 4))),
+  cold_pool = as.numeric(scale(cos(seq_along(yrs) / 5))))
 
 # Beverton-Holt with env effects on alpha (and species-keyed
 # priors so each stock has its own sensitivity).
@@ -755,7 +907,7 @@ rec_spec_bh <- build_srr(
 fit <- fit_mod(
   data_list   = data_list,
   recFun      = rec_spec,
-  estimateMode = 0,
+  estimateMode = 3,   # build the objective; see ?fit_mod
   msmMode     = 0
 )
 ```
@@ -828,11 +980,19 @@ takes the same `linkages` argument with a single parameter key, `q`:
 
 ``` r
 
+# A q linkage shifts an ESTIMATED log q, so restrict it to fleets that have
+# one: a fishery carries no survey index, and a Fixed or Analytical q is
+# refused because the linkage would either have no effect or make a fixed q
+# time-varying.
+q_data <- data_list
+srv <- q_data$fleet_control$Fleet_name[q_data$fleet_control$Fleet_type == 2]
+q_data$fleet_control$Catchability[q_data$fleet_control$Fleet_type == 2] <- "Estimated"
+
 fit <- fit_mod(
-  data_list = data_list,
+  data_list = q_data,
   qFun      = build_catchability(
     linkages = list(
-      q = linkage_spec(~ temp, by = ~ fleet)   # one coefficient per fleet
+      q = linkage_spec(~ temp, by = ~ fleet, fleet = srv)  # one per survey fleet
     )
   ),
   estimateMode = 0,
@@ -840,7 +1000,8 @@ fit <- fit_mod(
 )
 
 # One coefficient set per fleet; the offset lands here:
-fit$quantities$q_linkage_offset      # [n_flt, nyrs]
+fit$quantities$q_linkage_offset      # [n_flt, nyrs_hind]
+fit$quantities$q_linkage_log_mult    # [n_flt, nyrs_hind]; exponential link only
 ```
 
 Restrict a spec to particular fleets with the `fleet` argument of
@@ -953,11 +1114,16 @@ saturate.
 
 ``` r
 
+# Only the parametric forms are wired for selectivity linkages, so name the
+# fleets that use one -- here the Logistic surveys.
+logistic_flts <- data_list$fleet_control$Fleet_name[
+  data_list$fleet_control$Selectivity %in% c(1, "Logistic")]
+
 fit <- fit_mod(
   data_list = data_list,
   selFun    = build_selectivity(
     linkages = list(
-      inf_asc = linkage_spec(~ cold_pool, by = ~ fleet)
+      inf_asc = linkage_spec(~ cold_pool, by = ~ fleet, fleet = logistic_flts)
     )
   ),
   estimateMode = 0,
@@ -1079,7 +1245,6 @@ build_growth(
   fun = "vonBertalanffy",
   linkages = list(m = linkage_spec(~ temp))
 )
-#> Error: linkages$m is only valid with fun = 'Richards'; ...
 ```
 
 Growth, M, and recruitment can all be linked in the same fit, each
@@ -1089,8 +1254,11 @@ pools them against a single shared design matrix:
 
 ``` r
 
+# whamGrowthData, not data_list: estimating growth needs caal_data (the age
+# composition within a length bin is what informs the growth curve), and
+# BS2017SS carries none.
 fit <- fit_mod(
-  data_list   = data_list,
+  data_list   = whamGrowthData,
   growthFun   = build_growth(
     fun      = "vonBertalanffy",
     linkages = list(
@@ -1109,7 +1277,7 @@ fit <- fit_mod(
       R0 = linkage_spec(formula = ~ temp)
     )
   ),
-  estimateMode = 0,
+  estimateMode = 3,   # build the objective; see ?fit_mod
   msmMode     = 0
 )
 
@@ -1186,6 +1354,14 @@ the optimizer grounded. With `est_phase = 0` the base parameter is held
 at `X` even when `fit_mod(inits = )` holds another value; for an
 estimated intercept `X` is only a starting value, and `inits` win.
 
+**Recruitment `R_init` is the exception to all of the above**, because
+it is the one linkage parameter with no base parameter to carry the
+level (see the Recruitment section). Its `(Intercept)` coefficient *is*
+the level, so it stays estimable rather than being held at `0`; its
+natural-scale `init` and `bounds` are logged onto that coefficient
+instead of onto a base parameter; and with `est_phase = 0` it is the
+coefficient, not a base parameter, that is held against `inits`.
+
 ``` r
 
 # Start M1 at 0.06 without estimating an extra intercept beta.
@@ -1209,8 +1385,11 @@ affected: `by = ~ species` produces one `(Intercept)` row per species;
 `(Intercept)` row that the user supplies an `init` for pushes that init
 into the matching base-parameter slot.
 
-This rule applies uniformly to every linkage target (`K`, `L1`, `Linf`,
-`m`, `M1`, `R0`, `alpha`, `beta`).
+This rule applies to every linkage target that has a base parameter
+(`K`, `L1`, `Linf`, `m`, the SD endpoints `sd_L1` / `sd_Linf`, `M1`,
+`R0`, `alpha`, `beta`, the selectivity and catchability targets, and the
+composition weights). `R_init` has none, and is the exception described
+above.
 
 ### Single-sex models and `by = ~ ... + sex`
 

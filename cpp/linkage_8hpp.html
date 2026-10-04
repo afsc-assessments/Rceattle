@@ -108,7 +108,7 @@ Macros</h2></td></tr>
 <tr class="separator:aaa1ca28cb3573d9d9563e6d574978944"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a4675f6ad773b673846644de890d794eb" id="r_a4675f6ad773b673846644de890d794eb"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="linkage_8hpp.html#a4675f6ad773b673846644de890d794eb">RCEATTLE_N_GROWTH_PARAMS</a>&#160;&#160;&#160;4</td></tr>
 <tr class="separator:a4675f6ad773b673846644de890d794eb"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a200b3e97afa21bd39894599c7cd5d352" id="r_a200b3e97afa21bd39894599c7cd5d352"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="linkage_8hpp.html#a200b3e97afa21bd39894599c7cd5d352">RCEATTLE_N_REC_PARAMS</a>&#160;&#160;&#160;3</td></tr>
+<tr class="memitem:a200b3e97afa21bd39894599c7cd5d352" id="r_a200b3e97afa21bd39894599c7cd5d352"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="linkage_8hpp.html#a200b3e97afa21bd39894599c7cd5d352">RCEATTLE_N_REC_PARAMS</a>&#160;&#160;&#160;4</td></tr>
 <tr class="separator:a200b3e97afa21bd39894599c7cd5d352"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab4572d3ce0bdd84df1b8bc480413daeb" id="r_ab4572d3ce0bdd84df1b8bc480413daeb"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="linkage_8hpp.html#ab4572d3ce0bdd84df1b8bc480413daeb">RCEATTLE_REC_R0</a>&#160;&#160;&#160;0</td></tr>
 <tr class="separator:ab4572d3ce0bdd84df1b8bc480413daeb"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -116,6 +116,8 @@ Macros</h2></td></tr>
 <tr class="separator:a495b5ad0920f2eb9e1b95b87479f06e5"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a32a958ddaccc36e68a3f936ca232d2bd" id="r_a32a958ddaccc36e68a3f936ca232d2bd"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="linkage_8hpp.html#a32a958ddaccc36e68a3f936ca232d2bd">RCEATTLE_REC_BETA</a>&#160;&#160;&#160;2</td></tr>
 <tr class="separator:a32a958ddaccc36e68a3f936ca232d2bd"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3997b334a39a9de96070b18005b1d0c0" id="r_a3997b334a39a9de96070b18005b1d0c0"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="linkage_8hpp.html#a3997b334a39a9de96070b18005b1d0c0">RCEATTLE_REC_R_INIT</a>&#160;&#160;&#160;3</td></tr>
+<tr class="separator:a3997b334a39a9de96070b18005b1d0c0"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="func-members" name="func-members"></a>
 Functions</h2></td></tr>
@@ -138,10 +140,10 @@ Functions</h2></td></tr>
 <tr class="memitem:aa91307ee329bfcf3eee40bce2772ed7d"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="linkage_8hpp.html#aa91307ee329bfcf3eee40bce2772ed7d">rceattle_apply_q_linkages</a> (matrix&lt; Type &gt; &amp;q_offset, int link_code, const vector&lt; int &gt; &amp;linkage_process, const vector&lt; int &gt; &amp;linkage_param, const vector&lt; int &gt; &amp;linkage_species, const vector&lt; int &gt; &amp;linkage_sex, const vector&lt; int &gt; &amp;linkage_age_bin, const vector&lt; int &gt; &amp;linkage_fleet, const vector&lt; int &gt; &amp;linkage_X_col, const vector&lt; int &gt; &amp;linkage_link, const matrix&lt; Type &gt; &amp;linkage_X, const vector&lt; Type &gt; &amp;beta, int n_flt, int nyrs)</td></tr>
 <tr class="memdesc:aa91307ee329bfcf3eee40bce2772ed7d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Accumulate catchability (q) linkage offsets.  <br /></td></tr>
 <tr class="separator:aa91307ee329bfcf3eee40bce2772ed7d"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:abfd8f06960adea52856bee8670383920" id="r_abfd8f06960adea52856bee8670383920"><td class="memTemplParams" colspan="2">template&lt;class Type &gt; </td></tr>
-<tr class="memitem:abfd8f06960adea52856bee8670383920"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="linkage_8hpp.html#abfd8f06960adea52856bee8670383920">rceattle_apply_sel_linkages</a> (array&lt; Type &gt; &amp;slp_offset, array&lt; Type &gt; &amp;inf_offset, array&lt; Type &gt; &amp;coff_offset, array&lt; Type &gt; &amp;apical_offset, int link_code, const vector&lt; int &gt; &amp;linkage_process, const vector&lt; int &gt; &amp;linkage_param, const vector&lt; int &gt; &amp;linkage_species, const vector&lt; int &gt; &amp;linkage_sex, const vector&lt; int &gt; &amp;linkage_age_bin, const vector&lt; int &gt; &amp;linkage_fleet, const vector&lt; int &gt; &amp;linkage_X_col, const vector&lt; int &gt; &amp;linkage_link, const matrix&lt; Type &gt; &amp;linkage_X, const vector&lt; Type &gt; &amp;beta, int n_flt, int max_sex, int n_sel_bins, int nyrs)</td></tr>
-<tr class="memdesc:abfd8f06960adea52856bee8670383920"><td class="mdescLeft">&#160;</td><td class="mdescRight">Accumulate selectivity linkage offsets into three parameter-family tensors.  <br /></td></tr>
-<tr class="separator:abfd8f06960adea52856bee8670383920"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:afa05e18b7a60c9850efea5248e6eb1d3" id="r_afa05e18b7a60c9850efea5248e6eb1d3"><td class="memTemplParams" colspan="2">template&lt;class Type &gt; </td></tr>
+<tr class="memitem:afa05e18b7a60c9850efea5248e6eb1d3"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="linkage_8hpp.html#afa05e18b7a60c9850efea5248e6eb1d3">rceattle_apply_sel_linkages</a> (array&lt; Type &gt; &amp;slp_offset, array&lt; Type &gt; &amp;inf_offset, array&lt; Type &gt; &amp;coff_offset, array&lt; Type &gt; &amp;apical_offset, array&lt; Type &gt; &amp;dn6_offset, int link_code, const vector&lt; int &gt; &amp;linkage_process, const vector&lt; int &gt; &amp;linkage_param, const vector&lt; int &gt; &amp;linkage_species, const vector&lt; int &gt; &amp;linkage_sex, const vector&lt; int &gt; &amp;linkage_age_bin, const vector&lt; int &gt; &amp;linkage_fleet, const vector&lt; int &gt; &amp;linkage_X_col, const vector&lt; int &gt; &amp;linkage_link, const matrix&lt; Type &gt; &amp;linkage_X, const vector&lt; Type &gt; &amp;beta, int n_flt, int max_sex, int n_sel_bins, int nyrs)</td></tr>
+<tr class="memdesc:afa05e18b7a60c9850efea5248e6eb1d3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Accumulate selectivity linkage offsets into three parameter-family tensors.  <br /></td></tr>
+<tr class="separator:afa05e18b7a60c9850efea5248e6eb1d3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <h2 class="groupheader">Macro Definition Documentation</h2>
 <a id="a4675f6ad773b673846644de890d794eb" name="a4675f6ad773b673846644de890d794eb"></a>
@@ -167,12 +169,12 @@ Functions</h2></td></tr>
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">#define RCEATTLE_N_REC_PARAMS&#160;&#160;&#160;3</td>
+          <td class="memname">#define RCEATTLE_N_REC_PARAMS&#160;&#160;&#160;4</td>
         </tr>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="linkage_8hpp_source.html#l00040">40</a> of file <a class="el" href="linkage_8hpp_source.html">linkage.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="linkage_8hpp_source.html#l00041">41</a> of file <a class="el" href="linkage_8hpp_source.html">linkage.hpp</a>.</p>
 
 </div>
 </div>
@@ -284,7 +286,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="linkage_8hpp_source.html#l00042">42</a> of file <a class="el" href="linkage_8hpp_source.html">linkage.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="linkage_8hpp_source.html#l00043">43</a> of file <a class="el" href="linkage_8hpp_source.html">linkage.hpp</a>.</p>
 
 </div>
 </div>
@@ -300,7 +302,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="linkage_8hpp_source.html#l00043">43</a> of file <a class="el" href="linkage_8hpp_source.html">linkage.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="linkage_8hpp_source.html#l00044">44</a> of file <a class="el" href="linkage_8hpp_source.html">linkage.hpp</a>.</p>
 
 </div>
 </div>
@@ -316,7 +318,23 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="linkage_8hpp_source.html#l00041">41</a> of file <a class="el" href="linkage_8hpp_source.html">linkage.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="linkage_8hpp_source.html#l00042">42</a> of file <a class="el" href="linkage_8hpp_source.html">linkage.hpp</a>.</p>
+
+</div>
+</div>
+<a id="a3997b334a39a9de96070b18005b1d0c0" name="a3997b334a39a9de96070b18005b1d0c0"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a3997b334a39a9de96070b18005b1d0c0">&#9670;&#160;</a></span>RCEATTLE_REC_R_INIT</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">#define RCEATTLE_REC_R_INIT&#160;&#160;&#160;3</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p class="definition">Definition at line <a class="el" href="linkage_8hpp_source.html#l00045">45</a> of file <a class="el" href="linkage_8hpp_source.html">linkage.hpp</a>.</p>
 
 </div>
 </div>
@@ -433,9 +451,9 @@ template&lt;class Type &gt; </div>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="linkage_8hpp_source.html#l00096">96</a> of file <a class="el" href="linkage_8hpp_source.html">linkage.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="linkage_8hpp_source.html#l00098">98</a> of file <a class="el" href="linkage_8hpp_source.html">linkage.hpp</a>.</p>
 
-<p class="reference">References <a class="el" href="linkage_8hpp_source.html#l00036">RCEATTLE_N_GROWTH_PARAMS</a>, <a class="el" href="linkage_8hpp_source.html#l00029">RCEATTLE_PROC_GROWTH</a>, and <a class="el" href="linkage_8hpp_source.html#l00057">rceattle_stratum_range()</a>.</p>
+<p class="reference">References <a class="el" href="linkage_8hpp_source.html#l00036">RCEATTLE_N_GROWTH_PARAMS</a>, <a class="el" href="linkage_8hpp_source.html#l00029">RCEATTLE_PROC_GROWTH</a>, and <a class="el" href="linkage_8hpp_source.html#l00059">rceattle_stratum_range()</a>.</p>
 
 </div>
 </div>
@@ -557,9 +575,9 @@ template&lt;class Type &gt; </div>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="linkage_8hpp_source.html#l00158">158</a> of file <a class="el" href="linkage_8hpp_source.html">linkage.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="linkage_8hpp_source.html#l00160">160</a> of file <a class="el" href="linkage_8hpp_source.html">linkage.hpp</a>.</p>
 
-<p class="reference">References <a class="el" href="linkage_8hpp_source.html#l00028">RCEATTLE_PROC_M</a>, and <a class="el" href="linkage_8hpp_source.html#l00057">rceattle_stratum_range()</a>.</p>
+<p class="reference">References <a class="el" href="linkage_8hpp_source.html#l00028">RCEATTLE_PROC_M</a>, and <a class="el" href="linkage_8hpp_source.html#l00059">rceattle_stratum_range()</a>.</p>
 
 </div>
 </div>
@@ -676,9 +694,9 @@ template&lt;class Type &gt; </div>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="linkage_8hpp_source.html#l00281">281</a> of file <a class="el" href="linkage_8hpp_source.html">linkage.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="linkage_8hpp_source.html#l00283">283</a> of file <a class="el" href="linkage_8hpp_source.html">linkage.hpp</a>.</p>
 
-<p class="reference">References <a class="el" href="linkage_8hpp_source.html#l00030">RCEATTLE_PROC_Q</a>, and <a class="el" href="linkage_8hpp_source.html#l00057">rceattle_stratum_range()</a>.</p>
+<p class="reference">References <a class="el" href="linkage_8hpp_source.html#l00030">RCEATTLE_PROC_Q</a>, and <a class="el" href="linkage_8hpp_source.html#l00059">rceattle_stratum_range()</a>.</p>
 
 </div>
 </div>
@@ -788,14 +806,14 @@ template&lt;class Type &gt; </div>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="linkage_8hpp_source.html#l00222">222</a> of file <a class="el" href="linkage_8hpp_source.html">linkage.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="linkage_8hpp_source.html#l00224">224</a> of file <a class="el" href="linkage_8hpp_source.html">linkage.hpp</a>.</p>
 
-<p class="reference">References <a class="el" href="linkage_8hpp_source.html#l00040">RCEATTLE_N_REC_PARAMS</a>, <a class="el" href="linkage_8hpp_source.html#l00027">RCEATTLE_PROC_RECRUIT</a>, and <a class="el" href="linkage_8hpp_source.html#l00057">rceattle_stratum_range()</a>.</p>
+<p class="reference">References <a class="el" href="linkage_8hpp_source.html#l00041">RCEATTLE_N_REC_PARAMS</a>, <a class="el" href="linkage_8hpp_source.html#l00027">RCEATTLE_PROC_RECRUIT</a>, and <a class="el" href="linkage_8hpp_source.html#l00059">rceattle_stratum_range()</a>.</p>
 
 </div>
 </div>
-<a id="abfd8f06960adea52856bee8670383920" name="abfd8f06960adea52856bee8670383920"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#abfd8f06960adea52856bee8670383920">&#9670;&#160;</a></span>rceattle_apply_sel_linkages()</h2>
+<a id="afa05e18b7a60c9850efea5248e6eb1d3" name="afa05e18b7a60c9850efea5248e6eb1d3"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#afa05e18b7a60c9850efea5248e6eb1d3">&#9670;&#160;</a></span>rceattle_apply_sel_linkages()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -825,6 +843,12 @@ template&lt;class Type &gt; </div>
           <td></td>
           <td class="paramtype">array&lt; Type &gt; &amp;&#160;</td>
           <td class="paramname"><em>apical_offset</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">array&lt; Type &gt; &amp;&#160;</td>
+          <td class="paramname"><em>dn6_offset</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
@@ -926,13 +950,14 @@ template&lt;class Type &gt; </div>
 
 <p>Accumulate selectivity linkage offsets into three parameter-family tensors. </p>
 <p>Fills one of three offset tensors per row, routed by the row's param code, for every (fleet, sex, year) the row applies to. Selectivity is indexed by fleet and sex (mirroring is collapsed by the TMB map, so the parameter arrays are effectively per-fleet). Called once per link scale, like the other processes.</p>
-<p>Param codes: <code>0</code>/<code>1</code> -&gt; log_sel_slp[asc/desc] (<code>slp_offset</code>); <code>2</code>/<code>3</code> -&gt; sel_inf[asc/desc] (<code>inf_offset</code>); <code>4</code> -&gt; sel_coff, all bins (<code>coff_offset</code>); <code>5</code> -&gt; log_sel_apical (<code>apical_offset</code>).</p>
+<p>Param codes: <code>0</code>/<code>1</code> -&gt; log_sel_slp[asc/desc] (<code>slp_offset</code>); <code>2</code>/<code>3</code> -&gt; sel_inf[asc/desc] (<code>inf_offset</code>); <code>4</code> -&gt; sel_coff, all bins (<code>coff_offset</code>); <code>5</code> -&gt; log_sel_apical (<code>apical_offset</code>); <code>6</code>-<code>11</code> -&gt; sel_dn6[0..5], the six DoubleNormalSS3 (SS3 pattern 24) parameters (<code>dn6_offset</code>).</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">slp_offset</td><td>[in,out] Slope offsets [2, n_flt, max_sex, nyrs]. </td></tr>
     <tr><td class="paramname">inf_offset</td><td>[in,out] Inflection offsets [2, n_flt, max_sex, nyrs]. </td></tr>
     <tr><td class="paramname">coff_offset</td><td>[in,out] Nonparametric-coefficient offsets [n_flt, max_sex, n_sel_bins, nyrs]. </td></tr>
     <tr><td class="paramname">apical_offset</td><td>[in,out] Per-sex apical-height offsets [n_flt, max_sex, nyrs]. </td></tr>
+    <tr><td class="paramname">dn6_offset</td><td>[in,out] DoubleNormalSS3 parameter offsets [6, n_flt, max_sex, nyrs]. </td></tr>
     <tr><td class="paramname">link_code</td><td>Link scale to consume (1 = log, 0 = identity). </td></tr>
     <tr><td class="paramname">linkage_X</td><td>Environmental covariate matrix; rows are years. </td></tr>
     <tr><td class="paramname">beta</td><td>Per-row effect sizes (0-length = no-op). </td></tr>
@@ -940,9 +965,9 @@ template&lt;class Type &gt; </div>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="linkage_8hpp_source.html#l00347">347</a> of file <a class="el" href="linkage_8hpp_source.html">linkage.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="linkage_8hpp_source.html#l00352">352</a> of file <a class="el" href="linkage_8hpp_source.html">linkage.hpp</a>.</p>
 
-<p class="reference">References <a class="el" href="linkage_8hpp_source.html#l00031">RCEATTLE_PROC_SEL</a>, and <a class="el" href="linkage_8hpp_source.html#l00057">rceattle_stratum_range()</a>.</p>
+<p class="reference">References <a class="el" href="linkage_8hpp_source.html#l00031">RCEATTLE_PROC_SEL</a>, and <a class="el" href="linkage_8hpp_source.html#l00059">rceattle_stratum_range()</a>.</p>
 
 </div>
 </div>
@@ -1004,9 +1029,9 @@ template&lt;class Type &gt; </div>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="linkage_8hpp_source.html#l00057">57</a> of file <a class="el" href="linkage_8hpp_source.html">linkage.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="linkage_8hpp_source.html#l00059">59</a> of file <a class="el" href="linkage_8hpp_source.html">linkage.hpp</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="linkage_8hpp_source.html#l00096">rceattle_apply_growth_linkages()</a>, <a class="el" href="linkage_8hpp_source.html#l00158">rceattle_apply_M_linkages()</a>, <a class="el" href="linkage_8hpp_source.html#l00281">rceattle_apply_q_linkages()</a>, <a class="el" href="linkage_8hpp_source.html#l00222">rceattle_apply_recruitment_linkages()</a>, and <a class="el" href="linkage_8hpp_source.html#l00347">rceattle_apply_sel_linkages()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="linkage_8hpp_source.html#l00098">rceattle_apply_growth_linkages()</a>, <a class="el" href="linkage_8hpp_source.html#l00160">rceattle_apply_M_linkages()</a>, <a class="el" href="linkage_8hpp_source.html#l00283">rceattle_apply_q_linkages()</a>, <a class="el" href="linkage_8hpp_source.html#l00224">rceattle_apply_recruitment_linkages()</a>, and <a class="el" href="linkage_8hpp_source.html#l00352">rceattle_apply_sel_linkages()</a>.</p>
 
 </div>
 </div>

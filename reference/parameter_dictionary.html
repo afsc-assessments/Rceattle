@@ -13,7 +13,7 @@ to, what it means, and its dimensions."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.45.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.49.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -59,7 +59,7 @@ to, what it means, and its dimensions."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Look up what a CEATTLE parameter is</h1>
-      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.45.3/R/0-parameter_dictionary.R" class="external-link"><code>R/0-parameter_dictionary.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/R/0-parameter_dictionary.R" class="external-link"><code>R/0-parameter_dictionary.R</code></a></small>
       <div class="d-none name"><code>parameter_dictionary.Rd</code></div>
     </div>
 
@@ -151,36 +151,39 @@ map, not through a narrower array.</p>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Everything governing selectivity</span></span></span>
 <span class="r-in"><span><span class="fu">parameter_dictionary</span><span class="op">(</span>process <span class="op">=</span> <span class="st">"selectivity"</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>          internal                                        natural     process</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1     log_sel_slp                              selectivity slope selectivity</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2         sel_inf                         selectivity inflection selectivity</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3  log_sel_apical                      selectivity apical height selectivity</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4 log_sel_slp_dev                               slope deviations selectivity</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 5     sel_inf_dev                          inflection deviations selectivity</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 6        sel_coff                       selectivity coefficients selectivity</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 7    sel_coff_dev                         coefficient deviations selectivity</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 8  sel_dev_log_sd                                      sigma_sel selectivity</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 9   sel_curve_pen selectivity penalty weights / AR1 correlations selectivity</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                                                                                                                                                                                                                                                                                                                                        meaning</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1                                                                                                                                                                                                                                                                        Logistic-family selectivity slope; row 1 ascending, row 2 descending.</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2                                                                                                                                                                                                                                                              Logistic-family age/length at 50% selection; row 1 ascending, row 2 descending.</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3                                                                                                                                                                           Log multiplier on one sex's whole curve, applied after the form and before normalization; 0 = no offset. Estimated only through a selectivity linkage on `apical`.</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4                                                                                                                                                                                                                                                                                                  Annual deviations on the selectivity slope.</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 5                                                                                                                                                                                                                                                                                       Annual deviations on the selectivity inflection point.</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 6                                                                                                                                                                                                                                                                                              Non-parametric selectivity-at-bin coefficients.</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 7                                                                                                                                                                                                                                                                            Annual deviations on the non-parametric selectivity coefficients.</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 8                                                                                                                                                                                                                                                                               Standard deviation of the time-varying selectivity deviations.</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 9 Meaning depends on the fleet's Selectivity. For the non-parametric forms these are weights on the shape and curvature penalties, supplied via fleet_control and not estimated. For '2DAR1' and '3DAR1' the same slots hold estimated correlations: slot 1 across selectivity BINS, slot 2 across YEARS, and for 3DAR1 slot 3 across COHORTS.</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                                   dims</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1                     [2, n_sel, nsex]</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2                     [2, n_sel, nsex]</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3                        [n_sel, nsex]</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4          [2, n_sel, nsex, nyrs_hind]</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 5          [2, n_sel, nsex, nyrs_hind]</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 6            [n_sel, nsex, n_sel_bins]</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 7 [n_sel, nsex, n_sel_bins, nyrs_hind]</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 8                              [n_sel]</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 9                           [n_sel, 3]</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>           internal                                        natural     process</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1      log_sel_slp                              selectivity slope selectivity</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2          sel_inf                         selectivity inflection selectivity</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3   log_sel_apical                      selectivity apical height selectivity</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4          sel_dn6                   SS3 double-normal parameters selectivity</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 5  log_sel_slp_dev                               slope deviations selectivity</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 6      sel_inf_dev                          inflection deviations selectivity</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 7         sel_coff                       selectivity coefficients selectivity</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 8     sel_coff_dev                         coefficient deviations selectivity</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 9   sel_dev_log_sd                                      sigma_sel selectivity</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 10   sel_curve_pen selectivity penalty weights / AR1 correlations selectivity</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                                                                                                                                                                                                                                                                                                                                                                                                                 meaning</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1                                                                                                                                                                                                                                                                                                                                                 Logistic-family selectivity slope; row 1 ascending, row 2 descending.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2                                                                                                                                                                                                                                                                                                                                       Logistic-family age/length at 50% selection; row 1 ascending, row 2 descending.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3                                                                                                                                                                                                                                                    Log multiplier on one sex's whole curve, applied after the form and before normalization; 0 = no offset. Estimated only through a selectivity linkage on `apical`.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4  DoubleNormalSS3 (Stock Synthesis size pattern 24) parameters on SS3's own scales: peak (cm or age), logit top width, log ascending width, log descending width, logit initial and logit final selectivity. A starting value of -999 on either of the last two is SS3's switch for leaving that end unscaled: the parameter then drops out of the curve and is fixed. Time variation is through selectivity linkages.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 5                                                                                                                                                                                                                                                                                                                                                                           Annual deviations on the selectivity slope.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 6                                                                                                                                                                                                                                                                                                                                                                Annual deviations on the selectivity inflection point.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 7                                                                                                                                                                                                                                                                                                                                                                       Non-parametric selectivity-at-bin coefficients.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 8                                                                                                                                                                                                                                                                                                                                                     Annual deviations on the non-parametric selectivity coefficients.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 9                                                                                                                                                                                                                                                                                                                                                        Standard deviation of the time-varying selectivity deviations.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 10                                                                         Meaning depends on the fleet's Selectivity. For the non-parametric forms these are weights on the shape and curvature penalties, supplied via fleet_control and not estimated. For '2DAR1' and '3DAR1' the same slots hold estimated correlations: slot 1 across selectivity BINS, slot 2 across YEARS, and for 3DAR1 slot 3 across COHORTS.</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                                    dims</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1                      [2, n_sel, nsex]</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2                      [2, n_sel, nsex]</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3                         [n_sel, nsex]</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4                      [6, n_sel, nsex]</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 5           [2, n_sel, nsex, nyrs_hind]</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 6           [2, n_sel, nsex, nyrs_hind]</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 7             [n_sel, nsex, n_sel_bins]</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 8  [n_sel, nsex, n_sel_bins, nyrs_hind]</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 9                               [n_sel]</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 10                           [n_sel, 3]</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Search the meanings by keyword</span></span></span>
 <span class="r-in"><span><span class="va">dict</span> <span class="op">&lt;-</span> <span class="fu">parameter_dictionary</span><span class="op">(</span><span class="op">)</span></span></span>
