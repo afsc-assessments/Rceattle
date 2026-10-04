@@ -23,7 +23,7 @@ It consolidates and updates the developer notes on the
 
 | Path | Contents |
 |---|---|
-| `R/` | The R side. Files are number-prefixed in rough pipeline order (see below). |
+| `R/` | The R side, 67 files. The number prefix tracks pipeline order for the `1-` to `6-` chain; everything under `0-` is shared machinery. Every file is listed in [Every file in `R/`, and what it does](#every-file-in-r-and-what-it-does). |
 | `src/TMB/` | The C++ TMB template `ceattle.cpp` and its included `.hpp` modules. |
 | `tests/testthat/` | Unit and regression tests, grouped by area. |
 | `inst/extdata/` | Excel templates, including `meta_data_names.xlsx` (the authoritative column/switch reference). |
@@ -35,6 +35,29 @@ The whole model (observation model, population dynamics, and likelihood) is
 a single C++ TMB script, `src/TMB/ceattle.cpp`, which `#include`s a set
 of topical `.hpp` modules. `fit_mod()` is the R entry point; it calls a chain
 of helpers that build the TMB inputs, optimize, and label the output.
+
+## I want to change X — where do I start?
+
+The question most people arrive with. Find the row, start at the file, and read
+the fuller description in the file map below.
+
+| I want to … | Start at | Then usually also |
+|---|---|---|
+| add a **selectivity form** | `src/TMB/selectivity.hpp` (the `switch (sel_type)`) | `R/0-switches.R` (`sel_map`), `R/0-column_schema.R`, `R/3-build_map.R`; full recipe in [Add a new switch option](#add-a-new-switch-option-e.g.-a-selectivity-form-or-suitmode) and `vignettes/articles/adding-a-selectivity-form.Rmd` |
+| add a **likelihood component** | `src/TMB/ceattle.cpp` §13 and the `JnllRow` enum | `R/6-rename_output.R` (row labels) and `.JNLL_ROW_AXIS` in `R/9-profile.R` — all three must agree, and `test-schema-jnll-rows.R` checks it |
+| add a **workbook column** | `R/0-column_schema.R` | nothing else, if you add it there; the schema drives `switch_check()`, `read_data()`/`write_data()`, the meta sheet and the docs. Use `/new-column` |
+| add a **switch value** (a new form name) | `R/0-switches.R` (the relevant `*_map`) | `validate_switches()` rejects anything not in the map |
+| change **what a parameter starts at** | `R/2-build_params.R` | `R/4-build_parameter_bounds.R` if it needs bounds |
+| change **which parameters are estimated** | `R/3-build_map.R` | `R/6-phaser.R` if it should be phased |
+| add a **covariate or time-varying effect** to a process | `linkage_spec()` in `R/0-build_linkage.R` | the process's own `build_*()`; nothing in the TMB template, unless the process is new |
+| add a **data input** | `R/0-column_schema.R` + `R/0-read_write_excel_data.R` | `R/1-data_check.R`, `R/5-rearrange_data.R`, and the `DATA_*` block in `ceattle.cpp`. A `data_list` element with no read/write support round-trips to nothing |
+| change a **reported quantity** | `REPORT()`/`ADREPORT()` in `ceattle.cpp` §14 | `R/6-rename_output.R` and `R/0-quantity_dictionary.R` |
+| change **predation / suitability** | `src/TMB/predation.hpp` | `R/3-build_map.R` (`build_map_predation`), and run the hake MSE — `/golden-check` does not reach estimated suitability |
+| change **growth or weight-at-age** | `src/TMB/growth.hpp` | `R/0-build_growth.R` |
+| change a **reference point or the HCR** | `src/TMB/spr.hpp` and `ceattle.cpp` §6.6–6.7 | `R/0-build_hcr.R` |
+| add a **plot** | `R/7-plot_helpers.R` for the shared resolvers, then the topical `R/7-plot-*.R` | `?"rceattle-plot-args"` documents the shared argument vocabulary once |
+| add an **observation-error draw** | the `SIMULATE{}` block beside the density that scores it, in `ceattle.cpp` | `sim_mod()` implements no observation model in R; a new likelihood family owes a draw |
+| change **projection or the MSE** | `R/10-run_mse.R` | `R/10-mse_summary.R`; anything touching row counts or draw order changes every subsequent random draw |
 
 ## The fit pipeline
 
@@ -62,6 +85,119 @@ returned by `fit_mod()`.
 Before that pipeline runs, a user can assemble or edit the `data_list`
 programmatically and see exactly what a given model needs, see
 **Data assembly and the column schema** below.
+
+## Every file in `R/`, and what it does
+
+The pipeline table above names the nine files a fit passes through. There are 67,
+and the rest are grouped below by what they are *for* rather than by their number
+prefix — the prefix only tracks pipeline order for the `1-` to `6-` chain, and
+everything under `0-` is shared machinery that the chain draws on.
+
+**Specifications and registries** — the source of truth for what a setting means.
+Change a value here and the whole package follows.
+
+| File | What it holds |
+|---|---|
+| `0-column_schema.R` | **Every workbook column**: name, sheet, type, default, allowed values, old spellings, and the one-line description that becomes the meta sheet and the `?BS2017SS` docs. The single place to add a column. |
+| `0-switches.R` | The 20 switch maps (`sel_map`, `q_map`, `initMode_map`, …) that translate a readable name to the integer the template consumes, plus `switch_check()` / `validate_switches()` / `convert_switches()` / `revert_switches()`. |
+| `0-parameter_dictionary.R` | Internal parameter name → natural-scale name, process, meaning, dimensions. |
+| `0-parameter_index.R` | Which array slot a given parameter occupies, per selectivity form. |
+| `0-quantity_dictionary.R` | Reported quantity → meaning, units, dimensions. What `REPORT()` gives you, in words. |
+| `1-data_requirements.R`, `1-data_requirements_table.R` | Which data inputs a given configuration requires, which are optional, and which are ignored. |
+
+**Building a model specification** — the `build_*()` family a user calls before fitting.
+
+| File | What it holds |
+|---|---|
+| `0-build_data.R`, `0-model_config.R` | Assemble or edit a `data_list` in R, and print it as a readable outline. |
+| `0-build_srr.R` | The stock–recruit relationship: form, priors, fixed/estimated, and its linkages. |
+| `0-build_m1.R` | Natural mortality `M1`: form, priors, linkages. |
+| `0-build_growth.R` | Growth (von Bertalanffy / Richards), weight- and length-at-age. |
+| `0-build_selectivity.R` | Selectivity linkages and the apical-offset form. |
+| `0-build_catchability.R` | Catchability linkages and the analytical-q forms. |
+| `0-build_composition.R` | Composition weighting, including the Dirichlet-multinomial priors. |
+| `0-build_hcr.R` | The harvest control rule, and the map for its parameters. |
+| `0-fit_control.R` | The optimizer, `sdreport` and phasing knobs bundled for `fit_mod()`. |
+| `0-save_config.R` | Write and read a run's whole configuration as commented YAML, and record what a fit ran with. |
+| `0-priors.R` | `prior_normal()` and friends, for linkage coefficients. |
+
+**The linkage system** — one formula grammar covering every way a parameter can vary
+(covariate, time block, random effect) for every process.
+
+| File | What it holds |
+|---|---|
+| `0-build_linkage.R` | `linkage_spec()`, the user entry point, plus materialization and the random-effect registry. The largest file in the subsystem. |
+| `0-linkage_formula.R` | Splits a formula into its fixed and random parts. |
+| `0-linkage_table.R` | The long-format coefficient registry every process writes into. |
+| `0-linkage_encode.R` | Turns that table into the integer arrays the template reads. Must stay in lockstep with `src/TMB/linkage.hpp`. |
+
+**Reading and writing data.**
+
+| File | What it holds |
+|---|---|
+| `0-read_write_excel_data.R` | `read_data()`, `write_data()`, `write_template()` — the workbook round-trip. |
+| `0-clean_data.R` | Coerce and tidy an incoming `data_list`; split out the initial equilibrium catch. |
+| `0-combine_data_sets.R` | Merge two data lists. |
+| `data.R` | Roxygen for the bundled example datasets. |
+
+**Fitting and its output.**
+
+| File | What it holds |
+|---|---|
+| `0-tmb_helpers.R` | The `nlminb` + `sdreport` wrapper, and the estimability check. |
+| `6-phaser.R` | ADMB-style phased estimation: which parameters enter at which phase. |
+| `6-rename_output.R` | Labels every derived quantity on the returned object, including the `jnll_comp` row names. |
+| `6-refit_like.R` | Re-fit a model reusing a source `data_list`'s structural choices. The single engine behind every refit diagnostic. |
+| `6-reweight.R` | Iterative composition reweighting (McAllister–Ianelli). |
+| `6-tmb_aic.R` | Marginal AIC. |
+| `0-rceattle_class.R` | The S3 methods — `print`, `summary`, `plot`, `coef`, `vcov`, `logLik`, `residuals`, `as.data.frame`, `simulate` — and the Pearson residual machinery. |
+| `0-rceattle_data_class.R` | `print`/`summary` for a `data_list`, as an indented spec tree. |
+
+**Diagnostics.**
+
+| File | What it holds |
+|---|---|
+| `0-convergence.R` | `convergence_diagnostics()` and the twelve checks behind it; also the shared refit gates (converged, timeout, dropped, errors). |
+| `0-diagnostic_print.R` | The shared header/table/tally used by the diagnostic print methods. |
+| `9-diagnostic_helpers.R` | `.parallel_lapply()` and the argument vocabulary the refit diagnostics share. |
+| `9-retro_and_jitter.R` | `retrospective()` (Mohn's rho) and `jitter()`. |
+| `9-self_test.R` | Simulation self-test: can the model recover its own parameters? |
+| `9-profile.R` | Likelihood profiles, and `profile_components()` for the per-component breakdown. |
+| `6-osa_residuals.R` | One-step-ahead residuals, the only residuals with a known null distribution under random effects. |
+| `0-osa_data.R` | Builds the flat observation vector the OSA machinery needs. |
+| `6-process_residuals.R` | Residuals for the random-effect *processes* rather than the observations. |
+| `6-report_tables.R` | Assessment reporting tables and the NOAA standard output. |
+
+**Simulation, projection and MSE.**
+
+| File | What it holds |
+|---|---|
+| `8-sim_mod.R` | `sim_mod()` — draws new data from a fitted model by calling the template's `SIMULATE` blocks. Also `sample_rec()` and `compare_sim()`. |
+| `10-run_mse.R` | `run_mse()`: the operating model, the assessment schedule, and the estimation model refit. |
+| `10-mse_summary.R` | Performance metrics across simulations. |
+| `10-project-no-F.R` | `remove_F()` — rerun with F set to zero. |
+| `11-model_average.R` | Average derived quantities across fits. |
+
+**Plotting** — the shared argument vocabulary lives in `7-plot_helpers.R` and is
+documented once, in `?"rceattle-plot-args"`.
+
+| File | What it holds |
+|---|---|
+| `7-plot_helpers.R` | The resolvers every plotter should use: species, years, colour, line parameters, faceting, age indexing, the projection divider. |
+| `7-plot_ceattle.R` | `plot_timeseries()` and the wrappers built on it (biomass, SSB, recruitment, depletion, F), plus selectivity, mortality, maturity, ration and the predation plots. |
+| `7-plot_comp.R` | Composition and diet-composition fits and residuals. |
+| `7-plot_diagnostics.R` | Index and catch fits, catchability, index residuals. |
+| `7-plot_osa.R` | OSA residual diagnostics. |
+| `7-plot_profile.R` | Likelihood profiles. |
+| `7-plot_data.R` | Timeline of which data enter which likelihood. |
+| `7-plot_stock_recruit.R`, `7-plot_sel_vs_mat.R` | Stock–recruit curve; selectivity against maturity. |
+
+**Package infrastructure.**
+
+| File | What it holds |
+|---|---|
+| `Rceattle-package.R` | Package-level roxygen and imports. |
+| `0-deprecate.R` | The helper that warns on a renamed argument. |
 
 ## The switch system
 

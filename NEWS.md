@@ -12,6 +12,27 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.49.3
+
+## Documentation
+
+* **The developer guide now maps every file in `R/`.** It named 22 of 67; the other 45 were
+  described nowhere, which is most of what a newcomer has to navigate. The new "Every file in
+  `R/`, and what it does" section covers all 67, grouped by purpose (specifications and
+  registries, the `build_*()` family, the linkage system, data I/O, fitting, diagnostics,
+  simulation and MSE, plotting, infrastructure) rather than by number prefix, since the prefix
+  only tracks pipeline order for the `1-` to `6-` chain.
+* **Added a reverse index, "I want to change X — where do I start?"** — the question a reader
+  actually arrives with. Sixteen rows from "add a selectivity form" to "add an observation-error
+  draw", each naming the entry point and the files that usually have to change with it.
+* **Both claims are guarded, not maintained by hand.** `test-docs-anchors.R` now checks that the
+  guide names every file in `R/`, and that every `R/` filename the guide names exists. Both are
+  mutation-tested, and both carry a floor so they cannot pass vacuously on an empty directory.
+* Regenerated `man/build_srr.Rd`, which had drifted from its roxygen: the source gained a
+  paragraph distinguishing the `linkages` key `R_init` (a unitless log-scale multiplier on the
+  initial age structure) from the reported quantity `R_init` (equilibrium recruitment at
+  F = Finit, in thousands of fish), and the installed help never got it.
+
 # Rceattle 5.49.2
 
 ## Internal

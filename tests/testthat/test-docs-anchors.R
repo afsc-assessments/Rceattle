@@ -235,3 +235,47 @@ test_that("the README pins the version in DESCRIPTION", {
   expect_gt(length(pins), 0)
   expect_equal(unique(sub("^Rceattle@", "", pins)), ver)
 })
+
+
+# The developer guide's file map claims to cover every file in R/. A map that
+# silently stops covering a new file is worse than no map, because a reader
+# trusts it and concludes the file does not exist. So the claim is asserted, not
+# maintained by hand -- adding a file to R/ without naming it in the guide fails
+# here, which is the one place that will make someone write the one-line role.
+test_that("the developer guide names every file in R/", {
+  root <- .docs_root()
+  guide <- readLines(file.path(root, "vignettes", "articles",
+                               "developer-guide.Rmd"), warn = FALSE)
+  files <- basename(list.files(file.path(root, "R"), pattern = "[.]R$"))
+
+  # Guard the guard: if R/ ever reads as empty the loop below would pass
+  # vacuously, which is the failure mode this file exists to prevent elsewhere.
+  expect_gt(length(files), 50)
+
+  named <- vapply(files, function(f) any(grepl(f, guide, fixed = TRUE)),
+                  logical(1))
+  expect_true(all(named),
+              info = paste("not named in the developer guide:",
+                           paste(files[!named], collapse = ", ")))
+})
+
+# The converse: a filename the guide names that no longer exists sends a reader
+# to a file that is not there. test-plot-smoke.R carried two function names for
+# functions that had never existed, so this class of staleness is real here.
+test_that("every R/ filename the developer guide names exists", {
+  root <- .docs_root()
+  guide <- readLines(file.path(root, "vignettes", "articles",
+                               "developer-guide.Rmd"), warn = FALSE)
+  files <- basename(list.files(file.path(root, "R"), pattern = "[.]R$"))
+  tests <- basename(list.files(file.path(root, "tests", "testthat"),
+                               pattern = "[.]R$"))
+  # src/TMB/compile.R is named in the build section and is not under R/.
+  known <- c(files, tests, "compile.R")
+
+  mentioned <- unique(unlist(regmatches(
+    guide, gregexpr("[0-9A-Za-z._-]+[.]R\\b", guide))))
+  expect_gt(length(mentioned), 20)
+  expect_true(all(mentioned %in% known),
+              info = paste("named in the guide but absent:",
+                           paste(setdiff(mentioned, known), collapse = ", ")))
+})
