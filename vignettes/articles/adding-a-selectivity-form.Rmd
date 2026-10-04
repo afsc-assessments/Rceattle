@@ -79,7 +79,7 @@ Stock Synthesis size pattern 24, so **the next form takes 16.**
 | `R/0-switches.R` | always | Add `"YourForm" = N` to `sel_map`. `validate_switches()` rejects any name not in the map, so this line is what makes the form selectable. |
 | `R/0-column_schema.R` | always | Extend the `Selectivity` row's description: the schema is the source of truth for the workbook. |
 | `R/data.R` | always | Add the code to the `\item{Selectivity}` entry; `test-schema-canonical.R` requires every `sel_map` name to be documented there. |
-| `src/TMB/selectivity.hpp` | always | Add the `case N:` to `switch (sel_type)` in `calculate_selectivity()`. Write into `sel_at_age` or `sel_at_length` by `is_length_based`; `normalize_and_project_selectivity()` then applies `Bin_first_selected`, the `Sel_norm_bin` normalization and the projection for every form except those it names. |
+| `src/TMB/selectivity.hpp` | always | Add the `case N:` to `switch (sel_case)` in `calculate_selectivity()`. The switch is on `sel_case`, not `sel_type`: `sel_case` is the `Selectivity` code unless form 13 is under a random walk, which rewrites it to `-13`. Write into `sel_at_age` or `sel_at_length` by `is_length_based`; `normalize_and_project_selectivity()` then applies `Bin_first_selected`, the `Sel_norm_bin` normalization and the projection for every form except those it names. |
 | `R/3-build_map.R` | always | Add an `if (sel_type == "YourForm")` block to `build_map_selectivity()`. Everything starts mapped out; the block frees the slots your form reads, per sex, and the deviates for each `Time_varying_sel` mode it supports. Mirrored fleets (shared `Selectivity_index`) are handled afterwards by `adjust_map_shared_params()`, which is form-agnostic. |
 | `src/TMB/ceattle.cpp` | if the form takes deviates | The deviate densities in `JNLL_SEL_DEV` are keyed on **hard-coded type lists**: four `if` lines in the block headed `Logistic selectivity penalties` name the codes `1`, `3`, `4` and `8` explicitly. A form whose map block frees deviates but whose code is not in those lists estimates free parameters with no density, and nothing reports it. Add the code to each list your form's deviates belong in. |
 | `R/1-data_check.R` | always | Add the form to the `sel_para` list, so the `Time_varying_sel` soft-deprecation nudge covers it, and restrict `Time_varying_sel` to the modes your `build_map()` block handles, next to the NonParametric, NonParametricPM, Hake and LogisticPM checks. A mode the block does not name is mapped out silently (see Troubleshooting). Add any required-column check here too. |
@@ -209,7 +209,7 @@ same.
 Two static tests read the source and fail on a half-finished form. Both were run
 red for this article by adding `"Fake" = 12` to `sel_map` with no `case`.
 
-**`test-schema-cpp-dispatch.R`** parses every `case N:` inside `switch (sel_type)`
+**`test-schema-cpp-dispatch.R`** parses every `case N:` inside `switch (sel_case)`
 in `src/TMB/` and requires the set to equal the map's values, minus a pinned
 exemption in each direction (`Fixed = 0` is applied before the dispatch). A map
 entry with no `case` fails like this:

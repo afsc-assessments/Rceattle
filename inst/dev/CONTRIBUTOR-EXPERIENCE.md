@@ -60,7 +60,7 @@ What FIMS does better is the contributor path:
 
 The concrete gap, as a task: **adding a selectivity form.** In FIMS it is one new file under
 `functors/` plus registration, every step written down. In Rceattle it is a new `case` in the
-`switch (sel_type)` at `src/TMB/selectivity.hpp:361` plus edits across the R pipeline — and that
+`switch (sel_case)` in `src/TMB/selectivity.hpp` plus edits across the R pipeline — and that
 list is written down nowhere a human will find it.
 
 ### The file list is a hypothesis, not a finding
@@ -73,7 +73,7 @@ correct this table**, and the prompt says so.
 |---|---|---|
 | `R/0-switches.R` | always | `sel_map` (`:73`–`:87`) — the name the user types. `"DoubleNormal" = 8` is at `:82`; the 5.40.0 forms close the list at `:85`–`:86` |
 | `R/0-column_schema.R` | always | the `Selectivity` description (`:118`) is the user-facing switch documentation |
-| `src/TMB/selectivity.hpp` | always | the `case` in `switch (sel_type)` at `:361` |
+| `src/TMB/selectivity.hpp` | always | the `case` in `switch (sel_case)`; `sel_case` is derived from `sel_type` just above the switch |
 | `R/1-data_check.R` | usually | per-form checks: `N_sel_bins` at `:867`–`:889`; form x `Time_varying_sel` for the non-parametric forms at `:960`–`:984`, Hake at `:986`–`:989`, LogisticPM at `:1002`–`:1005` |
 | `R/2-build_params.R` | if the form has new parameters | |
 | `R/3-build_map.R` | if the form has new parameters | the densest file in the list: `grep -ci sel` returns 302 lines |
