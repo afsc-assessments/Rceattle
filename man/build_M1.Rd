@@ -69,6 +69,15 @@ A list of switches for defining the M1 model.
 \description{
 Specify the residual natural mortality (M1) model for Rceattle
 }
+\section{\code{M1_base} completeness}{
+
+\code{M1_base} must carry a finite, positive residual M (per year) for every age
+of every sex the species has; the value is taken on the log scale, so a blank
+or a zero is refused with the offending \verb{(species, sex, age)} cells named.
+Columns past a species' own \code{nages} are padding and are ignored, so a row may
+stop at that species' last age.
+}
+
 \examples{
 \donttest{
 # Sex/age-invariant M with a temperature linkage on M1

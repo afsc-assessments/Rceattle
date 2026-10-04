@@ -1282,9 +1282,12 @@ fit_mod <-
       start_par$log_Ftarget <- log_F_input(data_list$Ftarget)
     }
 
-    # Update M1 parameter object from data if initial parameter values input
+    # Update M1 from M1_base when initial parameter values were supplied.
+    # Fills exactly as build_params() does: the array starts at 1 and only the
+    # species' own sexes and ages are written, so a padding cell is log(1) = 0
+    # on both paths. A 0 start would make a padding sex cell log(0) = -Inf.
     if (updateM1) {
-      m1 <- array(0, dim = c(data_list$nspp,
+      m1 <- array(1, dim = c(data_list$nspp,
                              max(data_list$nsex, na.rm = TRUE),
                              max(data_list$nages, na.rm = TRUE)))
 
@@ -1293,13 +1296,19 @@ fit_mod <-
         sex <- as.numeric(as.character(data_list$M1_base$Sex[i]))
 
         # Handle sex == 0 case for 2-sex species
-        sex_values <- if (sex == 0) 1:data_list$nsex[sp] else sex
+        sex_values <- if (sex == 0) seq_len(data_list$nsex[sp]) else sex
+        ages <- seq_len(data_list$nages[sp])
 
-        for (j in 1:length(sex_values)) {
-          m1[sp, sex_values[j], 1:max(data_list$nages, na.rm = TRUE)] <- as.numeric(data_list$M1_base[i, (1:max(data_list$nages, na.rm = TRUE)) + 2])
+        for (j in seq_along(sex_values)) {
+          m1[sp, sex_values[j], ages] <-
+            as.numeric(data_list$M1_base[i, ages + 2])
         }
       }
+      # Keep the species / sex / age labels this array already carried, so a
+      # fit made with updateM1 reports log_M1 as readably as any other.
+      dimnames(m1) <- dimnames(start_par$log_M1)
       start_par$log_M1 <- log(m1)
+      .rce_stop_if_nonfinite_M1(start_par$log_M1, "fit_mod(updateM1 = TRUE)")
     }
 
     # A refit's inits hold the fitted, or profiled, value, so the starting-value

@@ -11,6 +11,62 @@ intermediate. They were folded rather than renumbered because renumbering a sect
 every (x.y.z) cross-reference pointing at it, and the entries below cite each other by
 version throughout.
 -->
+# Rceattle 5.50.0
+
+## Bug fixes
+
+* **`log_M1` no longer carries a non-finite starting value.** The array is dimensioned to the
+  widest species -- `[nspp, max(nsex), max(nages)]` -- so a species with fewer sexes or ages
+  leaves padding cells, and the two fill paths disagreed about what went in them.
+  `build_params()` initialized at 1 but then read `1:max_age` from the `M1_base` row, which is
+  legitimately blank past that species' last age; `fit_mod(updateM1 = TRUE)` initialized at 0, so
+  every padding *sex* cell became `log(0) = -Inf`. Measured on `GOA2018SS` (`nsex` `c(1, 2, 1)`,
+  `nages` `c(10, 21, 12)`): 11 non-finite cells of 126 on the first path and **53 on the second**,
+  of which 42 were `-Inf`. On `BS2017SS` (`nages` `c(12, 12, 21)`) both paths left 18. Both now
+  write only the sexes and ages the species actually has, so padding reaches the template as
+  `log(1) = 0`, and both produce the same array.
+* **One configuration goes from a NaN objective to a finite fit:
+  `fit_mod(updateM1 = TRUE)` with `M1_model >= 1` on a species set with ragged `nsex`.** Those
+  padding sex cells take a map index (`build_map_m1()` writes `[sp, , 1:nages_sp]`), so a `-Inf`
+  in them reached the AD tape and poisoned the objective. On `GOA2018SS`: `M1_model` 1, 2 and 3
+  all gave `NaN` and now give 891822.517895, 890929.683370 and 933405.044463. **Everything else
+  is unchanged**: all six golden blocks, and a cold `GOA2018SS` fit at `estimateMode = 3`
+  reproduces 919429.003511761 (`msmMode = 0`) and 942099.593383157 (`msmMode = 1`) to all fifteen
+  digits with `max|gradient|` unchanged, before and after. Golden blocks 2-6 are the strongest
+  check, because they *cold-build* `BS2017SS` at `estimateMode = 0` -- whose padding held 18 `NA`
+  cells -- and still reach their pinned objectives through a full optimization; block 1 alone does
+  not exercise the fill, since it warm-starts from reference `inits` that already carry the
+  non-finite cells.
+* **A missing `M1_base` row is now refused.** A `(species, sex)` the model has but `M1_base` does
+  not name kept the array's initial 1, i.e. a residual M of **1.0 per year** -- inside
+  `build_bounds()`'s `[log(0.001), log(2)]`, so nothing downstream caught it and the fit simply
+  ran with it. Deleting a species' row from `BS2017SS` previously built a model with
+  `M1_at_age = 1.0`, silently.
+* A non-finite `log_M1` starting value is also refused, naming the offending
+  `(species, sex, age)` cells. The check runs **after** the linkage initial-value pass, not at the
+  fill: an M1 linkage carrying an `init` for its intercept writes the level over every real age,
+  so a workbook may legitimately leave `M1_base` blank and let the linkage supply it. Checking at
+  the fill would refuse that, and did in an earlier draft.
+* **A workbook with a blank `M1_base` cell at a real age is now refused where it previously fit**
+  with an `NA` starting value, which reached `MakeADFun()` because `data_check()` has no
+  `M1_base` completeness check. One real example exists: `AI cod - Dev/Data/2024_AI_cod.xlsx` in
+  `Rceattle-models` fills only to `Age10` against `nages` 13, so three real ages were `NA` and
+  would have been exponentiated. Of 375 sibling workbooks (217 with an `M1_base` sheet) that is
+  the only one affected, and no bundled dataset is. `?build_M1` now states the requirement.
+* `fit_mod(updateM1 = TRUE)` keeps the species / sex / age dimnames on `log_M1`, so
+  `initial_params` is as readable on that path as on any other. With the fill now identical on
+  both paths, the labels were the only remaining difference.
+* One reported-output change worth knowing when diffing `initial_params`: where a workbook
+  populates `M1_base` *past* a species' last age, those padding cells previously carried
+  `log(value)` and now carry 0. On `GOA2018SS` that is nine cells for species 3, whose row runs to
+  age 21 against `nages` 12. They are padding, so no fit reads them.
+
+Three adjacent M1 defects found during review are filed in `inst/dev/CLEANUP_BACKLOG.md` rather
+than fixed here, because each needs its own verification: the starting M1 is diluted toward 1.0
+per year under `M1_model >= 1` on a ragged-`nsex` set (`build_map_m1()` shares padding cells into
+a real map level and `TMB:::updateMap()` averages the level -- **+57%** on `GOA2018SS` pollock,
+and identical on 5.49.6, so pre-existing); `fit_mod(updateM1 = TRUE)` bypasses the bounds check
+entirely; and the linkage intercept-prior re-target reads `log_M1` without a clamp.
 
 # Rceattle 5.49.8
 

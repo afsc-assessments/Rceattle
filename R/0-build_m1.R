@@ -163,6 +163,13 @@ M_LINKAGE_PARAMS <- c("M1")
 #'   broadcasts the offset across ages; specific values pin it to
 #'   that age slice.
 #'
+#' @section `M1_base` completeness:
+#' `M1_base` must carry a finite, positive residual M (per year) for every age
+#' of every sex the species has; the value is taken on the log scale, so a blank
+#' or a zero is refused with the offending `(species, sex, age)` cells named.
+#' Columns past a species' own `nages` are padding and are ignored, so a row may
+#' stop at that species' last age.
+#'
 #' @return A list of switches for defining the M1 model.
 #' @export
 #'
