@@ -176,6 +176,13 @@ of 39,236 R lines), so what matters is where they don't:
   while its column is guaranteed present. `.pull_int()` in `5-rearrange_data.R` already does it
   right — `fc[[col]]`. Don't sweep the ~8,300 existing `$`; write `[[` in new code, and always
   when the name is computed.
+  **What makes the ~50 existing `$` reads of those three names safe is which accessor comes
+  FIRST, not the accessors themselves**: `switch_check()` and `data_check()` reach the column
+  through the dplyr pronoun `.data$Time_varying_q`, and rlang's pronoun *errors* on a missing
+  column instead of partial-matching — so the pipeline dies loudly before any bare `$` read is
+  reached, and where it does not, `switch_check()` has already supplied the column. **Rewriting a
+  `.data$` read as a bare `$` removes the loud failure and exposes the silent one**, which is why
+  the idiom rule below is not cosmetic. `test-schema-partial-match.R` pins the loudness.
 - **Match the file's idiom; never translate between them.** dplyr and the pipe are load-bearing
   in the `7-*` plotters, the `0-*` data prep and `5-rearrange_data.R` (105 lines of it); most of
   `1-*` to `6-*` is base R. Neither is more correct here, and rewriting one as the other inside

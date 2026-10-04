@@ -12,6 +12,29 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.49.4
+
+## Internal
+
+* **New guard: `test-schema-partial-match.R`.** `$` partial-matches on a list and on a data frame
+  silently, and three schema columns have exactly one longer sibling, so a `$` read of an absent
+  `Time_varying_sel`, `Time_varying_q` or `Sel_norm_bin` returns the *sd* or the *upper bin*
+  instead of NULL. The option that would warn, `warnPartialMatchDollar`, is off by default. The
+  new file turns it on locally -- not for the whole suite, where it fires inside readxl, dplyr and
+  TMB for names this package does not own -- filters warnings to names the schema or a data list
+  owns, and asserts `data_check()` makes no such read on eight bundled data sets. It carries a
+  positive control and floors so it cannot pass vacuously.
+* **Recorded why the existing `$` reads are safe, because it is not obvious and it is fragile.**
+  There are ~50 bare `$` reads of those three names against 2 `[[ ]]` reads, and none is reachable
+  with the column absent: `switch_check()` and `data_check()` reach the column through the dplyr
+  pronoun `.data$`, which *errors* on a missing column rather than partial-matching, so the
+  pipeline dies loudly first; where it does not, `switch_check()` has already supplied the column.
+  The protection is therefore a property of which accessor comes first. Rewriting a `.data$` read
+  as a bare `$` would remove the loud failure and expose the silent one. `CLAUDE.md` now says so,
+  and the new test pins the loudness.
+* Also pins the schema's silent-prefix set at exactly those three names, so a new column that
+  creates a fourth has to be acknowledged rather than merely added.
+
 # Rceattle 5.49.3
 
 ## Documentation
