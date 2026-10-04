@@ -87,6 +87,7 @@ a fit. None carries a source marker.
 | ~~`src/TMB/ceattle.cpp` (male slot writes)~~ | ~~every species one-sex (`max_sex == 1`)~~ | **Resolved in 5.13.0**: ten lines wrote sex index 1 unconditionally, but arrays are dimensioned `max_sex`, so that index does not exist when no species has two sexes. Value written is 0 (`sex_ratio` is set to 1 for a one-sex species first), but the write is out of range and lands on `(sp, 0, age + 1, yr)` — the next age — surviving only because the age loop overwrites it. Fires on BS2017SS and BS2017MS every evaluation. Reproduced with `TMB::compile(safebounds = TRUE)`, which raises Eigen's range assertion; guarded, the fit is clean at an unchanged 1537036.287629372. `test-dynamics-sex-index-bounds.R`. |
 | ~~`R/1-data_check.R` (no `comp_data$Sex` check)~~ | ~~`Sex` 2 or 3 on a one-sex species~~ | **Resolved in 5.13.0**: `M1_base`, `weight` and `ration_data` are all checked against `nsex`; composition was not. Two registries disagree on what "joint" means — `check_composition_data()` uses `nsex == 2 & Sex == 3`, the template uses `flt_sex == 3` alone — so a joint row on a one-sex species was sized at `nages` and written to `nages * 2`, corrupting the NEXT observation's predicted composition and its likelihood. Refused at the boundary rather than reconciled in the template. `test-data-check-comp-sex.R`. |
 | ~~`src/TMB/ceattle.cpp` (reference-point recruitment arms)~~ | ~~a stock-recruit curve with `proj_mean_rec = TRUE` (the default)~~ | **Resolved in 5.13.0**: the mean-rec arm required `proj_mean_rec == 1 & srr_pred_fun < 2` and the curve arm required `proj_mean_rec == 0`, so that combination matched neither and reference-point recruitment stayed 0 after year 1. `SB0` became the initial cohort decaying (3.344 → 1.230 over six years), and `SB0` in the terminal year is what HCR 5 and 6 read as the depletion reference — so perceived depletion and the resulting catch advice were both wrong. The curve arm now fires whenever a curve exists; the projection switch is read separately and is unchanged. `build_srr(proj_mean_rec =)` was also documented backwards. `test-dynamics-refpoint-mean-rec.R`. |
+| `src/TMB/ceattle.cpp` (`Fixme: denominator is zero somewhere`) | **Open, and unreproduced** (found sweeping bug-history comments, 2026-10-04). Unknown -- the note states no condition. | The marker sits inside the section 16 CHANGE LOG, stranded between items 19 and 20, and reads in full: "denominator is zero somewhere. Log of negative number. Check suitability. Make other prey a very large number. Look at M2_at_age: suitability: and consumption. Make sure positive." It dates from the 2017->2018 ADMB conversion and change-log item 23 ("Fixed suitability estimation (use hindcast only)") may well be its resolution -- but nothing says so, and a log of a negative number in suitability would be a silently-wrong M2 rather than a crash. **Triage before deleting it:** decide whether it is live, and if it is, give it a reproducing input. Not removed with the other bug-history comments precisely because it may not be history. **Note the marker is lowercase `Fixme:`, so the re-derive command at the top of this file -- which is case-sensitive -- does not count it; `grep -i` gives 49 rather than 47.** |
 
 ---
 
@@ -105,6 +106,7 @@ from what its FIXME claimed. Add new rows above it.
 | ~~`R/3-build_map.R` (`will fail if random_sel = TRUE?`)~~ | ~~`random_sel = TRUE` + `Time_varying_sel = "Block"`~~ | **Resolved in 5.13.0**: confirmed real, and worse than "will fail". The block parameters live in `log_sel_slp_dev`/`sel_inf_dev`, and `fit_mod()` declared those arrays random unconditionally — but the template scores selectivity deviates only for `IID`/`AR1`/`RandomWalk`/`RandomWalkAscending`, so blocks were Laplace-integrated against **no density**, `sel_dev_log_sd` mapped out so there was no variance either. Measured: 8 parameters random, `JNLL_SEL_DEV` identically 0, objective `NaN`, real fit dead with TMB's `NA/NaN gradient evaluation`. Now refused with a message naming the fleets and the way out. `test-selectivity-random-sel-block.R` carries the reproduction and a drift guard pinning `Block` as the only mode the template leaves unscored. |
 | ~~`R/6-fit_mod.R` (`swallows EVERY warning build_map() raises`)~~ | ~~any~~ | **Resolved in 5.13.0**: the comment named the wrong warnings — the shared-block ones it cited are raised by `data_check()`, not `build_map()`. What was actually swallowed was `build_map()`'s own set (M1 sex mismatch, selectivity-form incompatibilities), each of which changes what is estimated. Now de-duplicated via `withCallingHandlers()` and passed through, so `.refit_like()`'s per-peel re-entry prints each distinct warning once instead of hundreds of times. |
 | ~~`R/10-mse_summary.R` (`EM uses fixed-depletion proxy for HCR 2`)~~ | ~~HCR 2~~ | **Resolved in 5.13.0**: in single-species mode the HCR 2 arm now reads `ssb_limit_thresh()`, the helper the operating model already uses, so both sides of the cross-tab score one criterion (absolute `0.5 * SBF`) and branch on the same scale flag. `Plimit` is NOT the answer -- `build_hcr()` defaults it to 0, so reading it reports a default ConstantF run as never overfished; the first fix did that. Under `msmMode > 0` both sides still fall through to `Plimit`, which is the operating model's own multispecies rule, so they agree and it is left alone. `test-mse-cap-and-hcr2-threshold.R`. |
+
 
 ## Tier 1 — stated limitations, currently by design
 
@@ -396,6 +398,23 @@ Still open. No user-visible consequence; do them opportunistically.
   around `.refit_like()` in `retrospective()`, `jitter()`, `profile()` and `self_test()`.
 - **A one-year retrospective peel** averages over that year, though its warning says "after the
   first".
+
+- **`M1_mult.sum()` is marked "LEGACY (scheduled removal: v4.5.0)" and is still live**
+  (`src/TMB/ceattle.cpp`, `M1_mult.sum() is LEGACY`). One path, not two -- the marker text itself
+  is the second grep hit. The sum is added unconditionally inside the species/sex/age/year loop
+  just below the marker. The NEWS target (`## Scheduled removal (v4.5.0)`, in the 4.1.0 section)
+  still exists, so the pointer resolves -- but a reader at 5.49.5 will reasonably conclude this
+  path is gone. Either retire it behind a deprecation message or restate the comment as current
+  behaviour with the condition under which it executes. Found sweeping bug-history comments,
+  2026-10-04.
+- **A second, unrelated `LEGACY (scheduled removal: v4.5.0)` marks the dynamic reference-point
+  recruitment split** (`src/TMB/ceattle.cpp`, `LEGACY (scheduled removal: v4.5.0). Use
+  relationship below`). Inside the Option 1a arm (`proj_mean_rec == 1 & srr_pred_fun < 2`), the
+  dynamic RPs take observed `R(sp, yr)` for hindcast years and `exp(log(avg_R) + rec_dev)` for
+  projection years; the marker says to use the Option 2 relationship below instead. This is NOT
+  the defect resolved in 5.13.0 -- that was Option 1a and the curve arm matching **neither**
+  condition. It feeds `N_at_age_dB0`, hence `SB0(sp, nyrs-1)`, which HCR 5 and 6 read as the
+  depletion reference, so decide it deliberately rather than by sweep. Found 2026-10-04.
 
 ## `TODO(review)` — Grant's calls, not an agent's
 

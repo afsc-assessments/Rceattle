@@ -501,11 +501,12 @@ osa_residuals <- function(object = NULL,
          call. = FALSE)
   }
 
-  # Build the full OSA observation data (comp / caal / diet segments) on demand.
-  # This works from any fit and no longer requires fitting with
-  # fit_control(osa = TRUE): build_osa_data() reads only the *_ctl / *_obs
-  # arrays the model already carries, and `obs_ctl` maps each obsvec position
-  # back to its source. The same regenerated data is reused by .osa_build_obj().
+  # Build the full OSA observation data (comp / caal / diet segments) on demand,
+  # so nothing has to be set at fit time; any fit optimized at estimateMode < 3
+  # will do, which the guards above enforce.
+  # build_osa_data() reads only the *_ctl / *_obs arrays the model already
+  # carries, and `obs_ctl` maps each obsvec position back to its source. The
+  # same regenerated data is reused by .osa_build_obj().
   osa_dat <- build_osa_data(object$obj$env$data, build_osa = TRUE)
   obs_ctl <- osa_dat$obs_ctl
 
@@ -1206,10 +1207,10 @@ osa_residuals <- function(object = NULL,
     return(obj)
   }
   # Regenerate the full OSA observation vector (comp / CAAL / diet segments) on
-  # demand, so residuals no longer require fitting with fit_control(osa = TRUE).
-  # build_osa_data() reads only the *_ctl / *_obs arrays the model already
-  # carries in obj$env$data, so the result is identical to an osa = TRUE fit.
-  # `osa_dat` lets the caller pass a pre-built copy to avoid recomputing it.
+  # demand, so residuals need nothing set at fit time. build_osa_data() reads
+  # only the *_ctl / *_obs arrays the model already carries in obj$env$data, so
+  # the regenerated obsvec is what the fit would have carried had it been
+  # pre-built. `osa_dat` lets the caller pass a copy to avoid recomputing it.
   data2 <- if (is.null(osa_dat)) build_osa_data(obj$env$data, build_osa = TRUE) else osa_dat
   data2$obs_ctl <- NULL   # R-side metadata table, not a TMB DATA input
   # obj$env$data is already sanitized (stored as double with a 'check.passed'

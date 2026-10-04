@@ -51,8 +51,8 @@
 #' Returns `model_names` if supplied, otherwise `"Model 1"`, `"Model 2"`, ... so
 #' the colour/legend mapping always has labels.
 #'
-#' `model_names` is often built as a `list()`, the package's own vignettes do
-#', so it is flattened to character here. Left as a list it becomes a
+#' `model_names` is often built as a `list()`, the package's own vignettes do,
+#' so it is flattened to character here. Left as a list it becomes a
 #' one-element list per model and the plot frame fails to bind.
 #'
 #' Too few names would be recycled, drawing two models as one series under one
@@ -623,10 +623,10 @@
     args$linetype <- lty[1]
   } else if (!isTRUE(all.equal(as.vector(lty[1]), 1))) {
     # The plot maps line type itself and `lty` is a single non-default value, so
-    # it applies to every level. Leaving it unset here is what silently dropped
-    # `plot_ration(fit, lty = 2)`: the argument had no effect and said nothing.
-    # Collapsing a key that does separate something is worth a word, since the
-    # figure then draws those levels alike.
+    # it applies to every level. Set it here or a call like
+    # `plot_ration(fit, lty = 2)` has no effect and says nothing. Collapsing a
+    # key that does separate something is worth a word, since the figure then
+    # draws those levels alike.
     if (!is.null(lty_n) && lty_n > 1L) {
       warning("`lty` is one value but this plot keys line type on ", lty_by,
               ", which has ", lty_n, " levels; they are drawn alike. Supply ",

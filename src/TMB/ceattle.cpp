@@ -712,8 +712,8 @@ Type objective_function<Type>::operator() () {
   // of the three est_sigma_index routes supplied it. It is NOT a log: it is the
   // sd itself, on the scale that fleet's Index_distribution works on -- a
   // log-scale sd (unitless) for Lognormal, an ABSOLUTE sd in the units of the
-  // index for the natural-scale families. Named log_index_sd until 5.9.0, which
-  // was wrong on both counts.
+  // index for the natural-scale families. A fit saved before 5.9.0 carries this
+  // under the name log_index_sd, still written as an alias by rename_output().
   vector<Type>  index_sd(index_obs.rows()); index_sd.setZero();
   vector<Type>  index_analytical_sd(n_flt); index_analytical_sd.setZero();          // Concentrated (analytical) index sd used when Estimate_index_sd = 2; a log-scale sd, not a log
   vector<Type>  index_q_analytical(n_flt); index_q_analytical.setZero();            // Analytical catchability (not an sd) used when Catchability = 3; "AnalyticalArith" (7) has its own block at 8.2b
@@ -2283,11 +2283,12 @@ Type objective_function<Type>::operator() () {
 
           // - Option 2: Use SRR
           // Reached whenever a curve exists, not only when the projection runs
-          // on it. proj_mean_rec = 1 (the build_srr() default) with an estimated
-          // curve otherwise matched NEITHER arm -- Option 1a excludes
-          // srr_pred_fun >= 2 -- and reference-point recruitment stayed 0 for
-          // every year after the first, so SB0 decayed towards zero and
-          // SB0(sp, nyrs-1) is what HCR 5 and 6 read as the depletion reference.
+          // on it. The breadth is deliberate: Option 1a excludes
+          // srr_pred_fun >= 2, so proj_mean_rec = 1 (the build_srr() default)
+          // with an estimated curve would match NEITHER arm, leaving
+          // reference-point recruitment 0 for every year after the first. SB0
+          // would decay towards zero, and SB0(sp, nyrs-1) is what HCR 5 and 6
+          // read as the depletion reference.
           // Projection recruitment itself is unaffected: that switch is read
           // separately in 6.8, so mean-recruitment projections stay mean.
           if((proj_mean_rec == 0) | (srr_pred_fun >= 2)){
@@ -4092,7 +4093,7 @@ Type objective_function<Type>::operator() () {
     // comp_obs_tmp.sum() = N*(1 + offset*nbins) as the effective sample size,
     // matching the N that ddirmultinom() reads from obs.sum() (so the alpha and
     // the density use a consistent N), the CAAL DM (which uses sum(caal_obs_tmp)),
-    // and the AFSC linear-DM parameterization. Previously used the raw comp_n.
+    // and the AFSC linear-DM parameterization.
     vector<Type> alphas = comp_obs_tmp.sum() * comp_hat_tmp * DM_pars_comp(flt); // DM alpha
     vector<Type> unweighted_alphas = comp_obs_tmp.sum() * comp_hat_tmp;          // DM alpha
 

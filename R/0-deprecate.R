@@ -27,9 +27,10 @@
 #'
 #' @description
 #' One switch for the whole package. The old argument names are accepted
-#' silently in 5.11.0-5.12.0 so that a release which renames nothing a user can see
-#' does not start printing warnings inside long assessment and MSE loops. The
-#' warning turns on in 5.13.0 by flipping this to `TRUE`, one edit, not ten.
+#' **silently by default**: a rename a user cannot see should not start
+#' printing warnings inside long assessment and MSE loops. Set
+#' `options(Rceattle.warn_deprecated_args = TRUE)` to hear them, which is one
+#' edit rather than ten when the time comes to warn by default.
 #'
 #' @return `TRUE` if deprecated argument names should warn, otherwise `FALSE`.
 #' @keywords internal

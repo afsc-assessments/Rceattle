@@ -137,8 +137,8 @@
 #'
 #' A no-op for every converged fit and for the whole `getsd = FALSE` path.
 #'
-#' Indexes with `[[` throughout, so the guard reads exactly the names it means
-#', `$` partially matches on lists, and this discriminates between two shapes
+#' Indexes with `[[` throughout, so the guard reads exactly the names it means:
+#' `$` partially matches on lists, and this discriminates between two shapes
 #' by which names are present.
 #'
 #' @param x The value returned by [TMBhelper::fit_tmb()].

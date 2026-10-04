@@ -12,6 +12,71 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.49.6
+
+## Documentation
+
+* **Removed bug history from comments**, per the standing rule that a comment states current
+  behaviour, units and the assessment reason -- never how the code used to be wrong.
+  Twenty-seven comment and roxygen blocks across `R/` and `src/TMB/` narrated a past defect or a
+  past version in the past tense; each now states what the code does, or states the counterfactual
+  that explains why a guard is written the way it is. The substantive ones: `.refit_converged()`'s
+  roxygen spent fourteen lines on a superseded test against `opt$Convergence_check`;
+  `build_map_catchability()` and `.fleets_with_index()` each described the wrong `Fleet_type`
+  keying they replaced; `fit_mod()`'s skeleton filter narrated the `MakeADFun` error a stale
+  `inits` name used to cause; `run_mse()`'s seeding comment explained what the old positional
+  keying broke; and `data_requirements_table.R` opened on how `data_check()` used to hard-code its
+  conditions.
+* **Two comments were false about current behaviour, not merely dated.**
+  `.rce_deprecate_warn()`'s roxygen said the deprecation warning "turns on in 5.13.0 by flipping
+  this to `TRUE`" -- it is still `FALSE` by default at 5.49.5, 36 minor versions later, so a reader
+  concluded warnings fire when they do not. It now documents the default and the option
+  (`Rceattle.warn_deprecated_args`) that turns them on. And the reference-point recruitment comment
+  in `ceattle.cpp` described in the past tense a condition that is *currently* broad on purpose;
+  it now says why narrowing it would leave `SB0` decaying, which is what HCR 5 and 6 read as the
+  depletion reference.
+* Where a rewrite would have dropped a fact about **current** behaviour, the fact was kept rather
+  than the history. `.refit_converged()` now names the string it tests and records that under
+  `getsd = FALSE` `Convergence_check` is still set, but only ever to one of two gradient verdicts,
+  neither of which is that string -- which is why a run that ended at a maximum gradient of 1e13
+  is kept. That branch still reads the field, so the fact is load-bearing.
+* `plot_indexresidual()` keeps **one** sentence of its sign-convention note: index residual
+  figures made before 5.9.0 are mirrored about zero relative to these. A reader comparing last
+  year's figure is the person at risk, and they are reading the help page, not `NEWS.md`. The
+  fuller account stays in the 5.9.0 entry.
+* Corrected two comments that compression had made **false**. Two in `osa_residuals()` said OSA
+  residuals work "with or without `fit_control(osa = TRUE)`" -- but `fit_control()` has no `osa`
+  argument and no `...`, so that call errors; it was removed as a breaking change in **4.6.0**.
+  They now say what is true: nothing has to be set at fit time, and any fit optimized at
+  `estimateMode < 3` will do, which the guards above them enforce. One in `run_mse()` claimed a
+  divergence "does not displace the assessments after it", which overstates incomplete common
+  random numbers; it is scoped to the random-number stream, which is what the year-keyed seeding
+  actually fixes.
+* Reflowed **six** roxygen lines that began with a stray comma (`R/0-rceattle_class.R`,
+  `R/0-tmb_helpers.R`, `R/6-fit_mod.R`, `R/7-plot_helpers.R`, `R/8-sim_mod.R`,
+  `R/9-self_test.R`). Three of the six are not `@noRd`, so the rendered help really did start a
+  line with a comma -- visible in the `fit_mod`, `dot-model_labels` and
+  `print.Rceattle_selftest` diffs.
+
+**Kept deliberately**, because the rule's exceptions apply: comments explaining why an older input
+path still executes are behaviour, not history -- a fit saved before 5.32.0 can still store a
+retired `srr_fun` code, `log_pop_scalar` from before 5.35.0 was shaped by age, and
+`log_catch_sd` / `log_index_sd` are still written as deprecated aliases by `rename_output()`. The
+`ceattle.cpp` section 16 change log is a change log. Literature citations are the specification.
+Comments on the accepted-and-ignored base-graphics plotting arguments must say they are ignored.
+Regression-test provenance stays in its test header block, which is where two of the deleted facts
+already live.
+
+**Three items went to `inst/dev/CLEANUP_BACKLOG.md` rather than being swept**, because none is
+safely history. A stranded `Fixme: denominator is zero somewhere. Log of negative number. Check
+suitability.` inside the `ceattle.cpp` change log, which change-log item 23 may have resolved but
+nothing says so, and which would be a silently-wrong M2 rather than a crash if it is live -- filed
+with the note that the marker is lowercase, so this file's own case-sensitive re-derive command
+does not count it. And **two separate** `LEGACY (scheduled removal: v4.5.0)` markers, still live:
+one on `M1_mult.sum()`, and one on the dynamic reference-point recruitment split, which feeds
+`SB0(sp, nyrs-1)` and so wants a deliberate decision rather than a sweep. These are two different
+paths, not one -- an earlier draft of the entry counted the grep hits and conflated them.
+
 # Rceattle 5.49.5
 
 ## Internal

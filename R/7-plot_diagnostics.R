@@ -413,9 +413,8 @@ plot_catch <- function(Rceattle,
 #' units where a model mixes the two families, which is why the y scale is free
 #' per fleet.
 #'
-#' Before 5.9.0 this plotted `predicted - observed`, the negative of what
-#' [residuals.Rceattle()] returns for the same fleet. Plots made with an earlier
-#' version are mirrored about zero relative to these.
+#' Index residual figures made before 5.9.0 are mirrored about zero relative to
+#' these, so a figure carried forward from one needs redrawing (see `NEWS.md`).
 #'
 #' @inheritParams plot_index
 #' @param residual_type `"pearson"` (index residuals on the fleet's own scale)
@@ -454,8 +453,8 @@ plot_indexresidual <- function(Rceattle,
     # have no residual to plot. Projection years are excluded unless asked for,
     # matching `.fleet_fit_df()` -- a projection row's "observation" is whatever
     # placeholder its workbook carries, which plots as a spurious residual.
-    # Same fleet set as plot_index(). Without this an Off fleet's index rows were
-    # drawn as residuals indistinguishably from fitted ones -- GOA2018SS fleet 7
+    # Same fleet set as plot_index(). Without this an Off fleet's index rows
+    # plot as residuals indistinguishably from fitted ones -- GOA2018SS fleet 7
     # is the case: 9 index rows on a fleet the likelihood never reads.
     keep <- dat$Species %in% species & dat$Year > 0 &
       dat$Fleet_code %in% .fleets_with_index(Rceattle[[i]]$data_list,

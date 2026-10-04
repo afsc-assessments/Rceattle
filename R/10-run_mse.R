@@ -372,7 +372,8 @@
 #' assessment's observation draw is seeded on that assessment's own year rather
 #' than on wherever earlier assessments left the stream. So an assessment in
 #' year `Y` starts from the same place in every schedule that assesses `Y`, and
-#' a divergence at one assessment no longer displaces every assessment after it.
+#' a divergence at one assessment does not displace the random-number stream
+#' the later assessments draw from.
 #'
 #' Common random numbers are not complete, and the gap is worth knowing before
 #' designing a comparison. One `sim_mod()` call draws every year in the
@@ -806,8 +807,9 @@ run_mse <- function(om, em, nsim = 10, start_sim = 1, assessment_period = 1, sam
     # year list that does not depend on the schedule at all. Each assessment
     # then starts its draw from the same place whatever schedule the run is on,
     # so a divergence in one assessment cannot displace the stream every later
-    # assessment draws from. That compounding is what stopped two schedules
-    # being comparable replicate by replicate.
+    # assessment draws from. Keying on position instead compounds that
+    # displacement, which is what makes two schedules incomparable replicate by
+    # replicate.
     #
     # Drawn AFTER sample_rec(), so recruitment deviations consume the
     # per-simulation stream exactly as they did before and are unchanged.

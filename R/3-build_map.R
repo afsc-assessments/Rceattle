@@ -1140,10 +1140,9 @@ build_map_selectivity <- function(map_list, data_list, nyrs_hind, random_sel) {
         # "Off" (0) is legal here -- the bin coefficients are estimated with no
         # annual deviates -- and data_check() enforces exactly {"Off", "IID"}
         # for this form. Warn only on a mode the Hake form cannot represent
-        # ("Block", "AR1", "RandomWalk", ...); the old `tv_sel != "IID"` guard
-        # fired on "Off" too, which is why a valid Time_varying_sel = 0 fleet
-        # warned about itself. Guard NA explicitly -- `NA != "IID"` is NA, which
-        # errors inside `if()` rather than falling through.
+        # ("Block", "AR1", "RandomWalk", ...), so a valid Time_varying_sel = 0
+        # fleet does not warn about itself. Guard NA explicitly -- `NA != "IID"`
+        # is NA, which errors inside `if()` rather than falling through.
         if (!is.na(tv_sel) && !tv_sel %in% c("Off", "IID")) {
           warning(paste("Time_varying_sel for fleet", flt, "is not compatible (select 'Off' (0) or 'IID' (1)). Current value:", tv_sel))
         }
@@ -1282,13 +1281,13 @@ build_map_catchability <- function(map_list, data_list, nyrs_hind, random_q = FA
   # Fleets whose catchability block is estimable: those carrying fitted index
   # observations, whatever their Fleet_type. The model fits an index row for
   # any non-Off fleet, so a fishery CPUE series is scored like a survey's index
-  # and needs its q the same way; keying on Fleet_type == "Survey" instead left a
-  # fishery's q, time-varying q and index sd mapped out, so Catchability =
-  # "Estimated" did nothing.
+  # and needs its q the same way; keying on Fleet_type == "Survey" would leave a
+  # fishery's q, time-varying q and index sd mapped out, making Catchability =
+  # "Estimated" do nothing.
   #
   # The converse holds too, and is why this is the data and not the fleet type: a
-  # q with no index to inform it is a flat direction in the likelihood. A survey
-  # with no index rows no longer gets one either.
+  # q with no index to inform it is a flat direction in the likelihood, so a
+  # survey with no index rows does not get one either.
   #
   # A fleet with no index of its own can still end up estimated, by sharing a
   # Catchability_index group whose LEAD estimates -- adjust_map_shared_params()

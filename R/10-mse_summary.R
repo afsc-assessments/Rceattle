@@ -2,10 +2,10 @@
 
 # Display name -> returned column name for the mse_summary() performance
 # metrics. The left-hand strings are what the metrics are called while they are
-# being assembled (and what earlier versions returned); the right-hand names are
-# what callers index. Prefixes say whose view a metric is: `om_` the operating
-# model's truth, `em_` the estimation model's perception, unprefixed a quantity
-# that has only one reading.
+# being assembled; the right-hand names are what callers index. Prefixes say
+# whose view a metric is: `om_` the operating model's truth, `em_` the
+# estimation model's perception, unprefixed a quantity that has only one
+# reading.
 #
 # Kept as one table so the two never drift, and attached to each returned frame
 # as a "labels" attribute so a plot or table can print the long form.
