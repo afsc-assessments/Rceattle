@@ -552,6 +552,14 @@ build_map_growth <- function(map_list, data_list, nyrs_hind) {
   growth_params <- c("log_growth_pars", "weight_length_pars", "growth_log_sd")
   map_list[growth_params] <- lapply(map_list[growth_params], function(x) replace(x, values = NA))
 
+  # Running counters, not a per-species stride. A stride of 4 is wrong the
+  # moment a species needs two sexes: females took slots 1:3 and males 5:7, so
+  # species sp's MALE block was species sp+1's FEMALE block -- the same TMB
+  # parameter, estimated once for both, with 3 (von Bertalanffy) or 4
+  # (Richards) free parameters silently gone.
+  growth_ind <- 0L
+  growth_sd_ind <- 0L
+
   # Loop through species and turn on based on model
   for (sp in 1:data_list$nspp) {
 
@@ -561,23 +569,21 @@ build_map_growth <- function(map_list, data_list, nyrs_hind) {
     growth_model <- data_list$growth_model[sp]
 
     # * 1. Fixed effects ----
-    if(growth_model %in% c(1, "vonBertalanffy")){ # Von Bertalanffy
-      # k, l1, linf
-      map_list$log_growth_pars[sp, 1, 1:3] <- (sp - 1) * 4 + 1:3 # Females/sex combined
-      map_list$growth_log_sd[sp, 1, 1:2] <- (sp - 1) * 2 + 1:2 # Growth SD
-      if(nsex_sp == 2){
-        map_list$log_growth_pars[sp, 2, 1:3] <- (sp - 1) * 4 + 5:7 # Males
-        map_list$growth_log_sd[sp, 2, 1:2] <- (sp - 1) * 2 + 1:2 # Growth SD same as females
-      }
-    }
+    # k, l1, linf for von Bertalanffy; those plus m for Richards.
+    npar <- if (growth_model %in% c(1, "vonBertalanffy")) 3L else
+            if (growth_model %in% c(2, "Richards")) 4L else 0L
 
-    if(growth_model %in% c(2, "Richards")){ # Richards
-      # k, l1, linf, m
-      map_list$log_growth_pars[sp, 1, 1:4] <- (sp - 1) * 4 + 1:4 # Females/sex combined
-      map_list$growth_log_sd[sp, 1, 1:2] <- (sp - 1) * 2 + 1:2 # Growth SD
-      if(nsex_sp == 2){
-        map_list$log_growth_pars[sp, 2, 1:4] <- (sp - 1) * 4 + 5:8 # Males
-        map_list$growth_log_sd[sp, 2, 1:2] <- (sp - 1) * 2 + 1:2 # Growth SD same as females
+    if (npar > 0L) {
+      map_list$log_growth_pars[sp, 1, 1:npar] <- growth_ind + 1:npar
+      growth_ind <- growth_ind + npar
+      map_list$growth_log_sd[sp, 1, 1:2] <- growth_sd_ind + 1:2
+      growth_sd_ind <- growth_sd_ind + 2L
+
+      if (nsex_sp == 2) {
+        map_list$log_growth_pars[sp, 2, 1:npar] <- growth_ind + 1:npar
+        growth_ind <- growth_ind + npar
+        # Growth SD shared with females, deliberately.
+        map_list$growth_log_sd[sp, 2, 1:2] <- map_list$growth_log_sd[sp, 1, 1:2]
       }
     }
   }

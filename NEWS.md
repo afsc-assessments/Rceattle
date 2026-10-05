@@ -12,6 +12,61 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.52.0
+
+## Bug fixes
+
+* **Species *sp*'s male growth parameters were species *sp+1*'s female growth parameters.**
+  `build_map_growth()` indexed `log_growth_pars` with a fixed stride of 4 per species, but a
+  two-sex species needs 8 slots: females took `(sp-1)*4 + 1:3` and males `(sp-1)*4 + 5:7`, so
+  `5,6,7` served sp1-males *and* sp2-females -- one TMB parameter for both, estimated once. K, L1
+  and L-infinity were fused across a species **and** sex boundary, and 3 (von Bertalanffy) or 4
+  (Richards) free parameters went silently missing. Measured, growth on for every species:
+
+  | `nsex` | distinct levels / expected | parameters lost |
+  |---|---|---|
+  | `c(1, 2, 1)` | 9 / 12 | 3 |
+  | `c(2, 2)` | 9 / 12 | 3 |
+  | `c(2, 1)` | 6 / 9 | 3 |
+  | `c(2, 2, 2)` | 12 / 18 | **6** |
+  | `c(1, 2)` | 9 / 9 | none -- a *trailing* two-sex species is safe |
+
+  Now a running counter, as `build_map_m1()` already uses, so the index advances by what each
+  species actually took. Fitting a two-species model with `nsex = c(2, 1)` through
+  `fit_mod(estimateMode = "DebugBuild")` now gives **135** free parameters against **132**
+  before, from 9 distinct growth levels rather than 6. The recovered parameters are informed, not
+  merely free: every growth entry carries a gradient on that fixture (4.2e+06 to 1.5e+08 on
+  `log_growth_pars`, 2.1e+05 to 6.3e+05 on the SDs) and no entry in the whole vector is exactly
+  zero, which matters because a freed parameter the data cannot move gives a singular Hessian and
+  `newtonsteps` solves with it.
+* **`build_params()` no longer dies on CAAL bin counts that differ between species.** L1 and
+  L-infinity start at the smallest and largest length with CAAL data, taken by pivoting on the
+  per-species bin *ordinal* -- so a 3-bin and a 5-bin species produced `Bin1, Bin3, Bin5`, three
+  value columns for a two-column target, with `NA` for whichever species lacked that ordinal. It
+  failed with "number of items to replace is not a multiple of replacement length". A species
+  with a single CAAL length failed differently and earlier: `slice(c(1, n()))` duplicated its one
+  row, `pivot_wider()` warned and returned a list-column, and `log()` then refused it with
+  "non-numeric-alike variable(s) in data frame". Both are now a per-species min and max, which is
+  what the slice was approximating.
+* **`build_params()` now refuses a CAAL length range it cannot use**, naming the species, rather
+  than starting L1 or L-infinity at `NA`. It also refuses **one distinct CAAL length**, where L1
+  equals L-infinity: `length_sd_at_age()` interpolates the length-at-age SD as
+  `sd0 + (sd1 - sd0) / (linf - l1) * (len - l1)` and both `growth_log_sd` start at 0, so that is
+  `0/0` for every age above `age_L1` and the `NaN` reaches the age-length key and the likelihood.
+  `data_check()` already refuses one CAAL length unless `nlengths` is also 1, so a species with a
+  single length bin is the one shape that reached this. The message says to use
+  `build_growth(fun = "empirical")` for that species instead.
+* **Neither of the two defects was reachable by anything shipping:** no bundled dataset sets
+  `growth_model` (the schema default is 0), all four golden references run 0, every multispecies
+  sibling config uses `build_growth(fun = "empirical")`, and only `whamGrowthData` carries CAAL
+  data at all. The suite *does* fit multispecies parametric growth, in `test-dynamics-brps.R`
+  and `test-composition-dm-diet-weight.R`, but `make_msm_test_data()` sets every species
+  single-sex, and the collision needs a two-sex species that is not the last one. So what hid
+  this was single sex, not single species. It arms the moment parametric growth goes on a
+  multispecies model with a non-trailing two-sex species, which is the shape of the GOA
+  multispecies assessment (arrowtooth is two-sex at species 2 of 3).
+* No golden reference moves: all four run `growth_model = 0`, where the whole growth block is
+  mapped out. Verified -- six golden blocks, 21 assertions, unchanged.
 # Rceattle 5.51.0
 
 ## Bug fixes

@@ -188,17 +188,52 @@ build_params <- function(data_list) {
   param_list$log_growth_pars[, , 1] <- log(0.3)
 
   if(nrow(data_list$caal_data) > 0){
+    # L1 and L-infinity start at the smallest and largest length with CAAL
+    # data. Taken per species as a min and a max: pivoting on the bin ORDINAL
+    # named its columns Bin1..Bin<n>, so species with different bin counts
+    # produced one column per distinct ordinal -- `Bin1, Bin3, Bin5` for a
+    # 3-bin and a 5-bin species -- which is both the wrong width for the
+    # two-column target and NA for whichever species lacks that ordinal.
     caal_lengths <- data_list$caal_data |>
-      dplyr::distinct(Species, Length) |>
-      dplyr::arrange(Species, Length) |>
       dplyr::group_by(Species) |>
-      dplyr::mutate(Bin = paste0("Bin", 1:n())) |>
-      dplyr::slice(c(1, n())) |>
-      dplyr::ungroup() |>
-      tidyr::pivot_wider(names_from = Bin, values_from = Length)
-    param_list$log_growth_pars[caal_lengths$Species, 1, 2:3] <- as.matrix(log(caal_lengths[,-1]))
+      dplyr::summarise(L1 = min(Length, na.rm = TRUE),
+                       Linf = max(Length, na.rm = TRUE), .groups = "drop")
+    # A species whose lengths are all NA gives Inf/-Inf here, and an NA or
+    # infinite start reaches MakeADFun() and returns NaN. Refuse it by name:
+    # taking the min of a blank column silently is how a starting length of
+    # NA would reach a fit.
+    bad <- !is.finite(caal_lengths$L1) | !is.finite(caal_lengths$Linf) |
+      caal_lengths$L1 <= 0
+    if (any(bad)) {
+      stop("caal_data gives no usable length range for species ",
+           paste(caal_lengths$Species[bad], collapse = ", "),
+           ". L1 and L-infinity start at the smallest and largest length with ",
+           "CAAL data, so each species needs at least one finite positive ",
+           "Length.", call. = FALSE)
+    }
+    # L1 == L-infinity gives a NaN objective, not a poorly-informed one.
+    # length_sd_at_age() interpolates the length SD as
+    # sd0 + (sd1 - sd0) / (linf - l1) * (len - l1), and both growth_log_sd
+    # start at 0, so that is 0/0 for every age above age_L1. The NaN reaches
+    # the age-length key and the likelihood. data_check() refuses one CAAL
+    # length unless nlengths is also 1, which is the one shape that gets here.
+    flat <- caal_lengths$L1 == caal_lengths$Linf
+    if (any(flat)) {
+      stop("Species ", paste(caal_lengths$Species[flat], collapse = ", "),
+           " has one distinct CAAL length, so L1 equals L-infinity. The ",
+           "length-at-age SD divides by (L-infinity - L1), giving a NaN ",
+           "objective. A single length bin cannot inform a growth curve: use ",
+           "build_growth(fun = \"empirical\") for that species, or give it ",
+           "more length bins.", call. = FALSE)
+    }
+    # Indexing an array with a factor uses its integer CODES, so a Species
+    # column read as a factor of c("2", "3") would write species 1 and 2.
+    # Coerced through character, as the M1_base loop above does.
+    caal_sp <- as.numeric(as.character(caal_lengths$Species))
+    endpoints <- as.matrix(log(caal_lengths[, c("L1", "Linf")]))
+    param_list$log_growth_pars[caal_sp, 1, 2:3] <- endpoints
     if(max_sex == 2){
-      param_list$log_growth_pars[caal_lengths$Species, 2, 2:3] <- as.matrix(log(caal_lengths[,-1]))
+      param_list$log_growth_pars[caal_sp, 2, 2:3] <- endpoints
     }
   }
 
