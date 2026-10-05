@@ -743,9 +743,19 @@ choices (`M1_re`) accept either integer codes or readable strings
 interchangeably:
 
 ```{r}
-build_M1(M1_model = "sex_age_specific", M1_re = "ar1_age")   # = 3, 4
-build_M1(M1_model = 3,                  M1_re = 4)            # equivalent
+build_M1(M1_model = "sex_age_invariant", M1_re = "ar1_age")   # = 1, 4
+build_M1(M1_model = 1,                   M1_re = 4)           # equivalent
 ```
+
+Random effects on M1 need a level that leaves them identifiable, so
+`M1_re > 0` is available for `M1_model` `0` (`"fixed"`), `1` and `2`
+and refused for `3`, `4` and `5`. Under `M1_model = 3` the
+age-specific `log_M1` and an age-varying deviation enter the
+likelihood only as their sum, so the pair above -- which an earlier
+version of this example used -- is not identifiable; `M1_model = 1`
+with `M1_re = 4` is the model it was reaching for. For an
+environmentally driven M with deviations, use the linkage grammar:
+`linkage_spec(~ temp + (1 | Year))`.
 
 `linkages` on M is age-aware: by default a row's `age_bin` is `NA`
 and the offset broadcasts across every age. To pin an env effect to

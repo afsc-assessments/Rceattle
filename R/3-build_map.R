@@ -410,7 +410,7 @@ build_map_m1 <- function(map_list, data_list, nyrs_hind) {
     # "log_M1_dev"
     # - M1_re = 1/4: Random effects varies by age (IID or AR1) and constant over years.
     if(M1_re_model %in% c(1, 4)){
-      if(M1_model == 1){ # Sex-invariant
+      if(M1_model %in% c(0, 1)){ # Input or sex-invariant estimated level
         # - Random effects
         map_list$log_M1_dev[sp,1, 1:nages_sp,] <- M1_dev_ind + 1:nages_sp
 
@@ -445,7 +445,7 @@ build_map_m1 <- function(map_list, data_list, nyrs_hind) {
 
     # - M1_re = 2/5: Random effects varies by year (IID or AR1) and constant over ages
     if(M1_re_model %in% c(2, 5)){
-      if(M1_model == 1){ # Sex-invariant
+      if(M1_model %in% c(0, 1)){ # Input or sex-invariant estimated level
         # - Random effects
         map_list$log_M1_dev[sp,1,1:nages_sp, 1:nyrs_hind] <- rep(M1_dev_ind + 1:nyrs_hind, each = nages_sp)
 
@@ -484,7 +484,7 @@ build_map_m1 <- function(map_list, data_list, nyrs_hind) {
     # with only nyrs_hind distinct parameters on a stride pattern while the
     # density and the simulator both treated it as a full age x year grid.
     if(M1_re_model %in% c(3, 6)){
-      if(M1_model == 1){ # Sex-invariant
+      if(M1_model %in% c(0, 1)){ # Input or sex-invariant estimated level
         # - Random effects
         map_list$log_M1_dev[sp,1,1:nages_sp, 1:nyrs_hind] <- M1_dev_ind + 1:(nyrs_hind * nages_sp)
 
@@ -537,7 +537,17 @@ build_map_m1 <- function(map_list, data_list, nyrs_hind) {
     #
     # Derived from whether an arm fired, not from a restated list of supported
     # pairs: adding an arm legalises its combination with no second registry.
-    if(M1_re_model > 0 & all(is.na(map_list$log_M1_dev[sp,,,]))){
+    # `&&`, not `&`: the right-hand side subscripts log_M1_dev, and build_map()
+    # is exported, so a caller's 3-D or absent block must not be touched when
+    # there is no random effect to check.
+    #
+    # estDynamics > 0 is skipped because build_map_fixed_natage() maps this
+    # species' log_M1_dev, M1_dev_log_sd and M1_rho out afterwards, so the free
+    # sd this refusal exists to prevent cannot arise -- refusing there would
+    # reject a correct model, and a fixed-numbers predator is the common
+    # multispecies setup.
+    if(M1_re_model > 0 && data_list$estDynamics[sp] == 0 &&
+       all(is.na(map_list$log_M1_dev[sp,,,]))){
       stop("M1_re = ", M1_re_model, " is not implemented for M1_model = ",
            M1_model, " (species ", sp,
            if(nsex_sp == 1) ", single-sex" else "",

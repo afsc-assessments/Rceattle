@@ -14,43 +14,82 @@ version throughout.
 
 # Rceattle 5.53.0
 
+## Breaking changes
+
+* **`M1_re > 0` with `M1_model` 3, 4 or 5 is now refused**, and a stored fit built with one of
+  those 18 pairs stops refitting -- `retrospective()`'s forecast refit, `self_test()`,
+  `sim_mod()`, `project_no_f()` and `run_mse()`'s EM refits all rebuild the map through
+  `build_map()` rather than reusing the stored one, so each raises the refusal. Rebuild such a fit
+  with `M1_re = 0`, or with `M1_model` 0, 1 or 2 if the time-varying M was the point. Nothing
+  shipping is affected: no bundled dataset sets `M1_re > 0`, and the only sibling-repo mentions
+  are pass-throughs or comments warning against exactly this combination.
+
 ## Bug fixes
 
-* **`M1_re > 0` asked for time-varying M and silently gave constant M under `M1_model` 3, 4 and
-  5.** Every random-effect family in `build_map_m1()` nests its deviation writes inside an
-  `M1_model` test, and only `M1_model` 1 and 2 have arms -- so under 3 (sex- and age-specific),
-  4 or 5 (environmentally driven) no arm fired and `log_M1_dev` stayed entirely `NA`. **18 of the
-  35 `(M1_model, M1_re)` pairs were affected, and `M1_model = 4` raised no condition at all**
-  (3 and 5 warn, but about being sex-specific on a single-sex species, which is a different
-  thing). Measured on `GOA2018SS` (`nspp` 3, `nsex` `c(1, 2, 1)`), free parameters in the built
-  map:
+* **`M1_re > 0` asked for time-varying M and silently gave constant M whenever no random-effect
+  arm existed for the `M1_model`.** Every family in `build_map_m1()` nests its deviation writes
+  inside an `M1_model` test, so where none matched, `log_M1_dev` stayed entirely `NA` while
+  `M1_dev_log_sd` was freed anyway, outside that guard. **24 of the 42 `(M1_model, M1_re)` pairs
+  were affected** -- `M1_model` has six levels, 0 to 5 -- and `M1_model = 4` raised no condition
+  at all. `M1_model = 0` is `build_M1()`'s default, so the most likely call of all,
+  `build_M1(M1_re = "iid_year")` with nothing else set, was among them.
+* **The free standard deviation made the objective unbounded below**, which is worse than the
+  incomparable-offset an earlier draft of this entry described. `M1_dev_log_sd` has no entry in
+  `build_bounds()`, so it keeps the generic `[-Inf, Inf]`, and with every deviation mapped out the
+  density contributes `n * (log(2*pi)/2 + log sigma)` for an element count `n`. The gradient is
+  therefore exactly `n` and the objective is linear in `log sigma`: measured on `BS2017SS`, the
+  objective falls by `k * sum(n)` for `log sigma = -k` and reaches `-Inf` by `-1000`. An AIC or
+  likelihood comparison against the constant-M model prefers the inert configuration by an
+  arbitrary margin.
+* **The cost is per family, not one number.** `n` is the number of ages for `M1_re` 1/4, of
+  hindcast years for 2/5, and of age-year cells for 3/6. Measured on `BS2017SS` at the starting
+  `sigma = 1`, jnll row 16 ("M random effects"):
 
-  | `M1_model` | `log_M1_dev` | `M1_dev_log_sd` | `M1_rho` |
-  |---|---|---|---|
-  | 1 | 4736 / 2688 | 6 | 0 / 6 / 12 |
-  | 2 | 6364 / 1764 | 6 | 0 / 6 / 12 |
-  | **3, 4, 5** | **0** | **6** | **0 / 6 / 12** |
+  | `M1_re` | `n` | row 16 per species |
+  |---|---|---|
+  | 1 / 4 | `nages` | 11.03 / 11.03 / 19.30 |
+  | 2 / 5 | `nyrs_hind` | 35.84 each |
+  | 3 / 6 | `nages * nyrs_hind` | 430.06 / 430.06 / 752.61 |
 
-* **The free standard deviation was worse than inert.** With every deviation mapped out it scored
-  `N(0, sigma)` against a vector of zeros. `Rceattle-models/EBS pollock/2024/06-time-varying-M.R`
-  measured that at **56.06 nats** on a 61-year hindcast -- exactly `61 * log(2*pi)/2` -- minimised
-  by driving sigma to its bound, "which makes the objective incomparable with anything". That
-  script worked around it by telling the reader to avoid the combination; the package now refuses
-  it instead.
-* **Refusing a combination that never fitted the model it described is a minor bump**, per the
-  precedent in `inst/RELEASE-CHECKLIST.md`. Nothing shipping is affected: no bundled dataset sets
-  `M1_re > 0`, and no sibling script sets it except the EBS pollock note above, which exists to
-  warn against exactly this. The message names both switches and says `M1_model` 1 and 2 are the
-  supported levels.
+  `Rceattle-models/EBS pollock/2024/06-time-varying-M.R` records 56.06 nats for this, which is
+  `61 * log(2*pi)/2` -- the year family on a 61-year hindcast. That script worked around the
+  defect by telling the reader to avoid the combination; the package now handles it.
+* **`M1_model = 0` keeps its deviations rather than being refused.** It holds `log_M1` at the
+  input schedule, so there is no free fixed effect for the deviations to be absorbed into and they
+  are the most identifiable of any level -- the opposite of a case to refuse. The three family
+  blocks now read `M1_model %in% c(0, 1)`; the wiring is identical, because a deviation does not
+  care whether the level above it is fixed or estimated. Verified: `M1_model` 0 and 1 give the
+  same free-deviation counts for every `M1_re` 1-6.
+* **A canonical `M1_re` string from a workbook now frees the deviations it names.**
+  `switch_check()` left `M1_re` as the character it read, and `build_map_m1()`'s arms compare
+  against integers -- `"iid_year" %in% c(2, 5)` is `FALSE` -- so every deviation was mapped out
+  with no message. This is the same silent constant-M, reached a second way, and
+  `data_check()` already tested that field for strings. `switch_check()` now canonicalises both
+  `M1_model` and `M1_re` through the same coercion `build_M1()` uses. Verified:
+  `M1_re = "iid_year"` goes from 0 free deviations to 2688 on `GOA2018SS`, and `"none"` stays
+  exactly empty -- it must not be read as positive, since `"none" > 0` is `TRUE`
+  lexicographically.
+* **A fixed-numbers species is not refused.** `build_map_fixed_natage()` maps an
+  `estDynamics > 0` species' `log_M1_dev`, `M1_dev_log_sd` and `M1_rho` out *after*
+  `build_map_m1()` runs, so the free sd cannot arise there and refusing would reject a correct
+  model -- a fixed-numbers predator is the common multispecies setup. The refusal skips those
+  species.
 * The refusal reads **whether an arm actually fired**, not a restated list of supported pairs, so
-  implementing a missing arm legalises its combination with no second registry to keep in step.
-  Which arms to add is a modelling question -- an age-varying deviation is arguably redundant
-  under the already-age-specific `M1_model = 3`, and means something different again around an
-  environmental prediction -- so it is left open rather than guessed.
-* `test-mortality-m1-re-unsupported.R`: 3 blocks, 69 assertions. **18 fail on the parent**, one
-  per affected pair. The `M1_re = 0` block passes either side and says so.
-* No golden reference moves: all four run `M1_model = 0` and `M1_re = 0`, where no family block
-  executes at all.
+  opening an arm legalises its combination with no second registry to keep in step. It is `&&`
+  rather than `&` because the right-hand side subscripts `log_M1_dev`, and `build_map()` is
+  exported.
+* Which of the remaining 18 to implement is a modelling question, not a default to invent.
+  `M1_model = 3` with `M1_re` 1/4 is **not identifiable** -- the age-specific fixed effect and an
+  age-varying deviation enter the likelihood only as their sum, so the mode puts the deviations at
+  zero and absorbs everything into `log_M1`; that model already exists as `M1_model = 1,
+  M1_re = 4`. `M1_model` 4 and 5 are `.M1_DEPRECATED_MODELS` and the linkage grammar expresses
+  deviations around an environmental prediction as `linkage_spec(~ temp + (1 | Year))`.
+  `M1_model = 3` with `M1_re` 2/5 is well posed and left open deliberately.
+* `test-mortality-m1-re-unsupported.R`: 6 blocks, 68 assertions, **32 failing on the parent**
+  across the refusal, the `M1_model = 0` and the string blocks. Three blocks pin invariants that
+  hold either side and say so.
+* No golden reference moves: all four run `M1_model = 0` **and `M1_re = 0`**, where no family
+  block executes at all and jnll row 16 is exactly 0 in every column.
 
 # Rceattle 5.52.0
 

@@ -33,7 +33,9 @@ alias (both forms are accepted; the integer code is canonical):
 model. Either an integer code or the equivalent string alias:
 \code{0} / \code{"none"}, \code{1} / \code{"iid_age"}, \code{2} / \code{"iid_year"},
 \code{3} / \code{"iid_age_year"}, \code{4} / \code{"ar1_age"}, \code{5} / \code{"ar1_year"},
-\code{6} / \code{"ar1_age_year"}.}
+\code{6} / \code{"ar1_age_year"}. Anything but \code{0} needs an \code{M1_model} of
+\code{0}, \code{1} or \code{2}; \code{3}, \code{4} and \code{5} have no deviation block and are
+refused.}
 
 \item{updateM1}{If using initial parameters, use M1 fixed effects
 from data (\code{M1_base}) instead. Default \code{FALSE}.}

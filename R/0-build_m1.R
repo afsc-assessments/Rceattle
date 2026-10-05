@@ -140,7 +140,9 @@ M_LINKAGE_PARAMS <- c("M1")
 #'   model. Either an integer code or the equivalent string alias:
 #'   `0` / `"none"`, `1` / `"iid_age"`, `2` / `"iid_year"`,
 #'   `3` / `"iid_age_year"`, `4` / `"ar1_age"`, `5` / `"ar1_year"`,
-#'   `6` / `"ar1_age_year"`.
+#'   `6` / `"ar1_age_year"`. Anything but `0` needs an `M1_model` of
+#'   `0`, `1` or `2`; `3`, `4` and `5` have no deviation block and are
+#'   refused.
 #' @param updateM1 If using initial parameters, use M1 fixed effects
 #'   from data (`M1_base`) instead. Default `FALSE`.
 #' @param M1_use_prior Vector or scalar; if `TRUE` and `M2_use_prior` is `FALSE`, apply the
