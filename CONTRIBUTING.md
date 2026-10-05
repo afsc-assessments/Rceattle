@@ -72,6 +72,8 @@ Three checks sit outside the ordinary suite:
   the model equations, function by function. `src/TMB/recruitment.hpp` is the header to
   emulate when you document C++.
 
+`AGENTS.md` at the repository root is the tool-neutral version of this, for an AI assistant that does not read `CLAUDE.md`.
+
 ## Making a change
 
 **Branches.** Cut a branch from `dev` and open a pull request into `dev`. The maintainer
