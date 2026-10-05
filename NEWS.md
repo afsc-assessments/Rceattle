@@ -16,19 +16,28 @@ version throughout.
 
 ## Internal
 
-* **`test-plot-smoke.R` ran 15 of the 17 plotters it listed, and passed.** Two names were not
-  exported functions: `plot_catchresidual`, which no version of this package has had, and
-  `plot_sel_vs_mat` for `plot_selectivity_vs_maturity`. An `if (!exists(fn)) next` skipped both
-  silently, and the loop's `expect_gt(ran, 10L)` floor had enough slack to hide it. A name that is
-  not an exported plotter now **fails**, and the run count is asserted exactly rather than against
-  a floor. `plot_logindex` is added, so the deprecated wrapper is exercised too: 17 of 17.
-* Verified by mutation: re-adding `plot_catchresidual` turns the file red (2 failures) where it
-  previously passed.
-* Still exercised by no test: `plot_form`, `plot_diet_comp1`, `plot_diet_comp2`. `plot_form` takes
-  Kinzey & Punt functional-response parameters for `msmMode` 3-9, which `data_check()` refuses, so
-  it cannot run on any model this package builds; the two diet plotters need a fitted
-  multispecies model with diet data rather than the single-species fixture this file uses. Both
-  gaps are now recorded rather than hidden behind a skip.
+* **`test-plot-smoke.R`'s last block tested 17 plotters by name, ran 15, and omitted 14 that
+  exist.** Two names were not exported functions -- `plot_catchresidual`, which no version of
+  this package has had, and `plot_sel_vs_mat` for `plot_selectivity_vs_maturity` -- and an
+  `if (!exists(fn)) next` skipped both silently while an `expect_gt(ran, 10L)` floor had slack
+  to spare. The list is now **derived from `getNamespaceExports()`** rather than written out, so
+  a plotter cannot be omitted by being forgotten. 31 exported, 4 excluded with a stated reason,
+  27 exercised.
+* **Every returned figure is now built, not just the first.** Several plotters return a *list* of
+  ggplots -- `plot_comp` alone returns 15, `plot_diet_comp` 9 -- and `inherits(p, "ggplot")` was
+  FALSE for those, so the `ggplot_build()` gate silently skipped them. It covered 16 figures of
+  49. A broken `plot_comp` panel passed; it now fails.
+* **The membership check reads the export list, not `exists()`.** `exists()` defaults to
+  `inherits = TRUE`, so it resolved anything reachable from the namespace -- including base
+  functions and non-function objects -- and un-exporting a plotter left the block green. That is
+  a hard-rule-1 regression the block is named for catching. It now fails.
+* `plot_m_at_age` and `plot_m2_at_age_prop` **refuse** on a `minage != 1` model, naming the real
+  age ranges, because both default to age 1. That is precisely the defect this block exists to
+  catch and neither was ever in the list; the refusal is now asserted rather than the plotters
+  skipped. `plot_form`'s Kinzey & Punt refusal is asserted the same way.
+* The counts of exported and excluded plotters are pinned, because deriving the list closes one
+  hole and opens another: an un-export would otherwise shrink the set silently, and a new plotter
+  would never be considered.
 
 # Rceattle 5.49.6
 
