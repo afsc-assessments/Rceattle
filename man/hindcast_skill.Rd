@@ -57,7 +57,10 @@ effects (\code{random_rec = TRUE}, or a DSEM), so an AR1's autocorrelation or a
 DSEM's lagged and covariate paths propagate into the forecast; otherwise
 recruitment comes off the stock-recruit curve. \code{"mean"} forces the
 historical mean for all of them, which is \code{\link[=retrospective]{retrospective()}}'s default and
-the convention Mohn's rho is computed under.
+the convention Mohn's rho is computed under. Applies only when this
+function fits the peels itself: a \code{retro} handed in already carries its
+forecast years, so supplying both is an error rather than a setting that
+does nothing.
 
 The default differs from \code{\link[=retrospective]{retrospective()}}'s on purpose. A peel's forecast
 years are hindcast years, so \code{proj_mean_rec} cannot reach them by itself,
@@ -67,22 +70,29 @@ to do. Measured on the GOA arrowtooth model, \code{proj_mean_rec = TRUE} and
 \code{FALSE} returned byte-identical MASE under \code{"mean"}.}
 
 \item{retro}{Optionally an already-computed \code{\link[=retrospective]{retrospective()}} result, to
-avoid refitting when both are wanted. Note a \code{retro} computed with
-\code{\link[=retrospective]{retrospective()}}'s defaults carries \code{forecast_rec = "mean"}.}
+avoid refitting when both are wanted. Its peels carry the forecast rule
+they were fitted under -- \code{forecast_rec = "mean"} with \code{\link[=retrospective]{retrospective()}}'s
+defaults -- and that rule is what gets scored, so passing a conflicting
+\code{forecast_rec} alongside it is an error. To compare the two rules, fit one
+retrospective under each.}
 
 \item{...}{Passed to \code{\link[=retrospective]{retrospective()}} (\code{cores}, \code{getsd}, \code{rescale}).}
 }
 \value{
 A list with
 \describe{
-\item{\code{mase}}{one row per years-ahead x species x quantity, with \code{mase},
-\code{mae_forecast}, \code{mae_naive}, \code{n_peels} -- how many peels were averaged
-at that horizon -- and \code{peels_used}, which ones. A peel that could not
-be scored at a horizon (an NA in its forecast years, or a species with
-\code{estDynamics > 0}, whose numbers-at-age are input and so was never
-forecast) is left out of both rather than nulling the row.}
-\item{\code{by_year}}{the underlying series: peel, species, quantity, year,
-years-ahead, \code{forecast}, \code{reference}, \code{naive}.}
+\item{\code{mase}}{one row per horizon x species x quantity. Keyed by
+\code{Object}, \verb{Forecast year} and \code{species}, the column vocabulary
+\code{\link[=retrospective]{retrospective()}}'s \verb{$mohns} uses, so the two merge on those three;
+then \code{mase}, \code{mae_forecast}, \code{mae_naive}, \code{N} -- how many peels were
+averaged at that horizon -- and \code{peels_used}, which ones. A peel that
+could not be scored at a horizon (an NA in its forecast years, or a
+species with \code{estDynamics > 0}, whose numbers-at-age are input and so
+was never forecast) is left out of both rather than nulling the row.}
+\item{\code{by_year}}{the underlying series, in the same vocabulary:
+\code{Object}, \verb{Forecast year}, \code{species}, \code{peel}, \code{year}, \code{forecast},
+\code{reference}, \code{naive}. \code{year} is the calendar year; \verb{Forecast year} is
+the horizon.}
 }
 }
 \description{
@@ -120,7 +130,7 @@ A MASE is undefined when the naive forecast happens to be exactly right
 
 One row per horizon per species per quantity: the mean runs ACROSS PEELS at a
 fixed steps-ahead, which is Kell et al. (2021) eq. 5, whose sums run over
-\eqn{t = T-n \ldots T} at fixed \eqn{h}. \code{n_peels} is how many peels
+\eqn{t = T-n \ldots T} at fixed \eqn{h}. \code{N} is how many peels
 contributed, so \code{peels} buys terms inside each MASE rather than more rows.
 
 \strong{Know what the baseline is under \code{reference = "model"}.} It is NOT a
@@ -137,9 +147,9 @@ Averaging across peels does tame the ratio: those same peels give per-peel
 ratios of 1.02, 2.82 and 34.22, and a reported MASE of 1.485. That is the
 point of scoring per horizon rather than per peel. But a horizon resting on
 few peels inherits whatever bias cancellation they happen to carry, which is
-a reason to read \code{n_peels}, not a reason to distrust short horizons as such.
+a reason to read \code{N}, not a reason to distrust short horizons as such.
 
-Read \code{n_peels} before reading a MASE, per row -- it is not constant down the
+Read \code{N} before reading a MASE, per row -- it is not constant down the
 column. A horizon \code{h} can only be scored by a peel at least \code{h} years deep, so
 on an ANNUAL series with a contiguous \code{peels} run it falls as the horizon
 grows: with \code{peels = 2:4}, three peels at one year ahead and one at four. A
@@ -149,12 +159,12 @@ projection.
 That pattern holds for an ANNUAL series. Under \code{reference = "observed"} an
 irregular survey breaks it, because a fleet is scored at a horizon only where
 it has an observation both at the peel's terminal year and after it -- so
-\code{n_peels} can rise with the horizon, and some horizons carry no rows at all.
+\code{N} can rise with the horizon, and some horizons carry no rows at all.
 On BS2017SS's acoustic pollock survey with \code{peels = c(2,3,5)}, only
-\code{years_ahead} 2 and 4 are populated, with \code{n_peels} 2 and 1.
+\verb{Forecast year} 2 and 4 are populated, with \code{N} 2 and 1.
 
 \verb{$mase} is therefore ragged rather than rectangular: a horizon with no rows is
-MISSING, not \code{NA}. Join two models' tables on \code{years_ahead} rather than
+MISSING, not \code{NA}. Join two models' tables on \verb{Forecast year} rather than
 comparing them positionally, or a two-year row lines up against a four-year
 one.
 

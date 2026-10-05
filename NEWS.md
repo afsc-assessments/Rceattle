@@ -25,6 +25,114 @@ number of its own.
 
 ## Diagnostics
 
+* **`N` now means the same thing in `$mohns` as in `$mase`: the number of
+  observations the statistic was computed from.** Mohn's rho counted every peel
+  that reached a horizon, including a peel whose relative error was not finite --
+  and because that term was then summed, one such peel made rho `NaN` for every
+  OTHER peel at that horizon, for that species, while `N` still advertised them
+  all. `(peel - base)/base` is `NaN` or `Inf` wherever the full model's base is
+  0, which is reachable: an unfished year for `F_spp`, a collapsed stock for
+  `ssb` or `R`. A non-finite term is now excluded, `N` counts the peels that
+  contributed, and a cell with no contributing peel is `NA` rather than `0/0`.
+  `N` is counted per SPECIES for the same reason, which the long shape can carry
+  and the old wide one could not.
+
+  **Nothing moves where rho was already finite.** Re-measured on BS2017SS with
+  `peels = 2:4` and `nyrs_forecast = 3`: all 48 values bit-identical, none
+  turning `NaN`, none turning finite -- that data has no zero base, so the fix is
+  correctly a no-op on it. The bundled data cannot reach the path, so
+  `test-retrospective-mase-table.R` injects a zero base and asserts the
+  unscoreable species gets `N = 0` and `rho = NA` while its neighbours stay
+  finite.
+
+* **`hindcast_skill()` no longer rejects `retro` when `forecast_rec` was never
+  supplied.** The new refusal tested `missing(forecast_rec)` after
+  `match.arg()` had assigned to the formal, which makes `missing()` `FALSE`
+  whatever the caller did, so `hindcast_skill(fit, retro = r)` -- the documented
+  way to reuse a retrospective -- was refused. Supplied-ness is now captured
+  before `match.arg()`.
+
+* **`retrospective()`'s `$mohns` and `$mase` now share one shape and one column
+  vocabulary, so the bias and skill tables merge directly.** Both are LONG, with
+  the same key columns -- `Object`, `Forecast year`, `species` -- so
+  `merge(retro$mohns, retro$mase, by = c("Object", "Forecast year", "species"))`
+  works. `Forecast year` is a HORIZON in both, steps ahead of the peel's terminal
+  year rather than a calendar year. Join on those three and not on `N`: both
+  tables have an `N`, but `$mohns` counts the peels that reached the horizon and
+  `$mase` the peels that produced a scoreable term, so they agree for a
+  well-behaved species and diverge exactly where a forecast or baseline was
+  `NA` -- joining on it would discard those rows silently.
+
+  **This changes the shape of `$mohns`, which was wide: one column per species,
+  named from `spnames`.** Its rho now sits in a single `rho` column with a
+  `species` column beside it. A read by name of `Object`, `Forecast year` or `N`
+  is unaffected, and so is a filter like `mohns[mohns$Object == "R", ]`.
+
+  **A read by POSITION is not**, and it is the one that does not announce itself:
+  column 4 was a species' rho and is now `species`, a character. So
+  `mohns[5, 4]` returns `"Arrowtooth"` instead of the SSB rho, and `sum()` over
+  such a column errors. Read it by name instead -- the terminal rho for a
+  quantity is `subset(mohns, Object == "ssb" & \`Forecast year\` == 0)$rho`. While
+  you are there, note `mohns[1, 2]` was never a rho under either shape: column 2
+  is `Forecast year`, so that read returned 0 before this change too.
+
+  To recover the old wide layout:
+
+  ```r
+  w <- stats::reshape(retro$mohns[, c("Object", "Forecast year", "species", "rho")],
+                      direction = "wide", idvar = c("Object", "Forecast year"),
+                      timevar = "species", v.names = "rho")
+  names(w) <- sub("^rho\\.", "", names(w))   # Pollock, Cod -- the old names
+  ```
+
+  `reshape()` prefixes the new columns `rho.`, hence the `sub()`. `N` is left out
+  of `idvar` deliberately: it is now counted per species, so including it splits
+  a horizon into one row per distinct count. For the same reason `N` cannot come
+  back unchanged in a wide table.
+
+  Long was chosen over widening `$mase` to match because `$mase`'s `N` varies BY
+  SPECIES -- a species whose forecast or naive baseline is `NA` drops out of that
+  horizon, which a single shared `N` column cannot carry -- and because a long
+  table is the same shape whatever `nspp` is. `$mase` keeps the other columns it
+  had, renamed to match: `quantity` is `Object`, `years_ahead` is `Forecast year`,
+  and `n_peels` is `N`. `mase` keeps its name -- those three had to move to key
+  the join, `mase` collides with nothing, and `$mase$mase` is the natural read
+  there, which a rename would have made return `NULL` silently. `$by_year` is
+  renamed the same way.
+
+  **The reshape itself moves no number.** Rho is bit-identical across it:
+  measured on BS2017SS with `peels = 2:4` and `nyrs_forecast = 3`, all 48 values
+  agree exactly, with no row gained or lost. The MASE arithmetic was not touched
+  at all -- the renaming happens at the public exit, so Kell eq. 5 still runs
+  against the names it was written for. Note that the companion change above --
+  excluding a non-finite term from rho -- *does* move a number, from `NaN` to a
+  value, wherever a base was 0; this BS2017SS measurement cannot detect it,
+  because that data has no zero base. One thing is deliberately no longer
+  returned: the
+  wide table pre-allocated a row per quantity x horizon and left the ones no peel
+  reached as `Object = "0"`, `N = 0` and a `NaN` rho, which read as a computed
+  result. Those rows are simply absent now.
+
+  `print()` reports rho per species per quantity rather than tagging a whole row
+  across species columns, so a warning names the species it is about.
+
+* **`hindcast_skill()` refuses a `forecast_rec` that the `retro` it was handed
+  contradicts, instead of ignoring it.** A supplied `retro` already holds its
+  forecast years, computed under the rule its own call was given, and
+  `hindcast_skill()` recomputes none of them -- so scoring one retrospective
+  twice under `forecast_rec = "mean"` and `"model"` returned the SAME numbers
+  both times. That reads as "the projection rule makes no difference", which is
+  the conclusion the comparison exists to test, rather than as an argument that
+  did nothing. It is the natural thing to write once you know both rules can be
+  scored from one FIT -- true of the fit, false of the peels, because the rule is
+  fixed when they are fitted. The error says to fit one retrospective per rule.
+  Passing a `forecast_rec` that agrees with the `retro` is unchanged. Leaving it
+  unset is still allowed, because reusing a `retro` without naming a rule is the
+  documented way to score one -- but it now says which rule it used when that
+  differs from this function's own default, since `hindcast_skill()` defaults to
+  `"model"` while `retrospective()` defaults to `"mean"`. Silence there was the
+  same mismatch the error refuses, reached by saying nothing.
+
 * **`retrospective()` now returns a forecast-skill table, `$mase`, alongside
   `$mohns`.** Mohn's rho is a signed relative error, so it measures retrospective
   BIAS: a model whose peels miss high as often as low can have a rho near zero

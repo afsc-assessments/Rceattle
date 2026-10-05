@@ -1,6 +1,6 @@
 Package: Rceattle
 Title: Fits the Multispecies Assessment Model (CEATTLE) Using TMB
-Version: 5.23.0.9005
+Version: 5.23.0.9009
 Authors@R:
     person(given = "Grant",
            family = "Adams",

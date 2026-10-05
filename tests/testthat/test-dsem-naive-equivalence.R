@@ -93,9 +93,14 @@ testthat::test_that("a naive DSEM reproduces the non-DSEM retrospective", {
   # because the sigma_R gap grew as sqrt((N-k)/N) and would have failed at the
   # default peels = 5.
 
-  # And the number a user actually reads.
-  num <- vapply(rd$mohns, is.numeric, logical(1))
+  # And the number a user actually reads. `rho` by name rather than "every
+  # numeric column": $mohns is long, so the numeric columns now include the
+  # horizon and the peel count, and comparing those compares the GRID rather
+  # than the rho on it.
+  testthat::expect_identical(
+    rd$mohns[, c("Object", "Forecast year", "species")],
+    rp$mohns[, c("Object", "Forecast year", "species")])
   testthat::expect_lt(
-    max(abs(as.matrix(rd$mohns[, num]) - as.matrix(rp$mohns[, num])), na.rm = TRUE),
+    max(abs(rd$mohns[["rho"]] - rp$mohns[["rho"]]), na.rm = TRUE),
     0.05)
 })

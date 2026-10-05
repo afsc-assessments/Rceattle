@@ -109,3 +109,157 @@ testthat::test_that("two rows from one peel at one horizon count as one peel", {
   # mean(|11-10|, |13-10|) = 2, not a sum of 4
   testthat::expect_equal(m$mae_forecast, 2)
 })
+
+# A supplied `retro` already holds its forecast years, computed under the rule
+# its own call was given, and hindcast_skill() recomputes none of them. So
+# scoring one retro twice under two values of `forecast_rec` returned the SAME
+# numbers both times, which reads as "the projection rule makes no difference"
+# -- the conclusion the comparison exists to reach -- rather than as an argument
+# that was ignored. This is the shape a user writes when told both rules can be
+# scored from one fit: true of the FIT, false of the PEELS.
+testthat::test_that("hindcast_skill() refuses a forecast_rec its retro contradicts", {
+  fake <- structure(list(
+    Rceattle_list = list(structure(list(), class = "Rceattle"),
+                         structure(list(), class = "Rceattle")),
+    mase = data.frame(forecast_rec = "mean", years_ahead = 1,
+                      stringsAsFactors = FALSE)),
+    class = "Rceattle_retro")
+  obj <- structure(list(quantities = list(R = 1), data_list = list()),
+                   class = "Rceattle")
+
+  testthat::expect_error(
+    Rceattle::hindcast_skill(obj, retro = fake, quantity = "R",
+                             forecast_rec = "model"),
+    "cannot be applied to a `retro` that was already fitted")
+  # The error has to say what to do instead, or it just blocks the comparison.
+  testthat::expect_error(
+    Rceattle::hindcast_skill(obj, retro = fake, quantity = "R",
+                             forecast_rec = "model"),
+    "one retrospective under each")
+  # Agreeing must get PAST this guard. The stub is not a real fit, so the call
+  # still fails further in -- what matters is that it no longer fails HERE, so
+  # assert on the message rather than on there being no error at all.
+  agree <- tryCatch(
+    suppressWarnings(Rceattle::hindcast_skill(obj, retro = fake,
+                                              quantity = "R",
+                                              forecast_rec = "mean")),
+    error = conditionMessage)
+  testthat::expect_false(grepl("cannot be applied to a `retro`", agree,
+                               fixed = TRUE))
+  # Same for leaving it unset: `missing(forecast_rec)` is what gates the guard.
+  unset <- tryCatch(
+    suppressWarnings(Rceattle::hindcast_skill(obj, retro = fake,
+                                              quantity = "R")),
+    error = conditionMessage)
+  testthat::expect_false(grepl("cannot be applied to a `retro`", unset,
+                               fixed = TRUE))
+})
+
+
+# `N` is the number of observations the statistic is computed from, in BOTH
+# $mohns and $mase. Mohn's rho used to count a peel that contributed a
+# NON-FINITE relative error: `(peel - base)/base` is NaN or Inf where the full
+# model's base is 0 -- an unfished year for `F_spp`, a collapsed stock for `ssb`
+# or `R` -- and summing that made rho NaN for every peel at that horizon, for
+# that species, while N still advertised every peel. The bundled data cannot
+# reach a zero base, so the base is injected here.
+testthat::test_that("Mohn's rho counts only the peels it could score", {
+  testthat::skip_on_cran()
+  fit <- suppressMessages(suppressWarnings(fit_mod(
+    data_list = Rceattle::BS2017SS, file = NULL, estimateMode = 1,
+    fit_control = fit_control(phase = FALSE, getsd = FALSE, verbose = 0))))
+
+  # The full model is the BASE of every relative error, and rho at forecast year
+  # 0 reads the column of the PEEL's terminal year -- a different column per
+  # peel -- so the whole species row is zeroed rather than one cell. That makes
+  # species 2's F_spp unscoreable at every horizon and leaves every other
+  # species and quantity untouched, which is the half that used to break.
+  bad <- fit
+  bad$quantities$F_spp[2, ] <- 0
+
+  r <- suppressMessages(suppressWarnings(
+    retrospective(bad, peels = 2:3, nyrs_forecast = 1, getsd = FALSE,
+                  cores = 1)))
+  f0 <- r$mohns[r$mohns$Object == "F_spp" & r$mohns[["Forecast year"]] == 0, ]
+  testthat::expect_identical(nrow(f0), 3L)
+
+  sp <- fit$data_list$spnames
+  hit  <- f0[f0$species == sp[2], ]
+  rest <- f0[f0$species != sp[2], ]
+
+  # The unscoreable species: no contributing observation, so no answer -- and N
+  # says 0 rather than claiming the peels it could not use.
+  testthat::expect_identical(hit$N, 0L)
+  testthat::expect_true(is.na(hit$rho))
+
+  # Its neighbours are unaffected. This is the half that used to break: one
+  # species' zero base does not reach another's rho.
+  testthat::expect_true(all(rest$N > 0L))
+  testthat::expect_true(all(is.finite(rest$rho)))
+
+  # And N never exceeds the peels that reached the horizon.
+  testthat::expect_true(all(r$mohns$N <= length(r$Rceattle_list) - 1L))
+})
+
+
+# $mohns was WIDE before 5.23.0.9007 -- Object | Forecast year | N | one column
+# per species -- and retrospectives are saved to disk and reloaded months later
+# (GOA-multispecies-assessment/R/03_diagnostics.R writes retrospectives.RData
+# and 07_figures_tables.R reloads it). print() read `rho`, which is NULL on that
+# shape, so `rho` was numeric(0), no value could be outside the band, and the
+# header said "status: OK" for a 55% retrospective bias before erroring further
+# down. A false clean bill of health is worse than a failure.
+testthat::test_that("print() reads a $mohns saved in the old wide shape", {
+  wide <- data.frame(Object = c("biomass", "ssb"), "Forecast year" = c(0, 0),
+                     N = c(3L, 3L), Pollock = c(0.55, 0.61),
+                     check.names = FALSE)
+  obj <- structure(list(Rceattle_list = list(1, 2, 3, 4), mohns = wide,
+                        peels_requested = 3L, peel_depths = 1:3),
+                   class = "Rceattle_retro")
+
+  out <- paste(utils::capture.output(print(obj)), collapse = "\n")
+  testthat::expect_match(out, "status: WARN")
+  testthat::expect_match(out, "2 of 2")
+  testthat::expect_match(out, "0.55")
+  testthat::expect_match(out, "0.61")
+
+  # And the reshape itself, so the rows are not merely counted but correct.
+  long <- Rceattle:::.rce_mohns_as_long(wide)
+  testthat::expect_identical(names(long),
+    c("Object", "Forecast year", "N", "species", "rho"))
+  testthat::expect_identical(long$rho, c(0.55, 0.61))
+  testthat::expect_identical(unique(long$species), "Pollock")
+  # A table already long is returned untouched.
+  testthat::expect_identical(Rceattle:::.rce_mohns_as_long(long), long)
+})
+
+testthat::test_that("print() refuses a $mohns shape it cannot read", {
+  # No `rho` AND no species column to derive one from. Printing a band verdict
+  # over zero values would report OK.
+  bad <- structure(list(
+    Rceattle_list = list(1, 2),
+    mohns = data.frame(Object = "ssb", "Forecast year" = 0, N = 3L,
+                       check.names = FALSE)),
+    class = "Rceattle_retro")
+  testthat::expect_error(print(bad), "not a shape print\\(\\) recognizes")
+})
+
+# `$mase` is NULL whenever no peel converged, and absent entirely on a retro
+# saved before it existed -- which is exactly where a silently ignored
+# `forecast_rec` does the most damage. The rule is therefore recorded on the
+# object, not only on the table.
+testthat::test_that("the forecast_rec guard reads the object, not just $mase", {
+  fake <- structure(list(
+    Rceattle_list = list(structure(list(), class = "Rceattle"),
+                         structure(list(), class = "Rceattle")),
+    mase = NULL,                      # no peel scored
+    forecast_rec = "mean"),
+    class = "Rceattle_retro")
+  obj <- structure(list(quantities = list(R = 1), data_list = list()),
+                   class = "Rceattle")
+
+  testthat::expect_error(
+    suppressWarnings(Rceattle::hindcast_skill(obj, retro = fake, quantity = "R",
+                                              forecast_rec = "model")),
+    "cannot be applied to a `retro` that was already fitted")
+})

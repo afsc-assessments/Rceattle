@@ -103,6 +103,27 @@ weights — a reweighting diagnostic, a component profile, a "which term dominat
 those components as absent rather than unweighted. `profile_components(weighted = FALSE)` says so
 in its `@param`.
 
+**`$mohns` is LONG from 5.23.0.9007, and no positional read of it survived.** Column 4 was a
+species' rho and is now `species`, a character: `mohns[5, 4]` returns `"Arrowtooth"` where it
+returned the SSB rho, and `sum()` over it errors with `invalid 'type' (character)`. Found live in
+`GOA_circlulation_study/Rceattle regression models.R` (the ATF block; the cod, pollock and
+northern-rockfish blocks are commented out). Read by name:
+`subset(mohns, Object == "ssb" & `Forecast year` == 0)$rho`.
+
+**`$mohns[1, 2]` was never a rho, under either shape.** Column 2 is `Forecast year`, so
+`round(mohns[1, 2], 3)` returns 0. Thirteen live figure labels read it that way and have all been
+printing "Mohns = 0": `GOA-ATF-ESP/R/Run_2025_ceattle.R` (6), `Rceattle-models/GOA arrowtooth
+flounder/2023 GOA arrowtooth alternative models.R` (6) and `Rceattle-models/GOA
+pollock/2024/mse-retro.R` (1). The package's own `introduction.Rmd` had it too, fixed at
+5.23.0.9007. The terminal rho is the row where `Forecast year == 0`.
+
+**`N` is the number of observations the statistic used, and the two tables compute it from
+different peels.** `$mohns`'s counts peels whose relative error was finite; `$mase`'s counts peels
+with both a forecast and a usable naive baseline. Merge them on `Object` / `Forecast year` /
+`species` and NOT on `N` -- joining on it silently drops exactly the rows where something went
+wrong. The merge is an inner join regardless: `$mohns` carries horizon 0 and `F_spp`, `$mase`
+neither.
+
 **`retrospective(getsd = TRUE)` can return fewer peels than `getsd = FALSE`, so Mohn's rho
 differs.** `.refit_converged()` drops a peel on a non-positive-definite Hessian, and that check
 can only run when an `sdreport` was asked for (`R/0-convergence.R:213`, deliberate). A peel that

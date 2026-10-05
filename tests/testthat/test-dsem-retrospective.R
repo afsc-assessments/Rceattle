@@ -113,9 +113,12 @@ testthat::test_that("a DSEM peel keeps its covariate and reports a finite Mohn's
   testthat::expect_equal(ncol(xt), 4L)              # 3 recdev columns + temp
   testthat::expect_gt(max(abs(xt[, 4])), 1e-6)
 
-  rho <- retro$mohns
-  ssb_rho <- rho[rho$Object == "ssb", -(1:3), drop = FALSE]
-  testthat::expect_true(any(is.finite(as.matrix(ssb_rho))))
+  # `rho` by name. $mohns is long, so `-(1:3)` also takes the `species`
+  # character column and as.matrix() coerces the whole thing to character,
+  # making is.finite() FALSE for every cell however good the numbers are.
+  ssb_rho <- retro$mohns[retro$mohns$Object == "ssb", "rho"]
+  testthat::expect_gt(length(ssb_rho), 0)
+  testthat::expect_true(any(is.finite(ssb_rho)))
 })
 
 
@@ -218,7 +221,7 @@ testthat::test_that("forecast_rec tells the DSEM's projection from mean recruitm
   # leaves from near the mean and separates as it decays. Measured on this
   # fixture, on the statistic ACTUALLY asserted here -- the relative difference
   # in mae_forecast for species 1 -- that is 0.34% at h = 1, 46.2% at h = 2 and
-  # 96.7% at h = 3. (The often-quoted 0.2% / 46.8% pair is the difference in
+  # 96.7% at h = 3. (The often-quoted 0.03% / 46.8% pair is the difference in
   # forecast RECRUITMENT, which is not what this line tests.) Horizon 1 asks the
   # question where the answer is smallest, so assert at the deepest.
   #
@@ -227,7 +230,7 @@ testthat::test_that("forecast_rec tells the DSEM's projection from mean recruitm
   # threshold, so this depends on spnames[1] remaining the linked species.
   pick <- function(sk) {
     z <- sk$mase[sk$mase$species == spp1, ]
-    stats::setNames(z$mae_forecast, z$years_ahead)
+    stats::setNames(z$mae_forecast, z[["Forecast year"]])
   }
   mf_mean  <- pick(skill_mean)
   mf_model <- pick(skill_model)

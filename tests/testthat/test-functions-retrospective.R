@@ -226,9 +226,15 @@ testthat::test_that("retrospective survives dropped peels (regression)", {
       testthat::expect_warning(
         r <- suppressMessages(retrospective(fit, peels = 2, cores = 1, getsd = FALSE)),
         "2 of 2 peels dropped"),
-      "Mohn's rho is undefined")
+      "Mohn's rho cannot be computed")
     testthat::expect_length(r$Rceattle_list, 1L)
     testthat::expect_equal(names(r$Rceattle_list), paste0("Year_", endyr))
+    # What the warning now says: no rows, rather than a table of NaN that reads
+    # as computed. The columns must still be there so a caller's subset and
+    # merge work on the empty result instead of erroring on a missing name.
+    testthat::expect_identical(nrow(r$mohns), 0L)
+    testthat::expect_identical(names(r$mohns),
+      c("Object", "Forecast year", "N", "species", "rho"))
   })
 
   # And the drop WARNS rather than messages: rho is averaged over the peels
@@ -296,9 +302,13 @@ testthat::test_that("each peel reports its own terminal year, and rho is unmoved
   # Mohn's rho reads `endyr_peel` and the full model's `endyr` from the calling
   # frame, never a peel's `data_list$endyr`, so it is still computed over every
   # surviving peel rather than collapsing to NaN.
+  # `rho` by name, not `[, -(1:3)]`: $mohns is long, so that position now also
+  # sweeps the `species` character column -- `unlist()` would coerce rho to
+  # character and the NA check would still pass while testing the wrong thing.
   scored <- r$mohns[r$mohns$N > 0, , drop = FALSE]
   testthat::expect_true(nrow(scored) > 0)
-  testthat::expect_false(any(is.na(unlist(scored[, -(1:3)]))))
+  testthat::expect_type(scored$rho, "double")
+  testthat::expect_false(any(is.na(scored$rho)))
 
   # Setting `endyr` to the peel makes it duplicate `endyr_peel`, which would
   # otherwise lose the unpeeled terminal year -- and with it the boundary

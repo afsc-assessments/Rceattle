@@ -71,28 +71,53 @@ projection methods -- see \code{\link[=hindcast_skill]{hindcast_skill()}}, which
 scripts keep working. Supplying both is an error.}
 }
 \value{
-a list of 1. list of Rceattle models, 2. Mohn's rho for each species
-(\verb{$mohns}) and 3. forecast skill (\verb{$mase}).
+a list of 1. list of Rceattle models, 2. retrospective bias
+(\verb{$mohns}, Mohn's rho) and 3. forecast skill (\verb{$mase}).
 
-\verb{$mohns} and \verb{$mase} answer different questions and are on different grids.
-Rho is a SIGNED relative error, so errors cancel across peels and it
-measures bias; its \verb{Forecast year} runs \code{0:nyrs_forecast} with 0 the peel's
-terminal year, and species are COLUMNS. MASE is an absolute error scaled by
-"assume nothing changes", so it measures skill and \code{MASE < 1} beats
-persistence; its \code{years_ahead} runs \code{1:max(peels)} and species are ROWS.
-They coincide only over \code{1:min(nyrs_forecast, max(peels))}, so join them by
-horizon rather than positionally.
+Both are LONG and share their key columns -- \code{Object}, \verb{Forecast year},
+\code{species} -- so they merge on those three:
+\code{merge(retro$mohns, retro$mase, by = c("Object", "Forecast year", "species"))}.
+\code{Object} is the quantity (\code{"biomass"}, \code{"ssb"}, \code{"R"}, \code{"F_spp"}),
+\verb{Forecast year} a HORIZON in steps ahead of the peel's terminal year rather
+than a calendar year, and \code{species} a name from \code{spnames}.
 
-\verb{$mase} carries \code{forecast_rec}, because it scores whatever that argument
+\code{N} means the same thing in both -- the number of observations the statistic
+was computed from -- but \strong{join on the three keys, not on \code{N} as well.} The
+two are computed from different peels (rho scores a horizon the peel
+reached; MASE additionally needs a usable naive baseline), so they agree for
+a well-behaved species and diverge exactly where a term was unusable.
+Joining on \code{N} would silently DISCARD those rows; merging on the keys brings
+both columns through, and a disagreement between them is a finding.
+
+They answer different questions and cover different horizons. Rho (\code{rho})
+is a SIGNED relative error, so errors cancel across peels and it measures
+BIAS; its \verb{Forecast year} runs \code{0:nyrs_forecast}, with 0 the terminal-year
+bias the +/-0.2 rule is about. MASE (\code{mase}) is an absolute error scaled by
+"assume nothing changes", so it measures SKILL and \code{mase < 1} beats that
+baseline. Read \code{\link[=hindcast_skill]{hindcast_skill()}}'s \verb{@details} before leaning on the word
+"persistence": under \code{reference = "model"}, which is what this returns, the
+baseline is the PEEL's terminal estimate against the FULL model's, so it
+carries the peel's own retrospective bias and is not the persistence error
+of one series; it has no horizon 0, because a zero-step forecast is the
+terminal estimate compared with itself.
+
+So the merge is an INNER join on purpose, and drops more than the horizons:
+rho covers \code{0:nyrs_forecast} and MASE \code{1:max(peels)}, so they share
+\code{1:min(nyrs_forecast, max(peels))}; and rho scores \code{F_spp} while MASE is
+scored only on \code{ssb}, \code{biomass} and \code{R}, so every \code{F_spp} row is rho-only.
+Use \code{all.x = TRUE} to keep them.
+
+\verb{$mase} additionally carries \code{mae_forecast} and \code{mae_naive} (the ratio's two
+halves), \code{peels_used} (which depths the row rests on, since \code{N} alone cannot
+say which), and \code{forecast_rec}, because it scores whatever that argument
 asked for. Under the default \code{"mean"} every model projects the peeled years
 at its own historical mean whatever process it carries, so two models'
 tables differ by their hindcast FITS, not their projection rules. Use
 \code{forecast_rec = "model"} to score the model's own rule, and see
-\code{\link[=hindcast_skill]{hindcast_skill()}} to compare the two on one fit. \code{n_peels} and \code{peels_used}
-say how many peels, and which, a row rests on: a horizon \code{h} is scored only
-by peels at least \code{h} deep, so the deepest rows rest on one or two fits.
-A species with \code{estDynamics > 0} is \code{NA} -- its numbers-at-age are input,
-so it was never forecast.
+\code{\link[=hindcast_skill]{hindcast_skill()}} to compare the two on one fit. \code{N} falls as the horizon
+grows, because a horizon \code{h} is scored only by peels at least \code{h} deep, so
+the deepest rows rest on one or two fits. A species with \code{estDynamics > 0}
+is \code{NA} -- its numbers-at-age are input, so it was never forecast.
 
 A peel that did not converge is dropped, so \code{Rceattle_list} can be
 shorter than one plus the number of peels asked for (a message reports how

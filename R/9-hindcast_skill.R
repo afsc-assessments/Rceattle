@@ -34,7 +34,7 @@
 #'
 #' One row per horizon per species per quantity: the mean runs ACROSS PEELS at a
 #' fixed steps-ahead, which is Kell et al. (2021) eq. 5, whose sums run over
-#' \eqn{t = T-n \ldots T} at fixed \eqn{h}. `n_peels` is how many peels
+#' \eqn{t = T-n \ldots T} at fixed \eqn{h}. `N` is how many peels
 #' contributed, so `peels` buys terms inside each MASE rather than more rows.
 #'
 #' **Know what the baseline is under `reference = "model"`.** It is NOT a
@@ -51,9 +51,9 @@
 #' ratios of 1.02, 2.82 and 34.22, and a reported MASE of 1.485. That is the
 #' point of scoring per horizon rather than per peel. But a horizon resting on
 #' few peels inherits whatever bias cancellation they happen to carry, which is
-#' a reason to read `n_peels`, not a reason to distrust short horizons as such.
+#' a reason to read `N`, not a reason to distrust short horizons as such.
 #'
-#' Read `n_peels` before reading a MASE, per row -- it is not constant down the
+#' Read `N` before reading a MASE, per row -- it is not constant down the
 #' column. A horizon `h` can only be scored by a peel at least `h` years deep, so
 #' on an ANNUAL series with a contiguous `peels` run it falls as the horizon
 #' grows: with `peels = 2:4`, three peels at one year ahead and one at four. A
@@ -63,12 +63,12 @@
 #' That pattern holds for an ANNUAL series. Under `reference = "observed"` an
 #' irregular survey breaks it, because a fleet is scored at a horizon only where
 #' it has an observation both at the peel's terminal year and after it -- so
-#' `n_peels` can rise with the horizon, and some horizons carry no rows at all.
+#' `N` can rise with the horizon, and some horizons carry no rows at all.
 #' On BS2017SS's acoustic pollock survey with `peels = c(2,3,5)`, only
-#' `years_ahead` 2 and 4 are populated, with `n_peels` 2 and 1.
+#' `Forecast year` 2 and 4 are populated, with `N` 2 and 1.
 #'
 #' `$mase` is therefore ragged rather than rectangular: a horizon with no rows is
-#' MISSING, not `NA`. Join two models' tables on `years_ahead` rather than
+#' MISSING, not `NA`. Join two models' tables on `Forecast year` rather than
 #' comparing them positionally, or a two-year row lines up against a four-year
 #' one.
 #'
@@ -118,7 +118,10 @@
 #'   DSEM's lagged and covariate paths propagate into the forecast; otherwise
 #'   recruitment comes off the stock-recruit curve. `"mean"` forces the
 #'   historical mean for all of them, which is [retrospective()]'s default and
-#'   the convention Mohn's rho is computed under.
+#'   the convention Mohn's rho is computed under. Applies only when this
+#'   function fits the peels itself: a `retro` handed in already carries its
+#'   forecast years, so supplying both is an error rather than a setting that
+#'   does nothing.
 #'
 #'   The default differs from [retrospective()]'s on purpose. A peel's forecast
 #'   years are hindcast years, so `proj_mean_rec` cannot reach them by itself,
@@ -127,20 +130,27 @@
 #'   to do. Measured on the GOA arrowtooth model, `proj_mean_rec = TRUE` and
 #'   `FALSE` returned byte-identical MASE under `"mean"`.
 #' @param retro Optionally an already-computed [retrospective()] result, to
-#'   avoid refitting when both are wanted. Note a `retro` computed with
-#'   [retrospective()]'s defaults carries `forecast_rec = "mean"`.
+#'   avoid refitting when both are wanted. Its peels carry the forecast rule
+#'   they were fitted under -- `forecast_rec = "mean"` with [retrospective()]'s
+#'   defaults -- and that rule is what gets scored, so passing a conflicting
+#'   `forecast_rec` alongside it is an error. To compare the two rules, fit one
+#'   retrospective under each.
 #' @param ... Passed to [retrospective()] (`cores`, `getsd`, `rescale`).
 #'
 #' @return A list with
 #'   \describe{
-#'     \item{`mase`}{one row per years-ahead x species x quantity, with `mase`,
-#'       `mae_forecast`, `mae_naive`, `n_peels` -- how many peels were averaged
-#'       at that horizon -- and `peels_used`, which ones. A peel that could not
-#'       be scored at a horizon (an NA in its forecast years, or a species with
-#'       `estDynamics > 0`, whose numbers-at-age are input and so was never
-#'       forecast) is left out of both rather than nulling the row.}
-#'     \item{`by_year`}{the underlying series: peel, species, quantity, year,
-#'       years-ahead, `forecast`, `reference`, `naive`.}
+#'     \item{`mase`}{one row per horizon x species x quantity. Keyed by
+#'       `Object`, `Forecast year` and `species`, the column vocabulary
+#'       [retrospective()]'s `$mohns` uses, so the two merge on those three;
+#'       then `mase`, `mae_forecast`, `mae_naive`, `N` -- how many peels were
+#'       averaged at that horizon -- and `peels_used`, which ones. A peel that
+#'       could not be scored at a horizon (an NA in its forecast years, or a
+#'       species with `estDynamics > 0`, whose numbers-at-age are input and so
+#'       was never forecast) is left out of both rather than nulling the row.}
+#'     \item{`by_year`}{the underlying series, in the same vocabulary:
+#'       `Object`, `Forecast year`, `species`, `peel`, `year`, `forecast`,
+#'       `reference`, `naive`. `year` is the calendar year; `Forecast year` is
+#'       the horizon.}
 #'   }
 #'
 #' @references
@@ -173,6 +183,9 @@ hindcast_skill <- function(object = NULL, peels = 5,
   # can serve. Take the first when the caller did not ask.
   reference    <- if (missing(reference)) "model" else
     match.arg(reference, several.ok = TRUE)
+  # Before match.arg(), which ASSIGNS to the formal and so makes missing() FALSE
+  # from here on, whether or not the caller passed anything.
+  .fr_supplied <- !missing(forecast_rec)
   forecast_rec <- match.arg(forecast_rec)
 
   # Only where `quantity` is actually read. Under reference = "observed" the
@@ -189,6 +202,39 @@ hindcast_skill <- function(object = NULL, peels = 5,
   if (is.null(retro)) {
     retro <- retrospective(object, peels = peels,
                            forecast_rec = forecast_rec, ...)
+  } else if (.fr_supplied) {
+    # A supplied `retro` already holds its forecast years, computed under the
+    # rule its own call was given, and nothing here recomputes them. So
+    # `forecast_rec` cannot apply to it, and scoring the same peels twice under
+    # two values of this argument would return the SAME numbers both times --
+    # which reads as "the projection rule makes no difference" rather than as an
+    # ignored argument. Refuse instead: the comparison needs one retrospective
+    # per rule, because the rule is fixed when the peels are fitted.
+    # `$forecast_rec` on the object, not `$mase$forecast_rec`: $mase is NULL when
+    # no peel converged, and absent on a retro saved before it existed, which is
+    # where ignoring the argument would do the most damage.
+    .retro_rec <- retro[["forecast_rec"]] %||% unique(retro[["mase"]][["forecast_rec"]])
+    if (length(.retro_rec) == 1L && !identical(.retro_rec, forecast_rec)) {
+      stop("`forecast_rec` cannot be applied to a `retro` that was already ",
+           "fitted: these peels carry their forecast under forecast_rec = \"",
+           .retro_rec, "\", and nothing here recomputes it. To compare the two ",
+           "rules, fit one retrospective under each -- ",
+           "retrospective(object, peels = , forecast_rec = \"mean\") and the ",
+           "same call with \"model\" -- then score each. See ?hindcast_skill.",
+           call. = FALSE)
+    }
+  } else {
+    # Not an error: reusing a retro WITHOUT naming forecast_rec is the documented
+    # way to score one. But this function's default is "model" and
+    # retrospective()'s is "mean", so a default-built retro is scored under a rule
+    # that is not this function's default -- the same mismatch the error above
+    # refuses, reached by saying nothing instead. Say which rule was used.
+    .retro_rec <- retro[["forecast_rec"]] %||% unique(retro[["mase"]][["forecast_rec"]])
+    if (length(.retro_rec) == 1L && !identical(.retro_rec, forecast_rec)) {
+      message("Scoring under forecast_rec = \"", .retro_rec, "\", the rule this ",
+              "`retro`'s peels were fitted with -- not this function's default ",
+              "of \"", forecast_rec, "\".")
+    }
   }
   # retrospective() returns rev(c(list(object), peels)), so the LAST element
   # is the input model and the peels run deepest-first. Score only the peels;
@@ -378,7 +424,9 @@ hindcast_skill <- function(object = NULL, peels = 5,
   # statistic.
   mase <- .rce_mase_aggregate(by_year)
 
-  list(mase = mase, by_year = by_year)
+  # Both tables leave in $mohns's column vocabulary; see .rce_as_mohns_names().
+  list(mase = .rce_as_mohns_names(mase),
+       by_year = .rce_as_mohns_names(by_year))
 }
 
 
@@ -394,7 +442,9 @@ hindcast_skill <- function(object = NULL, peels = 5,
 #' @param quantity which reported quantities to score.
 #' @return a list of data frames, one per peel x quantity x species, with
 #'   `peel`, `species`, `quantity`, `year`, `years_ahead`, `forecast`,
-#'   `reference` and `naive`. Empty where no peel has forecast years.
+#'   `reference` and `naive`. These are the INTERNAL names the Kell eq. 5
+#'   arithmetic is written against; `.rce_as_mohns_names()` renames them on the
+#'   way out of [hindcast_skill()]. Empty where no peel has forecast years.
 #' @noRd
 .rce_mase_by_year_model <- function(object, peel_models, quantity) {
   styr  <- object$data_list$styr
@@ -452,8 +502,8 @@ hindcast_skill <- function(object = NULL, peels = 5,
 #'
 #' @param by_year rows from [.rce_mase_by_year_model()] or the observed path.
 #' @return one row per `years_ahead` x `species` x `quantity`, with `n_peels`,
-#'   `peel_depths` (which peels the row rests on), `mae_forecast`, `mae_naive`
-#'   and `mase`.
+#'   `peels_used` (which peels the row rests on), `mae_forecast`, `mae_naive`
+#'   and `mase`. Internal names; renamed on the way out, as above.
 #' @noRd
 .rce_mase_aggregate <- function(by_year) {
   key <- interaction(by_year$years_ahead, by_year$species, by_year$quantity,
@@ -504,4 +554,52 @@ hindcast_skill <- function(object = NULL, peels = 5,
   }))
   rownames(mase) <- NULL
   mase[order(mase$quantity, mase$species, mase$years_ahead), ]
+}
+
+
+#' Put a skill table into `$mohns`'s column vocabulary
+#'
+#' @description
+#' The public tables share the leading `Object`, `Forecast year`, `N`,
+#' `species` columns with [retrospective()]'s `$mohns`, so the bias and skill
+#' tables merge on those three and read in the same terms. `Forecast year` is a
+#' HORIZON in both -- steps ahead of the peel's terminal year, not a calendar
+#' year -- and `$mohns` additionally carries horizon 0, the terminal retrospective
+#' bias, which has no forecast to score.
+#'
+#' Applied at the exit only. The internals keep the names the Kell eq. 5
+#' arithmetic is written against, so renaming cannot move a number.
+#'
+#' @param d a `$mase` or `$by_year` frame.
+#' @return `d` with the shared columns renamed and moved to the front.
+#' @noRd
+.rce_as_mohns_names <- function(d) {
+  if (is.null(d) || !nrow(d)) return(d)
+  # `mase` is deliberately NOT renamed. The other three had to move to key the
+  # join against $mohns; `mase` collides with nothing, and `$mase$mase` is the
+  # most natural read there is -- a rename would make it return NULL silently.
+  # It also pairs with $mohns's lowercase `rho`.
+  ren <- c(quantity = "Object", years_ahead = "Forecast year", n_peels = "N")
+  hit <- intersect(names(ren), names(d))
+  if (length(hit)) names(d)[match(hit, names(d))] <- unname(ren[hit])
+  # The shared keys first, then the value, then its parts -- so a reader meets
+  # `mase` before the two means it is a ratio of.
+  lead <- intersect(c("Object", "Forecast year", "N", "species", "mase"),
+                    names(d))
+  d <- d[, c(lead, setdiff(names(d), lead)), drop = FALSE]
+  # split() keyed the rows, so they come back in key order with its rownames.
+  # Both tables leave through here, so they come back in ONE order -- quantity,
+  # then horizon, then species. Also drops the rownames, which are split keys
+  # rather than anything a caller can use.
+  # method = "radix" so the order does not depend on the collation locale: plain
+  # order() on a character column sorts "R" before or after "biomass" depending
+  # on LC_COLLATE, which would make row order differ between a dev machine and a
+  # C-collate R CMD check.
+  ord <- intersect(c("Object", "Forecast year", "species"), names(d))
+  if (length(ord)) {
+    d <- d[do.call(order, c(unname(as.list(d[, ord, drop = FALSE])),
+                            list(method = "radix"))), , drop = FALSE]
+  }
+  rownames(d) <- NULL
+  d
 }
