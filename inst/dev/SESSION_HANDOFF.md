@@ -50,14 +50,32 @@ c("sex_age_invariant", "sex_specific", "sex_age_invariant")`, so species 1 (poll
 hit it and species 2 (ATF) does not. `build_map_m1()` put their padding sex cells in the same TMB
 map level as the real ones, and `TMB:::updateMap()` starts a shared parameter at the MEAN over its
 level, so the starting M was pulled toward 1.0 per year -- +57% and +41% against the `M1_base`
-inputs. On `GOA2018SS`, the same-shaped bundled dataset, that start made the optimizer converge to
-a DIFFERENT and worse optimum: M1 -26%, terminal SSB **+16%**, objective 10.5 nats worse, with
-both runs passing the max-gradient criterion. Fixed on `fix/m1-map-padding-dilution` (5.51.0).
+inputs. On `GOA2018SS`, the same-shaped bundled dataset, that start made an UNPHASED
+optimizer converge to a different and worse point: objective 10.5 nats worse, M1 -26%, SSB at
+`endyr` 2018 **-8.75%**. Fixed on `fix/m1-map-padding-dilution` (5.51.0).
 
-Whether the 2025 assessment's own fit moves is **not measured** -- Grant was asked and said a
-refit was not needed. Do not infer it either way from the above: on the same data `M1_model = 2`
-moved by 5.7e-06 while `M1_model = 1` moved by 10.5 nats, so it turns on whether that particular
-surface has a nearby worse optimum. If those numbers are ever restated, refit before and after.
+**Two numbers in an earlier version of this paragraph were wrong, and they were quoted onward.**
+It said terminal SSB **+16%** and that both runs passed the max-gradient criterion. The +16% read
+`ssb[, ncol(ssb)]`, the year 2050 PROJECTION column, which `estimateMode = 1` never optimises; at
+`endyr` the change is -8.75%, the opposite sign. And neither run converged: `max|gradient|` is
+2.2e-03 and 1.7e-03 against an `OK` tier of 1e-03, so both are `WARN`. The defect's real
+consequence is that which optimum an unphased fit reaches is arbitrary -- the surface carries at
+least four local minima over this range -- not any single pair of numbers.
+
+**Phasing is not the escape an earlier version of this paragraph implied.** Under `phase = TRUE`
+the two starts land bit-identically on `GOA2018SS`, but of the GOA multispecies assessment's three
+fits only two are phased: the fixed-M single-species one runs `M1_model = 0` and is immune, the
+estimated-M single-species one is `phase = TRUE`, and the **headline multispecies fit is
+`phase = FALSE`** (`R/02_fit_models.R:76`) with the affected `M1_model`. `phase = FALSE` also
+appears in `R/04_projections.R` and `R/05a_mse.R`. A warm start is no protection either: the
+dilution happens when `MakeADFun` averages the map level, so it applies to whatever `log_M1` the
+`inits` hold.
+
+Whether the 2025 assessment's own fit moves is therefore still **not measured**. A refit was
+declined, but that decision was taken while this note said phasing made the point moot. Nothing
+above licenses an inference either way: on the same data `M1_model = 2` moved by 5.7e-06 while
+`M1_model = 1` moved by 10.5 nats, so it turns on whether that surface has a nearby worse
+optimum. **Refit before and after, or record explicitly that the risk is accepted unmeasured.**
 
 Scope: the defect needs a multispecies model MIXING one-sex and two-sex species. A uniform `nsex`
 leaves no padding, so single-species models are immune whatever their `nsex`, as is `GOA-ATF-ESP`

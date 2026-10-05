@@ -12,6 +12,113 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.51.0
+
+## Bug fixes
+
+* **The starting residual M was diluted toward 1.0 per year whenever `M1_model >= 1` met a
+  species set with ragged `nsex`.** `log_M1` is dimensioned to the widest species, so a one-sex
+  species in a model whose `max(nsex)` is 2 leaves padding sex cells, and `build_map_m1()` indexed
+  them: `map_list$log_M1[sp, , 1:nages_sp]` with a bare comma under `M1_model` 1 and 4, and
+  `[sp, 2, ] <- [sp, 1, ]` under `M1_model` 3, put the padding in the **same map level** as the
+  real cells. TMB does not take a shared parameter's start from the first cell of its level --
+  `TMB:::updateMap()` is `tapply(parameter.entry, map.entry, mean)` -- so the start was the mean
+  over the level, and a padding cell sitting at `log(1) = 0` pulled it toward an M of 1.0 per year.
+* Measured on `GOA2018SS` (`nsex` `c(1, 2, 1)`, `nages` `c(10, 21, 12)`) at `M1_model = 1`:
+  pollock started at **0.637454** against an `M1_base` geometric mean of 0.406348 (**+57%**, and
+  exactly its square root) and cod at **0.710571** against 0.504911 (**+41%**). Both now start at
+  their own input. `M1_model = 3` started at the square root of every age in the schedule
+  (`1.178983, 0.830662, 0.692820, ...` for `1.39, 0.69, 0.48, ...`) and now reproduces it exactly.
+  `M1_model` 2, 4 and 5 are affected identically and fixed with it. Species 2 was always correct:
+  its two **real** sexes legitimately share one level under a sex-invariant model, so
+  `sqrt(0.20 * 0.35) = 0.264575` is the intended value.
+* **Free-parameter counts are unchanged** -- 3, 4, 64, 3 and 4 for `M1_model` 1 to 5 on that
+  dataset. Only which cells belong to a level changed, and the padding is now mapped out under
+  every `M1_model`. `test-mortality-m1-map-padding.R` fits all five through `fit_mod()` and pins
+  both the level count and the zero padding cells; an earlier version of it covered only 1 to 3,
+  leaving the environmentally-driven 4 and 5 edited but unpinned.
+* **Whether it changes a converged estimate depends on the optimizer settings, and the honest
+  answer is "only without phasing".** The shared parameter's MLE is identified by the real sex --
+  the template reads `sex < nsex(sp)` -- but an unphased optimizer does not always reach it from a
+  start displaced this far. Fitting `GOA2018SS` at `M1_model = 1` cold, `phase = FALSE`,
+  `newtonsteps = 0`:
+
+  | | before | after | change |
+  |---|---|---|---|
+  | objective | 12849.030601 | 12838.508102 | -10.52 nats |
+  | M1, species 1 | 0.38983395 | 0.28725155 | -26% |
+  | SSB at `endyr` 2018, species 1 | 362,066 | 330,402 mt | **-8.75%** |
+  | hindcast mean SSB, species 1 | 315,995 | 307,862 mt | -2.57% |
+
+  **Both of those fits are `WARN`, not converged** -- `max|gradient|` 2.2e-03 and 1.7e-03 against
+  `convergence_diagnostics()`'s `OK` tier of 1e-03 -- so this is a comparison of two unconverged
+  points, and the surface carries at least four local minima over the range: a start of 0.90
+  reaches `max|gradient|` 8.4e-04 (the only one in the `OK` tier) at an objective 4.15 nats worse
+  and species-1 SSB 37% lower. Which optimum an unphased fit reaches is therefore arbitrary, and
+  that is the defect's real consequence rather than any single pair of numbers.
+* **Under `phase = TRUE` the difference disappears entirely** on this dataset -- both sides land
+  bit-identically at 12838.508102 with SSB 330,415 mt. **Phasing is not a general escape, and the
+  live case is why that matters.** The GOA multispecies assessment runs three fits
+  (`R/02_fit_models.R`): the fixed-M single-species one is `phase = TRUE` and `M1_model = 0`, so
+  it is immune; the estimated-M single-species one is `phase = TRUE` with
+  `M1_model = c("sex_age_invariant", "sex_specific", "sex_age_invariant")`; and the **headline
+  multispecies fit sets that same `M1_model` with `phase = FALSE`** -- the configuration in which
+  `GOA2018SS` moved 10.5 nats. A warm start does not help either: the dilution happens when
+  `MakeADFun` averages the map level, so it applies to whatever `log_M1` the `inits` hold. One
+  benefit that is real at any setting: `phase = FALSE, newtonsteps = 3` **crashes** on the old
+  diluted optimum (`solve.default`, singular Hessian) and completes after.
+* `M1_model = 3` is a counterexample worth stating: unphased, the fix makes the objective 0.746
+  nats *worse* and moves species 2's `endyr` SSB +3.21%, with both sides in the `FAIL` gradient
+  tier; under `phase = TRUE` both land at 12727.17 and species 2 moves 0.004%. The direction of an
+  unphased change is not predictable, which is the argument for removing the displacement rather
+  than for any particular improvement.
+* **No golden reference moves**: all four run `M1_model = 0`, where the whole array is mapped out,
+  so none of them covered any of this. Verified: all six golden blocks unchanged, and 22 files of
+  mortality, M1, linkage-M1 and switch tests green.
+* Under `M1_model = 2` a single-sex species also claimed a second map index for its padding sex
+  and then reassigned it without incrementing the counter, so the padding took the counter's next
+  value -- which is the **following species' first level**. On `nsex` `c(1, 2, 1)` species 1's
+  padding and species 2's real female both landed on level 3. That cross-species collision is real
+  in `build_map_m1()`, and is unreachable through `fit_mod()` only because `fit_mod()` downgrades
+  `M1_model` 2 to 1 for a single-sex species before the map is built. An earlier draft of this
+  entry said a "later re-levelling" prevented it and that the branch's warning fires; neither is
+  true -- the branch and its warning are dead through `fit_mod()`, and `factor()` preserves all
+  five levels. The fix also removes a latent `subscript out of bounds` crash when `M1_model` 2 or
+  3 meets `max(nsex) == 1`.
+
+* **This also fixes, at its root, the `NaN` objective that 5.50.0 addressed from the other end.**
+  `fit_mod(updateM1 = TRUE)` with `M1_model >= 1` on a ragged-`nsex` set returned `NaN`, because
+  the `-Inf` that path left in a padding cell belonged to a real map level and so entered the
+  parameter vector. With the padding mapped out it cannot, and the objective is finite **even
+  with the old fill still in place**. On one stated recipe -- `inits` from a mode-3 fixed-M fit,
+  `estimateMode = 3`, `updateM1 = TRUE` -- `M1_model` 1, 2 and 3 give `NaN, NaN, NaN` before and
+  843787.106345, 842894.271820, 919429.003512 after, with 53 non-finite cells still in the array
+  both times. The objective on this path depends on which fit you warm-start from, so the figures
+  are only meaningful against that recipe; the transition from `NaN` to finite is the claim. The
+  figures quoted under 5.50.0 (891822.517895, 890929.683370, 933405.044463) are the same recipe
+  on the old map with the fill fixed instead. The two
+  changes are complementary rather than redundant: 5.50.0 stops the array holding a non-finite
+  value at all, and adds the refusals; this one stops a padding cell being a parameter.
+
+**Who was exposed.** The defect needs a multispecies model that mixes one-sex and two-sex
+species, since a uniform `nsex` leaves no padding at all. Of the bundled datasets only
+`GOA2018SS` qualifies (`nsex` `c(1, 2, 1)`), and single-species models are immune whatever their
+`nsex`. The live GOA multispecies assessment is in the affected configuration: its 2025 workbook
+has `nsex` `c(1, 2, 1)` and `R/02_fit_models.R` sets
+`M1_model = c("sex_age_invariant", "sex_specific", "sex_age_invariant")`, so species 1 and 3 are
+affected and species 2 is not. Of its three fits, the fixed-M single-species one runs
+`M1_model = 0` and is immune, the estimated-M single-species one is `phase = TRUE`, and the
+**headline multispecies fit is `phase = FALSE`** -- the setting under which `GOA2018SS` moved 10.5
+nats and 8.75% of species-1 SSB. Its own fit was **not** refitted; that was a deliberate decision,
+taken when this entry still said phasing made the point moot, which for the multispecies fit it
+does not. Whether its numbers move is **unmeasured**, and nothing above licenses an expectation
+either way: on the same data `M1_model = 2` moved by 5.7e-06 while `M1_model = 1` moved by 10.5
+nats, so it turns entirely on whether that surface has a nearby worse optimum.
+
+The same bare-comma pattern remains in the `log_M1_dev`, `M1_beta`, `M1_rho` and `M1_dev_log_sd`
+writes and is deliberately left alone: every one of those starts at 0, so averaging a padding cell
+into the level is exactly inert, and changing them would alter random-effect map structure for no
+numerical gain.
 # Rceattle 5.50.0
 
 ## Bug fixes
