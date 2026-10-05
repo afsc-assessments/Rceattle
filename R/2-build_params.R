@@ -97,12 +97,8 @@ build_params <- function(data_list) {
   # Which (species, sex) an M1_base row actually covers
   m1_written <- matrix(FALSE, data_list$nspp, max_sex)
 
-  # Initialize from inputs. The array is dimensioned to the WIDEST species
-  # (max_sex, max_age), so a species with fewer sexes or ages leaves padding
-  # cells behind. Write only that species' own sexes and ages: a workbook row
-  # is legitimately blank past that species' last age, so reading 1:max_age
-  # from it would put log(NA) in the padding. The padding keeps the 1 above and
-  # reaches the template as log(1) = 0.
+  # Write only the sexes and ages the species has. A workbook row is
+  # legitimately blank past its last age, so reading 1:max_age gives log(NA).
   for (i in 1:nrow(data_list$M1_base)) {
     sp <- as.numeric(as.character(data_list$M1_base$Species[i]))
     sex <- as.numeric(as.character(data_list$M1_base$Sex[i]))
@@ -117,10 +113,10 @@ build_params <- function(data_list) {
       m1_written[sp, sex_values[j]] <- TRUE
     }
   }
-  # A (species, sex) with no M1_base row keeps the 1 above, which is a residual
-  # M of 1.0 per year -- inside the parameter bounds, so nothing downstream
-  # catches it. Refuse it here rather than fit it.
+  # A (species, sex) with no M1_base row would keep the 1 above: a residual M
+  # of 1.0 per year, inside the bounds, so nothing downstream would catch it.
   .rce_stop_if_M1_row_missing(m1_written, data_list)
+
   param_list$log_M1 <- log(m1)
 
 
@@ -464,10 +460,10 @@ build_params <- function(data_list) {
 
   param_list <- .push_linkage_intercept_inits(param_list, data_list)
 
-  # Checked HERE, not where log_M1 is filled: an M1 linkage carrying an
-  # `init` for its intercept writes the level over every real age above, so a
-  # workbook may legitimately leave M1_base blank and let the linkage supply
-  # it. Checking at the fill would refuse that.
+  # Both after the linkage pass, not at the data fill: an M1 linkage with an
+  # intercept `init` writes the level over every real age, so M1_base may
+  # legitimately be blank and the padding must mirror whatever ends up there.
+  param_list$log_M1 <- .rce_fill_M1_padding(param_list$log_M1, data_list)
   .rce_stop_if_nonfinite_M1(param_list$log_M1, "build_params()")
 
   param_list
@@ -687,4 +683,38 @@ build_params <- function(data_list) {
        ". Every sex of every species needs one, or its residual M starts at ",
        "1.0 per year, which is inside the parameter bounds and so is fit ",
        "rather than refused.", call. = FALSE)
+}
+
+
+#' Give each padding cell its own species' M1
+#'
+#' @description
+#' `log_M1` is dimensioned to the widest species, so a species with fewer sexes
+#' or ages owns cells for neither. No template loop reads them, but a parameter
+#' sharing a map level with one starts at the mean over that level, since
+#' `TMB:::updateMap()` is `tapply(..., mean)`. A padding cell left at the
+#' array's initial 1 -- an M of 1.0 per year -- therefore pulls an estimated M1
+#' toward 1.0; mirroring the species' own value keeps that mean exact.
+#'
+#' @param m1 `[nspp, max_sex, max_age]` natural mortality with every real cell
+#'   filled. Only copies cells, so either scale works.
+#' @param data_list The `data_list`, for `nspp`, `nsex` and `nages`.
+#' @return `m1` with its padding cells set from their own species.
+#' @noRd
+.rce_fill_M1_padding <- function(m1, data_list) {
+  max_sex <- dim(m1)[2]
+  max_age <- dim(m1)[3]
+  for (sp in seq_len(data_list$nspp)) {
+    real_sex <- seq_len(data_list$nsex[sp])
+    last_age <- data_list$nages[sp]
+    # Ages past this species' last age take its oldest real age.
+    if (last_age < max_age) {
+      m1[sp, real_sex, (last_age + 1):max_age] <- m1[sp, real_sex, last_age]
+    }
+    # Sexes this species does not have take its first sex.
+    for (sx in setdiff(seq_len(max_sex), real_sex)) {
+      m1[sp, sx, ] <- m1[sp, real_sex[1], ]
+    }
+  }
+  m1
 }

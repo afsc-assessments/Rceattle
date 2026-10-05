@@ -71,11 +71,10 @@ Specify the residual natural mortality (M1) model for Rceattle
 }
 \section{\code{M1_base} completeness}{
 
-\code{M1_base} must carry a finite, positive residual M (per year) for every age
-of every sex the species has; the value is taken on the log scale, so a blank
-or a zero is refused with the offending \verb{(species, sex, age)} cells named.
-Columns past a species' own \code{nages} are padding and are ignored, so a row may
-stop at that species' last age.
+\code{M1_base} needs a finite, positive residual M (per year) for every age of
+every sex the species has; it is taken on the log scale, so a blank or a zero
+is refused, naming the offending \verb{(species, sex, age)} cells. Columns past a
+species' own \code{nages} are ignored, so a row may stop at its last age.
 }
 
 \examples{

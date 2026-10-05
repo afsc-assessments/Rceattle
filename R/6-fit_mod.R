@@ -1304,8 +1304,10 @@ fit_mod <-
             as.numeric(data_list$M1_base[i, ages + 2])
         }
       }
-      # Keep the species / sex / age labels this array already carried, so a
-      # fit made with updateM1 reports log_M1 as readably as any other.
+      # Same helper as build_params(), so the two fills cannot drift.
+      m1 <- .rce_fill_M1_padding(m1, data_list)   # padding mirrors its species
+      # Keep the species / sex / age labels, so updateM1 reports log_M1 as
+      # readably as any other path.
       dimnames(m1) <- dimnames(start_par$log_M1)
       start_par$log_M1 <- log(m1)
       .rce_stop_if_nonfinite_M1(start_par$log_M1, "fit_mod(updateM1 = TRUE)")

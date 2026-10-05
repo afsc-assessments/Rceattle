@@ -5,6 +5,11 @@
 #   build_params()              array(1, ...)  -> padding = log(1) = 0
 #   fit_mod(updateM1 = TRUE)    array(0, ...)  -> padding = log(0) = -Inf
 #
+# Both now write only the real cells and then set each padding cell from its
+# own species, so the array is finite and uniform per species. The uniformity
+# matters because a parameter sharing a map level with a padding cell starts at
+# the mean over that level: a 1 there pulled an estimated M1 toward 1.0/yr.
+#
 # Measured on GOA2018SS (nspp 3, nsex c(1, 2, 1), nages c(10, 21, 12), so
 # max_sex 2 and max_age 21): the updateM1 path produced 53 non-finite cells of
 # 126 -- 42 -Inf in the padding sex-2 cells of the two one-sex species, plus 11
@@ -38,20 +43,33 @@ testthat::test_that("build_params() log_M1 has no non-finite start value", {
 })
 
 
-testthat::test_that("padding cells are log(1) and real cells carry M1_base", {
+testthat::test_that("a padding cell takes its own species' M1", {
+  # Padding holds the species' own value rather than the array's initial 1.
+  # A parameter sharing a map level with a padding cell starts at the mean over
+  # that level (TMB:::updateMap is tapply(..., mean)), so a 1 there pulls an
+  # estimated M1 toward 1.0 per year; this keeps the mean exact.
   data("GOA2018SS", package = "Rceattle", envir = environment())
   d <- Rceattle::switch_check(GOA2018SS)
   pars <- suppressWarnings(suppressMessages(Rceattle::build_params(d)))
-
-  # A padding SEX cell: species 1 is one-sex, so sex index 2 is padding.
-  testthat::expect_equal(unname(pars$log_M1[1, 2, 1]), 0)
-  # A padding AGE cell: species 1 has 10 ages against max_age 21.
-  testthat::expect_equal(unname(pars$log_M1[1, 1, 11]), 0)
-
-  # Real cells still come from M1_base, on the log scale.
   row1 <- as.numeric(d$M1_base[1, seq_len(d$nages[1]) + 2])
+
+  # Real cells come from M1_base, on the log scale.
   testthat::expect_equal(unname(pars$log_M1[1, 1, seq_len(d$nages[1])]),
                          log(row1))
+
+  # Species 1 is one-sex, so sex index 2 is padding: it mirrors sex 1.
+  testthat::expect_equal(unname(pars$log_M1[1, 2, ]),
+                         unname(pars$log_M1[1, 1, ]))
+
+  # Species 1 has 10 ages against max_age 21: ages 11+ take its oldest age.
+  testthat::expect_equal(unname(pars$log_M1[1, 1, 11]),
+                         log(row1[d$nages[1]]))
+  # Not the array's initial 1, which is what diluted the start.
+  testthat::expect_false(isTRUE(all.equal(unname(pars$log_M1[1, 1, 11]), 0)))
+
+  # A two-sex species keeps its sexes distinct.
+  testthat::expect_false(isTRUE(all.equal(unname(pars$log_M1[2, 1, 1]),
+                                          unname(pars$log_M1[2, 2, 1]))))
 })
 
 

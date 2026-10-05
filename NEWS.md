@@ -42,6 +42,13 @@ version throughout.
   `build_bounds()`'s `[log(0.001), log(2)]`, so nothing downstream caught it and the fit simply
   ran with it. Deleting a species' row from `BS2017SS` previously built a model with
   `M1_at_age = 1.0`, silently.
+* **Each padding cell now holds its own species' M1** rather than the array's initial 1. Nothing
+  reads the padding, but a parameter sharing a map level with one starts at the mean over that
+  level (`TMB:::updateMap()` is `tapply(..., mean)`), so a 1 there pulls an estimated M1 toward
+  1.0 per year. One helper does this for `build_params()` and the `updateM1` path, so the two
+  fills cannot drift -- that duplication is what produced the `array(1)` / `array(0)` divergence
+  in the first place. It runs after the linkage pass, so the padding mirrors whatever the real
+  cells hold once a linkage has supplied the level.
 * A non-finite `log_M1` starting value is also refused, naming the offending
   `(species, sex, age)` cells. The check runs **after** the linkage initial-value pass, not at the
   fill: an M1 linkage carrying an `init` for its intercept writes the level over every real age,
