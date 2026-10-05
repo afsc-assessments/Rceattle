@@ -159,13 +159,22 @@ testthat::test_that("every exported plotter runs on a minage != 1 model", {
                 "plot_exploitable_biomass", "plot_index", "plot_catch", "plot_f",
                 "plot_selectivity", "plot_maturity", "plot_mortality",
                 "plot_stock_recruit", "plot_comp", "plot_data",
-                "plot_indexresidual", "plot_catchresidual", "plot_sel_vs_mat")
+                "plot_indexresidual", "plot_selectivity_vs_maturity",
+                "plot_logindex")
+
+  # A name that is not an exported plotter FAILS. Skipping it instead -- which
+  # this did -- let two misspellings sit here unnoticed: `plot_catchresidual`,
+  # which no version of the package has ever had, and `plot_sel_vs_mat` for
+  # `plot_selectivity_vs_maturity`. The loop then ran 15 of the 17 it listed
+  # and still passed its `> 10` floor.
+  missing <- plotters[!vapply(plotters, exists, logical(1),
+                              envir = asNamespace("Rceattle"))]
+  testthat::expect_equal(missing, character(0))
 
   failed <- character(0)
   ran <- 0L
   with_null_device({
     for (fn in plotters) {
-      if (!exists(fn, envir = asNamespace("Rceattle"))) next
       f <- get(fn, envir = asNamespace("Rceattle"))
       ran <- ran + 1L
       tryCatch({
@@ -178,7 +187,7 @@ testthat::test_that("every exported plotter runs on a minage != 1 model", {
     }
   })
 
-  # Guard against the whole loop silently skipping.
-  testthat::expect_gt(ran, 10L)
+  # Exact, not a floor: a floor with slack is what hid the two missing names.
+  testthat::expect_equal(ran, length(plotters))
   testthat::expect_equal(failed, character(0))
 })

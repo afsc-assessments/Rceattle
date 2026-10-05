@@ -12,6 +12,24 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.49.7
+
+## Internal
+
+* **`test-plot-smoke.R` ran 15 of the 17 plotters it listed, and passed.** Two names were not
+  exported functions: `plot_catchresidual`, which no version of this package has had, and
+  `plot_sel_vs_mat` for `plot_selectivity_vs_maturity`. An `if (!exists(fn)) next` skipped both
+  silently, and the loop's `expect_gt(ran, 10L)` floor had enough slack to hide it. A name that is
+  not an exported plotter now **fails**, and the run count is asserted exactly rather than against
+  a floor. `plot_logindex` is added, so the deprecated wrapper is exercised too: 17 of 17.
+* Verified by mutation: re-adding `plot_catchresidual` turns the file red (2 failures) where it
+  previously passed.
+* Still exercised by no test: `plot_form`, `plot_diet_comp1`, `plot_diet_comp2`. `plot_form` takes
+  Kinzey & Punt functional-response parameters for `msmMode` 3-9, which `data_check()` refuses, so
+  it cannot run on any model this package builds; the two diet plotters need a fitted
+  multispecies model with diet data rather than the single-species fixture this file uses. Both
+  gaps are now recorded rather than hidden behind a skip.
+
 # Rceattle 5.49.6
 
 ## Documentation
