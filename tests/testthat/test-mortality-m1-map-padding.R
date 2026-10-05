@@ -60,7 +60,11 @@ testthat::test_that("a padding sex cell takes no log_M1 map index", {
   data("GOA2018SS", package = "Rceattle", envir = environment())
   d <- suppressMessages(Rceattle::switch_check(GOA2018SS))
 
-  for (mm in 1:3) {
+  # All five fixed-effect models, not just the three sex/age ones: the
+  # environmentally-driven 4 and 5 write log_M1 through the same indices and
+  # were edited with them.
+  expect_levels <- c(3L, 4L, 64L, 3L, 4L)
+  for (mm in 1:5) {
     fit <- suppressWarnings(suppressMessages(Rceattle::fit_mod(
       data_list = GOA2018SS, inits = NULL, file = NULL,
       estimateMode = "DebugBuild", msmMode = 0, niter = 3, random_rec = FALSE,
@@ -68,6 +72,9 @@ testthat::test_that("a padding sex cell takes no log_M1 map index", {
       fit_control = Rceattle::fit_control(verbose = 0))))
 
     mp <- m1_map_levels(fit, d$nspp, max(d$nsex), max(d$nages))
+    lv <- unique(as.integer(mp)[!is.na(as.integer(mp))])
+    testthat::expect_equal(length(lv), expect_levels[mm],
+      info = paste("M1_model", mm, "free log_M1 levels"))
     for (sp in seq_len(d$nspp)) {
       padding <- setdiff(seq_len(max(d$nsex)), seq_len(d$nsex[sp]))
       for (sx in padding) {

@@ -32,9 +32,11 @@ version throughout.
   `M1_model` 2, 4 and 5 are affected identically and fixed with it. Species 2 was always correct:
   its two **real** sexes legitimately share one level under a sex-invariant model, so
   `sqrt(0.20 * 0.35) = 0.264575` is the intended value.
-* **Free-parameter counts are unchanged** -- 3, 4 and 64 for `M1_model` 1, 2 and 3 on that
+* **Free-parameter counts are unchanged** -- 3, 4, 64, 3 and 4 for `M1_model` 1 to 5 on that
   dataset. Only which cells belong to a level changed, and the padding is now mapped out under
-  every `M1_model`.
+  every `M1_model`. `test-mortality-m1-map-padding.R` fits all five through `fit_mod()` and pins
+  both the level count and the zero padding cells; an earlier version of it covered only 1 to 3,
+  leaving the environmentally-driven 4 and 5 edited but unpinned.
 * **Whether it changes a converged estimate depends on the optimizer settings, and the honest
   answer is "only without phasing".** The shared parameter's MLE is identified by the real sex --
   the template reads `sex < nsex(sp)` -- but an unphased optimizer does not always reach it from a
