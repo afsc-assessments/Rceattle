@@ -231,9 +231,12 @@ comp_weights[flt] <- 0        # set weight to 0
 comp_weights[flt] <- 0
 ```
 
-**Match the surrounding style.** Canonical references: `src/TMB/recruitment.hpp` (the
-Doxygen-documented header to emulate) and any `R/*.R` + its `tests/testthat/*` pair. The codebase
-favours explanatory section headers and Doxygen on the C++ — match local comment density.
+**Match the surrounding style.** Canonical references: `src/TMB/spr.hpp` for a fully
+Doxygen-documented header — it is one of four with an `@file` block (`comp_osa.hpp`,
+`comp_sim.hpp` and `helper_functions.hpp` are the others), where `recruitment.hpp` has
+`@brief`/`@param`/`@return` per function but no file block. And any `R/*.R` + its
+`tests/testthat/*` pair. The codebase favours explanatory section headers and Doxygen on the
+C++ — match local comment density.
 
 **Roxygen:** markdown, regenerated with `/document`. A `@param` is one sentence: what the
 argument means, its allowed values, its default. Anything longer belongs in `@details` or a
