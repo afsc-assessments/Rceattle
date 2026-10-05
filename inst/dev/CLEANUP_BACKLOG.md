@@ -484,6 +484,19 @@ under "Deliberately not changed".
 
 ## Deliberately not changed
 
+- **`data_check()` decomposition: the harness is built, the coverage is not there yet**
+  (2026-10-05). The refactor plan's Step 8 says build
+  `tools/verify/verify-data-check-conditions.R` FIRST and prove it deterministic before touching
+  the 2,212-line function. Built, and determinism proven the way the plan asks: two separate R
+  processes give byte-identical digests, and a selftest runs the capture twice in one process and
+  refuses to pass if they differ. **But the coverage is 12 distinct conditions against 36
+  stop/warning/message sites in `R/1-data_check.R`** -- roughly a third. Demonstrated
+  insufficient: silencing the first `warning()` in the file leaves the digest IDENTICAL, because
+  no case reaches it. So the net cannot gate the decomposition yet, and starting one behind it
+  would be the worst outcome the plan names -- half the nets, none of the content. To close the
+  gap: cases for the unreached sites, or a capture over the 375-workbook release corpus (183 with
+  a `fleet_control` sheet). The harness reports its own coverage on every run so the number
+  cannot quietly rot.
 - **The three mechanical loop/apply conversions, measured and declined** (2026-10-05). The
   refactor plan listed `1:n` -> `seq_len()`, `sapply` -> `vapply` and `=` -> `<-` as conversions
   that "remove live bug classes". Measured against `dev` at 5.49.7 by parsing, not grepping:
