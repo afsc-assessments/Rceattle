@@ -308,21 +308,43 @@ build_map_m1 <- function(map_list, data_list, nyrs_hind) {
     M1_re_model <- data_list$M1_re[sp] # Random effects model
 
     # * 1. Fixed effects ----
+    #
+    # Index only the sexes the species HAS. log_M1 is dimensioned to the widest
+    # species, so `[sp, , ]` on a one-sex species in a two-sex model also
+    # indexes a padding cell -- and TMB starts a shared parameter at the MEAN
+    # over its map level (`TMB:::updateMap()` is `tapply(..., mean)`), so a
+    # padding cell sitting at log(1) = 0 drags the start toward an M1 of 1.0
+    # per year. On GOA2018SS at M1_model = 1 that put pollock at 0.637 against
+    # an input of 0.406.
+    sexes_sp <- seq_len(nsex_sp)
+
     # ** M1_model = 1: sex- and age-invariant M1
     if (M1_model == 1) {
-      map_list$log_M1[sp, , 1:nages_sp] <- M1_ind
+      map_list$log_M1[sp, sexes_sp, 1:nages_sp] <- M1_ind
       M1_ind <- M1_ind + 1
     }
 
 
     # ** M1_model = 2: sex-specific, but age-invariant M1
     if (M1_model == 2) {
-      map_list$log_M1[sp, 1, 1:nages_sp] <- M1_ind
-      map_list$log_M1[sp, 2, 1:nages_sp] <- M1_ind + 1
-      M1_ind <- M1_ind + 2
       if (nsex_sp == 1) {
         warning(paste0("M1 model for species ", sp," is set to 2 (sex-specific), but species is single-sex."))
-        map_list$log_M1[sp, 2, 1:nages_sp] <- M1_ind
+        # One sex, so one parameter. Taking a second index and then reassigning
+        # it without incrementing the counter -- what this did before -- gave
+        # the padding cell the counter's NEXT value, which is the following
+        # species' first level: on nsex c(1, 2, 1) species 1's padding and
+        # species 2's real female both landed on level 3.
+        #
+        # Unreachable through fit_mod(), which downgrades M1_model 2 to 1 for a
+        # single-sex species before building the map (R/6-fit_mod.R, "sex-
+        # specific -> sex-invariant for 1-sex model"), so this branch and the
+        # warning above fire only on a direct build_map() call.
+        map_list$log_M1[sp, 1, 1:nages_sp] <- M1_ind
+        M1_ind <- M1_ind + 1
+      } else {
+        map_list$log_M1[sp, 1, 1:nages_sp] <- M1_ind
+        map_list$log_M1[sp, 2, 1:nages_sp] <- M1_ind + 1
+        M1_ind <- M1_ind + 2
       }
     }
 
@@ -335,7 +357,8 @@ build_map_m1 <- function(map_list, data_list, nyrs_hind) {
         M1_ind <- M1_ind + nages_sp
       } else {
         warning(paste0("M1 model for species ", sp," is set to 3 (sex-specific), but species is single-sex."))
-        map_list$log_M1[sp, 2, ] <- map_list$log_M1[sp, 1, ]
+        # Sex 2 is padding; leave it mapped out rather than sharing sex 1's
+        # levels, which would average its log(1) = 0 into every age.
       }
     }
 
@@ -343,7 +366,7 @@ build_map_m1 <- function(map_list, data_list, nyrs_hind) {
     if (M1_model == 4| (M1_model == 5 & nsex_sp == 1)) {
 
       # - Mean M
-      map_list$log_M1[sp, , 1:nages_sp] <- M1_ind
+      map_list$log_M1[sp, sexes_sp, 1:nages_sp] <- M1_ind
       M1_ind <- M1_ind + 1
       map_list$M1_beta[sp, 1, data_list$M1_indices] <- M1_beta_ind + data_list$M1_indices
 
