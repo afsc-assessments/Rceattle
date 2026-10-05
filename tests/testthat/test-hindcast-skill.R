@@ -145,14 +145,86 @@ testthat::test_that("MASE is computed per horizon, averaging over peels", {
     z <- by[by$years_ahead == hs$mase$years_ahead[i] &
             by$species     == hs$mase$species[i] &
             by$quantity    == hs$mase$quantity[i], ]
-    testthat::expect_equal(hs$mase$n_peels[i], nrow(z))
+    # PEELS, not rows: a peel contributing several rows at one horizon -- which
+    # the observed path allows, two index rows in a year at different months --
+    # is averaged within the peel first, so n_peels != nrow(z) there.
     testthat::expect_equal(hs$mase$n_peels[i], length(unique(z$peel)))
-    # eq. 5, recomputed here
-    testthat::expect_equal(hs$mase$mase[i],
-                           mean(abs(z$forecast - z$reference)) /
-                           mean(abs(z$naive    - z$reference)))
+    # eq. 5, recomputed with its own within-peel average
+    af <- tapply(abs(z$forecast - z$reference), z$peel, mean)
+    an <- tapply(abs(z$naive    - z$reference), z$peel, mean)
+    testthat::expect_equal(hs$mase$mase[i], mean(af) / mean(an))
   }
   m1 <- hs$mase[hs$mase$years_ahead == min(hs$mase$years_ahead), ]
   mN <- hs$mase[hs$mase$years_ahead == max(hs$mase$years_ahead), ]
   testthat::expect_gt(m1$n_peels[1], mN$n_peels[1])
+})
+
+
+# A peel contributing TWO rows at one horizon is weighted once, not twice.
+#
+# Kell et al. (2021) eq. 5 sums one term per t, each t a different peel's
+# terminal year. On reference = "model" that is automatic -- one forecast per
+# peel per horizon. On reference = "observed" it is not: a fleet may legally
+# carry two index rows in the same Year at different Months, because
+# data_check() tests duplicates on (Fleet_code, Year, Month), and both land in
+# the same years_ahead from the same peel.
+#
+# $mase therefore averages within a peel first and then across peels. This is
+# the ONLY branch where that differs from a pooled-row mean, and no bundled
+# dataset reaches it -- BS2017SS has zero (Fleet_code, Year) duplicates and
+# every Month is 6 -- so the fixture is constructed here. Without it, n_peels
+# could silently revert to a row count and nothing in the suite would notice.
+testthat::test_that("a peel with two rows at one horizon is weighted once", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("TMB")
+
+  data(BS2017SS, package = "Rceattle")
+  d <- BS2017SS
+  # Duplicate fleet 4's recent rows at a second month, perturbed so a
+  # row-weighted mean and a peel-weighted mean cannot coincide by accident.
+  extra <- d$index_data[d$index_data$Fleet_code == 4 &
+                        d$index_data$Year >= 2014, ]
+  testthat::skip_if(nrow(extra) == 0L, "fixture fleet has no recent rows")
+  extra$Month <- 9
+  extra$Observation <- extra$Observation * 1.35
+  d$index_data <- rbind(d$index_data, extra)
+  d$index_data <- d$index_data[order(d$index_data$Fleet_code,
+                                     d$index_data$Year), ]
+  # The shape must be legal, or this is testing a model that cannot be built.
+  testthat::expect_equal(sum(duplicated(
+    d$index_data[c("Fleet_code", "Year", "Month")])), 0L)
+  testthat::expect_gt(sum(duplicated(d$index_data[c("Fleet_code", "Year")])), 0L)
+
+  fit <- suppressMessages(suppressWarnings(fit_mod(
+    data_list = d, file = NULL, estimateMode = 1,
+    fit_control = fit_control(phase = FALSE, getsd = FALSE, verbose = 0))))
+  hs <- suppressMessages(suppressWarnings(
+    Rceattle::hindcast_skill(fit, peels = 2:3, reference = "observed",
+                             cores = 1, getsd = FALSE)))
+
+  by <- hs$by_year
+  dup <- by[by$quantity == "index_fleet_4", ]
+  testthat::skip_if(nrow(dup) == 0L, "fleet 4 contributed no scored rows")
+
+  for (i in seq_len(nrow(hs$mase))) {
+    z <- by[by$years_ahead == hs$mase$years_ahead[i] &
+            by$species     == hs$mase$species[i] &
+            by$quantity    == hs$mase$quantity[i], ]
+    # PEELS, not rows -- this is the assertion the duplicate shape exists for.
+    testthat::expect_equal(hs$mase$n_peels[i], length(unique(z$peel)))
+    af <- tapply(abs(z$forecast - z$reference), z$peel, mean)
+    an <- tapply(abs(z$naive    - z$reference), z$peel, mean)
+    testthat::expect_equal(hs$mase$mae_forecast[i], mean(af))
+    testthat::expect_equal(hs$mase$mae_naive[i],    mean(an))
+  }
+
+  # And at least one group really does have more rows than peels, or the
+  # fixture has drifted and the test is passing on the easy case.
+  hit <- vapply(seq_len(nrow(hs$mase)), function(i) {
+    z <- by[by$years_ahead == hs$mase$years_ahead[i] &
+            by$species     == hs$mase$species[i] &
+            by$quantity    == hs$mase$quantity[i], ]
+    nrow(z) > length(unique(z$peel))
+  }, logical(1))
+  testthat::expect_true(any(hit))
 })

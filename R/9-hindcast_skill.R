@@ -35,18 +35,42 @@
 #' One row per horizon per species per quantity: the mean runs ACROSS PEELS at a
 #' fixed steps-ahead, which is Kell et al. (2021) eq. 5, whose sums run over
 #' \eqn{t = T-n \ldots T} at fixed \eqn{h}. `n_peels` is how many peels
-#' contributed. So `peels` buys precision in each MASE rather than more rows, and
-#' a short horizon is not inherently noisier than a long one -- it is averaged
-#' over the same peels.
+#' contributed, so `peels` buys terms inside each MASE rather than more rows.
 #'
-#' Read `n_peels` before reading a MASE. A horizon `h` can only be scored by a
-#' peel at least `h` years deep, so `n_peels` FALLS as the horizon grows: with
-#' `peels = 2:4` the one-year-ahead MASE averages three peels and the
-#' four-year-ahead one averages a single peel. The deepest horizon in any run is
-#' therefore the least precise, and a MASE resting on one peel says as much about
-#' that peel as about the projection. Widen `peels` to score a long horizon, and
-#' treat the last row or two of `$mase` with the same caution you would give any
-#' n = 1 statistic.
+#' **Know what the baseline is under `reference = "model"`.** It is NOT a
+#' persistence error of one series. `naive` is the PEEL's terminal estimate and
+#' `reference` is the FULL model's, so each denominator term is a difference
+#' between two different models, carrying the peel's own retrospective bias at
+#' its terminal year. A peel whose terminal estimate happens to sit near the
+#' full model's later value therefore contributes a tiny term: measured on
+#' BS2017SS pollock SSB with `peels = c(2,3,5)`, the three one-year denominator
+#' terms spanned 18,254 to 1,965,189 -- 108-fold -- because one peel's 2015 SSB
+#' landed within 0.3% of the full model's 2016 value.
+#'
+#' Averaging across peels does tame the ratio: those same peels give per-peel
+#' ratios of 1.02, 2.82 and 34.22, and a reported MASE of 1.485. That is the
+#' point of scoring per horizon rather than per peel. But a horizon resting on
+#' few peels inherits whatever bias cancellation they happen to carry, which is
+#' a reason to read `n_peels`, not a reason to distrust short horizons as such.
+#'
+#' Read `n_peels` before reading a MASE, per row -- it is not constant down the
+#' column. A horizon `h` can only be scored by a peel at least `h` years deep, so
+#' on an ANNUAL series with a contiguous `peels` run it falls as the horizon
+#' grows: with `peels = 2:4`, three peels at one year ahead and one at four. A
+#' MASE resting on a single peel says as much about that peel as about the
+#' projection.
+#'
+#' That pattern holds for an ANNUAL series. Under `reference = "observed"` an
+#' irregular survey breaks it, because a fleet is scored at a horizon only where
+#' it has an observation both at the peel's terminal year and after it -- so
+#' `n_peels` can rise with the horizon, and some horizons carry no rows at all.
+#' On BS2017SS's acoustic pollock survey with `peels = c(2,3,5)`, only
+#' `years_ahead` 2 and 4 are populated, with `n_peels` 2 and 1.
+#'
+#' `$mase` is therefore ragged rather than rectangular: a horizon with no rows is
+#' MISSING, not `NA`. Join two models' tables on `years_ahead` rather than
+#' comparing them positionally, or a two-year row lines up against a four-year
+#' one.
 #'
 #' The naive forecast differs slightly from Kell's by construction. Theirs is
 #' \eqn{y_{t-h}}, the last OBSERVED value, which `reference = "observed"` uses
@@ -59,10 +83,11 @@
 #' @param object A fitted Rceattle model (the full time series).
 #' @param peels Which peels to fit. Passed to [retrospective()], so a single
 #'   number `n` means every peel from 1 to `n`, and a vector names the depths
-#'   exactly. More peels do not add rows to `$mase` -- they add terms to the mean
-#'   inside each one, since the scoring averages across peels at a fixed horizon.
-#'   A vector is still useful for cost: `peels = 3:10` pays for two fewer model
-#'   fits than `1:10`. Ignored when `retro` is supplied.
+#'   exactly. Horizons run 1 to the DEEPEST depth asked for, so a deeper `peels`
+#'   adds rows while more peels at the same depth only add terms to the mean
+#'   inside each row -- `peels = 3:10` and `1:10` produce the same ten horizons,
+#'   the second with more peels behind the short ones and two more model fits.
+#'   Ignored when `retro` is supplied.
 #' @param quantity Quantities to score against the full model. Any of `"ssb"`,
 #'   `"biomass"`, `"R"`. Ignored when `reference = "observed"`.
 #' @param reference What to score the projection against.
@@ -72,8 +97,18 @@
 #'   peel's PREDICTED SURVEY INDEX to the index values actually observed in the
 #'   held-out years. Both can be asked for. `"model"` scores the quantity a
 #'   projection is used for (SSB, recruitment); `"observed"` scores the only
-#'   thing that was really measured, and is the version comparable to MASE
-#'   values published for other assessment platforms.
+#'   thing that was really measured.
+#'
+#'   **`"observed"` is not numerically comparable to published MASE values.**
+#'   Kell et al. (2021) eq. 5 averages its denominator over a WIDER window than
+#'   its numerator -- \eqn{n+1+h} terms against \eqn{n+1}, because
+#'   \eqn{y_{t-h}} exists for years the numerator cannot score -- and this uses
+#'   the peels actually fitted for both. Computed from BS2017SS's index data,
+#'   the two denominators differ by up to 2.6x, which is enough to move a MASE
+#'   across 1 and so to flip the "beats persistence" verdict. The ordering of
+#'   two models scored the same way here is unaffected; the absolute level is
+#'   not the published statistic. `"model"` does not have this issue, since its
+#'   baseline is defined from the peels themselves.
 #' @param forecast_rec How the peeled years get their recruitment.
 #'   `"model"` (default here) uses the model's own projection rule, in
 #'   precedence order: `proj_mean_rec = TRUE` projects at mean recruitment,
@@ -106,6 +141,12 @@
 #'   }
 #'
 #' @references
+#' Kell, L.T., Sharma, R., Kitakado, T., Winker, H., Mosqueira, I., Cardinale,
+#' M., Fu, D. (2021) Validation of stock assessment methods: is it me or my
+#' model talking? \emph{ICES Journal of Marine Science} 78(6), 2244-2255.
+#' \doi{10.1093/icesjms/fsab104}. Equation 5 is the MASE this function reports;
+#' equation 4 is the naive baseline.
+#'
 #' Kell, L.T., Kimoto, A., Kitakado, T. (2016) Evaluation of the prediction
 #' skill of stock assessment using hindcasting. \emph{Fisheries Research} 183,
 #' 119-127.
@@ -200,6 +241,9 @@ hindcast_skill <- function(object = NULL, peels = 5,
   # which is the whole point, without letting it re-estimate anything.
   if ("observed" %in% reference) {
     idx_full <- object$data_list$index_data
+    # Fleet-peel pairs with no observation at the peel's terminal year, so no
+    # y_{t-h} and no scale for the MASE. Reported once, after the loop.
+    .no_baseline <- NULL
 
     # Analytical catchability solves q INSIDE the template from log(obs/pred)
     # over every fitted index row, so handing the rebuild the held-out rows lets
@@ -283,12 +327,29 @@ hindcast_skill <- function(object = NULL, peels = 5,
       for (flt in unique(idx_full$Fleet_code[held])) {
         rows <- held[idx_full$Fleet_code[held] == flt]
         if (!length(rows)) next
-        # Naive = the last index value this fleet was observed at before the
-        # peel, carried forward. Undefined if the fleet has no pre-peel
-        # observation, in which case there is no persistence baseline.
-        prior <- which(idx_full$Fleet_code == flt & idx_full$Year <= ep)
-        if (!length(prior)) next
-        naive <- idx_full$Observation[prior[which.max(idx_full$Year[prior])]]
+        # Naive = y_{t-h}, Kell et al. (2021) eq. 4: the observation h steps
+        # before the one being scored. Every held-out row of this fleet has
+        # t - h = ep by construction (years_ahead = Year - ep), so that is the
+        # observation AT ep -- not merely the last one at or before it.
+        #
+        # The difference bites on an irregular survey. Taking the last prior
+        # observation scores a one-step forecast against a two- or three-step
+        # persistence baseline whenever the survey skipped year ep, inflating
+        # the denominator and flattering the fleet.
+        #
+        # Without an observation at ep there is no y_{t-h}, so the BASELINE is
+        # NA -- not the row. Dropping the row would throw away the forecast
+        # error too, and $by_year is where a caller goes to recompute; an NA
+        # denominator already means "undefined" everywhere else here. The
+        # skipped fleet-peel pairs are collected and reported once below.
+        at_ep <- which(idx_full$Fleet_code == flt & idx_full$Year == ep)
+        if (length(at_ep)) {
+          naive <- mean(idx_full$Observation[at_ep])
+        } else {
+          naive <- NA_real_
+          .no_baseline <- rbind(.no_baseline, data.frame(
+            fleet = flt, peel = endyr - ep, ep = ep, stringsAsFactors = FALSE))
+        }
         sp <- idx_full$Species[rows][1]
         by_year[[length(by_year) + 1L]] <- data.frame(
           peel        = endyr - ep,
@@ -302,10 +363,27 @@ hindcast_skill <- function(object = NULL, peels = 5,
           stringsAsFactors = FALSE)
       }
     }
+
+    # Say which fleet-peel pairs have no scale. Their forecast error is still in
+    # $by_year; only the MASE is undefined, and a horizon whose every peel landed
+    # here comes back NA rather than quietly averaging fewer peels.
+    if (!is.null(.no_baseline)) {
+      .fn <- object$data_list$fleet_control$Fleet_name
+      warning(nrow(.no_baseline), " fleet-peel combination(s) have no survey ",
+              "observation in the peel's terminal year, so there is no ",
+              "y_{t-h} to scale against and their MASE is NA: ",
+              paste0(.fn[.no_baseline$fleet] %||% .no_baseline$fleet,
+                     " (peel ", .no_baseline$peel, ", needs ", .no_baseline$ep,
+                     ")", collapse = "; "),
+              ". An irregular survey will do this at most peel depths; the ",
+              "forecast errors are still in $by_year.", call. = FALSE)
+    }
   }
 
   if (!length(by_year)) {
-    stop("No peel had forecast years to score.", call. = FALSE)
+    stop("No peel had forecast years to score. With reference = \"observed\" ",
+         "check the survey years as well as the peel depths: a fleet is scored ",
+         "only where it has observations after the peel.", call. = FALSE)
   }
   by_year <- do.call(rbind, by_year)
 
@@ -322,17 +400,30 @@ hindcast_skill <- function(object = NULL, peels = 5,
   key <- interaction(by_year$years_ahead, by_year$species, by_year$quantity,
                      drop = TRUE, lex.order = TRUE)
   mase <- do.call(rbind, lapply(split(by_year, key), function(z) {
-    mae_f <- mean(abs(z$forecast - z$reference))
-    mae_n <- mean(abs(z$naive    - z$reference))
+    # ONE term per peel, then the mean across peels. Eq. 5 sums over t, each a
+    # different peel's terminal year, so a peel contributes once. On the model
+    # path that is already true. On `reference = "observed"` it is not: a fleet
+    # may legally carry two index rows in the same Year at different Months
+    # (data_check() tests duplicates on Fleet_code/Year/Month), and both land in
+    # the same years_ahead from the same peel. Averaging within the peel first
+    # stops it being weighted twice, and makes n_peels a count of PEELS rather
+    # than of rows.
+    af <- tapply(abs(z$forecast - z$reference), z$peel, mean)
+    an <- tapply(abs(z$naive    - z$reference), z$peel, mean)
+    mae_f <- mean(af)
+    mae_n <- mean(an)
     data.frame(
       years_ahead  = z$years_ahead[1], species = z$species[1],
       quantity     = z$quantity[1],
-      n_peels      = nrow(z),
+      n_peels      = length(af),
       mae_forecast = mae_f,
       mae_naive    = mae_n,
       # NA rather than Inf when persistence was exactly right: an undefined
-      # ratio is not infinitely bad skill, and Inf would poison any mean.
-      mase       = if (mae_n > 0) mae_f / mae_n else NA_real_,
+      # ratio is not infinitely bad skill, and Inf would poison any mean. NA
+      # when the baseline itself is undefined -- a fleet with no observation at
+      # the peel's terminal year has no y_{t-h}, so mae_n is NA and `NA > 0`
+      # would be an error rather than a verdict.
+      mase       = if (isTRUE(mae_n > 0)) mae_f / mae_n else NA_real_,
       stringsAsFactors = FALSE)
   }))
   rownames(mase) <- NULL

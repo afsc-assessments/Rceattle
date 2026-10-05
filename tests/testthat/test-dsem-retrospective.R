@@ -211,24 +211,34 @@ testthat::test_that("forecast_rec tells the DSEM's projection from mean recruitm
 
   # Species 1 is the one the sem gives a lag and a covariate, so it is the row
   # the two rules must disagree on.
-  # One row per HORIZON now, not per peel, so compare across the horizon range
-  # and take the largest difference -- NOT horizon 1, which is where the two
-  # rules agree most. A lag-1 SEM's one-step-ahead forecast is rho times the
-  # terminal deviation, so it leaves from near the mean and separates as it
-  # decays: measured on this fixture, 0.2% apart at one year ahead and 46.8% by
-  # three. Asserting at h = 1 would be asking the question where the answer is
-  # smallest.
+  # Asserted at the DEEPEST horizon, against the separation actually measured
+  # there -- not at horizon 1, and not as a max over horizons.
+  #
+  # A lag-1 SEM's one-step forecast is rho times the terminal deviation, so it
+  # leaves from near the mean and separates as it decays. Measured on this
+  # fixture, on the statistic ACTUALLY asserted here -- the relative difference
+  # in mae_forecast for species 1 -- that is 0.34% at h = 1, 46.2% at h = 2 and
+  # 96.7% at h = 3. (The often-quoted 0.2% / 46.8% pair is the difference in
+  # forecast RECRUITMENT, which is not what this line tests.) Horizon 1 asks the
+  # question where the answer is smallest, so assert at the deepest.
+  #
+  # The threshold is 10%, an order of magnitude under the 96.7% measured. Species
+  # 1 is the SEM-linked one; arrowtooth measures 8.5% at h = 3, UNDER the
+  # threshold, so this depends on spnames[1] remaining the linked species.
   pick <- function(sk) {
     z <- sk$mase[sk$mase$species == spp1, ]
     stats::setNames(z$mae_forecast, z$years_ahead)
   }
   mf_mean  <- pick(skill_mean)
   mf_model <- pick(skill_model)
-  testthat::expect_gt(length(mf_mean), 0L)
   h <- intersect(names(mf_mean), names(mf_model))
+  # Guarded: with no shared horizon, max(integer(0)) is -Inf and the lookup
+  # below throws "subscript out of bounds" instead of failing as an assertion.
   testthat::expect_gt(length(h), 0L)
-  rel <- abs(mf_model[h] - mf_mean[h]) / mf_mean[h]
-  testthat::expect_gt(max(rel), 0.01)
+  testthat::skip_if(length(h) == 0L, "no shared horizon to compare at")
+  deepest <- as.character(max(as.integer(h)))
+  testthat::expect_gt(
+    abs(mf_model[[deepest]] - mf_mean[[deepest]]) / mf_mean[[deepest]], 0.10)
 })
 
 

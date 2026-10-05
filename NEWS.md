@@ -48,6 +48,47 @@ number of its own.
   Point estimates are unaffected, and `tools/verify/verify-refit-like.R` is
   bit-identical across all ten sections before and after.
 
+* **Corrections to the MASE change above, from an adversarial review.** Three
+  claims in that entry and its commit message were wrong, and the fixes it
+  shipped were incomplete on the `reference = "observed"` path.
+
+  **`n_peels` counted rows, not peels.** A fleet may legally carry two index
+  rows in one year at different months -- `data_check()` tests duplicates on
+  `(Fleet_code, Year, Month)` -- and both land in the same horizon from the same
+  peel, so that peel was weighted twice and `n_peels` overstated. Eq. 5 sums one
+  term per `t`, so the MASE now averages within a peel first. A constructed
+  fixture exercises it; no bundled dataset has that shape.
+
+  **The naive baseline was not Kell's.** Eq. 4 is \eqn{y_{t-h}}, the observation
+  `h` steps back, which for a held-out row is the observation at the peel's
+  terminal year. The code took the last observation at or *before* it, so on an
+  irregular survey a one-step forecast was scored against a two- or three-step
+  persistence baseline. It now uses \eqn{y_{t-h}}; where the survey has no
+  observation there, the baseline is `NA` and the MASE with it, the forecast
+  error is kept in `$by_year`, and a warning names the fleet-peel pairs.
+
+  **The model-path denominator is not a persistence error**, which the previous
+  entry said it was. `naive` is the PEEL's terminal estimate and `reference` the
+  FULL model's, so each term is a difference between two models carrying that
+  peel's retrospective bias. The 108-fold spread measured at one year ahead on
+  BS2017SS pollock SSB is bias cancellation -- one peel's 2015 estimate landed
+  within 0.3% of the full model's 2016 value -- not a short-horizon property of
+  MASE. Averaging across peels does tame it: per-peel ratios 1.02, 2.82 and
+  34.22 give a reported 1.485.
+
+  **`reference = "observed"` is not comparable to published MASE values**, and
+  the previous entry should not have implied otherwise. Kell averages the
+  denominator over \eqn{n+1+h} terms against the numerator's \eqn{n+1}; this
+  uses the peels fitted for both, which differs by up to 2.6x on the bundled
+  data -- enough to move a MASE across 1. Rankings between two models scored the
+  same way here are unaffected; the absolute level is not the published
+  statistic. Left as a documented deviation.
+
+  Also corrected: an irregular-survey example that had been measured before the
+  naive fix and no longer reproduced; a claim that more peels never add rows,
+  when horizons run to the deepest depth asked for; and an undefined baseline
+  reaching `if (mae_n > 0)` as `if (NA)`.
+
 * **`hindcast_skill()` computed MASE over the wrong axis.** It grouped by PEEL
   and averaged over horizons; Kell et al. (2021) eq. 5 groups by HORIZON and
   averages over peels -- its sums run over \eqn{t = T-n \ldots T} at fixed
@@ -72,20 +113,25 @@ number of its own.
   MASE. A claim that the definition matched `ss3diags` was removed rather than
   restated, having never been checked against their source.
 
-  More peels now buy precision inside each MASE rather than more rows, so
-  `peels = 3:10` is a statement about cost -- two fewer model fits -- not about
-  noise.
+  Horizons run 1 to the deepest depth asked for, so a deeper `peels` adds rows
+  while more peels at the same depth add terms inside each row. `peels = 3:10`
+  and `1:10` give the same ten horizons; the second pays two more model fits for
+  more peels behind the short horizons.
+
+  **The old shape fails silently.** `$mase$peel` and `$mase$n_years` are now
+  `NULL`, and neither partial-matches a surviving column, so a filter like
+  `skill$mase[skill$mase$peel == 5, ]` evaluates `NULL == 5` to `logical(0)` and
+  returns a ZERO-ROW data frame rather than erroring. Check any script that
+  subsets `$mase`.
 
 * **`retrospective(peels = )` takes a vector of peel depths, so a comparison can
   skip the shallow peels.** A single number still means every peel from 1 to `n`,
   as it always has; `peels = 2:10` now fits exactly those nine depths, and
   `peels = c(1, 5, 10)` three. Each element is a number of years removed from
   `endyr`, not a year, and depths are sorted and de-duplicated. This is worth
-  having because the shallow peels are the ones that cost the most to interpret:
-  a one-year peel's MASE in `hindcast_skill()` has a single
-  \eqn{|naive - reference|} in its denominator, so it says more about the
-  denominator than about the projection. `peels = 3:10` drops those and pays for
-  two fewer model fits. `$peel_depths` records the depths asked for, alongside
+  having because each peel costs a model fit, and a shallow one contributes to
+  only the shortest horizons `hindcast_skill()` scores. `peels = 3:10` drops two
+  of them. `$peel_depths` records the depths asked for, alongside
   the existing `$peels_requested` count, and `print()` names them and attaches a
   `NOTE` whenever the set is not `1:n` — a rho averaged over a subset is not the
   quantity the +/-0.2 band was calibrated on.
@@ -582,9 +628,8 @@ fixes below. `dev` released its own, different 5.19.0, 5.21.0 and
   answers a different question from Mohn's rho, which measures how an estimate
   of a year moves as data accumulate rather than how well a year was predicted
   -- so it is the diagnostic for comparing recruitment projection assumptions,
-  e.g. `proj_mean_rec = TRUE` against `FALSE` against a DSEM. One row per
-  horizon per species, averaging across peels, so `n_peels` says how many peels
-  a given steps-ahead rests on.
+  e.g. `proj_mean_rec = TRUE` against `FALSE` against a DSEM. Scored per
+  horizon, averaging across peels.
 
 * **`fit_mod(dsem = build_DSEM(...))` fits a dynamic structural equation model
   on the recruitment deviations.** The deviations become the latent states of a

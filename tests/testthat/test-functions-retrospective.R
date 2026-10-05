@@ -666,11 +666,10 @@ testthat::test_that("a peel reports standard errors for its own hindcast", {
 
 # `peels` as a vector of peel depths.
 #
-# A retrospective used to be a count: `peels = n` meant 1:n. The shallow peels
-# are the expensive ones to interpret -- a one-year MASE is a single
-# |naive - reference| in its denominator (see hindcast_skill()) -- and the
-# deep ones are what a projection comparison rests on, so a caller needs to be
-# able to ask for 2:10 and skip the first. Each element is a number of YEARS
+# A retrospective used to be a count: `peels = n` meant 1:n. A caller needs to
+# be able to ask for 2:10 and skip the first -- each peel costs a model fit, and
+# the shallow ones contribute only to the shortest horizons that
+# hindcast_skill() scores. Each element is a number of YEARS
 # REMOVED from endyr, not a year.
 testthat::test_that("retrospective takes a vector of peel depths", {
   testthat::skip_on_cran()

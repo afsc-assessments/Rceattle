@@ -167,9 +167,9 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
   nyrs_proj <- projyr - styr + 1
 
   # Which peel depths to fit. A scalar `n` keeps the historical meaning, 1:n;
-  # a vector names the depths exactly, so a caller can skip the shallow peels
-  # whose one- and two-year forecasts say more about the MASE denominator than
-  # about the projection (see hindcast_skill()). Validate here rather than let a
+  # a vector names the depths exactly, so a caller can skip the shallow peels,
+  # which cost a model fit each and contribute only to the shortest horizons in
+  # hindcast_skill(). Validate here rather than let a
   # bad value reach run_one_peel(): `endyr - i` would silently build a model
   # ending before styr, or `(endyr_peel + 1):endyr` would count DOWN and fit the
   # retained years as a forecast.
