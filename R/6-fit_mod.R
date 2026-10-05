@@ -1283,9 +1283,10 @@ fit_mod <-
     }
 
     # Update M1 from M1_base when initial parameter values were supplied.
-    # Fills exactly as build_params() does: the array starts at 1 and only the
-    # species' own sexes and ages are written, so a padding cell is log(1) = 0
-    # on both paths. A 0 start would make a padding sex cell log(0) = -Inf.
+    # Fills exactly as build_params() does, through the same two helpers: only
+    # the species' own sexes and ages are read from M1_base, blank real ages
+    # carry the last supplied age forward, and each padding cell mirrors its
+    # own species. So the two paths give the same array.
     if (updateM1) {
       m1 <- array(1, dim = c(data_list$nspp,
                              max(data_list$nsex, na.rm = TRUE),
@@ -1304,7 +1305,8 @@ fit_mod <-
             as.numeric(data_list$M1_base[i, ages + 2])
         }
       }
-      # Same helper as build_params(), so the two fills cannot drift.
+      # Same helpers as build_params(), so the two fills cannot drift.
+      m1 <- .rce_fill_M1_age_gaps(m1, data_list)  # blank real ages carry over
       m1 <- .rce_fill_M1_padding(m1, data_list)   # padding mirrors its species
       # Keep the species / sex / age labels, so updateM1 reports log_M1 as
       # readably as any other path.

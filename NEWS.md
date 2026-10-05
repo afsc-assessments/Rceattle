@@ -11,6 +11,7 @@ intermediate. They were folded rather than renumbered because renumbering a sect
 every (x.y.z) cross-reference pointing at it, and the entries below cite each other by
 version throughout.
 -->
+
 # Rceattle 5.50.0
 
 ## Bug fixes
@@ -23,8 +24,9 @@ version throughout.
   every padding *sex* cell became `log(0) = -Inf`. Measured on `GOA2018SS` (`nsex` `c(1, 2, 1)`,
   `nages` `c(10, 21, 12)`): 11 non-finite cells of 126 on the first path and **53 on the second**,
   of which 42 were `-Inf`. On `BS2017SS` (`nages` `c(12, 12, 21)`) both paths left 18. Both now
-  write only the sexes and ages the species actually has, so padding reaches the template as
-  `log(1) = 0`, and both produce the same array.
+  read only the sexes and ages the species actually has, and both then run the same two fill
+  helpers, so they produce the same array. Padding does not stay at the initial 1: it mirrors
+  its own species' M1 (see below).
 * **One configuration goes from a NaN objective to a finite fit:
   `fit_mod(updateM1 = TRUE)` with `M1_model >= 1` on a species set with ragged `nsex`.** Those
   padding sex cells take a map index (`build_map_m1()` writes `[sp, , 1:nages_sp]`), so a `-Inf`
@@ -54,19 +56,27 @@ version throughout.
   fill: an M1 linkage carrying an `init` for its intercept writes the level over every real age,
   so a workbook may legitimately leave `M1_base` blank and let the linkage supply it. Checking at
   the fill would refuse that, and did in an earlier draft.
-* **A workbook with a blank `M1_base` cell at a real age is now refused where it previously fit**
-  with an `NA` starting value, which reached `MakeADFun()` because `data_check()` has no
+* **A workbook with a blank `M1_base` cell at a real age now warns and carries the last
+  supplied age forward**, where before the `NA` reached `MakeADFun()` -- `data_check()` has no
   `M1_base` completeness check. One real example exists: `AI cod - Dev/Data/2024_AI_cod.xlsx` in
-  `Rceattle-models` fills only to `Age10` against `nages` 13, so three real ages were `NA` and
-  would have been exponentiated. Of 375 sibling workbooks (217 with an `M1_base` sheet) that is
-  the only one affected, and no bundled dataset is. `?build_M1` now states the requirement.
+  `Rceattle-models` gives `nages` 13 and fills only to `Age10`, so three real ages were `NA`.
+  Carrying forward is what the padding fill already does and the only value the workbook
+  implies; an earlier draft of this change *refused* instead, which would have stopped that
+  model fitting at all -- and, because `fit_mod()` builds a `build_params()` skeleton even on
+  the `inits` branch, would have taken `retrospective()`, `self_test()`, `refit_like()` and
+  `run_mse()` with it. The warning names the species, sex and ages, and says that under
+  `M1_model = 3` those ages are estimated from that start. Of 375 sibling workbooks (217 with
+  an `M1_base` sheet) that is the only one affected, and no bundled dataset is. `?build_M1`
+  states the requirement.
 * `fit_mod(updateM1 = TRUE)` keeps the species / sex / age dimnames on `log_M1`, so
   `initial_params` is as readable on that path as on any other. With the fill now identical on
   both paths, the labels were the only remaining difference.
-* One reported-output change worth knowing when diffing `initial_params`: where a workbook
-  populates `M1_base` *past* a species' last age, those padding cells previously carried
-  `log(value)` and now carry 0. On `GOA2018SS` that is nine cells for species 3, whose row runs to
-  age 21 against `nages` 12. They are padding, so no fit reads them.
+* Where a workbook populates `M1_base` *past* a species' last age, those padding cells are
+  **unchanged**, because the padding fill mirrors the species' own oldest real age and the
+  workbook already supplied that same value. On `GOA2018SS` that is nine cells for species 3,
+  whose row runs to age 21 against `nages` 12 at a constant 0.504911; they held
+  `log(0.504911)` before and hold it after. An earlier draft of this entry said they now carry
+  0, which described neither state. Nothing reads them in any case.
 
 Three adjacent M1 defects found during review are filed in `inst/dev/CLEANUP_BACKLOG.md` rather
 than fixed here, because each needs its own verification: the starting M1 is diluted toward 1.0

@@ -116,6 +116,9 @@ build_params <- function(data_list) {
   # A (species, sex) with no M1_base row would keep the 1 above: a residual M
   # of 1.0 per year, inside the bounds, so nothing downstream would catch it.
   .rce_stop_if_M1_row_missing(m1_written, data_list)
+  # A row shorter than the species' nages leaves real ages blank; carry the
+  # last supplied age forward, as the padding fill does, and say so.
+  m1 <- .rce_fill_M1_age_gaps(m1, data_list)
 
   param_list$log_M1 <- log(m1)
 
@@ -683,6 +686,46 @@ build_params <- function(data_list) {
        ". Every sex of every species needs one, or its residual M starts at ",
        "1.0 per year, which is inside the parameter bounds and so is fit ",
        "rather than refused.", call. = FALSE)
+}
+
+
+#' Carry the last supplied M1 forward over a species' blank real ages
+#'
+#' @description
+#' An `M1_base` row that stops short of its species' `nages` leaves real ages
+#' blank, which is not padding: under `M1_model = 3` those ages are estimated,
+#' and under any setting `log(NA)` reaches `MakeADFun()`. Carrying the last
+#' supplied age forward is what the padding fill already does and is the only
+#' value the workbook implies; refusing instead would stop a model that fits
+#' today — `Rceattle-models/AI cod - Dev/Data/2024_AI_cod.xlsx` gives
+#' `nages = 13` and M1 for ten ages. Warns rather than filling silently,
+#' because a short row is a workbook to correct. A `(species, sex)` with no
+#' finite age at all is left alone for `.rce_stop_if_nonfinite_M1()`.
+#'
+#' @param m1 `[nspp, max_sex, max_age]` natural mortality, real cells written.
+#' @param data_list The `data_list`, for `nsex`, `nages` and `spnames`.
+#' @noRd
+.rce_fill_M1_age_gaps <- function(m1, data_list) {
+  gaps <- character()
+  for (sp in seq_len(data_list$nspp)) {
+    for (sx in seq_len(data_list$nsex[sp])) {
+      ages <- seq_len(data_list$nages[sp])
+      ok <- is.finite(m1[sp, sx, ages])
+      if (all(ok) || !any(ok)) next
+      last <- max(which(ok))
+      m1[sp, sx, ages[!ok]] <- m1[sp, sx, last]
+      gaps <- c(gaps, paste0(data_list$spnames[sp], " (species ", sp, ", sex ",
+                             sx, ") ages ", paste(ages[!ok], collapse = ", ")))
+    }
+  }
+  if (length(gaps)) {
+    warning("M1_base stops short of nages for ", paste(gaps, collapse = "; "),
+            ". Those ages start at the last age the row supplies. Under ",
+            "M1_model = 3 they are estimated from that start, so give them ",
+            "their own values if the intent is age-specific M.",
+            call. = FALSE)
+  }
+  m1
 }
 
 
