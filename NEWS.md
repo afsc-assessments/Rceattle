@@ -60,6 +60,14 @@ version throughout.
   blocks now read `M1_model %in% c(0, 1)`; the wiring is identical, because a deviation does not
   care whether the level above it is fixed or estimated. Verified: `M1_model` 0 and 1 give the
   same free-deviation counts for every `M1_re` 1-6.
+
+  The template was already reading them. `ceattle.cpp`'s M1 assembly is
+  `M1_at_age = exp(log_M1 + log_M1_dev + ...)` with **no `M1_model` gate**, so only the map was
+  withholding the deviations. Measured at `M1_model = 0, M1_re = 2` on `GOA2018SS`: 126 free
+  deviations, `log_M1` free count **0** -- the input schedule stays fixed, so nothing competes to
+  absorb them -- non-zero gradient on the deviations, and moving one by 0.25 changes the objective
+  by 155.5 nats. That is the distinction from freeing a parameter the data cannot move, which
+  would have been worse than the refusal it replaces.
 * **A canonical `M1_re` string from a workbook now frees the deviations it names.**
   `switch_check()` left `M1_re` as the character it read, and `build_map_m1()`'s arms compare
   against integers -- `"iid_year" %in% c(2, 5)` is `FALSE` -- so every deviation was mapped out

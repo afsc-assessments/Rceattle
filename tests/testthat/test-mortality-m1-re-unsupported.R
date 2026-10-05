@@ -158,3 +158,36 @@ testthat::test_that("the refusal does not read a caller's log_M1_dev", {
   testthat::expect_no_error(
     suppressWarnings(suppressMessages(Rceattle::build_map(d, p))))
 })
+
+
+testthat::test_that("M1_model = 0 deviations are informed by the data", {
+  # The reason to open this arm rather than refuse it. ceattle.cpp's M1
+  # assembly adds log_M1_dev unconditionally --
+  #
+  #   M1_at_age = exp(log_M1 + log_M1_dev + ... )
+  #
+  # with no M1_model gate -- so under the input-schedule level the template
+  # already reads the deviations; only the map was withholding them. And
+  # log_M1 is mapped out there, so nothing competes to absorb them: a freed
+  # parameter the data cannot move would be worse than the refusal it
+  # replaced.
+  testthat::skip_on_cran()
+  data("GOA2018SS", package = "Rceattle", envir = environment())
+  fit <- suppressWarnings(suppressMessages(Rceattle::fit_mod(
+    data_list = GOA2018SS, inits = NULL, file = NULL,
+    estimateMode = "DebugBuild", msmMode = 0, niter = 3, random_rec = FALSE,
+    M1Fun = Rceattle::build_M1(M1_model = 0, M1_re = 2),
+    fit_control = Rceattle::fit_control(verbose = 0))))
+
+  p <- fit$obj$env$last.par.best
+  dev <- which(names(p) == "log_M1_dev")
+  testthat::expect_equal(length(dev), 126L)
+  # The input schedule stays fixed, so the deviations carry M's shape alone.
+  testthat::expect_equal(sum(names(p) == "log_M1"), 0L)
+
+  # They reach the likelihood, and the data can move them.
+  testthat::expect_true(any(fit$obj$gr(p)[dev] != 0))
+  q <- p
+  q[dev[1]] <- 0.25
+  testthat::expect_false(isTRUE(all.equal(fit$obj$fn(p), fit$obj$fn(q))))
+})
