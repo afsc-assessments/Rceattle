@@ -526,6 +526,25 @@ build_map_m1 <- function(map_list, data_list, nyrs_hind) {
         M1_rho_ind = M1_rho_ind + 2  #FIXME: may want sex-varying?? Hard to estimate
       }
     }
+
+    # Every random-effect family above nests its deviation writes inside an
+    # M1_model test, and only M1_model 1 and 2 have arms. Under 3, 4 or 5 no
+    # arm fires, so the deviations are all mapped out while the sd above is
+    # freed anyway -- scoring N(0, sigma) against a vector of zeros, worth
+    # 56.06 nats on a 61-year hindcast and minimised by driving sigma to its
+    # bound, which makes the objective incomparable. Asking for time-varying M
+    # and getting constant M is a different model, so refuse it.
+    #
+    # Derived from whether an arm fired, not from a restated list of supported
+    # pairs: adding an arm legalises its combination with no second registry.
+    if(M1_re_model > 0 & all(is.na(map_list$log_M1_dev[sp,,,]))){
+      stop("M1_re = ", M1_re_model, " is not implemented for M1_model = ",
+           M1_model, " (species ", sp,
+           if(nsex_sp == 1) ", single-sex" else "",
+           "). Every M1 deviation would be mapped out, so M would be constant ",
+           "rather than time-varying. Random effects on M1 are available for ",
+           "M1_model 1 and 2; use one of those, or M1_re = 0.", call. = FALSE)
+    }
   }
   return(map_list)
 }

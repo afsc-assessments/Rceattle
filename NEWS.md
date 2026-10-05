@@ -12,6 +12,46 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.53.0
+
+## Bug fixes
+
+* **`M1_re > 0` asked for time-varying M and silently gave constant M under `M1_model` 3, 4 and
+  5.** Every random-effect family in `build_map_m1()` nests its deviation writes inside an
+  `M1_model` test, and only `M1_model` 1 and 2 have arms -- so under 3 (sex- and age-specific),
+  4 or 5 (environmentally driven) no arm fired and `log_M1_dev` stayed entirely `NA`. **18 of the
+  35 `(M1_model, M1_re)` pairs were affected, and `M1_model = 4` raised no condition at all**
+  (3 and 5 warn, but about being sex-specific on a single-sex species, which is a different
+  thing). Measured on `GOA2018SS` (`nspp` 3, `nsex` `c(1, 2, 1)`), free parameters in the built
+  map:
+
+  | `M1_model` | `log_M1_dev` | `M1_dev_log_sd` | `M1_rho` |
+  |---|---|---|---|
+  | 1 | 4736 / 2688 | 6 | 0 / 6 / 12 |
+  | 2 | 6364 / 1764 | 6 | 0 / 6 / 12 |
+  | **3, 4, 5** | **0** | **6** | **0 / 6 / 12** |
+
+* **The free standard deviation was worse than inert.** With every deviation mapped out it scored
+  `N(0, sigma)` against a vector of zeros. `Rceattle-models/EBS pollock/2024/06-time-varying-M.R`
+  measured that at **56.06 nats** on a 61-year hindcast -- exactly `61 * log(2*pi)/2` -- minimised
+  by driving sigma to its bound, "which makes the objective incomparable with anything". That
+  script worked around it by telling the reader to avoid the combination; the package now refuses
+  it instead.
+* **Refusing a combination that never fitted the model it described is a minor bump**, per the
+  precedent in `inst/RELEASE-CHECKLIST.md`. Nothing shipping is affected: no bundled dataset sets
+  `M1_re > 0`, and no sibling script sets it except the EBS pollock note above, which exists to
+  warn against exactly this. The message names both switches and says `M1_model` 1 and 2 are the
+  supported levels.
+* The refusal reads **whether an arm actually fired**, not a restated list of supported pairs, so
+  implementing a missing arm legalises its combination with no second registry to keep in step.
+  Which arms to add is a modelling question -- an age-varying deviation is arguably redundant
+  under the already-age-specific `M1_model = 3`, and means something different again around an
+  environmental prediction -- so it is left open rather than guessed.
+* `test-mortality-m1-re-unsupported.R`: 3 blocks, 69 assertions. **18 fail on the parent**, one
+  per affected pair. The `M1_re = 0` block passes either side and says so.
+* No golden reference moves: all four run `M1_model = 0` and `M1_re = 0`, where no family block
+  executes at all.
+
 # Rceattle 5.52.0
 
 ## Bug fixes
