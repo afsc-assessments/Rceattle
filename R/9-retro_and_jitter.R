@@ -334,6 +334,12 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
   # Each peel only reads the original model, so peels are independent.
   #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
   run_one_peel <- function(i) {
+    # Warnings this peel raises that the CALLER has to see. A warning raised in
+    # here is discarded by the FORK/PSOCK worker that runs the peel, so it is
+    # collected on the returned model and re-raised after dispatch. Only for
+    # conditions that are genuinely per-peel -- one that reads the input model
+    # belongs above, with the other once-per-call warnings.
+    .peel_warnings <- character(0)
 
     # * Get end year of peel ----
     data_list <- object$data_list
@@ -707,12 +713,25 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
             suit_endyr       = pmin(data_list$suit_endyr, endyr_peel))))
         TMB::sdreport(report_mod$obj)
       }, error = function(e) {
-        # A peel that cannot be reported is not a peel that failed: keep the
-        # fit and its point estimates, and say why the band is missing.
-        warning("Peel ", i, ": could not report hindcast standard errors (",
-                conditionMessage(e), "). Point estimates are unaffected.",
-                call. = FALSE)
-        newmod$sdrep
+        # A peel that cannot be reported is not a peel that failed: keep the fit
+        # and its point estimates, and drop the band.
+        #
+        # NULL, not `newmod$sdrep`. At this point that is the FORECAST refit's
+        # sdreport, built with the whole hindcast pinned -- every hindcast
+        # standard error in it is exactly zero, which is the thing this report
+        # pass exists to replace. Returning it hands back a zero-width band as
+        # if it were real. NULL is the state `getsd = FALSE` already produces,
+        # so vcov() and the plotters give NA bands rather than a false one.
+        #
+        # Collected rather than warned here: this runs inside the per-peel
+        # closure, and a warning raised in a FORK/PSOCK worker is discarded, so
+        # at the default `cores` nobody was ever told. Re-raised by the caller
+        # after dispatch, as self_test() does with sim_warns.
+        .peel_warnings <<- c(.peel_warnings, paste0(
+          "Peel ", i, ": could not report hindcast standard errors (",
+          conditionMessage(e), "), so this peel has no uncertainty band. ",
+          "Point estimates are unaffected."))
+        NULL
       })
     }
 
@@ -753,6 +772,8 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
     # Return model only if BOTH refits converged, else NULL (dropped
     # post-dispatch)
     if (hindcast_converged && .refit_converged(newmod)) {
+      if (length(.peel_warnings))
+        attr(newmod, "peel_warnings") <- .peel_warnings
       return(newmod)
     }
     return(NULL)
@@ -775,6 +796,20 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
   # survive, so a drop changes the number that gets reported.
   .report_dropped(length(peel_seq) - length(peel_results), length(peel_seq),
                   "peel", warn = TRUE)
+
+  # Re-raise whatever the peels collected. They run in a FORK/PSOCK worker,
+  # whose warnings are discarded, so this is the only place the caller can hear
+  # them -- the pattern self_test() uses for sim_warns. Each message already
+  # names its peel, and the attribute is stripped so a returned fit carries no
+  # trace of the plumbing.
+  for (w in unique(unlist(lapply(peel_results, attr, "peel_warnings")))) {
+    warning(w, call. = FALSE)
+  }
+  peel_results <- lapply(peel_results, function(m) {
+    attr(m, "peel_warnings") <- NULL
+    m
+  })
+
   mod_list <- c(list(object), peel_results)
 
   # Mohn's rho averages the peels against the full model, so with none left the

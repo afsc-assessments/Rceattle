@@ -928,3 +928,74 @@ testthat::test_that("forecast_rec = 'model' runs on a fit with no DSEM", {
   # IID process with no data has nothing to propagate.
   testthat::expect_true(all(abs(dev_of(out[["TRUE"]])) < 1e-10))
 })
+
+
+# A peel whose sdreport() throws loses its band, and SAYS so.
+#
+# Two regressions in one handler. It returned `newmod$sdrep` on failure, which
+# at that point is the FORECAST refit's sdreport -- built with the whole
+# hindcast pinned, so every hindcast standard error in it is exactly zero. That
+# is the thing the report pass exists to replace, so a peel that could not be
+# reported handed back a zero-width band as though it were real. And it said so
+# with a warning() raised inside the per-peel closure, which a FORK/PSOCK worker
+# discards, so at the default `cores` nobody was told.
+#
+# Now: NULL (the state getsd = FALSE already produces, giving NA bands) and the
+# message is collected and re-raised by the caller after dispatch.
+#
+# Driven by stubbing TMB::sdreport to throw, because reaching this for real
+# needs a peel whose Hessian fails exactly here -- which is why the zero-band
+# fallback survived this long untested.
+testthat::test_that("a peel whose sdreport fails returns no band and reports why", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("TMB")
+
+  # BS2017SS, not make_test_data(): that fixture cannot produce a
+  # positive-definite Hessian, so under getsd = TRUE every peel is dropped by
+  # .refit_converged() before this path is reached and the test would pass
+  # vacuously on an empty peel list. See TRAPS.md.
+  data(BS2017SS, package = "Rceattle")
+  fit <- suppressMessages(suppressWarnings(fit_mod(
+    data_list = BS2017SS, file = NULL, estimateMode = 1,
+    fit_control = fit_control(phase = TRUE, getsd = FALSE, verbose = 0))))
+
+  # Fail ONLY the report pass. .fit_tmb() also calls sdreport() while fitting
+  # each peel, with par.fixed / hessian.fixed and the rest; the report pass
+  # calls it bare, with just the object. A blanket stub kills the peel's own fit
+  # instead, and the error escapes the tryCatch under test.
+  real_sdreport <- TMB::sdreport
+  testthat::local_mocked_bindings(
+    sdreport = function(obj, ...) {
+      if (...length() == 0L) stop("boom")
+      real_sdreport(obj, ...)
+    }, .package = "TMB")
+
+  w <- character(0)
+  r <- withCallingHandlers(
+    suppressMessages(retrospective(fit, peels = c(2, 2), cores = 1,
+                                   getsd = TRUE)),
+    warning = function(cnd) {
+      w <<- c(w, conditionMessage(cnd)); invokeRestart("muffleWarning")
+    })
+
+  # The caller is told, once, naming the peel.
+  hit <- grep("could not report hindcast standard errors", w, value = TRUE)
+  testthat::expect_length(hit, 1L)
+  testthat::expect_match(hit, "Peel 2", fixed = TRUE)
+  testthat::expect_match(hit, "no uncertainty band", fixed = TRUE)
+
+  # The band is ABSENT, not zero. A zero-valued sdrep would pass an
+  # is.null() check only by accident, so assert both.
+  peels <- Filter(function(m) m$data_list$endyr_peel < fit$data_list$endyr,
+                  r$Rceattle_list)
+  testthat::skip_if(length(peels) == 0L,
+                    "the peel did not converge, so the report path is unreached")
+  testthat::expect_length(peels, 1L)
+  testthat::expect_null(peels[[1]][["sdrep"]])
+
+  # And the plumbing does not ride out on the returned object.
+  testthat::expect_null(attr(peels[[1]], "peel_warnings"))
+
+  # Point estimates are unaffected: the fit is still there.
+  testthat::expect_false(is.null(peels[[1]]$quantities$ssb))
+})

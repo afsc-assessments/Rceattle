@@ -25,6 +25,29 @@ number of its own.
 
 ## Diagnostics
 
+* **A retrospective peel whose `sdreport()` failed presented a band of zeros as
+  if it were real.** The handler returned `newmod$sdrep`, which at that point is
+  the FORECAST refit's sdreport -- built with the whole hindcast pinned, so every
+  hindcast standard error in it is exactly zero. That is the thing the report
+  pass exists to replace, so the fallback handed back a zero-width band rather
+  than no band. It now returns `NULL`, the state `getsd = FALSE` already
+  produces, so `vcov()` and the plotters give NA bands.
+
+  **A peel that previously drew a zero-width ribbon now draws none.** That looks
+  like a loss in a figure and is not: the zero was never an estimate.
+
+  The warning that should have said so was also unreachable. It was raised
+  inside the per-peel closure, and a warning raised in a FORK/PSOCK worker is
+  discarded, so at the default `cores` nobody was ever told. It is now collected
+  on the peel and re-raised by the caller after dispatch -- the pattern
+  `self_test()` uses for `sim_warns` -- and names the peel it came from. This was
+  the last of the four worker-swallowed warnings in `retrospective()`; the other
+  three were hoisted because their conditions read only the input model, while
+  this one is genuinely per-peel and needed collecting instead.
+
+  Point estimates are unaffected, and `tools/verify/verify-refit-like.R` is
+  bit-identical across all ten sections before and after.
+
 * **`hindcast_skill()` computed MASE over the wrong axis.** It grouped by PEEL
   and averaged over horizons; Kell et al. (2021) eq. 5 groups by HORIZON and
   averages over peels -- its sums run over \eqn{t = T-n \ldots T} at fixed
