@@ -28,11 +28,17 @@
 # (-8.75%). BOTH are WARN by convergence_diagnostics() -- max|gradient| 2.2e-03
 # and 1.7e-03 against an OK tier of 1e-03 -- so neither is a converged fit, and
 # the surface carries at least four local minima over this range. Under
-# phase = TRUE the two become bit-identical, and phasing is what the live GOA
-# multispecies assessment uses, so the practical effect there is nil.
+# phase = TRUE the two become bit-identical on this dataset.
 #
-# The reason to fix it anyway is that the start is simply wrong, and which
-# optimum an unphased fit reaches is then arbitrary.
+# Phasing is NOT a general escape, and the live case is the reason to say so:
+# the GOA multispecies assessment runs three fits, and its headline
+# multispecies one (`R/02_fit_models.R`, `ms_mod`) sets this M1_model with
+# `phase = FALSE`. A warm start does not help either -- the dilution happens
+# when MakeADFun averages the map level, so it applies to whatever log_M1 the
+# inits hold.
+#
+# The reason to fix it is that the start is simply wrong, and which optimum an
+# unphased fit reaches is then arbitrary.
 #
 # The four golden references all run M1_model = 0, where the whole array is
 # mapped out, so none of them covers any of this.

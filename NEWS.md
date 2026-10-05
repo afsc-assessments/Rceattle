@@ -54,37 +54,22 @@ version throughout.
   reaches `max|gradient|` 8.4e-04 (the only one in the `OK` tier) at an objective 4.15 nats worse
   and species-1 SSB 37% lower. Which optimum an unphased fit reaches is therefore arbitrary, and
   that is the defect's real consequence rather than any single pair of numbers.
-* **Under `phase = TRUE` the difference disappears entirely** -- both sides land bit-identically
-  at 12838.508102 with SSB 330,415 mt -- and phasing is what the live GOA multispecies assessment
-  uses (`newtonsteps = 3, phase = TRUE`). So the practical effect on that assessment is nil, and
-  an earlier draft of this entry implied otherwise. One benefit that is real at any setting:
-  `phase = FALSE, newtonsteps = 3` **crashes** on the old diluted optimum (`solve.default`,
-  singular Hessian) and completes after.
+* **Under `phase = TRUE` the difference disappears entirely** on this dataset -- both sides land
+  bit-identically at 12838.508102 with SSB 330,415 mt. **Phasing is not a general escape, and the
+  live case is why that matters.** The GOA multispecies assessment runs three fits
+  (`R/02_fit_models.R`): the fixed-M single-species one is `phase = TRUE` and `M1_model = 0`, so
+  it is immune; the estimated-M single-species one is `phase = TRUE` with
+  `M1_model = c("sex_age_invariant", "sex_specific", "sex_age_invariant")`; and the **headline
+  multispecies fit sets that same `M1_model` with `phase = FALSE`** -- the configuration in which
+  `GOA2018SS` moved 10.5 nats. A warm start does not help either: the dilution happens when
+  `MakeADFun` averages the map level, so it applies to whatever `log_M1` the `inits` hold. One
+  benefit that is real at any setting: `phase = FALSE, newtonsteps = 3` **crashes** on the old
+  diluted optimum (`solve.default`, singular Hessian) and completes after.
 * `M1_model = 3` is a counterexample worth stating: unphased, the fix makes the objective 0.746
   nats *worse* and moves species 2's `endyr` SSB +3.21%, with both sides in the `FAIL` gradient
   tier; under `phase = TRUE` both land at 12727.17 and species 2 moves 0.004%. The direction of an
   unphased change is not predictable, which is the argument for removing the displacement rather
   than for any particular improvement.
-* **Free-parameter counts are unchanged** -- 3, 4 and 64 for `M1_model` 1, 2 and 3 on that
-  dataset. Only which cells belong to a level changed, and the padding is now mapped out under
-  every `M1_model`.
-* **This changed converged estimates, not only starting values.** The shared parameter's MLE is
-  identified by the real sex -- the template reads `sex < nsex(sp)` -- but the optimizer does not
-  reach it from a start displaced that far. Fitting `GOA2018SS` at `M1_model = 1` to convergence
-  (`estimateMode = 1`), before and after:
-
-  | | before | after | change |
-  |---|---|---|---|
-  | objective | 12849.030601 | 12838.508102 | **-10.52 nats** |
-  | M1, species 1 | 0.38983395 | 0.28725155 | **-26%** |
-  | terminal SSB, species 1 | 426,859 | 495,257 mt | **+16.0%** |
-
-  Both runs satisfied the maximum-gradient convergence criterion (2.2e-03 and 1.7e-03): they
-  converged to **different optima**, and the diluted start landed in the worse one by 10.5 nats.
-  A 16% difference in terminal SSB carries straight into catch advice. `M1_model = 2` on the same
-  data is unaffected -- objective differs by 5.7e-06 and SSB by under 0.001%, which is optimizer
-  noise around one optimum -- so whether the displacement changes the answer depends on the
-  surface, which is the reason to remove it rather than to reason about it.
 * **No golden reference moves**: all four run `M1_model = 0`, where the whole array is mapped out,
   so none of them covered any of this. Verified: all six golden blocks unchanged, and 22 files of
   mortality, M1, linkage-M1 and switch tests green.
@@ -119,10 +104,14 @@ species, since a uniform `nsex` leaves no padding at all. Of the bundled dataset
 `nsex`. The live GOA multispecies assessment is in the affected configuration: its 2025 workbook
 has `nsex` `c(1, 2, 1)` and `R/02_fit_models.R` sets
 `M1_model = c("sex_age_invariant", "sex_specific", "sex_age_invariant")`, so species 1 and 3 are
-affected and species 2 is not. Its own fit was **not** refitted -- deliberately, and with Grant's
-decision -- but note that it runs `phase = TRUE`, and on `GOA2018SS` phasing makes the before and
-after bit-identical. So the expectation is that its numbers do not move; that is an expectation,
-not a measurement.
+affected and species 2 is not. Of its three fits, the fixed-M single-species one runs
+`M1_model = 0` and is immune, the estimated-M single-species one is `phase = TRUE`, and the
+**headline multispecies fit is `phase = FALSE`** -- the setting under which `GOA2018SS` moved 10.5
+nats and 8.75% of species-1 SSB. Its own fit was **not** refitted; that was a deliberate decision,
+taken when this entry still said phasing made the point moot, which for the multispecies fit it
+does not. Whether its numbers move is **unmeasured**, and nothing above licenses an expectation
+either way: on the same data `M1_model = 2` moved by 5.7e-06 while `M1_model = 1` moved by 10.5
+nats, so it turns entirely on whether that surface has a nearby worse optimum.
 
 The same bare-comma pattern remains in the `log_M1_dev`, `M1_beta`, `M1_rho` and `M1_dev_log_sd`
 writes and is deliberately left alone: every one of those starts at 0, so averaging a padding cell
