@@ -29,9 +29,12 @@ testthat::test_that("hindcast_skill scores peels against the full model", {
                              reference = "model", cores = 1, getsd = FALSE)))
 
   testthat::expect_true(all(c("mase", "by_year") %in% names(hs)))
-  testthat::expect_true(all(c("peel", "species", "quantity", "n_years",
+  # Keyed by years_ahead, not peel: the scoring averages ACROSS peels at a fixed
+  # horizon (Kell et al. 2021 eq. 5), so n_peels is the count that matters.
+  testthat::expect_true(all(c("years_ahead", "species", "quantity", "n_peels",
                               "mae_forecast", "mae_naive", "mase") %in%
                               names(hs$mase)))
+  testthat::expect_false("peel" %in% names(hs$mase))
   testthat::expect_gt(nrow(hs$mase), 0)
 
   # NOTE on what is worth asserting here. `years_ahead == year - (endyr - peel)`,
@@ -100,4 +103,56 @@ testthat::test_that("hindcast_skill can score the held-out index instead", {
 
   # And the peel must be predicting years it did not fit.
   testthat::expect_true(all(by$years_ahead >= 1))
+})
+
+
+# MASE averages ACROSS PEELS at a fixed horizon -- Kell et al. (2021) eq. 5.
+#
+# Regression. It was grouped the other way round: by peel, averaging over
+# horizons, which is the transpose of the published definition. Two consequences
+# made it look like a property of the statistic rather than a defect. It reported
+# one MASE per peel where Kell's Table 2 reports one per steps-ahead; and it made
+# the h = 1 denominator a SINGLE |naive - reference| instead of a mean over
+# peels, which is where the old "a one-year MASE is dominated by its own
+# denominator, compare the deeper peels" advice came from. That advice was
+# compensating for the grouping.
+#
+# Pinned by recomputing eq. 5 from $by_year rather than by restating the line
+# that produced $mase: the point is the GROUPING, so the check has to do its own
+# grouping.
+testthat::test_that("MASE is computed per horizon, averaging over peels", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("TMB")
+
+  d <- make_test_data()
+  fit <- suppressMessages(suppressWarnings(fit_mod(
+    data_list = d, file = NULL, estimateMode = 1,
+    fit_control = fit_control(phase = FALSE, getsd = FALSE, verbose = 0))))
+  hs <- suppressMessages(suppressWarnings(
+    Rceattle::hindcast_skill(fit, peels = 2:4, quantity = "R",
+                             reference = "model", cores = 1, getsd = FALSE)))
+
+  by <- hs$by_year
+  testthat::expect_gt(length(unique(by$peel)), 1L)   # or there is nothing to average
+
+  # One row per (years_ahead, species, quantity) -- NOT per peel.
+  key <- paste(by$years_ahead, by$species, by$quantity)
+  testthat::expect_equal(nrow(hs$mase), length(unique(key)))
+
+  # n_peels is the number of peels reaching that horizon, and it FALLS as the
+  # horizon grows, because a horizon h needs a peel at least h deep.
+  for (i in seq_len(nrow(hs$mase))) {
+    z <- by[by$years_ahead == hs$mase$years_ahead[i] &
+            by$species     == hs$mase$species[i] &
+            by$quantity    == hs$mase$quantity[i], ]
+    testthat::expect_equal(hs$mase$n_peels[i], nrow(z))
+    testthat::expect_equal(hs$mase$n_peels[i], length(unique(z$peel)))
+    # eq. 5, recomputed here
+    testthat::expect_equal(hs$mase$mase[i],
+                           mean(abs(z$forecast - z$reference)) /
+                           mean(abs(z$naive    - z$reference)))
+  }
+  m1 <- hs$mase[hs$mase$years_ahead == min(hs$mase$years_ahead), ]
+  mN <- hs$mase[hs$mase$years_ahead == max(hs$mase$years_ahead), ]
+  testthat::expect_gt(m1$n_peels[1], mN$n_peels[1])
 })

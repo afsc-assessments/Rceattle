@@ -25,6 +25,34 @@ number of its own.
 
 ## Diagnostics
 
+* **`hindcast_skill()` computed MASE over the wrong axis.** It grouped by PEEL
+  and averaged over horizons; Kell et al. (2021) eq. 5 groups by HORIZON and
+  averages over peels -- its sums run over \eqn{t = T-n \ldots T} at fixed
+  \eqn{h}, which is why their Table 2 reports one MASE per steps-ahead rather
+  than one per peel. The two are transposes, so every number the function
+  returned was a mean over the wrong set.
+
+  `$mase` is now keyed by `years_ahead` rather than `peel`, and carries
+  `n_peels` -- how many peels were averaged at that horizon -- in place of
+  `n_years`. **This changes the shape of an exported function's return value**;
+  anything indexing `$mase$peel` or `$mase$n_years` needs updating. `$by_year`
+  is unchanged. Species and quantity still split the table as before.
+
+  Two pieces of documented advice went with the defect, because they were
+  compensating for it rather than describing the statistic. The warning that a
+  one-year MASE "is dominated by its own denominator" was true only because the
+  mis-grouping made that denominator a SINGLE absolute error instead of a mean
+  over peels; so was the advice to prefer deeper peels or a median across them.
+  The real caution runs the other way: a horizon `h` can only be scored by a
+  peel at least `h` deep, so `n_peels` FALLS as the horizon grows and the
+  DEEPEST horizon in a run is the least precise. Read `n_peels` beside each
+  MASE. A claim that the definition matched `ss3diags` was removed rather than
+  restated, having never been checked against their source.
+
+  More peels now buy precision inside each MASE rather than more rows, so
+  `peels = 3:10` is a statement about cost -- two fewer model fits -- not about
+  noise.
+
 * **`retrospective(peels = )` takes a vector of peel depths, so a comparison can
   skip the shallow peels.** A single number still means every peel from 1 to `n`,
   as it always has; `peels = 2:10` now fits exactly those nine depths, and
@@ -531,9 +559,9 @@ fixes below. `dev` released its own, different 5.19.0, 5.21.0 and
   answers a different question from Mohn's rho, which measures how an estimate
   of a year moves as data accumulate rather than how well a year was predicted
   -- so it is the diagnostic for comparing recruitment projection assumptions,
-  e.g. `proj_mean_rec = TRUE` against `FALSE` against a DSEM. Read short
-  horizons with care: at one year ahead the scaling denominator is a single
-  term, so a lucky persistence forecast gives a very large MASE.
+  e.g. `proj_mean_rec = TRUE` against `FALSE` against a DSEM. One row per
+  horizon per species, averaging across peels, so `n_peels` says how many peels
+  a given steps-ahead rests on.
 
 * **`fit_mod(dsem = build_DSEM(...))` fits a dynamic structural equation model
   on the recruitment deviations.** The deviations become the latent states of a

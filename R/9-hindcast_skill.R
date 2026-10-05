@@ -32,24 +32,37 @@
 #' A MASE is undefined when the naive forecast happens to be exactly right
 #' (a zero denominator); those rows come back `NA` rather than `Inf`.
 #'
-#' Read short horizons with care. At `years_ahead = 1` the denominator is a
-#' single \eqn{|naive - reference|}, so a peel whose persistence forecast lands
-#' close to the reference by chance produces a very large MASE that says more
-#' about the denominator than about the projection -- values in the tens appear
-#' routinely at one-year horizons and settle by three. Compare the deeper peels,
-#' or the median across peels, rather than any single number. This is a property
-#' of the scaling, not of the model, and it is shared with the `ss3diags`
-#' implementation the definition matches.
+#' One row per horizon per species per quantity: the mean runs ACROSS PEELS at a
+#' fixed steps-ahead, which is Kell et al. (2021) eq. 5, whose sums run over
+#' \eqn{t = T-n \ldots T} at fixed \eqn{h}. `n_peels` is how many peels
+#' contributed. So `peels` buys precision in each MASE rather than more rows, and
+#' a short horizon is not inherently noisier than a long one -- it is averaged
+#' over the same peels.
+#'
+#' Read `n_peels` before reading a MASE. A horizon `h` can only be scored by a
+#' peel at least `h` years deep, so `n_peels` FALLS as the horizon grows: with
+#' `peels = 2:4` the one-year-ahead MASE averages three peels and the
+#' four-year-ahead one averages a single peel. The deepest horizon in any run is
+#' therefore the least precise, and a MASE resting on one peel says as much about
+#' that peel as about the projection. Widen `peels` to score a long horizon, and
+#' treat the last row or two of `$mase` with the same caution you would give any
+#' n = 1 statistic.
+#'
+#' The naive forecast differs slightly from Kell's by construction. Theirs is
+#' \eqn{y_{t-h}}, the last OBSERVED value, which `reference = "observed"` uses
+#' directly. Under `reference = "model"` there is no observation to carry
+#' forward, so the baseline is the peel's own terminal estimate held flat -- the
+#' model-based analogue of the same idea. Kell also averages the denominator over
+#' a wider window (\eqn{n+1+h} terms against the numerator's \eqn{n+1}), because
+#' \eqn{y_{t-h}} exists for more years; here both use the peels actually fitted.
 #'
 #' @param object A fitted Rceattle model (the full time series).
 #' @param peels Which peels to fit. Passed to [retrospective()], so a single
 #'   number `n` means every peel from 1 to `n`, and a vector names the depths
-#'   exactly. `peels = 3:10` is the useful form here: it drops the one- and
-#'   two-year PEELS, whose own MASE is dominated by its denominator (see
-#'   Details), and costs two fewer model fits. Note it does not drop the one-
-#'   and two-year HORIZONS -- every peel still contributes `years_ahead` 1 and 2
-#'   rows, because the thin denominator is a property of peel depth, not of
-#'   horizon. Ignored when `retro` is supplied.
+#'   exactly. More peels do not add rows to `$mase` -- they add terms to the mean
+#'   inside each one, since the scoring averages across peels at a fixed horizon.
+#'   A vector is still useful for cost: `peels = 3:10` pays for two fewer model
+#'   fits than `1:10`. Ignored when `retro` is supplied.
 #' @param quantity Quantities to score against the full model. Any of `"ssb"`,
 #'   `"biomass"`, `"R"`. Ignored when `reference = "observed"`.
 #' @param reference What to score the projection against.
@@ -85,8 +98,9 @@
 #'
 #' @return A list with
 #'   \describe{
-#'     \item{`mase`}{one row per peel x species x quantity, with `mase`,
-#'       `mae_forecast`, `mae_naive` and the number of forecast years scored.}
+#'     \item{`mase`}{one row per years-ahead x species x quantity, with `mase`,
+#'       `mae_forecast`, `mae_naive` and `n_peels`, the number of peels averaged
+#'       over at that horizon.}
 #'     \item{`by_year`}{the underlying series: peel, species, quantity, year,
 #'       years-ahead, `forecast`, `reference`, `naive`.}
 #'   }
@@ -295,14 +309,25 @@ hindcast_skill <- function(object = NULL, peels = 5,
   }
   by_year <- do.call(rbind, by_year)
 
-  key <- interaction(by_year$peel, by_year$species, by_year$quantity,
+  # Grouped by HORIZON, averaging across peels -- Kell et al. (2021) eq. 5, whose
+  # sums run over t = T-n .. T at a FIXED h. Each peel contributes one
+  # |observed - predicted| at a given steps-ahead, and the mean is over those.
+  #
+  # This was grouped by peel and averaged over horizons instead, which is the
+  # transpose: it reported one MASE per peel rather than per horizon, and made
+  # the h = 1 denominator a SINGLE |naive - reference| instead of a mean over
+  # peels. That is where the "a one-year MASE is dominated by its own
+  # denominator" caveat came from -- a property of the mis-grouping, not of the
+  # statistic.
+  key <- interaction(by_year$years_ahead, by_year$species, by_year$quantity,
                      drop = TRUE, lex.order = TRUE)
   mase <- do.call(rbind, lapply(split(by_year, key), function(z) {
     mae_f <- mean(abs(z$forecast - z$reference))
     mae_n <- mean(abs(z$naive    - z$reference))
     data.frame(
-      peel       = z$peel[1], species = z$species[1], quantity = z$quantity[1],
-      n_years    = nrow(z),
+      years_ahead  = z$years_ahead[1], species = z$species[1],
+      quantity     = z$quantity[1],
+      n_peels      = nrow(z),
       mae_forecast = mae_f,
       mae_naive    = mae_n,
       # NA rather than Inf when persistence was exactly right: an undefined
@@ -311,7 +336,7 @@ hindcast_skill <- function(object = NULL, peels = 5,
       stringsAsFactors = FALSE)
   }))
   rownames(mase) <- NULL
-  mase <- mase[order(mase$quantity, mase$species, mase$peel), ]
+  mase <- mase[order(mase$quantity, mase$species, mase$years_ahead), ]
 
   list(mase = mase, by_year = by_year)
 }

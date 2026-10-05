@@ -386,7 +386,7 @@ skill$mase
 
 Skill is a mean absolute scaled error (MASE), following Kell et al. (2016). The baseline is the peel's own terminal estimate carried forward — "assume nothing changes" — so `MASE < 1` beats persistence and `MASE > 1` is worse than it, which usually means the recruitment assumption is pulling the projection the wrong way.
 
-Two things to know when reading it. `reference = "observed"` scores the peel's predicted survey index against the index actually observed, which is classic hindcast cross-validation and the version comparable to values published for other platforms; `reference = "model"` (the default) scores SSB, biomass or recruitment against the full model. And read short horizons with care: at `years_ahead = 1` the denominator is a single absolute error, so a peel whose persistence forecast happens to land close produces a very large MASE that says more about the denominator than the projection. Compare the deeper peels, or the median across peels.
+Two things to know when reading it. `reference = "observed"` scores the peel's predicted survey index against the index actually observed, which is classic hindcast cross-validation and the version comparable to values published for other platforms; `reference = "model"` (the default) scores SSB, biomass or recruitment against the full model. And read `n_peels` alongside each MASE: the scoring averages across peels at a fixed steps-ahead, and a horizon `h` can only be scored by a peel at least `h` deep, so `n_peels` falls as the horizon grows. The deepest horizon in a run rests on a single peel and should be read as the n = 1 statistic it is.
 
 `hindcast_skill()` defaults to `forecast_rec = "model"`, which hands the peeled years to the model's own projection rule; `retrospective()` defaults to `"mean"`, the convention Mohn's rho has always been computed under. Without that difference every model forecasts identically and the comparison says nothing.
 
@@ -411,7 +411,7 @@ hindcast_skill(dsem_fit, retro = retro_mean, quantity = "R")$mase
 hindcast_skill(dsem_fit, retro = retro_dsem, quantity = "R")$mase
 ```
 
-`"mean"` is the mean-recruitment projection and `"model"` the DSEM's; the lower MASE wins, and `peels = 3:10` keeps the horizons where the MASE denominator is not dominating.
+`"mean"` is the mean-recruitment projection and `"model"` the DSEM's; the lower MASE wins. `peels = 3:10` is about cost rather than noise -- more peels add terms to the mean inside each MASE rather than adding rows, so dropping the two shallowest pays for two fewer model fits and costs a little precision at the short horizons.
 
 **Score recruitment, not SSB, over a short horizon.** The recruits the two rules disagree about are not mature yet, so SSB hardly responds and the MASE cannot see the projection rule. Measured on a BS2017SS DSEM (lag-1 on the recruitment deviations plus a temperature covariate) at a 3-year peel: the two rules differed by **46.8%** in forecast recruitment — `"mean"` flat at 35.2 million, the SEM decaying 35.2 → 25.8 → 18.7 million as the lagged state relaxed — and by **0.03%** in forecast SSB. The SSB MASE agreed to four significant figures for two of the three species. So `quantity = "R"` is the sharp test of a recruitment projection; SSB becomes informative only once the horizon reaches the age at maturity, which for these stocks means deeper peels than three years.
 

@@ -19,12 +19,10 @@ hindcast_skill(
 
 \item{peels}{Which peels to fit. Passed to \code{\link[=retrospective]{retrospective()}}, so a single
 number \code{n} means every peel from 1 to \code{n}, and a vector names the depths
-exactly. \code{peels = 3:10} is the useful form here: it drops the one- and
-two-year PEELS, whose own MASE is dominated by its denominator (see
-Details), and costs two fewer model fits. Note it does not drop the one-
-and two-year HORIZONS -- every peel still contributes \code{years_ahead} 1 and 2
-rows, because the thin denominator is a property of peel depth, not of
-horizon. Ignored when \code{retro} is supplied.}
+exactly. More peels do not add rows to \verb{$mase} -- they add terms to the mean
+inside each one, since the scoring averages across peels at a fixed horizon.
+A vector is still useful for cost: \code{peels = 3:10} pays for two fewer model
+fits than \code{1:10}. Ignored when \code{retro} is supplied.}
 
 \item{quantity}{Quantities to score against the full model. Any of \code{"ssb"},
 \code{"biomass"}, \code{"R"}. Ignored when \code{reference = "observed"}.}
@@ -66,8 +64,9 @@ avoid refitting when both are wanted. Note a \code{retro} computed with
 \value{
 A list with
 \describe{
-\item{\code{mase}}{one row per peel x species x quantity, with \code{mase},
-\code{mae_forecast}, \code{mae_naive} and the number of forecast years scored.}
+\item{\code{mase}}{one row per years-ahead x species x quantity, with \code{mase},
+\code{mae_forecast}, \code{mae_naive} and \code{n_peels}, the number of peels averaged
+over at that horizon.}
 \item{\code{by_year}}{the underlying series: peel, species, quantity, year,
 years-ahead, \code{forecast}, \code{reference}, \code{naive}.}
 }
@@ -105,14 +104,29 @@ the recruitment assumption is pulling the projection the wrong way.
 A MASE is undefined when the naive forecast happens to be exactly right
 (a zero denominator); those rows come back \code{NA} rather than \code{Inf}.
 
-Read short horizons with care. At \code{years_ahead = 1} the denominator is a
-single \eqn{|naive - reference|}, so a peel whose persistence forecast lands
-close to the reference by chance produces a very large MASE that says more
-about the denominator than about the projection -- values in the tens appear
-routinely at one-year horizons and settle by three. Compare the deeper peels,
-or the median across peels, rather than any single number. This is a property
-of the scaling, not of the model, and it is shared with the \code{ss3diags}
-implementation the definition matches.
+One row per horizon per species per quantity: the mean runs ACROSS PEELS at a
+fixed steps-ahead, which is Kell et al. (2021) eq. 5, whose sums run over
+\eqn{t = T-n \ldots T} at fixed \eqn{h}. \code{n_peels} is how many peels
+contributed. So \code{peels} buys precision in each MASE rather than more rows, and
+a short horizon is not inherently noisier than a long one -- it is averaged
+over the same peels.
+
+Read \code{n_peels} before reading a MASE. A horizon \code{h} can only be scored by a
+peel at least \code{h} years deep, so \code{n_peels} FALLS as the horizon grows: with
+\code{peels = 2:4} the one-year-ahead MASE averages three peels and the
+four-year-ahead one averages a single peel. The deepest horizon in any run is
+therefore the least precise, and a MASE resting on one peel says as much about
+that peel as about the projection. Widen \code{peels} to score a long horizon, and
+treat the last row or two of \verb{$mase} with the same caution you would give any
+n = 1 statistic.
+
+The naive forecast differs slightly from Kell's by construction. Theirs is
+\eqn{y_{t-h}}, the last OBSERVED value, which \code{reference = "observed"} uses
+directly. Under \code{reference = "model"} there is no observation to carry
+forward, so the baseline is the peel's own terminal estimate held flat -- the
+model-based analogue of the same idea. Kell also averages the denominator over
+a wider window (\eqn{n+1+h} terms against the numerator's \eqn{n+1}), because
+\eqn{y_{t-h}} exists for more years; here both use the peels actually fitted.
 }
 \references{
 Kell, L.T., Kimoto, A., Kitakado, T. (2016) Evaluation of the prediction

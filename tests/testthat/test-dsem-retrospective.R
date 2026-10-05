@@ -211,10 +211,24 @@ testthat::test_that("forecast_rec tells the DSEM's projection from mean recruitm
 
   # Species 1 is the one the sem gives a lag and a covariate, so it is the row
   # the two rules must disagree on.
-  mf_mean  <- skill_mean$mase$mae_forecast[skill_mean$mase$species == spp1]
-  mf_model <- skill_model$mase$mae_forecast[skill_model$mase$species == spp1]
-  testthat::expect_length(mf_mean, 1L)
-  testthat::expect_gt(abs(mf_model - mf_mean) / mf_mean, 0.01)
+  # One row per HORIZON now, not per peel, so compare across the horizon range
+  # and take the largest difference -- NOT horizon 1, which is where the two
+  # rules agree most. A lag-1 SEM's one-step-ahead forecast is rho times the
+  # terminal deviation, so it leaves from near the mean and separates as it
+  # decays: measured on this fixture, 0.2% apart at one year ahead and 46.8% by
+  # three. Asserting at h = 1 would be asking the question where the answer is
+  # smallest.
+  pick <- function(sk) {
+    z <- sk$mase[sk$mase$species == spp1, ]
+    stats::setNames(z$mae_forecast, z$years_ahead)
+  }
+  mf_mean  <- pick(skill_mean)
+  mf_model <- pick(skill_model)
+  testthat::expect_gt(length(mf_mean), 0L)
+  h <- intersect(names(mf_mean), names(mf_model))
+  testthat::expect_gt(length(h), 0L)
+  rel <- abs(mf_model[h] - mf_mean[h]) / mf_mean[h]
+  testthat::expect_gt(max(rel), 0.01)
 })
 
 
