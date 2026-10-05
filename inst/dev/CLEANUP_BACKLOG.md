@@ -484,6 +484,21 @@ under "Deliberately not changed".
 
 ## Deliberately not changed
 
+- **The three mechanical loop/apply conversions, measured and declined** (2026-10-05). The
+  refactor plan listed `1:n` -> `seq_len()`, `sapply` -> `vapply` and `=` -> `<-` as conversions
+  that "remove live bug classes". Measured against `dev` at 5.49.7 by parsing, not grepping:
+  bare `T`/`F` is **0 sites** (nothing to do); `=` as assignment is **111** against 7,132 `<-`,
+  which is cosmetics; of **103** `for (i in 1:expr)` loops nearly every bound is structurally at
+  least 1 (`nsex`, `nspp`, `nsim`, `nages`, `nrow(fleet_control)`), and the one empty-capable case
+  traced -- `yr_ind` in `build_map_selectivity()`, the years with zero catch -- is harmless,
+  because `1:0` gives `c(1, 0)` and `m[NA, NA] <- NA` leaves the matrix completely unchanged
+  (checked: no cell written, no NA introduced); of **34** `sapply` calls the one in the riskiest
+  place, the bounds dimension check at `R/6-fit_mod.R`, behaves identically under `vapply`
+  including on an empty list. So the bug classes are not live. 248 edits across the fitting
+  pipeline, where `CLAUDE.md` warns a rewrite is how a fit moves silently, buys nothing
+  measurable. Convert opportunistically in a file being edited for another reason; do not sweep.
+
+
 - **Multispecies SBF sits on the projection's realized M2** (`src/TMB/ceattle.cpp`, `Multispecies:
   M_at_age carries the projection's realized M2`). Under `msmMode > 0` it is reported but nothing
   live reads it. The one rule that does, NPFMC (5), is refused there along with 4 and 7;

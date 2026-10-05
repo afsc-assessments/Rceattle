@@ -188,17 +188,19 @@ build_params <- function(data_list) {
   param_list$log_growth_pars[, , 1] <- log(0.3)
 
   if(nrow(data_list$caal_data) > 0){
+    # L1 and L-infinity start at the smallest and largest length with CAAL
+    # data. Taken per species as a min and a max: pivoting on the bin ORDINAL
+    # named its columns Bin1..Bin<n>, so species with different bin counts
+    # produced one column per distinct ordinal -- `Bin1, Bin3, Bin5` for a
+    # 3-bin and a 5-bin species -- which is both the wrong width for the
+    # two-column target and NA for whichever species lacks that ordinal.
     caal_lengths <- data_list$caal_data |>
-      dplyr::distinct(Species, Length) |>
-      dplyr::arrange(Species, Length) |>
       dplyr::group_by(Species) |>
-      dplyr::mutate(Bin = paste0("Bin", 1:n())) |>
-      dplyr::slice(c(1, n())) |>
-      dplyr::ungroup() |>
-      tidyr::pivot_wider(names_from = Bin, values_from = Length)
-    param_list$log_growth_pars[caal_lengths$Species, 1, 2:3] <- as.matrix(log(caal_lengths[,-1]))
+      dplyr::summarise(L1 = min(Length), Linf = max(Length), .groups = "drop")
+    endpoints <- as.matrix(log(caal_lengths[, c("L1", "Linf")]))
+    param_list$log_growth_pars[caal_lengths$Species, 1, 2:3] <- endpoints
     if(max_sex == 2){
-      param_list$log_growth_pars[caal_lengths$Species, 2, 2:3] <- as.matrix(log(caal_lengths[,-1]))
+      param_list$log_growth_pars[caal_lengths$Species, 2, 2:3] <- endpoints
     }
   }
 

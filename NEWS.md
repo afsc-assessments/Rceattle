@@ -12,6 +12,43 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.52.0
+
+## Bug fixes
+
+* **Species *sp*'s male growth parameters were species *sp+1*'s female growth parameters.**
+  `build_map_growth()` indexed `log_growth_pars` with a fixed stride of 4 per species, but a
+  two-sex species needs 8 slots: females took `(sp-1)*4 + 1:3` and males `(sp-1)*4 + 5:7`, so
+  `5,6,7` served sp1-males *and* sp2-females -- one TMB parameter for both, estimated once. K, L1
+  and L-infinity were fused across a species **and** sex boundary, and 3 (von Bertalanffy) or 4
+  (Richards) free parameters went silently missing. Measured, growth on for every species:
+
+  | `nsex` | distinct levels / expected | parameters lost |
+  |---|---|---|
+  | `c(1, 2, 1)` | 9 / 12 | 3 |
+  | `c(2, 2)` | 9 / 12 | 3 |
+  | `c(2, 1)` | 6 / 9 | 3 |
+  | `c(2, 2, 2)` | 12 / 18 | **6** |
+  | `c(1, 2)` | 9 / 9 | none -- a *trailing* two-sex species is safe |
+
+  Now a running counter, as `build_map_m1()` already uses, so the index advances by what each
+  species actually took. No collision in any configuration tested.
+* **`build_params()` no longer dies on ragged CAAL bin counts.** L1 and L-infinity start at the
+  smallest and largest length with CAAL data, taken by pivoting on the per-species bin *ordinal* --
+  so a 3-bin and a 5-bin species produced `Bin1, Bin3, Bin5`, three value columns for a
+  two-column target, with `NA` for whichever species lacked that ordinal. It failed with "number
+  of items to replace is not a multiple of replacement length". Now a per-species min and max,
+  which is what the slice was approximating and is ragged-safe. A one-bin species also worked
+  only by accident before (`slice(c(1, n()))` duplicated the row).
+* **Neither was reachable by anything shipping**, which is why no test caught either: no bundled
+  dataset sets `growth_model` (the schema default is 0), all four golden references run 0, every
+  multispecies sibling config uses `build_growth(fun = "empirical")`, and every parametric-growth
+  consumer is single-species -- immune, since the collision needs a species *sp+1*. Only
+  `whamGrowthData` carries CAAL data at all, and it is single-species. They arm the moment
+  parametric growth goes on a multispecies model with a non-trailing two-sex species, which is
+  the shape of the GOA multispecies assessment (arrowtooth is two-sex at species 2 of 3).
+* No golden reference moves: all four run `growth_model = 0`, where the whole growth block is
+  mapped out. Verified -- six golden blocks, 21 assertions, unchanged.
 # Rceattle 5.51.0
 
 ## Bug fixes
