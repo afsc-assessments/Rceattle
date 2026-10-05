@@ -1282,9 +1282,13 @@ fit_mod <-
       start_par$log_Ftarget <- log_F_input(data_list$Ftarget)
     }
 
-    # Update M1 parameter object from data if initial parameter values input
+    # Update M1 from M1_base when initial parameter values were supplied.
+    # Fills exactly as build_params() does, through the same two helpers: only
+    # the species' own sexes and ages are read from M1_base, blank real ages
+    # carry the last supplied age forward, and each padding cell mirrors its
+    # own species. So the two paths give the same array.
     if (updateM1) {
-      m1 <- array(0, dim = c(data_list$nspp,
+      m1 <- array(1, dim = c(data_list$nspp,
                              max(data_list$nsex, na.rm = TRUE),
                              max(data_list$nages, na.rm = TRUE)))
 
@@ -1293,13 +1297,22 @@ fit_mod <-
         sex <- as.numeric(as.character(data_list$M1_base$Sex[i]))
 
         # Handle sex == 0 case for 2-sex species
-        sex_values <- if (sex == 0) 1:data_list$nsex[sp] else sex
+        sex_values <- if (sex == 0) seq_len(data_list$nsex[sp]) else sex
+        ages <- seq_len(data_list$nages[sp])
 
-        for (j in 1:length(sex_values)) {
-          m1[sp, sex_values[j], 1:max(data_list$nages, na.rm = TRUE)] <- as.numeric(data_list$M1_base[i, (1:max(data_list$nages, na.rm = TRUE)) + 2])
+        for (j in seq_along(sex_values)) {
+          m1[sp, sex_values[j], ages] <-
+            as.numeric(data_list$M1_base[i, ages + 2])
         }
       }
+      # Same helpers as build_params(), so the two fills cannot drift.
+      m1 <- .rce_fill_M1_age_gaps(m1, data_list)  # blank real ages carry over
+      m1 <- .rce_fill_M1_padding(m1, data_list)   # padding mirrors its species
+      # Keep the species / sex / age labels, so updateM1 reports log_M1 as
+      # readably as any other path.
+      dimnames(m1) <- dimnames(start_par$log_M1)
       start_par$log_M1 <- log(m1)
+      .rce_stop_if_nonfinite_M1(start_par$log_M1, "fit_mod(updateM1 = TRUE)")
     }
 
     # A refit's inits hold the fitted, or profiled, value, so the starting-value

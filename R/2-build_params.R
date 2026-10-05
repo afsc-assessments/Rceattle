@@ -94,21 +94,32 @@ build_params <- function(data_list) {
   # ** Fixed effects ----
   m1 <- array(1, dim = c(data_list$nspp, max_sex, max_age),
               dimnames = list(data_list$spnames, sex_labels, paste0("Age", 1:max_age))) # Set up array
+  # Which (species, sex) an M1_base row actually covers
+  m1_written <- matrix(FALSE, data_list$nspp, max_sex)
 
-  # Initialize from inputs
+  # Write only the sexes and ages the species has. A workbook row is
+  # legitimately blank past its last age, so reading 1:max_age gives log(NA).
   for (i in 1:nrow(data_list$M1_base)) {
     sp <- as.numeric(as.character(data_list$M1_base$Species[i]))
     sex <- as.numeric(as.character(data_list$M1_base$Sex[i]))
 
-
     # Handle sex == 0 case for 2-sex species
-    sex_values <- if (sex == 0) 1:data_list$nsex[sp] else sex
+    sex_values <- if (sex == 0) seq_len(data_list$nsex[sp]) else sex
+    ages <- seq_len(data_list$nages[sp])
 
     # Fill in M1 array from fixed values for each sex
-    for(j in 1:length(sex_values)){
-      m1[sp, sex_values[j], 1:max_age] <- as.numeric(data_list$M1_base[i,(1:max(data_list$nages, na.rm = TRUE)) + 2])
+    for (j in seq_along(sex_values)) {
+      m1[sp, sex_values[j], ages] <- as.numeric(data_list$M1_base[i, ages + 2])
+      m1_written[sp, sex_values[j]] <- TRUE
     }
   }
+  # A (species, sex) with no M1_base row would keep the 1 above: a residual M
+  # of 1.0 per year, inside the bounds, so nothing downstream would catch it.
+  .rce_stop_if_M1_row_missing(m1_written, data_list)
+  # A row shorter than the species' nages leaves real ages blank; carry the
+  # last supplied age forward, as the padding fill does, and say so.
+  m1 <- .rce_fill_M1_age_gaps(m1, data_list)
+
   param_list$log_M1 <- log(m1)
 
 
@@ -450,7 +461,15 @@ build_params <- function(data_list) {
 
 
 
-  .push_linkage_intercept_inits(param_list, data_list)
+  param_list <- .push_linkage_intercept_inits(param_list, data_list)
+
+  # Both after the linkage pass, not at the data fill: an M1 linkage with an
+  # intercept `init` writes the level over every real age, so M1_base may
+  # legitimately be blank and the padding must mirror whatever ends up there.
+  param_list$log_M1 <- .rce_fill_M1_padding(param_list$log_M1, data_list)
+  .rce_stop_if_nonfinite_M1(param_list$log_M1, "build_params()")
+
+  param_list
 }
 
 
@@ -612,4 +631,133 @@ build_params <- function(data_list) {
   }
 
   return(param_list)
+}
+
+
+#' Refuse a non-finite starting value for log_M1
+#'
+#' @description
+#' `log_M1` is dimensioned to the widest species, so a species with fewer sexes
+#' or ages leaves padding cells that no `nages(sp)`-bounded loop in the template
+#' reads. `NA` or `-Inf` there is never an intended natural mortality: the two
+#' fill paths disagreed on the value through 5.49.4, a loop bound that widened
+#' to the padding would read `exp(-Inf)` as an M1 of 0, and under
+#' `M1_model >= 1` the padding sex cells are estimated rather than constant.
+#'
+#' @param log_M1 The filled `log_M1` array.
+#' @param where Name of the calling path, for the message.
+#' @noRd
+.rce_stop_if_nonfinite_M1 <- function(log_M1, where) {
+  bad <- which(!is.finite(log_M1), arr.ind = TRUE)
+  if (!nrow(bad)) return(invisible(TRUE))
+  stop(where, ": log_M1 holds ", nrow(bad),
+       " non-finite starting value(s), at (species, sex, age) ",
+       paste(apply(utils::head(bad, 5), 1, paste, collapse = ","),
+             collapse = "; "),
+       if (nrow(bad) > 5) ", ..." else "",
+       ". M1_base must give a finite value for every age of every sex the ",
+       "species has.", call. = FALSE)
+}
+
+
+#' Refuse an `M1_base` that does not cover every sex of every species
+#'
+#' @description
+#' A `(species, sex)` the model has but `M1_base` does not name keeps the
+#' array's initial 1, i.e. a residual M of 1.0 per year. That sits inside
+#' `build_bounds()`'s `[log(0.001), log(2)]`, so nothing downstream catches it
+#' and the fit simply runs with it.
+#'
+#' @param written `[nspp, max_sex]` logical: which cells an `M1_base` row set.
+#' @param data_list The `data_list`, for `nsex` and `spnames`.
+#' @noRd
+.rce_stop_if_M1_row_missing <- function(written, data_list) {
+  gaps <- character()
+  for (sp in seq_len(data_list$nspp)) {
+    for (sx in seq_len(data_list$nsex[sp])) {
+      if (!written[sp, sx]) {
+        gaps <- c(gaps, paste0(data_list$spnames[sp], " (species ", sp,
+                               ", sex ", sx, ")"))
+      }
+    }
+  }
+  if (!length(gaps)) return(invisible(TRUE))
+  stop("M1_base has no row for ", paste(gaps, collapse = "; "),
+       ". Every sex of every species needs one, or its residual M starts at ",
+       "1.0 per year, which is inside the parameter bounds and so is fit ",
+       "rather than refused.", call. = FALSE)
+}
+
+
+#' Carry the last supplied M1 forward over a species' blank real ages
+#'
+#' @description
+#' An `M1_base` row that stops short of its species' `nages` leaves real ages
+#' blank, which is not padding: under `M1_model = 3` those ages are estimated,
+#' and under any setting `log(NA)` reaches `MakeADFun()`. Carrying the last
+#' supplied age forward is what the padding fill already does and is the only
+#' value the workbook implies; refusing instead would stop a model that fits
+#' today — `Rceattle-models/AI cod - Dev/Data/2024_AI_cod.xlsx` gives
+#' `nages = 13` and M1 for ten ages. Warns rather than filling silently,
+#' because a short row is a workbook to correct. A `(species, sex)` with no
+#' finite age at all is left alone for `.rce_stop_if_nonfinite_M1()`.
+#'
+#' @param m1 `[nspp, max_sex, max_age]` natural mortality, real cells written.
+#' @param data_list The `data_list`, for `nsex`, `nages` and `spnames`.
+#' @noRd
+.rce_fill_M1_age_gaps <- function(m1, data_list) {
+  gaps <- character()
+  for (sp in seq_len(data_list$nspp)) {
+    for (sx in seq_len(data_list$nsex[sp])) {
+      ages <- seq_len(data_list$nages[sp])
+      ok <- is.finite(m1[sp, sx, ages])
+      if (all(ok) || !any(ok)) next
+      last <- max(which(ok))
+      m1[sp, sx, ages[!ok]] <- m1[sp, sx, last]
+      gaps <- c(gaps, paste0(data_list$spnames[sp], " (species ", sp, ", sex ",
+                             sx, ") ages ", paste(ages[!ok], collapse = ", ")))
+    }
+  }
+  if (length(gaps)) {
+    warning("M1_base stops short of nages for ", paste(gaps, collapse = "; "),
+            ". Those ages start at the last age the row supplies. Under ",
+            "M1_model = 3 they are estimated from that start, so give them ",
+            "their own values if the intent is age-specific M.",
+            call. = FALSE)
+  }
+  m1
+}
+
+
+#' Give each padding cell its own species' M1
+#'
+#' @description
+#' `log_M1` is dimensioned to the widest species, so a species with fewer sexes
+#' or ages owns cells for neither. No template loop reads them, but a parameter
+#' sharing a map level with one starts at the mean over that level, since
+#' `TMB:::updateMap()` is `tapply(..., mean)`. A padding cell left at the
+#' array's initial 1 -- an M of 1.0 per year -- therefore pulls an estimated M1
+#' toward 1.0; mirroring the species' own value keeps that mean exact.
+#'
+#' @param m1 `[nspp, max_sex, max_age]` natural mortality with every real cell
+#'   filled. Only copies cells, so either scale works.
+#' @param data_list The `data_list`, for `nspp`, `nsex` and `nages`.
+#' @return `m1` with its padding cells set from their own species.
+#' @noRd
+.rce_fill_M1_padding <- function(m1, data_list) {
+  max_sex <- dim(m1)[2]
+  max_age <- dim(m1)[3]
+  for (sp in seq_len(data_list$nspp)) {
+    real_sex <- seq_len(data_list$nsex[sp])
+    last_age <- data_list$nages[sp]
+    # Ages past this species' last age take its oldest real age.
+    if (last_age < max_age) {
+      m1[sp, real_sex, (last_age + 1):max_age] <- m1[sp, real_sex, last_age]
+    }
+    # Sexes this species does not have take its first sex.
+    for (sx in setdiff(seq_len(max_sex), real_sex)) {
+      m1[sp, sx, ] <- m1[sp, real_sex[1], ]
+    }
+  }
+  m1
 }
