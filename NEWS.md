@@ -25,6 +25,29 @@ number of its own.
 
 ## Diagnostics
 
+* **`retrospective()` now returns a forecast-skill table, `$mase`, alongside
+  `$mohns`.** Mohn's rho is a signed relative error, so it measures retrospective
+  BIAS: a model whose peels miss high as often as low can have a rho near zero
+  and still forecast badly. MASE is the scaled absolute error over the same
+  peels, so it measures SKILL, and the two answer different questions about the
+  same fits. It is always computed, from the peels already fitted, so it costs
+  no extra optimization. Scored on SSB, biomass and recruitment, per species and
+  per steps-ahead, following Kell et al. (2021) eq. 5 -- the mean is taken across
+  PEELS at a fixed horizon, which is why the table is keyed by `years_ahead`.
+  `MASE < 1` beats the naive baseline and `> 1` is worse than it.
+
+  Three things to read off it rather than assume. **`forecast_rec` is a column**,
+  because the table scores whichever projection rule the peels were forecast
+  under, and `retrospective()`'s default is `"mean"` -- mean recruitment, NOT the
+  fitted model's own process. A DSEM or stock-recruit model scored at the default
+  is being told how well mean recruitment forecasts, which is rarely the question;
+  `print()` says so. **`n_peels` varies down the table**, because a horizon `h`
+  needs a peel at least `h` deep, so the deepest row can rest on a single peel;
+  `peels_used` names which. And a species with fixed numbers-at-age
+  (`estDynamics > 0`) is scored `NA` rather than 0 -- its peel reproduces the
+  parent exactly, so there is no forecast error to scale and a 0 would read as
+  perfect skill.
+
 * **A retrospective peel whose `sdreport()` failed presented a band of zeros as
   if it were real.** The handler returned `newmod$sdrep`, which at that point is
   the FORECAST refit's sdreport -- built with the whole hindcast pinned, so every

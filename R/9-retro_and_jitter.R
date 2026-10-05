@@ -51,8 +51,28 @@
 #' parameters with the hindcast free in the map and reported from there. Nothing
 #' is re-estimated, so no point estimate moves.
 #'
-#' @return a list of 1. list of Rceattle models and 2. vector of Mohn's rho for
-#'   each species.
+#' @return a list of 1. list of Rceattle models, 2. Mohn's rho for each species
+#'   (`$mohns`) and 3. forecast skill (`$mase`).
+#'
+#'   `$mohns` and `$mase` answer different questions and are on different grids.
+#'   Rho is a SIGNED relative error, so errors cancel across peels and it
+#'   measures bias; its `Forecast year` runs `0:nyrs_forecast` with 0 the peel's
+#'   terminal year, and species are COLUMNS. MASE is an absolute error scaled by
+#'   "assume nothing changes", so it measures skill and `MASE < 1` beats
+#'   persistence; its `years_ahead` runs `1:max(peels)` and species are ROWS.
+#'   They coincide only over `1:min(nyrs_forecast, max(peels))`, so join them by
+#'   horizon rather than positionally.
+#'
+#'   `$mase` carries `forecast_rec`, because it scores whatever that argument
+#'   asked for. Under the default `"mean"` every model projects the peeled years
+#'   at its own historical mean whatever process it carries, so two models'
+#'   tables differ by their hindcast FITS, not their projection rules. Use
+#'   `forecast_rec = "model"` to score the model's own rule, and see
+#'   [hindcast_skill()] to compare the two on one fit. `n_peels` and `peels_used`
+#'   say how many peels, and which, a row rests on: a horizon `h` is scored only
+#'   by peels at least `h` deep, so the deepest rows rest on one or two fits.
+#'   A species with `estDynamics > 0` is `NA` -- its numbers-at-age are input,
+#'   so it was never forecast.
 #'
 #'   A peel that did not converge is dropped, so \code{Rceattle_list} can be
 #'   shorter than one plus the number of peels asked for (a message reports how
@@ -920,7 +940,57 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
   # print() subtracts it from the number kept -- so `peel_depths` carries the
   # depths that were asked for, which a subset call cannot otherwise recover
   # once a peel has been dropped.
+
+  # Forecast SKILL, alongside Mohn's rho's forecast BIAS ----
+  # Both are per horizon, and they answer different questions: rho is a signed
+  # relative error, so +/- cancel across peels and it measures bias; MASE is an
+  # absolute error scaled by "assume nothing changes", so it measures skill and
+  # MASE < 1 is a claim. Computed here rather than left to hindcast_skill()
+  # because it costs nothing -- every input is a quantity these peels already
+  # report -- and because reading bias without skill is how a model that is
+  # unbiased on average and wrong every year looks fine.
+  #
+  # Always, and for all three quantities. On a short horizon SSB barely responds
+  # to the recruitment the peels disagree about -- measured at 0.03% against
+  # 46.8% in recruitment on a BS2017SS DSEM at a 3-year peel -- so scoring one
+  # without the others invites reading "no difference" off the least responsive.
+  #
+  # reference = "model" only. The "observed" variant rebuilds every peel at
+  # estimateMode = 3 and refuses on analytical catchability, which does not
+  # belong in the default diagnostic; hindcast_skill() still offers it.
+  #
+  # IT SCORES WHATEVER `forecast_rec` ASKED FOR, and the default is "mean" --
+  # which projects every peel at its own historical mean recruitment whatever
+  # process the model carries. Two models scored that way forecast by the SAME
+  # rule, so a difference between their tables is a difference between their
+  # hindcast fits, not between their projection rules. That is a real quantity
+  # and not the one most people want. The setting is therefore a COLUMN: two
+  # tables can be rbind()ed and stay interpretable, and a reader cannot mistake
+  # one for the other. To compare projection rules, score the same fit twice --
+  # forecast_rec = "mean" against "model" -- see ?hindcast_skill.
+  mase <- NULL
+  if (length(peel_results)) {
+    # intersect, not stop: hindcast_skill() refuses an unreported quantity
+    # because the caller named it, but here the three are this function's own
+    # choice and a fit that cannot report one should still return a retro. Say
+    # so rather than drop it silently.
+    .want <- c("ssb", "biomass", "R")
+    .q <- intersect(.want, names(object$quantities))
+    if (length(.q) < length(.want)) {
+      message("Forecast skill scored on ", paste(.q, collapse = ", "),
+              "; this fit does not report ",
+              paste(setdiff(.want, .q), collapse = ", "), ".")
+    }
+    .by <- .rce_mase_by_year_model(object, peel_results, .q)
+    if (length(.by)) {
+      mase <- .rce_mase_aggregate(do.call(rbind, .by))
+      mase$forecast_rec <- forecast_rec
+      mase <- mase[, c("forecast_rec", setdiff(names(mase), "forecast_rec"))]
+    }
+  }
+
   structure(list(Rceattle_list = mod_list, mohns = rbind(mohns),
+                 mase = mase,
                  peels_requested = length(peel_seq),
                  peel_depths = peel_seq),
             class = "Rceattle_retro")
@@ -1011,8 +1081,27 @@ print.Rceattle_retro <- function(x, band = 0.2, ...) {
       c(".tag", "Object", "N", spp), c(" ", "quantity", "N", spp)))
   }
   if (any(!is.na(m[["Forecast year"]]) & m[["Forecast year"]] > 0)) {
-    cat("  forecast-skill peels are in $mohns; the +/-", band,
+    cat("  rows above forecast year 0 are BIAS at that horizon; the +/-", band,
         "rule is for the terminal peel only\n")
+  }
+  # Bias without skill is how a model that is unbiased on average and wrong
+  # every year reads as fine, so say the skill table is there. Naming
+  # forecast_rec matters: under the default "mean" every model forecasts by the
+  # same rule, so these numbers compare FITS, not projection rules.
+  if (!is.null(x$mase) && nrow(x$mase)) {
+    .fr <- unique(x$mase$forecast_rec)
+    cat("  forecast SKILL (MASE) is in $mase, per years_ahead, ",
+        "forecast_rec = \"", .fr[1], "\"\n", sep = "")
+    if (identical(.fr[1], "mean")) {
+      cat("    that is the MEAN-recruitment projection, the same rule for ",
+          "every model:\n    re-run with forecast_rec = \"model\" to score ",
+          "the model's own\n", sep = "")
+    }
+    .thin <- x$mase[!is.na(x$mase$mase) & x$mase$n_peels < 2L, ]
+    if (nrow(.thin)) {
+      cat("    ", nrow(.thin), " row(s) rest on a single peel (the deepest ",
+          "horizons); read n_peels\n", sep = "")
+    }
   }
   invisible(x)
 }

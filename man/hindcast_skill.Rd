@@ -76,8 +76,11 @@ avoid refitting when both are wanted. Note a \code{retro} computed with
 A list with
 \describe{
 \item{\code{mase}}{one row per years-ahead x species x quantity, with \code{mase},
-\code{mae_forecast}, \code{mae_naive} and \code{n_peels}, the number of peels averaged
-over at that horizon.}
+\code{mae_forecast}, \code{mae_naive}, \code{n_peels} -- how many peels were averaged
+at that horizon -- and \code{peels_used}, which ones. A peel that could not
+be scored at a horizon (an NA in its forecast years, or a species with
+\code{estDynamics > 0}, whose numbers-at-age are input and so was never
+forecast) is left out of both rather than nulling the row.}
 \item{\code{by_year}}{the underlying series: peel, species, quantity, year,
 years-ahead, \code{forecast}, \code{reference}, \code{naive}.}
 }

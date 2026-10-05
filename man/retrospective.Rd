@@ -71,8 +71,28 @@ projection methods -- see \code{\link[=hindcast_skill]{hindcast_skill()}}, which
 scripts keep working. Supplying both is an error.}
 }
 \value{
-a list of 1. list of Rceattle models and 2. vector of Mohn's rho for
-each species.
+a list of 1. list of Rceattle models, 2. Mohn's rho for each species
+(\verb{$mohns}) and 3. forecast skill (\verb{$mase}).
+
+\verb{$mohns} and \verb{$mase} answer different questions and are on different grids.
+Rho is a SIGNED relative error, so errors cancel across peels and it
+measures bias; its \verb{Forecast year} runs \code{0:nyrs_forecast} with 0 the peel's
+terminal year, and species are COLUMNS. MASE is an absolute error scaled by
+"assume nothing changes", so it measures skill and \code{MASE < 1} beats
+persistence; its \code{years_ahead} runs \code{1:max(peels)} and species are ROWS.
+They coincide only over \code{1:min(nyrs_forecast, max(peels))}, so join them by
+horizon rather than positionally.
+
+\verb{$mase} carries \code{forecast_rec}, because it scores whatever that argument
+asked for. Under the default \code{"mean"} every model projects the peeled years
+at its own historical mean whatever process it carries, so two models'
+tables differ by their hindcast FITS, not their projection rules. Use
+\code{forecast_rec = "model"} to score the model's own rule, and see
+\code{\link[=hindcast_skill]{hindcast_skill()}} to compare the two on one fit. \code{n_peels} and \code{peels_used}
+say how many peels, and which, a row rests on: a horizon \code{h} is scored only
+by peels at least \code{h} deep, so the deepest rows rest on one or two fits.
+A species with \code{estDynamics > 0} is \code{NA} -- its numbers-at-age are input,
+so it was never forecast.
 
 A peel that did not converge is dropped, so \code{Rceattle_list} can be
 shorter than one plus the number of peels asked for (a message reports how

@@ -134,8 +134,11 @@
 #' @return A list with
 #'   \describe{
 #'     \item{`mase`}{one row per years-ahead x species x quantity, with `mase`,
-#'       `mae_forecast`, `mae_naive` and `n_peels`, the number of peels averaged
-#'       over at that horizon.}
+#'       `mae_forecast`, `mae_naive`, `n_peels` -- how many peels were averaged
+#'       at that horizon -- and `peels_used`, which ones. A peel that could not
+#'       be scored at a horizon (an NA in its forecast years, or a species with
+#'       `estDynamics > 0`, whose numbers-at-age are input and so was never
+#'       forecast) is left out of both rather than nulling the row.}
 #'     \item{`by_year`}{the underlying series: peel, species, quantity, year,
 #'       years-ahead, `forecast`, `reference`, `naive`.}
 #'   }
@@ -206,32 +209,8 @@ hindcast_skill <- function(object = NULL, peels = 5,
   } else as.character(seq_len(nspp))
 
   by_year <- list()
-  if ("model" %in% reference) for (m in peel_models) {
-    ep <- m$data_list$endyr_peel
-    # A peel with no forecast years (endyr_peel == endyr) scores nothing.
-    if (is.null(ep) || ep >= endyr) next
-    fyrs <- (ep + 1):endyr
-    cols <- fyrs - styr + 1L
-    last <- ep - styr + 1L
-
-    for (q in quantity) {
-      ref <- object$quantities[[q]]
-      fc  <- m$quantities[[q]]
-      if (is.null(fc) || ncol(fc) < max(cols)) next
-      for (sp in seq_len(nspp)) {
-        by_year[[length(by_year) + 1L]] <- data.frame(
-          peel        = endyr - ep,
-          species     = spnames[sp],
-          quantity    = q,
-          year        = fyrs,
-          years_ahead = seq_along(fyrs),
-          forecast    = as.numeric(fc[sp, cols]),
-          reference   = as.numeric(ref[sp, cols]),
-          # "Assume nothing changes": the peel's own terminal estimate held flat.
-          naive       = as.numeric(fc[sp, last]),
-          stringsAsFactors = FALSE)
-      }
-    }
+  if ("model" %in% reference) {
+    by_year <- .rce_mase_by_year_model(object, peel_models, quantity)
   }
   # --- reference = "observed": classic hindcast cross-validation ----------
   # A peel's index_data is filtered to endyr_peel, so its index_hat has no rows
@@ -397,6 +376,86 @@ hindcast_skill <- function(object = NULL, peels = 5,
   # peels. That is where the "a one-year MASE is dominated by its own
   # denominator" caveat came from -- a property of the mis-grouping, not of the
   # statistic.
+  mase <- .rce_mase_aggregate(by_year)
+
+  list(mase = mase, by_year = by_year)
+}
+
+
+#' Score a peeled forecast against the full model, one row per peel-year.
+#'
+#' The `reference = "model"` half of [hindcast_skill()], shared with
+#' [retrospective()] so the statistic has ONE implementation. Each peel's
+#' estimate over the years it did not see is compared to the unpeeled model's,
+#' with the peel's own terminal estimate held flat as the baseline.
+#'
+#' @param object the unpeeled fit.
+#' @param peel_models the peels, excluding `object` itself.
+#' @param quantity which reported quantities to score.
+#' @return a list of data frames, one per peel x quantity x species, with
+#'   `peel`, `species`, `quantity`, `year`, `years_ahead`, `forecast`,
+#'   `reference` and `naive`. Empty where no peel has forecast years.
+#' @noRd
+.rce_mase_by_year_model <- function(object, peel_models, quantity) {
+  styr  <- object$data_list$styr
+  endyr <- object$data_list$endyr
+  nspp  <- object$data_list$nspp
+  spnames <- object$data_list$spnames %||% as.character(seq_len(nspp))
+
+  out <- list()
+  for (m in peel_models) {
+    ep <- m$data_list$endyr_peel
+    # A peel with no forecast years (endyr_peel == endyr) scores nothing.
+    if (is.null(ep) || ep >= endyr) next
+    fyrs <- (ep + 1):endyr
+    cols <- fyrs - styr + 1L
+    last <- ep - styr + 1L
+
+    for (q in quantity) {
+      ref <- object$quantities[[q]]
+      fc  <- m$quantities[[q]]
+      if (is.null(fc) || is.null(ref) || ncol(fc) < max(cols)) next
+      for (sp in seq_len(nspp)) {
+        # A species with input numbers-at-age was not forecast: estDynamics > 0
+        # makes the peel reproduce the parent bit for bit, so the forecast error
+        # is 0 and the MASE would read as perfect skill for a series the model
+        # copied from its input. Scored NA instead -- the convention here for a
+        # quantity that cannot be judged.
+        .fixed <- isTRUE((object$data_list$estDynamics %||% 0)[sp] > 0)
+        out[[length(out) + 1L]] <- data.frame(
+          peel        = endyr - ep,
+          species     = spnames[sp],
+          quantity    = q,
+          year        = fyrs,
+          years_ahead = seq_along(fyrs),
+          forecast    = if (.fixed) NA_real_ else as.numeric(fc[sp, cols]),
+          reference   = as.numeric(ref[sp, cols]),
+          # "Assume nothing changes": the peel's own terminal estimate held flat.
+          naive       = if (.fixed) NA_real_ else as.numeric(fc[sp, last]),
+          stringsAsFactors = FALSE)
+      }
+    }
+  }
+  out
+}
+
+
+#' Mean absolute scaled error, per horizon, averaged across peels.
+#'
+#' Kell et al. (2021) eq. 5. The sums run over \eqn{t = T-n \ldots T} at a
+#' FIXED \eqn{h}, so each peel contributes one term at a given steps-ahead and
+#' the mean is over peels -- not over horizons within a peel, which is the
+#' transpose and was what this computed before 5.23.0.9002.
+#'
+#' Shared by [hindcast_skill()] and [retrospective()]; eq. 5 is implemented
+#' once, here.
+#'
+#' @param by_year rows from [.rce_mase_by_year_model()] or the observed path.
+#' @return one row per `years_ahead` x `species` x `quantity`, with `n_peels`,
+#'   `peel_depths` (which peels the row rests on), `mae_forecast`, `mae_naive`
+#'   and `mase`.
+#' @noRd
+.rce_mase_aggregate <- function(by_year) {
   key <- interaction(by_year$years_ahead, by_year$species, by_year$quantity,
                      drop = TRUE, lex.order = TRUE)
   mase <- do.call(rbind, lapply(split(by_year, key), function(z) {
@@ -406,16 +465,33 @@ hindcast_skill <- function(object = NULL, peels = 5,
     # may legally carry two index rows in the same Year at different Months
     # (data_check() tests duplicates on Fleet_code/Year/Month), and both land in
     # the same years_ahead from the same peel. Averaging within the peel first
-    # stops it being weighted twice, and makes n_peels a count of PEELS rather
-    # than of rows.
+    # stops it being weighted twice, and makes n_peels a count of PEELS.
     af <- tapply(abs(z$forecast - z$reference), z$peel, mean)
     an <- tapply(abs(z$naive    - z$reference), z$peel, mean)
-    mae_f <- mean(af)
-    mae_n <- mean(an)
+    # A peel that could not be scored -- an NA anywhere in its forecast years,
+    # or a species whose dynamics are fixed -- drops OUT rather than nulling the
+    # horizon for every other peel. n_peels and peels_used then count what
+    # actually contributed, which is what those columns claim to mean. With no
+    # peel left the row is NA, not a mean of nothing.
+    .ok <- !is.na(af) & !is.na(an)
+    af <- af[.ok]
+    an <- an[.ok]
+    mae_f <- if (length(af)) mean(af) else NA_real_
+    mae_n <- if (length(an)) mean(an) else NA_real_
     data.frame(
       years_ahead  = z$years_ahead[1], species = z$species[1],
       quantity     = z$quantity[1],
       n_peels      = length(af),
+      # WHICH peels contributed, not just how many. For a contiguous `peels`
+      # with nothing dropped this is just h:max(peels) and adds nothing -- it
+      # earns its place when `peels` is a subset like c(2,5,9), when a peel was
+      # dropped as non-converged, or when one was skipped as unscoreable above,
+      # since then n_peels alone cannot say WHICH fits the row rests on.
+      #
+      # Named peels_used, not peel_depths: retrospective()'s own $peel_depths is
+      # the depths REQUESTED, including ones that were dropped, and two columns
+      # a level apart with the same name and different meanings read as a bug.
+      peels_used   = paste(sort(as.integer(names(af))), collapse = ","),
       mae_forecast = mae_f,
       mae_naive    = mae_n,
       # NA rather than Inf when persistence was exactly right: an undefined
@@ -427,7 +503,5 @@ hindcast_skill <- function(object = NULL, peels = 5,
       stringsAsFactors = FALSE)
   }))
   rownames(mase) <- NULL
-  mase <- mase[order(mase$quantity, mase$species, mase$years_ahead), ]
-
-  list(mase = mase, by_year = by_year)
+  mase[order(mase$quantity, mase$species, mase$years_ahead), ]
 }
