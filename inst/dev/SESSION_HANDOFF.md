@@ -5,9 +5,24 @@ session. Maintained by `/handoff`.
 
 ## Now
 
-**`dev` is at 5.49.6** (`07aef07f`). Merged since the release: #190-#194, then **#195**
-(`source-guards.yaml`) and **#196** (bug history out of comments). **PR #197 is open**
-(`fix/m1-padding-finite`, 5.50.0), verified and rebased.
+**`dev` is at 5.52.0** (`4f494f60`), no PR open. Merged since the release: #190-#194, #195
+(`source-guards.yaml`), #196 (bug history out of comments), #198, #200, #201, then a stack of
+four landed in version order:
+
+| PR | version | what it fixed |
+|---|---|---|
+| #202 | 5.49.8 | the per-block guard check could not see a `testthat::test_that(` block -- 30 blocks across five files -- and two holes its own first fix left |
+| #197 | 5.50.0 | `log_M1` carried non-finite starting values on two paths that disagreed; a short `M1_base` row now carries its last age forward with a warning |
+| #199 | 5.51.0 | a padding sex cell shared a map level with the real cells, so the starting M was pulled toward 1.0/yr (+57% pollock, +41% cod on `GOA2018SS`) |
+| #203 | 5.52.0 | `build_map_growth()`'s fixed stride made species *sp*'s MALE growth block species *sp+1*'s FEMALE block; CAAL endpoints are now a per-species min/max |
+
+**None of the three numeric defects was visible to `/golden-check`**: all four references run
+`M1_model = 0` and `growth_model = 0`, where both affected map blocks are entirely `NA`. What did
+cover them: purpose-built tests (20, 24 and 29 assertions), and
+`tools/verify/verify-golden-cold-start.R`, which reproduced all four references to ~1e-11 on each
+of the three branches with identical deltas -- the check golden block 1 structurally cannot do,
+since it warm-starts and never re-optimizes. Run that harness for any starting-value or bounds
+change.
 
 **`source-guards.yaml` is new, and it is the thing a next session must know.** Sixteen test files
 assert that two hand-synced copies of something agree, by reading `R/*.R` and `src/TMB/*.cpp` off
@@ -20,29 +35,38 @@ fatal.
   * **Adding or removing a test that reads `R/*.R` or `src/TMB/*` means updating `EXPECTED` in
     `tools/ci/source-guards.R`**, which pins the set BY NAME so the diff says which guard moved.
     A count would not: 11 of the 16 are named nowhere else and could be deleted silently.
-  * Its measured-nothing check is **per BLOCK**, not per file. Two earlier drafts checked per
-    file and adversarial review broke both, because most of these files hold several
-    `test_that()` blocks. See `TRAPS.md`, "The guards are not themselves guarded".
+  * Its measured-nothing check is **per BLOCK**, not per file, and 5.49.8 (#202) fixed it twice
+    over: the block regex matched only the bare `test_that(` spelling, so 30 blocks across five
+    files were invisible; and two conditions it computed were reported and then left out of the
+    `stop()`. Now a target whose EVERY block skipped is a failure (unless every block in it is
+    allow-listed -- that is `test-likelihood-caal-afsc.R`, whose three blocks all need a fit this
+    job deliberately does not build), blocks in a helper-read file are listed as `(+n via
+    helper)` under a weaker rule, and a dead `INCIDENTAL_BLOCKS` label is refused by name. All
+    four conditions are mutation-proven. See `TRAPS.md`, "The guards are not themselves guarded".
+  * **The job runs at `NOT_CRAN=false` by design**, so every `skip_on_cran()` block skips. That
+    is why the per-block rule has to be weaker for a helper-read file, and why "no block may
+    skip" is not available as a rule.
   * It makes the check APPEAR on a PR; making it REQUIRED is a branch-protection setting this
     repo does not hold as code. **Grant's call, and the one thing left to finish that work.**
 
-**PR #197, `log_M1` padding.** `log_M1` is dimensioned to the widest species, so a species with
-fewer sexes or ages leaves padding cells, and the two fill paths disagreed: `build_params()` read
-`1:max_age` from an `M1_base` row that is legitimately blank past the species' last age
-(`log(NA)`); `fit_mod(updateM1 = TRUE)` initialized at 0 (`log(0) = -Inf`). 11 and 53 non-finite
-cells of 126 on `GOA2018SS`, 18 on `BS2017SS`; now 0, and both paths agree. No fit moves --
-all six golden blocks, cold `GOA2018SS` identical to fifteen digits in both `msmMode`, and
-`M1_model` 1/2/3 identical in objective and parameter count. It is a **latent** trap, not a live
-wrong number: every template reader is bounded by the species' own dimensions, so
-`CLEANUP_BACKLOG.md` filing this class as Tier 0 is the wrong tier for this one. Two traps worth
-carrying forward:
+**Three facts from that stack a next session should not re-derive:**
 
-  * **Golden block 1 cannot verify a `log_M1` fill change.** It warm-starts from reference
-    `inits` that already carry the non-finite cells, so the fill is overridden. Blocks 2-6
-    cold-build `BS2017SS` and are the real evidence.
-  * **Under `M1_model >= 1` the padding sex cells are ESTIMATED, not inert.** `build_map_m1()`
-    writes `[sp, , 1:nages_sp]` -- a bare comma -- so they take a map index and join a shared
-    block.
+  * **Golden block 1 cannot verify a starting-value change.** It warm-starts from reference
+    `inits`, so `build_params()`'s output is used only as a name/order skeleton and thrown away.
+    `fixtures/golden-reference.rds` carries 11-18 non-finite `log_M1` cells and block 1 passes
+    them straight through -- harmless, and it proves a non-finite constant in a **mapped-off**
+    `PARAMETER_ARRAY` is inert, since the block asserts the objective to 1e-10 relative at
+    exactly those parameters. All of those cells are padding; none is real.
+  * **`fit_mod()` builds a `build_params()` skeleton even on the `inits` branch**
+    (`R/6-fit_mod.R`, to fix parameter order), so a refusal added inside `build_params()` fires
+    on EVERY path -- including `retrospective()`, `self_test()`, `refit_like()` and `run_mse()`.
+    An earlier draft of #197 refused a short `M1_base` row and would have stopped
+    `Rceattle-models/AI cod - Dev/Data/2024_AI_cod.xlsx` fitting at all. Verified after the
+    change: it builds, all 13 real ages at 0.492942, with a warning naming the gap.
+  * **`seq_len()` makes a map depend on its argument's TYPE.** `seq_len(factor("2"))` is `1`, not
+    `1:2`, so a factor `nsex` would silently leave a two-sex species' male M1 fixed. Unreached
+    (`nsex` is schema-typed integer and numeric on every bundled dataset) and a local coercion
+    would be false comfort, since `as.integer(factor("2"))` is also 1. Filed, not fixed.
 
 **THE GOA MULTISPECIES ASSESSMENT IS IN A CONFIGURATION AFFECTED BY AN M1 MAP DEFECT.** Its 2025
 workbook has `nsex` `c(1, 2, 1)` and `R/02_fit_models.R` sets `M1_model =
@@ -263,6 +287,23 @@ optimizer explains neither. See the 5.45.1 NEWS entry and `TRAPS.md`.
 SS3 cod bridge: `initMode 6`, the SS3 growth / maturity / length-bin options,
 `Selectivity = "DoubleNormalSS3"` (code 15), length-based selectivity on the population bins,
 the initial equilibrium catch, and a per-fleet ageing error matrix.
+
+## Next, in the order I would take them
+
+1. **`M1_re > 0` is silently inert under `M1_model` 3, 4 and 5** (and partly under 2), because
+   every random-effect arm in `build_map_m1()` is nested inside an `M1_model` test. Measured on
+   `GOA2018SS`: `log_M1_dev` frees **0** parameters for every `M1_re` 1-6, while
+   `M1_dev_log_sd` still frees **6** and `M1_rho` up to **12** -- hyperparameters with no
+   deviations to scale. `M1_model = 4` raises **no condition at all**. A user asking for
+   time-varying M gets constant M plus up to 18 unidentified parameters. Decide refuse-at-the-
+   boundary vs implement-the-missing-arms; either way map the sd and rho off when the deviations
+   are. The best-measured open item in `CLEANUP_BACKLOG.md`.
+2. **Whether the GOA multispecies assessment's own fit moves is unmeasured**, and the decision
+   not to refit was taken while this file said phasing made it moot -- it does not, see below.
+3. **Branch protection for the guards job** (above). Grant's call.
+4. `retrospective()` reuses the stored map (`R/9-retro_and_jitter.R:249`), so no map fix reaches
+   a warm start, and the second pass of the same call rebuilds it -- one peel fitted and
+   reported under different parameter counts. Filed.
 
 ## 5.49.0 review pass on PR #184 (2026-10-02/03)
 
