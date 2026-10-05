@@ -126,10 +126,11 @@ EXPECTED <- c(
 # trimming one would stop it matching.)
 INCIDENTAL_BLOCKS <- c(
   # Reads src/TMB only to find the JNLL_CAAL row index, for assertions about a
-  # fitted model. All three blocks need a fit.
-  "test-likelihood-caal-afsc.R::the AFSC multinomial CAAL likelihood matches a hand computation",
-  "test-likelihood-caal-afsc.R::MultinomialAFSC CAAL is scored on the CAAL row, not the age row",
-  "test-likelihood-caal-afsc.R::the AFSC CAAL form is reported and round-trips"
+  # fitted model. All three blocks need a fit, and this job loads the package
+  # with compile = FALSE, so they skip here.
+  "test-likelihood-caal-afsc.R::CAAL_distribution = 'MultinomialAFSC' fits instead of erroring",
+  "test-likelihood-caal-afsc.R::the CAAL AFSC value is the AFSC form, computed from its own inputs",
+  "test-likelihood-caal-afsc.R::the AFSC CAAL family is a different likelihood from the multinomial"
 )
 
 all_tests <- list.files(test_dir, pattern = "^test-.*[.][rR]$",
@@ -175,6 +176,29 @@ source_reading_blocks <- function(f) {
   hits
 }
 
+
+# Blocks in a file that reads source only in a TOP-LEVEL helper. The helper's
+# output is what they all assert on, but this job runs at NOT_CRAN=false
+# against no DLL, so a `skip_on_cran()` fit block in one of them skips
+# legitimately. They are therefore held to a weaker rule than a body-matching
+# block: no result row, or ran-but-asserted-nothing, is a failure; a skip is
+# not. The whole-file rule below is what catches a blackout.
+helper_read_blocks <- function(f) {
+  if (length(source_reading_blocks(f))) return(character())
+  block_labels(f)
+}
+
+
+# Every label in the allow-list must name a real block in a real target, or
+# the exemption is silently dead: a renamed block drops out of the per-block
+# check and the job still reports it as exempt.
+block_labels <- function(f) {
+  ln <- readLines(f, warn = FALSE)
+  starts <- grep("^\\s*(testthat::)?test_that\\(", ln)
+  sub("^\\s*(testthat::)?test_that\\(\\s*[\"'](.*?)[\"']\\s*,.*$", "\\2",
+      ln[starts])
+}
+
 # A target with no parsed `test_that` block means the block regex has gone
 # stale, which silently disables the per-block check for that whole file.
 # That is how the namespaced spelling hid 29 blocks, so assert it rather than
@@ -187,6 +211,17 @@ if (length(unparsed)) {
        paste(unparsed, collapse = ", "),
        ". The block regex is stale, so the measured-nothing check would skip ",
        "these files entirely.")
+}
+
+known <- unlist(lapply(targets, function(f) {
+  paste0(basename(f), "::", block_labels(f))
+}), use.names = FALSE)
+if (length(setdiff(INCIDENTAL_BLOCKS, known))) {
+  stop("source-guards: these INCIDENTAL_BLOCKS entries name no block that ",
+       "exists:\n  ", paste(setdiff(INCIDENTAL_BLOCKS, known),
+                            collapse = "\n  "),
+       "\nA dead exemption drops its block out of the per-block check while ",
+       "the job still counts it as exempt. Fix the label or drop the entry.")
 }
 
 cat(sprintf("source-guards: %d source-reading test files, %d exempt blocks\n",
@@ -220,13 +255,15 @@ for (f in targets) {
 
   n_fail <- sum(res$failed) + sum(res$error)
   blocks <- source_reading_blocks(f)
-  cat(sprintf("  %-46s fail=%-3d pass=%-5d skip=%-3d blocks=%d\n",
-              nm, n_fail, sum(res$passed), sum(res$skipped), length(blocks)))
+  helper <- helper_read_blocks(f)
+  cat(sprintf("  %-46s fail=%-3d pass=%-5d skip=%-3d blocks=%d%s\n",
+              nm, n_fail, sum(res$passed), sum(res$skipped), length(blocks),
+              if (length(helper)) sprintf(" (+%d via helper)", length(helper))
+              else ""))
   if (n_fail > 0) failed <- c(failed, nm)
-  if (!length(blocks)) no_block_cover <- c(no_block_cover, nm)
 
-  # Per-block: every block that reads source must have asserted something and
-  # must not have skipped.
+  # Per-block: a block whose own body reads source must have asserted
+  # something and must not have skipped.
   for (lab in blocks) {
     key <- paste0(nm, "::", lab)
     if (key %in% INCIDENTAL_BLOCKS) next
@@ -240,6 +277,29 @@ for (f in targets) {
       dark_blocks <- c(dark_blocks, paste0(key, "  (asserted nothing)"))
     }
   }
+  # Weaker rule for a helper-read file: a skip is allowed, asserting nothing
+  # while not skipping is not.
+  for (lab in helper) {
+    key <- paste0(nm, "::", lab)
+    if (key %in% INCIDENTAL_BLOCKS) next
+    row <- res[res$test == lab, , drop = FALSE]
+    if (nrow(row) && sum(row$skipped) == 0L && sum(row$passed) == 0L &&
+        sum(row$failed) + sum(row$error) == 0L) {
+      dark_blocks <- c(dark_blocks, paste0(key, "  (ran, asserted nothing)"))
+    }
+  }
+
+  # Whole-file rule, and the one that closes the demonstrated hole: a target
+  # whose EVERY block skipped has exercised its source read not at all, and
+  # the per-block loop above cannot say so for a helper-read file. Adding a
+  # `skip()` to the one block that still ran used to leave the job green.
+  # A file whose every block is allow-listed is exempt by declaration -- that
+  # is caal-afsc, whose three blocks all need a fit this job does not build.
+  all_exempt <- all(paste0(nm, "::", block_labels(f)) %in% INCIDENTAL_BLOCKS)
+  if (sum(res$passed) == 0L && n_fail == 0L && !all_exempt) {
+    no_block_cover <- c(no_block_cover,
+                        paste0(nm, "  (every block skipped)"))
+  }
 }
 
 report <- function(what, items) {
@@ -249,17 +309,18 @@ report <- function(what, items) {
 }
 report("guards that returned no result rows (file-level skip?)", no_rows)
 report("source-reading BLOCKS that measured nothing", dark_blocks)
-# Not a failure: a file reading source through a top-level helper has no block
-# whose own body matches, so only the zero-row check covers it. Printed so the
-# limit is visible rather than mistaken for coverage.
-report("files with NO per-block cover (source read in a top-level helper)",
-       no_block_cover)
+report("targets whose every block skipped", no_block_cover)
 
 if (length(failed)) {
   stop("source-guards: failures in ", paste(failed, collapse = ", "))
 }
-if (length(no_rows) || length(dark_blocks)) {
-  stop("source-guards: ", length(no_rows) + length(dark_blocks),
+# A target that asserted nothing at all is a failure, not a note: its source
+# read was never exercised, whichever block the read sits in. That is the case
+# a `skip()` added to the last running block of a helper-read file produced,
+# and the job used to report it as "all passed".
+if (length(no_rows) || length(dark_blocks) || length(no_block_cover)) {
+  stop("source-guards: ",
+       length(no_rows) + length(dark_blocks) + length(no_block_cover),
        " guard(s) measured nothing, which is the failure this job exists to ",
        "catch")
 }

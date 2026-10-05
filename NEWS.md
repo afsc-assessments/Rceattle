@@ -16,27 +16,50 @@ version throughout.
 
 ## Internal
 
-* **`source-guards.yaml`'s per-block check covered none of four of its own sixteen files.**
-  `source_reading_blocks()` matched only the bare `test_that(` spelling, and
-  `test-linkage-encode.R`, `test-linkage-selectivity-apical.R`, `test-schema-jnll-rows.R` and
-  `test-schema-quantity-dictionary.R` are written entirely as `testthat::test_that(` -- 29 blocks
-  invisible to the one check that exists to catch a silently skipped guard. Proven before fixing:
+* **`source-guards.yaml`'s per-block check could not see a namespaced `test_that(` block.**
+  `source_reading_blocks()` matched only the bare spelling, so **30 blocks across five** of its
+  own sixteen files were invisible to the one check that exists to catch a silently skipped
+  guard. Four are written entirely as `testthat::test_that(` -- `test-linkage-encode.R`,
+  `test-linkage-selectivity-apical.R`, `test-schema-jnll-rows.R`,
+  `test-schema-quantity-dictionary.R` -- and the fifth, `test-schema-cpp-dispatch.R`, mixes the
+  two: its sixth block is namespaced and reads `selectivity.hpp`, so that file's cover goes 4
+  to 5. (An earlier draft of this entry said 29 blocks across four files, having missed the mixed
+  file -- which is the one the job header cites as the motivating case.) Proven before fixing:
   adding a `skip()` to a block in `test-schema-jnll-rows.R` left the job reporting "all passed",
-  exit 0. It now matches both spellings, and three of those four files gain per-block cover.
+  exit 0.
 * **The job now refuses to run if the block regex parses nothing**, which is how that hole stayed
   open: a stale pattern silently disables the per-block check for a whole file rather than
   failing. Mutation-proven -- breaking the regex names all sixteen files and exits 1.
-* **The per-block coverage is now printed per file (`blocks=`), because it is not complete and the
-  previous wording implied it was.** A block is checked only when its own body matches a discovery
-  pattern; three files read source through a top-level helper (`cpp_source()` in
-  `test-schema-jnll-rows.R` is the shape), so no block body matches and only the zero-row check
-  applies. A `blocks=0` means no per-block cover, not nothing to cover. Requiring that no block in
-  such a file skips is not viable: most of these files legitimately skip their fit blocks under
-  `NOT_CRAN=false`.
+* **The per-block coverage is printed per file (`blocks=`), because it is not uniform.** A block
+  is held to the strict rule -- asserted something, did not skip -- only when its own body matches
+  a discovery pattern. Three files read source through a top-level helper instead
+  (`test-likelihood-caal-afsc.R`, `test-schema-quantity-dictionary.R`, `test-vignette-api.R`), and
+  those blocks are now listed too, as `(+n via helper)`, under a weaker rule: running and
+  asserting nothing is a failure, skipping is not. It has to be weaker, because the job runs at
+  `NOT_CRAN=false` by design and a `skip_on_cran()` fit block in one of those files skips
+  legitimately.
+* **A target whose every block skipped is now a failure.** That is the hole the weaker rule would
+  otherwise leave, and it was demonstrated: a helper-read file with a `skip()` added to its last
+  running block passed the discovery check, passed the staleness guard, and the job printed "all
+  passed" -- because the no-per-block-cover list was reported and then left out of the `stop()`
+  condition. A file that asserts nothing has not exercised its source read, wherever the read
+  sits.
+* **A dead `INCIDENTAL_BLOCKS` exemption is now refused.** All three entries named block labels
+  that do not exist -- `test-likelihood-caal-afsc.R`'s blocks had been renamed -- so the
+  exemptions matched nothing while the job still printed "3 exempt blocks". The labels are
+  corrected and every entry must now resolve to a real block in a real target, or the job stops
+  and names it.
+* Both new conditions are mutation-proven, as the first fix was. Pointing one exemption at a
+  label nobody has exits 1 with "name no block that exists"; adding a `skip()` to both blocks of
+  `test-vignette-api.R` exits 1 with "test-vignette-api.R  (every block skipped)". The clean tree
+  exits 0. A file whose *every* block is allow-listed is exempt from the whole-file rule by
+  declaration -- that is `test-likelihood-caal-afsc.R`, whose three blocks all need a fit this
+  job deliberately does not build.
 
 This is the third instance of one pattern in as many days -- a guard measuring less than it
-claims -- and the second inside the machinery built to catch it. The first was the sixteen guards
+claims -- and the second and third inside the machinery built to catch it. The first was the sixteen guards
 of 5.49.5; `inst/dev/TRAPS.md` has the class.
+
 # Rceattle 5.49.7
 
 ## Internal
