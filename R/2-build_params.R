@@ -196,11 +196,41 @@ build_params <- function(data_list) {
     # two-column target and NA for whichever species lacks that ordinal.
     caal_lengths <- data_list$caal_data |>
       dplyr::group_by(Species) |>
-      dplyr::summarise(L1 = min(Length), Linf = max(Length), .groups = "drop")
+      dplyr::summarise(L1 = min(Length, na.rm = TRUE),
+                       Linf = max(Length, na.rm = TRUE), .groups = "drop")
+    # A species whose lengths are all NA gives Inf/-Inf here, and an NA or
+    # infinite start reaches MakeADFun() and returns NaN. Refuse it by name:
+    # taking the min of a blank column silently is how a starting length of
+    # NA would reach a fit.
+    bad <- !is.finite(caal_lengths$L1) | !is.finite(caal_lengths$Linf) |
+      caal_lengths$L1 <= 0
+    if (any(bad)) {
+      stop("caal_data gives no usable length range for species ",
+           paste(caal_lengths$Species[bad], collapse = ", "),
+           ". L1 and L-infinity start at the smallest and largest length with ",
+           "CAAL data, so each species needs at least one finite positive ",
+           "Length.", call. = FALSE)
+    }
+    # L1 == L-infinity makes K's gradient identically zero: length_hat is
+    # linf + (l1 - linf) * exp(-K * .), so d/dK carries the (l1 - linf) factor
+    # and the optimizer cannot move K off its start. Warn rather than refuse --
+    # one observed length is legitimate data -- but a K that reports converged
+    # without ever moving should not be quiet.
+    flat <- caal_lengths$L1 == caal_lengths$Linf
+    if (any(flat)) {
+      warning("Species ", paste(caal_lengths$Species[flat], collapse = ", "),
+              " has one distinct CAAL length, so L1 equals L-infinity and the ",
+              "growth K has no gradient at the starting values: it will stay ",
+              "at its start and still report as converged.", call. = FALSE)
+    }
+    # Indexing an array with a factor uses its integer CODES, so a Species
+    # column read as a factor of c("2", "3") would write species 1 and 2.
+    # Coerced through character, as the M1_base loop above does.
+    caal_sp <- as.numeric(as.character(caal_lengths$Species))
     endpoints <- as.matrix(log(caal_lengths[, c("L1", "Linf")]))
-    param_list$log_growth_pars[caal_lengths$Species, 1, 2:3] <- endpoints
+    param_list$log_growth_pars[caal_sp, 1, 2:3] <- endpoints
     if(max_sex == 2){
-      param_list$log_growth_pars[caal_lengths$Species, 2, 2:3] <- endpoints
+      param_list$log_growth_pars[caal_sp, 2, 2:3] <- endpoints
     }
   }
 

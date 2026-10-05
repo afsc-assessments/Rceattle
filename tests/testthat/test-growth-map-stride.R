@@ -13,14 +13,18 @@
 #   nsex c(2,2,2)  12 of 18            6 lost
 #   nsex c(1,2)     9 of 9             none: a TRAILING two-sex species is safe
 #
-# Not reachable by anything shipping, which is why no test caught it: no
-# bundled dataset sets `growth_model` (the schema default is 0), all four
-# golden references run 0, every multispecies sibling config uses
-# `build_growth(fun = "empirical")`, and every parametric-growth consumer is
-# single-species -- immune, since the collision needs a species sp+1. It arms
-# the moment parametric growth goes on a multispecies model with a non-trailing
-# two-sex species, which is the shape of the GOA multispecies assessment
-# (arrowtooth is two-sex at species 2 of 3).
+# Not reachable by anything shipping: no bundled dataset sets `growth_model`
+# (the schema default is 0), all four golden references run 0, and every
+# multispecies sibling config uses `build_growth(fun = "empirical")`.
+#
+# The suite DOES fit multispecies parametric growth -- `test-dynamics-brps.R`
+# and `test-composition-dm-diet-weight.R` both do, on a `make_msm_test_data()`
+# fixture. They are immune because that helper sets `nsex <- rep(1, nspp)`
+# (`helpers-make-msm-data.R:332`): the collision needs a species with two
+# sexes, and a trailing one is harmless. So what hid this was single SEX, not
+# single species. It arms the moment parametric growth goes on a multispecies
+# model with a non-trailing two-sex species, which is the shape of the GOA
+# multispecies assessment (arrowtooth is two-sex at species 2 of 3).
 #
 # The fix is a running counter, as build_map_m1() already uses. These tests
 # drive build_map() directly rather than through a fit, because reaching the
@@ -119,4 +123,33 @@ testthat::test_that("CAAL endpoints survive ragged bin counts per species", {
   testthat::expect_equal(unname(exp(gp[1, 1, 2:3])), c(10, 30))
   testthat::expect_equal(unname(exp(gp[2, 1, 2:3])), c(12, 36))
   testthat::expect_true(all(is.finite(gp[1:2, 1, 2:3])))
+})
+
+
+testthat::test_that("a two-sex multispecies fit keeps all its growth pars", {
+  # One level up from build_map(): a configuration a user can construct, fitted
+  # through fit_mod(). The old stride fused species 1's males with species 2's
+  # females, so obj$par was 3 short -- 132 against 135 -- and the objective at
+  # the STARTING values was identical either way, because this fixture gives
+  # every species the same K/L1/Linf and the mean-collapse is then a no-op.
+  # That identical start is the mechanism of the silence: the fused parameter
+  # only diverges once the optimizer moves, so a test comparing obj$fn() at the
+  # start would see nothing. Pin the parameter count instead.
+  testthat::skip_on_cran()
+  sim <- make_msm_test_data(nspp = 2, years = 1:20)
+  dd <- sim$data_list
+  dd$nsex <- c(2, 1)
+
+  fit <- suppressWarnings(suppressMessages(Rceattle::fit_mod(
+    data_list = dd, estimateMode = "DebugBuild", msmMode = 0,
+    random_rec = FALSE,
+    growthFun = Rceattle::build_growth(fun = "vonBertalanffy"),
+    fit_control = Rceattle::fit_control(verbose = 0))))
+
+  mp <- fit$obj$env$map$log_growth_pars
+  lv <- unique(as.integer(mp)[!is.na(as.integer(mp))])
+  # 3 parameters for each of sp1-female, sp1-male, sp2-female.
+  testthat::expect_equal(length(lv), 9L)
+  testthat::expect_equal(length(fit$obj$par), 135L)
+  testthat::expect_true(is.finite(fit$obj$fn(fit$obj$par)))
 })

@@ -32,21 +32,31 @@ version throughout.
   | `c(1, 2)` | 9 / 9 | none -- a *trailing* two-sex species is safe |
 
   Now a running counter, as `build_map_m1()` already uses, so the index advances by what each
-  species actually took. No collision in any configuration tested.
-* **`build_params()` no longer dies on ragged CAAL bin counts.** L1 and L-infinity start at the
-  smallest and largest length with CAAL data, taken by pivoting on the per-species bin *ordinal* --
-  so a 3-bin and a 5-bin species produced `Bin1, Bin3, Bin5`, three value columns for a
-  two-column target, with `NA` for whichever species lacked that ordinal. It failed with "number
-  of items to replace is not a multiple of replacement length". Now a per-species min and max,
-  which is what the slice was approximating and is ragged-safe. A one-bin species also worked
-  only by accident before (`slice(c(1, n()))` duplicated the row).
-* **Neither was reachable by anything shipping**, which is why no test caught either: no bundled
-  dataset sets `growth_model` (the schema default is 0), all four golden references run 0, every
-  multispecies sibling config uses `build_growth(fun = "empirical")`, and every parametric-growth
-  consumer is single-species -- immune, since the collision needs a species *sp+1*. Only
-  `whamGrowthData` carries CAAL data at all, and it is single-species. They arm the moment
-  parametric growth goes on a multispecies model with a non-trailing two-sex species, which is
-  the shape of the GOA multispecies assessment (arrowtooth is two-sex at species 2 of 3).
+  species actually took. Fitting a two-species model with `nsex = c(2, 1)` through
+  `fit_mod(estimateMode = "DebugBuild")` now gives **135** free parameters against **132**
+  before, from 9 distinct growth levels rather than 6.
+* **`build_params()` no longer dies on CAAL bin counts that differ between species.** L1 and
+  L-infinity start at the smallest and largest length with CAAL data, taken by pivoting on the
+  per-species bin *ordinal* -- so a 3-bin and a 5-bin species produced `Bin1, Bin3, Bin5`, three
+  value columns for a two-column target, with `NA` for whichever species lacked that ordinal. It
+  failed with "number of items to replace is not a multiple of replacement length". A species
+  with a single CAAL length failed differently and earlier: `slice(c(1, n()))` duplicated its one
+  row, `pivot_wider()` warned and returned a list-column, and `log()` then refused it with
+  "non-numeric-alike variable(s) in data frame". Both are now a per-species min and max, which is
+  what the slice was approximating.
+* **`build_params()` now refuses a CAAL length range it cannot use**, naming the species, rather
+  than starting L1 or L-infinity at `NA`. It also **warns when a species has one distinct CAAL
+  length**: L1 then equals L-infinity, and the growth `K` has exactly zero gradient at the
+  starting values.
+* **Neither of the two defects was reachable by anything shipping:** no bundled dataset sets
+  `growth_model` (the schema default is 0), all four golden references run 0, every multispecies
+  sibling config uses `build_growth(fun = "empirical")`, and only `whamGrowthData` carries CAAL
+  data at all. The suite *does* fit multispecies parametric growth, in `test-dynamics-brps.R`
+  and `test-composition-dm-diet-weight.R`, but `make_msm_test_data()` sets every species
+  single-sex, and the collision needs a two-sex species that is not the last one. So what hid
+  this was single sex, not single species. It arms the moment parametric growth goes on a
+  multispecies model with a non-trailing two-sex species, which is the shape of the GOA
+  multispecies assessment (arrowtooth is two-sex at species 2 of 3).
 * No golden reference moves: all four run `growth_model = 0`, where the whole growth block is
   mapped out. Verified -- six golden blocks, 21 assertions, unchanged.
 # Rceattle 5.51.0
