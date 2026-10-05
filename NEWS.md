@@ -34,7 +34,11 @@ version throughout.
   Now a running counter, as `build_map_m1()` already uses, so the index advances by what each
   species actually took. Fitting a two-species model with `nsex = c(2, 1)` through
   `fit_mod(estimateMode = "DebugBuild")` now gives **135** free parameters against **132**
-  before, from 9 distinct growth levels rather than 6.
+  before, from 9 distinct growth levels rather than 6. The recovered parameters are informed, not
+  merely free: every growth entry carries a gradient on that fixture (4.2e+06 to 1.5e+08 on
+  `log_growth_pars`, 2.1e+05 to 6.3e+05 on the SDs) and no entry in the whole vector is exactly
+  zero, which matters because a freed parameter the data cannot move gives a singular Hessian and
+  `newtonsteps` solves with it.
 * **`build_params()` no longer dies on CAAL bin counts that differ between species.** L1 and
   L-infinity start at the smallest and largest length with CAAL data, taken by pivoting on the
   per-species bin *ordinal* -- so a 3-bin and a 5-bin species produced `Bin1, Bin3, Bin5`, three

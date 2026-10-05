@@ -152,6 +152,19 @@ testthat::test_that("a two-sex multispecies fit keeps all its growth pars", {
   testthat::expect_equal(length(lv), 9L)
   testthat::expect_equal(length(fit$obj$par), 135L)
   testthat::expect_true(is.finite(fit$obj$fn(fit$obj$par)))
+
+  # Splitting a shared parameter is only an improvement if both halves are
+  # informed: a freed parameter the data cannot move gives a singular Hessian,
+  # and newtonsteps solves with it. Every growth entry carries a gradient here
+  # (4.2e+06 to 1.5e+08 on log_growth_pars, 2.1e+05 to 6.3e+05 on the SDs),
+  # and nothing in the whole vector is exactly zero.
+  g <- fit$obj$gr(fit$obj$par)
+  testthat::expect_true(all(is.finite(g)))
+  nm <- names(fit$obj$par)
+  for (blk in c("log_growth_pars", "growth_log_sd")) {
+    testthat::expect_true(all(g[nm == blk] != 0), info = blk)
+  }
+  testthat::expect_equal(sum(g == 0), 0L)
 })
 
 
