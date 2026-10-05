@@ -12,6 +12,31 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.49.8
+
+## Internal
+
+* **`source-guards.yaml`'s per-block check covered none of four of its own sixteen files.**
+  `source_reading_blocks()` matched only the bare `test_that(` spelling, and
+  `test-linkage-encode.R`, `test-linkage-selectivity-apical.R`, `test-schema-jnll-rows.R` and
+  `test-schema-quantity-dictionary.R` are written entirely as `testthat::test_that(` -- 29 blocks
+  invisible to the one check that exists to catch a silently skipped guard. Proven before fixing:
+  adding a `skip()` to a block in `test-schema-jnll-rows.R` left the job reporting "all passed",
+  exit 0. It now matches both spellings, and three of those four files gain per-block cover.
+* **The job now refuses to run if the block regex parses nothing**, which is how that hole stayed
+  open: a stale pattern silently disables the per-block check for a whole file rather than
+  failing. Mutation-proven -- breaking the regex names all sixteen files and exits 1.
+* **The per-block coverage is now printed per file (`blocks=`), because it is not complete and the
+  previous wording implied it was.** A block is checked only when its own body matches a discovery
+  pattern; three files read source through a top-level helper (`cpp_source()` in
+  `test-schema-jnll-rows.R` is the shape), so no block body matches and only the zero-row check
+  applies. A `blocks=0` means no per-block cover, not nothing to cover. Requiring that no block in
+  such a file skips is not viable: most of these files legitimately skip their fit blocks under
+  `NOT_CRAN=false`.
+
+This is the third instance of one pattern in as many days -- a guard measuring less than it
+claims -- and the second inside the machinery built to catch it. The first was the sixteen guards
+of 5.49.5; `inst/dev/TRAPS.md` has the class.
 # Rceattle 5.49.7
 
 ## Internal

@@ -51,6 +51,16 @@
 # repo (it is the idiom in 181 of 255 files), and doing it to the block that
 # guards the C++ dispatch map took 33 assertions dark with the job still green.
 #
+# WHAT THE PER-BLOCK CHECK DOES NOT COVER, because the first version of it
+# implied more than it delivered. A block is checked only when its own body
+# matches a discovery pattern. Three files read source through a TOP-LEVEL
+# helper instead -- `cpp_source()` in test-schema-jnll-rows.R is the pattern --
+# so no block body matches and only the zero-row check applies to them. The
+# per-file `blocks=` count is printed for exactly this reason: a 0 there means
+# the file has no per-block cover, not that it has nothing to cover. Requiring
+# that no block in such a file skips is not viable -- most of these files
+# legitimately skip their fit blocks when NOT_CRAN=false.
+#
 # Discovery is per LINE. Applied to a whole file as one string, `.` matches a
 # newline in R's default regex engine, which matched two files that read no
 # package source at all.
@@ -145,11 +155,15 @@ if (!setequal(basename(targets), EXPECTED)) {
 # top-level helper, outside any block, is attributed to the file as a whole.
 source_reading_blocks <- function(f) {
   ln <- readLines(f, warn = FALSE)
-  starts <- grep("^\\s*test_that\\(", ln)
+  # Both spellings. Matching only the bare form missed every block in the four
+  # guard files written entirely as `testthat::test_that(` -- 29 of them -- so
+  # the measured-nothing check below covered none of those files. A skip added
+  # to one of them left this job reporting "all passed".
+  starts <- grep("^\\s*(testthat::)?test_that\\(", ln)
   if (!length(starts)) return(character())
   # The block label, as testthat reports it in the result's `test` column.
-  labels <- sub("^\\s*test_that\\(\\s*[\"'](.*?)[\"']\\s*,.*$", "\\1",
-                ln[starts])
+  labels <- sub("^\\s*(testthat::)?test_that\\(\\s*[\"'](.*?)[\"']\\s*,.*$",
+                "\\2", ln[starts])
   ends <- c(starts[-1] - 1L, length(ln))
   hits <- character()
   for (i in seq_along(starts)) {
@@ -159,6 +173,20 @@ source_reading_blocks <- function(f) {
     }
   }
   hits
+}
+
+# A target with no parsed `test_that` block means the block regex has gone
+# stale, which silently disables the per-block check for that whole file.
+# That is how the namespaced spelling hid 29 blocks, so assert it rather than
+# trust it.
+unparsed <- basename(targets)[vapply(targets, function(f) {
+  !length(grep("^\\s*(testthat::)?test_that\\(", readLines(f, warn = FALSE)))
+}, logical(1))]
+if (length(unparsed)) {
+  stop("source-guards: no test_that block parsed in ",
+       paste(unparsed, collapse = ", "),
+       ". The block regex is stale, so the measured-nothing check would skip ",
+       "these files entirely.")
 }
 
 cat(sprintf("source-guards: %d source-reading test files, %d exempt blocks\n",
@@ -177,6 +205,7 @@ if (!is.function(Rceattle:::.rce_column_schema)) {
 failed <- character()
 no_rows <- character()
 dark_blocks <- character()
+no_block_cover <- character()
 
 for (f in targets) {
   nm <- basename(f)
@@ -190,13 +219,15 @@ for (f in targets) {
   }
 
   n_fail <- sum(res$failed) + sum(res$error)
-  cat(sprintf("  %-46s fail=%-3d pass=%-5d skip=%-3d\n",
-              nm, n_fail, sum(res$passed), sum(res$skipped)))
+  blocks <- source_reading_blocks(f)
+  cat(sprintf("  %-46s fail=%-3d pass=%-5d skip=%-3d blocks=%d\n",
+              nm, n_fail, sum(res$passed), sum(res$skipped), length(blocks)))
   if (n_fail > 0) failed <- c(failed, nm)
+  if (!length(blocks)) no_block_cover <- c(no_block_cover, nm)
 
   # Per-block: every block that reads source must have asserted something and
   # must not have skipped.
-  for (lab in source_reading_blocks(f)) {
+  for (lab in blocks) {
     key <- paste0(nm, "::", lab)
     if (key %in% INCIDENTAL_BLOCKS) next
     row <- res[res$test == lab, , drop = FALSE]
@@ -218,6 +249,11 @@ report <- function(what, items) {
 }
 report("guards that returned no result rows (file-level skip?)", no_rows)
 report("source-reading BLOCKS that measured nothing", dark_blocks)
+# Not a failure: a file reading source through a top-level helper has no block
+# whose own body matches, so only the zero-row check covers it. Printed so the
+# limit is visible rather than mistaken for coverage.
+report("files with NO per-block cover (source read in a top-level helper)",
+       no_block_cover)
 
 if (length(failed)) {
   stop("source-guards: failures in ", paste(failed, collapse = ", "))
