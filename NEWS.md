@@ -45,9 +45,13 @@ version throughout.
   "non-numeric-alike variable(s) in data frame". Both are now a per-species min and max, which is
   what the slice was approximating.
 * **`build_params()` now refuses a CAAL length range it cannot use**, naming the species, rather
-  than starting L1 or L-infinity at `NA`. It also **warns when a species has one distinct CAAL
-  length**: L1 then equals L-infinity, and the growth `K` has exactly zero gradient at the
-  starting values.
+  than starting L1 or L-infinity at `NA`. It also refuses **one distinct CAAL length**, where L1
+  equals L-infinity: `length_sd_at_age()` interpolates the length-at-age SD as
+  `sd0 + (sd1 - sd0) / (linf - l1) * (len - l1)` and both `growth_log_sd` start at 0, so that is
+  `0/0` for every age above `age_L1` and the `NaN` reaches the age-length key and the likelihood.
+  `data_check()` already refuses one CAAL length unless `nlengths` is also 1, so a species with a
+  single length bin is the one shape that reached this. The message says to use
+  `build_growth(fun = "empirical")` for that species instead.
 * **Neither of the two defects was reachable by anything shipping:** no bundled dataset sets
   `growth_model` (the schema default is 0), all four golden references run 0, every multispecies
   sibling config uses `build_growth(fun = "empirical")`, and only `whamGrowthData` carries CAAL

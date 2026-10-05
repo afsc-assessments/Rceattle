@@ -153,3 +153,41 @@ testthat::test_that("a two-sex multispecies fit keeps all its growth pars", {
   testthat::expect_equal(length(fit$obj$par), 135L)
   testthat::expect_true(is.finite(fit$obj$fn(fit$obj$par)))
 })
+
+
+testthat::test_that("an unusable CAAL length range is refused", {
+  # L1 and L-infinity start at the smallest and largest length with CAAL data,
+  # so a species with one distinct length starts them equal. length_sd_at_age()
+  # interpolates the length-at-age SD as
+  # sd0 + (sd1 - sd0) / (linf - l1) * (len - l1), and build_params() starts
+  # both growth_log_sd at 0, so that is 0/0 = NaN for every age above age_L1
+  # and the NaN reaches the age-length key and the likelihood. Refused rather
+  # than warned: a single length bin cannot inform a growth curve.
+  testthat::skip_on_cran()
+  data("whamGrowthData", package = "Rceattle", envir = environment())
+  d <- suppressMessages(Rceattle::switch_check(whamGrowthData))
+
+  # As shipped: 65 distinct lengths, so it builds.
+  testthat::expect_no_error(
+    suppressWarnings(suppressMessages(Rceattle::build_params(d))))
+
+  flat <- d
+  flat$caal_data$Length <- 50
+  testthat::expect_error(
+    suppressWarnings(suppressMessages(Rceattle::build_params(flat))),
+    "one distinct CAAL length")
+
+  # A blank Length is tolerated while the species keeps a usable range...
+  one_na <- d
+  one_na$caal_data$Length[1] <- NA
+  testthat::expect_no_error(
+    suppressWarnings(suppressMessages(Rceattle::build_params(one_na))))
+
+  # ...but a species with no finite length at all is refused by name, rather
+  # than starting L1 at NA.
+  all_na <- d
+  all_na$caal_data$Length <- NA_real_
+  testthat::expect_error(
+    suppressWarnings(suppressMessages(Rceattle::build_params(all_na))),
+    "no usable length range for species 1")
+})

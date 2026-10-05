@@ -211,17 +211,20 @@ build_params <- function(data_list) {
            "CAAL data, so each species needs at least one finite positive ",
            "Length.", call. = FALSE)
     }
-    # L1 == L-infinity makes K's gradient identically zero: length_hat is
-    # linf + (l1 - linf) * exp(-K * .), so d/dK carries the (l1 - linf) factor
-    # and the optimizer cannot move K off its start. Warn rather than refuse --
-    # one observed length is legitimate data -- but a K that reports converged
-    # without ever moving should not be quiet.
+    # L1 == L-infinity gives a NaN objective, not a poorly-informed one.
+    # length_sd_at_age() interpolates the length SD as
+    # sd0 + (sd1 - sd0) / (linf - l1) * (len - l1), and both growth_log_sd
+    # start at 0, so that is 0/0 for every age above age_L1. The NaN reaches
+    # the age-length key and the likelihood. data_check() refuses one CAAL
+    # length unless nlengths is also 1, which is the one shape that gets here.
     flat <- caal_lengths$L1 == caal_lengths$Linf
     if (any(flat)) {
-      warning("Species ", paste(caal_lengths$Species[flat], collapse = ", "),
-              " has one distinct CAAL length, so L1 equals L-infinity and the ",
-              "growth K has no gradient at the starting values: it will stay ",
-              "at its start and still report as converged.", call. = FALSE)
+      stop("Species ", paste(caal_lengths$Species[flat], collapse = ", "),
+           " has one distinct CAAL length, so L1 equals L-infinity. The ",
+           "length-at-age SD divides by (L-infinity - L1), giving a NaN ",
+           "objective. A single length bin cannot inform a growth curve: use ",
+           "build_growth(fun = \"empirical\") for that species, or give it ",
+           "more length bins.", call. = FALSE)
     }
     # Indexing an array with a factor uses its integer CODES, so a Species
     # column read as a factor of c("2", "3") would write species 1 and 2.
