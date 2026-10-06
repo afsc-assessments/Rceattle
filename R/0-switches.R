@@ -1492,6 +1492,27 @@ revert_switches <- function(data_list) {
     if (is.null(data_list$fleet_control[[.col]]))
       data_list$fleet_control[[.col]] <- .sch_defaults[[.col]]$default
   }
+
+  # `Time_varying_sel` and `Time_varying_q` are the two fleet_control columns
+  # with no schema default AND exactly one longer sibling, so `$` resolves them
+  # to `*_sd` -- an sd read as a mode -- instead of returning NULL. Refuse a
+  # missing one by name rather than leaving a later reader to find it: the
+  # earlier behaviour read the sd column and then ASSIGNED it back with `$<-`,
+  # turning an absent column into a present and wrong one, and `fit_mod()`
+  # eventually refused with "Invalid 'Time_varying_q' specified" -- blaming the
+  # caller for a value they never set.
+  #
+  # Neither is optional in practice: every bundled dataset and all 179 sibling
+  # workbooks carrying a fleet_control sheet have both.
+  for (.tv in c("Time_varying_sel", "Time_varying_q")) {
+    if (!.tv %in% names(data_list$fleet_control)) {
+      stop("`fleet_control` has no `", .tv, "` column. It has no default, so ",
+           "it cannot be filled in, and reading it with `$` would return `",
+           .tv, "_sd` -- a standard deviation read as a switch. Add the ",
+           "column, using \"Off\" for fleets with no time variation.",
+           call. = FALSE)
+    }
+  }
   data_list$fleet_control <- data_list$fleet_control |>
     dplyr::mutate(
       Fleet_type = .conv(.data$Fleet_type, fleet_map),
@@ -1506,10 +1527,12 @@ revert_switches <- function(data_list) {
 
   # Time_varying_q doubles as an environmental-index column when Catchability
   # is "AR1" or "Environmental", so only convert the rows that hold a switch.
+  # `[[` rather than `$` for the reason above.
+  tv_q <- data_list$fleet_control[["Time_varying_q"]]
   non_env_idx <- !data_list$fleet_control$Catchability %in% c("AR1", "Environmental")
   if (any(non_env_idx)) {
-    data_list$fleet_control$Time_varying_q[non_env_idx] <-
-      .conv(data_list$fleet_control$Time_varying_q[non_env_idx], tv_q_map)
+    tv_q[non_env_idx] <- .conv(tv_q[non_env_idx], tv_q_map)
+    data_list$fleet_control[["Time_varying_q"]] <- tv_q
   }
 
   # - Population dynamics switches

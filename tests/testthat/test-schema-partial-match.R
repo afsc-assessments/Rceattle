@@ -143,24 +143,36 @@ testthat::test_that("data_check() makes no partial-match read it owns", {
 #
 # There are ~50 bare `$` reads of the three silent-prefix names across R/,
 # against 2 `[[ ]]` reads. None is reachable with the column absent, because
-# something louder happens first:
+# `switch_check()` now REFUSES a missing `Time_varying_sel` or
+# `Time_varying_q` by name, before the conversion that reads them. Those two
+# are the only fleet_control columns with no schema default AND exactly one
+# longer sibling, and neither is optional in practice: every bundled dataset
+# and all 179 sibling workbooks with a fleet_control sheet carry both.
 #
-#   * `switch_check()` and `data_check()` reach these columns through the dplyr
-#     pronoun, `.data$Time_varying_q`, and rlang's pronoun ERRORS on a missing
-#     column rather than partial-matching. Measured: dropping
-#     `Time_varying_sel` makes `switch_check()` abort with "Column
-#     `Time_varying_sel` not found in `.data`".
-#   * where the pronoun is not the first reader, `switch_check()` has already
-#     supplied the column, so the bare `$` reads downstream find it.
+# That explicit guard replaced an accident. The protection used to be a
+# property of WHICH ACCESSOR RAN FIRST -- the dplyr pronoun, `.data$Time_
+# varying_q`, errors on a missing column rather than partial-matching, so it
+# failed before any bare `$` could resolve. It held, but only for
+# `Time_varying_sel`: the `Time_varying_q` conversion was a bare `$` read AND
+# a `$<-` write, so an absent column was read off `Time_varying_q_sd` and then
+# assigned back, turning absent into present-and-wrong. On `GOA2018SS` that
+# produced `0.05, 0.01, 0.05, Off, ...` where the real modes are
+# `RandomWalk, Off, RandomWalk, ...`, and `fit_mod()` then refused with
+# "Invalid 'Time_varying_q' specified" -- blaming the caller for a value they
+# never set. `BS2017SS` hid it, because its sd column is all 0/NA and converts
+# to a plausible-looking all-"Off".
 #
-# The protection is therefore a property of WHICH ACCESSOR COMES FIRST, not of
-# the accessors themselves. Rewriting a `.data$` read as a bare `$` -- an
-# innocuous-looking tidy-up -- would remove the loud failure and expose the
-# silent one. This test pins the loudness: dropping a silent-prefix column must
-# error, not quietly substitute.
+# Rewriting a `.data$` read as a bare `$` is still an innocuous-looking
+# tidy-up that would remove a loud failure, so this test keeps pinning the
+# loudness: dropping a silent-prefix column must error, not quietly
+# substitute.
 testthat::test_that("dropping a silent-prefix column fails loudly", {
+  # GOA2018SS, not BS2017SS: the assertion below has to be able to SEE the sd
+  # values in the mode column, and BS2017SS's Time_varying_q_sd is all 0/NA,
+  # which .conv() turns into a plausible-looking all-"Off". GOA2018SS carries
+  # 0.05/0.01/0.05, which cannot be a switch value.
   for (col in c("Time_varying_sel", "Time_varying_q", "Sel_norm_bin")) {
-    d <- Rceattle::BS2017SS
+    d <- Rceattle::GOA2018SS
     d$fleet_control[[col]] <- NULL
 
     sc <- tryCatch(
@@ -168,16 +180,40 @@ testthat::test_that("dropping a silent-prefix column fails loudly", {
       error = function(e) e)
 
     # Either switch_check() refuses the missing column, or it supplies it.
-    # Both are loud enough; a silent wrong read downstream is not.
-    if (!inherits(sc, "condition")) {
+    # A refusal must NAME the column -- the old failure for Time_varying_q was
+    # "Invalid 'Time_varying_q' specified for fleets", which reads as though
+    # the caller had specified something. If it supplies the column instead,
+    # the values must be real switches and not the sibling's standard
+    # deviations: checking presence alone passed while the column held
+    # 0.05/0.01/0.05.
+    if (inherits(sc, "condition")) {
+      testthat::expect_match(conditionMessage(sc), col, fixed = TRUE)
+    } else {
       testthat::expect_true(
         col %in% names(sc$fleet_control),
         info = paste0(
           col, ": switch_check() neither refused the missing column nor ",
           "supplied it, so downstream `$` reads of it are a silent partial ",
           "match waiting for an input."))
-    } else {
-      testthat::succeed()
+      # Every supplied value must be a switch this column allows, or NA.
+      # Comparing against the sd column is not enough: .conv() rewrites the
+      # zeros to "Off", so a partial-matched sd column of 0/NA comes out
+      # looking legitimate while 0.05 does not.
+      #
+      # Only for the enumerated switches. Sel_norm_bin is a bin ordinal with
+      # an "Off" sentinel, not an enumeration, and the schema declares no
+      # allowed map for it -- asking for one errors.
+      allowed <- tryCatch(.rce_allowed_map(col), error = function(e) NULL)
+      if (is.null(allowed)) next
+      got <- as.character(sc$fleet_control[[col]])
+      ok <- is.na(got) | got %in% c(names(allowed), as.character(allowed))
+      testthat::expect_true(
+        all(ok),
+        info = paste0(col, ": switch_check() supplied value(s) that are not ",
+                      "valid switches -- ",
+                      paste(unique(got[!ok]), collapse = ", "),
+                      " -- which is what a partial match on ", col,
+                      "_sd looks like."))
     }
   }
 })

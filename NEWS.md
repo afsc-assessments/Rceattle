@@ -12,6 +12,43 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.53.1
+
+## Bug fixes
+
+* **A `fleet_control` with no `Time_varying_q` column had the sd column read in as its switch.**
+  `Time_varying_sel` and `Time_varying_q` are the only two `fleet_control` columns with no schema
+  default *and* exactly one longer sibling, which is the one shape where `$` partial-matches
+  instead of returning `NULL`. `switch_check()`'s conversion read `Time_varying_q` with a bare
+  `$` and then **assigned the result back with `$<-`**, so an absent column became a present and
+  wrong one: on `GOA2018SS` the column came out `0.05, 0.01, 0.05, Off, ...` where the real modes
+  are `RandomWalk, Off, RandomWalk, ...`. `fit_mod()` then refused with "Invalid
+  `Time_varying_q` specified for fleets" -- blaming the caller for a value they never set.
+  `Time_varying_sel` failed instead inside a `dplyr::mutate`, naming the expression rather than
+  the column, because the dplyr pronoun errors on a missing column rather than partial-matching.
+* **Both are now refused by name, before anything reads them**, alongside the existing
+  schema-default guard in `switch_check()`. The message says the column has no default, that `$`
+  would return the `_sd` sibling, and to use `"Off"` for fleets with no time variation. Neither
+  column is optional in practice: **all 11 bundled datasets and all 179 sibling workbooks with a
+  `fleet_control` sheet carry both**, so nothing shipping is affected. Resolution with the column
+  present is unchanged -- `RandomWalk, Off, RandomWalk, Off` on `GOA2018SS`, as before.
+* No wrong number ever reached a fit here; what was wrong was the diagnosis. The fix trades a
+  misleading error for an accurate one.
+
+## Internal
+
+* `test-schema-partial-match.R`'s "dropping a silent-prefix column fails loudly" block now
+  asserts that a refusal **names the column**, and that a supplied column holds **values the
+  switch allows** rather than merely differing from its sibling. It also moves from `BS2017SS` to
+  `GOA2018SS`, because `BS2017SS`'s `Time_varying_q_sd` is all `0`/`NA` and `.conv()` turns that
+  into a plausible-looking all-`"Off"` -- the defect was invisible on the dataset the block was
+  testing. The block now fails on the parent and passes here.
+* The file's explanation is updated to match. The protection used to be an accident of **which
+  accessor ran first** -- the dplyr pronoun failing before any bare `$` could resolve -- which
+  held for `Time_varying_sel` but not for `Time_varying_q`, whose conversion was a bare read
+  *and* write. It is now an explicit guard. The warning about rewriting a `.data$` read as a bare
+  `$` stands.
+
 # Rceattle 5.53.0
 
 ## Breaking changes
