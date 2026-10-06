@@ -674,6 +674,15 @@ via `build_M1()`. See `?build_M1` for options and
 | `5` | `"ar1_year"`| AR(1) by year, constant over ages |
 | `6` | `"ar1_age_year"` | 2D AR(1) over both year and age |
 
+`M1_re > 0` requires an `M1_model` of `0`, `1` or `2`, and is refused
+for `3`, `4` and `5` -- those levels have no deviation block, so the
+request would silently give constant M. Under `M1_model = 0` the input
+schedule is held fixed and the deviations carry all of M's variation,
+which makes them the most identifiable of any level. Under `M1_model = 3` the
+age-specific level and an age-varying deviation are not separately
+identifiable; for `4` and `5` the linkage grammar expresses the same
+model as `linkage_spec(~ temp + (1 | Year))`.
+
 Variance and correlation parameters are species-specific but
 sex-invariant. `M1_dev_log_sd` is the AR(1) **innovation** standard deviation,
 the marginal is `sigma / sqrt(1 - rho^2)`, as in WHAM. (The linkage grammar uses

@@ -1017,6 +1017,19 @@ switch_check <- function(data_list){
   data_list$M1_model <- set_default(data_list$M1_model, rep(0, data_list$nspp), "'M1_model' is not included in data, assuming 0")
   data_list$msmMode <- set_default(data_list$msmMode, 0, "'msmMode' is not included in data, assuming single-species (0)")
   data_list$M1_re <- set_default(data_list$M1_re, rep(0, data_list$nspp), "'M1_re' is not in data, assuming 0 for all species")
+  # Canonicalise to the integer codes build_map_m1() compares against. A string
+  # matched no arm -- `"iid_year" %in% c(2, 5)` is FALSE -- so every deviation
+  # was mapped out and the random effect was silently absent. build_M1()
+  # canonicalises its own arguments; a list from build_data(),
+  # combine_data_sets(), the deprecated est_M1 alias or built by hand does not
+  # pass through it.
+  #
+  # .map_switch(), not build_M1()'s stricter .coerce_M1_arg(): it is what every
+  # other per-species switch here uses, and it takes a factor
+  # (read.csv(stringsAsFactors = TRUE)), a numeric-looking string and an NA,
+  # which .coerce_M1_arg() refuses. See test-switches-map-switch-factor.R.
+  data_list$M1_model <- .map_switch(data_list$M1_model, .M1_MODELS, "M1_model")
+  data_list$M1_re    <- .map_switch(data_list$M1_re,    .M1_RES,    "M1_re")
   data_list$initMode <- set_default(data_list$initMode, 2, "'initMode' is not in the data, setting to 2 (default)")
   data_list$comp_offset <- set_default(data_list$comp_offset, 1e-5, NULL) # Composition proportion offset (added to comp/caal before the multinomial. Filled silently; fit_control(comp_offset=) can override at fit time.
 

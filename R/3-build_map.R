@@ -410,7 +410,7 @@ build_map_m1 <- function(map_list, data_list, nyrs_hind) {
     # "log_M1_dev"
     # - M1_re = 1/4: Random effects varies by age (IID or AR1) and constant over years.
     if(M1_re_model %in% c(1, 4)){
-      if(M1_model == 1){ # Sex-invariant
+      if(M1_model %in% c(0, 1)){ # Input or sex-invariant estimated level
         # - Random effects
         map_list$log_M1_dev[sp,1, 1:nages_sp,] <- M1_dev_ind + 1:nages_sp
 
@@ -422,7 +422,13 @@ build_map_m1 <- function(map_list, data_list, nyrs_hind) {
         M1_dev_ind = M1_dev_ind + nages_sp
       }
 
-      if(M1_model == 2){ # Two sex population and sex-specific
+      # `nsex_sp == 2 &` as the year and age-year families already have it.
+      # Without it a single-sex species took deviations in its PADDING sex
+      # slot: free, Laplace-integrated, scored by no density (the density
+      # loops `sex < num_re_sexes`, which is 1 there) and read by no cell
+      # (M1_at_age loops `sex < nsex(sp)`) -- 22 exactly-zero-gradient rows in
+      # the inner Hessian on GOA2018SS.
+      if(nsex_sp == 2 & M1_model == 2){ # Two sex population and sex-specific
         # - Random effects
         # -- Females
         map_list$log_M1_dev[sp, 1, 1:nages_sp,] <- M1_dev_ind + 1:nages_sp
@@ -445,7 +451,7 @@ build_map_m1 <- function(map_list, data_list, nyrs_hind) {
 
     # - M1_re = 2/5: Random effects varies by year (IID or AR1) and constant over ages
     if(M1_re_model %in% c(2, 5)){
-      if(M1_model == 1){ # Sex-invariant
+      if(M1_model %in% c(0, 1)){ # Input or sex-invariant estimated level
         # - Random effects
         map_list$log_M1_dev[sp,1,1:nages_sp, 1:nyrs_hind] <- rep(M1_dev_ind + 1:nyrs_hind, each = nages_sp)
 
@@ -484,7 +490,7 @@ build_map_m1 <- function(map_list, data_list, nyrs_hind) {
     # with only nyrs_hind distinct parameters on a stride pattern while the
     # density and the simulator both treated it as a full age x year grid.
     if(M1_re_model %in% c(3, 6)){
-      if(M1_model == 1){ # Sex-invariant
+      if(M1_model %in% c(0, 1)){ # Input or sex-invariant estimated level
         # - Random effects
         map_list$log_M1_dev[sp,1,1:nages_sp, 1:nyrs_hind] <- M1_dev_ind + 1:(nyrs_hind * nages_sp)
 
@@ -525,6 +531,41 @@ build_map_m1 <- function(map_list, data_list, nyrs_hind) {
         map_list$M1_rho[sp,,2] = data_list$nspp + M1_rho_ind + 2  # year rho
         M1_rho_ind = M1_rho_ind + 2  #FIXME: may want sex-varying?? Hard to estimate
       }
+    }
+
+    # Every random-effect family above nests its deviation writes inside an
+    # M1_model test. M1_model 0, 1 and 2 have arms; 3, 4 and 5 have none, and
+    # 2 needs two sexes outside the age family. Where no arm fires the
+    # deviations are all mapped out while the sd above is
+    # freed anyway -- scoring N(0, sigma) against a vector of zeros, worth
+    # 56.06 nats on a 61-year hindcast and minimised by driving sigma to its
+    # bound, which makes the objective incomparable. Asking for time-varying M
+    # and getting constant M is a different model, so refuse it.
+    #
+    # Derived from whether an arm fired, not from a restated list of supported
+    # pairs: adding an arm legalises its combination with no second registry.
+    # `&&`, not `&`: the right-hand side subscripts log_M1_dev, and build_map()
+    # is exported, so a caller's 3-D or absent block must not be touched when
+    # there is no random effect to check.
+    #
+    # estDynamics > 0 is skipped because build_map_fixed_natage() maps this
+    # species' log_M1_dev, M1_dev_log_sd and M1_rho out afterwards, so the free
+    # sd this refusal exists to prevent cannot arise -- refusing there would
+    # reject a correct model, and a fixed-numbers predator is the common
+    # multispecies setup.
+    if(M1_re_model > 0 && data_list$estDynamics[sp] == 0 &&
+       all(is.na(map_list$log_M1_dev[sp,,,]))){
+      stop("M1_re = ", M1_re_model, " is not implemented for M1_model = ",
+           M1_model, " (species ", sp,
+           # Sex is the reason only under M1_model 2, which needs two of them
+           # outside the by-age family. Saying it anywhere else sends the
+           # reader after a second sex that would not help.
+           if(M1_model == 2 && nsex_sp == 1) ", which is single-sex" else "",
+           "). Every M1 deviation would be mapped out, so M would be constant ",
+           "rather than time-varying. Random effects on M1 are available for ",
+           "M1_model 0 (input schedule), 1 and 2",
+           if(M1_model == 2) " -- and 2 needs two sexes unless M1_re is 1 or 4" else "",
+           "; or set M1_re = 0.", call. = FALSE)
     }
   }
   return(map_list)
