@@ -30,7 +30,12 @@ test_that("schema pins the exact fleet_control defaults switch_check applies", {
     Selectivity_dimension = "Age", Comp_distribution = "MultinomialAFSC",
     CAAL_distribution = "Multinomial", Index_distribution = "Lognormal",
     CAAL_weights = 1, Comp_accum_young = NA, Comp_accum_old = NA, Month = 0,
-    Ageing_error_index = NA)
+    Ageing_error_index = NA,
+    # Added in 5.53.1, so NOT historical literals like the rest of this list.
+    # Neither column had a default, which left an absent one to be read off its
+    # single longer sibling by `$` -- Time_varying_q_sd as a mode. "Off" is the
+    # reading an absent column deserves: no time variation.
+    Time_varying_sel = "Off", Time_varying_q = "Off")
 
   schema <- .rce_column_schema()
   fc_defaulted <- vapply(

@@ -141,79 +141,67 @@ testthat::test_that("data_check() makes no partial-match read it owns", {
 
 # WHY the net above is green -- the part actually worth protecting.
 #
-# There are ~50 bare `$` reads of the three silent-prefix names across R/,
-# against 2 `[[ ]]` reads. None is reachable with the column absent, because
-# `switch_check()` now REFUSES a missing `Time_varying_sel` or
-# `Time_varying_q` by name, before the conversion that reads them. Those two
-# are the only fleet_control columns with no schema default AND exactly one
-# longer sibling, and neither is optional in practice: every bundled dataset
-# and all 179 sibling workbooks with a fleet_control sheet carry both.
+# There are ~50 bare `$` reads of the three silent-prefix names across R/.
+# None is reachable with the column absent, because `switch_check()` fills all
+# three from the schema before anything downstream reads them:
+# `Sel_norm_bin`, `Time_varying_sel` and `Time_varying_q` all default to
+# "Off" -- an absent column means no normalisation bin and no time variation.
 #
-# That explicit guard replaced an accident. The protection used to be a
-# property of WHICH ACCESSOR RAN FIRST -- the dplyr pronoun, `.data$Time_
-# varying_q`, errors on a missing column rather than partial-matching, so it
-# failed before any bare `$` could resolve. It held, but only for
-# `Time_varying_sel`: the `Time_varying_q` conversion was a bare `$` read AND
-# a `$<-` write, so an absent column was read off `Time_varying_q_sd` and then
-# assigned back, turning absent into present-and-wrong. On `GOA2018SS` that
-# produced `0.05, 0.01, 0.05, Off, ...` where the real modes are
-# `RandomWalk, Off, RandomWalk, ...`, and `fit_mod()` then refused with
-# "Invalid 'Time_varying_q' specified" -- blaming the caller for a value they
-# never set. `BS2017SS` hid it, because its sd column is all 0/NA and converts
-# to a plausible-looking all-"Off".
+# The fill itself has to read with `[[`. Reading the short name with `$` when
+# it is absent returns the ONE longer sibling, so `.rce_apply_default()` is
+# handed a non-NULL value and returns early: the default is never applied and
+# the sibling's values are used instead. Measured on `Sel_norm_bin` with
+# `Sel_norm_bin_upper` set to 7 -- a bare `$` yielded `7, 7, 7, ...` where the
+# default is "Off". `Sel_norm_bin` is an absolute age, so that is a different
+# selectivity normalisation on every fleet, which moves q and hence the
+# advice.
 #
-# Rewriting a `.data$` read as a bare `$` is still an innocuous-looking
-# tidy-up that would remove a loud failure, so this test keeps pinning the
-# loudness: dropping a silent-prefix column must error, not quietly
-# substitute.
-testthat::test_that("dropping a silent-prefix column fails loudly", {
-  # GOA2018SS, not BS2017SS: the assertion below has to be able to SEE the sd
-  # values in the mode column, and BS2017SS's Time_varying_q_sd is all 0/NA,
-  # which .conv() turns into a plausible-looking all-"Off". GOA2018SS carries
-  # 0.05/0.01/0.05, which cannot be a switch value.
-  for (col in c("Time_varying_sel", "Time_varying_q", "Sel_norm_bin")) {
+# So the accessor in the FILL is load-bearing in a way the ~50 downstream
+# reads are not: those run after the column exists. Rewriting one of these
+# `[[` reads as `$` would silently restore the defect, which is what the
+# block below pins.
+
+testthat::test_that("an absent silent-prefix column gets its schema default", {
+  # Not the sibling's values. On each column in turn: give the `_sd` or
+  # `_upper` sibling a distinctive value, drop the short name, and require the
+  # result to be the schema default rather than the sibling.
+  sch <- .rce_column_schema()
+  cases <- list(
+    list(col = "Sel_norm_bin",     sib = "Sel_norm_bin_upper",  mark = 7),
+    list(col = "Time_varying_sel", sib = "Time_varying_sel_sd", mark = 7),
+    list(col = "Time_varying_q",   sib = "Time_varying_q_sd",   mark = 7))
+
+  for (k in cases) {
     d <- Rceattle::GOA2018SS
-    d$fleet_control[[col]] <- NULL
+    d$fleet_control[[k$sib]] <- k$mark
+    d$fleet_control[[k$col]] <- NULL
+    sc <- suppressWarnings(suppressMessages(Rceattle::switch_check(d)))
+    got <- sc$fleet_control[[k$col]]
 
-    sc <- tryCatch(
-      suppressWarnings(suppressMessages(Rceattle::switch_check(d))),
-      error = function(e) e)
-
-    # Either switch_check() refuses the missing column, or it supplies it.
-    # A refusal must NAME the column -- the old failure for Time_varying_q was
-    # "Invalid 'Time_varying_q' specified for fleets", which reads as though
-    # the caller had specified something. If it supplies the column instead,
-    # the values must be real switches and not the sibling's standard
-    # deviations: checking presence alone passed while the column held
-    # 0.05/0.01/0.05.
-    if (inherits(sc, "condition")) {
-      testthat::expect_match(conditionMessage(sc), col, fixed = TRUE)
-    } else {
-      testthat::expect_true(
-        col %in% names(sc$fleet_control),
-        info = paste0(
-          col, ": switch_check() neither refused the missing column nor ",
-          "supplied it, so downstream `$` reads of it are a silent partial ",
-          "match waiting for an input."))
-      # Every supplied value must be a switch this column allows, or NA.
-      # Comparing against the sd column is not enough: .conv() rewrites the
-      # zeros to "Off", so a partial-matched sd column of 0/NA comes out
-      # looking legitimate while 0.05 does not.
-      #
-      # Only for the enumerated switches. Sel_norm_bin is a bin ordinal with
-      # an "Off" sentinel, not an enumeration, and the schema declares no
-      # allowed map for it -- asking for one errors.
-      allowed <- tryCatch(.rce_allowed_map(col), error = function(e) NULL)
-      if (is.null(allowed)) next
-      got <- as.character(sc$fleet_control[[col]])
-      ok <- is.na(got) | got %in% c(names(allowed), as.character(allowed))
-      testthat::expect_true(
-        all(ok),
-        info = paste0(col, ": switch_check() supplied value(s) that are not ",
-                      "valid switches -- ",
-                      paste(unique(got[!ok]), collapse = ", "),
-                      " -- which is what a partial match on ", col,
-                      "_sd looks like."))
-    }
+    testthat::expect_false(
+      is.null(got),
+      info = paste0(k$col, " was neither supplied nor defaulted"))
+    # The sibling's marker must not appear anywhere in the short column.
+    testthat::expect_false(
+      any(as.character(got) == as.character(k$mark)),
+      info = paste0(k$col, " took ", k$sib, "'s values -- the `$` partial ",
+                    "match defeated the schema default"))
+    # And it must be the schema default, whatever that is.
+    testthat::expect_true(
+      all(as.character(got) == as.character(sch[[k$col]]$default)),
+      info = paste0(k$col, " is not its schema default (",
+                    sch[[k$col]]$default, ")"))
   }
+})
+
+
+testthat::test_that("a column that is present keeps its own values", {
+  # The default must fire only on absence. GOA2018SS carries a non-Off value
+  # in each: Time_varying_sel is RandomWalkAscending on fleet 8,
+  # Time_varying_q is RandomWalk on fleets 1 and 3.
+  sc <- suppressWarnings(suppressMessages(
+    Rceattle::switch_check(Rceattle::GOA2018SS)))
+  tvs <- sc$fleet_control$Time_varying_sel
+  testthat::expect_true("RandomWalkAscending" %in% tvs)
+  testthat::expect_true("RandomWalk" %in% sc$fleet_control$Time_varying_q)
 })

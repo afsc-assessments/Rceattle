@@ -16,38 +16,49 @@ version throughout.
 
 ## Bug fixes
 
-* **A `fleet_control` with no `Time_varying_q` column had the sd column read in as its switch.**
-  `Time_varying_sel` and `Time_varying_q` are the only two `fleet_control` columns with no schema
-  default *and* exactly one longer sibling, which is the one shape where `$` partial-matches
-  instead of returning `NULL`. `switch_check()`'s conversion read `Time_varying_q` with a bare
-  `$` and then **assigned the result back with `$<-`**, so an absent column became a present and
-  wrong one: on `GOA2018SS` the column came out `0.05, 0.01, 0.05, Off, ...` where the real modes
-  are `RandomWalk, Off, RandomWalk, ...`. `fit_mod()` then refused with "Invalid
-  `Time_varying_q` specified for fleets" -- blaming the caller for a value they never set.
-  `Time_varying_sel` failed instead inside a `dplyr::mutate`, naming the expression rather than
-  the column, because the dplyr pronoun errors on a missing column rather than partial-matching.
-* **Both are now refused by name, before anything reads them**, alongside the existing
-  schema-default guard in `switch_check()`. The message says the column has no default, that `$`
-  would return the `_sd` sibling, and to use `"Off"` for fleets with no time variation. Neither
-  column is optional in practice: **all 11 bundled datasets and all 179 sibling workbooks with a
-  `fleet_control` sheet carry both**, so nothing shipping is affected. Resolution with the column
-  present is unchanged -- `RandomWalk, Off, RandomWalk, Off` on `GOA2018SS`, as before.
-* No wrong number ever reached a fit here; what was wrong was the diagnosis. The fix trades a
-  misleading error for an accurate one.
+* **`Time_varying_sel` and `Time_varying_q` now default to `"Off"`.** Neither had a schema
+  default, so an absent column was not filled -- and both are among the three `fleet_control`
+  names with **exactly one longer sibling**, the one shape where `$` partial-matches instead of
+  returning `NULL`. `switch_check()`'s conversion read `Time_varying_q` with a bare `$` and
+  **assigned the result back with `$<-`**, so an absent column became a present and wrong one: on
+  `GOA2018SS` it came out `0.05, 0.01, 0.05, Off, ...` where the real modes are
+  `RandomWalk, Off, RandomWalk, ...`. `fit_mod()` then refused with "Invalid `Time_varying_q`
+  specified for fleets", blaming the caller for a value they never set. `Time_varying_sel` failed
+  differently -- inside a `dplyr::mutate`, naming the expression rather than the column. An
+  absent column means no time variation, so it is now filled with `"Off"` and announced, and
+  such a model fits.
+* **The schema default for `Sel_norm_bin` was being silently defeated by the same mechanism, on
+  the line that exists to apply it.** `.rce_apply_default()` returns early when handed a non-NULL
+  value, and the call read the column with `$` -- so when `Sel_norm_bin` was absent it received
+  `Sel_norm_bin_upper` and the default never applied. Measured: with `Sel_norm_bin_upper` set to
+  7 and `Sel_norm_bin` dropped, `switch_check()` returned `7, 7, 7, ...` instead of `"Off"`.
+  `Sel_norm_bin` is an absolute age, so that is a different selectivity normalisation on every
+  fleet, which moves q and hence the advice. All three fills now read with `[[`.
+* The accessor **in the fill** is the load-bearing one; the ~50 bare `$` reads of these three
+  names elsewhere in `R/` run after the column exists and are unchanged. `CLAUDE.md` says not to
+  sweep those, and this is not that sweep.
+* Nothing shipping changes: all 11 bundled datasets, all 183 sibling workbooks with a
+  `fleet_control` sheet (across the four consumer repos), the three `inst/extdata` workbooks and
+  `write_template()`'s output all carry the columns, so the default never fires for them.
+  Resolution with a column present is unchanged -- `RandomWalk, Off, RandomWalk, Off` on
+  `GOA2018SS`. Golden unchanged.
+* A default only fires on absence, so a workbook that *has* the column keeps its values. A model
+  built from a data list **missing** one will now differ from the pre-5.53.1 attempt, which
+  failed rather than fitting: on `GOA2018SS` minus `Time_varying_sel` the fit builds with 539
+  free parameters against the 621 of the complete workbook, because fleet 8's
+  `RandomWalkAscending` deviations are no longer requested.
 
 ## Internal
 
-* `test-schema-partial-match.R`'s "dropping a silent-prefix column fails loudly" block now
-  asserts that a refusal **names the column**, and that a supplied column holds **values the
-  switch allows** rather than merely differing from its sibling. It also moves from `BS2017SS` to
-  `GOA2018SS`, because `BS2017SS`'s `Time_varying_q_sd` is all `0`/`NA` and `.conv()` turns that
-  into a plausible-looking all-`"Off"` -- the defect was invisible on the dataset the block was
-  testing. The block now fails on the parent and passes here.
-* The file's explanation is updated to match. The protection used to be an accident of **which
-  accessor ran first** -- the dplyr pronoun failing before any bare `$` could resolve -- which
-  held for `Time_varying_sel` but not for `Time_varying_q`, whose conversion was a bare read
-  *and* write. It is now an explicit guard. The warning about rewriting a `.data$` read as a bare
-  `$` stands.
+* `test-schema-partial-match.R` now pins the invariant that matters: an absent silent-prefix
+  column gets its **schema default**, not its sibling's values. For each of the three it marks
+  the sibling with a distinctive value, drops the short name, and requires the result to be the
+  default and not the marker -- which is what the old assertion could not see, because it checked
+  presence only and ran on `BS2017SS`, whose siblings are all `0`/`NA` and convert to a
+  plausible-looking all-`"Off"`. 6 blocks, 26 assertions; **3 fail on the parent**, one per
+  column.
+* A second block pins that a column which IS present keeps its own values, so the default cannot
+  start firing where it should not.
 
 # Rceattle 5.53.0
 

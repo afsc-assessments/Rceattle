@@ -1073,8 +1073,20 @@ switch_check <- function(data_list){
   # instead of being hand-copied here. The order of the calls (and thus the
   # message order) is unchanged.
   .sch <- .rce_column_schema()
-  data_list$fleet_control$Sel_norm_bin <- .rce_apply_default(data_list$fleet_control$Sel_norm_bin, "Sel_norm_bin", .sch)
-  data_list$fleet_control$Sel_norm_bin_upper <- .rce_apply_default(data_list$fleet_control$Sel_norm_bin_upper, "Sel_norm_bin_upper", .sch, conditions = .dflt_when)
+  # `[[`, not `$`, for a column with exactly one longer sibling: `$`
+  # partial-matches the sibling, so .rce_apply_default() is handed a non-NULL
+  # value and returns early -- the default is never applied and the sibling's
+  # values are used instead. Three columns have that shape (Sel_norm_bin,
+  # Time_varying_sel, Time_varying_q); every other name here is unique, or
+  # ambiguous and therefore safe, since `$` resolves two or more candidates to
+  # NULL.
+  data_list$fleet_control$Sel_norm_bin <- .rce_apply_default(data_list$fleet_control[["Sel_norm_bin"]], "Sel_norm_bin", .sch)
+  data_list$fleet_control$Sel_norm_bin_upper <- .rce_apply_default(data_list$fleet_control[["Sel_norm_bin_upper"]], "Sel_norm_bin_upper", .sch, conditions = .dflt_when)
+  # Absent means "no time variation" for either switch. This has to run BEFORE
+  # the pre-4.4 non-parametric format migration below, which reads
+  # Time_varying_sel to decide whether a workbook is legacy.
+  data_list$fleet_control$Time_varying_sel <- .rce_apply_default(data_list$fleet_control[["Time_varying_sel"]], "Time_varying_sel", .sch)
+  data_list$fleet_control$Time_varying_q <- .rce_apply_default(data_list$fleet_control[["Time_varying_q"]], "Time_varying_q", .sch)
   # Sel_norm_scope defaults per-cell, not just per-column: .rce_apply_default()
   # returns early once the column exists, but a blank cell is the same silent
   # behaviour flip as a missing column -- it would reach the TMB integer vector
@@ -1493,26 +1505,6 @@ revert_switches <- function(data_list) {
       data_list$fleet_control[[.col]] <- .sch_defaults[[.col]]$default
   }
 
-  # `Time_varying_sel` and `Time_varying_q` are the two fleet_control columns
-  # with no schema default AND exactly one longer sibling, so `$` resolves them
-  # to `*_sd` -- an sd read as a mode -- instead of returning NULL. Refuse a
-  # missing one by name rather than leaving a later reader to find it: the
-  # earlier behaviour read the sd column and then ASSIGNED it back with `$<-`,
-  # turning an absent column into a present and wrong one, and `fit_mod()`
-  # eventually refused with "Invalid 'Time_varying_q' specified" -- blaming the
-  # caller for a value they never set.
-  #
-  # Neither is optional in practice: every bundled dataset and all 179 sibling
-  # workbooks carrying a fleet_control sheet have both.
-  for (.tv in c("Time_varying_sel", "Time_varying_q")) {
-    if (!.tv %in% names(data_list$fleet_control)) {
-      stop("`fleet_control` has no `", .tv, "` column. It has no default, so ",
-           "it cannot be filled in, and reading it with `$` would return `",
-           .tv, "_sd` -- a standard deviation read as a switch. Add the ",
-           "column, using \"Off\" for fleets with no time variation.",
-           call. = FALSE)
-    }
-  }
   data_list$fleet_control <- data_list$fleet_control |>
     dplyr::mutate(
       Fleet_type = .conv(.data$Fleet_type, fleet_map),
