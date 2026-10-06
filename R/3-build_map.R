@@ -422,7 +422,13 @@ build_map_m1 <- function(map_list, data_list, nyrs_hind) {
         M1_dev_ind = M1_dev_ind + nages_sp
       }
 
-      if(M1_model == 2){ # Two sex population and sex-specific
+      # `nsex_sp == 2 &` as the year and age-year families already have it.
+      # Without it a single-sex species took deviations in its PADDING sex
+      # slot: free, Laplace-integrated, scored by no density (the density
+      # loops `sex < num_re_sexes`, which is 1 there) and read by no cell
+      # (M1_at_age loops `sex < nsex(sp)`) -- 22 exactly-zero-gradient rows in
+      # the inner Hessian on GOA2018SS.
+      if(nsex_sp == 2 & M1_model == 2){ # Two sex population and sex-specific
         # - Random effects
         # -- Females
         map_list$log_M1_dev[sp, 1, 1:nages_sp,] <- M1_dev_ind + 1:nages_sp
@@ -528,8 +534,9 @@ build_map_m1 <- function(map_list, data_list, nyrs_hind) {
     }
 
     # Every random-effect family above nests its deviation writes inside an
-    # M1_model test, and only M1_model 1 and 2 have arms. Under 3, 4 or 5 no
-    # arm fires, so the deviations are all mapped out while the sd above is
+    # M1_model test. M1_model 0, 1 and 2 have arms; 3, 4 and 5 have none, and
+    # 2 needs two sexes outside the age family. Where no arm fires the
+    # deviations are all mapped out while the sd above is
     # freed anyway -- scoring N(0, sigma) against a vector of zeros, worth
     # 56.06 nats on a 61-year hindcast and minimised by driving sigma to its
     # bound, which makes the objective incomparable. Asking for time-varying M
@@ -550,10 +557,15 @@ build_map_m1 <- function(map_list, data_list, nyrs_hind) {
        all(is.na(map_list$log_M1_dev[sp,,,]))){
       stop("M1_re = ", M1_re_model, " is not implemented for M1_model = ",
            M1_model, " (species ", sp,
-           if(nsex_sp == 1) ", single-sex" else "",
+           # Sex is the reason only under M1_model 2, which needs two of them
+           # outside the by-age family. Saying it anywhere else sends the
+           # reader after a second sex that would not help.
+           if(M1_model == 2 && nsex_sp == 1) ", which is single-sex" else "",
            "). Every M1 deviation would be mapped out, so M would be constant ",
            "rather than time-varying. Random effects on M1 are available for ",
-           "M1_model 1 and 2; use one of those, or M1_re = 0.", call. = FALSE)
+           "M1_model 0 (input schedule), 1 and 2",
+           if(M1_model == 2) " -- and 2 needs two sexes unless M1_re is 1 or 4" else "",
+           "; or set M1_re = 0.", call. = FALSE)
     }
   }
   return(map_list)

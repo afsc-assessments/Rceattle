@@ -35,7 +35,9 @@ model. Either an integer code or the equivalent string alias:
 \code{3} / \code{"iid_age_year"}, \code{4} / \code{"ar1_age"}, \code{5} / \code{"ar1_year"},
 \code{6} / \code{"ar1_age_year"}. Anything but \code{0} needs an \code{M1_model} of
 \code{0}, \code{1} or \code{2}; \code{3}, \code{4} and \code{5} have no deviation block and are
-refused.}
+refused. \code{M1_model = 2} also needs two sexes, except for \code{1} and
+\code{4}; \code{fit_mod()} downgrades it to \code{1} on a single-sex species, so
+that distinction shows only in a direct \code{build_map()} call.}
 
 \item{updateM1}{If using initial parameters, use M1 fixed effects
 from data (\code{M1_base}) instead. Default \code{FALSE}.}

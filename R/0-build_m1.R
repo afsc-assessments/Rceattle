@@ -142,7 +142,9 @@ M_LINKAGE_PARAMS <- c("M1")
 #'   `3` / `"iid_age_year"`, `4` / `"ar1_age"`, `5` / `"ar1_year"`,
 #'   `6` / `"ar1_age_year"`. Anything but `0` needs an `M1_model` of
 #'   `0`, `1` or `2`; `3`, `4` and `5` have no deviation block and are
-#'   refused.
+#'   refused. `M1_model = 2` also needs two sexes, except for `1` and
+#'   `4`; `fit_mod()` downgrades it to `1` on a single-sex species, so
+#'   that distinction shows only in a direct `build_map()` call.
 #' @param updateM1 If using initial parameters, use M1 fixed effects
 #'   from data (`M1_base`) instead. Default `FALSE`.
 #' @param M1_use_prior Vector or scalar; if `TRUE` and `M2_use_prior` is `FALSE`, apply the

@@ -16,31 +16,39 @@ version throughout.
 
 ## Breaking changes
 
-* **`M1_re > 0` with `M1_model` 3, 4 or 5 is now refused**, and a stored fit built with one of
-  those 18 pairs stops refitting -- `retrospective()`'s forecast refit, `self_test()`,
+* **`M1_re > 0` with `M1_model` 3, 4 or 5 is refused.** Through `fit_mod()` that is **18 of the
+  42 `(M1_model, M1_re)` pairs** -- `M1_model` has six levels, 0 to 5 -- measured identically on
+  `GOA2018SS` (`nsex` `c(1, 2, 1)`) and `BS2017MS` (all one-sex). A stored fit built with one of
+  them stops refitting: `retrospective()`'s **forecast** refit, `self_test()`, `jitter()`,
   `sim_mod()`, `project_no_f()` and `run_mse()`'s EM refits all rebuild the map through
-  `build_map()` rather than reusing the stored one, so each raises the refusal. Rebuild such a fit
-  with `M1_re = 0`, or with `M1_model` 0, 1 or 2 if the time-varying M was the point. Nothing
-  shipping is affected: no bundled dataset sets `M1_re > 0`, and the only sibling-repo mentions
-  are pass-throughs or comments warning against exactly this combination.
+  `build_map()`, while `retrospective()`'s peels, `run_mse()`'s OM, `reweight()` and `profile()`
+  pass the stored map and do not. Rebuild with `M1_re = 0`, or with `M1_model` 0, 1 or 2 if the
+  time-varying M was the point.
+* **A stored `M1_model = 0` fit with `M1_re > 0` now fits a DIFFERENT model, silently.** It
+  previously produced constant M; it now estimates the deviations it asked for. On `BS2017SS`
+  with `build_M1(M1_re = "iid_year")` -- nothing else set, so the defaults -- the objective goes
+  from 1,537,143.80 to 995,573.78 and `log_M1_dev` from 0 free parameters to 117. Nothing warns,
+  because nothing is wrong: the old number came from the degenerate density below and was not a
+  meaningful likelihood. **An operational fit of that shape gave constant-M advice and will now
+  give time-varying-M advice** -- refit deliberately rather than by accident.
+* Calling the exported `build_map()` **directly** on a single-sex species with `M1_model = 2`
+  also refuses, for all six `M1_re`. `fit_mod()` never reaches it: it downgrades `M1_model` 2 to
+  1 for a single-sex species first, which is why the count through a fit is 18 and not more.
 
 ## Bug fixes
 
-* **`M1_re > 0` asked for time-varying M and silently gave constant M whenever no random-effect
+* **`M1_re > 0` asked for time-varying M and silently gave constant M wherever no random-effect
   arm existed for the `M1_model`.** Every family in `build_map_m1()` nests its deviation writes
   inside an `M1_model` test, so where none matched, `log_M1_dev` stayed entirely `NA` while
-  `M1_dev_log_sd` was freed anyway, outside that guard. **24 of the 42 `(M1_model, M1_re)` pairs
-  were affected** -- `M1_model` has six levels, 0 to 5 -- and `M1_model = 4` raised no condition
-  at all. `M1_model = 0` is `build_M1()`'s default, so the most likely call of all,
-  `build_M1(M1_re = "iid_year")` with nothing else set, was among them.
-* **The free standard deviation made the objective unbounded below**, which is worse than the
-  incomparable-offset an earlier draft of this entry described. `M1_dev_log_sd` has no entry in
-  `build_bounds()`, so it keeps the generic `[-Inf, Inf]`, and with every deviation mapped out the
-  density contributes `n * (log(2*pi)/2 + log sigma)` for an element count `n`. The gradient is
-  therefore exactly `n` and the objective is linear in `log sigma`: measured on `BS2017SS`, the
-  objective falls by `k * sum(n)` for `log sigma = -k` and reaches `-Inf` by `-1000`. An AIC or
-  likelihood comparison against the constant-M model prefers the inert configuration by an
-  arbitrary margin.
+  `M1_dev_log_sd` was freed anyway, outside that guard. `M1_model = 4` raised no condition at all,
+  and `M1_model = 0` is `build_M1()`'s default -- so the most likely call of all,
+  `build_M1(M1_re = "iid_year")` with nothing else set, was affected.
+* **The free standard deviation made the objective unbounded below.** `M1_dev_log_sd` has no entry
+  in `build_bounds()`, so it keeps the generic `[-Inf, Inf]`, and with every deviation mapped out
+  the density contributes `n * (log(2*pi)/2 + log sigma)` for an element count `n`. The gradient
+  is therefore exactly `n`: measured on `BS2017SS` the objective falls by `1755 * k` for
+  `log sigma = -k` and is already `-Inf` at `-500`. An AIC or likelihood comparison against the
+  constant-M model prefers the inert configuration by an arbitrary margin.
 * **The cost is per family, not one number.** `n` is the number of ages for `M1_re` 1/4, of
   hindcast years for 2/5, and of age-year cells for 3/6. Measured on `BS2017SS` at the starting
   `sigma = 1`, jnll row 16 ("M random effects"):
@@ -51,53 +59,58 @@ version throughout.
   | 2 / 5 | `nyrs_hind` | 35.84 each |
   | 3 / 6 | `nages * nyrs_hind` | 430.06 / 430.06 / 752.61 |
 
-  `Rceattle-models/EBS pollock/2024/06-time-varying-M.R` records 56.06 nats for this, which is
+  `Rceattle-models/EBS pollock/2024/06-time-varying-M.R` records 56.06 nats, which is
   `61 * log(2*pi)/2` -- the year family on a 61-year hindcast. That script worked around the
-  defect by telling the reader to avoid the combination; the package now handles it.
-* **`M1_model = 0` keeps its deviations rather than being refused.** It holds `log_M1` at the
-  input schedule, so there is no free fixed effect for the deviations to be absorbed into and they
-  are the most identifiable of any level -- the opposite of a case to refuse. The three family
-  blocks now read `M1_model %in% c(0, 1)`; the wiring is identical, because a deviation does not
-  care whether the level above it is fixed or estimated. Verified: `M1_model` 0 and 1 give the
-  same free-deviation counts for every `M1_re` 1-6.
-
-  The template was already reading them. `ceattle.cpp`'s M1 assembly is
-  `M1_at_age = exp(log_M1 + log_M1_dev + ...)` with **no `M1_model` gate**, so only the map was
-  withholding the deviations. Measured at `M1_model = 0, M1_re = 2` on `GOA2018SS`: 126 free
-  deviations, `log_M1` free count **0** -- the input schedule stays fixed, so nothing competes to
-  absorb them -- non-zero gradient on the deviations, and moving one by 0.25 changes the objective
-  by 155.5 nats. That is the distinction from freeing a parameter the data cannot move, which
-  would have been worse than the refusal it replaces.
-* **A canonical `M1_re` string from a workbook now frees the deviations it names.**
-  `switch_check()` left `M1_re` as the character it read, and `build_map_m1()`'s arms compare
-  against integers -- `"iid_year" %in% c(2, 5)` is `FALSE` -- so every deviation was mapped out
-  with no message. This is the same silent constant-M, reached a second way, and
-  `data_check()` already tested that field for strings. `switch_check()` now canonicalises both
-  `M1_model` and `M1_re` through the same coercion `build_M1()` uses. Verified:
-  `M1_re = "iid_year"` goes from 0 free deviations to 2688 on `GOA2018SS`, and `"none"` stays
-  exactly empty -- it must not be read as positive, since `"none" > 0` is `TRUE`
+  defect by telling the reader to avoid the combination; the package now handles it. Its comment
+  is now out of date and is a `/ecosystem-sweep` item.
+* **`M1_model = 0` keeps its deviations rather than being refused**, and this is the half of the
+  change that adds a capability. It holds `log_M1` at the input schedule, so there is no free
+  fixed effect for the deviations to be absorbed into. The template was already reading them:
+  `ceattle.cpp`'s assembly is `M1_at_age = exp(log_M1 + log_M1_dev + ...)` with **no `M1_model`
+  gate**, so only the map was withholding them. Measured at `M1_model = 0, M1_re = 2`: `log_M1`
+  free count **0**, 126 free deviations on `GOA2018SS` and 117 on `BS2017SS`, non-zero gradient,
+  and setting one deviation to 0.5 multiplies that cell's `M1_at_age` by exactly `exp(0.5)`. The
+  three family blocks now read `M1_model %in% c(0, 1)`; `M1_model` 0 and 1 give identical
+  free-deviation counts for every `M1_re`.
+* **A canonical `M1_re` or `M1_model` string now resolves to its integer code in
+  `switch_check()`.** The arms compare against integers -- `"iid_year" %in% c(2, 5)` is `FALSE` --
+  so a string mapped every deviation out with no message, for every `M1_model`. `build_M1()`
+  canonicalises its own arguments, but a list from `build_data()`, `combine_data_sets()`, the
+  deprecated `est_M1` alias or built by hand does not pass through it. (Not a workbook:
+  `read_data()` coerces every control row to numeric and the control schema has no `M1_model` or
+  `M1_re` row, so neither field survives a `write_data()` round trip -- an earlier draft of this
+  entry said otherwise.) Measured: `M1_re = "iid_year"` goes from 0 free deviations to 2688 on
+  `GOA2018SS`; `"none"` stays exactly empty, which matters because `"none" > 0` is `TRUE`
   lexicographically.
+* Both switches go through **`.map_switch()`**, the resolver every other per-species switch in
+  `switch_check()` uses, rather than `build_M1()`'s stricter `.coerce_M1_arg()`. The strict one
+  refused a factor, a numeric-looking `"1"` and an `NA` -- shapes that worked before and that
+  `test-switches-map-switch-factor.R` exists to support, since
+  `read.csv(stringsAsFactors = TRUE)` produces them.
 * **A fixed-numbers species is not refused.** `build_map_fixed_natage()` maps an
   `estDynamics > 0` species' `log_M1_dev`, `M1_dev_log_sd` and `M1_rho` out *after*
   `build_map_m1()` runs, so the free sd cannot arise there and refusing would reject a correct
-  model -- a fixed-numbers predator is the common multispecies setup. The refusal skips those
-  species.
+  model -- a fixed-numbers predator is the common multispecies setup.
+* **The four random-effect families now agree on the two-sex requirement.** `M1_re` 1/4's
+  `M1_model == 2` arm lacked the `nsex_sp == 2 &` guard that 2/5 and 3/6 carry, so a single-sex
+  species took deviations in its **padding** sex slot: free, Laplace-integrated, scored by no
+  density (which loops `sex < num_re_sexes`, 1 there) and read by no cell (`M1_at_age` loops
+  `sex < nsex(sp)`). 22 exactly-zero-gradient rows in the inner Hessian on `GOA2018SS`,
+  unreachable through `fit_mod()` because of its 2-to-1 downgrade.
 * The refusal reads **whether an arm actually fired**, not a restated list of supported pairs, so
-  opening an arm legalises its combination with no second registry to keep in step. It is `&&`
-  rather than `&` because the right-hand side subscripts `log_M1_dev`, and `build_map()` is
-  exported.
-* Which of the remaining 18 to implement is a modelling question, not a default to invent.
-  `M1_model = 3` with `M1_re` 1/4 is **not identifiable** -- the age-specific fixed effect and an
-  age-varying deviation enter the likelihood only as their sum, so the mode puts the deviations at
-  zero and absorbs everything into `log_M1`; that model already exists as `M1_model = 1,
-  M1_re = 4`. `M1_model` 4 and 5 are `.M1_DEPRECATED_MODELS` and the linkage grammar expresses
-  deviations around an environmental prediction as `linkage_spec(~ temp + (1 | Year))`.
-  `M1_model = 3` with `M1_re` 2/5 is well posed and left open deliberately.
-* `test-mortality-m1-re-unsupported.R`: 6 blocks, 68 assertions, **32 failing on the parent**
-  across the refusal, the `M1_model = 0` and the string blocks. Three blocks pin invariants that
-  hold either side and say so.
-* No golden reference moves: all four run `M1_model = 0` **and `M1_re = 0`**, where no family
-  block executes at all and jnll row 16 is exactly 0 in every column.
+  opening an arm legalises its combination with no second registry. It is `&&` rather than `&`
+  because the right-hand side subscripts `log_M1_dev` and `build_map()` is exported, and it names
+  the `M1_model` -- sex only where sex is the reason.
+* Which of the 18 to implement is a modelling question, not a default to invent. `M1_model = 3`
+  with `M1_re` 1/4 is **not identifiable**: the age-specific fixed effect and an age-varying
+  deviation enter the likelihood only as their sum, so the mode puts the deviations at zero and
+  absorbs everything into `log_M1`; that model already exists as `M1_model = 1, M1_re = 4`.
+  `M1_model` 4 and 5 are `.M1_DEPRECATED_MODELS`, and the linkage grammar expresses deviations
+  around an environmental prediction as `linkage_spec(~ temp + (1 | Year))`. `M1_model = 3` with
+  `M1_re` 2/5 is well posed and left open deliberately.
+* `test-mortality-m1-re-unsupported.R`: 10 blocks, 86 assertions. No golden reference moves: all
+  four run `M1_model = 0` **and `M1_re = 0`**, where no family block executes and jnll row 16 is
+  exactly 0 in every column.
 
 # Rceattle 5.52.0
 
