@@ -34,9 +34,25 @@ version throughout.
   7 and `Sel_norm_bin` dropped, `switch_check()` returned `7, 7, 7, ...` instead of `"Off"`.
   `Sel_norm_bin` is an absolute age, so that is a different selectivity normalisation on every
   fleet, which moves q and hence the advice. All three fills now read with `[[`.
-* The accessor **in the fill** is the load-bearing one; the ~50 bare `$` reads of these three
-  names elsewhere in `R/` run after the column exists and are unchanged. `CLAUDE.md` says not to
-  sweep those, and this is not that sweep.
+* **`rearrange_data()` reached a TMB input through the same partial match, and that one was a
+  wrong number rather than a wrong diagnosis.** It is exported and does not call
+  `switch_check()`, so no fill can protect it; its `.required_fc` guard did not list
+  `Sel_norm_bin`; and the bare `$` read returned `Sel_norm_bin_upper`. Measured on `GOA2018SS`
+  with `Sel_norm_bin = "Max"` and the upper column `"Off"`: dropping the short name made
+  `rearrange_data()` **succeed silently** with every fleet's `sel_norm_bin1` flipped from
+  **-99** (normalize by the maximum) to **-999** (do not normalize) -- a different selectivity
+  scaling, hence a different q and a different SSB. `Sel_norm_bin` is now in `.required_fc`, so
+  an absent column is refused by name with the guard's existing "Run switch_check() first"
+  message, and the read uses `[[` so the guard is not the only thing standing between a partial
+  match and the template.
+* **`Time_varying_q` doubles as the `env_data` column index** for a fleet whose `Catchability` is
+  `"Environmental"` or `"AR1"`, where `"Off"` is not a meaningful value -- so the column is
+  defaulted only when no fleet needs it as an index, and otherwise refused with a message naming
+  those fleets. Without that, the fill produced `"Off"` for such a fleet and the model died later
+  on `missing value where TRUE/FALSE needed`, which is less diagnosable than what it replaced.
+* The accessor **in the fill** is the load-bearing one for the `switch_check()` path; the ~50
+  bare `$` reads of these three names elsewhere in `R/` run after the column exists and are
+  unchanged. `CLAUDE.md` says not to sweep those, and this is not that sweep.
 * Nothing shipping changes: all 11 bundled datasets, all 183 sibling workbooks with a
   `fleet_control` sheet (across the four consumer repos), the three `inst/extdata` workbooks and
   `write_template()`'s output all carry the columns, so the default never fires for them.
@@ -55,8 +71,8 @@ version throughout.
   the sibling with a distinctive value, drops the short name, and requires the result to be the
   default and not the marker -- which is what the old assertion could not see, because it checked
   presence only and ran on `BS2017SS`, whose siblings are all `0`/`NA` and convert to a
-  plausible-looking all-`"Off"`. 6 blocks, 26 assertions; **3 fail on the parent**, one per
-  column.
+  plausible-looking all-`"Off"`. 7 blocks, 28 assertions; **4 fail on the parent** -- three for
+  the schema defaults, one for `rearrange_data()`.
 * A second block pins that a column which IS present keeps its own values, so the default cannot
   start firing where it should not.
 

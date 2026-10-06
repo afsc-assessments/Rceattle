@@ -205,3 +205,28 @@ testthat::test_that("a column that is present keeps its own values", {
   testthat::expect_true("RandomWalkAscending" %in% tvs)
   testthat::expect_true("RandomWalk" %in% sc$fleet_control$Time_varying_q)
 })
+
+
+testthat::test_that("rearrange_data() refuses a missing Sel_norm_bin", {
+  # The one place the partial match reached a TMB input. rearrange_data() is
+  # exported and does not call switch_check(), so the fill cannot protect it:
+  # the bare `$Sel_norm_bin` read returned `Sel_norm_bin_upper` and every
+  # fleet's `sel_norm_bin1` went from -99 (normalize by the maximum) to -999
+  # (do not normalize). That is a different selectivity scaling, so a different
+  # q and a different SSB, with no message.
+  testthat::skip_on_cran()
+  d <- suppressMessages(Rceattle::switch_check(Rceattle::GOA2018SS))
+  d$fleet_control$Sel_norm_bin <- "Max"
+  d$fleet_control$Sel_norm_bin_upper <- "Off"
+  d <- suppressMessages(Rceattle::switch_check(d))
+
+  ok <- suppressWarnings(suppressMessages(Rceattle::rearrange_data(d)))
+  # "Max" is -99 for every fleet.
+  testthat::expect_true(all(ok$sel_norm_bin1 == -99L))
+
+  no_bin <- d
+  no_bin$fleet_control$Sel_norm_bin <- NULL
+  testthat::expect_error(
+    suppressWarnings(suppressMessages(Rceattle::rearrange_data(no_bin))),
+    "Sel_norm_bin")
+})

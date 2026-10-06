@@ -98,13 +98,19 @@ rearrange_data <- function(data_list, build_osa = FALSE){
     .rce_upgrade_fleet_control_aliases(data_list$fleet_control)
 
   # Fail clearly on a malformed fleet_control rather than via a cryptic dplyr
-  # error deep in the reshaping below. These identity / structural columns are
-  # read by name (and by `$`) throughout; a missing one has no sensible default.
+  # error deep in the reshaping below. These columns are read by name (and by
+  # `$`) throughout. Most have no sensible default; `Sel_norm_bin` does have
+  # one, and is listed anyway because `$` partial-matches it to
+  # `Sel_norm_bin_upper` -- the only one of these names with exactly one longer
+  # sibling. Absent, that read silently returned the upper column and every
+  # fleet's `sel_norm_bin1` flipped from -99 (normalize by the maximum) to -999
+  # (do not normalize), which is a different selectivity scaling, hence a
+  # different q. switch_check() fills it, which is what the message says to do.
   if (is.null(data_list$fleet_control) || nrow(data_list$fleet_control) == 0)
     stop("rearrange_data(): 'fleet_control' is missing or empty.", call. = FALSE)
   .required_fc <- c("Species", "Fleet_code", "Fleet_type", "Fleet_name",
                     "Selectivity", "Selectivity_index", "Sel_start_year",
-                    "Catchability_init")
+                    "Catchability_init", "Sel_norm_bin")
   .missing_fc <- setdiff(.required_fc, names(data_list$fleet_control))
   if (length(.missing_fc) > 0)
     stop("rearrange_data(): 'fleet_control' is missing required column(s): ",
@@ -210,7 +216,7 @@ rearrange_data <- function(data_list, build_osa = FALSE){
   # Resolve the word first, so only a real bin is shifted to the 0-based index:
   # -99 normalizes by the maximum and -999 does not normalize. An unreadable
   # value is refused here too -- switch_check() does not run on every path in.
-  .norm1 <- .rce_sel_norm_code(data_list$fleet_control$Sel_norm_bin,
+  .norm1 <- .rce_sel_norm_code(data_list$fleet_control[["Sel_norm_bin"]],
                                lo = .norm_lo, allow_all = .is_pm)
   .rce_stop_bad_sel_norm(.norm1, "Sel_norm_bin", data_list$fleet_control, .norm_hi)
   data_list$sel_norm_bin1 <- as.integer(dplyr::case_when(
