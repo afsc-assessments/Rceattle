@@ -451,7 +451,19 @@ build_map_m1 <- function(map_list, data_list, nyrs_hind) {
 
     # - M1_re = 2/5: Random effects varies by year (IID or AR1) and constant over ages
     if(M1_re_model %in% c(2, 5)){
-      if(M1_model %in% c(0, 1)){ # Input or sex-invariant estimated level
+      # M1_model 3 joins this arm, and only this one. Its level is age-specific
+      # and time-constant; a by-YEAR deviation that is constant over ages is
+      # orthogonal to it apart from the mean, which the zero-mean random effect
+      # assigns to log_M1. A by-AGE deviation (M1_re 1/4) would NOT be: it and
+      # the age-specific level enter the likelihood only as their sum, so the
+      # mode puts the deviations at zero and absorbs everything into log_M1 --
+      # that combination stays refused, and M1_model = 1 with M1_re = 4 is the
+      # identifiable version of it.
+      #
+      # Shared across sexes, like the other levels here: the density scores
+      # num_re_sexes fields, which is 1 unless M1_model == 2
+      # (src/TMB/ceattle.cpp), so one field is what M1_model 3 owes.
+      if(M1_model %in% c(0, 1, 3)){ # Input, sex-invariant, or age-specific level
         # - Random effects
         map_list$log_M1_dev[sp,1,1:nages_sp, 1:nyrs_hind] <- rep(M1_dev_ind + 1:nyrs_hind, each = nages_sp)
 

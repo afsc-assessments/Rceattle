@@ -748,9 +748,11 @@ build_M1(M1_model = 1,                   M1_re = 4)           # equivalent
 ```
 
 Random effects on M1 need a level that leaves them identifiable, so
-`M1_re > 0` is available for `M1_model` `0` (`"fixed"`), `1` and `2`
-and refused for `3`, `4` and `5`. Under `"fixed"` the input schedule
-is held and the deviations carry M's variation on their own. Under `M1_model = 3` the
+`M1_re > 0` is available for `M1_model` `0` (`"fixed"`), `1` and `2`,
+and for `3` with a by-year family (`2` or `5`). Under `"fixed"` the
+input schedule is held and the deviations carry M's variation on their
+own. Under `3` the level is already age-specific, so only a deviation
+that is constant over ages stays identifiable. Under `M1_model = 3` the
 age-specific `log_M1` and an age-varying deviation enter the
 likelihood only as their sum, so the pair above -- which an earlier
 version of this example used -- is not identifiable; `M1_model = 1`

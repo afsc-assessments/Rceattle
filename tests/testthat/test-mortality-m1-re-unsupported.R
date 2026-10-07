@@ -25,7 +25,8 @@
 # the most identifiable of any level -- that arm is now open rather than
 # refused. Where no arm can fire at all (M1_model 3, 4, 5) the combination is
 # refused: asking for time-varying M and getting constant M is a different
-# model. Through fit_mod() that is 18 of the 42 (M1_model, M1_re) pairs --
+# model. Through fit_mod() that is 16 of the 42 (M1_model, M1_re) pairs as of
+# 5.54.0, which opened M1_model 3 x M1_re 2/5 (it was 18 in 5.53.0) --
 # M1_model has six levels, 0 to 5 -- measured identically on GOA2018SS
 # (nsex c(1, 2, 1)) and BS2017MS (all one-sex). A direct build_map() call on a
 # single-sex species also refuses M1_model = 2 for all six families, which
@@ -65,9 +66,18 @@ m1_free <- function(d) {
 
 testthat::test_that("a random effect that no arm can serve is refused", {
   testthat::skip_on_cran()
-  # M1_model 3 (sex- and age-specific), 4 and 5 (environmentally driven) have
-  # no deviation arm in any family.
-  for (mm in 3:5) {
+  # M1_model 4 and 5 (environmentally driven) have no deviation arm in any
+  # family. M1_model 3 (sex- and age-specific) has one only for the by-YEAR
+  # families, added in 5.54.0 -- see
+  # test-mortality-m1-re-age-specific-year.R. Its by-age families stay
+  # refused, because an age-varying deviation and an age-specific level enter
+  # the likelihood only as their sum.
+  for (re in c(1, 3, 4, 6)) {
+    testthat::expect_error(m1_free(prep(3, re)),
+      "is not implemented for M1_model",
+      info = paste("M1_model 3 M1_re", re))
+  }
+  for (mm in 4:5) {
     for (re in 1:6) {
       testthat::expect_error(m1_free(prep(mm, re)),
         "is not implemented for M1_model",
@@ -229,9 +239,13 @@ testthat::test_that("the refused set through fit_mod() is M1_model 3, 4, 5", {
         }
       }
     }
-    want <- as.vector(outer(3:5, 1:6, function(a, b) paste0(a, "x", b)))
+    # M1_model 3 keeps its by-year families (5.54.0); everything else under
+    # 3, 4 and 5 is refused. 16 of the 42 pairs, measured identically on a
+    # ragged-nsex and an all-one-sex dataset.
+    want <- c(paste0("3x", c(1, 3, 4, 6)),
+              as.vector(outer(4:5, 1:6, function(a, b) paste0(a, "x", b))))
     testthat::expect_setequal(refused, want)
-    testthat::expect_equal(length(refused), 18L, info = ds)
+    testthat::expect_equal(length(refused), 16L, info = ds)
     # Nothing in the grid may fail for any OTHER reason.
     testthat::expect_equal(other, character(0), info = ds)
   }

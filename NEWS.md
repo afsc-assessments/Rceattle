@@ -12,6 +12,44 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.54.0
+
+## New features
+
+* **`M1_model = 3` can now estimate by-year M deviations** -- `M1_re` 2 (IID) or 5 (AR1 over
+  years). 5.53.0 refused it along with the rest of `M1_model` 3/4/5, because no arm wrote the
+  deviations; this is the one of those combinations that is well posed, and it is WHAM's
+  age-specific-mean M with `ar1_y` deviations.
+* A by-year deviation that is constant over ages is orthogonal to an age-specific time-constant
+  level apart from the mean, which the zero-mean random effect assigns to `log_M1`. Measured on
+  `GOA2018SS`: `log_M1` keeps its **64** age-specific parameters, **126** deviations are freed
+  (42 hindcast years x 3 species, shared across sexes), 3 standard deviations, and the deviations
+  form a Laplace random block of 126 rather than penalised fixed effects. Every deviation carries
+  gradient -- none is exactly zero, the smallest is 5.8 -- and moving one moves the objective.
+  Identifiability here is that argument plus those gradients; a simulation-recovery study would
+  be stronger and is not done.
+* Shared across sexes, like the other levels in that family: the template scores `num_re_sexes`
+  fields, which is 1 unless `M1_model == 2`, so one field is what `M1_model = 3` owes.
+* **The rest of the 5.53.0 refusals stand, and for stated reasons.** `M1_re` 1/4 and 3/6 vary by
+  AGE, and an age-varying deviation and an age-specific level enter the likelihood only as their
+  sum -- so the mode puts the deviations at zero and absorbs everything into `log_M1`. The
+  identifiable version of that model already exists as `M1_model = 1` with `M1_re = 4`.
+  `M1_model` 4 and 5 are in `.M1_DEPRECATED_MODELS` and the linkage grammar expresses the same
+  model as `linkage_spec(~ temp + (1 | Year))`.
+* The refusal reads **whether an arm fired**, not a list of supported pairs, so opening this one
+  legalised the combination with no second registry to update -- which is the whole reason that
+  design was chosen in 5.53.0.
+* `?build_M1`, `vignettes/model-options-and-functionality.Rmd` and
+  `vignettes/environmental-linkages-and-priors.Rmd` all said `3`, `4` and `5` have no deviation
+  block. Corrected in the same commit.
+* `test-mortality-m1-re-age-specific-year.R`: 3 blocks, 21 assertions, **2 failing on the
+  parent**. A third block pins that the by-age families and `M1_model` 4/5 stay refused, so
+  opening one of those later means deleting an assertion and saying why.
+* 5.53.0's `test-mortality-m1-re-unsupported.R` pinned the refused set and so **failed on this
+  change, correctly** -- that is what it is for. The set is now **16 of the 42 pairs**, measured
+  identically on a ragged-`nsex` and an all-one-sex dataset: `M1_model` 3 with `M1_re` 1, 3, 4 or
+  6, plus `M1_model` 4 and 5 with every family.
+
 # Rceattle 5.53.2
 
 ## Bug fixes
