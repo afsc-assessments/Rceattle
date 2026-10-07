@@ -564,6 +564,21 @@ fit_mod <-
     data_list$M1_model     <- extend_length(M1Fun$M1_model)
     data_list$M1_model     <- ifelse(data_list$nsex == 1 & data_list$M1_model == 2, 1, data_list$M1_model) # sex-specific -> sex-invariant for 1-sex model
     data_list$M1_re        <- extend_length(M1Fun$M1_re)
+    # A species whose numbers-at-age are input has its whole M1 random-effect
+    # block mapped out by build_map_fixed_natage(), but the template's density
+    # is gated on M1_re alone -- so it still scored N(0, 1) over a field of
+    # zeros, a constant that made the objective incomparable with an
+    # M1_re = 0 fit. Nothing is estimated for such a species, so nothing
+    # should be scored.
+    .m1_re_fixed <- data_list$M1_re > 0 & data_list$estDynamics > 0
+    if (any(.m1_re_fixed)) {
+      warning("M1_re is set for species ",
+              paste(which(.m1_re_fixed), collapse = ", "),
+              ", whose numbers-at-age are input (estDynamics > 0). M ",
+              "deviations are not estimated for such a species, so M1_re is ",
+              "treated as 0 there.", call. = FALSE)
+      data_list$M1_re[.m1_re_fixed] <- 0
+    }
     updateM1               <- M1Fun$updateM1
     data_list$M1_use_prior <- extend_length(M1Fun$M1_use_prior) * (data_list$M1_model > 0) # 0 when M1 is fixed
     data_list$M2_use_prior <- extend_length(M1Fun$M2_use_prior) * (msmMode > 0)            # 0 in single-species mode
