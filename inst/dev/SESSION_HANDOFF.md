@@ -24,7 +24,7 @@ of the three branches with identical deltas -- the check golden block 1 structur
 since it warm-starts and never re-optimizes. Run that harness for any starting-value or bounds
 change.
 
-**`source-guards.yaml` is new, and it is the thing a next session must know.** Sixteen test files
+**`source-guards.yaml` is new, and it is the thing a next session must know.** Seventeen test files
 assert that two hand-synced copies of something agree, by reading `R/*.R` and `src/TMB/*.cpp` off
 disk. Under `R CMD check` they resolve `../../R` against the `.Rcheck` test directory, which does
 not exist, so each skipped and the job was green. `test-coverage` DOES run them against the real
@@ -34,7 +34,8 @@ fatal.
 
   * **Adding or removing a test that reads `R/*.R` or `src/TMB/*` means updating `EXPECTED` in
     `tools/ci/source-guards.R`**, which pins the set BY NAME so the diff says which guard moved.
-    A count would not: 11 of the 16 are named nowhere else and could be deleted silently.
+    A count would not: only 6 of the 17 are named in a vignette, so 11 could be deleted with
+    nothing a reader would miss.
   * Its measured-nothing check is **per BLOCK**, not per file, and 5.49.8 (#202) fixed it twice
     over: the block regex matched only the bare `test_that(` spelling, so 30 blocks across five
     files were invisible; and two conditions it computed were reported and then left out of the

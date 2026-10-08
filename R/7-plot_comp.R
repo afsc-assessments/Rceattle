@@ -131,7 +131,7 @@ plot_comp <- function(Rceattle, file = NULL, model_names = NULL, species = NULL,
       ggplot2::geom_hline(yintercept = 0, colour = "grey50", linewidth = 0.3) +
       ggplot2::scale_colour_manual(values = sex_cols, guide = "none") +
       ggplot2::labs(x = df$bin_lab[1], y = ylab, title = title) +
-      ggplot2::theme_bw(base_size = 9)
+      ggplot2::theme_bw(base_size = 10)
   }
 
   for (nm in unique(long$panel)) {
@@ -743,7 +743,7 @@ plot_diet_comp2 <- function(Rceattle, file = NULL, species = NULL) {
           ggplot2::scale_linetype_manual(name = "Source", values = c("Observed" = "dashed", "Estimated" = "solid")) +
           ggplot2::scale_fill_manual(name = "95% CI", values = c("Observed" = "grey50", "Estimated" = "darkred")) +
           ggplot2::labs(x = "Predator Age", y = "Diet Proportion", title = paste("Diet of", species[pred_ind], "on", species[prey_ind])) +
-          ggplot2::theme_bw()
+          ggplot2::theme_classic()
 
         print(p)
         plot_list[[length(plot_list) + 1]] <- p
@@ -770,7 +770,7 @@ plot_diet_comp2 <- function(Rceattle, file = NULL, species = NULL) {
           ggplot2::scale_fill_manual(name = "95% CI", values = c("Observed" = "grey50", "Estimated" = "darkblue")) +
           ggplot2::labs(x = "Prey Age", y = "Diet Proportion",
                         title = paste("Prey Age Composition in Diet\nPred:", species[pred_ind], "eating", species[prey_ind])) +
-          ggplot2::theme_bw()
+          ggplot2::theme_classic()
 
         print(p)
         plot_list[[length(plot_list) + 1]] <- p
@@ -790,7 +790,7 @@ plot_diet_comp2 <- function(Rceattle, file = NULL, species = NULL) {
           ggplot2::facet_wrap(~ Year, scales = "free_y", labeller = ggplot2::labeller(Year = ~paste("Year:", .))) +
           ggplot2::scale_fill_manual(name = "Source", values = c("Observed" = "grey50", "Est" = "red")) +
           ggplot2::labs(x = "Prey Species", y = "Diet Proportion", title = paste("Fit to Aggregated Diet for Predator:", species[pred_ind])) +
-          ggplot2::theme_bw()
+          ggplot2::theme_classic()
 
         print(p_fit)
         plot_list[[length(plot_list) + 1]] <- p_fit

@@ -798,7 +798,9 @@ quantity they show: `plot_biomass`, `plot_ssb`, `plot_recruitment`,
 model or a list of models with `model_names`.
 
 These are built with **ggplot2** (colorblind-safe Okabe-Ito palette for
-discrete series, viridis for continuous ones, `theme_classic`) and **return
+discrete series, viridis for continuous ones; `theme_classic` with a panel
+border for the trajectory figures, `theme_bw` for the OSA and composition
+panels) and **return
 the `ggplot` object**, so they print when called interactively and can be
 further customized by adding ggplot2 layers
 (e.g. `plot_biomass(fit) + ggplot2::ggtitle("My title")`). Pass `file = "stem"`

@@ -1,6 +1,6 @@
 # Run the tests that read the package's own SOURCE, on a pull request.
 #
-# Sixteen test files assert that two hand-synced copies of something agree: a
+# Seventeen test files assert that two hand-synced copies of something agree: a
 # switch map against the `case` labels in the template, the column schema
 # against `R/data.R`'s field list, the `JnllRow` enum against its two R-side
 # partners, the HCR-2 threshold against the literal source of `run_mse()`, the
@@ -45,8 +45,9 @@
 # That last condition is per BLOCK, deliberately. Two earlier versions checked
 # per file -- first by a `skip_on_cran()` heuristic, then by a per-file
 # `passed > 0` floor -- and an adversarial review demonstrated the same hole in
-# both: 10 of the 16 files hold several `test_that()` blocks, so one block can
-# be switched off while its siblings keep the file's total well above zero.
+# both: every one of the 17 files holds several `test_that()` blocks -- 2 at
+# the fewest, 14 at the most -- so one block can be switched off while its
+# siblings keep the file's total well above zero.
 # Adding a `skip_on_cran()` is the single most likely accidental edit in this
 # repo (it is the idiom in 181 of 255 files), and doing it to the block that
 # guards the C++ dispatch map took 33 assertions dark with the job still green.
@@ -96,9 +97,11 @@ patterns <- c(
 # The expected SET, by name. A count is not a set: an earlier version asserted
 # `length(targets) == 16L`, and a review demonstrated that deleting a real guard
 # while adding one decorative test that happens to match a pattern keeps the
-# count at 16 and the job green. Only 5 of these 16 are named anywhere else
-# (the contributor recipe), so 11 could be deleted silently. Pinning the names
-# makes the diff say which guard left.
+# count at 16 and the job green. Only 6 of these 17 are named in a vignette, so
+# 11 could be deleted with nothing a reader would miss -- `coverage-costs.tsv`
+# names 13 of them, but a missing cost there is the `COST_UNMEASURED`
+# placeholder rather than a failure, so it catches nothing either. Pinning the
+# names makes the diff say which guard left.
 EXPECTED <- c(
   "test-composition-age-hat-width.R",
   "test-docs-anchors.R",
@@ -109,6 +112,7 @@ EXPECTED <- c(
   "test-linkage-selectivity-apical.R",
   "test-linkage-srr-r-init-level.R",
   "test-mse-cap-and-hcr2-threshold.R",
+  "test-plot-theme-consistency.R",
   "test-schema-canonical.R",
   "test-schema-cpp-dispatch.R",
   "test-schema-jnll-rows.R",
