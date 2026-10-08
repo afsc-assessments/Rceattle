@@ -141,43 +141,92 @@ testthat::test_that("data_check() makes no partial-match read it owns", {
 
 # WHY the net above is green -- the part actually worth protecting.
 #
-# There are ~50 bare `$` reads of the three silent-prefix names across R/,
-# against 2 `[[ ]]` reads. None is reachable with the column absent, because
-# something louder happens first:
+# There are ~50 bare `$` reads of the three silent-prefix names across R/.
+# None is reachable with the column absent, because `switch_check()` fills all
+# three from the schema before anything downstream reads them:
+# `Sel_norm_bin`, `Time_varying_sel` and `Time_varying_q` all default to
+# "Off" -- an absent column means no normalisation bin and no time variation.
 #
-#   * `switch_check()` and `data_check()` reach these columns through the dplyr
-#     pronoun, `.data$Time_varying_q`, and rlang's pronoun ERRORS on a missing
-#     column rather than partial-matching. Measured: dropping
-#     `Time_varying_sel` makes `switch_check()` abort with "Column
-#     `Time_varying_sel` not found in `.data`".
-#   * where the pronoun is not the first reader, `switch_check()` has already
-#     supplied the column, so the bare `$` reads downstream find it.
+# The fill itself has to read with `[[`. Reading the short name with `$` when
+# it is absent returns the ONE longer sibling, so `.rce_apply_default()` is
+# handed a non-NULL value and returns early: the default is never applied and
+# the sibling's values are used instead. Measured on `Sel_norm_bin` with
+# `Sel_norm_bin_upper` set to 7 -- a bare `$` yielded `7, 7, 7, ...` where the
+# default is "Off". `Sel_norm_bin` is an absolute age, so that is a different
+# selectivity normalisation on every fleet, which moves q and hence the
+# advice.
 #
-# The protection is therefore a property of WHICH ACCESSOR COMES FIRST, not of
-# the accessors themselves. Rewriting a `.data$` read as a bare `$` -- an
-# innocuous-looking tidy-up -- would remove the loud failure and expose the
-# silent one. This test pins the loudness: dropping a silent-prefix column must
-# error, not quietly substitute.
-testthat::test_that("dropping a silent-prefix column fails loudly", {
-  for (col in c("Time_varying_sel", "Time_varying_q", "Sel_norm_bin")) {
-    d <- Rceattle::BS2017SS
-    d$fleet_control[[col]] <- NULL
+# So the accessor in the FILL is load-bearing in a way the ~50 downstream
+# reads are not: those run after the column exists. Rewriting one of these
+# `[[` reads as `$` would silently restore the defect, which is what the
+# block below pins.
 
-    sc <- tryCatch(
-      suppressWarnings(suppressMessages(Rceattle::switch_check(d))),
-      error = function(e) e)
+testthat::test_that("an absent silent-prefix column gets its schema default", {
+  # Not the sibling's values. On each column in turn: give the `_sd` or
+  # `_upper` sibling a distinctive value, drop the short name, and require the
+  # result to be the schema default rather than the sibling.
+  sch <- .rce_column_schema()
+  cases <- list(
+    list(col = "Sel_norm_bin",     sib = "Sel_norm_bin_upper",  mark = 7),
+    list(col = "Time_varying_sel", sib = "Time_varying_sel_sd", mark = 7),
+    list(col = "Time_varying_q",   sib = "Time_varying_q_sd",   mark = 7))
 
-    # Either switch_check() refuses the missing column, or it supplies it.
-    # Both are loud enough; a silent wrong read downstream is not.
-    if (!inherits(sc, "condition")) {
-      testthat::expect_true(
-        col %in% names(sc$fleet_control),
-        info = paste0(
-          col, ": switch_check() neither refused the missing column nor ",
-          "supplied it, so downstream `$` reads of it are a silent partial ",
-          "match waiting for an input."))
-    } else {
-      testthat::succeed()
-    }
+  for (k in cases) {
+    d <- Rceattle::GOA2018SS
+    d$fleet_control[[k$sib]] <- k$mark
+    d$fleet_control[[k$col]] <- NULL
+    sc <- suppressWarnings(suppressMessages(Rceattle::switch_check(d)))
+    got <- sc$fleet_control[[k$col]]
+
+    testthat::expect_false(
+      is.null(got),
+      info = paste0(k$col, " was neither supplied nor defaulted"))
+    # The sibling's marker must not appear anywhere in the short column.
+    testthat::expect_false(
+      any(as.character(got) == as.character(k$mark)),
+      info = paste0(k$col, " took ", k$sib, "'s values -- the `$` partial ",
+                    "match defeated the schema default"))
+    # And it must be the schema default, whatever that is.
+    testthat::expect_true(
+      all(as.character(got) == as.character(sch[[k$col]]$default)),
+      info = paste0(k$col, " is not its schema default (",
+                    sch[[k$col]]$default, ")"))
   }
+})
+
+
+testthat::test_that("a column that is present keeps its own values", {
+  # The default must fire only on absence. GOA2018SS carries a non-Off value
+  # in each: Time_varying_sel is RandomWalkAscending on fleet 8,
+  # Time_varying_q is RandomWalk on fleets 1 and 3.
+  sc <- suppressWarnings(suppressMessages(
+    Rceattle::switch_check(Rceattle::GOA2018SS)))
+  tvs <- sc$fleet_control$Time_varying_sel
+  testthat::expect_true("RandomWalkAscending" %in% tvs)
+  testthat::expect_true("RandomWalk" %in% sc$fleet_control$Time_varying_q)
+})
+
+
+testthat::test_that("rearrange_data() refuses a missing Sel_norm_bin", {
+  # The one place the partial match reached a TMB input. rearrange_data() is
+  # exported and does not call switch_check(), so the fill cannot protect it:
+  # the bare `$Sel_norm_bin` read returned `Sel_norm_bin_upper` and every
+  # fleet's `sel_norm_bin1` went from -99 (normalize by the maximum) to -999
+  # (do not normalize). That is a different selectivity scaling, so a different
+  # q and a different SSB, with no message.
+  testthat::skip_on_cran()
+  d <- suppressMessages(Rceattle::switch_check(Rceattle::GOA2018SS))
+  d$fleet_control$Sel_norm_bin <- "Max"
+  d$fleet_control$Sel_norm_bin_upper <- "Off"
+  d <- suppressMessages(Rceattle::switch_check(d))
+
+  ok <- suppressWarnings(suppressMessages(Rceattle::rearrange_data(d)))
+  # "Max" is -99 for every fleet.
+  testthat::expect_true(all(ok$sel_norm_bin1 == -99L))
+
+  no_bin <- d
+  no_bin$fleet_control$Sel_norm_bin <- NULL
+  testthat::expect_error(
+    suppressWarnings(suppressMessages(Rceattle::rearrange_data(no_bin))),
+    "Sel_norm_bin")
 })

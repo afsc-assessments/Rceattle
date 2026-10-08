@@ -1073,8 +1073,37 @@ switch_check <- function(data_list){
   # instead of being hand-copied here. The order of the calls (and thus the
   # message order) is unchanged.
   .sch <- .rce_column_schema()
-  data_list$fleet_control$Sel_norm_bin <- .rce_apply_default(data_list$fleet_control$Sel_norm_bin, "Sel_norm_bin", .sch)
-  data_list$fleet_control$Sel_norm_bin_upper <- .rce_apply_default(data_list$fleet_control$Sel_norm_bin_upper, "Sel_norm_bin_upper", .sch, conditions = .dflt_when)
+  # `[[`, not `$`, for a column with exactly one longer sibling: `$`
+  # partial-matches the sibling, so .rce_apply_default() is handed a non-NULL
+  # value and returns early -- the default is never applied and the sibling's
+  # values are used instead. Three columns have that shape (Sel_norm_bin,
+  # Time_varying_sel, Time_varying_q); every other name here is unique, or
+  # ambiguous and therefore safe, since `$` resolves two or more candidates to
+  # NULL.
+  data_list$fleet_control$Sel_norm_bin <- .rce_apply_default(data_list$fleet_control[["Sel_norm_bin"]], "Sel_norm_bin", .sch)
+  data_list$fleet_control$Sel_norm_bin_upper <- .rce_apply_default(data_list$fleet_control[["Sel_norm_bin_upper"]], "Sel_norm_bin_upper", .sch, conditions = .dflt_when)
+  # Absent means "no time variation" for either switch. This has to run BEFORE
+  # the pre-4.4 non-parametric format migration below, which reads
+  # Time_varying_sel to decide whether a workbook is legacy.
+  data_list$fleet_control$Time_varying_sel <- .rce_apply_default(data_list$fleet_control[["Time_varying_sel"]], "Time_varying_sel", .sch)
+  # Time_varying_q doubles as the env_data column INDEX for a fleet whose
+  # Catchability is "Environmental" or "AR1", where "Off" is not a meaningful
+  # value -- so default the column only when no fleet needs it as an index, and
+  # say so plainly otherwise. Without this the fill produced "Off" for such a
+  # fleet and the model died later on `missing value where TRUE/FALSE needed`.
+  if (is.null(data_list$fleet_control[["Time_varying_q"]])) {
+    .q_env <- data_list$fleet_control$Catchability %in% c("AR1", "Environmental")
+    if (any(.q_env, na.rm = TRUE)) {
+      stop("`fleet_control` has no `Time_varying_q` column, but fleet(s) ",
+           paste(data_list$fleet_control$Fleet_name[which(.q_env)],
+                 collapse = ", "),
+           " set Catchability to \"Environmental\" or \"AR1\", which read ",
+           "Time_varying_q as the env_data column index rather than as a ",
+           "switch. Add the column: an index for those fleets, \"Off\" for ",
+           "the rest.", call. = FALSE)
+    }
+  }
+  data_list$fleet_control$Time_varying_q <- .rce_apply_default(data_list$fleet_control[["Time_varying_q"]], "Time_varying_q", .sch)
   # Sel_norm_scope defaults per-cell, not just per-column: .rce_apply_default()
   # returns early once the column exists, but a blank cell is the same silent
   # behaviour flip as a missing column -- it would reach the TMB integer vector
@@ -1492,6 +1521,7 @@ revert_switches <- function(data_list) {
     if (is.null(data_list$fleet_control[[.col]]))
       data_list$fleet_control[[.col]] <- .sch_defaults[[.col]]$default
   }
+
   data_list$fleet_control <- data_list$fleet_control |>
     dplyr::mutate(
       Fleet_type = .conv(.data$Fleet_type, fleet_map),
@@ -1506,10 +1536,12 @@ revert_switches <- function(data_list) {
 
   # Time_varying_q doubles as an environmental-index column when Catchability
   # is "AR1" or "Environmental", so only convert the rows that hold a switch.
+  # `[[` rather than `$` for the reason above.
+  tv_q <- data_list$fleet_control[["Time_varying_q"]]
   non_env_idx <- !data_list$fleet_control$Catchability %in% c("AR1", "Environmental")
   if (any(non_env_idx)) {
-    data_list$fleet_control$Time_varying_q[non_env_idx] <-
-      .conv(data_list$fleet_control$Time_varying_q[non_env_idx], tv_q_map)
+    tv_q[non_env_idx] <- .conv(tv_q[non_env_idx], tv_q_map)
+    data_list$fleet_control[["Time_varying_q"]] <- tv_q
   }
 
   # - Population dynamics switches

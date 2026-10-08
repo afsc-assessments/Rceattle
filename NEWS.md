@@ -12,6 +12,70 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.53.1
+
+## Bug fixes
+
+* **`Time_varying_sel` and `Time_varying_q` now default to `"Off"`.** Neither had a schema
+  default, so an absent column was not filled -- and both are among the three `fleet_control`
+  names with **exactly one longer sibling**, the one shape where `$` partial-matches instead of
+  returning `NULL`. `switch_check()`'s conversion read `Time_varying_q` with a bare `$` and
+  **assigned the result back with `$<-`**, so an absent column became a present and wrong one: on
+  `GOA2018SS` it came out `0.05, 0.01, 0.05, Off, ...` where the real modes are
+  `RandomWalk, Off, RandomWalk, ...`. `fit_mod()` then refused with "Invalid `Time_varying_q`
+  specified for fleets", blaming the caller for a value they never set. `Time_varying_sel` failed
+  differently -- inside a `dplyr::mutate`, naming the expression rather than the column. An
+  absent column means no time variation, so it is now filled with `"Off"` and announced, and
+  such a model fits.
+* **The schema default for `Sel_norm_bin` was being silently defeated by the same mechanism, on
+  the line that exists to apply it.** `.rce_apply_default()` returns early when handed a non-NULL
+  value, and the call read the column with `$` -- so when `Sel_norm_bin` was absent it received
+  `Sel_norm_bin_upper` and the default never applied. Measured: with `Sel_norm_bin_upper` set to
+  7 and `Sel_norm_bin` dropped, `switch_check()` returned `7, 7, 7, ...` instead of `"Off"`.
+  `Sel_norm_bin` is an absolute age, so that is a different selectivity normalisation on every
+  fleet, which moves q and hence the advice. All three fills now read with `[[`.
+* **`rearrange_data()` reached a TMB input through the same partial match, and that one was a
+  wrong number rather than a wrong diagnosis.** It is exported and does not call
+  `switch_check()`, so no fill can protect it; its `.required_fc` guard did not list
+  `Sel_norm_bin`; and the bare `$` read returned `Sel_norm_bin_upper`. Measured on `GOA2018SS`
+  with `Sel_norm_bin = "Max"` and the upper column `"Off"`: dropping the short name made
+  `rearrange_data()` **succeed silently** with every fleet's `sel_norm_bin1` flipped from
+  **-99** (normalize by the maximum) to **-999** (do not normalize) -- a different selectivity
+  scaling, hence a different q and a different SSB. `Sel_norm_bin` is now in `.required_fc`, so
+  an absent column is refused by name with the guard's existing "Run switch_check() first"
+  message, and the read uses `[[` so the guard is not the only thing standing between a partial
+  match and the template.
+* **`Time_varying_q` doubles as the `env_data` column index** for a fleet whose `Catchability` is
+  `"Environmental"` or `"AR1"`, where `"Off"` is not a meaningful value -- so the column is
+  defaulted only when no fleet needs it as an index, and otherwise refused with a message naming
+  those fleets. Without that, the fill produced `"Off"` for such a fleet and the model died later
+  on `missing value where TRUE/FALSE needed`, which is less diagnosable than what it replaced.
+* The accessor **in the fill** is the load-bearing one for the `switch_check()` path; the ~50
+  bare `$` reads of these three names elsewhere in `R/` run after the column exists and are
+  unchanged. `CLAUDE.md` says not to sweep those, and this is not that sweep.
+* Nothing shipping changes: all 11 bundled datasets, all 183 sibling workbooks with a
+  `fleet_control` sheet (across the four consumer repos), the three `inst/extdata` workbooks and
+  `write_template()`'s output all carry the columns, so the default never fires for them.
+  Resolution with a column present is unchanged -- `RandomWalk, Off, RandomWalk, Off` on
+  `GOA2018SS`. Golden unchanged.
+* A default only fires on absence, so a workbook that *has* the column keeps its values. A model
+  built from a data list **missing** one will now differ from the pre-5.53.1 attempt, which
+  failed rather than fitting: on `GOA2018SS` minus `Time_varying_sel` the fit builds with 539
+  free parameters against the 621 of the complete workbook, because fleet 8's
+  `RandomWalkAscending` deviations are no longer requested.
+
+## Internal
+
+* `test-schema-partial-match.R` now pins the invariant that matters: an absent silent-prefix
+  column gets its **schema default**, not its sibling's values. For each of the three it marks
+  the sibling with a distinctive value, drops the short name, and requires the result to be the
+  default and not the marker -- which is what the old assertion could not see, because it checked
+  presence only and ran on `BS2017SS`, whose siblings are all `0`/`NA` and convert to a
+  plausible-looking all-`"Off"`. 7 blocks, 28 assertions; **4 fail on the parent** -- three for
+  the schema defaults, one for `rearrange_data()`.
+* A second block pins that a column which IS present keeps its own values, so the default cannot
+  start firing where it should not.
+
 # Rceattle 5.53.0
 
 ## Breaking changes
