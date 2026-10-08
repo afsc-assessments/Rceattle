@@ -12,6 +12,30 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.54.2
+
+## Internal
+
+* **The plotters' save path had no test coverage at all.** 29 of the 31 exported plotters take a
+  `file` argument, and no test passed a non-`NULL` one -- the smoke test draws to a throwaway PDF
+  with `file = NULL`, and nothing anywhere checked a written `.png`. So the code that writes
+  user-facing files was exercised by nothing.
+* `test-plot-save-paths.R` pins the filename each covered plotter writes, keyed off the `file`
+  prefix. **The suffixes are measured, not derived**, and they are irregular enough that guessing
+  was wrong on 5 of 6 first attempts: `plot_recruitment` writes `_R_trajectory`, `plot_catch`
+  `_fishery_catch`, `plot_depletion` `_biomass_depletion_trajectory`, `plot_data` `_data_plot`.
+* This is the net a save-path unification needs before it can be attempted. Three
+  implementations write these files -- `.save_ggplot()` (19 call sites), `plot_comp()`'s own
+  `save_png()` closure, and 7 bare `ggplot2::ggsave()` calls with their own names and sizes --
+  and the filenames are an interface: assessment scripts glob and embed them. `ggplot_build()`,
+  which is what `CLAUDE.md` names as the net for a plotting change, never touches saving, so a
+  unification that renamed a user's output would have had nothing to catch it.
+* A second block keeps the file honest about its own coverage, as `test-plot-smoke.R` does: it
+  derives the 29 file-taking plotters from `getNamespaceExports()`, asserts 10 are covered and 19
+  are not, so a new plotter cannot be silently left out of both lists. The 19 need a multispecies
+  fit, diet data, a profile object or comp/OSA inputs that the single-species fixture does not
+  have.
+* 2 blocks, 13 assertions. All 14 `test-plot-*.R` files green at 775 assertions.
 # Rceattle 5.54.1
 
 ## Bug fixes
