@@ -141,6 +141,45 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
   use_parallel <- peels > 1L && cores > 1L
 
   #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
+  # Stored-map divergence ----
+  # Each peel's hindcast fit reuses `object$map`, so the peels reproduce the
+  # parameterisation the model was ORIGINALLY fitted with -- which is what
+  # Mohn's rho needs, and is deliberate. The cost is that a later fix to how a
+  # map is built never reaches a saved fit: the peel is fitted under the old
+  # map while the forecast refit below rebuilds it, so one peel can be fitted
+  # and reported under different parameter counts.
+  #
+  # Rather than change which map a peel uses, say when the two disagree.
+  # Rebuilt from the ORIGINAL data and parameters, not the peel's, so a
+  # difference means the code that builds maps has changed since this fit was
+  # saved -- not that the peel has fewer years.
+  #
+  # Hoisted here, before `run_one_peel` is defined: this condition reads only
+  # the input model, and a warning() raised inside a .parallel_lapply() worker
+  # is discarded (see inst/dev/TRAPS.md). Once per call, never per peel.
+  .map_drift <- tryCatch({
+    .fresh <- suppressWarnings(suppressMessages(build_map(
+      data_list  = object$data_list,
+      params     = object$estimated_params,
+      debug      = FALSE,
+      random_rec = object$data_list$random_rec)))
+    .shared <- intersect(names(object$map$mapList), names(.fresh$mapList))
+    .shared[!vapply(.shared, function(nm) identical(
+      as.integer(object$map$mapList[[nm]]),
+      as.integer(.fresh$mapList[[nm]])), logical(1))]
+  }, error = function(e) NULL)
+  if (length(.map_drift)) {
+    warning("This fit's stored map differs from one built now, in: ",
+            paste(.map_drift, collapse = ", "),
+            ". Each peel's hindcast is fitted with the STORED map, so it ",
+            "reproduces the original parameterisation, while the ",
+            "forecast-catch refit rebuilds it -- Mohn's rho is therefore ",
+            "computed on the model as first fitted, not as the current code ",
+            "would build it. Refit the base model to use the current map.",
+            call. = FALSE)
+  }
+
+  #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
   # Per-peel closure ----
   # Each peel only reads the original model, so peels are independent.
   #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
