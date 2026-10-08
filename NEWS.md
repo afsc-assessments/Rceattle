@@ -22,7 +22,7 @@ version throughout.
   (cases 1-3) but `theme_classic()` on its bubble panels (case 4). Each function now uses one
   look, resolved on the arm the rest of the package already agreed with: `plot_comp()` on
   `base_size = 10`, because its bubbles are pinned to `plot.rceattle_osa()`'s size scale -- the
-  same residuals appear in both figures -- and `plot_osa` draws them at 10; `plot_diet_comp2()` on
+  same residuals appear in both figures -- and `plot.rceattle_osa()` draws them at 10; `plot_diet_comp2()` on
   `theme_classic()`, because its case-4 panels are the same observed / estimated / Pearson bubble
   triptych `plot_diet_comp()` draws, and that function is `theme_classic()` throughout.
 * Figures only -- no likelihood, parameter or reported quantity moves. Measured with
@@ -30,21 +30,37 @@ version throughout.
   (`panel.grid` off, `axis.line` on, plus `axis.text`, `axis.ticks`, `panel.border`,
   `strip.background`); the composition fit panels scale their fonts 9 to 10 and, because ggplot2
   4.x derives geom defaults from the theme, the shaded area's outline `linewidth` goes 0.409 to
-  0.455. The explicit `linewidth`s on the fitted line and the zero line are unaffected.
+  0.455 -- though `comp_area_plot()` leaves `colour` at `NA`, so that outline is never drawn. The
+  explicit `linewidth`s on the fitted line and the zero line are unaffected.
+* `theme_classic()` leaves `panel.border` blank, so the three faceted diet panels are now
+  delimited by their strip boxes -- black at `linewidth` 1 -- rather than by a box around each
+  panel. `.rceattle_theme()` would supply that border, but it is not available here: it sets
+  `legend.title = element_blank()`, which would delete the "Source", "95% CI", "Prop." and
+  "Abs(Resid)" legend names the diet plotters set on every panel.
 
 ## Internal
 
 * `test-plot-theme-consistency.R` asserts that no plotter in `R/7-*.R` draws one figure family at
-  two looks, and records the three the package does use -- `.rceattle_theme()` (`theme_classic`,
-  no gridlines) for the trajectory figures, `theme_bw(base_size = 10)` for the residual and
-  composition diagnostics, and `theme_classic()` for the diet family. Parsed from the call
-  objects rather than the source lines, so a reformatted or line-wrapped call cannot blind it.
-  Unifying the three onto one theme would take the gridlines off every OSA and composition panel;
-  nothing here blocks that, but it is now a conscious change rather than a drift.
+  two looks, pins which look each file's figures are drawn at, and records the three the package
+  uses -- `.rceattle_theme()` (`theme_classic` plus a panel border, no gridlines) for the
+  trajectory figures, `theme_bw(base_size = 10)` for the OSA and composition panels, and
+  `theme_classic()` for the diet family. It is **not** "residual diagnostics get gridlines":
+  `plot_indexresidual()` and `plot_profile()` draw residuals and profiles at `.rceattle_theme()`,
+  with none. Parsed from the call objects rather than the source lines, so a reformatted or
+  line-wrapped call cannot blind it, and a `theme(text = element_text(size = ...))` override
+  counts as a base size -- that is the easiest way to reintroduce the defect while leaving the
+  `theme_*()` call alone. What it asserts is one look per set of theme CALLS, not per figure:
+  `plot_comp()` and `plot_indexresidual(residual_type = "osa")` both delegate to
+  `plot.rceattle_osa()`, so one function can still render two looks by argument. Unifying the
+  three onto one theme would take the gridlines off every OSA and composition panel; nothing here
+  blocks that, but it is now a conscious change rather than a drift.
 * Registered in `tools/ci/source-guards.R`, so the guard job runs it against a real source
-  checkout with failures fatal. Three stated counts in that file were stale and are re-measured:
-  the set is 17 files, not 16; **all** of them hold several `test_that()` blocks (2 at the fewest,
-  14 at the most), not 10 of 16; and 6 of the 17 are named in a vignette.
+  checkout with failures fatal. Three counts stated in that file are re-measured: the set is 17
+  files, not 16 (this change adds the 17th); **all** of them hold several `test_that()` blocks, 2
+  at the fewest and 14 at the most, where the file said 10 of 16; and 6 of the 17 are named in a
+  vignette, where it said 5 were named "anywhere else". The last two were wrong when written
+  rather than gone stale -- neither 10 nor 5 matches any reading of the file set at the commit
+  that introduced them.
 
 # Rceattle 5.54.2
 
