@@ -12,6 +12,30 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.54.1
+
+## Bug fixes
+
+* **`retrospective()` now says when a fit's stored map no longer matches one built today.** Each
+  peel's hindcast is fitted with `object$map`, so the peels reproduce the parameterisation the
+  model was *originally* fitted with -- which is what Mohn's rho is a comparison against, and is
+  deliberate. The cost is that a later fix to how a map is built never reaches a saved fit, and
+  that within one peel the two passes disagree: the hindcast uses the stored map while the
+  forecast-catch refit calls `build_map()` afresh, so a peel can be fitted and reported under
+  different parameter counts.
+* Which map a peel uses is unchanged. The divergence is reported instead. The comparison rebuilds
+  from the **original** data and parameters, not the peel's, so a difference means the
+  map-building code has changed since the fit was saved rather than that the peel has fewer
+  years. Measured on a fresh fit: **49 map blocks compared, 0 differ**, so nothing built by
+  current code says anything.
+* The check is **hoisted above the per-peel closure** on purpose. A `warning()` raised inside a
+  `.parallel_lapply()` worker is discarded, and the default `cores` is `detectCores() - 6`, so
+  the parallel path is the one anyone actually runs -- a per-peel check would have been invisible
+  exactly where it matters. Verified at `cores = 1` and `cores = 2`.
+* `test-diagnostics-retro-map-divergence.R`: 3 blocks, 8 assertions, failing on the parent. One
+  block pins that a current fit is silent, one that a perturbed stored map is named, and one that
+  the warning survives the parallel path.
+
 # Rceattle 5.54.0
 
 ## New features
