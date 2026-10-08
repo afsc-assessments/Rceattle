@@ -12,6 +12,40 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.53.2
+
+## Bug fixes
+
+* **A species whose numbers-at-age are input scored an M random-effect density over a field it
+  does not estimate.** `build_map_fixed_natage()` maps an `estDynamics > 0` species' whole M1
+  random-effect block out -- `log_M1_dev`, `M1_dev_log_sd` and `M1_rho` -- after
+  `build_map_m1()` runs, so nothing of its M is estimated. But the template's density is gated on
+  `M1_re(sp)` alone, with no `estDynamics` test in any of the three `JNLL_M_RE` blocks, so it
+  still evaluated `N(0, exp(0))` over constant zeros and contributed `n * log(2*pi)/2`.
+* Measured end to end on `BS2017SS` (`nyrs_hind` 39) with species 1's numbers-at-age fixed,
+  `M1_model = 1`, `M1_re = 2`:
+
+  | | species 1 | 2 | 3 | objective |
+  |---|---|---|---|---|
+  | before | **35.838603** | 35.838603 | 35.838603 | 1333557.488469 |
+  | after | **0** | 35.838603 | 35.838603 | 1333521.649866 |
+
+  The difference is `35.838603` exactly -- `39 * log(2*pi)/2`. Species 2 and 3 keep theirs
+  because their deviations really are estimated; that is the density at the starting values, not
+  a degenerate constant.
+* It was a **constant**, so zero gradient and no parameter bias -- but it made the objective
+  incomparable with an `M1_re = 0` fit of the same model, and broke the invariant that the
+  "M random effects" jnll row is exactly 0 when nothing is estimated. An AIC or likelihood
+  comparison across `M1_re` settings on a model with a fixed-numbers species was reading that
+  offset as information.
+* `fit_mod()` now treats `M1_re` as 0 for such a species and warns, naming it -- the same style
+  as it already forces `M1_use_prior` to 0 when `M1_model` is 0. Nothing shipping is affected: no
+  bundled dataset ships a fixed-numbers species, and `estDynamics > 0` requires `NByageFixed`
+  data that none of them carries.
+* `test-mortality-m1-re-fixed-numbers.R`: 2 blocks, 6 assertions, **3 failing on the parent**. No
+  bundled dataset has a fixed-numbers species, so the fixture is built in the test from a normal
+  fit's `N_at_age` -- which is also the first fixed-numbers fixture in the suite.
+
 # Rceattle 5.53.1
 
 ## Bug fixes
