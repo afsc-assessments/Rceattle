@@ -802,7 +802,13 @@ discrete series, viridis for continuous ones, `theme_classic`) and **return
 the `ggplot` object**, so they print when called interactively and can be
 further customized by adding ggplot2 layers
 (e.g. `plot_biomass(fit) + ggplot2::ggtitle("My title")`). Pass `file = "stem"`
-to also write the figure to `stem_<plot>.png`.
+to also write the figure to a PNG. The suffix is per-plotter and not derived
+from the function name -- `plot_recruitment()` writes `stem_R_trajectory.png`,
+`plot_catch()` `stem_fishery_catch.png`, `plot_data()` `stem_data_plot.png` --
+and the per-fleet plotters write one file each: `plot_comp()` writes
+`stem_comp_pearson.png` plus `stem_comp_annual_fleet<N>_<age|length>.png` and
+`stem_comp_aggregated_fleet<N>_<age|length>.png`.
+`tests/testthat/test-plot-save-paths.R` records every name.
 
 **Shared arguments.** The timeseries plotters (`plot_biomass`, `plot_ssb`,
 `plot_recruitment`, the depletions, `plot_exploitable_biomass`, `plot_f`), the
