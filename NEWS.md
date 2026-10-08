@@ -12,6 +12,40 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.54.3
+
+## Bug fixes
+
+* **Two plotters drew one figure family at two different looks.** `plot_comp()` set
+  `theme_bw(base_size = 10)` on its Pearson residual bubbles and `theme_bw(base_size = 9)` on the
+  composition fit panels, and `plot_diet_comp2()` set `theme_bw()` on its line and bar fits
+  (cases 1-3) but `theme_classic()` on its bubble panels (case 4). Each function now uses one
+  look, resolved on the arm the rest of the package already agreed with: `plot_comp()` on
+  `base_size = 10`, because its bubbles are pinned to `plot.rceattle_osa()`'s size scale -- the
+  same residuals appear in both figures -- and `plot_osa` draws them at 10; `plot_diet_comp2()` on
+  `theme_classic()`, because its case-4 panels are the same observed / estimated / Pearson bubble
+  triptych `plot_diet_comp()` draws, and that function is `theme_classic()` throughout.
+* Figures only -- no likelihood, parameter or reported quantity moves. Measured with
+  `ggplot_build()`: the diet panels' data layer is **identical**, with 6 theme elements changing
+  (`panel.grid` off, `axis.line` on, plus `axis.text`, `axis.ticks`, `panel.border`,
+  `strip.background`); the composition fit panels scale their fonts 9 to 10 and, because ggplot2
+  4.x derives geom defaults from the theme, the shaded area's outline `linewidth` goes 0.409 to
+  0.455. The explicit `linewidth`s on the fitted line and the zero line are unaffected.
+
+## Internal
+
+* `test-plot-theme-consistency.R` asserts that no plotter in `R/7-*.R` draws one figure family at
+  two looks, and records the three the package does use -- `.rceattle_theme()` (`theme_classic`,
+  no gridlines) for the trajectory figures, `theme_bw(base_size = 10)` for the residual and
+  composition diagnostics, and `theme_classic()` for the diet family. Parsed from the call
+  objects rather than the source lines, so a reformatted or line-wrapped call cannot blind it.
+  Unifying the three onto one theme would take the gridlines off every OSA and composition panel;
+  nothing here blocks that, but it is now a conscious change rather than a drift.
+* Registered in `tools/ci/source-guards.R`, so the guard job runs it against a real source
+  checkout with failures fatal. Three stated counts in that file were stale and are re-measured:
+  the set is 17 files, not 16; **all** of them hold several `test_that()` blocks (2 at the fewest,
+  14 at the most), not 10 of 16; and 6 of the 17 are named in a vignette.
+
 # Rceattle 5.54.2
 
 ## Internal
