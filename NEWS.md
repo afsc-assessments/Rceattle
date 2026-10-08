@@ -12,6 +12,48 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.54.2
+
+## Internal
+
+* **The plotters' save path had no test coverage at all.** No test passed a non-`NULL` `file =`
+  to any plotter -- the smoke test relies on the default -- and the string "png" appeared nowhere
+  under `tests/` or `tools/`. So the code that writes user-facing files was exercised by nothing.
+* `test-plot-save-paths.R` records what every plotter writes, keyed off the `file` prefix.
+  **The suffixes are measured, not derived**, and they are irregular: `plot_recruitment` writes
+  `_R_trajectory`, `plot_catch` `_fishery_catch`, `plot_mortality` `_mortality_at_age`,
+  `plot_data` `_data_plot`.
+* **29 of the 31 exported plotters write a file on the single-species `BS2017SS` fixture**, and
+  all 29 are now covered -- 25 that write one figure by exact filename, and `plot_comp` (15
+  files), `plot_diet_comp`, `plot_diet_comp1` and `plot_diet_comp2` (9 each) by file count and
+  naming pattern, since those names embed `spnames` from the dataset. Only `plot_form` (a stub
+  with no `file` formal) and `plot_profile` (needs an `Rceattle_profile`) write nothing, and both
+  are named as exclusions with a stale-entry check.
+* Covering them reaches all three implementations: `.save_ggplot()` (19 call sites),
+  `plot_comp()`'s own `save_png()` closure (1 definition, 3 uses) and the 5 inline
+  `ggplot2::ggsave()` calls in `R/7-plot_comp.R`, each with its own name and figure size. This is
+  the net a save-path unification needs first -- `ggplot_build()`, which `CLAUDE.md` names as the
+  net for a plotting change, never touches saving.
+* The filenames are an interface: **215 call sites across the sibling assessment repos pass
+  `file =` to a plotter** (169 in `Rceattle-models`, 34 in `GOA-ATF-ESP`, 12 in
+  `GOA_circlulation_study`). None globs the result, so a rename would not error anywhere -- it
+  would leave a differently-named figure.
+
+## Bug fixes
+
+* **`plot_index()` writes the same filename on both scales.** Its suffix is unconditional, so
+  `plot_index(fit, file = "p")` and `plot_index(fit, file = "p", log = TRUE)` both write
+  `p_survey_indices.png` -- two different figures, one file, whichever ran last. `plot_logindex()`
+  forwards with `log = TRUE`, and `GOA-ATF-ESP/R/Run_2025_ceattle.R:274` calls it with `file =`.
+  Recorded in `test-plot-save-paths.R` and in the Tier 0 backlog; not yet fixed, because changing
+  a written filename is a user-visible change and the two scales need names chosen deliberately.
+* **The diet plotters' filenames contain spaces.** `plot_diet_comp()` builds its name from
+  `paste("Pred-", spnames[i])`, so it writes
+  `p_aggregated_diet_comps_year1_Pred- Arrowtooth flounder_prey_Cod.png` -- a space after the
+  dash and the spaces inside each species name. `plot_timeseries()` already sanitises a species
+  name for its CSV with `gsub("[^A-Za-z0-9]+", "_", ...)`; the diet plotters do not use it.
+  Also recorded rather than fixed, for the same reason.
+
 # Rceattle 5.54.1
 
 ## Bug fixes
