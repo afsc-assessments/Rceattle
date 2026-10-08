@@ -473,6 +473,25 @@ Still open. No user-visible consequence; do them opportunistically.
   a NaN objective (loud); now it returns `log(1) = 0`, so a prior would be evaluated silently at
   M = 1.0 per year. Found reviewing PR #197, 2026-10-04.
 
+Added 2026-10-08, from three occurrences in one session:
+
+- **A markdown table in this file silently truncates on an unescaped pipe, and nothing checks
+  it.** In GitHub-flavoured markdown a cell separator is a `|` NOT preceded by a backslash, so
+  `` `max|gradient|` `` inside a cell splits the row into five cells against a three-column header
+  and **GitHub discards everything after the third** -- on one Tier 0 row that hid ~700 characters,
+  including the gradient half of a retraction and the paragraph naming the live GOA multispecies
+  assessment. The raw text an agent `Read`s is complete, so this is invisible to every reader who
+  does not open the rendered file, which is the one a human uses. It has now happened three times:
+  two pre-existing rows (fixed in 5.54.3), and once more while filing the shared-block linkage row
+  above. The inverse also bites -- counting RAW pipes rather than unescaped ones reports a
+  correctly-escaped row as broken, which is how both a review and my own check arrived at "3
+  malformed rows" when the real number was 2.
+  **The check is about fifteen lines in `tools/ci/source-guards.R`**, which already runs per PR
+  against a real checkout: for each `| Where |` header in `inst/dev/*.md`, assert every following
+  table row has the same count of `(?<!\\)\|`. It belongs there rather than in an agent's script,
+  because the two things that caught it both times were assertions a human would not have written
+  by hand. Cheap, and it ends a footgun that has already cost one retraction's visibility.
+
 ## `TODO(review)` — Grant's calls, not an agent's
 
 Six, each a judgement about what the right behaviour *is*:
