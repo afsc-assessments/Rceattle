@@ -514,10 +514,12 @@ implementation Trijoulet et al. (2023) cite, instead hardcodes
 the same choice per observation type inside one call rather than across two
 packages.
 
-One caveat that applies to every method: `Estimate_index_sd = "Analytical"` and
-the analytical `Catchability` forms concentrate their parameter out using **all**
-the observations, including the one being residualized, so the conditioning is
-not strictly one-step-ahead and the residuals are approximate.
+One caveat that applies to every method: `Estimate_index_sd = "Analytical"`,
+`Estimate_catch_sd = "Analytical"` and the analytical `Catchability` forms
+concentrate their parameter out using **all** the observations, including the
+one being residualized, so the conditioning is not strictly one-step-ahead and
+the residuals are approximate -- by an amount that shrinks as the series
+lengthens.
 
 ### Fleets with tail accumulation
 
@@ -679,7 +681,7 @@ Non-converging runs are dropped from `Rceattle_list` and reported in a message, 
 
 A run is dropped when its maximum absolute gradient exceeds 1 (the same threshold `convergence_diagnostics()` calls `FAIL`) or when an `sdreport` that was requested did not come back.
 
-`retrospective()` and `jitter()` both fit peels / starts in parallel by default. Pass `cores = 1` to force sequential execution; otherwise the call uses a PSOCK cluster sized at `parallel::detectCores() - 6` (capped at 2 under `R CMD check`).
+`retrospective()` and `jitter()` both fit peels / starts in parallel by default. Pass `cores = 1` to force sequential execution; otherwise the call uses a FORK cluster where the platform allows one, PSOCK on Windows, sized at `parallel::detectCores() - 6` (capped at 2 under `R CMD check`).
 
 ## Self-test (simulation–estimation)
 

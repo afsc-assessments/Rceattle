@@ -83,7 +83,7 @@ template <class Type> Type square(Type x){return x*x;}
  *
  *   sigma^2 = 2 * S / (sqrt(1 + b^2 * S) + 1)
  *
- * which is the Ludwig and Walters (1994) estimator `sigma = sqrt(S)` when
+ * which is the Walters and Ludwig (1994) estimator `sigma = sqrt(S)` when
  * `b = 0`, and shrinks it as the bias term takes up part of the residual. The
  * form above is the rationalised version of `2 (sqrt(1 + b^2 S) - 1) / b^2`;
  * it needs no branch at `b = 0` and stays accurate for small `b`, where that

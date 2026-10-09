@@ -170,59 +170,39 @@
 #'
 #' @description Draws each negative log-likelihood component against the
 #'   profiled parameter, with the total overlaid, in the style of
-#'   `r4ss::SSplotProfile()`. Where the curves disagree about which value of the
-#'   parameter they prefer, the data sources are in conflict, which is what
-#'   the total on its own cannot show.
+#'   `r4ss::SSplotProfile()`. Where the curves disagree about which value they
+#'   prefer, the data sources are in conflict, which is what the total on its
+#'   own cannot show.
 #'
 #' @details
 #' Read the figure by where each curve bottoms out, not by how deep it is. Every
-#' series is re-zeroed at its own minimum (`relative = "own"`) and a point marks
-#' that minimum, so the spread of the points along the x axis *is* the
-#' disagreement: components whose points sit together support the same value,
-#' and a component whose point sits far from the total's is pulling against the
-#' rest.
+#' series is re-zeroed at its own minimum and a point marks that minimum, so the
+#' spread of the points along the x axis *is* the disagreement: components whose
+#' points sit together support the same value, and one whose point sits far from
+#' the total's is pulling against the rest. Where one component dwarfs the
+#' others it sets the y axis and the rest flatten onto the bottom;
+#' `relative = "scaled"` puts every curve on 0 to 1 so the minima stay
+#' comparable, and `relative = "minimum"` re-zeroes every series at the total's
+#' minimum, showing what each gives up by moving away from the fitted value.
+#' [profile_components()] documents all of them, and the magnitude `"scaled"`
+#' discards.
 #'
-#' When one component dwarfs the others it sets the y axis and the rest flatten
-#' onto the bottom, so where *they* prefer the parameter cannot be read.
-#' `relative = "scaled"` puts every curve on 0 to 1 so the minima can be
-#' compared. It discards magnitude, a component moving 0.02 draws like one
-#' moving 40, so raise `minfraction` with it. That filter runs on the raw
-#' change, and is what keeps a barely-constrained component from drawing a
-#' confident-looking curve.
-#'
-#' `relative = "minimum"` re-zeroes every series at the total's minimum, showing
-#' what each component gives up by moving away from the fitted value.
-#'
-#' Under `joint = "multiply"` or `"add"` a dotted vertical line marks the fitted
-#' model (a multiplier of 1, an offset of 0).
-#'
-#' The total is drawn in black, heavier than the components, and is kept out of
-#' the colour legend so the palette separates only the components being
-#' compared. Components whose change over the grid is under `minfraction` of the
-#' total's are dropped: they are flat on this scale and would only crowd the
-#' legend. Non-converged grid points leave a gap in the curve.
-#'
-#' `line_col`, `lwd` and `lty` apply to the **components**. The total is drawn
-#' solid and black at 1.6 times `lwd`, so that it stays the reference line
-#' whatever the components are styled as. Series are ordered, in the legend and
-#' in the palette, by how much each moves over the grid.
-#'
-#' Under `random_rec = TRUE` the total is the Laplace-approximated marginal
-#' likelihood while the components are the inner joint negative
-#' log-likelihood, so they will not sum; [profile_components()] says so when
-#' they differ. The shapes are still comparable.
+#' The total is drawn solid and black at 1.6 times `lwd`, and kept out of the
+#' colour legend, so it stays the reference line whatever the components are
+#' styled as; `line_col`, `lwd` and `lty` therefore apply to the
+#' **components**. Series are ordered, in the legend and the palette, by how
+#' much each moves over the grid. Under `joint = "multiply"` or `"add"` a dotted
+#' vertical line marks the fitted model (a multiplier of 1, an offset of 0).
+#' Non-converged grid points leave a gap.
 #'
 #' @param Rceattle_profile A single `"Rceattle_profile"` from
-#'   [profile.Rceattle()], or a list of them to compare models in facets (e.g.
-#'   the same profile run on two model configurations).
-#' @param weighted,relative,minfraction Passed to [profile_components()].
-#'   `minfraction` drops a component moving less than that fraction of the
-#'   TOTAL's change over the grid, not an absolute number of objective units.
-#'   It defaults to `0.01` here, as in `r4ss::SSplotProfile()`, so a total
-#'   moving 60 units cuts at 0.6.
+#'   [profile.Rceattle()], or a list of them to compare models in facets.
+#' @param weighted,relative,minfraction Passed to [profile_components()], which
+#'   documents them. `minfraction` defaults to `0.01` here, as in
+#'   `r4ss::SSplotProfile()`.
 #' @param add_cutoff Draw a horizontal line at `cutoff`. Off by default: the
-#'   cutoff is a statement about the total, and drawing it across the
-#'   components invites reading it as one about them.
+#'   cutoff is a statement about the total, and drawing it across the components
+#'   invites reading it as one about them.
 #' @param cutoff Height of that line. Default `1.92`, the 95%
 #'   profile-likelihood cutoff for one parameter, \eqn{\chi^2_1(0.95)/2}.
 #' @param xlab X-axis label. Default names the profiled parameter and cell in

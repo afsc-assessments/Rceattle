@@ -137,7 +137,7 @@ testthat::test_that("TruncatedNormal gets natural-scale Pearson residuals", {
 testthat::test_that("the analytical sd is refused where the likelihood reads it", {
   testthat::skip_if_not_installed("TMB")
 
-  # index_analytical_sd accumulates squared LOG residuals (Ludwig and Walters
+  # index_analytical_sd accumulates squared LOG residuals (Walters and Ludwig
   # 1994), so it is a log-scale sd. What that costs splits by family, and so does
   # the response:
   #   Normal / TruncatedNormal read the sd, so the LIKELIHOOD is on the wrong

@@ -9,8 +9,8 @@ sim_mod(object = NULL, simulate = FALSE, process = FALSE, Rceattle = NULL)
 \arguments{
 \item{object}{A CEATTLE model object exported from \code{Rceattle}.}
 
-\item{simulate}{Logical. If \code{TRUE}, simulates data from distributions.
-If \code{FALSE}, returns the expected values (hats).}
+\item{simulate}{Logical. \code{TRUE} draws from the distributions,
+\code{FALSE} returns the expected values (hats).}
 
 \item{process}{Which process error to redraw alongside the observations.
 \code{FALSE} (default) or \code{"none"} keeps the fitted deviations;
@@ -21,74 +21,65 @@ catchability and selectivity. Any subset of \code{"recruitment"},
 \code{"selectivity"} may be given instead. Ignored when
 \code{simulate = FALSE}.}
 
-\item{Rceattle}{deprecated name for \code{object}, still accepted so existing
-scripts keep working. Supplying both is an error.}
+\item{Rceattle}{deprecated name for \code{object}, still accepted; supplying both
+is an error.}
 }
 \value{
-A \code{data_list} object containing the simulated or expected data
-values, formatted for use in \code{Rceattle}. When \code{process} redrew
-something, the deviations that generated the data are attached as
-\code{attr(x, "process_sim")}, a named list holding whichever of
-\code{rec_dev}, \code{init_dev}, \code{log_M1_dev} and
-\code{beta_linkage_re} were drawn. Those are the truth a refit has to
-recover; without them the only comparison available is against the original
-fitted deviations, which are no longer the values that generated the data.
+A \code{data_list} of the simulated or expected data, formatted for
+\code{Rceattle}. Where \code{process} redrew something, the deviations that
+generated the data are attached as \code{attr(x, "process_sim")}, a named
+list holding whichever of \code{rec_dev}, \code{init_dev},
+\code{log_M1_dev} and \code{beta_linkage_re} were drawn. Those are the
+truth a refit has to recover; without them the only comparison available is
+against the original fitted deviations, which are no longer what generated
+the data.
 
-Each is accompanied by a logical of the same shape named with a
-\code{_drawn} suffix (\code{rec_dev_drawn}, ...), \code{TRUE} where the draw
-touched that cell. The draws cover the hindcast only, and
+Each comes with a same-shaped logical named \code{*_drawn}, \code{TRUE}
+where the draw touched that cell. Draws cover the hindcast only, and
 \code{beta_linkage_re} is one vector over every random-linkage slot whether
-or not its process was asked for, so the arrays hold fitted values
-alongside simulated ones. Restrict any recovery statistic to the
-\code{_drawn} cells, over the full array it reports perfect recovery on
-the cells that were never redrawn.
+or not its process was asked for, so the arrays hold fitted values beside
+simulated ones. \strong{Restrict any recovery statistic to the \code{_drawn}
+cells}; over the full array it reports perfect recovery on the cells that
+were never redrawn.
 }
 \description{
-Simulates the data an Rceattle model would have produced, either
-as expected values or as a random draw. Every observation type is covered:
-survey biomass (under the fleet's own \code{Index_distribution}, lognormal,
+Simulates the data an Rceattle model would have produced, as
+expected values or as a random draw. Every observation type is covered:
+survey biomass (under the fleet's own \code{Index_distribution} -- lognormal,
 natural-scale normal, or the correlated MVN/MVNORM draw from its covariance),
-total catch (lognormal), age/length composition and conditional
-age-at-length (multinomial or Dirichlet-multinomial), and stomach contents
-(multinomial or Dirichlet-multinomial).
+total catch (lognormal), age/length composition and conditional age-at-length,
+and stomach contents (multinomial or Dirichlet-multinomial).
 }
 \details{
 Every draw is taken by the TMB model itself, in a \code{SIMULATE} block beside
-the likelihood that defines it, so the two are edited together. A simulator
-that has drifted from its likelihood does not error, it makes
-\code{\link{self_test}} report recovery against a process the likelihood
-never assumed.
-
-Consequently \code{simulate = TRUE} needs a model to evaluate. A model loaded
-from an \code{.Rdata}/\code{.rds} file has one, and a fit whose \code{$obj}
-was dropped to save space is rebuilt from its \code{data_list} and estimates,
+the likelihood that defines it, so \code{simulate = TRUE} needs a model to
+evaluate. A model loaded from a file has one, and a fit whose \code{$obj} was
+dropped to save space is rebuilt from its \code{data_list} and estimates,
 provided the rebuild reproduces the fit's own expected values.
 \code{\link{model_average}} output cannot be simulated from at all: its
-quantities are an average over models rather than any one model's fit, so no
-parameters produced them. \code{simulate = FALSE} reads only
-\code{$quantities} and draws no random numbers, so it works on any model.
+quantities are an average over models, so no parameters produced them.
+\code{simulate = FALSE} reads only \code{$quantities} and draws no random
+numbers, so it works on any model.
 
-Rows the model predicts nothing for are left as they are, and each is
-reported by a warning: a composition for a fleet with no catch that year comes
-back empty; a stomach whose predator has an empirical suitability, and a
-covariance survey fleet's observations outside its fitted window, keep their
-observed values. A composition, CAAL or diet row whose sample size times its
-weight rounds below one observation also comes back empty, and its
-\code{Sample_size} is dropped to zero so the refit does not score a row with
-no data behind it.
+Rows the model predicts nothing for are left alone, each reported by a
+warning: a composition for a fleet with no catch that year comes back empty,
+while a stomach whose predator has empirical suitability, and a covariance
+fleet's observations outside its fitted window, keep their observed values. A
+composition, CAAL or diet row whose sample size times its weight rounds below
+one observation also comes back empty, with \code{Sample_size} dropped to zero
+so a refit does not score a row with no data behind it.
 
 One deliberate exception to draw-equals-density: compositions are drawn from
-the predicted proportions before \code{comp_offset} (the constant added to
+the predicted proportions \emph{before} \code{comp_offset} (the constant added to
 observed and predicted alike to keep \code{log(0)} out of the density,
-default 1e-5). A bin the model predicts at zero is therefore drawn at zero
-while the density scores it at \code{comp_offset}. The difference is about
-4e-4 relative on a 20-bin composition and does not bias the round trip, since
-the offset is applied to both sides on the next fit.
+default 1e-5), so a bin predicted at zero is drawn at zero while the density
+scores it at \code{comp_offset}. That is about 4e-4 relative on a 20-bin
+composition and does not bias the round trip, since the offset is applied to
+both sides on the next fit.
 
-Simulating leaves the drawn values in the object's report environment, under
-names ending \code{_sim}. The estimates, the data and the objective function
-are untouched, so a later \code{osa_residuals()} or \code{vcov()} on the same
-model is unaffected.
+Drawn values are left in the object's report environment under names ending
+\code{_sim}; the estimates, the data and the objective are untouched, so a
+later \code{osa_residuals()} or \code{vcov()} on the same model is unaffected.
 }
 \examples{
 \dontrun{

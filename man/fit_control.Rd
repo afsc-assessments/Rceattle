@@ -25,128 +25,101 @@ fit_control(
 )
 }
 \arguments{
-\item{bias.correct}{logical. If \code{TRUE}, applies bias correction via
-\code{\link[TMB:sdreport]{TMB::sdreport()}}. Default \code{FALSE}.}
+\item{bias.correct}{logical. Apply bias correction via \code{\link[TMB:sdreport]{TMB::sdreport()}}.
+Default \code{FALSE}.}
 
-\item{getsd}{logical. If \code{TRUE}, run \code{\link[TMB:sdreport]{TMB::sdreport()}} after
-optimization. Default \code{TRUE}.}
+\item{getsd}{logical. Run \code{\link[TMB:sdreport]{TMB::sdreport()}} after optimization. Default
+\code{TRUE}.}
 
-\item{getJointPrecision}{logical. Return the full Hessian of fixed
-and random effects. Default \code{TRUE} (matches \code{fit_mod()} default).}
+\item{getJointPrecision}{logical. Return the full Hessian of fixed and
+random effects. Default \code{TRUE}.}
 
-\item{getReportCovariance}{logical. Return the variance-covariance
-of \code{ADREPORT} variables. Default \code{FALSE}.}
+\item{getReportCovariance}{logical. Return the variance-covariance of
+\code{ADREPORT} variables. Default \code{FALSE}.}
 
-\item{projection_uncertainty}{logical. If \code{TRUE}, accounts for hindcast
-parameter uncertainty in projections when using an HCR (refits with all
-hindcast and biological-reference-point parameters turned on). Default
-\code{FALSE} for speed.}
+\item{projection_uncertainty}{logical. Carry hindcast parameter uncertainty
+into an HCR projection, by refitting with the hindcast and
+biological-reference-point parameters turned on. Default \code{FALSE} for speed.}
 
-\item{selectivity_se}{logical. If \code{TRUE}, \code{\link[TMB:sdreport]{TMB::sdreport()}} also returns a
-standard error for log selectivity-at-age. Default \code{FALSE}.}
+\item{selectivity_se}{logical. Also return a standard error for log
+selectivity-at-age. Default \code{FALSE}; see Details.}
 
-\item{comp_offset}{Numeric or \code{NULL}. Small proportion offset added to the
-observed and predicted age/length composition and conditional-age-at-length
-(caal) bins before the multinomial / Dirichlet-multinomial likelihood (to
-avoid \code{log(0)} for empty bins). Stored on \code{data_list} so the fitted
-likelihood and the OSA observation vector use the same offset, and so
-internal re-fits inherit it. \code{NULL} (the default) inherits
-\code{data_list$comp_offset} if set, otherwise \code{1e-5}; a number overrides it.
-Does not apply to diet (stomach-content) compositions.}
+\item{comp_offset}{Numeric or \code{NULL}. Small proportion added to the observed
+and predicted composition and CAAL bins before the multinomial /
+Dirichlet-multinomial likelihood, so an empty bin is not \code{log(0)}. Stored
+on \code{data_list}, so the fitted likelihood, the OSA observation vector and
+any internal refit share it. \code{NULL} (default) inherits
+\code{data_list$comp_offset} if set, else \code{1e-5}. Does not apply to diet
+compositions.}
 
-\item{bias_adjust_obs}{logical with default TRUE. Whether to
-apply a bias adjustment (mean-sd^2/2) to lognormal data
-likelihoods}
+\item{bias_adjust_obs}{logical, default \code{TRUE}. Apply a bias adjustment
+(mean - sd^2/2) to lognormal data likelihoods.}
 
-\item{bias_adjust_proc}{logical with default TRUE. Whether lognormal process
-likelihoods, lognormal priors and the Ianelli stock-recruit penalty are
-shifted by \code{-sd^2/2} on the log scale, making each prior value or curve a mean rather than a
-median; a value between 0 and 1 scales the shift.}
+\item{bias_adjust_proc}{logical, default \code{TRUE}. Shift lognormal process
+likelihoods, lognormal priors and the Ianelli stock-recruit penalty by
+\code{-sd^2/2} on the log scale, making each prior value or curve a mean rather
+than a median. A value between 0 and 1 scales the shift.}
 
-\item{use_gradient}{logical. Use the analytic gradient during
-phasing. Default \code{TRUE}.}
+\item{use_gradient}{logical. Use the analytic gradient during phasing.
+Default \code{TRUE}.}
 
-\item{rel_tol}{Numeric tolerance used to flag discontinuous
-likelihood warnings, comparing \code{nlminb}'s objective with a fresh
-evaluation of the object it came from. Default \code{1}.}
+\item{rel_tol}{Numeric tolerance for flagging a discontinuous likelihood,
+comparing \code{nlminb}'s objective with a fresh evaluation of the object it
+came from. Default \code{1}.}
 
-\item{loopnum}{Integer. Number of times to re-start optimization
-(\code{loopnum = 3} sometimes achieves a lower final gradient than
-\code{loopnum = 1}). Default \code{5}.}
+\item{loopnum}{Integer. Times to restart optimization; \code{3} sometimes reaches
+a lower final gradient than \code{1}. Default \code{5}.}
 
-\item{newtonsteps}{Integer. Number of extra unconstrained Newton steps to
-take after optimization (alternative to \code{loopnum}). Default \code{0}.}
+\item{newtonsteps}{Integer. Extra unconstrained Newton steps after
+optimization, an alternative to \code{loopnum}. Default \code{0}.}
 
-\item{phase}{\code{TRUE}/\code{FALSE} or a list. If \code{FALSE}, the model is not
-phased. If \code{TRUE}, default phasing is used. Can also accept a
-list of parameter object names with corresponding phase. Default
-\code{FALSE}.}
+\item{phase}{\code{TRUE}/\code{FALSE}, or a list of parameter names with their phases.
+Default \code{FALSE}.}
 
-\item{TMBfilename}{Optional character. Path (without \code{.cpp}) to an
-alternate TMB template for development. Default \code{NULL} (use the
-bundled \code{ceattle}).}
+\item{TMBfilename}{Optional path (without \code{.cpp}) to an alternate TMB
+template for development. Default \code{NULL} uses the bundled \code{ceattle}.}
 
-\item{verbose}{\code{0} = silent, \code{1} = print updates of model fit, \code{2} =
-print updates of model fit and TMB estimation progress. Default
-\code{1}.}
+\item{verbose}{\code{0} silent, \code{1} model-fit updates, \code{2} model-fit and TMB
+progress. Default \code{1}.}
 
-\item{nlminb_control}{A list of control parameters passed to
-\code{\link[stats:nlminb]{stats::nlminb()}}. See \code{?nlminb}. Default
-\code{list(eval.max = 1e9, iter.max = 1e9, trace = 0)}.}
+\item{nlminb_control}{Control parameters passed to \code{\link[stats:nlminb]{stats::nlminb()}}; see
+\code{?nlminb}. Default \code{list(eval.max = 1e9, iter.max = 1e9, trace = 0)}.}
 }
 \value{
 A list of class \code{"Rceattle_fit_control"}.
 }
 \description{
-\code{fit_mod()} holds roughly a dozen optimizer- and reporting-related
-arguments (\code{bias.correct}, \code{getsd}, \code{loopnum}, \code{newtonsteps}, ...).
-That is a lot of surface area when the user mostly cares about
-"what model am I fitting" rather than "how is it being fit."
-\code{fit_control()} collects those knobs into a single object so calls
-to \code{fit_mod()} can stay focused on the model spec:
-}
-\details{
-\if{html}{\out{<div class="sourceCode r">}}\preformatted{fit <- fit_mod(
-  data_list   = BS2017SS,
-  msmMode     = 0,
-  fit_control = fit_control(loopnum = 1, getsd = FALSE)
-)
-}\if{html}{\out{</div>}}
-
-Pass the result via the \code{fit_control} argument to \code{\link[=fit_mod]{fit_mod()}}. When
-supplied, the values in the \code{fit_control} object override the
-corresponding individual arguments to \code{fit_mod()}. Individual
-arguments are kept for backward compatibility.
+Collects the optimizer and reporting settings into one object, so a call to
+\code{\link[=fit_mod]{fit_mod()}} stays about the model rather than how it is fit. Pass the result
+through \code{fit_mod()}'s \code{fit_control} argument, where it overrides the
+equivalent individual arguments, which are kept for back-compatibility.
 }
 \section{Selectivity standard errors}{
-\code{selectivity_se} needs \code{getsd = TRUE}, and the error it reports is the one
-belonging to whichever \code{sdreport} the fit ends on. Under
-\code{estimateMode = "Estimate"} with any HCR that re-optimizes, that is the
-\emph{projection} fit, in which every selectivity parameter is mapped off, so
-every error comes back exactly 0. \code{estimateMode = "Projection"} estimates no
-selectivity at all and reports none where it runs no \code{sdreport}. Use
-\code{estimateMode = "Hindcast"}, or \code{"Estimate"} with
-\code{projection_uncertainty = TRUE}, to get an error from a fit that estimated
-the curve. \code{\link[=fit_mod]{fit_mod()}} warns before fitting in each of these cases.
+\code{selectivity_se} needs \code{getsd = TRUE}, and reports the error belonging to
+whichever \code{sdreport} the fit ends on. Under \code{estimateMode = "Estimate"} with
+an HCR that re-optimizes, that is the \emph{projection} fit, where every
+selectivity parameter is mapped off, so every error comes back exactly 0;
+\code{"Projection"} estimates no selectivity at all. Use \code{"Hindcast"}, or
+\code{"Estimate"} with \code{projection_uncertainty = TRUE}, to get an error from a fit
+that estimated the curve. \code{\link[=fit_mod]{fit_mod()}} warns in each of these cases.
 
-Off by default because the delta method forms a Jacobian of every reported
-value against every parameter, so its cost is the product of the two: on
-\code{Atka2022} it adds 1,012 values against 584 parameters.
+It is off by default because the delta method forms a Jacobian of every
+reported value against every parameter, so the cost is their product: on
+\code{Atka2022}, 1,012 values against 584 parameters. The error is on the log
+scale rather than the logit, because the non-parametric forms normalize to
+mean selectivity 1 instead of a maximum of 1 -- 58\% of \code{Atka2022}'s
+\code{sel_at_age} exceeds 1, up to 3.06 -- so a logit is undefined over most of
+the array.
 
-The error is on the log scale, not the logit, because the non-parametric
-forms normalize to mean selectivity 1 rather than a maximum of 1, 58\% of
-\code{Atka2022}'s \code{sel_at_age} exceeds 1, to 3.06, so a logit is undefined over
-most of the array.
-
-Rows cover estimated, age-based lead fleets only, and start at each fleet's
-first selected bin. Four kinds of cell hold a structural zero, a \code{Fixed}
+Rows cover estimated, age-based lead fleets only, starting at each fleet's
+first selected bin. Four kinds of cell are a structural zero (a \code{Fixed}
 fleet's empirical curve, a length-based fleet's growth-matrix projection, a
-bin below \code{Bin_first_selected}, and array padding, and one \code{log(0) = -Inf}
-on the tape turns \emph{every} quantity in the \code{sdreport} to \code{NaN}, biomass and SSB
-included. All four are identified from the data, so the reported set never
-depends on a parameter value; a value that underflows to zero is floored, so
-it cannot reintroduce the \code{-Inf}. See \code{\link[=plot_selectivity]{plot_selectivity()}}, which draws the
-interval.
+bin below \code{Bin_first_selected}, and array padding), and one \code{log(0) = -Inf}
+on the tape turns \emph{every} quantity in the \code{sdreport} to \code{NaN}, biomass and
+SSB included. All four are identified from the data, so the reported set
+never depends on a parameter value, and a value that underflows to zero is
+floored so it cannot reintroduce the \code{-Inf}. See \code{\link[=plot_selectivity]{plot_selectivity()}}, which
+draws the interval.
 }
 
 \examples{

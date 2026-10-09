@@ -77,7 +77,7 @@ testthat::test_that("a time BLOCK needs no sd, and valid settings still fit", {
     testthat::expect_true(is.finite(fit$obj$fn()), info = form)
   }
 
-  # Estimate_index_sd = 2 derives the sd analytically (Ludwig-Walters 1994)
+  # Estimate_index_sd = 2 derives the sd analytically (Walters-Ludwig 1994)
   # instead of estimating it, so it reads no starting value either.
   fit <- .fit(.q_fixture(function(d, i) {
     d$fleet_control$Estimate_index_sd[i] <- 2

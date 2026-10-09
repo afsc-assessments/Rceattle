@@ -16,62 +16,51 @@ build_growth(
 )
 }
 \arguments{
-\item{fun}{Growth function. Either a string (\link{GROWTH_FUNS}:
-\code{"empirical"} (default), \code{"vonBertalanffy"}, \code{"Richards"}) or the
-equivalent integer code (\code{0}, \code{1}, \code{2}). The canonical string form
-is stored on the returned object.}
+\item{fun}{Growth function: a string (\link{GROWTH_FUNS}: \code{"empirical"} (default),
+\code{"vonBertalanffy"}, \code{"Richards"}) or the equivalent integer code (\code{0}, \code{1},
+\code{2}). The canonical string is stored on the returned object.}
 
-\item{growth_age_L1}{Von Bertalanffy / Richards anchor age (the age at
-which mean length equals \code{L1}). Matches SS3's \code{Growth_Age_for_L1}
-control input. Scalar (recycled across species) or a length-\code{nspp}
-vector for per-species values. Default \code{NA} inherits
-\code{data_list$growth_age_L1} if supplied (e.g. from the SS3 converter),
-otherwise falls back to \code{max(0.5, minage[sp])} so \code{minage >= 1}
-models stay backwards-compatible and \code{minage = 0} models pick up an
-SS3-consistent half-year anchor.}
+\item{growth_age_L1}{Von Bertalanffy / Richards anchor age, where mean length
+equals \code{L1}; SS3's \code{Growth_Age_for_L1}. Falls back to
+\code{max(0.5, minage[sp])}, which keeps \code{minage >= 1} models
+backwards-compatible and gives \code{minage = 0} models an SS3-consistent
+half-year anchor.}
 
-\item{sd_plus_group}{How the oldest age class's SD-at-age is treated (only
-affects estimated growth, \code{fun != "empirical"}). \code{"WHAM"} pins the
-plus-group SD to the upper anchor \code{exp(sd_Linf)} (the WHAM SDAA
-convention); \code{"SS3"} instead interpolates it by length like any interior
-age. Accepts a string or the integer code (\code{1}/\code{2}), scalar or a
-length-\code{nspp} vector. Default \code{NA} inherits \code{data_list$growth_sd_style}
-if present (so a refit keeps the original choice), otherwise \code{"WHAM"}.
-When SS3's \code{Growth_Age_for_L2} is 999, SS3 pins the plus group to the
-upper anchor, which is \code{"WHAM"} here.}
+\item{sd_plus_group}{How the oldest age class's SD-at-age is treated, and
+only for estimated growth. \code{"WHAM"} (the fallback) pins the plus-group SD
+to the upper anchor \code{exp(sd_Linf)}, the WHAM SDAA convention; \code{"SS3"}
+interpolates it by length like any interior age. Integer codes \code{1}/\code{2} are
+accepted. Where SS3's \code{Growth_Age_for_L2} is 999 it pins the plus group to
+the upper anchor, which is \code{"WHAM"} here.}
 
-\item{linkages}{Optional named list of \code{\link[=linkage_spec]{linkage_spec()}} objects
-keyed by parameter name (must be one of \link{GROWTH_LINKAGE_PARAMS}).
-The mean-growth keys (\code{K}, \code{L1}, \code{Linf}, \code{m})
-accept arbitrary one-sided formulas and make that growth parameter
-year-varying (a per-year offset around its mean). The SD-endpoint keys
-(\code{sd_L1}, \code{sd_Linf}) only honor intercept-bearing
-formulas (typically \code{~ 1}), they thread \code{init}, \code{bounds}, and
-\code{priors} onto the growth SD-at-age, giving
-the SDs the same prior/fix/initial-value contract as the mean
-parameters. Slope rows on SD specs raise a warning and have no
-effect; slope-only formulas (\code{~ 0 + temp}) error.}
+\item{linkages}{Optional named list of \code{\link[=linkage_spec]{linkage_spec()}} objects keyed by
+parameter name (one of \link{GROWTH_LINKAGE_PARAMS}). The mean-growth keys
+(\code{K}, \code{L1}, \code{Linf}, \code{m}) take arbitrary one-sided formulas and make that
+parameter year-varying, as a per-year offset around its mean. The
+SD-endpoint keys (\code{sd_L1}, \code{sd_Linf}) honour only intercept-bearing
+formulas, typically \code{~ 1}, threading \code{init}, \code{bounds} and \code{priors} onto the
+growth SD-at-age so the SDs get the same prior, fix and starting-value
+contract as the means. A slope row on an SD spec warns and has no effect; a
+slope-only formula (\code{~ 0 + temp}) is an error.}
 
-\item{sd_form}{What the two growth-variability endpoints (\code{sd_L1},
-\code{sd_Linf}) are: \code{"SD"}, standard deviations of length-at-age in cm (SS3
-\code{CV_Growth_Pattern} 2), or \code{"CV"}, coefficients of variation so the SD is
-CV x mean length (SS3 pattern 0). Scalar or length-\code{nspp}; default \code{NA}
-inherits \code{data_list$growth_sd_form}, otherwise \code{"SD"}.}
+\item{sd_form}{What the two variability endpoints (\code{sd_L1}, \code{sd_Linf}) are:
+\code{"SD"} (the fallback), standard deviations of length-at-age in cm, SS3's
+\code{CV_Growth_Pattern} 2; or \code{"CV"}, coefficients of variation, so the SD is
+CV x mean length, SS3 pattern 0.}
 
-\item{plus_group_length}{How the plus group's mean length is set: \code{"M1"},
-\code{"none"}, \code{"SS3.24"} or \code{"decay"} (see Details). Scalar or length-\code{nspp};
-default \code{NA} inherits \code{data_list$growth_plus_length}, otherwise \code{"M1"}.}
+\item{plus_group_length}{How the plus group's mean length is set: \code{"M1"} (the
+fallback), \code{"none"}, \code{"SS3.24"} or \code{"decay"}. See Details.}
 
-\item{plus_group_decay}{Annual decay rate (per year) for
+\item{plus_group_decay}{Annual decay rate for
 \code{plus_group_length = "decay"}, SS3's positive \code{Linf_decay}, roughly the
-plus group's total mortality. Required for, and only used by, \code{"decay"}.}
+plus group's total mortality. Required for, and used only by, \code{"decay"}.}
 
 \item{pop_lengths}{Population length bins (lower edges, cm) on which the
-age-length key, weight-at-length and maturity-at-length are computed
-before being summed into the data length bins: SS3's population length
-bins. A vector applies to every species, a list gives one per species.
-Every data-bin lower edge must also be a population-bin edge. Default
-\code{NULL} inherits \code{data_list$pop_lengths}, otherwise uses the data bins.}
+age-length key, weight-at-length and maturity-at-length are computed before
+being summed into the data length bins: SS3's population length bins. Every
+data-bin lower edge must also be a population-bin edge. A vector applies to
+every species, a list gives one per species, and the fallback is the data
+bins.}
 }
 \value{
 A list of switches defining the growth model.
@@ -80,8 +69,14 @@ A list of switches defining the growth model.
 Specify the growth model for Rceattle
 }
 \details{
-\strong{Plus-group mean length.} Fish older than the oldest age are pooled, so
-the plus group's mean length lies between the growth curve at the oldest age,
+Every switch above takes a scalar, recycled across species, or a
+length-\code{nspp} vector for per-species values. Each defaults to \code{NA}, which
+inherits the matching field from \code{data_list} when it is set -- so a refit, or
+a model built by the SS3 converter, keeps the original choice -- and
+otherwise uses the fallback named with it.
+
+\strong{Plus-group mean length.} Fish older than the oldest age are pooled, so the
+plus group's mean length lies between the growth curve at the oldest age,
 L_A, and L-infinity:
 \itemize{
 \item \code{"M1"}: mean of L_A + (a/n)(Linf - L_A) over a = 0..n (n = \code{nages}),
@@ -98,8 +93,8 @@ Under \code{"none"}, \code{"SS3.24"} and \code{"decay"} the plus group also grow
 year like every other age, as SS3 does; under \code{"M1"} it keeps its Jan-1
 length through the year.
 
-\strong{Maturity-at-length} is set in the data, not here: the per-species
-control columns \code{L50_mat_len} and \code{slope_mat_len}.
+\strong{Maturity-at-length} is set in the data, not here: the per-species control
+columns \code{L50_mat_len} and \code{slope_mat_len}.
 }
 \examples{
 \donttest{

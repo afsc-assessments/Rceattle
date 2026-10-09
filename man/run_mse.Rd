@@ -35,142 +35,102 @@ run_mse(
 
 \item{nsim}{Number of simulations to run (default 10)}
 
-\item{start_sim}{First simulation number to start at. Useful if the code stops at specific seed/sim (default = 1).}
+\item{start_sim}{First simulation number to start at, useful when a run stops
+at a particular seed (default 1).}
 
-\item{assessment_period}{Assessment schedule. A single number is the period in years between assessments, counted from the operating model's terminal year. A vector is the explicit set of years an assessment is completed. Default = 1.}
+\item{assessment_period}{Assessment schedule. A single number is the period
+in years between assessments, counted from the operating model's terminal
+year; a vector is the explicit set of assessment years, which must name two
+or more years inside the projection horizon. Default 1.}
 
-\item{sampling_period}{Period of years data sampling is conducted. Single value or vector the same length as the number of fleets.}
+\item{sampling_period}{Period of years data sampling is conducted. Single
+value or vector the same length as the number of fleets.}
 
-\item{simulate_data}{Include simulated random error proportional to that estimated/provided for the data from the OM.}
+\item{simulate_data}{Include simulated random error proportional to that
+estimated or provided for the data from the OM.}
 
-\item{regenerate_past}{Refits the EM to historical/conditioning data prior to the MSE, where the data are generated from the OM with \code{simulate_data = TRUE} or without \code{simulate_data = FALSE} sampling error.}
+\item{regenerate_past}{Refit the EM to historical conditioning data before
+the MSE, generated from the OM with or without sampling error according to
+\code{simulate_data}.}
 
-\item{sample_rec}{Include resampled recruitment deviations from the hindcast in the OM projection. Resampled deviations are used rather than drawing from N(0, sigmaR) because the initial deviations bias R0 low. If FALSE, uses the single deviation described in \code{\link[=sample_rec]{sample_rec()}}.}
+\item{sample_rec}{Include resampled hindcast recruitment deviations in the OM
+projection. Resampled rather than drawn from N(0, sigmaR) because the
+initial deviations bias R0 low. \code{FALSE} uses the single deviation described
+in \code{\link[=sample_rec]{sample_rec()}}.}
 
-\item{rec_trend}{Linear increase or decrease in mean recruitment from \code{endyr} to \code{projyr}. This is the terminal multiplier \code{mean rec * (1 + (rec_trend/projection years) * 1:projection years)}. Can be of length 1 or of length nspp. If length 1, all species get the same trend.}
+\item{rec_trend}{Linear change in mean recruitment from \code{endyr} to
+\code{projyr}, as the terminal multiplier
+\code{mean rec * (1 + (rec_trend/projection years) * 1:projection years)}.
+Length 1 or \code{nspp}.}
 
-\item{fut_sample}{future sampling effort relative to last year.  \code{ Log_sd * 1 / fut_sample} for index and \code{ Sample_size * fut_sample} for comps}
+\item{fut_sample}{Future sampling effort relative to the last year:
+\code{Log_sd * 1 / fut_sample} for the index and
+\code{Sample_size * fut_sample} for comps.}
 
-\item{cap}{A cap on the catch in the projection. Can be a single number applied to all species (proportional to recommended catch) or vector of length \code{nspp} applied to each species. Default = NULL}
+\item{cap}{A ceiling on projected catch. A single number is an ANNUAL
+ceiling on total removals summed across species, shared between them in
+proportion to the catch the control rule recommended; a vector of length
+\code{nspp} is a separate ceiling per species. Default NULL.}
 
-\item{catch_mult}{A multiplier applied to the catch the control rule recommends. A single number or a vector of length \code{nspp} applies in every projection year; a \code{data.frame} with columns \code{Year}, \code{Species} and \code{mult} applies only in the year and species pairs it lists, where \code{Year} is a year the assessment schedule covers. Default = NULL}
+\item{catch_mult}{A multiplier on the catch the control rule recommends,
+applied before \code{cap} and before the exploitable-biomass limit. A
+single number or a vector of length \code{nspp} applies in every projection
+year; a \code{data.frame} with columns \code{Year}, \code{Species} and
+\code{mult} applies only to the pairs it lists, and any pair it omits is
+multiplied by 1. \code{Year} must be a year the schedule covers. Default
+NULL.}
 
 \item{seed}{seed for the simulation}
 
 \item{regenerate_seed}{seed for regenerating data}
 
-\item{loopnum}{number of times to re-start optimization (where \code{loopnum=3} sometimes achieves a lower final gradient than \code{loopnum=1})}
+\item{loopnum}{Number of times to restart optimization; \code{loopnum = 3}
+sometimes reaches a lower final gradient than \code{1}.}
 
-\item{file}{(Optional) Filename where each OM simulation with EMs will be saved. If NULL, no files are saved.}
+\item{file}{(Optional) Filename where each OM simulation with EMs is saved.
+If NULL, no files are saved.}
 
 \item{dir}{(Optional) Directory where each OM simulation is saved}
 
-\item{timeout}{length of time (minutes) estimation will run before stopping a sim (default 999 minutes)}
+\item{timeout}{Minutes estimation runs before a sim is stopped (default 999)}
 
-\item{endyr}{Terminal year of the MSE projection. Default = NA uses \code{projyr} from the operating model.}
+\item{endyr}{Terminal year of the MSE projection. Default NA uses
+\code{projyr} from the operating model.}
 
-\item{cores}{Number of cores to use for parallel simulations. Default
-\code{NULL} picks \code{parallel::detectCores() - 6}, capped at 2 when
-running under \code{R CMD check} (which sets
-\code{_R_CHECK_LIMIT_CORES_}). Set to 1 to force sequential execution.}
+\item{cores}{Cores for the parallel simulations. \code{NULL} (default) picks
+\code{parallel::detectCores() - 6}, capped at 2 under \code{R CMD check};
+1 forces sequential.}
 }
 \value{
-A list of operating models (differ by simulated recruitment determined by \code{nsim}) and estimation models fit to each operating model (differ by terminal year).
+A list of operating models (differing by simulated recruitment, per
+\code{nsim}) and estimation models fit to each (differing by terminal year).
 }
 \description{
-Runs a forward-projecting management strategy evaluation (MSE). Projected selectivity, catchability, foraging days, and weight-at-age are held at the operating model's terminal hindcast year. Survey SD is set to the average over the historical time series, and composition sample size is held at the last year. There is no implementation error and no observation error on catch.
+Runs a forward-projecting management strategy evaluation (MSE).
+Projected selectivity, catchability, foraging days and weight-at-age are
+held at the operating model's terminal hindcast year, survey SD is the
+average over the historical series, and composition sample size is held at
+the last year. There is no implementation error and no observation error on
+catch.
 }
-\section{Assessment schedule}{
-A single \code{assessment_period} is a fixed cycle. A vector is the schedule
-itself, for a design whose years are not evenly spaced, one assessment
-missed inside an otherwise biennial cycle, for instance:
+\details{
+Designing a schedule, comparing monitoring scenarios, and what the common
+random numbers do and do not share across schedules are in
+\code{vignette("hcrs-and-mses")}.
 
-\if{html}{\out{<div class="sourceCode">}}\preformatted{biennial <- seq(om$data_list$endyr + 2, om$data_list$projyr, by = 2)
-run_mse(om, em, assessment_period = setdiff(biennial, 2031))
-}\if{html}{\out{</div>}}
+One piece of arithmetic to get right when buffering a missed assessment: the
+assessment in year \code{Y} sets catch for \code{Y + 1} onward. So dropping 2031 from a
+biennial cycle leaves \strong{2032 and 2033} on 2029's advice, and 2031 itself is
+set by the 2029 assessment either way -- buffering 2031 changes a year the
+missed assessment never touched.
 
-Every year must be after the operating model's terminal year and within the
-projection horizon; a year outside that window is an error rather than being
-dropped. One missed assessment and a permanently longer cycle are different
-questions, and the second does not answer the first.
-
-A schedule must name two or more years. One year on its own cannot be told
-from a period, and the two readings are a world apart, so it is refused
-rather than guessed at.
-
-Two schedules run on the same \code{seed} share their recruitment deviations,
-which are drawn once per replicate before the first assessment, and each
-assessment's observation draw is seeded on that assessment's own year rather
-than on wherever earlier assessments left the stream. So an assessment in
-year \code{Y} starts from the same place in every schedule that assesses \code{Y}, and
-a divergence at one assessment does not displace the random-number stream
-the later assessments draw from.
-
-Common random numbers are not complete, and the gap is worth knowing before
-designing a comparison. One \code{sim_mod()} call draws every year in the
-assessment interval, under that assessment's seed --- so a year sitting
-\emph{inside} a longer interval is drawn under a different seed than the same year
-in a schedule that assessed it directly. Two schedules that differ in which
-years they assess therefore realize different observation error in the years
-between, even where the stock is in the same state. Per-observation-year
-streams would close it; \code{inst/dev/TODO-mse-horizon.md} records what that
-would take.
-
-Past the point where two schedules genuinely diverge --- different catch
-taken, different years surveyed --- the draws necessarily diverge too. That
-is a real difference in the runs, not an artefact.
-
-Make the last assessment year reach the projection horizon. Catch is only
-ever filled up to the last assessment, so a schedule that stops short leaves
-the trailing years at \code{NA}, and \code{mse_summary()} summarises over the whole
-projection --- understating Average Catch, Catch IAV and P(Closed) with
-nothing in the table to say which years it covered. A biennial cycle over an
-odd number of projection years lands here every time, so this is warned
-about, for a period and a schedule alike.
-}
-
-\section{Catch multiplier}{
-\code{catch_mult} multiplies the catch the estimation model's control rule
-recommends, before \code{cap} and before the exploitable-biomass limit. Given as
-a \code{data.frame} it applies only in the years and species it lists, which is
-how a buffer held for the years advice is stale is expressed.
-
-Mind which years those are. The assessment in year \code{Y} sets catch for \code{Y+1}
-onward, so a missed assessment in 2031 leaves \strong{2032 and 2033} on 2029's
-advice --- 2031 itself is set by the 2029 assessment either way, and cutting
-it changes a year the missed assessment never touched:
-
-\if{html}{\out{<div class="sourceCode">}}\preformatted{buffer <- expand.grid(Year = 2032:2033, Species = seq_len(om$data_list$nspp))
-buffer$mult <- 0.90
-run_mse(om, em, assessment_period = setdiff(biennial, 2031),
-        catch_mult = buffer)
-}\if{html}{\out{</div>}}
-
-\code{Species} is the species number, matching the catch data's own column, and
-any (year, species) pair the table omits is multiplied by 1. \code{Year} must be
-a year the assessment schedule actually covers --- from the operating
-model's terminal year to the last assessment, which is where catch is
-filled, not the whole projection.
-
-Note that this reduces catch, not ABC. Where realized catch sits well below
-ABC, GOA arrowtooth flounder, for one, reducing ABC changes removals only
-to the extent the fishery attains it, while reducing catch changes them in
-full. Either scale the multiplier by recent attainment,
-\code{1 - (1 - mult) * attainment}, or report the unscaled result as an upper
-bound on the effect of the reduction.
-}
-
-\section{Projection catch}{
 Catch recorded past a model's terminal year is blanked to \code{NA} at setup, with
-a warning naming the years. Those years are the projection, and the MSE sets
-their catch from the control rule; the likelihood never scored them either,
-since it fits only \code{Year <= endyr}. This is what a workbook looks like when
-\code{endyr} has fallen behind the catch series, catch through 2023 with \code{endyr}
-still 2019, and it is worth resolving before running the MSE, because
-conditioning the assessment on those years is a different question from
-projecting over them.
+a warning naming the years: the MSE sets those years from the control rule,
+and the likelihood never scored them, since it fits only \code{Year <= endyr}.
+That is what a workbook looks like when \code{endyr} has fallen behind the catch
+series, and it is worth resolving first, because conditioning on those years
+is a different question from projecting over them.
 }
-
 \examples{
 \dontrun{
 data(BS2017SS)

@@ -1,19 +1,19 @@
 // =====================================================================
 // linkage.hpp
 //
-// Generic accumulator for the Rceattle long-format linkage table. The
-// R side encodes the pooled `Rceattle_linkage_table` into parallel
-// IVECTORs/VECTORs and a dense design matrix `linkage_X`. This header
-// reads those, evaluates one (yearly) coefficient contribution per
-// linkage row, and accumulates the result into a per-process tensor of
-// year-varying offsets that the growth / mortality / recruitment
-// modules can add to their linear-predictor parameters.
+// Generic accumulator for the Rceattle long-format linkage table. The R
+// side encodes the pooled `Rceattle_linkage_table` into parallel
+// IVECTORs/VECTORs and a dense design matrix `linkage_X`; this header
+// turns each row into a yearly coefficient contribution and accumulates
+// it into per-process tensors of year-varying offsets that the
+// recruitment, mortality, growth, catchability and selectivity modules
+// add to their linear-predictor parameters.
 //
-// Process and parameter codes are kept in lockstep with R/0-linkage_encode.R:
-//   PROC: recruitment=0, M=1, growth=2, q=3, sel=4
-//   PARAM (growth): K=0, L1=1, Linf=2, m=3 (natural-scale names)
-//   PARAM (M): M1=0
-//   ...
+// Process and parameter codes are kept in lockstep with R/0-linkage_encode.R
+// (LINKAGE_PROCESS_CODES / LINKAGE_PARAM_CODES):
+//   PROC: recruitment=0, M=1, growth=2, q=3, sel=4, comp=5
+//   PARAM is a per-process namespace: growth K=0, L1=1, Linf=2, m=3
+//     (natural-scale names) plus the SD endpoints 4/5; M1=0 for M.
 //
 // Stratum sentinels: a 0 in `linkage_species`, `linkage_sex`, or
 // `linkage_age_bin` means "applies to every level of that stratum".
@@ -64,11 +64,9 @@ inline void rceattle_stratum_range(int id, int n_levels, int& lo, int& hi) {
 
 
 // ---------------------------------------------------------------------
-// The three accumulators below share one shape:
-//
-//   for each linkage row of this process, on this link scale:
-//     expand the stratum sentinels, then add beta * X(yr, col) into the
-//     offset tensor for every (stratum, year) the row applies to.
+// Every accumulator below has one shape: for each linkage row of this process
+// on this link scale, expand the stratum sentinels and add beta * X(yr, col)
+// into the offset tensor for every (stratum, year) the row applies to.
 //
 // `link_code` picks which rows a call consumes: 1 = log (added inside the exp),
 // 0 = identity (added to the natural-scale value after it), 3 = exponential

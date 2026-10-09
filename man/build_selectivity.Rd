@@ -9,100 +9,79 @@ build_selectivity(linkages = NULL)
 \arguments{
 \item{linkages}{Optional named list of \code{\link[=linkage_spec]{linkage_spec()}} objects keyed by
 selectivity parameter. Coefficients are per fleet by default
-(\code{by = ~ fleet}); use the \code{fleet} argument of \code{\link[=linkage_spec]{linkage_spec()}} to restrict
-a spec to particular fleets.}
+(\code{by = ~ fleet}); use \code{\link[=linkage_spec]{linkage_spec()}}'s \code{fleet} argument to restrict a
+spec to particular fleets.}
 }
 \value{
 A list of selectivity settings for \code{\link[=fit_mod]{fit_mod()}}.
 }
 \description{
-Holds environmental linkages on selectivity parameters. The effect on a
-parameter is written as a formula and composes additively with any
-\code{Time_varying_sel} process error on the same fleet (the two are separate
-mechanisms: a covariate effect versus a deviation).
+Holds environmental linkages on selectivity parameters. An effect is written
+as a formula and composes additively with any \code{Time_varying_sel} process
+error on the same fleet, the two being separate mechanisms: a covariate
+effect against a deviation.
 
-The parameter names are the shape parameters of the parametric selectivity
-forms:
+The \code{linkages} keys are the shape parameters of the parametric forms, so
+which apply depends on the fleet's \code{Selectivity}:
 \describe{
 \item{\code{slp_asc}, \code{slp_desc}}{ascending / descending logistic slope (log
-scale); for a double-normal the ascending / descending width, aliased
-\code{sigma_asc} / \code{sigma_desc}.}
-\item{\code{inf_asc}, \code{inf_desc}}{ascending / descending inflection age/length
-(natural scale); for a double-normal the peak and the logit right-floor,
+scale); the double-normal widths, aliased \code{sigma_asc} / \code{sigma_desc}.}
+\item{\code{inf_asc}, \code{inf_desc}}{ascending / descending inflection age or
+length (natural scale); the double-normal peak and logit right-floor,
 aliased \code{peak} / \code{right_floor}.}
 \item{\code{coff}}{non-parametric selectivity-at-bin coefficients.}
-\item{\code{apical}}{a multiplier on one sex's whole curve (log scale),
-applied after the form and before normalization, so every estimated
-form takes it. Name the fleet and the sex that holds it
-(\code{by = ~ fleet + sex}, \code{fleet = 3}, \code{sex = "male"}), as Stock
-Synthesis's male-offset option does; the other sex is the reference.
-See Details.}
+\item{\code{apical}}{a log-scale multiplier on one sex's whole curve, applied
+after the form and before normalization, so every estimated form takes
+it. See Details.}
 }
+\code{DoubleNormalSS3} (code 15) carries its own six under Stock Synthesis's
+names -- \code{dn_peak}, \code{top_logit}, \code{ascend_se}, \code{descend_se}, \code{start_logit},
+\code{end_logit} -- and a linkage is the \strong{only} way to vary that form over time,
+since \code{Time_varying_sel} is refused on it. A time block is
+\code{~ cut(Year, ...)}; annual deviations are a random-effect term.
 
-Every parameter but \code{apical} accepts \code{link = "log"} (multiplicative on the
-natural parameter) or \code{link = "identity"} (additive), like the other
-processes; \code{apical} is a multiplier already and takes \code{"log"} only.
+Every parameter but \code{apical} takes \code{link = "log"} (multiplicative on the
+natural parameter) or \code{link = "identity"} (additive); \code{apical} is already a
+multiplier and takes \code{"log"} only.
 }
 \details{
-\strong{The \code{apical} offset.} Fishing mortality is one \code{log_F} per fleet and
-year shared by the sexes, so a sex difference in F can only come from
-selectivity, and no form has a height parameter: the logistic family and
-DoubleNormal peak at 1 for every sex, the non-parametric forms re-centre
-each sex, Hake normalizes each sex by its own maximum. \code{apical} multiplies
-one sex's curve by \code{exp(log_sel_apical)}, bin by bin. That equals the ratio
-of the sexes' peak heights only where their shapes peak equally (the
-logistic family on an age axis); for a dome with sex-specific shape, read
-it as the multiplier on that sex's curve and take the peak ratio from
-\code{fit$quantities$sel_at_age}. Only the contrast between the sexes is
-identified (the common level is \code{log_F}), so one sex holds it and the fit
-is refused if both do, if no fleet or no sex is named, if the species has
-one sex, on a \code{Fixed}, AR1 or \code{Fleet_type = "Off"} fleet, on a fleet that
-shares another's \code{Selectivity_index} block, or under \code{link = "identity"},
-which could drive the multiplier negative; use the default \code{link = "log"}.
-It is also refused where
-\code{Sel_norm_scope = "WithinSex"} normalization would divide it straight back
-out; use \code{"AcrossSexes"}, under which the more-selected sex peaks at 1, or
-turn \code{Sel_norm_bin} off. The contrast is informed only by joint composition
+\strong{The \code{apical} offset.} Fishing mortality is one \code{log_F} per fleet and year
+shared by the sexes, and no form has a height parameter, so a sex difference
+in F can only come from selectivity. \code{apical} multiplies one sex's curve by
+\code{exp(log_sel_apical)} bin by bin, as Stock Synthesis's male-offset option
+does. Name the fleet and the sex that holds it (\code{fleet = 3},
+\code{sex = "male"}; \code{by} defaults to \code{~ fleet + sex} here) and the other sex is
+the reference. It equals the ratio of the sexes' peak heights only where
+their shapes peak equally, so for a sex-specific dome read it as the
+multiplier and take the peak ratio from \code{fit$quantities$sel_at_age}.
+
+Only the contrast between sexes is identified, the common level being
+\code{log_F}, so one sex holds it and the fit is refused if both do, if no fleet
+or sex is named, if the species has one sex, on a \code{Fixed}, AR1 or
+\code{Fleet_type = "Off"} fleet, on a fleet sharing another's
+\code{Selectivity_index}, under \code{link = "identity"} (which could drive the
+multiplier negative), or where \code{Sel_norm_scope = "WithinSex"} would divide it
+straight back out. The contrast is informed only by joint composition
 (\code{comp_data$Sex = 3}); with single-sex compositions it rests on its prior,
-and \code{fit_mod()} warns when a fleet has neither. Read the fitted multiplier
-with \code{exp(fit$estimated_params$log_sel_apical[fleet, sex])}, and the
-realized ratio of the sexes' maxima from \code{fit$quantities$sel_at_age}.
-Naming \code{fleet} and \code{sex} is enough: \code{by} defaults to \code{~ fleet + sex} for
-this parameter.
-An intercept prior is on the multiplier's natural scale (\code{lognormal()}
-centred on 1 means no offset). Like every selectivity linkage, a covariate
-on it acts in the hindcast years; projection years hold the last hindcast
-year's curve.
+and \code{\link[=fit_mod]{fit_mod()}} warns when a fleet has neither. An intercept prior is on the
+multiplier's natural scale, so a \code{lognormal()} centred on 1 means no offset.
+See \code{vignette("environmental-linkages-and-priors")}.
 
 \strong{Priors on a selectivity parameter.} An intercept-only formula (\code{~ 1}) with
-a \code{priors} entry places a prior on the selectivity parameter itself (no
-year-to-year offset is added). Read the prior on the parameter's own scale:
-the slopes (\code{slp_asc} / \code{slp_desc}) are on the log scale (use \code{lognormal()}),
-the inflections (\code{inf_asc} / \code{inf_desc}) on the natural scale (use \code{normal()}).
-See Examples for a normal prior on the ascending inflection. This mirrors the
-prior-only \code{\link[=build_composition]{build_composition()}} path.
+a \code{priors} entry puts a prior on the parameter itself, adding no
+year-to-year offset. Read it on the parameter's own scale: the slopes are log
+scale (\code{lognormal()}), the inflections natural scale (\code{normal()}). A prior
+targets one parameter, so in a two-sex model an unstratified \code{~ 1} prior
+constrains sex 1 only -- use \code{by = ~ sex}. An \code{init} on a selectivity
+intercept has no effect, since the starting value comes from the data, and a
+prior on the double-normal \code{right_floor} is unsupported. Fleets sharing a
+\code{Selectivity_index} estimate one block, so place the prior on the group's
+lead fleet (its first that is not \code{Off}): a prior on a follower would
+penalize the shared block once per sharing fleet. A prior on an \code{Off} fleet
+is refused, its selectivity not being estimated.
 
-A selectivity prior targets one parameter, so in a two-sex model an
-unstratified \code{~ 1} prior constrains sex 1 only, use \code{by = ~ sex} for a
-per-sex prior. An \code{init} on a selectivity intercept has no effect (the
-starting value comes from the data), and a prior on the double-normal
-\code{right_floor} is not supported.
-Fleets sharing a \code{Selectivity_index} estimate one parameter block, so place
-the prior on the group's lead fleet (its first fleet that is not \code{Off}); a
-prior on a follower would penalize the shared block once per sharing fleet.
-A prior on an \code{Off} fleet is refused: its selectivity is not estimated.
-
-The \code{linkages} keys are the parameter slots each selectivity form
-uses, so which ones apply depends on the fleet's \code{Selectivity}:
-\code{slp_asc} / \code{slp_desc} and \code{inf_asc} / \code{inf_desc} for the logistic family,
-\code{sigma_asc} / \code{sigma_desc} / \code{peak} / \code{right_floor} for the double-normal
-forms, \code{coff} for the non-parametric forms, and \code{apical} for the per-sex
-multiplier, which every form has. \code{DoubleNormalSS3} (code 15) carries its
-own six, under Stock Synthesis's own names: \code{dn_peak}, \code{top_logit},
-\code{ascend_se}, \code{descend_se}, \code{start_logit} and \code{end_logit} -- and a linkage
-is the ONLY way to vary that form over time, since \code{Time_varying_sel} is
-refused on it. A time block is \code{~ cut(Year, ...)}; annual deviations are a
-random-effect term.
+Like every selectivity linkage, a covariate acts in the hindcast years;
+projection years hold the last hindcast year's curve.
 }
 \examples{
 \donttest{

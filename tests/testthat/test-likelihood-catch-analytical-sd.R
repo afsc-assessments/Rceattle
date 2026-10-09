@@ -11,7 +11,7 @@
 # (log(obs) ~ N(log(pred) - b*sigma^2/2, sigma), b = bias_adjust_obs, default 1),
 # so the sd that minimises that density is
 #   sigma^2 = 2*S / (sqrt(1 + b^2*S) + 1),   S = mean squared log residual,
-# which reduces to the Ludwig and Walters (1994) sqrt(S) only at b = 0. The
+# which reduces to the Walters and Ludwig (1994) sqrt(S) only at b = 0. The
 # second test below is the one that pins this: it profiles the real catch
 # likelihood over sigma rather than re-deriving the same expression the
 # template computes, which is what an earlier draft did and could not have
@@ -62,7 +62,7 @@ test_that("the analytical catch sd minimises the catch likelihood", {
 
   # The estimator is only worth the name if it is the argmin of the density the
   # model actually evaluates. Profiling that density directly is independent of
-  # how the template computes it: the plain Ludwig-Walters sqrt(S) fails this
+  # how the template computes it: the plain Walters-Ludwig sqrt(S) fails this
   # by 4-17% on these three fisheries, because it ignores the -b*sigma^2/2 the
   # mean of the density carries.
   data("BS2017SS")

@@ -76,12 +76,11 @@
 # Canonical workbook-column schema
 # =============================================================================
 #
-# This file is the single source of truth for "what a workbook column is": one
-# row per column (or per control-sheet / bioenergetics-sheet scalar), carrying
-# its name, sheet, type, default, allowed values, TMB target, documentation, and
-# deprecated aliases. It mirrors the row-list-keyed-by-name idiom of
-# `R/1-data_requirements_table.R` (the data-element requirement table); this is
-# the per-COLUMN analogue.
+# The single source of truth for what a workbook column is: one row per column
+# (or per control-sheet / bioenergetics-sheet scalar), keyed by name, carrying
+# its sheet, type, default, allowed values, TMB target, documentation and
+# deprecated aliases. The per-COLUMN analogue of R/1-data_requirements_table.R.
+# Adding one: developer-guide.Rmd, "Data assembly and the column schema".
 #
 # Consumers (each replaces one hand-copy):
 #   * `switch_check()`      -- per-column defaults + deprecated-name migration.
@@ -93,39 +92,37 @@
 #   name        chr  column / control-scalar name (identity + lookup key).
 #   sheet       chr  "control" | "fleet_control" | "bioenergetics_control".
 #   type        chr  "integer" | "numeric" | "character" | "switch".
-#   doc         chr  the canonical description (drives the xlsx `Description`
-#                    column and the roxygen `\item` in R/data.R).
+#   doc         chr  the authoritative description, kept on the canonical name.
+#                    Written verbatim into the generated `meta_data_names.xlsx`
+#                    Description, and asserted name-for-name -- not
+#                    prose-for-prose -- against the `R/data.R` roxygen
+#                    `@format` items by test-schema-canonical.R, so a rename or
+#                    a new column with no roxygen entry fails CI.
 #   meta        lgl  TRUE if the column appears in the `meta_data` sheet.
-#   has_default lgl  TRUE if a default is filled when the column/scalar is absent.
-#                    WIRED for `sheet == "fleet_control"` only: switch_check()
-#                    reads the value + message from here via `.rce_apply_default()`.
-#                    For control / bioenergetics scalars the `default` fields are
-#                    DOCUMENTATION ONLY (like `aliases`) -- switch_check() fills
-#                    those with hand-coded literals that carry per-species /
-#                    `msmMode == 0` logic this table does not represent.
+#   has_default lgl  TRUE if a default is filled when the column/scalar is
+#                    absent. WIRED for `sheet == "fleet_control"` only, where
+#                    switch_check() reads the value + message from here via
+#                    `.rce_apply_default()`. On a control / bioenergetics scalar
+#                    the `default` fields are DOCUMENTATION ONLY (like
+#                    `aliases`): switch_check() fills those with hand-coded
+#                    literals carrying per-species / `msmMode == 0` logic this
+#                    table does not represent.
 #   default          the default value (only meaningful when has_default). For a
 #                    control/bio scalar it records the per-element value only.
 #   default_msg chr  the exact `message()` switch_check emits on defaulting a
 #                    fleet_control column (NULL = fill silently).
 #   default_msg_when chr  name of a predicate gating the message (NULL = always);
-#                    "np_hake" = only when a non-parametric/Hake/LogisticPM fleet
-#                    is present (matches the current conditional messaging).
-#   default_scope chr for control/bioenergetics scalars whose default is applied
+#                    "np_hake" = only when a non-parametric/Hake/LogisticPM
+#                    fleet is present.
+#   default_scope chr whether a control/bioenergetics default applies
 #                    per-species or only in single-species mode; documentation
-#                    only (switch_check keeps that imperative logic).
+#                    only, as for `default` above.
 #   allowed     chr  name of the switch map in R/0-switches.R (NULL = free value).
 #   aliases     chr  deprecated old names accepted on read (upgraded in place).
 #   status      chr  "live" (used by the model) | "orphan" (documented but read
 #                    nowhere -- excluded from generated docs once dropped).
 #   tmb_target  chr  the object in the model this column feeds. Not always a
 #                    plain rename: index_log_q_prior is log(Catchability_init).
-#
-# The `doc` string is the single authoritative description for each column: it
-# is written verbatim into the generated `meta_data_names.xlsx` Description and
-# is asserted, name-for-name, against the `R/data.R` roxygen `@format` items by
-# the drift-guard in test-schema-canonical.R (so a rename or a new column that
-# forgets its roxygen entry fails CI). Deprecated spellings live in `aliases`
-# and are upgraded on read; keep the `doc` on the canonical names.
 
 # ---- Row constructor: one call per column, non-default fields only -----------
 .rce_col <- function(name, sheet, doc, type = "numeric",
@@ -229,7 +226,7 @@
     .rce_col("Age_transition_index", "fleet_control", "Age transition matrix (e.g. growth trajectory) index to used convert age to length", type = "integer", tmb_target = "flt_age_transition_index"),
     .rce_col("Ageing_error_index", "fleet_control", "Ageing error matrix index, matching 'Ageing_error_index' in 'age_error'. Fleets sharing a value read the same matrix. Omit the column (or leave NA) to use the fleet's own species, which is what a model with one matrix per species has always done -- valid only while 'age_error' is itself indexed by species, since the fallback is the species number; data_check() refuses it once the indices mean something else. Give a fleet its own index when its otoliths were read by a method that ages them differently -- an ageing protocol that changed part way through a series is the usual case, and the two eras are then separate fleets sharing a Selectivity_index.", type = "integer", meta = TRUE, has_default = TRUE, default = NA, tmb_target = "flt_ageing_error_index"),
     .rce_col("Catchability_index", "fleet_control", "Index used to give fleets the SAME catchability (otherwise, same as Fleet_code). Fleets sharing a value share one q parameter, so the group carries only one answer to whether q is estimated: the group's first non-Off fleet decides for all of them, regardless of fleet type. Give a fleet its own value when it should be estimated independently.\r\n'Analytical' and 'AnalyticalArith' are the exception -- they solve q from each fleet's own index observations, so a group containing one does NOT share a catchability. data_check() reports that case, a Fixed lead that leaves fleets on different inits, and a Catchability or Time_varying_q that differs within a group.\r\nSee vignette('model-options-and-functionality'), 'Which fleets get a catchability'.", type = "integer", aliases = "Q_index", tmb_target = "flt_q_lead"),
-    .rce_col("Catchability", "fleet_control", "Catchability form. Accepts integer codes or readable strings:\r\n0 or \"Fixed\" = fixed at Catchability_init\r\n1 or \"Estimated\" = estimate as a free parameter\r\n2 or \"Estimated-with-prior\" = estimate with a lognormal prior on q, mean Catchability_init (median when bias_adjust_proc = FALSE) and log-scale SD Catchability_prior_sd\r\n3 or \"Analytical\" = geometric-mean analytical q following Ludwig and Walters 1994\r\n4 or \"PowerEquation\" = power equation (NOT YET IMPLEMENTED)\r\n5 or \"Environmental\" = linear equation log(q_y) = q_mu + beta * index_y; the environmental index is specified by Time_varying_q\r\n6 or \"AR1\" = REMOVED; data_check() errors. The deviates were never estimated, so q came back constant. Express the Rogers et al. (2024) form as a q linkage with ar1(1 | Year) and 'observe'; the error gives the call.\r\n7 or \"AnalyticalArith\" = arithmetic-mean analytical q (AMAK/ebswp form, pair with the MVN survey likelihood)\r\nApplies to any fleet carrying index_data, a fishery with a CPUE series included. A fleet with NO fitted index rows gets no catchability whatever this says, unless it follows the lead of a shared Catchability_index group. See vignette('model-options-and-functionality').", type = "switch", allowed = "q_map", aliases = "Estimate_q", tmb_target = "est_index_q"),
+    .rce_col("Catchability", "fleet_control", "Catchability form. Accepts integer codes or readable strings:\r\n0 or \"Fixed\" = fixed at Catchability_init\r\n1 or \"Estimated\" = estimate as a free parameter\r\n2 or \"Estimated-with-prior\" = estimate with a lognormal prior on q, mean Catchability_init (median when bias_adjust_proc = FALSE) and log-scale SD Catchability_prior_sd\r\n3 or \"Analytical\" = geometric-mean analytical q following Walters and Ludwig 1994\r\n4 or \"PowerEquation\" = power equation (NOT YET IMPLEMENTED)\r\n5 or \"Environmental\" = linear equation log(q_y) = q_mu + beta * index_y; the environmental index is specified by Time_varying_q\r\n6 or \"AR1\" = REMOVED; data_check() errors. The deviates were never estimated, so q came back constant. Express the Rogers et al. (2024) form as a q linkage with ar1(1 | Year) and 'observe'; the error gives the call.\r\n7 or \"AnalyticalArith\" = arithmetic-mean analytical q (AMAK/ebswp form, pair with the MVN survey likelihood)\r\nApplies to any fleet carrying index_data, a fishery with a CPUE series included. A fleet with NO fitted index rows gets no catchability whatever this says, unless it follows the lead of a shared Catchability_index group. See vignette('model-options-and-functionality').", type = "switch", allowed = "q_map", aliases = "Estimate_q", tmb_target = "est_index_q"),
     .rce_col("Catchability_init", "fleet_control", "Starting value or fixed value for catchability. Must be positive on any fleet that carries index_data, whatever its Fleet_type, AND on any fleet sharing a Catchability_index group whose q is estimated, even with no index_data of its own -- it has no default, and it is logged to seed index_log_q, so a blank or zero gives a non-finite starting value. A shared group starts at the geometric mean of its members' values, so one blank or zero seeds the WHOLE group at NA or -Inf and it cannot fit; build_map() warns. Not read under Analytical or AnalyticalArith, which solve q from the data.", aliases = c("Q_prior", "Q_init"), tmb_target = "index_log_q_prior"),
     .rce_col("Catchability_prior_sd", "fleet_control", "Standard deviation for the q prior, on the log scale. Must be positive under Estimated-with-prior, where the prior is scored at it. In a shared Catchability_index group only the LEAD fleet's is read, because the prior is scored once on the lead, so a differing value on a non-lead fleet has no effect.", aliases = "Q_sd_prior"),
     .rce_col("Time_varying_q", "fleet_control", "0 or \"Off\" = no\r\n1 or \"IID\" = penalized deviate or random effect\r\n2 or \"AR1\" = REMOVED in 5.16.0; data_check() errors on it. It was never an AR1 -- it was scored as \"IID\" -- so use \"IID\" for the same fit, or a q linkage with ar1(1 | Year) for a real one.\r\n3 or \"Block\" = time blocks with no penalty\r\n4 or \"RandomWalk\" = random walk from mean following Dorn 2018 (dnorm(q_y - q_y-1, 0, sigma)\r\nIf Catchability = 5, this holds the env_data column index for log(q_y) = q_mu + beta * index_y, not a mode.\r\nUnder fit_mod(random_q = TRUE), IID (1) and RandomWalk (4) deviations become random effects.\r\nSoft-deprecated as a whole: the linkage grammar expresses the same deviations, with the deviation sd estimated or fixed. See vignette('model-options-and-functionality').", type = "switch", has_default = TRUE, default = "Off",
@@ -237,9 +234,9 @@
              allowed = "tv_q_map", tmb_target = "index_varying_q"),
     .rce_col("Time_varying_q_sd", "fleet_control", "Starting or fixed sd for the time-varying q deviations. Must be positive when Time_varying_q is IID, AR1 or RandomWalk, which penalize the deviations at it; Block needs none.", aliases = "Time_varying_q_sd_prior"),
     .rce_col("Index_distribution", "fleet_control", "Survey/index biomass observation likelihood family.\r\n0 or \"Lognormal\" (default) = independent lognormal on the log observation, with the bias correction.\r\n1 \"MVN\" / 2 \"MVNORM\" = multivariate normal on the natural-scale residual, with a user-supplied covariance in index_cov; they differ only by a constant.\r\n3 \"Normal\" = independent normal on the natural-scale residual with an ABSOLUTE sd from Log_sd (not a log-scale CV). Matches AMAK avo_like/cpue_like term for term, so it is what the ADMB bridges compare against.\r\n4 \"TruncatedNormal\" = the same normal, left-truncated at zero. Prefer it to 3 unless an exact ADMB comparison is needed: an index cannot be negative, so this is the only natural-scale family whose likelihood and simulator are the same distribution.", type = "switch", allowed = "index_distribution_map", meta = TRUE, has_default = TRUE, default = "Lognormal", aliases = "Index_loglike", tmb_target = "index_ll_type"),
-    .rce_col("Estimate_index_sd", "fleet_control", "0 = use input \"Log_sd\" from index_data\r\n1 = estimate as free parameter\r\n2 = estimate analytically following Ludwig and Walters (1994)", type = "switch", allowed = "estimate_sd_map", aliases = "Estimate_survey_sd", tmb_target = "est_sigma_index"),
+    .rce_col("Estimate_index_sd", "fleet_control", "0 = use input \"Log_sd\" from index_data\r\n1 = estimate as free parameter\r\n2 = estimate analytically following Walters and Ludwig (1994)", type = "switch", allowed = "estimate_sd_map", aliases = "Estimate_survey_sd", tmb_target = "est_sigma_index"),
     .rce_col("Index_sd", "fleet_control", "Starting value to be used if \"Estimate_index_sd\" = 1", aliases = c("Survey_sd_prior", "Index_sd_prior")),
-    .rce_col("Estimate_catch_sd", "fleet_control", "0 = use input \"Log_sd\" from catch_data\r\n1 = estimate as free parameter\r\n2 = estimate analytically following Ludwig and Walters (1994)", type = "switch", allowed = "estimate_sd_map", tmb_target = "est_sigma_fsh"),
+    .rce_col("Estimate_catch_sd", "fleet_control", "0 = use input \"Log_sd\" from catch_data\r\n1 = estimate as free parameter\r\n2 = estimate analytically following Walters and Ludwig (1994)", type = "switch", allowed = "estimate_sd_map", tmb_target = "est_sigma_fsh"),
     .rce_col("Catch_sd", "fleet_control", "Starting value to be used if Estimate_catch_sd = 1", aliases = "Catch_sd_prior"),
     .rce_col("Proj_F_proportion", "fleet_control", "The proportion of future fishing mortality assigned to this fleet", aliases = "proj_F_prop"),
 
@@ -565,10 +562,10 @@
 # -----------------------------------------------------------------------------
 #
 # The meta_data sheet is a 3-column [Sheet name | Column/row name | Description]
-# frame documenting every control scalar, fleet_control column, and
-# bioenergetics scalar, with a per-sheet header row for the remaining data
-# sheets and a block of free-text NOTE rows at the end. This generator emits the
-# schema-driven rows; the sheet-header + NOTE footer is a static template.
+# frame documenting every control scalar, fleet_control column and
+# bioenergetics scalar. This generator emits those schema-driven rows; the
+# per-sheet header rows for the remaining data sheets and the free-text NOTE
+# footer are a static template.
 
 # Per-sheet header rows (Column/row name is NA, Description names the sheet).
 .RCE_META_SHEET_HEADERS <- list(
@@ -652,16 +649,16 @@
 #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
 # Model-level switches
 #
-# The switches that configure the MODEL rather than a workbook column:
+# The switches that configure the MODEL rather than a workbook column --
 # msmMode, estimateMode, initMode and the rest. They live in maps in
 # R/0-switches.R and the R/0-build_*.R constructors, are defaulted in
 # switch_check(), and are documented in fit_mod() and the build_*()
-# constructors -- with no one place saying what the full set is.
+# constructors, with no one place saying what the full set is.
 #
 # A SECOND table rather than rows in .rce_column_schema(): these are not
 # workbook columns, and write_data(), read_data(), the meta sheet and the
-# R/data.R drift guard all iterate that list. Adding non-columns to it would
-# put them in the workbook.
+# R/data.R drift guard all iterate that list, so a non-column added to it
+# would land in the workbook.
 #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
 
 #' One model-level switch

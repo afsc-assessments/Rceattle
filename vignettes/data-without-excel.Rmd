@@ -194,7 +194,7 @@ Each row defines one fleet (fishery or survey) and controls how it is modeled. M
 #   "Fixed"                (0), Q fixed at Catchability_init; not estimated
 #   "Estimated"            (1), freely estimated on log scale
 #   "Estimated-with-prior" (2), estimated with a lognormal prior (Catchability_init, Catchability_prior_sd)
-#   "Analytical"           (3), Ludwig & Walters / Martell (1994) analytical Q
+#   "Analytical"           (3), Walters & Ludwig (1994) analytical Q
 #   "PowerEquation"        (4), power-equation Q (habitat area scaling)
 #   "Environmental"        (5), mu_q + X * beta, where X is a covariate in env_data
 #   "AR1"                  (6), REMOVED in 5.12.0; data_check() errors. Use a q
@@ -269,14 +269,14 @@ simData$fleet_control <- data.frame(
   # Estimate_index_sd:
   #   0 = fix at Log_sd from index_data
   #   1 = estimate a single SD
-  #   2 = analytical sigma (Ludwig & Walters 1994)
+  #   2 = analytical sigma (Walters & Ludwig 1994)
   Estimate_index_sd  = rep(c(0,  NA), nspp),
   Index_sd     = rep(c(1,  NA), nspp),
 
   # Estimate_catch_sd:
   #   0 = fix at Log_sd from catch_data (treats catch as known)
   #   1 = estimate
-  #   2 = analytical sigma (Ludwig & Walters 1994); concentrates the sd out of
+  #   2 = analytical sigma (Walters & Ludwig 1994); concentrates the sd out of
   #       the catch likelihood, so catch stops pinning F as tightly
   Estimate_catch_sd  = rep(c(NA, 0),  nspp),
   Catch_sd     = rep(c(NA, 1),  nspp),

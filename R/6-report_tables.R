@@ -91,87 +91,80 @@
 #' Assessment reporting tables from one or more Rceattle fits
 #'
 #' @description Collects the quantities a stock assessment reports into one set
-#' of tidy tables, so a SAFE chapter or a model comparison is built from a
-#' single call rather than from a dozen ad-hoc extractions. Every table holds
-#' a `model` column, so passing several fits gives a like-for-like comparison.
+#' of tidy tables, so a SAFE chapter or a model comparison comes from a single
+#' call rather than a dozen ad-hoc extractions. Every table holds a `model`
+#' column, so passing several fits gives a like-for-like comparison.
 #'
 #' @details
 #' The sections follow the AFSC Alaska Groundfish Stock Assessment Guidelines
 #' for what a chapter reports:
 #' \describe{
 #'   \item{`model`}{One row per fit: dimensions, switches, the marginal and
-#'     joint negative log-likelihoods, the number of estimated parameters, AIC,
-#'     the maximum gradient, whether the Hessian was positive definite, and the
-#'     run time.}
-#'   \item{`parameters`}{Every estimated parameter with its standard error, and
-#'     the natural-scale name and process from [parameter_dictionary()]. Where
-#'     `sigma_R` and an estimated M are found. Estimates are on the parameter's
-#'     own scale, so a `log_` name needs `exp()`; a **fixed** M is not here at
-#'     all, because it was never estimated, read it off `M_at_age`.}
-#'   \item{`likelihood`}{The negative log-likelihood by component and fleet or
+#'     joint negative log-likelihoods, estimated parameter count, AIC, maximum
+#'     gradient, whether the Hessian was positive definite, and run time.}
+#'   \item{`parameters`}{Every estimated parameter with its standard error and
+#'     its natural-scale name and process from [parameter_dictionary()], which
+#'     is where `sigma_R` and an estimated M are found. Estimates are on the
+#'     parameter's own scale, so a `log_` name needs `exp()`. A **fixed** M is
+#'     absent, never having been estimated: read it off `M_at_age`.}
+#'   \item{`likelihood`}{Negative log-likelihood by component and fleet or
 #'     species, weighted and unweighted.}
 #'   \item{`timeseries`}{Biomass, female spawning-stock biomass, recruitment,
 #'     depletion and fishing mortality by species and year, with standard errors
-#'     and confidence intervals, split into hindcast (`era = "time"`) and
-#'     projection (`era = "fore"`).}
-#'   \item{`reference_points`}{The executive-summary quantities: the SPR-based
-#'     F proxies, unfished and target female spawning-stock biomass, the biomass
+#'     and intervals, split into hindcast (`era = "time"`) and projection
+#'     (`era = "fore"`).}
+#'   \item{`reference_points`}{The executive-summary quantities: SPR-based F
+#'     proxies, unfished and target female spawning-stock biomass, the biomass
 #'     proxies implied by `Ptarget` / `Plimit`, and terminal status. A `basis`
-#'     column says whether each was estimated, and if not, why, see below.}
+#'     column says whether each was estimated, and if not why.}
 #'   \item{`fits`}{Observed against predicted index and catch, with the standard
 #'     deviation of normalized residuals (SDNR) per fleet.}
 #'   \item{`retrospective`, `jitter`, `osa`}{Present only when the corresponding
 #'     object is supplied.}
 #' }
 #'
-#' Nothing here refits. The three diagnostics are tens to hundreds of
-#' optimizations each, so they are supplied as already-computed objects rather
-#' than run inside a table-building call; a section whose object is `NULL` is
-#' simply absent from the result.
+#' Nothing here refits: the three diagnostics are tens to hundreds of
+#' optimizations each, so they are passed in already computed, and a section
+#' whose object is `NULL` is absent from the result.
 #'
 #' The standard harvest scenarios of guideline section 4.11.3 are **not**
-#' produced, they need a standard projection module, which Rceattle does not
-#' have. Projected biomass under the model's own harvest control rule is in
-#' `timeseries` with `era = "fore"`.
+#' produced; they need a standard projection module, which Rceattle does not
+#' have. Projected biomass under the model's own control rule is in
+#' `timeseries` at `era = "fore"`.
 #'
-#' # Reference points a fit does not define
-#'
-#' A CEATTLE fit leaves a *number* in the reported array for several reference
-#' points it never estimated, so reading the array directly puts a plausible
-#' wrong figure into the one table that becomes the executive summary. Each is
-#' returned as `NA` with the reason in `basis`:
+#' **Reference points a fit never estimated come back as `NA`, with the reason
+#' in `basis`.** The reported array leaves a plausible *number* in each, which
+#' is how a wrong figure reaches an executive summary:
 #' \itemize{
-#'   \item `Ftarget` / `Flimit` are estimated only under a harvest control rule
-#'     that defines them, and are switched off for a species with no projected
-#'     fishery or with fixed numbers-at-age. Unestimated, they sit at their
-#'     initial value of `exp(0) = 1`, which reads as an F of 1.0/yr.
+#'   \item `Ftarget` / `Flimit` are estimated only under a control rule that
+#'     defines them, and are off for a species with no projected fishery or with
+#'     fixed numbers-at-age. Unestimated, they sit at `exp(0) = 1`, reading as
+#'     an F of 1.0/yr.
 #'   \item `SB0` / `B0` under `msmMode > 0` come from the `MSSB0` / `MSB0`
-#'     inputs, which stand at a placeholder until [fit_mod()] derives them from
-#'     a no-fishing projection. `B_target` and `B_limit` are fractions of `SB0`
+#'     inputs, which hold a placeholder until [fit_mod()] derives them from a
+#'     no-fishing projection. `B_target` and `B_limit` are fractions of `SB0`
 #'     and go with it.
 #'   \item The per-recruit quantities (`SPR0`, `SPRtarget`, `SPRlimit`) are
 #'     computed only under `msmMode = 0`.
 #' }
 #' The depletions are **not** blanked alongside `SB0`: under a no-fishing
-#' harvest control rule in multispecies mode the model divides by biomass in the
-#' last projection year, which is the equilibrated unfished reference, so the
-#' series is meaningful there.
+#' control rule in multispecies mode the model divides by last-projection-year
+#' biomass, the equilibrated unfished reference, so the series is meaningful.
 #'
 #' @section Two negative log-likelihoods:
-#' `model` reports both, and **both are minimized**: a smaller value is the
-#' better fit. `marginal_nll` is the negative log marginal likelihood the
-#' optimizer minimized, random effects integrated out by the Laplace
-#' approximation, and is what `AIC` is built from. `joint_nll` is what the
-#' template evaluated at the conditional modes, so it is what `likelihood` sums
-#' to, on the same scale as `jnll_comp`. They are equal when `n_random` is 0 and
-#' differ by the Laplace correction otherwise.
+#' `model` reports both, and **both are minimized**, so smaller is the better
+#' fit. `marginal_nll` is what the optimizer minimized, random effects
+#' integrated out by Laplace, and is what `AIC` is built from. `joint_nll` is
+#' what the template evaluated at the conditional modes, so it is what
+#' `likelihood` sums to, on the same scale as `jnll_comp`. They are equal when
+#' `n_random` is 0 and differ by the Laplace correction otherwise.
 #'
 #' @section Supplying diagnostics for several models:
-#' A diagnostics list is matched to models **by name**, so `list(alt = ..., base
-#' = ...)` pairs correctly whatever the order. An unnamed list is paired
-#' positionally and says so in a message. Names that are not model names are an
-#' error, which catches the realistic mistake of passing one model's
-#' [osa_residuals()] result stored as a list of parts.
+#' A diagnostics list is matched to models **by name**, so
+#' `list(alt = ..., base = ...)` pairs correctly whatever the order. An unnamed
+#' list is paired positionally, with a message. A name that is not a model name
+#' is an error, which catches passing one model's [osa_residuals()] result
+#' stored as a list of parts.
 #'
 #' @param object An Rceattle fit from [fit_mod()], or a list of them.
 #' @param model_names Names for the models, defaulting to the names of `object`
@@ -188,8 +181,8 @@
 #'   [as.data.frame.Rceattle()] accepts; [quantity_dictionary()] says what each
 #'   one means.
 #'
-#' @return A list of data frames with class `"rceattle_report"`, one element per
-#'   section described above. Each holds a `model` column.
+#' @return A list of data frames with class `"rceattle_report"`, one per section
+#'   above, each holding a `model` column.
 #'
 #' @seealso [quantity_dictionary()] for what each quantity means and its units,
 #'   [as.data.frame.Rceattle()] for the time series alone, and

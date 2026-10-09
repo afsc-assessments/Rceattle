@@ -37,94 +37,88 @@ section.}
 one means.}
 }
 \value{
-A list of data frames with class \code{"rceattle_report"}, one element per
-section described above. Each holds a \code{model} column.
+A list of data frames with class \code{"rceattle_report"}, one per section
+above, each holding a \code{model} column.
 }
 \description{
 Collects the quantities a stock assessment reports into one set
-of tidy tables, so a SAFE chapter or a model comparison is built from a
-single call rather than from a dozen ad-hoc extractions. Every table holds
-a \code{model} column, so passing several fits gives a like-for-like comparison.
+of tidy tables, so a SAFE chapter or a model comparison comes from a single
+call rather than a dozen ad-hoc extractions. Every table holds a \code{model}
+column, so passing several fits gives a like-for-like comparison.
 }
 \details{
 The sections follow the AFSC Alaska Groundfish Stock Assessment Guidelines
 for what a chapter reports:
 \describe{
 \item{\code{model}}{One row per fit: dimensions, switches, the marginal and
-joint negative log-likelihoods, the number of estimated parameters, AIC,
-the maximum gradient, whether the Hessian was positive definite, and the
-run time.}
-\item{\code{parameters}}{Every estimated parameter with its standard error, and
-the natural-scale name and process from \code{\link[=parameter_dictionary]{parameter_dictionary()}}. Where
-\code{sigma_R} and an estimated M are found. Estimates are on the parameter's
-own scale, so a \code{log_} name needs \code{exp()}; a \strong{fixed} M is not here at
-all, because it was never estimated, read it off \code{M_at_age}.}
-\item{\code{likelihood}}{The negative log-likelihood by component and fleet or
+joint negative log-likelihoods, estimated parameter count, AIC, maximum
+gradient, whether the Hessian was positive definite, and run time.}
+\item{\code{parameters}}{Every estimated parameter with its standard error and
+its natural-scale name and process from \code{\link[=parameter_dictionary]{parameter_dictionary()}}, which
+is where \code{sigma_R} and an estimated M are found. Estimates are on the
+parameter's own scale, so a \code{log_} name needs \code{exp()}. A \strong{fixed} M is
+absent, never having been estimated: read it off \code{M_at_age}.}
+\item{\code{likelihood}}{Negative log-likelihood by component and fleet or
 species, weighted and unweighted.}
 \item{\code{timeseries}}{Biomass, female spawning-stock biomass, recruitment,
 depletion and fishing mortality by species and year, with standard errors
-and confidence intervals, split into hindcast (\code{era = "time"}) and
-projection (\code{era = "fore"}).}
-\item{\code{reference_points}}{The executive-summary quantities: the SPR-based
-F proxies, unfished and target female spawning-stock biomass, the biomass
+and intervals, split into hindcast (\code{era = "time"}) and projection
+(\code{era = "fore"}).}
+\item{\code{reference_points}}{The executive-summary quantities: SPR-based F
+proxies, unfished and target female spawning-stock biomass, the biomass
 proxies implied by \code{Ptarget} / \code{Plimit}, and terminal status. A \code{basis}
-column says whether each was estimated, and if not, why, see below.}
+column says whether each was estimated, and if not why.}
 \item{\code{fits}}{Observed against predicted index and catch, with the standard
 deviation of normalized residuals (SDNR) per fleet.}
 \item{\code{retrospective}, \code{jitter}, \code{osa}}{Present only when the corresponding
 object is supplied.}
 }
 
-Nothing here refits. The three diagnostics are tens to hundreds of
-optimizations each, so they are supplied as already-computed objects rather
-than run inside a table-building call; a section whose object is \code{NULL} is
-simply absent from the result.
+Nothing here refits: the three diagnostics are tens to hundreds of
+optimizations each, so they are passed in already computed, and a section
+whose object is \code{NULL} is absent from the result.
 
 The standard harvest scenarios of guideline section 4.11.3 are \strong{not}
-produced, they need a standard projection module, which Rceattle does not
-have. Projected biomass under the model's own harvest control rule is in
-\code{timeseries} with \code{era = "fore"}.
-}
-\section{Reference points a fit does not define}{
-A CEATTLE fit leaves a \emph{number} in the reported array for several reference
-points it never estimated, so reading the array directly puts a plausible
-wrong figure into the one table that becomes the executive summary. Each is
-returned as \code{NA} with the reason in \code{basis}:
+produced; they need a standard projection module, which Rceattle does not
+have. Projected biomass under the model's own control rule is in
+\code{timeseries} at \code{era = "fore"}.
+
+\strong{Reference points a fit never estimated come back as \code{NA}, with the reason
+in \code{basis}.} The reported array leaves a plausible \emph{number} in each, which
+is how a wrong figure reaches an executive summary:
 \itemize{
-\item \code{Ftarget} / \code{Flimit} are estimated only under a harvest control rule
-that defines them, and are switched off for a species with no projected
-fishery or with fixed numbers-at-age. Unestimated, they sit at their
-initial value of \code{exp(0) = 1}, which reads as an F of 1.0/yr.
+\item \code{Ftarget} / \code{Flimit} are estimated only under a control rule that
+defines them, and are off for a species with no projected fishery or with
+fixed numbers-at-age. Unestimated, they sit at \code{exp(0) = 1}, reading as
+an F of 1.0/yr.
 \item \code{SB0} / \code{B0} under \code{msmMode > 0} come from the \code{MSSB0} / \code{MSB0}
-inputs, which stand at a placeholder until \code{\link[=fit_mod]{fit_mod()}} derives them from
-a no-fishing projection. \code{B_target} and \code{B_limit} are fractions of \code{SB0}
+inputs, which hold a placeholder until \code{\link[=fit_mod]{fit_mod()}} derives them from a
+no-fishing projection. \code{B_target} and \code{B_limit} are fractions of \code{SB0}
 and go with it.
 \item The per-recruit quantities (\code{SPR0}, \code{SPRtarget}, \code{SPRlimit}) are
 computed only under \code{msmMode = 0}.
 }
 The depletions are \strong{not} blanked alongside \code{SB0}: under a no-fishing
-harvest control rule in multispecies mode the model divides by biomass in the
-last projection year, which is the equilibrated unfished reference, so the
-series is meaningful there.
+control rule in multispecies mode the model divides by last-projection-year
+biomass, the equilibrated unfished reference, so the series is meaningful.
 }
-
 \section{Two negative log-likelihoods}{
 
-\code{model} reports both, and \strong{both are minimized}: a smaller value is the
-better fit. \code{marginal_nll} is the negative log marginal likelihood the
-optimizer minimized, random effects integrated out by the Laplace
-approximation, and is what \code{AIC} is built from. \code{joint_nll} is what the
-template evaluated at the conditional modes, so it is what \code{likelihood} sums
-to, on the same scale as \code{jnll_comp}. They are equal when \code{n_random} is 0 and
-differ by the Laplace correction otherwise.
+\code{model} reports both, and \strong{both are minimized}, so smaller is the better
+fit. \code{marginal_nll} is what the optimizer minimized, random effects
+integrated out by Laplace, and is what \code{AIC} is built from. \code{joint_nll} is
+what the template evaluated at the conditional modes, so it is what
+\code{likelihood} sums to, on the same scale as \code{jnll_comp}. They are equal when
+\code{n_random} is 0 and differ by the Laplace correction otherwise.
 }
 
 \section{Supplying diagnostics for several models}{
 
-A diagnostics list is matched to models \strong{by name}, so \code{list(alt = ..., base = ...)} pairs correctly whatever the order. An unnamed list is paired
-positionally and says so in a message. Names that are not model names are an
-error, which catches the realistic mistake of passing one model's
-\code{\link[=osa_residuals]{osa_residuals()}} result stored as a list of parts.
+A diagnostics list is matched to models \strong{by name}, so
+\code{list(alt = ..., base = ...)} pairs correctly whatever the order. An unnamed
+list is paired positionally, with a message. A name that is not a model name
+is an error, which catches passing one model's \code{\link[=osa_residuals]{osa_residuals()}} result
+stored as a list of parts.
 }
 
 \examples{

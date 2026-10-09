@@ -39,32 +39,34 @@ fit_mod(
 directly in R; see \code{vignette("data-without-excel", package = "Rceattle")}.}
 
 \item{inits}{(Optional) A named list of initial parameter values, as returned by
-\code{\link{build_params}} or extracted from a previous fit
-(\code{model$estimated_params}). If \code{NULL}, parameters are initialized
-from scratch via \code{\link{build_params}}.}
+\code{\link{build_params}} or taken from a previous fit
+(\code{model$estimated_params}). \code{NULL} initializes from scratch.}
 
 \item{map}{(Optional) A map object from \code{\link{build_map}}.}
 
 \item{bounds}{(Optional) A bounds object from \code{\link{build_bounds}}.}
 
-\item{file}{(Optional) Filename where files will be saved. If NULL, no file is saved.}
+\item{file}{(Optional) Filename to save to. If NULL, no file is saved.}
 
-\item{estimateMode}{What to fit, given as a string alias or the integer code:
-\code{"Estimate"} (0) = fit the hindcast model and the HCR projection
-(\code{HCR}); \code{"Hindcast"} (1) = fit the hindcast only (no fitting BRPs/HCR/projection);
-\code{"Projection"} (2) = fit the BRPs/HCR/projection only, from the initial
-parameters in \code{inits}; \code{"DebugBuild"} (3) = build through
-\code{MakeADFun} but not \code{nlminb}, the returned \code{obj} holds the
-real objective and gradient, so \code{obj$fn()} / \code{obj$gr()} are usable
-for diagnosing a model before committing to a fit; \code{"DebugOptimize"}
-(4) = optimize with all parameters mapped out, so the objective is a
-placeholder (\code{dummy^2}), not a likelihood. Defaults to \code{"Estimate"}.}
+\item{estimateMode}{What to fit, as a string alias or integer code:
+\code{"Estimate"} (0) fits the hindcast and the \code{HCR} projection,
+\code{"Hindcast"} (1) the hindcast alone, \code{"Projection"} (2) the
+reference points and projection alone from \code{inits},
+\code{"DebugBuild"} (3) builds through \code{MakeADFun} without optimizing,
+leaving a usable \code{obj$fn()} / \code{obj$gr()}, and
+\code{"DebugOptimize"} (4) maps every parameter out, so its objective is a
+placeholder rather than a likelihood. Default \code{"Estimate"}.}
 
-\item{random_rec}{logical. If TRUE, treats recruitment deviations as random effects using the Laplace approximation. The default is FALSE.}
+\item{random_rec}{logical; treat recruitment deviations as random effects via
+the Laplace approximation. Default FALSE.}
 
-\item{random_q}{logical (default FALSE); if TRUE the \code{Time_varying_q} deviations are integrated as random effects with one estimated sd per \code{Catchability_index} group, not fixed at \code{Time_varying_q_sd} (linkage random effects are integrated either way).}
+\item{random_q}{logical; integrate the \code{Time_varying_q} deviations as random
+effects with one estimated sd per \code{Catchability_index} group instead of
+fixing them at \code{Time_varying_q_sd}. Default FALSE. Linkage random effects
+are integrated either way.}
 
-\item{random_sel}{logical (default FALSE); if TRUE the \code{Time_varying_sel} deviations are integrated as random effects with one estimated sd per \code{Selectivity_index} group, not fixed at \code{Time_varying_sel_sd} (linkage random effects are integrated either way).}
+\item{random_sel}{logical; the same for \code{Time_varying_sel} deviations, one
+estimated sd per \code{Selectivity_index} group. Default FALSE.}
 
 \item{HCR}{HCR list object from \code{\link{build_hcr}}}
 
@@ -79,57 +81,67 @@ placeholder (\code{dummy^2}), not a likelihood. Defaults to \code{"Estimate"}.}
 \item{qFun}{Catchability specification from \code{\link{build_catchability}},
 holding any environmental linkages on q.}
 
-\item{selFun}{Selectivity specification from \code{\link{build_selectivity}}, holding any environmental linkages on selectivity parameters.}
+\item{selFun}{Selectivity specification from \code{\link{build_selectivity}},
+holding any environmental linkages on selectivity parameters.}
 
-\item{compFun}{Composition-weighting specification from \code{\link{build_composition}}, holding any priors on the Dirichlet-multinomial weights.}
+\item{compFun}{Composition-weighting specification from
+\code{\link{build_composition}}, holding any priors on the
+Dirichlet-multinomial weights.}
 
-\item{msmMode}{The predation-mortality mode, as a string alias or integer code:
-\code{"SingleSpecies"} (0, the default, no predation), \code{"MSVPA"}
-(1, the Type-II MSVPA predation of Holsman et al. 2015) or
-\code{"TypeIIIMSVPA"} (2). Higher integer
-codes (Kinzey-Punt, Holling forms) are declared but not implemented, and are
-rejected by the data check.}
+\item{msmMode}{The predation-mortality mode, as a string alias or integer
+code: \code{"SingleSpecies"} (0, the default, no predation),
+\code{"MSVPA"} (1, the Type-II MSVPA predation of Holsman et al. 2015) or
+\code{"TypeIIIMSVPA"} (2). Codes 3 to 9 (Kinzey & Punt 2009 functional
+responses, Holling forms, Ecosim) are declared but refused by
+\code{data_check()} until validated against the current parameter set; see
+\code{src/TMB/predation.hpp}.}
 
-\item{avgnMode}{the average abundance-at-age approximation used in the predation-mortality equations. Only mode 0, \eqn{N/Z(1 - exp(-Z))} (the MSVPA form), is implemented; the alternatives are declared but have no effect.}
+\item{avgnMode}{the average abundance-at-age approximation in the predation
+equations. Only mode 0, \eqn{N/Z(1 - exp(-Z))} (the MSVPA form), is
+implemented; the alternatives are declared but have no effect.}
 
-\item{initMode}{how the population is initialized, as a string alias or integer
-code: \code{"FreeParams"} (0), \code{"Equilibrium"} (1),
+\item{initMode}{how the population is initialized, as a string alias or
+integer code: \code{"FreeParams"} (0), \code{"Equilibrium"} (1),
 \code{"NonEquilibrium"} (2, the default), \code{"FishedNonEquilibrium"} (3),
 \code{"FishedNonEquilibriumScaled"} (4), \code{"OffsetEquilibrium"} (5),
-\code{"FishedNonEquilibriumSelected"} (6). See
-the \strong{Initial age structure} section below for what each one estimates.}
+\code{"FishedNonEquilibriumSelected"} (6). What each one estimates, and how
+\eqn{F_{init}} reaches an age under 3, 4 and 6, is tabulated in
+\code{vignette("model-options-and-functionality")}. In multispecies mode the
+initial decay uses \eqn{M1} only, so predation does not shape the initial
+age structure under any mode.}
 
-\item{suitMode}{how predator-prey suitability is derived, per predator (a single value or a vector of length \code{nspp}): 0 = empirical from diet data (Holsman et al. 2015), 2 = weight-based gamma, 4 = weight-based lognormal, 6 = weight-based normal. The length-based forms (1, 3, 5) are declared but not implemented and are rejected by the data check.}
+\item{suitMode}{how predator-prey suitability is derived, per predator (one
+value or a vector of length \code{nspp}): 0 = empirical from diet data
+(Holsman et al. 2015), 2 = weight-based gamma, 4 = weight-based lognormal,
+6 = weight-based normal. The length-based forms (1, 3, 5) are declared but
+refused by the data check.}
 
-\item{suit_styr}{The first year used to calculate mean suitability. A single integer is applied to every predator, or a vector of length \code{nspp} sets a distinct start year per predator. Defaults to \code{styr} in \code{data_list}. Used when diet data were sampled from a subset of years.}
+\item{suit_styr}{The first year used to calculate mean suitability, as one
+integer for every predator or a vector of length \code{nspp}. Defaults to \code{styr}.
+Set it where diet data were sampled from a subset of years.}
 
-\item{suit_endyr}{The last year used to calculate mean suitability. A single integer is applied to every predator, or a vector of length \code{nspp} sets a distinct end year per predator. Defaults to \code{endyr} in \code{data_list}. Used when diet data were sampled from a subset of years.}
+\item{suit_endyr}{The last year used to calculate mean suitability, in the
+same form. Defaults to \code{endyr}.}
 
-\item{fit_control}{A list returned by \code{\link[=fit_control]{fit_control()}} that bundles the
-optimizer / sdreport / phasing knobs (\code{phase}, \code{bias.correct}, \code{getsd},
-\code{getJointPrecision}, \code{getReportCovariance}, \code{use_gradient}, \code{rel_tol},
-\code{loopnum}, \code{newtonsteps}, \code{TMBfilename}, \code{verbose}, \code{nlminb_control}).
-Defaults to \code{fit_control()}. See \code{\link[=fit_control]{fit_control()}} for the meaning and
-defaults of each field.}
+\item{fit_control}{A list from \code{\link[=fit_control]{fit_control()}} bundling the optimizer,
+sdreport and phasing settings. Defaults to \code{fit_control()}, which documents
+each field.}
 
 \item{config}{(Optional) An \code{Rceattle_run_config} from \code{\link[=load_config]{load_config()}} or
 \code{\link[=run_config]{run_config()}} whose stored settings overlay the ones you did not pass;
-\code{NULL} (default) applies no configuration. See Details for what it overlays.}
+\code{NULL} (default) applies none. See Details.}
 
-\item{quiet_data_check}{Drop the warnings the fit-time validation raises (errors still
-stop the fit). \code{FALSE} (default) for an ordinary fit. The diagnostic
-refits, \code{\link[=retrospective]{retrospective()}}, \code{\link[=jitter]{jitter()}}, \code{\link[=self_test]{self_test()}}, \code{\link[=profile]{profile()}},
-\code{\link[=run_mse]{run_mse()}}, \code{\link[=remove_F]{remove_F()}}, \code{\link[=sample_rec]{sample_rec()}}, \code{\link[=reweight_comps]{reweight_comps()}}, set it,
-since they re-validate a \code{data_list} the caller has already fitted, and
-would otherwise repeat those warnings per peel, jitter, or MSE iteration.
-Also drops a linkage filter's "has no effect" warning; a filter that
-drops its whole spec still warns. Convergence and TMB warnings are unaffected.}
+\item{quiet_data_check}{Drop the warnings fit-time validation raises; errors
+still stop the fit. \code{FALSE} (default) for an ordinary fit. The diagnostic
+refits (\code{\link[=retrospective]{retrospective()}}, \code{\link[=jitter]{jitter()}}, \code{\link[=self_test]{self_test()}}, \code{\link[=profile]{profile()}},
+\code{\link[=run_mse]{run_mse()}}, \code{\link[=remove_F]{remove_F()}}, \code{\link[=sample_rec]{sample_rec()}}, \code{\link[=reweight_comps]{reweight_comps()}}) set it,
+since they re-validate a \code{data_list} the caller has already fitted and
+would otherwise repeat each warning per peel or iteration. It also drops a
+linkage filter's "has no effect" warning, though a filter that drops its
+whole spec still warns. Convergence and TMB warnings are unaffected.}
 
-\item{...}{Deprecated optimizer / sdreport / phasing arguments
-(e.g. \code{phase}, \code{getsd}, \code{bias.correct}, \code{use_gradient}, \code{rel_tol},
-\code{control}, \code{getJointPrecision}, \code{getReportCovariance}, \code{loopnum},
-\code{newtonsteps}, \code{verbose}, \code{TMBfilename}). These are forwarded into
-\code{fit_control} with a deprecation warning; pass them via
+\item{...}{Deprecated optimizer / sdreport / phasing arguments, forwarded
+into \code{fit_control} with a deprecation warning. Pass them via
 \code{\link[=fit_control]{fit_control()}} instead.}
 }
 \value{
@@ -142,7 +154,7 @@ A list of class "Rceattle" including:
 \item{map: List of map used in TMB}
 \item{obj: TMB model object}
 \item{opt: Optimized model object from \code{nlminb}}
-\item{sdrep: Object of class \code{sdreport} exported by TMB including the standard errors of estimated parameters}
+\item{sdrep: Object of class \code{sdreport} from TMB, with standard errors}
 \item{estimated_params: List of estimated parameters}
 \item{quantities: Derived quantities from CEATTLE}
 \item{run_time: Model run time}
@@ -153,76 +165,19 @@ Estimate CEATTLE population parameters by maximum likelihood, and
 optionally project the stock and apply a harvest control rule.
 }
 \details{
-CEATTLE is an age-structured population dynamics model that can be fit with or without predation mortality. The default is to exclude predation mortality by setting \code{msmMode} to 0. Predation mortality can be included by setting \code{msmMode} with the following options:
-\itemize{
-\item{0. Single species mode}
-\item{1. Holsman et al. 2015 predation based on multi-species virtual population analysis (MSVPA) based predation formation.}
-\item{2. MSVPA Holling Type III}
+CEATTLE is an age-structured population model, fit with or without predation
+mortality; \code{msmMode} selects which.
+
+\strong{What \code{config} overlays}, at two levels. The estimation controls
+(\code{estimateMode}, \code{random_rec} / \code{random_q} / \code{random_sel}, \code{suit_styr} /
+\code{suit_endyr}, \code{fit_control}) overlay only arguments you did not pass, so an
+explicit argument always wins. The stored \code{model_config} merges into the data
+object's \strong{field by field}: only fields the config actually set are imposed,
+so a config built with \code{\link[=model_config]{model_config()}} keeps the linkages held on the data
+object. Where both set a field and disagree, the config wins and the
+difference is warned about by name. A config written before that field record
+existed counts as having set its non-default fields.
 }
-
-Values 3 through 9 (Kinzey & Punt 2009 functional responses,
-Holling Type I/II/III, predator interference, predator preemption,
-Hassell-Varley, Ecosim) are blocked at runtime by \code{data_check()}
-because the implementations have not been validated against the
-current parameter set. See \code{src/TMB/predation.hpp}.
-
-\strong{What \code{config} overlays.} Two overlays happen, at different levels. The
-estimation controls (\code{estimateMode}, \code{random_rec} / \code{random_q} /
-\code{random_sel}, \code{suit_styr} / \code{suit_endyr}, \code{fit_control}) overlay only the
-arguments you did not pass, so an explicit argument always wins. The stored
-\code{model_config} is merged into the data object's \strong{field by field}, not
-wholesale: only the fields the config actually set are imposed, and the data
-object keeps the rest, so a config built with \code{\link[=model_config]{model_config()}} keeps the
-linkages held on the data object. Where a field is set on both and
-the two disagree, the config's value is used and the difference is reported
-as a warning naming the field. A config written before that field record
-existed is treated as having set its non-default fields.
-}
-\section{Initial age structure}{
-
-What \code{initMode} estimates, and from what:
-\describe{
-\item{\code{"FreeParams"} (0)}{The initial age-structure is estimated directly, one free
-parameter per age.}
-\item{\code{"Equilibrium"} (1)}{Unfished (\eqn{F_{init} = 0}) equilibrium age-structure,
-projected from \eqn{R_0} and residual natural mortality \eqn{M1}.}
-\item{\code{"NonEquilibrium"} (2)}{As (1), plus estimated initial population deviates, so
-the first year need not sit at equilibrium. The default.}
-\item{\code{"FishedNonEquilibrium"} (3)}{As (2), with an estimated initial fishing
-mortality \eqn{F_{init}} added to the mortality that shapes the first year.}
-\item{\code{"FishedNonEquilibriumScaled"} (4)}{As (3), but \eqn{F_{init}} scales
-\eqn{R_0} rather than entering the mortality directly.}
-\item{\code{"OffsetEquilibrium"} (5)}{Unfished equilibrium seeded by the first year's
-recruitment, \code{R_init * exp(rec_dev[1])}, decayed by \eqn{M1} and closed with the
-usual geometric plus group. Initial deviates are turned off and no init-dev penalty is
-applied. This is the Cole Monnahan / AFSC GOA pollock convention.}
-\item{\code{"FishedNonEquilibriumSelected"} (6)}{As (3), but \eqn{F_{init}} is weighted by
-the fishery's selectivity at age before it accumulates, so the first year decays with
-\eqn{\sum_{a' < a} (M1_{a'} + F_{init} s_{a'})}. This is Stock Synthesis's InitF
-convention. \eqn{F_{init}} is the apical initial F, since \eqn{s} is normalized to a
-maximum of 1. The selectivity is the mean over the species' fishery fleets in the first
-hindcast year, which is exact for a single fishery; Rceattle carries one \eqn{F_{init}}
-per species where SS3 carries one per fleet, so a multi-fishery stock gets the mean shape.}
-}
-
-Modes 3, 4 and 6 differ in how \eqn{F_{init}} reaches an age. (3) charges every age the same
-\eqn{F_{init}}, (4) applies it once rather than accumulating it, and (6) weights it by
-selectivity. Under a size-selective fishery only (6) is an equilibrium: (3) kills unselected
-young ages at the full initial F and (4) does not decay the older ages with it at all.
-
-Modes 1 and 5 differ by exactly one term: both start from the initial equilibrium
-recruitment \eqn{R_{init}}, but (1) projects it forward unchanged while (5) seeds the first
-year with the realized recruitment \code{R_init * exp(rec_dev[1])}. On a stock whose first
-year was not average, that is not a small difference.
-
-\eqn{R_{init}} is not always \eqn{R_0}: under a random-about-mean stock-recruit relationship
-the two are equal, but under Beverton-Holt or Ricker \eqn{R_{init}} is the equilibrium
-recruitment implied by the curve.
-
-\strong{In multispecies mode the decay uses \eqn{M1} only}, so predation mortality (\eqn{M2}) does
-not enter the initial age structure under any of these modes.
-}
-
 \examples{
 \donttest{
 data(BS2017SS)

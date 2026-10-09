@@ -2,58 +2,42 @@
 # Declarative data-requirement table
 # =============================================================================
 #
-# The *conditional presence requirements* of the ~40-element Rceattle data
-# list: e.g. "diet_data is required when msmMode > 0", "NByageFixed is required
-# when estDynamics > 0". Those conditions are exactly what a user needs to know
-# up front, and what `data_requirements()` reports and `build_data()`
-# pre-checks. So each condition lives once, here, and `data_check()` and
-# `data_requirements()` both *consume* it rather than restating it.
+# The conditional presence requirements of the Rceattle data list -- "diet_data
+# is required when msmMode > 0", "NByageFixed is required when
+# estDynamics > 0". Each condition lives once, here, and both `data_check()`
+# and `data_requirements()` consume it rather than restating it.
 #
-# Scope, deliberately narrow: this table drives only the **pure
-# presence-requirement** gates in `data_check()`. Dimension / value /
-# referential / structural checks and the
-# two mirroring-dependent *adequacy* gates (index_cov-MVN, comp/caal-vs-estimated-
-# selectivity) stay imperative in `data_check()` -- they depend on per-fleet row
-# counts and cross-fleet lookups that do not reduce to a declarative row. Rows
-# marked `driven = FALSE` are read by `data_requirements()` for classification
-# only and are NOT consulted by `data_check()`; the authoritative check for those
-# stays in `data_check()`.
+# It drives the PRESENCE gates only. Dimension, value, referential and
+# structural checks stay imperative in `data_check()`, as do the two
+# mirroring-dependent adequacy gates (index_cov-MVN, comp/caal-vs-estimated
+# selectivity), which depend on per-fleet row counts and cross-fleet lookups
+# that do not reduce to a row here.
 #
-# Each row is a list with fields:
-#   element        chr  data_list element name (the row's identity / lookup key).
-#   category       chr  grouping for display ("dimensions", "biology", "fishery",
-#                       "composition", "predation", "environment").
-#   always_required lgl TRUE for the core backbone the model always needs
-#                       (dereferenced unconditionally); such rows carry no
-#                       condition.
-#   required_when  fn   function(dl) -> logical; TRUE when the element is
-#                       required for this configuration. Evaluated with isTRUE()
-#                       by the callers, so a length-0 / NA result reads as "not
-#                       required" (robust to a not-yet-defaulted switch).
-#   ignored_when   fn   function(dl) -> logical; TRUE when the feature that would
-#                       consume the element is switched OFF, so the element is
-#                       neither required nor used. Optional; defaults to never.
-#   condition_label chr human-readable form of `required_when`, for reports.
-#   optional_status chr when neither required nor ignored: "defaulted"
-#                       (clean_data fills a safe default -> reported "Optional")
-#                       or "none".
-#   default_label  chr  human description of the clean_data default, for reports.
-#   driven         lgl  TRUE if `data_check()` emits this row's requirement via
-#                       the evaluators below; FALSE = classification-only.
-#   severity       chr  ("error" | "message") how data_check surfaces an unmet
-#                       requirement. Only meaningful when driven = TRUE.
-#   adequate       fn   function(dl) -> logical; TRUE when the element is present
-#                       and adequate enough to satisfy the *presence* gate (the
-#                       separate dimension/value checks stay in data_check).
-#                       Only required when driven = TRUE.
-#   message        fn   function(dl) -> chr; the exact text data_check emits when
-#                       required_when && !adequate. Only required when driven.
-#
-# NOTE: `required_when` reproduces each gate's original guard. Where the original
-# guard would error on a NULL switch (e.g. the diet gate's bare `msmMode > 0`),
-# the isTRUE() wrapping here reads NULL as "not required" instead -- which is
-# unreachable in the real pipeline (switch_check defaults msmMode to 0 before
-# data_check runs) and strictly more robust. Flagged for review.
+# Each row holds:
+#   element         data_list element name, and the row's lookup key.
+#   category        grouping for display: dimensions, biology, fishery,
+#                   composition, predation, environment.
+#   always_required TRUE for the core backbone, which carries no condition.
+#   required_when   function(dl) -> TRUE when this configuration needs it.
+#                   Callers wrap it in isTRUE(), so a length-0 or NA result
+#                   reads as "not required".
+#   ignored_when    function(dl) -> TRUE when the feature that would consume it
+#                   is off, so it is neither required nor used. Defaults to
+#                   never.
+#   condition_label human-readable form of `required_when`, for reports.
+#   optional_status when neither required nor ignored: "defaulted" (clean_data
+#                   fills a safe default, reported as "Optional") or "none".
+#   default_label   human description of that default.
+#   driven          TRUE when `data_check()` emits this row's requirement.
+#                   FALSE means `data_requirements()` reads it for
+#                   classification only, and the authoritative check stays in
+#                   `data_check()`.
+#   severity        "error" or "message", how data_check surfaces an unmet
+#                   requirement. Meaningful only when driven = TRUE.
+#   adequate        function(dl) -> TRUE when the element is present and
+#                   adequate for the presence gate. Required when driven.
+#   message         function(dl) -> the text data_check emits when
+#                   required_when && !adequate. Required when driven.
 
 # Canonical presence predicate: a data.frame element counts as "present" only
 # when it is non-NULL and has at least one row. Mirrors the `has_data()` helper

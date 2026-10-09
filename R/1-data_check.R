@@ -58,40 +58,20 @@ data_check <- function(data_list) {
 
   # Catchability = "AR1" is the QAR1 form (Rogers et al. 2024):
   # q = exp(log_q + beta * dev_y), with `index_q_dev` a latent AR1 process and
-  # the environmental index an OBSERVATION of it.
+  # the environmental index an OBSERVATION of it. It never fitted: build_map()
+  # gates the deviates on `Time_varying_q %in% c("IID", "AR1", "RandomWalk")`,
+  # but under this form that column holds an `env_data` COLUMN INDEX rather than
+  # a mode, so `index_q_dev` stays mapped out and q comes back constant with
+  # nothing reported. The objective is inflated with it: measured on BS2017SS
+  # fleet 7, estimateMode = 3, the "Catchability deviates" row accumulates 54.8
+  # from deviates that are identically zero, and `index_q_dev_log_sd` is left
+  # free with a gradient of nyrs_hind and nothing opposing it, so its sigma is
+  # driven to zero. Refused rather than warned: a warned fit returns an ordinary
+  # summary() and nothing downstream can tell that its q is constant.
   #
-  # It does not work. build_map() gates the deviates on
-  # `Time_varying_q %in% c("IID", "AR1", "RandomWalk")`, but under this form
-  # `Time_varying_q` holds an `env_data` COLUMN INDEX rather than a mode -- so a
-  # QAR1 fleet never matches, `index_q_dev` stays mapped out, and q comes back
-  # constant. Nothing errors.
-  #
-  # The damage is not confined to q, so the warning does not stop at "q is
-  # constant". Measured on BS2017SS fleet 7, estimateMode = 3: the
-  # "Catchability deviates" likelihood row accumulates 54.8 from deviates that
-  # are identically zero (the AR1 normalizing constant, plus the environmental
-  # index fitted as noise about zero), so the reported objective is not
-  # comparable with any other model's; and `index_q_dev_log_sd` is left free
-  # with a gradient of nyrs_hind and nothing opposing it, so its sigma is
-  # driven to zero. Divergent, not merely flat.
-  #
-  # Stop rather than warn. A warned fit still returns a summary() that looks
-  # ordinary, and nothing downstream can tell that its q is constant or its
-  # objective inflated -- which is the failure this package cannot ship. It is
-  # also the severity 'PowerEquation' already carries a few lines above, and
-  # that switch is merely unimplemented rather than actively divergent.
-  #
-  # The cost of stopping is now small: GOA pollock 2025 runs the linkage form
-  # (../Rceattle-models: GOA pollock/2025/04-fit-and-diagnostics.R), and the
-  # remaining Catchability = 6 call sites are Rceattle 3.3.1-era scripts.
-  #
-  # Note this is a DIFFERENT switch from `Time_varying_q = "AR1"`, which is also
-  # removed (5.16.0) but by its own check above, with its own message. That one
-  # was not an AR1 either: the model gives value 2 the same independent
-  # normal penalty as value 1 (`index_varying_q == 1 || == 2`), and the QAR1
-  # correlation parameter went with that path (5.37.0). Both redirect to the same
-  # place -- a q linkage, `linkage_spec(~ ar1(1 | Year))` -- but they name
-  # different columns, so only this block says "QAR1".
+  # A DIFFERENT switch from `Time_varying_q = "AR1"`, which is refused on its own
+  # below. Both redirect to the same q linkage, `linkage_spec(~ ar1(1 | Year))`,
+  # but they name different columns, so only this block says "QAR1".
   if(!is.null(data_list$fleet_control$Catchability) &&
      any(data_list$fleet_control$Catchability %in% c("AR1", 6), na.rm = TRUE)){
     qar1 <- which(data_list$fleet_control$Catchability %in% c("AR1", 6))
@@ -166,49 +146,37 @@ data_check <- function(data_list) {
   }
 
   # Time_varying_q / Time_varying_sel / M1_re are superseded by random-effect
-  # linkages. The legacy switches still fit with their exact numerics (they keep
-  # their own C++ path); the formula grammar expresses the same IID / random-walk
-  # / AR1 deviations through build_*() with (1 | Year) / rw(1 | Year) /
-  # ar1(1 | Year), and additionally allows a prior on -- or free estimation of --
-  # the deviation SD. Warn only where a grammar equivalent exists: the
-  # environmental / Rogers-AR1 catchability modes overload Time_varying_q to name
-  # env columns (not a time-varying mode), the non-parametric selectivity forms
-  # have no additive slot, and the separable M1_re (age x year, code 6) has no
-  # 1-D grammar structure -- those stay on the legacy path without a nudge.
+  # linkages: the legacy switches keep their own C++ path and exact numerics,
+  # while (1 | Year) / rw(1 | Year) / ar1(1 | Year) express the same IID /
+  # random-walk / AR1 deviations and can also put a prior on -- or estimate --
+  # the deviation SD. Nudged only where a grammar equivalent exists, so three
+  # cases stay silent: the environmental / Rogers-AR1 catchability modes, where
+  # Time_varying_q names an env column rather than a mode; the non-parametric
+  # selectivity forms, which have no additive slot; and the separable M1_re
+  # (age x year, code 6), which has no 1-D grammar structure.
   fc <- data_list$fleet_control
 
-  # Time_varying_sel / Time_varying_q = "AR1" (2) are REMOVED. Neither was ever
-  # an AR1. The model scores value 2 with the same independent normal penalty
-  # as value 1 -- `flt_varying_sel == 1 || == 2` and `index_varying_q == 1 || ==
-  # 2` -- and neither deviation block has a correlation parameter to read (the
-  # QAR1 catchability path's went with it in 5.37.0; selectivity never had one).
-  # So the name promised an autocorrelation the model does not fit, on a value
-  # the schema's own column descriptions never listed.
+  # Time_varying_sel / Time_varying_q = "AR1" (2) are REMOVED: neither was ever
+  # an AR1. The model scores value 2 with the same independent normal penalty as
+  # value 1 (`flt_varying_sel == 1 || == 2`, `index_varying_q == 1 || == 2`), and
+  # neither deviation block has a correlation parameter to read -- the QAR1
+  # catchability path's went with it in 5.37.0, selectivity never had one. An
+  # error rather than a silent alias to "IID", for the reason the QAR1 removal
+  # above gives: nothing downstream can tell that deviations the assessor asked
+  # to be correlated are independent. Every fit under value 2 was an IID fit, so
+  # setting the switch to "IID" reproduces it exactly.
   #
-  # An error rather than a silent alias, and for the reason the QAR1 removal
-  # above gives: a warned fit returns a summary() that looks ordinary, and
-  # nothing downstream can tell that the deviations the assessor asked to be
-  # correlated are independent. Nothing that produced a usable number is refused
-  # -- every fit under value 2 was an IID fit, and setting the switch to "IID"
-  # reproduces it exactly.
+  # `exempt` marks fleets whose column does not hold a MODE at all, and it is
+  # not optional: under Catchability = "Environmental" (and the removed "AR1")
+  # Time_varying_q is a 1-based env_data COLUMN INDEX, so a fleet naming env
+  # column 2 carries a literal 2, which canonicalizes to "AR1" and would
+  # otherwise be refused as a mode the assessor never set. validate_switches()
+  # and the soft-deprecation below carry the same exemption.
   #
-  # The replacement is the linkage grammar, which fits the stationary AR1 these
-  # names promised: SCALE(AR1(rho), sigma) with sigma the MARGINAL sd, reducing
-  # to the IID density at rho = 0. It is also strictly more expressive -- per
-  # selectivity parameter rather than per fleet, with the deviation sd estimated
-  # or fixed, an integrate = FALSE penalized form, priors, bounds and a phase.
-  # `exempt` marks fleets whose column does not hold a MODE at all. Only
-  # Time_varying_q needs it, and it is not optional: under
-  # Catchability = "Environmental" (and the removed "AR1") that column is a
-  # 1-based env_data COLUMN INDEX, so a fleet naming env column 2 carries a
-  # literal 2 -- which canonicalizes to "AR1" and would otherwise be refused as
-  # a mode the assessor never set. validate_switches() and the soft-deprecation
-  # below both carry the same exemption, for the same reason.
-  #
-  # The "set 'IID'" advice is deliberately unqualified. It is not legal on the
-  # non-parametric forms, which accept only "Off" or "RandomWalk" -- but those
-  # fleets already collect that exact complaint a few hundred lines below, in
-  # this same accumulated error, so qualifying it here only says it twice.
+  # The "set 'IID'" advice is unqualified on purpose: it is not legal on the
+  # non-parametric forms, which take only "Off" or "RandomWalk", but those
+  # fleets already collect that complaint into this same accumulated error
+  # further down.
   .tv_ar1 <- function(col, what, map, example, note = "", exempt = NULL) {
     if (is.null(col)) return(character(0))
     hit <- .canon_switch(col, map) == "AR1"
@@ -452,25 +420,23 @@ data_check <- function(data_list) {
     if(ncol(data_list$sex_ratio) <= max_ages) errors <- c(errors, "Sex ratio does not span all ages")
   }
 
-  # Per-species age coverage, which the column counts above cannot see. Those
-  # ask only whether the table is wide enough for the LONGEST-lived species, so
-  # a table can be wide enough and still leave a species' own bins empty -- and
-  # the value-range checks below pass over NA.
+  # Per-species age coverage, which the column counts above cannot see: those ask
+  # only whether the table is wide enough for the LONGEST-lived species, and the
+  # value-range checks below pass over NA.
   #
   # Both tables are summed over age. `mature_females` is `maturity`, times
-  # `sex_ratio` where a species is modelled one-sex (`ceattle.cpp` 5.4), and
-  # feeds hindcast `ssb`; `spawning_biomass_per_recruit()` (`spr.hpp`) sums the
-  # same schedule for SPR. So a `maturity` gap makes SSB NaN for any species,
-  # and a `sex_ratio` gap does the same for a ONE-SEX species. On a two-sex
-  # species `sex_ratio` reaches only SPR, which is why such a gap can sit
-  # unnoticed until a harvest control rule asks for reference points and nlminb
-  # reports "NA/NaN gradient evaluation", naming neither table nor species.
+  # `sex_ratio` on a one-sex species (`ceattle.cpp` 5.4), and feeds hindcast
+  # `ssb`; `spawning_biomass_per_recruit()` (`spr.hpp`) sums the same schedule
+  # for SPR. So a `maturity` gap makes SSB NaN for any species, a `sex_ratio`
+  # gap only for a ONE-SEX species. On a two-sex species `sex_ratio` reaches SPR
+  # alone, so the gap sits unnoticed until a harvest control rule asks for
+  # reference points and nlminb reports "NA/NaN gradient evaluation", naming
+  # neither table nor species.
   #
-  # Rows are read by POSITION: rearrange_data() drops the Species column and
-  # hands the model a matrix whose row i IS species i. A Species column that
-  # disagrees with the row order is reported rather than followed.
-  #
-  # Ages beyond a species' own `nages` are padding and are not checked.
+  # Rows are read by POSITION: rearrange_data() drops the Species column and the
+  # model reads row i as species i, so a Species column that disagrees with the
+  # row order is reported rather than followed. Ages beyond a species' own
+  # `nages` are padding and are not checked.
   fmt_ages <- function(x){
     if(length(x) > 1L && identical(x, seq(x[1L], x[length(x)]))){
       paste0(x[1L], "-", x[length(x)])
@@ -489,15 +455,13 @@ data_check <- function(data_list) {
         if(data_list$nspp > nrow(tbl) + 1L) paste0("-", data_list$nspp) else "",
         " would be read past the end of the table."))
     }
-    # Read by column NAME, not with `$`: these tables are a data.frame from
-    # read_data() but a hand-built data_list may hold either as a matrix, where
-    # `$` is an error rather than NULL and would abort data_check() before a
-    # single accumulated error could be reported.
-    #
-    # Via as.character(), so a factor column gives the species number written in
-    # the workbook rather than its level code. The two agree only while the
-    # numbers are 1..nspp: a table carrying species 1, 3, 4 reads as level codes
-    # 1, 2, 3 and passes the row-order test it should fail.
+    # Read by column NAME, not with `$`: a hand-built data_list may hold either
+    # table as a matrix, where `$` is an error rather than NULL and would abort
+    # data_check() before a single accumulated error could be reported. Via
+    # as.character(), so a factor column gives the species number written in the
+    # workbook rather than its level code -- the two agree only while the numbers
+    # are 1..nspp, and a table carrying species 1, 3, 4 reads as 1, 2, 3 and
+    # passes the row-order test it should fail.
     if("Species" %in% colnames(tbl)){
       # `[[` for a data.frame or tibble, `[,` for a matrix: neither form works
       # on both. `tbl[, "Species"]` on a TIBBLE is a one-column tibble, not a
@@ -958,16 +922,15 @@ data_check <- function(data_list) {
                                    ") must be <= Sel_pen_last_bin (", pl, ")"))
       }
 
-      # Composition young/old tail-accumulation bins (Comp_accum_young/old) are
-      # 1-based ordinals on the fleet's COMPOSITION dimension -- age or length,
-      # from comp_data$Age0_Length1 -- and are PER SEX BLOCK for joint-sex (Sex 3)
-      # comps (so the bound is nages/nlengths, not the doubled joint row). An
-      # out-of-range value or young >= old would fold into a nonexistent bin,
-      # build a negative-length vector in the model, or collapse the whole
-      # composition into a single (zero-information) bin, so reject them here.
-      # A single per-fleet column drives every composition row on the fleet, so
-      # the bound is the MOST restrictive dimension present (min): a value that
-      # is out of range for one dimension would otherwise silently no-op on it.
+      # Comp_accum_young/old are 1-based ordinals on the fleet's COMPOSITION
+      # dimension (age or length, from comp_data$Age0_Length1), per SEX BLOCK for
+      # joint-sex (Sex 3) comps, so the bound is nages/nlengths rather than the
+      # doubled joint row. Out of range, or young >= old, folds into a nonexistent
+      # bin, builds a negative-length vector in the model, or collapses the whole
+      # composition into a single zero-information bin. One per-fleet column
+      # drives every composition row on the fleet, so the bound is the MOST
+      # restrictive dimension present (min): a value out of range for one
+      # dimension would otherwise silently no-op on it.
       if(!is.null(data_list$comp_data) && nrow(data_list$comp_data) > 0){
         a0l1 <- unique(data_list$comp_data$Age0_Length1[
           data_list$comp_data$Fleet_code == fc$Fleet_code[flt]])
@@ -1006,12 +969,11 @@ data_check <- function(data_list) {
 
       # Time-varying form is selectivity-type specific:
       #  - NonParametric (Ianelli, type 2): "RandomWalk" penalizes year-to-year
-      #    log selectivity-at-age; "IID" scores each annual coefficient
-      #    deviation about the base curve -> allow "Off"/"IID"/"RandomWalk".
+      #    log selectivity-at-age, "IID" each annual coefficient deviation about
+      #    the base curve -> "Off"/"IID"/"RandomWalk".
       #  - NonParametricPM (type 9): its deviates ARE the walk increments, so an
-      #    independent-deviate reading of them describes a different curve than
-      #    the one selectivity.hpp builds -> allow only "Off"/"RandomWalk".
-      #  - Hake (Taylor, type 5): IID coefficient deviates -> allow only "Off"/"IID".
+      #    independent reading of them is a different curve -> "Off"/"RandomWalk".
+      #  - Hake (Taylor, type 5): IID coefficient deviates -> "Off"/"IID".
       if(!is.na(fc$Selectivity[flt]) && fc$Selectivity[flt] == "NonParametric" &&
          !fc$Time_varying_sel[flt] %in% c("Off", "IID", "RandomWalk")){
         errors <- c(errors, paste0("Fleet '", flt_name, "': for 'NonParametric' selectivity, 'Time_varying_sel' must be 'Off', 'IID' or 'RandomWalk'"))
@@ -1058,20 +1020,18 @@ data_check <- function(data_list) {
          !tvs %in% c("Off", 0)){
         errors <- c(errors, paste0("Fleet '", flt_name, "': for 'DoubleNormalSS3' selectivity, 'Time_varying_sel' must be 'Off'; vary its parameters with build_selectivity(linkages = ...)."))
       }
-      #  - RandomWalkAscending walks the ASCENDING limb and holds the
-      #    descending one fixed, and build_map() assigns its deviate indices on
+      #  - RandomWalkAscending walks the ASCENDING limb and holds the descending
+      #    one fixed, and build_map() assigns its deviate indices on
       #    DoubleLogistic alone. On the other parametric forms the deviates stay
       #    mapped out and a static curve fits where the workbook asked for a
       #    walk -- on the GOA pollock fishery, DoubleNormal frees 220 parameters
-      #    against DoubleLogistic's 316, and Logistic and DescendingLogistic 218
+      #    against DoubleLogistic's 316, Logistic and DescendingLogistic 218
       #    against 314 -- while under random_sel the deviation sd is freed
-      #    anyway, so it scales deviations that do not exist. The same model is
-      #    available as a random-effect linkage on the ascending parameters,
-      #    which is where time-varying parametric selectivity is heading, so
-      #    this refuses rather than adding a second route to it.
+      #    anyway, so it scales deviations that do not exist. Refused, since a
+      #    random-effect linkage on the ascending parameters fits the same model.
       #    2DAR1 / 3DAR1 are exempt: they estimate their field for every bin and
-      #    year regardless, and build_map() says so with a warning that
-      #    Time_varying_sel is ignored for them.
+      #    year regardless, and build_map() warns that Time_varying_sel is
+      #    ignored for them.
       .rwa_sel <- if("Selectivity" %in% colnames(fc)){
         .canon_switch(fc$Selectivity[flt], sel_map)
       } else NA_character_
@@ -1166,14 +1126,14 @@ data_check <- function(data_list) {
     # (declarative requirement table).
     errors <- c(errors, .rce_check_presence(data_list, "emp_sel"))
 
-    # Estimated selectivity. Fleet_type is read through .canon_switch(): this
-    # function is callable on a list straight from read_data(), where the column
-    # is still the integer code, and `0 != "Off"` is TRUE.
-    # requires comp or CAAL data with Year > 0 to be identifiable. Otherwise
-    # the selectivity parameters are unconstrained and the optimizer wanders.
-    # EXCEPTION: a fleet whose Selectivity_index is shared (mirrored) with
-    # another fleet that DOES have active comp/CAAL data is identifiable through
-    # the master fleet's data, so it is not flagged.
+    # Estimated selectivity needs comp or CAAL data with Year > 0 to be
+    # identifiable; otherwise the selectivity parameters are unconstrained and
+    # the optimizer wanders. EXCEPTION: a fleet whose Selectivity_index is
+    # shared (mirrored) with another fleet that DOES have active comp/CAAL data
+    # is identifiable through that fleet's data, so it is not flagged.
+    # Fleet_type is read through .canon_switch() because data_check() is
+    # callable on a list straight from read_data(), where the column is still
+    # the integer code and `0 != "Off"` is TRUE.
     has_active_age_data <- function(flt_code, df) {
       if (!has_data(df) || !all(c("Fleet_code", "Year") %in% colnames(df))) return(FALSE)
       any(df$Fleet_code == flt_code & !is.na(df$Year) & df$Year > 0 & df$Sample_size > 0)
@@ -1198,21 +1158,20 @@ data_check <- function(data_list) {
       }
     }
 
-    # Per-fleet settings a shared Selectivity_index does not reconcile. Checked
-    # here rather than in build_map(), whose warnings fit_mod() suppresses.
+    # Per-fleet settings a shared Selectivity_index does not reconcile.
     #
     # SHAPING columns are read per fleet by the cpp when it builds the curve, so
     # a difference means the group does not share one selectivity. NA counts as
     # its own value among them -- a blank Sel_norm_bin means "do not normalize",
     # so blank against 2 is two different curves, not "inherit the lead's".
+    # Sel_norm_scope and Sel_cap_bin are shaping columns too: both are per-fleet
+    # DATA_IVECTORs read inside the curve builder (selectivity.hpp: the
+    # across-sex normalization reference, and the NonParametricPM bin cap), not
+    # behind a flt_sel_lead gate.
     #
     # Time_varying_sel is resolved by build_map(), which copies the lead fleet's
     # deviation map over the group: the curves match and the other fleets'
     # settings are discarded. NA there really is "unset", so it is skipped.
-    # Sel_norm_scope and Sel_cap_bin belong here too: both are per-fleet
-    # DATA_IVECTORs read inside the curve builder (selectivity.hpp: the
-    # across-sex normalization reference, and the NonParametricPM bin cap),
-    # not behind a flt_sel_lead gate.
     .sel_shaping_cols <- c("Selectivity", "Selectivity_dimension",
                            "Bin_first_selected", "N_sel_bins",
                            "Sel_norm_bin", "Sel_norm_bin_upper",
@@ -1270,18 +1229,17 @@ data_check <- function(data_list) {
     # The same for a shared Catchability_index, and for the same reason.
     #
     # Fixed / Estimated / Estimated-with-prior share the one index_log_q the map
-    # wires up, so a difference resolves to the lead fleet's answer.
+    # wires up, so a difference resolves to the lead fleet's answer. Environmental
+    # and AR1 overwrite index_q per fleet (ceattle.cpp 5.3) but from that same
+    # lead parameter set -- index_log_q, index_q_beta, index_q_dev -- against an
+    # env_index row that is not fleet specific, so those groups DO share, and
+    # where the fleets name different env series the lead's is used (verified by
+    # fitting, not by inspection).
     #
-    # Analytical and AnalyticalArith do not: they solve q from the fleet's own
-    # OBSERVATIONS (ceattle.cpp 8.2, 8.2b), bypassing the shared parameter, so a
-    # group containing one shares no catchability -- two Analytical fleets still
-    # solve separately. Reported on the form, not only on a disagreement.
-    #
-    # Environmental and AR1 also overwrite index_q per fleet (ceattle.cpp 6.4),
-    # but from index_log_q, index_q_beta and index_q_dev, all of which build_map()
-    # maps to the lead fleet's, against an env_index row that is not fleet
-    # specific. Those groups DO share, including when the fleets name different
-    # env series -- the lead's is used. Verified by fitting, not by inspection.
+    # Analytical and AnalyticalArith do not share: they solve q from the fleet's
+    # own OBSERVATIONS (ceattle.cpp 8.2, 8.2b), bypassing the shared parameter,
+    # so two Analytical fleets still solve separately. Reported on the form, not
+    # only on a disagreement.
     .q_solved <- c("Analytical", "AnalyticalArith")
     # Accept either spelling: a data list reaching data_check() straight from a
     # workbook may still carry the integer codes.
@@ -1393,19 +1351,6 @@ data_check <- function(data_list) {
     }
 
 
-    # Mirroring (informational) NOW in configuration
-    # mirror_sel <- fc |> dplyr::group_by(Selectivity_index) |>
-    #   dplyr::filter(dplyr::n() > 1) |> dplyr::ungroup()
-    # if(nrow(mirror_sel) > 0){
-    #   message(paste0("Selectivity for ", paste(mirror_sel$Fleet_name, collapse = ", "),
-    #                  " is mirrored with another fleet"))
-    # }
-    # mirror_q <- fc |> dplyr::filter(!is.na(Catchability)) |>
-    #   dplyr::group_by(Catchability_index) |> dplyr::filter(dplyr::n() > 1) |> dplyr::ungroup()
-    # if(nrow(mirror_q) > 0){
-    #   message(paste0("Catchability for ", paste(mirror_q$Fleet_name, collapse = ", "),
-    #                  " is mirrored with another fleet"))
-    # }
   }
 
   # =======================================================================
@@ -1510,17 +1455,14 @@ data_check <- function(data_list) {
   # all there are no covariance fleets, which is precisely the case the stray
   # index_cov warning below is meant to catch.
   mvn_flts <- integer(0)
-  # The analytical sd (Ludwig and Walters 1994) is accumulated from squared LOG
-  # residuals, so it is a log-scale sd. What that costs depends on whether the
-  # family actually reads it, and the two groups differ:
-  #
-  #   Normal / TruncatedNormal read the sd as an ABSOLUTE value in index units,
-  #     so the likelihood itself is evaluated on the wrong scale. Refuse it.
-  #   MVN / MVNORM score through index_cov_mat and never read the scalar sd, so
-  #     the FIT is unaffected. But index_sd is still reported from it, and that
-  #     is what residuals(type = "pearson") and plot_index()'s interval divide
-  #     by, so the diagnostics are on the wrong scale. Warn rather than refuse a
-  #     model that fits correctly.
+  # The analytical sd (Walters and Ludwig 1994) accumulates squared LOG
+  # residuals, so it is a log-scale sd, and what that costs depends on the
+  # family. Normal / TruncatedNormal read the sd as an ABSOLUTE value in index
+  # units, so the likelihood itself is evaluated on the wrong scale: refused.
+  # MVN / MVNORM score through index_cov_mat and never read the scalar sd, so the
+  # FIT is unaffected and only the reported index_sd is wrong -- that is what
+  # residuals(type = "pearson") and plot_index()'s interval divide by, so the
+  # diagnostics are warned about rather than the model refused.
   if(has_data(fc) && all(c("Index_distribution", "Estimate_index_sd") %in% colnames(fc))){
     is_analytical <- fc$Estimate_index_sd %in% c("Analytical", 2, "2")
     is_on <- !(fc$Fleet_type %in% c("Off", 0, "0"))
@@ -1682,18 +1624,16 @@ data_check <- function(data_list) {
     }
   }
 
-  # catch_data must span hindcast years (use 0 where no catch occurred);
   # A fleet carrying fitted index observations needs its catchability columns,
   # whatever its Fleet_type. The model scores an index row for any non-Off
   # fleet, so a fishery with a CPUE series is fitted like a survey -- but these
   # columns have no schema default, so on a fishery they arrive NA and the index
   # would be fitted at an undefined q with an undefined sd. Required rather than
   # defaulted: guessing a catchability form for someone's CPUE series is the
-  # kind of silent default this check exists to prevent.
-  #
-  # These two are read whatever the catchability form. The rest are conditional
-  # and are handled below -- Catchability_init in particular is unread under
-  # Analytical, which several working GOA hake configurations rely on.
+  # kind of silent default this check exists to prevent. These two are read
+  # whatever the catchability form; the rest are conditional and handled below --
+  # Catchability_init in particular is unread under Analytical, which several
+  # working GOA hake configurations rely on.
   .idx_fleets <- .fleets_with_index(data_list)
   if (length(.idx_fleets)) {
     .fc  <- data_list$fleet_control
@@ -1717,17 +1657,15 @@ data_check <- function(data_list) {
 
   # The remaining q columns are each required by the one switch that reads them.
   # All are logged when the parameter list is built, so a blank or non-positive
-  # entry becomes a NaN or -Inf starting value and the objective is not finite
-  # at the first evaluation -- loudly, but from inside MakeADFun, where the
-  # message names neither the fleet nor the column.
+  # entry becomes a NaN or -Inf starting value and the objective is not finite at
+  # the first evaluation -- loudly, but from inside MakeADFun, where the message
+  # names neither the fleet nor the column. Every condition mirrors build_map()'s
+  # own gate, so a setting that reads no starting value is not asked for one:
+  # `Block` is absent from the time-varying set (a time block carries no
+  # penalty), and the analytical catchability forms are exempted below.
   #
-  # Every condition mirrors build_map()'s own gate, so a setting that reads no
-  # starting value is not asked for one. `Block` is deliberately absent from the
-  # time-varying set (a time block carries no penalty), and the analytical
-  # catchability forms are exempted below.
-  # Shared by the catchability and selectivity blocks below: each entry names a
-  # column, the fleets that read it, and why, and the column must be positive on
-  # exactly those fleets.
+  # Shared with the selectivity block below: each entry names a column, the
+  # fleets that read it, and why.
   .require_positive <- function(.fc, .col, .req) {
     for (.r in .req) {
       .w <- .r$when
@@ -1784,33 +1722,17 @@ data_check <- function(data_list) {
   # unattributable TMB error -- and it additionally makes the geometric mean
   # .warn_shared_block_start() reports for a shared Selectivity_index group NaN.
   #
-  # Required only where the TEMPLATE actually reads sel_dev_sd, which is a
-  # property of the (Selectivity, Time_varying_sel) pair rather than of either
-  # alone. Transcribed from the four density sites in ceattle.cpp section 15.2,
-  # so a form/mode combination that penalizes nothing is not asked for a value
-  # it would never read:
-  #
-  #   Logistic / DoubleLogistic / DescendingLogistic / DoubleNormal
-  #                        IID scores dnorm(dev, 0, sd); RandomWalk and
-  #                        RandomWalkAscending score the first difference at it.
-  #   Hake                 IID only.
-  #   NonParametric        IID scores dnorm(sel_coff_dev, 0, sd) on each
-  #                        estimated coefficient; RandomWalk scores the walk on
-  #                        realized log-selectivity at the same sd.
-  #   NonParametricPM      RandomWalk only -- its deviates ARE walk increments.
-  #                        build_map() refuses the other modes on it.
-  #   LogisticPM           never: its two walks are weighted by Sel_curve_pen1
-  #                        and Sel_curve_pen3, and the model's own conditions
-  #                        exclude type 11 from every sel_dev_sd site.
-  #   Fixed / 2DAR1 / 3DAR1
-  #                        never: no deviation, or the field carries its own
-  #                        sd through sel_curve_pen.
-  #
-  # `Block` is absent throughout, for the same reason it is on the q side: a
-  # time block carries no penalty, and build_map() refuses `Block` on a
-  # non-parametric fleet outright. `AR1` is absent because it is refused above --
-  # leaving it here would pre-empt that refusal with a complaint about a column
-  # the removed mode never reads.
+  # Required only where the TEMPLATE reads sel_dev_sd, which is a property of the
+  # (Selectivity, Time_varying_sel) pair rather than of either alone, transcribed
+  # from the density sites in ceattle.cpp section 13.1. The absences are the part
+  # the code below cannot show: LogisticPM never reads it -- its two walks are
+  # weighted by Sel_curve_pen1 and Sel_curve_pen3, and the model's own conditions
+  # exclude type 11 from every sel_dev_sd site -- and nor do Fixed / 2DAR1 /
+  # 3DAR1, which have no deviation or carry their own sd through sel_curve_pen.
+  # `Block` is absent for the reason it is on the q side (a time block carries no
+  # penalty, and build_map() refuses it on a non-parametric fleet outright), and
+  # `AR1` because it is refused above -- asking for the column here would
+  # pre-empt that refusal over a value the removed mode never reads.
   #
   # A pre-4.4 non-parametric fleet arrives here with its mode already set to
   # "Off" by switch_check()'s legacy-format upgrade.
@@ -1841,7 +1763,9 @@ data_check <- function(data_list) {
     ))
   }
 
-  # index_data gaps are normal (biennial / triennial surveys, missed years).
+  # catch_data must span every hindcast year; enter 0 where no catch occurred.
+  # Only catch is checked: index_data gaps are normal (biennial / triennial
+  # surveys, missed years).
   if(!is.null(data_list$styr) && !is.null(data_list$endyr) && has_data(data_list$catch_data)){
     missing_years <- setdiff(data_list$styr:data_list$endyr, unique(data_list$catch_data$Year))
     if(length(missing_years) > 0){
@@ -1903,18 +1827,15 @@ data_check <- function(data_list) {
     }
   }
 
-  # The sibling of the rule above, for the other reason pred_CAAL comes back
-  # zero. CAAL is a composition of ages WITHIN a length bin, so the prediction is
-  # selectivity-at-length convolved with the growth matrix (ceattle.cpp, section
-  # 10.2). Selectivity at length only exists for a length-dimensioned fleet:
-  # selectivity.hpp writes sel_at_length only under `is_length_based`, leaving it
-  # zero otherwise, so an age-dimensioned fleet predicts nothing.
-  #
-  # It does not fail quietly in the harmless sense -- the CAAL likelihood is
-  # still evaluated, against a prediction that is uniform once comp_offset is
-  # added, so the observations are scored against a flat composition and the
-  # objective carries a term that no parameter can move. Selectivity_dimension
-  # defaults to "Age", so this is the default outcome rather than an unusual one.
+  # The second reason pred_CAAL comes back zero, after the empirical-growth rule
+  # above. CAAL is a composition of ages WITHIN a length bin, so it is predicted
+  # from selectivity-at-length convolved with the growth matrix (ceattle.cpp
+  # 10.2), and selectivity.hpp writes sel_at_length only under `is_length_based`
+  # -- an age-dimensioned fleet predicts nothing. The CAAL likelihood is still
+  # evaluated, against a prediction that is uniform once comp_offset is added, so
+  # these observations add a term to the objective that no parameter can move.
+  # Selectivity_dimension defaults to "Age", so this is the default outcome
+  # rather than an unusual one.
   if(has_data(data_list$caal_data) &&
      all(c("Fleet_code", "Year", "Sample_size") %in% colnames(data_list$caal_data)) &&
      !is.null(data_list$fleet_control$Selectivity_dimension)){
@@ -2362,15 +2283,12 @@ data_check <- function(data_list) {
       }
 
       # A species with NO prey rows at any age is not a truncated diet table --
-      # it is a species nothing in the model eats, which is a modelling choice
-      # and a common one (an apex predator in a two-species run). Warning about
-      # it fires on every fit of a correctly specified model and says nothing
-      # the author did not intend. Only a PARTIAL gap is evidence of truncation,
-      # so that is what is reported.
-      #
-      # The predator role keeps its all-ages case: a species that asked for
-      # empirical suitability and supplied no diet data at all did not choose
-      # to exert no predation, it just gets that.
+      # nothing in the model eats it, a deliberate and common choice (an apex
+      # predator in a two-species run) -- so only a PARTIAL gap is evidence of
+      # truncation and only that is reported. The predator role above keeps its
+      # all-ages case: a species that asked for empirical suitability and
+      # supplied no diet data at all did not choose to exert no predation, it
+      # just gets that.
       prey_seen <- covered(typed, sp, sex, nsex[sp],
                            "Prey_age", "Prey_sex", "Prey")
       miss_prey <- if(length(prey_seen)) setdiff(ages, prey_seen) else integer(0)
@@ -2501,17 +2419,17 @@ data_check <- function(data_list) {
       paste(sQuote(bad), collapse = " / ")), call. = FALSE)
   }
 
-  # ONE coefficient per species is all the initial state can identify, and the
-  # species is the ONLY stratum that counts. Two reasons, both in linkage.hpp's
-  # `rceattle_apply_recruitment_linkages()`: it discards sex and age_bin
-  # outright (`(void)linkage_sex; (void)linkage_age_bin;`) and takes no fleet,
-  # and it ACCUMULATES every matching row onto one offset per species, with a
-  # `species = NA` row broadcasting to all of them. Since only year 0 is read,
-  # the whole linkage collapses there to sum_i beta_i * X(0, col_i) -- a single
-  # number per species. So any second row on a species is aliased against the
-  # first whatever its design column, covariate, sex or age bin, and counting
-  # within a species/sex/age_bin/fleet stratum lets `by = ~ species + age_bin`
-  # through as five coefficients with identical gradients.
+  # ONE coefficient per species is all the initial state can identify.
+  # linkage.hpp's `rceattle_apply_recruitment_linkages()` discards sex and
+  # age_bin outright (`(void)linkage_sex; (void)linkage_age_bin;`), takes no
+  # fleet, and ACCUMULATES every matching row onto one offset per species, a
+  # `species = NA` row broadcasting to all of them. Only year 0 is read, so the
+  # linkage collapses there to sum_i beta_i * X(0, col_i) -- a single number per
+  # species. Any second row on a species is therefore aliased against the first
+  # whatever its design column, covariate, sex or age bin, which is why the count
+  # is per species alone: counting within a species/sex/age_bin/fleet stratum
+  # would let `by = ~ species + age_bin` through as five coefficients with
+  # identical gradients.
   nspp  <- as.integer(data_list[["nspp"]])
   cols  <- as.character(lt[["design_col"]][rows])
   sp_of <- lt[["species"]][rows]

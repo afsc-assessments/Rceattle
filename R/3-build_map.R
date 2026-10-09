@@ -130,15 +130,14 @@ build_map <- function(data_list, params, debug = FALSE, random_rec = FALSE,
 
 # Fleets sharing a Selectivity_index or a Catchability_index estimate ONE
 # parameter between them -- a deviation sd, or the catchability itself. TMB
-# collapses a shared parameter to the mean of its members' starting values, and
-# all of these are held on the log scale, so the group starts at the GEOMETRIC
-# MEAN of the members' values -- no fleet keeps the one in its own row. Warned
-# once per group, over the members that are actually estimated: a fleet whose map
-# slot is NA keeps its own value and contributes nothing to the mean.
+# starts a shared parameter at the mean over its map level, and all of these are
+# held on the log scale, so the group starts at the GEOMETRIC MEAN and no fleet
+# keeps the value in its own row. Warned once per group, over the ESTIMATED
+# members: a fleet whose map slot is NA keeps its own value and joins no mean.
+# Catchability is where it hurts -- a shared q at the mean rescales a survey's
+# whole predicted index, which no residual pattern distinguishes from a real
+# change in abundance (18% low, 6.23 nats; inst/dev/TRAPS.md).
 #
-# The catchability case is the one that hurts: a shared q at the mean of two
-# fleets' Catchability_init scales a survey's whole predicted index by a constant
-# factor, which no residual pattern distinguishes from a real change in abundance.
 # `what` is spliced after "The group estimates one", so it must be a bare noun
 # phrase; `note` is appended verbatim where `note_when` says it applies.
 .warn_shared_block_start <- function(map_list, data_list, index_col, start_col,
@@ -161,12 +160,12 @@ build_map <- function(data_list, params, debug = FALSE, random_rec = FALSE,
     bad <- !is.finite(num) | num <= 0
 
     # A member that is blank, zero or negative seeds the WHOLE group at NA, -Inf
-    # or NaN rather than at any mean, and the group cannot fit. Reported even when
-    # every member carries the same unusable value, unlike the geometric mean,
-    # which is only surprising when they differ. Only Analytical and
-    # AnalyticalArith may leave the column non-positive (they solve q from the
-    # data) and a fleet with no fitted index rows may leave it blank, but either
-    # still joins the group's mean once it shares an estimated block.
+    # or NaN rather than at any mean, and the group cannot fit -- so this is
+    # reported even when every member carries the same unusable value, unlike
+    # the geometric mean below, which only surprises when they differ.
+    # Analytical / AnalyticalArith (q solved from the data) and a fleet with no
+    # fitted index rows may leave it empty, but either joins the mean once it
+    # shares an estimated block.
     if (any(bad)) {
       shown <- ifelse(is.na(vals) | !nzchar(trimws(as.character(vals))),
                       "<blank>", trimws(as.character(vals)))
@@ -310,12 +309,11 @@ build_map_m1 <- function(map_list, data_list, nyrs_hind) {
     # * 1. Fixed effects ----
     #
     # Index only the sexes the species HAS. log_M1 is dimensioned to the widest
-    # species, so `[sp, , ]` on a one-sex species in a two-sex model also
-    # indexes a padding cell -- and TMB starts a shared parameter at the MEAN
-    # over its map level (`TMB:::updateMap()` is `tapply(..., mean)`), so a
-    # padding cell sitting at log(1) = 0 drags the start toward an M1 of 1.0
-    # per year. On GOA2018SS at M1_model = 1 that put pollock at 0.637 against
-    # an input of 0.406.
+    # species, so a bare `[sp, , ]` on a one-sex species also indexes a padding
+    # cell, and TMB starts a shared parameter at the MEAN over its map level
+    # (`TMB:::updateMap()` is `tapply(..., mean)`), so a padding cell at
+    # log(1) = 0 drags the start toward an M1 of 1.0 per year: GOA2018SS at
+    # M1_model = 1 put pollock at 0.637 against an input of 0.406.
     sexes_sp <- seq_len(nsex_sp)
 
     # ** M1_model = 1: sex- and age-invariant M1
@@ -329,16 +327,14 @@ build_map_m1 <- function(map_list, data_list, nyrs_hind) {
     if (M1_model == 2) {
       if (nsex_sp == 1) {
         warning(paste0("M1 model for species ", sp," is set to 2 (sex-specific), but species is single-sex."))
-        # One sex, so one parameter. Taking a second index and then reassigning
-        # it without incrementing the counter -- what this did before -- gave
-        # the padding cell the counter's NEXT value, which is the following
-        # species' first level: on nsex c(1, 2, 1) species 1's padding and
-        # species 2's real female both landed on level 3.
+        # One sex, so one parameter, and the padding sex stays mapped out: it
+        # would otherwise take the counter's NEXT value, which is the following
+        # species' first level.
         #
-        # Unreachable through fit_mod(), which downgrades M1_model 2 to 1 for a
-        # single-sex species before building the map (R/6-fit_mod.R, "sex-
-        # specific -> sex-invariant for 1-sex model"), so this branch and the
-        # warning above fire only on a direct build_map() call.
+        # fit_mod() downgrades M1_model 2 to 1 for a single-sex species before
+        # building the map (R/6-fit_mod.R, "sex-specific -> sex-invariant for
+        # 1-sex model"), so this branch and the warning above fire only on a
+        # direct build_map() call.
         map_list$log_M1[sp, 1, 1:nages_sp] <- M1_ind
         M1_ind <- M1_ind + 1
       } else {
@@ -400,15 +396,11 @@ build_map_m1 <- function(map_list, data_list, nyrs_hind) {
     }
 
     # * 2. Random Effects ----
-    # - M1_re = 0: No random effects (default).
-    # - M1_re = 1: Random effects varies by age, but uncorrelated (IID) and constant over years.
-    # - M1_re = 2: Random effects varies by year, but uncorrelated (IID) and constant over ages.
-    # - M1_re = 3: Random effects varies by year and age, but uncorrelated (IID).
-    # - M1_re = 4: Correlated AR1 random effects varies by age, but constant over years.
-    # - M1_re = 5: Correlated AR1 random effects varies by year, but constant over ages.
-    # - M1_re = 6: Correlated 2D-AR1 random effects varies by year and age.
-    # "log_M1_dev"
-    # - M1_re = 1/4: Random effects varies by age (IID or AR1) and constant over years.
+    # log_M1_dev families: 1/4 vary by age, 2/5 by year, 3/6 by age and year,
+    # the second of each pair AR1 where the first is IID; 0 is off (default).
+    # Full table in vignette("model-options-and-functionality"), "M1_re".
+    #
+    # - M1_re = 1/4: by age (IID or AR1), constant over years
     if(M1_re_model %in% c(1, 4)){
       if(M1_model %in% c(0, 1)){ # Input or sex-invariant estimated level
         # - Random effects
@@ -451,13 +443,11 @@ build_map_m1 <- function(map_list, data_list, nyrs_hind) {
 
     # - M1_re = 2/5: Random effects varies by year (IID or AR1) and constant over ages
     if(M1_re_model %in% c(2, 5)){
-      # M1_model 3 joins this arm, and only this one. Its level is age-specific
-      # and time-constant; a by-YEAR deviation that is constant over ages is
-      # orthogonal to it apart from the mean, which the zero-mean random effect
-      # assigns to log_M1. A by-AGE deviation (M1_re 1/4) would NOT be: it and
-      # the age-specific level enter the likelihood only as their sum, so the
-      # mode puts the deviations at zero and absorbs everything into log_M1 --
-      # that combination stays refused, and M1_model = 1 with M1_re = 4 is the
+      # M1_model 3 joins this arm, and only this one: its level is age-specific
+      # and time-constant, so a by-YEAR deviation is orthogonal to it apart from
+      # the mean, which the zero-mean random effect assigns to log_M1. A by-AGE
+      # deviation (M1_re 1/4) and that level enter the likelihood only as their
+      # sum, so that pair stays refused -- M1_model = 1 with M1_re = 4 is the
       # identifiable version of it.
       #
       # Shared across sexes, like the other levels here: the density scores
@@ -546,25 +536,20 @@ build_map_m1 <- function(map_list, data_list, nyrs_hind) {
     }
 
     # Every random-effect family above nests its deviation writes inside an
-    # M1_model test. M1_model 0, 1 and 2 have arms; 3, 4 and 5 have none, and
-    # 2 needs two sexes outside the age family. Where no arm fires the
-    # deviations are all mapped out while the sd above is
-    # freed anyway -- scoring N(0, sigma) against a vector of zeros, worth
-    # 56.06 nats on a 61-year hindcast and minimised by driving sigma to its
-    # bound, which makes the objective incomparable. Asking for time-varying M
-    # and getting constant M is a different model, so refuse it.
-    #
-    # Derived from whether an arm fired, not from a restated list of supported
-    # pairs: adding an arm legalises its combination with no second registry.
+    # M1_model test. Where no arm fires the deviations are all mapped out while
+    # the sd above is freed anyway -- scoring N(0, sigma) against a vector of
+    # zeros, worth 56.06 nats on a 61-year hindcast and minimised by driving
+    # sigma to its bound, which makes the objective incomparable. Asking for
+    # time-varying M and getting constant M is a different model, so refuse it.
+    # Keyed on whether an arm fired, not on a restated list of supported pairs,
+    # so adding an arm legalises its combination with no second registry.
     # `&&`, not `&`: the right-hand side subscripts log_M1_dev, and build_map()
-    # is exported, so a caller's 3-D or absent block must not be touched when
-    # there is no random effect to check.
+    # is exported, so a caller's 3-D or absent block must not be touched.
     #
-    # estDynamics > 0 is skipped because build_map_fixed_natage() maps this
-    # species' log_M1_dev, M1_dev_log_sd and M1_rho out afterwards, so the free
-    # sd this refusal exists to prevent cannot arise -- refusing there would
-    # reject a correct model, and a fixed-numbers predator is the common
-    # multispecies setup.
+    # estDynamics > 0 is skipped: build_map_fixed_natage() maps this species'
+    # log_M1_dev, M1_dev_log_sd and M1_rho out afterwards, so the free sd this
+    # refusal exists to prevent cannot arise, and a fixed-numbers predator is
+    # the common multispecies setup.
     if(M1_re_model > 0 && data_list$estDynamics[sp] == 0 &&
        all(is.na(map_list$log_M1_dev[sp,,,]))){
       stop("M1_re = ", M1_re_model, " is not implemented for M1_model = ",
@@ -1361,45 +1346,33 @@ build_map_catchability <- function(map_list, data_list, nyrs_hind, random_q = FA
   map_list[catchability_params] <- lapply(map_list[catchability_params], function(x) replace(x, values = rep(NA, length(x))))
 
   # Fleets whose catchability block is estimable: those carrying fitted index
-  # observations, whatever their Fleet_type. The model fits an index row for
-  # any non-Off fleet, so a fishery CPUE series is scored like a survey's index
-  # and needs its q the same way; keying on Fleet_type == "Survey" would leave a
-  # fishery's q, time-varying q and index sd mapped out, making Catchability =
-  # "Estimated" do nothing.
-  #
-  # The converse holds too, and is why this is the data and not the fleet type: a
-  # q with no index to inform it is a flat direction in the likelihood, so a
-  # survey with no index rows does not get one either.
-  #
-  # A fleet with no index of its own can still end up estimated, by sharing a
-  # Catchability_index group whose LEAD estimates -- adjust_map_shared_params()
-  # copies the lead's slice over the group afterwards, which is intended.
+  # observations, whatever their Fleet_type. The model fits an index row for any
+  # non-Off fleet, so a fishery CPUE series needs its q like a survey's --
+  # keying on Fleet_type == "Survey" would leave a fishery's q, time-varying q
+  # and index sd mapped out, making Catchability = "Estimated" do nothing. The
+  # converse is why this reads the data and not the fleet type: a q with no
+  # index to inform it is a flat direction, so a survey with no index rows gets
+  # none either. A fleet with no index of its own can still end up estimated by
+  # sharing a Catchability_index group whose LEAD estimates, which is intended;
+  # adjust_map_shared_params() copies the lead's slice over the group after.
   q_fleets <- .fleets_with_index(data_list)
 
   # Loop through fleets
   for( i in 1: nrow(data_list$fleet_control)){
     flt = data_list$fleet_control$Fleet_code[i]
     if(flt %in% q_fleets){
-      # Q
-      # - 0 = fixed at prior
-      # - 1 = Estimate single parameter
-      # - 2 = Estimate single parameter with prior
-      # - 3 = Estimate analytical q
-      # - 4 = Estimate power equation
-      # - 5 = Use env index ln(q_y) = q_mu + beta * index_y
-      # - 6 = Fit to env index dnorm(d_y, env_index, sigma) [Rogers et al 2024]
+      # The Catchability forms and their integer codes are declared in
+      # R/0-column_schema.R. Code 6 ("AR1", the QAR1 form of Rogers et al.
+      # 2024) is removed and refused by data_check(); it is now written as a q
+      # linkage with ar1(1 | Year) and `observe`.
 
 
-      # - Turn on mean q for:
-      # - 1 = Estimate single parameter
-      # - 2 = Estimate single parameter with prior
-      # - 4 = Estimate power equation
-      # - 5 = Use env index ln(q_y) = q_mu + beta * index_y
-      # - 6 = Fit to env index
       # "Analytical" (geometric) and "AnalyticalArith" (arithmetic) both SOLVE q
-      # from the data rather than estimating it, so index_log_q is unused and must
-      # be mapped out -- otherwise it is a free parameter that never enters the
-      # objective, leaving a flat direction that makes the Hessian singular.
+      # from the data rather than estimating it, so index_log_q is unused and
+      # must be mapped out -- otherwise it is a free parameter that never enters
+      # the objective, leaving a flat direction that makes the Hessian singular.
+      # "Fixed" is the third exception: q is held at Catchability_init. Every
+      # other form estimates the mean q turned on here.
       if(!data_list$fleet_control$Catchability[i] %in% c("Fixed", "Analytical", "AnalyticalArith")){
         map_list$index_log_q[flt] <- flt
       }
@@ -1410,14 +1383,13 @@ build_map_catchability <- function(map_list, data_list, nyrs_hind, random_q = FA
         # map_list$index_q_pow[flt] <- flt
       }
 
-      # Time- varying q parameters "Time_varying_q"
-      # - 0 = "Off",
-      # - 1 = "IID" penalized deviate or random effect
-      # - 2 = "AR1"
-      # - 3 = "Block" time blocks with no penalty
-      # - 4 = "RandomWalk" random walk from mean following Dorn 2018 (dnorm(q_y - q_y-1, 0, sigma)
-      # - Under Catchability = "Environmental", "Time_varying_q" names the
-      #   env_data columns for log(q_y) = q_mu + beta * index_y rather than a mode.
+      # Time_varying_q: "Off"; "IID" penalized deviate or random effect; "Block"
+      # time blocks with no penalty; "RandomWalk" from the mean following Dorn
+      # 2018, dnorm(q_y - q_y-1, 0, sigma). "AR1" is removed and refused by
+      # data_check(), but still maps its deviates here, identically to "IID", on
+      # a direct build_map() call. Under Catchability = "Environmental" this
+      # column names env_data columns for log(q_y) = q_mu + beta * index_y
+      # rather than a mode.
 
       # -- Set up time varying catchability if used (account for missing years)
       if(data_list$fleet_control$Catchability[i] %in% c("Estimated", "Estimated-with-prior") &
@@ -1432,16 +1404,13 @@ build_map_catchability <- function(map_list, data_list, nyrs_hind, random_q = FA
           map_list$index_q_dev[flt, yrs_hind] <- ind_q_dev + (1:nyrs_hind) - 1
           ind_q_dev <- ind_q_dev + nyrs_hind
 
-          # Estimate the deviation sd when the deviates are integrated out
-          # (random_q), matching what random_sel does for sel_dev_log_sd. As
-          # fixed effects the joint mode of deviates and sd is degenerate, so
-          # without random_q it stays at Time_varying_q_sd. Block is excluded:
-          # it scores no deviate at this sd. index_q_log_sd is a prior sd the
-          # assessor sets and is never estimated.
-          #
-          # How well it is informed depends on the series. A short or noisy
-          # index can drive it to its lower bound, which reads as a constant q
-          # -- check the estimate and its gradient before believing one.
+          # Estimate the deviation sd only when the deviates are integrated out
+          # (random_q), as random_sel does for sel_dev_log_sd: as fixed effects
+          # the joint mode of deviates and sd is degenerate, so otherwise it
+          # stays at Time_varying_q_sd. Block scores no deviate at this sd, so
+          # it is excluded; index_q_log_sd is a prior sd the assessor sets and
+          # is never estimated. A short or noisy index can drive the estimate
+          # to its lower bound, which reads as a constant q.
           if(isTRUE(random_q)){
             map_list$index_q_dev_log_sd[flt] <- flt
           }
@@ -1487,7 +1456,7 @@ build_map_catchability <- function(map_list, data_list, nyrs_hind, random_q = FA
       # Standard deviation of surveys index
       # - 0 = use CV from index_data
       # - 1 = estimate a free parameter
-      # - 2 = analytically estimate following (Ludwig and Walters 1994)
+      # - 2 = analytically estimate following (Walters and Ludwig 1994)
       if (data_list$fleet_control$Estimate_index_sd[i] == 1) {
         map_list$index_log_sd[flt] <- flt
       }
@@ -1579,19 +1548,17 @@ adjust_map_shared_params <- function(map_list, data_list) {
 
       # Make catchability maps the same.
       #
-      # The group shares ONE q parameter, so it can carry only one answer to
-      # "is q estimated?", and the LEAD fleet -- first_est(), the group's first
-      # non-Off fleet -- decides it for everyone regardless of fleet type. That
-      # is intended: a fishery sharing a group whose lead estimates q follows the
-      # lead and is estimated too, even with no index_data of its own, and a
-      # fishery whose lead is Fixed stays fixed whatever its own Catchability
-      # says.
+      # The group shares ONE q parameter, so it can carry only one answer to "is
+      # q estimated?": the LEAD fleet -- first_est(), the group's first non-Off
+      # fleet -- decides for everyone regardless of fleet type. A fishery with
+      # no index_data of its own follows a lead that estimates, and a fleet
+      # whose lead is Fixed stays fixed whatever its own Catchability says.
       #
-      # Not true for Analytical / AnalyticalArith: those solve index_q from each
-      # fleet's own observations, bypassing the parameter mapped here, so the
-      # group shares the parameter but not the catchability the model uses.
-      # Environmental and AR1 rebuild index_q too, but from these same shared
-      # parameters, so they do share. data_check() reports the former.
+      # Analytical / AnalyticalArith are the exception: they solve index_q from
+      # each fleet's own observations, bypassing the parameter mapped here, so
+      # the group shares the parameter but not the catchability the model uses,
+      # and data_check() reports it. Environmental rebuilds index_q from these
+      # same shared parameters, so it does share.
       if(!is.na(q_duplicate)){
         map_list$index_log_q[flt] <- map_list$index_log_q[q_duplicate]
         # map_list$index_q_pow[flt] <- map_list$index_q_pow[q_duplicate]
@@ -1818,12 +1785,11 @@ build_map_linkages <- function(map_list, data_list) {
   map_list$beta_linkage <- m
   # beta_linkage_re keeps the blanket "all estimable" map (the density damps
   # it), except a random walk fixes its FIRST deviate for identifiability: the
-  # walk's mean level is carried by the base parameter the intercept re-targets,
-  # exactly as the legacy RandomWalk fixes index_q_dev[flt, 1]. Fixed means held
-  # at its `inits` value, which is 0 by default but need not be -- supplying a
-  # non-zero first deviate is how a caller reproduces a reference model that
-  # estimates it freely, without shifting the level into the base (which would
-  # move the point any prior on that base is evaluated at).
+  # base parameter the intercept re-targets carries the walk's mean level,
+  # exactly as the legacy RandomWalk fixes index_q_dev[flt, 1]. It is held at
+  # its `inits` value, 0 by default -- a non-zero one reproduces a reference
+  # model that estimates the first deviate freely, without shifting the level
+  # into the base and moving the point any prior on that base is evaluated at.
   rw_rows <- which(!is.na(tbl$re_struct) & tbl$re_struct == "rw")
   if (length(rw_rows) > 0L) {
     # first slot of each rw group = smallest re_index (earliest time, since
@@ -1935,13 +1901,11 @@ map_linkage_adjuster <- function(map_list, data_list) {
     idx <- .linkage_row_indices(row, data_list)
     switch(row$process,
       growth = {
-        # Mean-growth params live on log_growth_pars[sp, sex, k];
-        # SD endpoints live on growth_log_sd[sp, sex, k']. Same
-        # slope-only-mask logic applies to both: mask the base so the
-        # slope rows in beta_linkage define the offset alone.
-        # (SD specs are pre-validated to be intercept-bearing, so this
-        # SD branch is only reachable if a future caller bypasses
-        # `.validate_growth_linkages`.)
+        # Mean-growth params live on log_growth_pars[sp, sex, k], SD endpoints
+        # on growth_log_sd[sp, sex, k']; both mask the base so the slope rows
+        # in beta_linkage define the offset alone. The SD branch is reachable
+        # only by bypassing `.validate_growth_linkages`, which requires an
+        # intercept-bearing SD spec.
         mean_idx <- .GROWTH_PARAM_TO_INDEX[row$param]
         sd_idx   <- .GROWTH_SD_PARAM_TO_INDEX[row$param]
         if (!is.na(mean_idx)) {

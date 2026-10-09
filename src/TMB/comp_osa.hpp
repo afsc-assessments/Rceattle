@@ -192,22 +192,20 @@ Type dmultinom_osa(vector<Type> x, vector<Type> p,
 
   if(do_osa){
     vector<Type> k = keep;
-    // The cdf gates are separate members of the data_indicator, so they have to
-    // be reordered by hand alongside the keep vector. keep.segment() at the call
+    // The cdf gates are separate members of the data_indicator, so they must be
+    // reordered by hand alongside the keep vector. keep.segment() at the call
     // site already carries them (tmb_core.hpp documents that its segment IS
-    // applied to cdf_lower/cdf_upper); the reorder here is the step that is not
-    // done for us, and getting it wrong gates the wrong bin silently.
+    // applied to cdf_lower/cdf_upper); this reorder is the step that is not done
+    // for us, and getting it wrong gates the wrong bin silently.
     //
-    // osa_order() branches on keep, and under oneStepPredict keep is a PARAMETER,
-    // so that branch is taped once at the initial values -- 1 for every bin that
-    // will ever be residualized or conditioned on, 0 for the rest -- and the
-    // per-observation keep changes afterwards do not re-sort. Within a
-    // composition that initial pattern is 1 on every bin but the last, so the
-    // order is the identity and each bin stays where the conditional
-    // decomposition needs it. The reorder below is therefore a no-op on every
-    // sequence this package generates; it is kept because it is what makes the
-    // decomposition right for an arbitrary keep, and it is pinned by a test that
-    // supplies one directly (test-likelihood-osa-cdf.R).
+    // osa_order() branches on keep, which is a PARAMETER under oneStepPredict, so
+    // the sort is taped once at the initial values -- 1 for every bin that will
+    // ever be residualized or conditioned on, 0 for the rest -- and later
+    // per-observation keep changes do not re-sort. Within a composition that
+    // pattern is 1 on every bin but the last, so the order is the identity and the
+    // reorder is a no-op on every sequence this package generates. It is kept
+    // because it is what makes the decomposition right for an arbitrary keep, and
+    // pinned by a test that supplies one directly (test-likelihood-osa-cdf.R).
     vector<Type> cl = keep.cdf_lower;
     vector<Type> cu = keep.cdf_upper;
     vector<int> o = osa_order(k);

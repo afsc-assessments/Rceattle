@@ -24,20 +24,17 @@ plot_profile(
 }
 \arguments{
 \item{Rceattle_profile}{A single \code{"Rceattle_profile"} from
-\code{\link[=profile.Rceattle]{profile.Rceattle()}}, or a list of them to compare models in facets (e.g.
-the same profile run on two model configurations).}
+\code{\link[=profile.Rceattle]{profile.Rceattle()}}, or a list of them to compare models in facets.}
 
 \item{model_names}{Legend labels for the models.}
 
-\item{weighted, relative, minfraction}{Passed to \code{\link[=profile_components]{profile_components()}}.
-\code{minfraction} drops a component moving less than that fraction of the
-TOTAL's change over the grid, not an absolute number of objective units.
-It defaults to \code{0.01} here, as in \code{r4ss::SSplotProfile()}, so a total
-moving 60 units cuts at 0.6.}
+\item{weighted, relative, minfraction}{Passed to \code{\link[=profile_components]{profile_components()}}, which
+documents them. \code{minfraction} defaults to \code{0.01} here, as in
+\code{r4ss::SSplotProfile()}.}
 
 \item{add_cutoff}{Draw a horizontal line at \code{cutoff}. Off by default: the
-cutoff is a statement about the total, and drawing it across the
-components invites reading it as one about them.}
+cutoff is a statement about the total, and drawing it across the components
+invites reading it as one about them.}
 
 \item{cutoff}{Height of that line. Default \code{1.92}, the 95\%
 profile-likelihood cutoff for one parameter, \eqn{\chi^2_1(0.95)/2}.}
@@ -70,47 +67,30 @@ behind the figure can be read back off it.
 \description{
 Draws each negative log-likelihood component against the
 profiled parameter, with the total overlaid, in the style of
-\code{r4ss::SSplotProfile()}. Where the curves disagree about which value of the
-parameter they prefer, the data sources are in conflict, which is what
-the total on its own cannot show.
+\code{r4ss::SSplotProfile()}. Where the curves disagree about which value they
+prefer, the data sources are in conflict, which is what the total on its
+own cannot show.
 }
 \details{
 Read the figure by where each curve bottoms out, not by how deep it is. Every
-series is re-zeroed at its own minimum (\code{relative = "own"}) and a point marks
-that minimum, so the spread of the points along the x axis \emph{is} the
-disagreement: components whose points sit together support the same value,
-and a component whose point sits far from the total's is pulling against the
-rest.
+series is re-zeroed at its own minimum and a point marks that minimum, so the
+spread of the points along the x axis \emph{is} the disagreement: components whose
+points sit together support the same value, and one whose point sits far from
+the total's is pulling against the rest. Where one component dwarfs the
+others it sets the y axis and the rest flatten onto the bottom;
+\code{relative = "scaled"} puts every curve on 0 to 1 so the minima stay
+comparable, and \code{relative = "minimum"} re-zeroes every series at the total's
+minimum, showing what each gives up by moving away from the fitted value.
+\code{\link[=profile_components]{profile_components()}} documents all of them, and the magnitude \code{"scaled"}
+discards.
 
-When one component dwarfs the others it sets the y axis and the rest flatten
-onto the bottom, so where \emph{they} prefer the parameter cannot be read.
-\code{relative = "scaled"} puts every curve on 0 to 1 so the minima can be
-compared. It discards magnitude, a component moving 0.02 draws like one
-moving 40, so raise \code{minfraction} with it. That filter runs on the raw
-change, and is what keeps a barely-constrained component from drawing a
-confident-looking curve.
-
-\code{relative = "minimum"} re-zeroes every series at the total's minimum, showing
-what each component gives up by moving away from the fitted value.
-
-Under \code{joint = "multiply"} or \code{"add"} a dotted vertical line marks the fitted
-model (a multiplier of 1, an offset of 0).
-
-The total is drawn in black, heavier than the components, and is kept out of
-the colour legend so the palette separates only the components being
-compared. Components whose change over the grid is under \code{minfraction} of the
-total's are dropped: they are flat on this scale and would only crowd the
-legend. Non-converged grid points leave a gap in the curve.
-
-\code{line_col}, \code{lwd} and \code{lty} apply to the \strong{components}. The total is drawn
-solid and black at 1.6 times \code{lwd}, so that it stays the reference line
-whatever the components are styled as. Series are ordered, in the legend and
-in the palette, by how much each moves over the grid.
-
-Under \code{random_rec = TRUE} the total is the Laplace-approximated marginal
-likelihood while the components are the inner joint negative
-log-likelihood, so they will not sum; \code{\link[=profile_components]{profile_components()}} says so when
-they differ. The shapes are still comparable.
+The total is drawn solid and black at 1.6 times \code{lwd}, and kept out of the
+colour legend, so it stays the reference line whatever the components are
+styled as; \code{line_col}, \code{lwd} and \code{lty} therefore apply to the
+\strong{components}. Series are ordered, in the legend and the palette, by how
+much each moves over the grid. Under \code{joint = "multiply"} or \code{"add"} a dotted
+vertical line marks the fitted model (a multiplier of 1, an offset of 0).
+Non-converged grid points leave a gap.
 }
 \examples{
 \donttest{

@@ -19,28 +19,30 @@ retrospective(
 \arguments{
 \item{object}{an Rceattle model fit using \code{\link[=fit_mod]{fit_mod()}}.}
 
-\item{peels}{the number of retrospective peels to use in the calculation of rho and for model estimation}
+\item{peels}{number of retrospective peels used for rho and estimation}
 
-\item{rescale}{TRUE/FALSE whether to subset and rescale environmental predictors for the range of peel years.}
+\item{rescale}{TRUE/FALSE whether to subset and rescale environmental
+predictors over the peel years.}
 
-\item{nyrs_forecast}{Number of forecast years to calculate Mohn's Rho in addition to terminal year}
+\item{nyrs_forecast}{forecast years over which to calculate Mohn's rho, in
+addition to the terminal year}
 
 \item{cores}{Number of cores for the parallel refits. Default \code{NULL} picks
 \code{parallel::detectCores() - 6}, capped at 2 under \verb{R CMD check} (which sets
 \verb{_R_CHECK_LIMIT_CORES_}). Set to 1 to force sequential execution.}
 
-\item{getsd}{whether each peel runs \code{TMB::sdreport} (standard errors).
-Costs an extra model build per peel; see Details.
-Mohn's rho uses only point estimates, so \code{FALSE} is faster with no
-effect on rho. Default \code{NULL} inherits the input model's setting
-(\code{TRUE} if it was fit with \code{getsd = TRUE}, i.e. holds an
-\code{sdrep}); the returned peel models then hold standard errors only
-when \code{getsd} is \code{TRUE}.}
+\item{getsd}{whether each peel runs \code{TMB::sdreport}, which costs an
+extra model build per peel (see Details). Mohn's rho uses point estimates
+only, so \code{FALSE} is faster with no effect on it. \code{NULL} (default)
+inherits the input model's setting (\code{TRUE} only if it holds an
+\code{sdrep}), and the returned peels hold standard errors only when it is
+\code{TRUE}.}
 
-\item{phase}{whether each peel is refitted in phases (default \code{TRUE}).
-A peel restarts from the unpeeled fit's starting values with a year removed;
-without phasing the parameters barely move, the peels sit on top of the full
-model, and Mohn's rho is biased towards zero. Change it only deliberately.}
+\item{phase}{whether each peel is refitted in phases, default \code{TRUE}. A
+peel restarts from the unpeeled fit's starting values with a year removed,
+so without phasing the parameters barely move, the peels sit on top of the
+full model, and Mohn's rho is biased toward zero. Change it only
+deliberately.}
 
 \item{fit_control}{optional \code{\link[=fit_control]{fit_control()}} bundle for the refits. Only
 \code{phase} and \code{getsd} are read; see \strong{What \code{fit_control()} reaches}.}
@@ -49,26 +51,21 @@ model, and Mohn's rho is biased towards zero. Change it only deliberately.}
 scripts keep working. Supplying both is an error.}
 }
 \value{
-a list of 1. list of Rceattle models and 2. vector of Mohn's rho for
-each species.
+a list of 1. a list of Rceattle models and 2. Mohn's rho per species.
 
 A peel that did not converge is dropped, so \code{Rceattle_list} can be
-shorter than \code{peels + 1} (a message reports how many). Each entry is
-named for its own terminal year (\code{Year_2017}, ...) rather than by
-position, so index it by name, \code{Rceattle_list[[3]]} is not
-necessarily the 3-year peel. With no peel left, Mohn's rho is \code{NaN}
-and the function warns.
+shorter than \code{peels + 1}, with a message. Entries are named for their
+own terminal year (\code{Year_2017}, ...), so index by name:
+\code{Rceattle_list[[3]]} is not necessarily the 3-year peel. With no peel
+left, rho is \code{NaN} and the function warns. Each peel reports its own
+terminal year as \code{data_list$endyr}, so plots draw it only as far as it
+was fit.
 
-Each peel reports its own terminal year as \code{data_list$endyr}, so plots
-draw it only as far as it was fit and the peels fan out.
-
-A peel still estimates the years it dropped. They are its retrospective
-forecast, fit to the observed catch with the survey and composition data
-withheld. Their recruitment deviation is the one \code{\link[=sample_rec]{sample_rec()}} sets with
-\code{sample_rec = FALSE}, computed from the peel's own fit; a penalty-form peel
-with no penalty years averages over its own years after the first (or over
-its one year, for a peel that keeps a single year), with a warning. Three
-years therefore matter, and each peel has all three:
+A peel still estimates the years it dropped: that is its retrospective
+forecast, fit to observed catch with the survey and composition data
+withheld. Its recruitment deviation is the one \code{\link[=sample_rec]{sample_rec()}} sets with
+\code{sample_rec = FALSE}, computed from the peel's own fit. Three years matter,
+and every peel carries all three:
 \describe{
 \item{\code{endyr}, \code{endyr_peel}}{the peel's terminal year, what it
 was fit through. Equal to each other.}
@@ -76,39 +73,40 @@ was fit through. Equal to each other.}
 retrospective forecast ends.}
 \item{\code{projyr}}{the end of the harvest-control-rule projection.}
 }
-So the forecast years are those after \code{endyr_peel} through
-\code{endyr_full}, and the projection follows through \code{projyr};
-\code{incl_proj = TRUE} plots both. Take the forecast years as
+Take the forecast years as
 \code{endyr_peel + seq_len(endyr_full - endyr_peel)}, which is empty for the
 unpeeled model, rather than \code{(endyr_peel + 1):endyr_full}, which counts
-\emph{down} there.
+\emph{down} there. Mohn's rho is computed from \code{endyr_peel} and is
+unaffected by any of this.
 
-Mohn's rho is computed from \code{endyr_peel} and is unaffected by any of
-this.
-
-Catchability is estimated only for a fleet that holds fitted index rows
-(see \code{\link{build_map}}), and a peel moves \code{endyr}. A survey whose
-index observations all fall in the peeled-off years therefore has no q
-estimated in that peel, the parameter count is not constant across peels.
-That is deliberate: a q with no index to inform it is a flat direction in
-the likelihood. It does not affect Mohn's rho, which is computed from SSB,
-but it does mean \code{npar} and the reported catchability differ between a
-shallow and a deep peel for such a fleet.
+Catchability is estimated only for a fleet holding fitted index rows (see
+\code{\link{build_map}}), and a peel moves \code{endyr}, so a survey whose
+index observations all fall in the peeled-off years has no q estimated in
+that peel: the parameter count is not constant across peels. That is
+deliberate, since a q with no index to inform it is a flat direction in the
+likelihood. Rho is computed from SSB and is unaffected, but \code{npar} and
+the reported catchability do differ between a shallow and a deep peel for
+such a fleet.
 }
 \description{
-Calculate Mohn's rho and run retrospective peels for an Rceattle model. The function also evaluates retrospective forecast skill. To evaluate both retrospective bias and forecast skill, the function uses the map functionality of TMB to peel the model:
+Calculate Mohn's rho and run retrospective peels for an Rceattle
+model, and evaluate retrospective forecast skill. Each peel uses TMB's map
+to:
 \enumerate{
-\item Filters data, filters fixed inputs, and maps out time-varying parameters for the peeled years. All time-varying parameters for the peeled years are set to the terminal year of the model for that peel.
-\item Fits the peeled model.
-\item Turns off all hindcast parameters, turns on F for the peeled years, and fits to the peeled catch series to update the "forecast" dynamics given projection assumptions and observed catch from the peeled years.
+\item filter the data and fixed inputs and map out time-varying parameters for
+the peeled years, holding them at that peel's terminal year;
+\item fit the peeled model;
+\item turn the hindcast parameters off and F for the peeled years on, and fit to
+the peeled catch series, updating the "forecast" dynamics given the
+projection assumptions and the observed catch.
 }
 }
 \details{
-Each peel is fitted twice: a peeled hindcast, then a forecast refit that
-estimates only the peeled years' F. The second holds every hindcast parameter
-fixed, so on its own it reports a standard error of zero for the whole
+Each peel is fitted twice: a peeled hindcast, then a forecast refit
+estimating only the peeled years' F. The second holds every hindcast
+parameter fixed, so on its own it reports a standard error of zero across the
 hindcast. Under \code{getsd = TRUE} the peel is therefore rebuilt at those same
-parameters with the hindcast free in the map and reported from there. Nothing
+parameters with the hindcast free in the map and reported from there; nothing
 is re-estimated, so no point estimate moves.
 }
 \examples{

@@ -16,54 +16,51 @@ profile_components(
 \item{object}{An \code{"Rceattle_profile"} object from \code{\link[=profile.Rceattle]{profile.Rceattle()}}.}
 
 \item{weighted}{Report the weighted components the optimizer minimized
-(\code{TRUE}, the default, \code{quantities$jnll_comp}) or the unweighted ones
-(\code{FALSE}, \code{quantities$unweighted_jnll_comp}). Conflict is normally read off
-the weighted components, since those are what moved the fit.
-\code{unweighted_jnll_comp} exists so Francis and McAllister-Ianelli can read a
-composition likelihood without its \code{Comp_weights} multiplier, so only the
-rows that hold such a multiplier are filled: composition, CAAL, stomach
-content and the two linkage rows. Every other row is zero there and is
-dropped as unfitted, so \code{weighted = FALSE} returns a much smaller set of
-series, the index, catch, selectivity, catchability and penalty
-components are absent, not flat.}
+(\code{TRUE}, the default) or the unweighted ones (\code{FALSE}). Conflict is
+normally read off the weighted components, since those are what moved the
+fit. \code{unweighted_jnll_comp} exists so Francis and McAllister-Ianelli can
+read a composition likelihood without its \code{Comp_weights} multiplier, so
+only the rows carrying such a multiplier are filled -- composition, CAAL,
+stomach content and the two linkage rows. Every other row is zero there and
+is dropped as unfitted, so \code{weighted = FALSE} returns a much smaller set:
+the index, catch, selectivity, catchability and penalty components are
+absent, not flat.}
 
 \item{relative}{How to place each series on the y axis.
 \describe{
 \item{\code{"own"}}{(default) subtract each series' own minimum, so every
 curve starts at zero and its minimum marks the value that component
 prefers. Objective units, so depth still says how strongly.}
-\item{\code{"scaled"}}{as \code{"own"}, then divide each series by its own change
-over the grid, so every curve runs 0 to 1. Use it when one component
-dwarfs the rest and flattens the others onto the axis. It \strong{discards
-magnitude}: a component moving 0.02 draws like one moving 40, so
-raise \code{minfraction} with it. A series that does not move stays at
-zero.}
+\item{\code{"scaled"}}{as \code{"own"}, then divide by each series' own change over
+the grid, so every curve runs 0 to 1. Use it where one component
+dwarfs the rest and flattens them onto the axis. It \strong{discards
+magnitude} -- a component moving 0.02 draws like one moving 40 -- so
+raise \code{minfraction} with it. A series that does not move stays at zero.}
 \item{\code{"minimum"}}{subtract each series' value at the grid point where
-the total is lowest, so the curves show each component's change away
-from the fitted optimum.}
+the total is lowest, showing each component's change away from the
+fitted optimum.}
 \item{\code{"none"}}{the raw negative log-likelihoods.}
 }
-\code{minfraction} and the series ordering are always computed on the raw
-change over the grid, before any of this is applied, so \code{"scaled"} does
-not quietly disable the filter by making every span 1.}
+\code{minfraction} and the series ordering are always computed on the raw change
+over the grid, before any of this, so \code{"scaled"} cannot quietly disable the
+filter by making every span 1.}
 
 \item{minfraction}{Drop components whose change over the grid is less than
 this fraction of the total's change, as in \code{r4ss::SSplotProfile()}. Default
-\code{0} keeps everything; \code{plot_profile()} uses \code{0.01}. \code{"Total"} is never
-dropped.}
+\code{0} keeps everything; \code{\link[=plot_profile]{plot_profile()}} uses \code{0.01}, so a total moving 60
+units cuts at 0.6. \code{"Total"} is never dropped.}
 
 \item{include_total}{Include the \code{"Total"} series. Default \code{TRUE}; \code{FALSE}
 also disables \code{minfraction}, which is defined against the total.}
 }
 \value{
-A data frame with one row per grid point per retained component:
-the profile's \code{grid} columns (\code{slot_1}, ...) holding the value profiled
-over, then \code{fit} (grid row index), \code{component} (the \code{jnll_comp} row),
-\code{unit} (fleet or species name, \code{NA} for model-wide rows), \code{axis}
-(\code{"fleet"}, \code{"species"} or \code{"model"}), \code{series} (the plotting label), and
-\code{value} (the re-zeroed negative log-likelihood). Series are ordered by
-decreasing change over the grid, with \code{"Total"} first. The profile's
-\code{param}, \code{alias} and the \code{relative} used are held as attributes.
+A data frame with one row per grid point per retained component: the
+profile's \code{grid} columns (\code{slot_1}, ...), then \code{fit} (grid row index),
+\code{component} (the \code{jnll_comp} row), \code{unit} (fleet or species name, \code{NA} for
+model-wide rows), \code{axis} (\code{"fleet"}, \code{"species"} or \code{"model"}), \code{series}
+(the plotting label) and \code{value} (the re-zeroed negative log-likelihood).
+Series are ordered by decreasing change over the grid, \code{"Total"} first. The
+profile's \code{param}, \code{alias} and the \code{relative} used are attributes.
 }
 \description{
 Pulls the per-fleet and per-species negative log-likelihood
@@ -72,30 +69,27 @@ data frame, one row per grid point per component.
 
 The total is the least informative curve on a profile: a well-behaved
 quadratic total can hide two data sources pulling the parameter in
-opposite directions, and their conflict is visible only once the
-components are drawn separately. This is the extractor behind
-\code{\link[=plot_profile]{plot_profile()}}; use it directly to tabulate, or to draw the figure
-yourself.
+opposite directions, and their conflict shows only once the components are
+drawn separately. This is the extractor behind \code{\link[=plot_profile]{plot_profile()}}; use it to
+tabulate, or to draw the figure yourself.
 }
 \details{
-\strong{Which cells are reported.} \code{jnll_comp} is a component-by-column matrix
-whose columns mean different things on different rows, fleets on the data,
-selectivity and catchability rows, species on the priors, penalties and
-predation rows. Each cell is labelled from the axis its row uses, so a cell
-becomes e.g. \code{"Shelikof acoustic: Index data"}. The unit is dropped from the
-label when the model has only one fleet (or one species) to distinguish.
-Cells that are zero at every grid point are dropped: they are components the
-model does not fit.
+\strong{Which cells are reported.} \code{jnll_comp}'s columns mean different things on
+different rows -- fleets on the data, selectivity and catchability rows,
+species on the priors, penalties and predation rows -- so each cell is
+labelled from the axis its row uses, giving e.g.
+\code{"Shelikof acoustic: Index data"}. The unit is dropped from the label when
+the model has only one fleet (or species) to distinguish. Cells that are zero
+at every grid point are dropped as components the model does not fit.
 
 \strong{What \code{Total} is.} The \code{"Total"} series is \code{object$nll}, the objective each
-grid fit actually minimized. Under \code{random_rec = TRUE} that is the
+grid fit minimized. Under \code{random_rec = TRUE} that is the
 Laplace-approximated marginal likelihood while the components are the inner
-joint negative log-likelihood, so the components will not sum to it; the
-function says so when they differ. Compare the shapes, not the sums.
+joint negative log-likelihood, so they will not sum to it, and the function
+says so when they differ. Compare the shapes, not the sums.
 
 \strong{Non-converged grid points} keep their row with a value of \code{NA}, so a
-failed fit leaves a gap in the curve rather than a straight segment drawn
-across it.
+failed fit leaves a gap in the curve rather than a segment drawn across it.
 }
 \examples{
 \donttest{

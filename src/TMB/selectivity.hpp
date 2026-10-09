@@ -65,13 +65,11 @@ void normalize_and_project_selectivity(
     }
   }
 
-  // Normalization makes two orthogonal choices, carried in two inputs rather than
-  // encoded in the sign of one:
-  //   sel_norm_bin1/2 -- WHERE the reference is taken: a named bin, the mean over
-  //     a bin range, or (< 0) the maximum over bins;
-  //   sel_norm_scope  -- WHOSE scale it sets: WithinSex (0) gives each sex its own
-  //     reference so both reach 1; AcrossSexes (1) pools one reference so the
-  //     less-selected sex stays below 1 and relative sex selectivity survives.
+  // Two orthogonal inputs: sel_norm_bin1/2 says WHERE the reference is taken (a
+  // named bin, the mean over a bin range, or the maximum over bins when < 0);
+  // sel_norm_scope says WHOSE scale it sets -- WithinSex (0) gives each sex its
+  // own reference so both reach 1, AcrossSexes (1) pools one reference so the
+  // less-selected sex stays below 1 and relative sex selectivity survives.
   // Identical for a one-sex species. Hake (5/12) normalizes in its own year/sex
   // block above; LogisticPM (11) reuses sel_norm_bin1/2 as a penalty age-range.
   // DoubleNormalSS3 (15) is SS3's unnormalized pattern 24: its plateau is 1 by
@@ -401,11 +399,11 @@ void calculate_selectivity(
     int n_sel_bins = flt_n_sel_bins(flt);
     // Bin midpoints, SS3's len_bins_m. A population length grid need not be
     // uniform -- SS3 models routinely widen the tail bins -- so each bin takes
-    // its OWN width rather than the first bin's, which otherwise evaluated every
-    // curve away from the bin it labels and disagreed with the age-length key it
-    // multiplies. Identical on a uniform grid, so no existing model moves.
-    // A single length bin has no neighbour to take a width from, so it keeps the
-    // edge itself; nothing domed is identifiable on one bin anyway.
+    // its OWN width, which keeps the curve on the bin it labels and on the same
+    // midpoints as the age-length key it multiplies. Identical on a uniform
+    // grid, so no existing model moves. A single length bin has no neighbour to
+    // take a width from, so it keeps the edge itself; nothing domed is
+    // identifiable on one bin anyway.
     vector<Type> xmid(nbins);
     for (int b = 0; b < nbins; b++) {
       if (!is_length_based) {
@@ -488,13 +486,12 @@ void calculate_selectivity(
           // plateau at the last coff. The UNCAPPED centered curve (np_unc) is carried
           // forward for the walk; the realized curve is that capped flat at
           // flt_sel_cap_bin and re-centered (mean(exp)=1).
-          // For years at or before the fleet's selectivity start year, the curve is
-          // built directly from the base coefficients (a fresh mean-centering of that
-          // single vector each year) rather than by carrying the running random walk.
-          // This follows the AMAK convention of setting a survey's base selectivity
-          // once at its start year; beyond the start year the curve carries forward as
-          // a random walk. For a fleet that starts at styr (start_yr = 0) this is the
-          // ordinary base-year build.
+          // At or before the fleet's selectivity start year the curve is built from
+          // the base coefficients alone, mean-centered afresh each year, rather than
+          // from the running walk -- the AMAK convention of setting a survey's base
+          // selectivity once at its start year. Later years carry the walk forward,
+          // and a fleet starting at styr (start_yr = 0) is the ordinary base-year
+          // build.
           bool from_base = (yr <= flt_sel_start_yr(flt));
           for(int bin = 0; bin < nbins; bin++){
             Type prev = from_base ? sel_coff(flt, sex, (bin < n_sel_bins ? bin : n_sel_bins - 1))
@@ -621,16 +618,14 @@ void calculate_selectivity(
           break;
 
         case 8: { // Double Normal (4-param, with right-tail floor; see Doxygen header above)
-          // Parameters:
+          // Reuses the logistic slots:
           //   sel_inf(0)     = peak bin (mode of selectivity)
           //   log_sel_slp(0) = log(sigma_ascending)   - ascending limb SD
           //   log_sel_slp(1) = log(sigma_descending)  - descending limb SD
           //   sel_inf(1)     = logit(right_floor) — right-tail floor, analogous to SS3 P6 (end_logit).
           //                    right_floor -> 0: fully dome-shaped; right_floor -> 1: logistic (ascending only).
-          // DoubleNormal reuses the logistic slots: sel_inf(0)=peak,
-          // log_sel_slp(0/1)=log sigma asc/desc, sel_inf(1)=logit right-floor.
-          // The linkage offsets ride in the same position as the deviates, so
-          // slp/inf params act on sigma/peak/floor here without special-casing.
+          // The linkage offsets ride in the same position as the deviates, so the
+          // slp/inf params act on sigma/peak/floor without special-casing.
           Type peak        = (sel_inf(0, flt, sex) + sel_inf_dev(0, flt, sex, yr)
                               + sel_inf_off_nat(0, flt, sex, yr)) * exp(sel_inf_off(0, flt, sex, yr));
           Type sigma_asc   = exp(log_sel_slp(0, flt, sex) + log_sel_slp_dev(0, flt, sex, yr)
@@ -738,12 +733,11 @@ void calculate_selectivity(
           // = NA): AMAK does not renormalize the BTS curve and age-1 may exceed 1.
           // NOTE: AMAK evaluates the logistic at age_vector(j) = j + 0.5 (mid-age),
           // so the age-based x is (bin + 1) + 0.5 = bin + 1.5, NOT bin + 1 as in
-          // the standard Logistic (case 1). This 0.5 shift cannot be folded into a50
-          // because the inflection deviate is multiplicative (a50*exp(dev)).
-          // LogisticPM deviates are MULTIPLICATIVE (a50 * exp(dev)), so a log-link
-          // linkage offset rides inside the same exp and an identity offset adds
-          // to the base -- both leaving the log-link = multiplicative-on-natural
-          // meaning that holds for the other forms.
+          // the standard Logistic (case 1). The 0.5 shift cannot be folded into
+          // a50 because the inflection deviate is multiplicative (a50*exp(dev))
+          // -- which is also why a log-link linkage offset rides inside that same
+          // exp while an identity offset adds to the base, so log-link still
+          // means multiplicative-on-natural here as it does for the other forms.
           Type slope = exp(log_sel_slp(0, flt, sex) + log_sel_slp_dev(0, flt, sex, yr)
                            + sel_slp_off(0, flt, sex, yr)) + sel_slp_off_nat(0, flt, sex, yr);
           Type inf   = (sel_inf(0, flt, sex) + sel_inf_off_nat(0, flt, sex, yr))

@@ -93,7 +93,7 @@
       "Standard deviation of the recruitment deviations, sigma_R, on the natural scale.",
       "log scale sd", "[nspp]", TRUE, NA_character_),
     r("steepness", "recruitment",
-      "Expected fraction of R0 produced at 20% of unfished spawning biomass. Zero under msmMode > 0 with a stock-recruit curve, where spawning biomass per recruit is undefined.",
+      "Expected fraction of R0 produced at 20% of unfished spawning biomass. Held at the placeholder 0.99 under mean recruitment (srr_fun 0), not estimated. Zero under msmMode > 0 with a stock-recruit curve, where spawning biomass per recruit is undefined.",
       "proportion", "[nspp, nyrs]", FALSE, NA_character_),
 
     # -- mortality ---------------------------------------------------------

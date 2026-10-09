@@ -14,20 +14,14 @@
 
 # Assessment years ------------------------------------------------------------
 #
-# `assessment_period` is read two ways. A single number is a fixed cycle: an
-# assessment every n years, counted from the operating model's terminal year to
-# the end of the MSE. A vector is the schedule itself -- the exact years an
-# assessment is completed. The two are different management questions: one
-# assessment missed inside an otherwise biennial cycle is a single episode of
-# stale advice, while a triennial period is a permanent policy, and the cost of
-# one is not the cost of the other.
+# `assessment_period` is either a period in years or the schedule of assessment
+# years itself; the two are different management questions, treated in
+# `vignette("hcrs-and-mses")`.
 #
-# `max_yr` is the last year an assessment can be run in: the earlier of the two
-# models' projection horizons, and of `endyr` where the caller set one.
-# `proj_last` is the horizon mse_summary() reads, which is the two models' own
-# projyr and takes no notice of `endyr` -- so the two differ whenever the caller
-# shortens the MSE, and the short-schedule warning has to test against the
-# second.
+# `max_yr` is the last year an assessment may run in: the earliest of the two
+# models' projyr and of `endyr` where the caller set one. `proj_last` is the
+# horizon mse_summary() reads, the models' own projyr, which takes no notice of
+# `endyr` -- so the short-schedule warning tests against `proj_last`.
 .mse_assess_years <- function(assessment_period, om_endyr, max_yr,
                               proj_last = max_yr) {
   if (!is.numeric(assessment_period) || length(assessment_period) == 0 ||
@@ -94,23 +88,17 @@
 }
 
 # A schedule that stops short of the projection horizon leaves the trailing
-# years with no catch at all: run_mse() only ever fills catch up to the last
-# assessment, so those years keep the NA the projection rows were created with.
-#
-# mse_summary() then counts them anyway. `projyrs` there runs to the models'
-# own projyr, so the NA years sit in the denominator of P(Closed) but not its
-# numerator, in both halves of Catch IAV, and outside the na.rm mean that is
-# Average Catch. All three come out low, with nothing in the table saying which
-# years were summarised. A biennial cycle over an odd number of projection
-# years lands here every time -- 2027(2)2049 against a 2050 horizon.
+# years with no catch at all: catch is filled only up to the last assessment,
+# so those years keep the NA their projection rows were created with.
+# mse_summary() summarises over the whole projection anyway, and the NA years
+# sit in the denominator of P(Closed) but not its numerator, in both halves of
+# Catch IAV, and outside the na.rm mean that is Average Catch -- all three read
+# low, with nothing in the table saying which years were summarised.
 #
 # Warned rather than refused: a schedule that stops short is a legitimate
-# design, it just has to be summarised over the years it covers.
-#
-# Tested against `proj_last`, the models' own projyr, NOT the last year an
-# assessment may run in. `endyr` shortens the second and not the first, so a
-# caller who ends the MSE early leaves every remaining projection year unfished
-# -- the same understatement, over more years.
+# design, it just has to be summarised over the years it covers. Tested against
+# `proj_last`, so a caller who ends the MSE early with `endyr` is warned about
+# every remaining projection year.
 .mse_warn_short_schedule <- function(assess_yrs, proj_last) {
   last <- max(assess_yrs)
   if (last < proj_last) {
@@ -131,16 +119,11 @@
 
 # Catch multiplier ------------------------------------------------------------
 #
-# `catch_mult` scales the catch the estimation model's control rule recommends,
-# before the cap and before the exploitable-biomass limit. A single number or a
-# vector of length nspp applies in every projection year, which is a permanent
-# change in harvest policy. A data.frame of Year / Species / mult applies only
-# in the pairs it lists -- a buffer held for the years advice is stale, say --
-# and every pair it does not list is multiplied by 1.
-#
-# `Species` is the species number, the same code the catch data carries.
-# Validated up front so a mistyped year or species number is reported once at
-# the call, not silently ignored inside every simulation as a multiplier of 1.
+# `catch_mult` scales the catch the estimation model's control rule recommends;
+# `?run_mse` gives the forms it takes, and `Species` is the species number the
+# catch data carries. Validated up front so a mistyped year or species number
+# is reported once at the call, not silently ignored inside every simulation as
+# a multiplier of 1.
 .mse_check_catch_mult <- function(catch_mult, nspp, proj_first, proj_last) {
   if (is.null(catch_mult)) return(NULL)
 
@@ -216,30 +199,20 @@
 
 # Projection catch -------------------------------------------------------------
 #
-# Catch recorded past a model's terminal year is arbitrary "future" data, the
-# same as the index and composition rows the MSE setup filters out. It cannot be
-# dropped the same way: those rows ARE the projection, and each assessment fills
-# them with the catch its control rule recommends. They are blanked to NA
-# instead, which is the state `clean_data()` creates a projection row in.
+# Catch recorded past a model's terminal year is arbitrary "future" data, but
+# those rows ARE the projection, so they cannot be dropped like the index and
+# composition rows: they are blanked to NA, the state `clean_data()` creates a
+# projection row in. Nothing the fit uses is lost -- no harvest control rule
+# reads observed catch (HCR 1, constant catch, sums `catch_hat`), and section 3
+# of the assessment loop overwrites every year in the interval with the
+# operating model's realized catch.
 #
-# Nothing the model uses is lost. The likelihood scores only `Year <= endyr`, so
-# these rows never entered the fit, and no harvest control rule reads observed
-# catch -- HCR 1 (constant catch) sums `catch_hat`, not the data. Section 3 of
-# the assessment loop already overwrites every year in the interval with the
-# operating model's realized catch, so a value left here survives one assessment
-# at most.
-#
-# What it costs to leave them is the fill in section 1, which selects rows on
-# `is.na(Catch)`. A projection year arriving with a number is skipped: no catch
-# is written for it, the interval total comes out 0, and the operating model is
-# REBUILT rather than advanced -- the no-catch path, `estimateMode = 3` with the
-# map dropped. A workbook whose terminal year lags its catch series (catch
-# through 2023, `endyr` still 2019) lands there for every assessment before the
-# series ends.
-#
-# Warned rather than blanked in silence. Catch recorded for a year the model
-# does not fit usually means `endyr` is out of date, and conditioning on those
-# years is a different MSE than projecting over them.
+# Leaving them is what costs. Section 1 fills rows on `is.na(Catch)`, so a
+# projection year arriving with a number is skipped: the interval total comes
+# out 0 and the operating model is REBUILT rather than advanced -- the no-catch
+# path, `estimateMode = 3` with the map dropped. A workbook whose terminal year
+# lags its catch series lands there for every assessment before the series ends,
+# so this is warned rather than blanked in silence; see `?run_mse`.
 .mse_blank_proj_catch <- function(catch_data, endyr, model) {
   if (is.null(catch_data) || !nrow(catch_data)) return(catch_data)
 
@@ -258,32 +231,24 @@
 
 # Projection rows for the fixed biological inputs ------------------------------
 #
-# `weight` (weight-at-age, kg) and `ration_data` (annual foraging days) are
-# carried into the projection by repeating each series' terminal year, one row
-# per projection year -- the MSE holds both at the operating model's last
-# hindcast year.
+# `weight` (weight-at-age, kg) and `ration_data` (annual foraging days) are held
+# at the operating model's terminal hindcast year: each series' last hindcast
+# row is repeated, one row per projection year.
 #
-# A series supplied for Year 0 is exempt. That is the time-invariant convention,
-# and `rearrange_data()` already fills every hindcast year from the single row,
-# so there is nothing for the projection to extend. Expanding one replaces a
-# legal one-row series with one naming the projection years and no year before
-# them; `data_check()` reads any index carrying more than one year as
-# time-varying and requires it to span `styr..endyr`, so the first assessment --
-# which advances `endyr` -- fails with "Weight data for index = 4 & sex = 1 does
-# not span all hindcast years". The check is right; the expansion was giving it
-# something to reject.
+# A series supplied for Year 0 is exempt -- that is the time-invariant
+# convention, and `rearrange_data()` already fills every hindcast year from the
+# single row. Expanding one would leave a series naming only the projection
+# years, which `data_check()` reads as time-varying and rejects for not spanning
+# `styr..endyr`: "Weight data for index = 4 & sex = 1 does not span all hindcast
+# years".
 #
 # Grouped on the series id and `Sex`, and carried forward from the group's last
-# row at or before `endyr` -- the terminal HINDCAST year, which is the value
-# `run_mse()` documents holding through the projection. A workbook whose series
-# runs past its own `endyr` therefore does not project its post-terminal rows
-# forward; those rows are kept where they are, and a projection year that
-# already has a row of its own keeps it rather than gaining a second. Two rows
-# for one year is not inert: `rearrange_data()` assigns row by row into the
-# weight array, so the later row wins, and the carried-forward value would
-# silently replace an observation. `clean_data()` skips an already-present
-# projection year for catch, and the `NByageFixed` expansion below does the
-# same.
+# row at or before `endyr`, the terminal HINDCAST year. A series running past
+# its own `endyr` therefore keeps its post-terminal rows where they are, and a
+# projection year that already has a row of its own keeps it, as catch and the
+# `NByageFixed` expansion below do. Two rows for one year is not inert:
+# `rearrange_data()` assigns row by row into the weight array, so the later,
+# carried-forward row wins and would silently replace an observation.
 .mse_expand_fixed_input <- function(dat, id_col, endyr, proj_yrs) {
   if (is.null(dat) || !nrow(dat)) return(dat)
 
@@ -296,13 +261,12 @@
     add <- setdiff(proj_yrs, dat$Year[rows])
     if (!length(add)) next
 
-    # Year 0 alongside dated rows is a mixed series data_check() rejects; take
-    # the LATEST hindcast row, falling back to the group's latest row so a
-    # series ending before styr still carries something forward.
-    #
-    # By year, not by table position: nothing sorts `weight` on read, so the
-    # last row of a group need not be its last year. Taking it by position
-    # carries the wrong weight-at-age through the whole projection.
+    # Year 0 alongside dated rows is a mixed series data_check() rejects, so
+    # take the LATEST hindcast row, falling back to the group's latest row so a
+    # series ending before styr still carries something forward. By year, not by
+    # table position: nothing sorts `weight` on read, so a group's last row need
+    # not be its last year, and taking it by position carries the wrong
+    # weight-at-age through the whole projection.
     hind <- rows[dat$Year[rows] > 0 & dat$Year[rows] <= endyr]
     src  <- if (length(hind)) hind[which.max(dat$Year[hind])]
             else rows[which.max(dat$Year[rows])]
@@ -319,128 +283,85 @@
 
 #' Run a management strategy evaluation
 #'
-#' @description Runs a forward-projecting management strategy evaluation (MSE). Projected selectivity, catchability, foraging days, and weight-at-age are held at the operating model's terminal hindcast year. Survey SD is set to the average over the historical time series, and composition sample size is held at the last year. There is no implementation error and no observation error on catch.
+#' @description Runs a forward-projecting management strategy evaluation (MSE).
+#'   Projected selectivity, catchability, foraging days and weight-at-age are
+#'   held at the operating model's terminal hindcast year, survey SD is the
+#'   average over the historical series, and composition sample size is held at
+#'   the last year. There is no implementation error and no observation error on
+#'   catch.
 #'
 #' @param om CEATTLE model object exported from \code{Rceattle}
 #' @param em CEATTLE model object exported from \code{Rceattle}
 #' @param nsim Number of simulations to run (default 10)
-#' @param start_sim First simulation number to start at. Useful if the code stops at specific seed/sim (default = 1).
-#' @param assessment_period Assessment schedule. A single number is the period in years between assessments, counted from the operating model's terminal year. A vector is the explicit set of years an assessment is completed. Default = 1.
-#' @param sampling_period Period of years data sampling is conducted. Single value or vector the same length as the number of fleets.
-#' @param simulate_data Include simulated random error proportional to that estimated/provided for the data from the OM.
-#' @param regenerate_past Refits the EM to historical/conditioning data prior to the MSE, where the data are generated from the OM with \code{simulate_data = TRUE} or without \code{simulate_data = FALSE} sampling error.
-#' @param sample_rec Include resampled recruitment deviations from the hindcast in the OM projection. Resampled deviations are used rather than drawing from N(0, sigmaR) because the initial deviations bias R0 low. If FALSE, uses the single deviation described in [sample_rec()].
-#' @param rec_trend Linear increase or decrease in mean recruitment from \code{endyr} to \code{projyr}. This is the terminal multiplier \code{mean rec * (1 + (rec_trend/projection years) * 1:projection years)}. Can be of length 1 or of length nspp. If length 1, all species get the same trend.
-#' @param fut_sample future sampling effort relative to last year.  \code{ Log_sd * 1 / fut_sample} for index and \code{ Sample_size * fut_sample} for comps
-#' @param cap A cap on the catch in the projection. Can be a single number applied to all species (proportional to recommended catch) or vector of length \code{nspp} applied to each species. Default = NULL
-#' @param catch_mult A multiplier applied to the catch the control rule recommends. A single number or a vector of length \code{nspp} applies in every projection year; a \code{data.frame} with columns \code{Year}, \code{Species} and \code{mult} applies only in the year and species pairs it lists, where \code{Year} is a year the assessment schedule covers. Default = NULL
-#' @param loopnum number of times to re-start optimization (where \code{loopnum=3} sometimes achieves a lower final gradient than \code{loopnum=1})
-#' @param file (Optional) Filename where each OM simulation with EMs will be saved. If NULL, no files are saved.
+#' @param start_sim First simulation number to start at, useful when a run stops
+#'   at a particular seed (default 1).
+#' @param assessment_period Assessment schedule. A single number is the period
+#'   in years between assessments, counted from the operating model's terminal
+#'   year; a vector is the explicit set of assessment years, which must name two
+#'   or more years inside the projection horizon. Default 1.
+#' @param sampling_period Period of years data sampling is conducted. Single
+#'   value or vector the same length as the number of fleets.
+#' @param simulate_data Include simulated random error proportional to that
+#'   estimated or provided for the data from the OM.
+#' @param regenerate_past Refit the EM to historical conditioning data before
+#'   the MSE, generated from the OM with or without sampling error according to
+#'   \code{simulate_data}.
+#' @param sample_rec Include resampled hindcast recruitment deviations in the OM
+#'   projection. Resampled rather than drawn from N(0, sigmaR) because the
+#'   initial deviations bias R0 low. `FALSE` uses the single deviation described
+#'   in [sample_rec()].
+#' @param rec_trend Linear change in mean recruitment from \code{endyr} to
+#'   \code{projyr}, as the terminal multiplier
+#'   \code{mean rec * (1 + (rec_trend/projection years) * 1:projection years)}.
+#'   Length 1 or \code{nspp}.
+#' @param fut_sample Future sampling effort relative to the last year:
+#'   \code{Log_sd * 1 / fut_sample} for the index and
+#'   \code{Sample_size * fut_sample} for comps.
+#' @param cap A ceiling on projected catch. A single number is an ANNUAL
+#'   ceiling on total removals summed across species, shared between them in
+#'   proportion to the catch the control rule recommended; a vector of length
+#'   \code{nspp} is a separate ceiling per species. Default NULL.
+#' @param catch_mult A multiplier on the catch the control rule recommends,
+#'   applied before \code{cap} and before the exploitable-biomass limit. A
+#'   single number or a vector of length \code{nspp} applies in every projection
+#'   year; a \code{data.frame} with columns \code{Year}, \code{Species} and
+#'   \code{mult} applies only to the pairs it lists, and any pair it omits is
+#'   multiplied by 1. \code{Year} must be a year the schedule covers. Default
+#'   NULL.
+#' @param loopnum Number of times to restart optimization; \code{loopnum = 3}
+#'   sometimes reaches a lower final gradient than \code{1}.
+#' @param file (Optional) Filename where each OM simulation with EMs is saved.
+#'   If NULL, no files are saved.
 #' @param dir (Optional) Directory where each OM simulation is saved
 #' @param seed seed for the simulation
 #' @param regenerate_seed seed for regenerating data
-#' @param timeout length of time (minutes) estimation will run before stopping a sim (default 999 minutes)
-#' @param endyr Terminal year of the MSE projection. Default = NA uses \code{projyr} from the operating model.
-#' @param cores Number of cores to use for parallel simulations. Default
-#'   \code{NULL} picks \code{parallel::detectCores() - 6}, capped at 2 when
-#'   running under \code{R CMD check} (which sets
-#'   \code{_R_CHECK_LIMIT_CORES_}). Set to 1 to force sequential execution.
+#' @param timeout Minutes estimation runs before a sim is stopped (default 999)
+#' @param endyr Terminal year of the MSE projection. Default NA uses
+#'   \code{projyr} from the operating model.
+#' @param cores Cores for the parallel simulations. \code{NULL} (default) picks
+#'   \code{parallel::detectCores() - 6}, capped at 2 under \code{R CMD check};
+#'   1 forces sequential.
 #'
 #' @details
-#' # Assessment schedule
+#' Designing a schedule, comparing monitoring scenarios, and what the common
+#' random numbers do and do not share across schedules are in
+#' `vignette("hcrs-and-mses")`.
 #'
-#' A single `assessment_period` is a fixed cycle. A vector is the schedule
-#' itself, for a design whose years are not evenly spaced, one assessment
-#' missed inside an otherwise biennial cycle, for instance:
-#'
-#' ```
-#' biennial <- seq(om$data_list$endyr + 2, om$data_list$projyr, by = 2)
-#' run_mse(om, em, assessment_period = setdiff(biennial, 2031))
-#' ```
-#'
-#' Every year must be after the operating model's terminal year and within the
-#' projection horizon; a year outside that window is an error rather than being
-#' dropped. One missed assessment and a permanently longer cycle are different
-#' questions, and the second does not answer the first.
-#'
-#' A schedule must name two or more years. One year on its own cannot be told
-#' from a period, and the two readings are a world apart, so it is refused
-#' rather than guessed at.
-#'
-#' Two schedules run on the same `seed` share their recruitment deviations,
-#' which are drawn once per replicate before the first assessment, and each
-#' assessment's observation draw is seeded on that assessment's own year rather
-#' than on wherever earlier assessments left the stream. So an assessment in
-#' year `Y` starts from the same place in every schedule that assesses `Y`, and
-#' a divergence at one assessment does not displace the random-number stream
-#' the later assessments draw from.
-#'
-#' Common random numbers are not complete, and the gap is worth knowing before
-#' designing a comparison. One `sim_mod()` call draws every year in the
-#' assessment interval, under that assessment's seed --- so a year sitting
-#' *inside* a longer interval is drawn under a different seed than the same year
-#' in a schedule that assessed it directly. Two schedules that differ in which
-#' years they assess therefore realize different observation error in the years
-#' between, even where the stock is in the same state. Per-observation-year
-#' streams would close it; `inst/dev/TODO-mse-horizon.md` records what that
-#' would take.
-#'
-#' Past the point where two schedules genuinely diverge --- different catch
-#' taken, different years surveyed --- the draws necessarily diverge too. That
-#' is a real difference in the runs, not an artefact.
-#'
-#' Make the last assessment year reach the projection horizon. Catch is only
-#' ever filled up to the last assessment, so a schedule that stops short leaves
-#' the trailing years at `NA`, and `mse_summary()` summarises over the whole
-#' projection --- understating Average Catch, Catch IAV and P(Closed) with
-#' nothing in the table to say which years it covered. A biennial cycle over an
-#' odd number of projection years lands here every time, so this is warned
-#' about, for a period and a schedule alike.
-#'
-#' # Catch multiplier
-#'
-#' `catch_mult` multiplies the catch the estimation model's control rule
-#' recommends, before `cap` and before the exploitable-biomass limit. Given as
-#' a `data.frame` it applies only in the years and species it lists, which is
-#' how a buffer held for the years advice is stale is expressed.
-#'
-#' Mind which years those are. The assessment in year `Y` sets catch for `Y+1`
-#' onward, so a missed assessment in 2031 leaves **2032 and 2033** on 2029's
-#' advice --- 2031 itself is set by the 2029 assessment either way, and cutting
-#' it changes a year the missed assessment never touched:
-#'
-#' ```
-#' buffer <- expand.grid(Year = 2032:2033, Species = seq_len(om$data_list$nspp))
-#' buffer$mult <- 0.90
-#' run_mse(om, em, assessment_period = setdiff(biennial, 2031),
-#'         catch_mult = buffer)
-#' ```
-#'
-#' `Species` is the species number, matching the catch data's own column, and
-#' any (year, species) pair the table omits is multiplied by 1. `Year` must be
-#' a year the assessment schedule actually covers --- from the operating
-#' model's terminal year to the last assessment, which is where catch is
-#' filled, not the whole projection.
-#'
-#' Note that this reduces catch, not ABC. Where realized catch sits well below
-#' ABC, GOA arrowtooth flounder, for one, reducing ABC changes removals only
-#' to the extent the fishery attains it, while reducing catch changes them in
-#' full. Either scale the multiplier by recent attainment,
-#' `1 - (1 - mult) * attainment`, or report the unscaled result as an upper
-#' bound on the effect of the reduction.
-#'
-#' # Projection catch
+#' One piece of arithmetic to get right when buffering a missed assessment: the
+#' assessment in year `Y` sets catch for `Y + 1` onward. So dropping 2031 from a
+#' biennial cycle leaves **2032 and 2033** on 2029's advice, and 2031 itself is
+#' set by the 2029 assessment either way -- buffering 2031 changes a year the
+#' missed assessment never touched.
 #'
 #' Catch recorded past a model's terminal year is blanked to `NA` at setup, with
-#' a warning naming the years. Those years are the projection, and the MSE sets
-#' their catch from the control rule; the likelihood never scored them either,
-#' since it fits only `Year <= endyr`. This is what a workbook looks like when
-#' `endyr` has fallen behind the catch series, catch through 2023 with `endyr`
-#' still 2019, and it is worth resolving before running the MSE, because
-#' conditioning the assessment on those years is a different question from
-#' projecting over them.
+#' a warning naming the years: the MSE sets those years from the control rule,
+#' and the likelihood never scored them, since it fits only `Year <= endyr`.
+#' That is what a workbook looks like when `endyr` has fallen behind the catch
+#' series, and it is worth resolving first, because conditioning on those years
+#' is a different question from projecting over them.
 #'
-#' @return A list of operating models (differ by simulated recruitment determined by \code{nsim}) and estimation models fit to each operating model (differ by terminal year).
+#' @return A list of operating models (differing by simulated recruitment, per
+#'   \code{nsim}) and estimation models fit to each (differing by terminal year).
 #' @examples
 #' \dontrun{
 #' data(BS2017SS)
@@ -483,13 +404,11 @@ run_mse <- function(om, em, nsim = 10, start_sim = 1, assessment_period = 1, sam
   }
 
   # - The two models must share a hindcast and a projection horizon
-  # The assessment loop reads the row positions of catch rows to fill off the
-  # ESTIMATION model's catch table and indexes the OPERATING model's
-  # `max_catch_hat` with them, so the two tables have to describe the same rows
-  # in the same order. Terminal and projection years that disagree break that
-  # silently -- the exploitable-biomass limit is then read off the wrong years,
-  # or off NA -- so it is refused here rather than left to surface as catch
-  # advice that is wrong without being obviously wrong.
+  # `dat_fill_ind` below is row positions in the ESTIMATION model's catch table,
+  # used to index the OPERATING model's `max_catch_hat`. Years that disagree
+  # read the exploitable-biomass limit off the wrong rows, or off NA, so this is
+  # refused rather than left to surface as catch advice that is wrong without
+  # being obviously wrong.
   if(om$data_list$endyr != em$data_list$endyr ||
      om$data_list$projyr != em$data_list$projyr){
     stop("The operating and estimation models must share a terminal year and a ",
@@ -762,14 +681,12 @@ run_mse <- function(om, em, nsim = 10, start_sim = 1, assessment_period = 1, sam
     em$data_list$ration_data, "Species", em$data_list$endyr, em_proj_yrs)
 
 
-  # Cross-platform parallel via parallel::parLapply on a PSOCK cluster.
-  # We do *not* use foreach::%dopar% here: under nested test_that
-  # backtraces it triggered an 'evaluation nested too deeply: infinite
-  # recursion' abort inside rlang's expression deparser (foreach
-  # captures call frames that recurse during error formatting). PSOCK
-  # clusters work identically on Windows and Unix and avoid that.
-  # Respect the CRAN core limit ('_R_CHECK_LIMIT_CORES_' is set during
-  # R CMD check; parallel::makeCluster errors if we exceed 2 cores then).
+  # Cross-platform parallel via parallel::parLapply (FORK where available,
+  # PSOCK on Windows -- see .parallel_lapply()). NOT foreach::%dopar%, which
+  # captures call frames that recurse inside rlang's expression deparser under
+  # nested test_that backtraces, aborting with 'evaluation nested too deeply'.
+  # '_R_CHECK_LIMIT_CORES_' is set during R CMD check, where
+  # parallel::makeCluster errors above 2 cores.
   chk <- tolower(Sys.getenv("_R_CHECK_LIMIT_CORES_", ""))
   cran_cap <- nzchar(chk) && !chk %in% c("false", "0", "no")
   if (is.null(cores)) {
@@ -802,17 +719,16 @@ run_mse <- function(om, em, nsim = 10, start_sim = 1, assessment_period = 1, sam
     # Sample recruitment
     om_use <- Rceattle::sample_rec(om_use, sample_rec = sample_rec, update_model = FALSE, rec_trend = rec_trend)
 
-    # A seed per projection year for the observation draws, keyed by the YEAR
+    # One seed per projection year for the observation draws, keyed by the YEAR
     # rather than by an assessment's position in the schedule, and drawn over a
-    # year list that does not depend on the schedule at all. Each assessment
-    # then starts its draw from the same place whatever schedule the run is on,
-    # so a divergence in one assessment cannot displace the stream every later
-    # assessment draws from. Keying on position instead compounds that
-    # displacement, which is what makes two schedules incomparable replicate by
-    # replicate.
+    # year list that does not depend on the schedule at all: every assessment of
+    # year Y starts its draw from the same place whatever schedule the run is
+    # on, so a divergence at one assessment cannot displace the stream every
+    # later assessment draws from. `vignette("hcrs-and-mses")` has what the
+    # common random numbers do and do not share.
     #
-    # Drawn AFTER sample_rec(), so recruitment deviations consume the
-    # per-simulation stream exactly as they did before and are unchanged.
+    # Drawn AFTER sample_rec(), so the recruitment deviations take the
+    # per-simulation stream (`seed + sim`) first and this does not move them.
     draw_seeds <- stats::setNames(
       sample.int(.Machine$integer.max, length(om_proj_yrs)),
       as.character(om_proj_yrs))
@@ -889,10 +805,9 @@ run_mse <- function(om, em, nsim = 10, start_sim = 1, assessment_period = 1, sam
       # assessment, not just as far as the next one. `sim_mod()` draws once per
       # observation row, so a shorter horizon would carry fewer rows, advance
       # the random stream less far, and make the draws depend on when the next
-      # assessment falls -- which is the very thing a comparison of two
-      # assessment schedules is trying to hold fixed.
-      # inst/dev/TODO-mse-horizon.md has the design for recovering the runtime
-      # saving without that dependence.
+      # assessment falls; a comparison of two schedules needs those draws held
+      # fixed. inst/dev/TODO-mse-horizon.md has the design for recovering the
+      # runtime saving without that dependence.
 
       # * Update parameters ----
       # -- log_F
@@ -1048,10 +963,10 @@ run_mse <- function(om, em, nsim = 10, start_sim = 1, assessment_period = 1, sam
       # sample_yrs pairs each fleet with the years THAT fleet is sampled, so the
       # rows to add are the (fleet, year) pairs it lists -- not every fleet in
       # every year. Matching the year set and the fleet set separately is the
-      # same thing only when one year advances per assessment; with a longer
-      # assessment period it also admits an every-other-year fleet in its off
-      # years, giving the estimation model survey and composition data the
-      # sampling design says were never collected.
+      # same thing only at assessment_period = 1; over a longer interval it also
+      # admits an every-other-year fleet in its off years, giving the estimation
+      # model survey and composition data the sampling design says were never
+      # collected.
       sampled_key <- paste(years_include$Fleet_code, years_include$Year)
 
       # -- Add newly simulated survey data to EM and OM
@@ -1221,15 +1136,15 @@ run_mse <- function(om, em, nsim = 10, start_sim = 1, assessment_period = 1, sam
       sim_list$OM <- om_use # OM
       # The unfished reference run is a separate numerical problem and can fail
       # on its own (it sdreports a model with F pinned off across the
-      # projection). The simulation itself is complete at this point, and its
-      # assessments are the catch-advice record, so a failure here must not
-      # discard it: dropping these would remove simulations in a
-      # stock-state-dependent way and bias every performance metric.
-      # Assigned through `[` rather than `$` so a failure leaves OM_no_F present
-      # and NULL: `sim_list$OM_no_F <- NULL` would DELETE the element, and the
-      # simulation would then be indistinguishable by name from one that never
-      # attempted the unfished run.
-      # No fishing after the original OM's terminal year; the advanced om_use ends at the last assessment.
+      # projection). The simulation itself is complete, and its assessments are
+      # the catch-advice record, so a failure here must not discard it: dropping
+      # these would remove simulations in a stock-state-dependent way and bias
+      # every performance metric. Assigned through `[` rather than `$` so a
+      # failure leaves OM_no_F present and NULL -- `sim_list$OM_no_F <- NULL`
+      # would DELETE the element, leaving the simulation indistinguishable by
+      # name from one that never attempted the unfished run.
+      # F = 0 from the PRISTINE om's terminal year + 1; the advanced om_use ends
+      # at the last assessment.
       sim_list["OM_no_F"] <- list(tryCatch(remove_F(om_use, styr = om$data_list$endyr + 1), error = function(e) {
         # Recorded on the object, not just warned about: this runs in a parallel
         # worker, whose warnings are discarded, and the simulation is still

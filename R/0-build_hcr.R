@@ -1,69 +1,86 @@
-##' @title Specify the harvest control rule (HCR) used for Rceattle
-##'
-##' @description Defines the harvest control rule and its associated reference points.
-##'
-##' @param HCR Harvest control rule to use. Accepts an integer or equivalent string alias. Default = 0. See Details for the full list of available options.
-##' @param DynamicHCR TRUE/FALSE. Whether to use static or dynamic reference points (default = FALSE).
-##' @param Ftarget Target fishing mortality rate (yr^-1) (SPR or depletion based) or input F for projections. For example, if Ftarget is spr F40%, enter 0.40.
-##' @param Flimit Limit fishing mortality rate (yr^-1) (SPR or depletion based). For example, if Flimit is spr F35%, enter 0.35.
-##' @param Ptarget Target spawning-stock biomass as a percentage of static or dynamic spawning-stock-biomass at F = 0 (accounts for recruitment).
-##' @param Plimit Limit spawning-stock biomass as a percentage of static or dynamic spawning-stock-biomass at F = 0 (accounts for recruitment).
-##' @param Alpha Parameter used in NPFMC Tier 3 HCR.
-##' @param Pstar Quantile used for uncertainty buffer given \code{Flimit} and \code{Sigma}.
-##' @param Sigma Standard deviation used for normally distributed uncertainty buffer given \code{Flimit} and \code{Pstar}.
-##' @param Fmult Multiplier on the target F (default = 1). Used to scale the target fishing mortality following NEFSC convention.
-##' @param HCRorder For multi-species models, the order in which to project fishing (e.g., predators first, then prey).
-##'
-##' @details
-##' **Harvest control rule formulations currently implemented in Rceattle:**
-##'
-##' \code{hcr = 0} or \code{"NoFishing"}: No catch. Estimate the hindcast.
-##'
-##' \code{hcr = 1} or \code{"CMSY"}: CMSY. Maximize catch across all species simultaneously. CMSY can be constrained such that depletion does not fall below \code{Plimit}.
-##'
-##' \code{hcr = 2} or \code{"ConstantF"}: Constant input F set at \code{Ftarget} for each species (vector or single F). SPR (single-species only) based Flimit is specified via \code{Flimit}.
-##'
-##' \code{hcr = 3} or \code{"ConstantFSSB"}: F that achieves \code{Ftarget}% of SSB0 in the end of the projection.
-##'
-##' \code{hcr = 4} or \code{"ConstantFSPR"}: Constant Fspr set at \code{Ftarget} for each species. Can be multiplied by \code{Fmult} following NEFSC.
-##'
-##' \code{hcr = 5} or \code{"NPFMC"}: The North Pacific Fishery Management Council (NPFMC) Tier 3 spawner-per-recruit-based harvest control rule:
-##' 	Stock status: \eqn{SB > SB at Ftarget}
-##' 	\deqn{Fofl = Flimit}
-##' 	\deqn{Fuse = Ftarget}
-##' 	Stock status: \eqn{Alpha < SB / SB at Ftarget \le 1}
-##' 	\deqn{Fofl = Flimit * (SB / SB_{Ftarget} - Alpha) / (1 - Alpha)}
-##' 	\deqn{Fuse = Ftarget * (SB / SB_{Ftarget} - Alpha) / (1 - Alpha)}
-##' 	Stock status: \eqn{SB / SB at Ftarget \le Alpha} or \eqn{SB < Plimit * SB0}
-##' 	\deqn{Fofl = 0}
-##' 	\deqn{Fuse = 0}
-##'
-##' \code{hcr = 6} or \code{"PFMC"}: An HCR based on the Pacific Fishery Management Council (PFMC) category 1 40-10 annual catch limit (ABC) harvest control rule assuming Fofl is normally distributed with a standard deviation (sigma) = 0.5 and an uncertainty quantile buffer (P*) of 0.45 (PFMC 2020). The model uses Fspr if single-species or F that achieves X% of SSB0 for multi-species. The uncertainty buffer is the normal quantile function \code{qnorm(Pstar, mean, Sigma)}; note \code{qnorm(Pstar, Flimit, Sigma) = Flimit + qnorm(Pstar, 0, Sigma)} -- an F below \code{Flimit} when \eqn{Pstar < 0.5}. The taper runs between \eqn{SB0 * Plimit} and \eqn{SB0 * Ptarget}, so the 40-10 shape requires \code{Ptarget = 0.40} and \code{Plimit = 0.10}; the default \code{Plimit = 0} gives a 40-0 rule. Target biological reference points are:
-##' 	Stock status: \eqn{SB > SB0 * Ptarget}
-##' 	\deqn{Fofl = Flimit}
-##' 	\deqn{Fuse = qnorm(Pstar, Flimit, Sigma)}
-##' 	Stock status: \eqn{SB0 * Plimit < SB \le SB0 * Ptarget}
-##' 	\deqn{Fofl = Flimit}
-##' 	\deqn{Fuse = qnorm(Pstar, Flimit, Sigma) * \frac{SB0 * Ptarget * (SB - SB0 * Plimit)}{SB * SB0 * (Ptarget - Plimit)}}
-##' 	Stock status: \eqn{SB < SB0 * Plimit}
-##' 	\deqn{Fofl = 0}
-##' 	\deqn{Fuse = 0}
-##'
-##' \code{hcr = 7} or \code{"SESSF"}: An HCR based on the The Southern and Eastern Scalefish and Shark Fishery (SESSF) spawner-per-recruit-based Tier 1 harvest control rule where F_Limit=F_(20%), B_Limit=SB_20, F_Target (AFMA 2017) calculated as follows:
-##' 	Stock status: \eqn{SB > SB0 * Ptarget}
-##' 	\deqn{Fofl = Flimit}
-##' 	\deqn{Fuse = Ftarget}
-##' 	Stock status: \eqn{SB0 * Ptarget > SB > SB0 * Plimit}
-##' 	\deqn{Fofl = Flimit * (SB / (SB0 * Plimit) - 1)}
-##' 	\deqn{Fuse = Ftarget * (SB / (SB0 * Plimit) - 1)}
-##' 	Stock status: \eqn{SB < SB0 * Plimit}
-##' 	\deqn{Fofl = 0}
-##' 	\deqn{Fuse = 0}
-##'
-##' NOTE: only HCRs 0, 1, 2, 3, and 6 will work in multi-species mode.
-##'
-##' @return A \code{list} containing the harvest control rule and associated biological reference points.
-##' @export
+#' @title Specify the harvest control rule (HCR) used for Rceattle
+#'
+#' @description Defines the harvest control rule and its associated reference
+#'   points. The rules are tabulated, with which ones work under predation, in
+#'   \code{vignette("projections-and-reference-points")}; the formulations of
+#'   the three ramped rules are below.
+#'
+#' @param HCR Harvest control rule, as an integer or string alias:
+#'   \code{0}/\code{"NoFishing"} (no catch, hindcast only),
+#'   \code{1}/\code{"CMSY"} (maximize joint catch, optionally holding depletion
+#'   at or above \code{Plimit}), \code{2}/\code{"ConstantF"} (constant input F
+#'   at \code{Ftarget}), \code{3}/\code{"ConstantFSSB"} (the F reaching
+#'   \code{Ftarget} percent of SSB0 by the end of the projection),
+#'   \code{4}/\code{"ConstantFSPR"} (constant Fspr, scalable by \code{Fmult}
+#'   following NEFSC), \code{5}/\code{"NPFMC"}, \code{6}/\code{"PFMC"} or
+#'   \code{7}/\code{"SESSF"}. Default \code{0}. **Only 0, 1, 2, 3 and 6 work in
+#'   multispecies mode.**
+#' @param DynamicHCR TRUE/FALSE. Use dynamic rather than static reference points
+#'   (default FALSE).
+#' @param Ftarget Target fishing mortality rate (yr^-1), SPR- or
+#'   depletion-based, or the input F for projections. For SPR F40%, enter 0.40.
+#' @param Flimit Limit fishing mortality rate (yr^-1), SPR- or depletion-based.
+#'   For SPR F35%, enter 0.35.
+#' @param Ptarget Target spawning-stock biomass as a percentage of static or
+#'   dynamic spawning-stock biomass at F = 0, which accounts for recruitment.
+#' @param Plimit Limit spawning-stock biomass on the same basis.
+#' @param Alpha Parameter used in the NPFMC Tier 3 rule.
+#' @param Pstar Quantile for the uncertainty buffer, given \code{Flimit} and
+#'   \code{Sigma}.
+#' @param Sigma Standard deviation of the normal uncertainty buffer, given
+#'   \code{Flimit} and \code{Pstar}.
+#' @param Fmult Multiplier on the target F (default 1), scaling it following
+#'   NEFSC convention.
+#' @param HCRorder For multispecies models, the order in which to project
+#'   fishing (predators first, then prey, for instance).
+#'
+#' @details
+#' \code{hcr = 5} or \code{"NPFMC"}, the North Pacific Fishery Management
+#' Council Tier 3 spawner-per-recruit rule:
+#' 	Stock status: \eqn{SB > SB at Ftarget}
+#' 	\deqn{Fofl = Flimit}
+#' 	\deqn{Fuse = Ftarget}
+#' 	Stock status: \eqn{Alpha < SB / SB at Ftarget \le 1}
+#' 	\deqn{Fofl = Flimit * (SB / SB_{Ftarget} - Alpha) / (1 - Alpha)}
+#' 	\deqn{Fuse = Ftarget * (SB / SB_{Ftarget} - Alpha) / (1 - Alpha)}
+#' 	Stock status: \eqn{SB / SB at Ftarget \le Alpha} or \eqn{SB < Plimit * SB0}
+#' 	\deqn{Fofl = 0}
+#' 	\deqn{Fuse = 0}
+#'
+#' \code{hcr = 6} or \code{"PFMC"}, the Pacific Fishery Management Council
+#' category 1 40-10 annual catch limit rule (PFMC 2020), using Fspr in single
+#' species or the F reaching X% of SSB0 under predation. The uncertainty buffer
+#' is \code{qnorm(Pstar, Flimit, Sigma)}, which equals
+#' \code{Flimit + qnorm(Pstar, 0, Sigma)} and so sits *below* \code{Flimit}
+#' when \eqn{Pstar < 0.5}. The taper runs between \eqn{SB0 * Plimit} and
+#' \eqn{SB0 * Ptarget}, so the 40-10 shape needs \code{Ptarget = 0.40} and
+#' \code{Plimit = 0.10}; the default \code{Plimit = 0} gives a 40-0 rule.
+#' 	Stock status: \eqn{SB > SB0 * Ptarget}
+#' 	\deqn{Fofl = Flimit}
+#' 	\deqn{Fuse = qnorm(Pstar, Flimit, Sigma)}
+#' 	Stock status: \eqn{SB0 * Plimit < SB \le SB0 * Ptarget}
+#' 	\deqn{Fofl = Flimit}
+#' 	\deqn{Fuse = qnorm(Pstar, Flimit, Sigma) * \frac{SB0 * Ptarget * (SB - SB0 * Plimit)}{SB * SB0 * (Ptarget - Plimit)}}
+#' 	Stock status: \eqn{SB < SB0 * Plimit}
+#' 	\deqn{Fofl = 0}
+#' 	\deqn{Fuse = 0}
+#'
+#' \code{hcr = 7} or \code{"SESSF"}, the Southern and Eastern Scalefish and
+#' Shark Fishery Tier 1 spawner-per-recruit rule, with F_Limit = F_(20%) and
+#' B_Limit = SB_20 (AFMA 2017):
+#' 	Stock status: \eqn{SB > SB0 * Ptarget}
+#' 	\deqn{Fofl = Flimit}
+#' 	\deqn{Fuse = Ftarget}
+#' 	Stock status: \eqn{SB0 * Ptarget > SB > SB0 * Plimit}
+#' 	\deqn{Fofl = Flimit * (SB / (SB0 * Plimit) - 1)}
+#' 	\deqn{Fuse = Ftarget * (SB / (SB0 * Plimit) - 1)}
+#' 	Stock status: \eqn{SB < SB0 * Plimit}
+#' 	\deqn{Fofl = 0}
+#' 	\deqn{Fuse = 0}
+#'
+#' @return A \code{list} containing the harvest control rule and associated
+#'   biological reference points.
+#' @export
 #' @examples
 #' # Tier 3 NPFMC control rule: F40% as FABC, F35% as FOFL.
 #' build_hcr(HCR = "NPFMC", DynamicHCR = FALSE, Ftarget = 0.4, Flimit = 0.35)

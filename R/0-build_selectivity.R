@@ -22,98 +22,77 @@ SEL_LINKAGE_PARAMS <- c("slp_asc", "slp_desc", "inf_asc", "inf_desc", "coff",
 #' Selectivity specification
 #'
 #' @description
-#' Holds environmental linkages on selectivity parameters. The effect on a
-#' parameter is written as a formula and composes additively with any
-#' `Time_varying_sel` process error on the same fleet (the two are separate
-#' mechanisms: a covariate effect versus a deviation).
+#' Holds environmental linkages on selectivity parameters. An effect is written
+#' as a formula and composes additively with any `Time_varying_sel` process
+#' error on the same fleet, the two being separate mechanisms: a covariate
+#' effect against a deviation.
 #'
-#' The parameter names are the shape parameters of the parametric selectivity
-#' forms:
+#' The `linkages` keys are the shape parameters of the parametric forms, so
+#' which apply depends on the fleet's `Selectivity`:
 #' \describe{
 #'   \item{`slp_asc`, `slp_desc`}{ascending / descending logistic slope (log
-#'     scale); for a double-normal the ascending / descending width, aliased
-#'     `sigma_asc` / `sigma_desc`.}
-#'   \item{`inf_asc`, `inf_desc`}{ascending / descending inflection age/length
-#'     (natural scale); for a double-normal the peak and the logit right-floor,
+#'     scale); the double-normal widths, aliased `sigma_asc` / `sigma_desc`.}
+#'   \item{`inf_asc`, `inf_desc`}{ascending / descending inflection age or
+#'     length (natural scale); the double-normal peak and logit right-floor,
 #'     aliased `peak` / `right_floor`.}
 #'   \item{`coff`}{non-parametric selectivity-at-bin coefficients.}
-#'   \item{`apical`}{a multiplier on one sex's whole curve (log scale),
-#'     applied after the form and before normalization, so every estimated
-#'     form takes it. Name the fleet and the sex that holds it
-#'     (`by = ~ fleet + sex`, `fleet = 3`, `sex = "male"`), as Stock
-#'     Synthesis's male-offset option does; the other sex is the reference.
-#'     See Details.}
+#'   \item{`apical`}{a log-scale multiplier on one sex's whole curve, applied
+#'     after the form and before normalization, so every estimated form takes
+#'     it. See Details.}
 #' }
+#' `DoubleNormalSS3` (code 15) carries its own six under Stock Synthesis's
+#' names -- `dn_peak`, `top_logit`, `ascend_se`, `descend_se`, `start_logit`,
+#' `end_logit` -- and a linkage is the **only** way to vary that form over time,
+#' since `Time_varying_sel` is refused on it. A time block is
+#' `~ cut(Year, ...)`; annual deviations are a random-effect term.
 #'
-#' Every parameter but `apical` accepts `link = "log"` (multiplicative on the
-#' natural parameter) or `link = "identity"` (additive), like the other
-#' processes; `apical` is a multiplier already and takes `"log"` only.
+#' Every parameter but `apical` takes `link = "log"` (multiplicative on the
+#' natural parameter) or `link = "identity"` (additive); `apical` is already a
+#' multiplier and takes `"log"` only.
 #'
 #' @details
-#' **The `apical` offset.** Fishing mortality is one `log_F` per fleet and
-#' year shared by the sexes, so a sex difference in F can only come from
-#' selectivity, and no form has a height parameter: the logistic family and
-#' DoubleNormal peak at 1 for every sex, the non-parametric forms re-centre
-#' each sex, Hake normalizes each sex by its own maximum. `apical` multiplies
-#' one sex's curve by `exp(log_sel_apical)`, bin by bin. That equals the ratio
-#' of the sexes' peak heights only where their shapes peak equally (the
-#' logistic family on an age axis); for a dome with sex-specific shape, read
-#' it as the multiplier on that sex's curve and take the peak ratio from
-#' `fit$quantities$sel_at_age`. Only the contrast between the sexes is
-#' identified (the common level is `log_F`), so one sex holds it and the fit
-#' is refused if both do, if no fleet or no sex is named, if the species has
-#' one sex, on a `Fixed`, AR1 or `Fleet_type = "Off"` fleet, on a fleet that
-#' shares another's `Selectivity_index` block, or under `link = "identity"`,
-#' which could drive the multiplier negative; use the default `link = "log"`.
-#' It is also refused where
-#' `Sel_norm_scope = "WithinSex"` normalization would divide it straight back
-#' out; use `"AcrossSexes"`, under which the more-selected sex peaks at 1, or
-#' turn `Sel_norm_bin` off. The contrast is informed only by joint composition
+#' **The `apical` offset.** Fishing mortality is one `log_F` per fleet and year
+#' shared by the sexes, and no form has a height parameter, so a sex difference
+#' in F can only come from selectivity. `apical` multiplies one sex's curve by
+#' `exp(log_sel_apical)` bin by bin, as Stock Synthesis's male-offset option
+#' does. Name the fleet and the sex that holds it (`fleet = 3`,
+#' `sex = "male"`; `by` defaults to `~ fleet + sex` here) and the other sex is
+#' the reference. It equals the ratio of the sexes' peak heights only where
+#' their shapes peak equally, so for a sex-specific dome read it as the
+#' multiplier and take the peak ratio from `fit$quantities$sel_at_age`.
+#'
+#' Only the contrast between sexes is identified, the common level being
+#' `log_F`, so one sex holds it and the fit is refused if both do, if no fleet
+#' or sex is named, if the species has one sex, on a `Fixed`, AR1 or
+#' `Fleet_type = "Off"` fleet, on a fleet sharing another's
+#' `Selectivity_index`, under `link = "identity"` (which could drive the
+#' multiplier negative), or where `Sel_norm_scope = "WithinSex"` would divide it
+#' straight back out. The contrast is informed only by joint composition
 #' (`comp_data$Sex = 3`); with single-sex compositions it rests on its prior,
-#' and `fit_mod()` warns when a fleet has neither. Read the fitted multiplier
-#' with `exp(fit$estimated_params$log_sel_apical[fleet, sex])`, and the
-#' realized ratio of the sexes' maxima from `fit$quantities$sel_at_age`.
-#' Naming `fleet` and `sex` is enough: `by` defaults to `~ fleet + sex` for
-#' this parameter.
-#' An intercept prior is on the multiplier's natural scale (`lognormal()`
-#' centred on 1 means no offset). Like every selectivity linkage, a covariate
-#' on it acts in the hindcast years; projection years hold the last hindcast
-#' year's curve.
+#' and [fit_mod()] warns when a fleet has neither. An intercept prior is on the
+#' multiplier's natural scale, so a `lognormal()` centred on 1 means no offset.
+#' See `vignette("environmental-linkages-and-priors")`.
 #'
 #' **Priors on a selectivity parameter.** An intercept-only formula (`~ 1`) with
-#' a `priors` entry places a prior on the selectivity parameter itself (no
-#' year-to-year offset is added). Read the prior on the parameter's own scale:
-#' the slopes (`slp_asc` / `slp_desc`) are on the log scale (use `lognormal()`),
-#' the inflections (`inf_asc` / `inf_desc`) on the natural scale (use `normal()`).
-#' See Examples for a normal prior on the ascending inflection. This mirrors the
-#' prior-only [build_composition()] path.
+#' a `priors` entry puts a prior on the parameter itself, adding no
+#' year-to-year offset. Read it on the parameter's own scale: the slopes are log
+#' scale (`lognormal()`), the inflections natural scale (`normal()`). A prior
+#' targets one parameter, so in a two-sex model an unstratified `~ 1` prior
+#' constrains sex 1 only -- use `by = ~ sex`. An `init` on a selectivity
+#' intercept has no effect, since the starting value comes from the data, and a
+#' prior on the double-normal `right_floor` is unsupported. Fleets sharing a
+#' `Selectivity_index` estimate one block, so place the prior on the group's
+#' lead fleet (its first that is not `Off`): a prior on a follower would
+#' penalize the shared block once per sharing fleet. A prior on an `Off` fleet
+#' is refused, its selectivity not being estimated.
 #'
-#' A selectivity prior targets one parameter, so in a two-sex model an
-#' unstratified `~ 1` prior constrains sex 1 only, use `by = ~ sex` for a
-#' per-sex prior. An `init` on a selectivity intercept has no effect (the
-#' starting value comes from the data), and a prior on the double-normal
-#' `right_floor` is not supported.
-#' Fleets sharing a `Selectivity_index` estimate one parameter block, so place
-#' the prior on the group's lead fleet (its first fleet that is not `Off`); a
-#' prior on a follower would penalize the shared block once per sharing fleet.
-#' A prior on an `Off` fleet is refused: its selectivity is not estimated.
+#' Like every selectivity linkage, a covariate acts in the hindcast years;
+#' projection years hold the last hindcast year's curve.
 #'
 #' @param linkages Optional named list of [linkage_spec()] objects keyed by
 #'   selectivity parameter. Coefficients are per fleet by default
-#'   (`by = ~ fleet`); use the `fleet` argument of [linkage_spec()] to restrict
-#'   a spec to particular fleets.
-#'
-#' @details The `linkages` keys are the parameter slots each selectivity form
-#'   uses, so which ones apply depends on the fleet's `Selectivity`:
-#'   `slp_asc` / `slp_desc` and `inf_asc` / `inf_desc` for the logistic family,
-#'   `sigma_asc` / `sigma_desc` / `peak` / `right_floor` for the double-normal
-#'   forms, `coff` for the non-parametric forms, and `apical` for the per-sex
-#'   multiplier, which every form has. `DoubleNormalSS3` (code 15) carries its
-#'   own six, under Stock Synthesis's own names: `dn_peak`, `top_logit`,
-#'   `ascend_se`, `descend_se`, `start_logit` and `end_logit` -- and a linkage
-#'   is the ONLY way to vary that form over time, since `Time_varying_sel` is
-#'   refused on it. A time block is `~ cut(Year, ...)`; annual deviations are a
-#'   random-effect term.
+#'   (`by = ~ fleet`); use [linkage_spec()]'s `fleet` argument to restrict a
+#'   spec to particular fleets.
 #'
 #' @return A list of selectivity settings for [fit_mod()].
 #'

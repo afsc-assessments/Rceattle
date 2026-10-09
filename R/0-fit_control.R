@@ -1,109 +1,82 @@
 #' Bundle the optimizer / sdreport / phasing controls for `fit_mod()`
 #'
-#' `fit_mod()` holds roughly a dozen optimizer- and reporting-related
-#' arguments (`bias.correct`, `getsd`, `loopnum`, `newtonsteps`, ...).
-#' That is a lot of surface area when the user mostly cares about
-#' "what model am I fitting" rather than "how is it being fit."
-#' `fit_control()` collects those knobs into a single object so calls
-#' to `fit_mod()` can stay focused on the model spec:
-#'
-#' ```r
-#' fit <- fit_mod(
-#'   data_list   = BS2017SS,
-#'   msmMode     = 0,
-#'   fit_control = fit_control(loopnum = 1, getsd = FALSE)
-#' )
-#' ```
-#'
-#' Pass the result via the `fit_control` argument to [fit_mod()]. When
-#' supplied, the values in the `fit_control` object override the
-#' corresponding individual arguments to `fit_mod()`. Individual
-#' arguments are kept for backward compatibility.
+#' Collects the optimizer and reporting settings into one object, so a call to
+#' [fit_mod()] stays about the model rather than how it is fit. Pass the result
+#' through `fit_mod()`'s `fit_control` argument, where it overrides the
+#' equivalent individual arguments, which are kept for back-compatibility.
 #'
 #' @details
 #' # Selectivity standard errors
 #'
-#' `selectivity_se` needs `getsd = TRUE`, and the error it reports is the one
-#' belonging to whichever `sdreport` the fit ends on. Under
-#' `estimateMode = "Estimate"` with any HCR that re-optimizes, that is the
-#' *projection* fit, in which every selectivity parameter is mapped off, so
-#' every error comes back exactly 0. `estimateMode = "Projection"` estimates no
-#' selectivity at all and reports none where it runs no `sdreport`. Use
-#' `estimateMode = "Hindcast"`, or `"Estimate"` with
-#' `projection_uncertainty = TRUE`, to get an error from a fit that estimated
-#' the curve. [fit_mod()] warns before fitting in each of these cases.
+#' `selectivity_se` needs `getsd = TRUE`, and reports the error belonging to
+#' whichever `sdreport` the fit ends on. Under `estimateMode = "Estimate"` with
+#' an HCR that re-optimizes, that is the *projection* fit, where every
+#' selectivity parameter is mapped off, so every error comes back exactly 0;
+#' `"Projection"` estimates no selectivity at all. Use `"Hindcast"`, or
+#' `"Estimate"` with `projection_uncertainty = TRUE`, to get an error from a fit
+#' that estimated the curve. [fit_mod()] warns in each of these cases.
 #'
-#' Off by default because the delta method forms a Jacobian of every reported
-#' value against every parameter, so its cost is the product of the two: on
-#' `Atka2022` it adds 1,012 values against 584 parameters.
+#' It is off by default because the delta method forms a Jacobian of every
+#' reported value against every parameter, so the cost is their product: on
+#' `Atka2022`, 1,012 values against 584 parameters. The error is on the log
+#' scale rather than the logit, because the non-parametric forms normalize to
+#' mean selectivity 1 instead of a maximum of 1 -- 58% of `Atka2022`'s
+#' `sel_at_age` exceeds 1, up to 3.06 -- so a logit is undefined over most of
+#' the array.
 #'
-#' The error is on the log scale, not the logit, because the non-parametric
-#' forms normalize to mean selectivity 1 rather than a maximum of 1, 58% of
-#' `Atka2022`'s `sel_at_age` exceeds 1, to 3.06, so a logit is undefined over
-#' most of the array.
-#'
-#' Rows cover estimated, age-based lead fleets only, and start at each fleet's
-#' first selected bin. Four kinds of cell hold a structural zero, a `Fixed`
+#' Rows cover estimated, age-based lead fleets only, starting at each fleet's
+#' first selected bin. Four kinds of cell are a structural zero (a `Fixed`
 #' fleet's empirical curve, a length-based fleet's growth-matrix projection, a
-#' bin below `Bin_first_selected`, and array padding, and one `log(0) = -Inf`
-#' on the tape turns *every* quantity in the `sdreport` to `NaN`, biomass and SSB
-#' included. All four are identified from the data, so the reported set never
-#' depends on a parameter value; a value that underflows to zero is floored, so
-#' it cannot reintroduce the `-Inf`. See [plot_selectivity()], which draws the
-#' interval.
+#' bin below `Bin_first_selected`, and array padding), and one `log(0) = -Inf`
+#' on the tape turns *every* quantity in the `sdreport` to `NaN`, biomass and
+#' SSB included. All four are identified from the data, so the reported set
+#' never depends on a parameter value, and a value that underflows to zero is
+#' floored so it cannot reintroduce the `-Inf`. See [plot_selectivity()], which
+#' draws the interval.
 #'
-#' @param bias.correct logical. If `TRUE`, applies bias correction via
-#'   [TMB::sdreport()]. Default `FALSE`.
-#' @param getsd logical. If `TRUE`, run [TMB::sdreport()] after
-#'   optimization. Default `TRUE`.
-#' @param getJointPrecision logical. Return the full Hessian of fixed
-#'   and random effects. Default `TRUE` (matches `fit_mod()` default).
-#' @param getReportCovariance logical. Return the variance-covariance
-#'   of `ADREPORT` variables. Default `FALSE`.
-#' @param projection_uncertainty logical. If `TRUE`, accounts for hindcast
-#'   parameter uncertainty in projections when using an HCR (refits with all
-#'   hindcast and biological-reference-point parameters turned on). Default
-#'   `FALSE` for speed.
-#' @param selectivity_se logical. If `TRUE`, [TMB::sdreport()] also returns a
-#'   standard error for log selectivity-at-age. Default `FALSE`.
-#' @param comp_offset Numeric or `NULL`. Small proportion offset added to the
-#'   observed and predicted age/length composition and conditional-age-at-length
-#'   (caal) bins before the multinomial / Dirichlet-multinomial likelihood (to
-#'   avoid `log(0)` for empty bins). Stored on `data_list` so the fitted
-#'   likelihood and the OSA observation vector use the same offset, and so
-#'   internal re-fits inherit it. `NULL` (the default) inherits
-#'   `data_list$comp_offset` if set, otherwise `1e-5`; a number overrides it.
-#'   Does not apply to diet (stomach-content) compositions.
-#' @param bias_adjust_obs logical with default TRUE. Whether to
-#'   apply a bias adjustment (mean-sd^2/2) to lognormal data
-#'   likelihoods
-#' @param bias_adjust_proc logical with default TRUE. Whether lognormal process
-#'   likelihoods, lognormal priors and the Ianelli stock-recruit penalty are
-#'   shifted by `-sd^2/2` on the log scale, making each prior value or curve a mean rather than a
-#'   median; a value between 0 and 1 scales the shift.
-#' @param use_gradient logical. Use the analytic gradient during
-#'   phasing. Default `TRUE`.
-#' @param rel_tol Numeric tolerance used to flag discontinuous
-#'   likelihood warnings, comparing `nlminb`'s objective with a fresh
-#'   evaluation of the object it came from. Default `1`.
-#' @param loopnum Integer. Number of times to re-start optimization
-#'   (`loopnum = 3` sometimes achieves a lower final gradient than
-#'   `loopnum = 1`). Default `5`.
-#' @param newtonsteps Integer. Number of extra unconstrained Newton steps to
-#'   take after optimization (alternative to `loopnum`). Default `0`.
-#' @param phase `TRUE`/`FALSE` or a list. If `FALSE`, the model is not
-#'   phased. If `TRUE`, default phasing is used. Can also accept a
-#'   list of parameter object names with corresponding phase. Default
-#'   `FALSE`.
-#' @param TMBfilename Optional character. Path (without `.cpp`) to an
-#'   alternate TMB template for development. Default `NULL` (use the
-#'   bundled `ceattle`).
-#' @param verbose `0` = silent, `1` = print updates of model fit, `2` =
-#'   print updates of model fit and TMB estimation progress. Default
-#'   `1`.
-#' @param nlminb_control A list of control parameters passed to
-#'   [stats::nlminb()]. See `?nlminb`. Default
-#'   `list(eval.max = 1e9, iter.max = 1e9, trace = 0)`.
+#' @param bias.correct logical. Apply bias correction via [TMB::sdreport()].
+#'   Default `FALSE`.
+#' @param getsd logical. Run [TMB::sdreport()] after optimization. Default
+#'   `TRUE`.
+#' @param getJointPrecision logical. Return the full Hessian of fixed and
+#'   random effects. Default `TRUE`.
+#' @param getReportCovariance logical. Return the variance-covariance of
+#'   `ADREPORT` variables. Default `FALSE`.
+#' @param projection_uncertainty logical. Carry hindcast parameter uncertainty
+#'   into an HCR projection, by refitting with the hindcast and
+#'   biological-reference-point parameters turned on. Default `FALSE` for speed.
+#' @param selectivity_se logical. Also return a standard error for log
+#'   selectivity-at-age. Default `FALSE`; see Details.
+#' @param comp_offset Numeric or `NULL`. Small proportion added to the observed
+#'   and predicted composition and CAAL bins before the multinomial /
+#'   Dirichlet-multinomial likelihood, so an empty bin is not `log(0)`. Stored
+#'   on `data_list`, so the fitted likelihood, the OSA observation vector and
+#'   any internal refit share it. `NULL` (default) inherits
+#'   `data_list$comp_offset` if set, else `1e-5`. Does not apply to diet
+#'   compositions.
+#' @param bias_adjust_obs logical, default `TRUE`. Apply a bias adjustment
+#'   (mean - sd^2/2) to lognormal data likelihoods.
+#' @param bias_adjust_proc logical, default `TRUE`. Shift lognormal process
+#'   likelihoods, lognormal priors and the Ianelli stock-recruit penalty by
+#'   `-sd^2/2` on the log scale, making each prior value or curve a mean rather
+#'   than a median. A value between 0 and 1 scales the shift.
+#' @param use_gradient logical. Use the analytic gradient during phasing.
+#'   Default `TRUE`.
+#' @param rel_tol Numeric tolerance for flagging a discontinuous likelihood,
+#'   comparing `nlminb`'s objective with a fresh evaluation of the object it
+#'   came from. Default `1`.
+#' @param loopnum Integer. Times to restart optimization; `3` sometimes reaches
+#'   a lower final gradient than `1`. Default `5`.
+#' @param newtonsteps Integer. Extra unconstrained Newton steps after
+#'   optimization, an alternative to `loopnum`. Default `0`.
+#' @param phase `TRUE`/`FALSE`, or a list of parameter names with their phases.
+#'   Default `FALSE`.
+#' @param TMBfilename Optional path (without `.cpp`) to an alternate TMB
+#'   template for development. Default `NULL` uses the bundled `ceattle`.
+#' @param verbose `0` silent, `1` model-fit updates, `2` model-fit and TMB
+#'   progress. Default `1`.
+#' @param nlminb_control Control parameters passed to [stats::nlminb()]; see
+#'   `?nlminb`. Default `list(eval.max = 1e9, iter.max = 1e9, trace = 0)`.
 #'
 #' @return A list of class `"Rceattle_fit_control"`.
 #' @export

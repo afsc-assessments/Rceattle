@@ -1,14 +1,11 @@
 
 
 # Display name -> returned column name for the mse_summary() performance
-# metrics. The left-hand strings are what the metrics are called while they are
-# being assembled; the right-hand names are what callers index. Prefixes say
-# whose view a metric is: `om_` the operating model's truth, `em_` the
-# estimation model's perception, unprefixed a quantity that has only one
-# reading.
-#
-# Kept as one table so the two never drift, and attached to each returned frame
-# as a "labels" attribute so a plot or table can print the long form.
+# metrics. The display names label the stacked frame while it is assembled; the
+# returned names are what callers index, and ride along on each frame as a
+# "labels" attribute for plots and tables. `om_` is the operating model's
+# truth, `em_` the estimation model's perception, unprefixed a quantity with
+# only one reading.
 .RCE_MSE_METRIC_NAMES <- c(
   "Average Catch"                                   = "avg_catch",
   "Catch IAV"                                       = "catch_iav",
@@ -172,12 +169,11 @@ mse_summary <- function(mse, om_only = FALSE){
   }
 
   ## Simulations whose unfished reference run failed ----
-  # The unfished run is a separate fit and can fail on its own, in which case
-  # run_mse() keeps the simulation but leaves OM_no_F NULL. Such a simulation is
-  # valid for everything except the no-F comparisons, so it is excluded from
-  # those specifically -- numerator and denominator both. Left in,
-  # `sum(NULL < 1000) > 0` answers FALSE, counting a missing reference run as
-  # "did not collapse" and biasing the collapse metrics low.
+  # OM_no_F is a separate fit and can fail on its own, leaving it NULL while the
+  # rest of the simulation stays valid. Dropped from the no-F comparisons only,
+  # numerator and denominator both: left in, `sum(NULL < 1000) > 0` answers
+  # FALSE, which counts a missing reference run as "did not collapse" and biases
+  # the collapse metrics low.
   has_no_f <- vapply(mse, function(x) !is.null(x$OM_no_F), logical(1))
   mse_no_f <- mse[has_no_f]
   if (any(!has_no_f)) {
@@ -223,14 +219,11 @@ mse_summary <- function(mse, om_only = FALSE){
   Ptarget <- extend_length(mse[[1]]$EM[[1]]$data_list$Ptarget, nspp)
   Plimit <- extend_length(mse[[1]]$EM[[1]]$data_list$Plimit, nspp)
   Alpha <- extend_length(mse[[1]]$EM[[1]]$data_list$Alpha, nspp)
-  # -- HCR = 0: No catch - Params off
-  # -- HCR = 1: Constant catch - Params off
-  # -- HCR = 2: Constant input F - Params off
-  # -- HCR = 3: F that achieves X% of SSB0 in the end of the projection - Ftarget on
-  # -- HCR = 4: Constant target Fspr - Ftarget on
-  # -- HCR = 5: NPFMC Tier 3 - Flimit and Ftarget on
-  # -- HCR = 6: PFMC Cat 1 - Flimit on
-  # -- HCR = 7: SESSF Tier 1 - Flimit and Ftarget on
+  # HCR codes, as the comparisons below read them: 0 = no catch, 1 = constant
+  # catch, 2 = constant input F (no reference point estimated); 3 = F that
+  # achieves X% of SSB0 by the end of the projection and 4 = constant target
+  # Fspr (Ftarget); 5 = NPFMC Tier 3 and 7 = SESSF Tier 1 (Flimit and Ftarget);
+  # 6 = PFMC Cat 1 (Flimit).
 
   ## MSE specifications
   nsim <- length(mse)
@@ -322,21 +315,15 @@ mse_summary <- function(mse, om_only = FALSE){
   #
   # A multispecies model can carry a species with no fishery at all -- a
   # predator included for its consumption, as arrowtooth and sablefish are in
-  # the hake model. Such a species has no `catch_data` rows, so each quantity
-  # below reduces to an operation on a zero-length vector: `pull(Catch)` returns
-  # numeric(0), sapply() over those returns a LIST rather than a numeric, and
-  # mean() of a list warns "argument is not numeric or logical: returning NA".
-  # The two ratio metrics were worse -- they divide by length(x) == 0 and
-  # returned NaN with no warning at all.
-  #
-  # Handled explicitly instead. Catch on an unfished species is zero, which is a
-  # real answer; its catch variability and probability-of-closure are not
-  # defined, because there is no fishery to vary or to close.
+  # the hake model. Such a species has no `catch_data` rows, so it is handled
+  # explicitly rather than left to an operation on a zero-length vector: catch
+  # is 0, which is a real answer, while catch variability and probability of
+  # closure are NA, because there is no fishery to vary or to close.
   #
   # A species counts as fished if `fleet_control` declares a fishery for it OR
   # `catch_data` carries any row for it. The fleet table is the authoritative
-  # statement -- it distinguishes "has a fishery that landed nothing" from "has
-  # no fishery" -- but it is not used alone: `Fleet_type` reaches here as the
+  # statement -- it distinguishes "a fishery that landed nothing" from "no
+  # fishery" -- but it is not used alone: `Fleet_type` is matched here as the
   # normalized "Fishery"/"Survey" string, and were it ever to arrive as the raw
   # integer code the comparison would match nothing and EVERY species would be
   # silently reported as unfished. Falling back to the catch rows makes that
@@ -425,19 +412,10 @@ mse_summary <- function(mse, om_only = FALSE){
 
 
   ## Conservation performance metrics ----
-  # - Avg terminal SSB MSE
-  # - EM: P(Fy > Flimit)
-  # - EM: P(SSB < SSBlimit)
-  # - OM: P(Fy > Flimit)
-  # - OM: P(SSB < SSBlimit)
-  # - EM: P(Fy > Flimit) but OM: P(Fy < Flimit)
-  # - EM: P(Fy < Flimit) but OM: P(Fy > Flimit)
-  # - EM: P(SSB < SSBlimit) but OM: P(SSB > SSBlimit)
-  # - EM: P(SSB > SSBlimit) but OM: P(SSB < SSBlimit)
-  # - OM: Terminal Depletion Relative to equilibrium SB0
-  # - OM: Terminal Depletion Relative to dynamic SB0
-  # - EM: Average age-1 M_at_age
-  # - EM: Variance of age-1 M_at_age
+  # Per species: SSB relative MSE, the estimation-model and operating-model
+  # overfishing / overfished probabilities and the four misclassification
+  # cross-tabs between them, and terminal depletion against both the
+  # equilibrium and the dynamic SB0. .RCE_MSE_METRIC_NAMES lists them all.
 
   # -- Tier 3 for single-species models
   # - Produces vectors of Flimits given depletion and input Flimit (Fspr)
@@ -519,11 +497,10 @@ mse_summary <- function(mse, om_only = FALSE){
 
           # * EM: P(SSB < SSBlimit) ----
           # HCR 2 ("ConstantF") fishes at a fixed rate and carries no depletion
-          # target, so it takes the absolute 0.5 * SBF that ssb_limit_thresh()
-          # already gives the OM -- read from the same helper so the two cannot
-          # drift, and gated on msmMode as the OM arm is. The cross-tab then
-          # compares the EM and the OM on one criterion. The remaining arms are
-          # depletions the run was configured with.
+          # target, so it takes the absolute 0.5 * SBF from the same
+          # ssb_limit_thresh() the OM arm uses, gated on msmMode as that arm is,
+          # and the cross-tab compares EM and OM on one criterion. Every other
+          # arm is a depletion the run was configured with.
           # Under msmMode > 0 both sides fall through to Plimit, which defaults
           # to 0 and so reports the stock as never overfished. That is the OM's
           # own multispecies rule (see the msmMode branch below), so the two
@@ -698,16 +675,16 @@ mse_summary <- function(mse, om_only = FALSE){
       # bare `SB0[sp]` did, and keeps reading the right one if that changes.
       terminal_sb0_om <- sapply(mse, function(x) x$OM$quantities$SB0[sp, (projyr - styr + 1)])
 
-      # An unfished reference is only derived for a run carrying a harvest
+      # An unfished reference is derived only for a run carrying a harvest
       # control rule, so under `HCR = "NoFishing"` MSSB0 is still the
-      # placeholder. Dividing by it reports SSB/999 as a depletion -- on the
-      # Pacific hake three-species model that read 2.7e3. Not defined here.
+      # placeholder: dividing by it reports SSB/999 mt as a depletion, which
+      # read 2.7e3 on the Pacific hake three-species model. NA instead.
       #
       # Read the per-species flag fit_mod() recorded, not the value. Comparing
       # the reported SB0 to the placeholder constant would also null a
-      # legitimately-derived 999 mt, and could not see a workbook that supplied
-      # its own MSSB0. A fit from before the flag existed has no field, so fall
-      # back to the value test for those.
+      # legitimately derived 999 mt, and could not see a workbook that supplied
+      # its own MSSB0. A fit saved before the flag existed has no field, so
+      # those fall back to the value test.
       derived <- vapply(mse, function(x) {
         d <- x$OM$data_list$MSSB0_derived
         if (is.null(d)) NA else isTRUE(d[sp])
@@ -749,11 +726,10 @@ mse_summary <- function(mse, om_only = FALSE){
   ############################################
   ## Reshape into per-entity tidy frames
   ############################################
-  # The metrics above were accumulated into a single stacked frame (species
-  # rows, then fishery-fleet rows, then an "All" row), so every column was
-  # NA-padded outside the entity it applies to and the same column name (e.g.
-  # "Average Catch") meant a species value, a fleet value, or a total depending
-  # on the row. Return them split by entity instead: one frame per dimension,
+  # The stacked frame above (species rows, then fishery-fleet rows, then an
+  # "All" row) NA-pads every column outside the entity it applies to, and one
+  # name such as "Average Catch" means a species value, a fleet value or a total
+  # depending on the row. Return it split by entity: one frame per dimension,
   # each with a labelled key column and no padding.
   metric_cols   <- setdiff(colnames(mse_summary),
                            c("Species", "Fleet_name", "Fleet_code"))

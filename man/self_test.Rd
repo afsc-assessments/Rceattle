@@ -25,70 +25,65 @@ self_test(
 
 \item{nsim}{number of simulations}
 
-\item{simulate}{passed to \code{\link{sim_mod}}. If \code{TRUE} (default),
-data are simulated with observation error; if \code{FALSE}, expected
-values from the model are used.}
+\item{simulate}{passed to \code{\link{sim_mod}}. \code{TRUE} (default)
+simulates data with observation error; \code{FALSE} uses the model's
+expected values.}
 
-\item{seed}{random number seed. Each simulation \code{i} uses \code{seed + i}
-so results are reproducible under both sequential and parallel execution.}
+\item{seed}{random number seed. Simulation \code{i} uses \code{seed + i}, so
+results are reproducible under sequential and parallel execution alike.}
 
 \item{cores}{Number of cores for the parallel refits. Default \code{NULL} picks
 \code{parallel::detectCores() - 6}, capped at 2 under \verb{R CMD check} (which sets
 \verb{_R_CHECK_LIMIT_CORES_}). Set to 1 to force sequential execution.}
 
 \item{getsd}{whether each refit runs \code{TMB::sdreport}. Self-test compares
-the refit point estimates to the operating model, so \code{FALSE} is faster
-with no effect on that comparison. Default \code{NULL} inherits the input
+refit point estimates to the operating model, so \code{FALSE} is faster
+with no effect on that comparison. \code{NULL} (default) inherits the input
 model's setting (\code{TRUE} only if it holds an \code{sdrep}).}
 
 \item{phase}{as in \code{\link{fit_mod}}. Under the default
-\code{start = "initial"} each refit covers the same ground the original fit
-did, so a model that needed phasing to fit its real data needs it again for
-every simulated one, without it such a model's refits can end many orders
-of magnitude from a zero gradient and be dropped as non-converged. Default
-\code{NULL} reads the setting \code{fit_mod()} recorded on the source fit
-(\code{fit$run_config$fit_control$phase}), so a model fitted under the
-package default of \code{phase = FALSE} is refitted unphased; pass
-\code{TRUE} for a model that needs phasing but was not fitted with it.}
+\code{start = "initial"} each refit covers the ground the original fit did,
+so a model that needed phasing for its real data needs it for every
+simulated one; without it such a model's refits can end many orders of
+magnitude from a zero gradient and be dropped as non-converged.
+\code{NULL} (default) reads what \code{fit_mod()} recorded on the source
+fit, so a model fitted under the package default \code{phase = FALSE} is
+refitted unphased.}
 
-\item{start}{which of the input model's parameter sets each refit starts
-from. \code{"initial"} (default) uses \code{initial_params}, the values the
-original fit itself started from, so the estimator has to travel the same
-distance to the optimum on simulated data that it did on the real data.
-\code{"estimated"} starts from \code{estimated_params} instead: much faster
-and far more likely to converge, but the fixed effects, and, with
-\code{random_rec = TRUE}, the inner Laplace problem too, begin at the
-generating values, so on a multimodal or weakly identified surface the
-optimizer never leaves the basin containing them and recovery is close to
-guaranteed by construction. Read it as optimistic about recovery, not
-merely less powerful. (Nor is it a complete warm start: \code{fit_mod()}
-resets \code{log_Ftarget}, \code{proj_F_prop}, and the stock-recruit
-\eqn{\alpha}/\eqn{\beta} from the model's own specification under either
-setting.) Non-identifiability shows up in the curvature and so is visible
-either way, via \code{$convergence}'s Hessian conditioning and
-estimability checks, it is \emph{reachability} that a warm start stops
-testing.}
+\item{start}{which parameter set each refit starts from. \code{"initial"}
+(default) uses \code{initial_params}, so the estimator travels the same
+distance to the optimum on simulated data as it did on the real data.
+\code{"estimated"} starts from the generating values instead -- the fixed
+effects, and under \code{random_rec = TRUE} the inner Laplace problem too
+-- so it is much faster and far likelier to converge, but on a multimodal
+or weakly identified
+surface the optimizer never leaves the basin containing them, so recovery
+is close to guaranteed by construction. Read it as optimistic about
+recovery, not merely less powerful. It is not a complete warm start either
+-- \code{fit_mod()} resets \code{log_Ftarget}, \code{proj_F_prop} and the
+stock-recruit \eqn{\alpha}/\eqn{\beta} under both settings -- and
+non-identifiability stays visible either way through
+\code{$convergence}'s Hessian conditioning and estimability checks. What a
+warm start stops testing is \emph{reachability}.}
 
-\item{debug}{return every simulation rather than the converged ones. The
-dropped runs are the interesting ones when a self-test comes back short, and
-each holds its own \code{$convergence} diagnostics. See \strong{Value}.}
+\item{debug}{return every simulation rather than only the converged ones. The
+dropped runs are the interesting ones when a self-test comes back short,
+and each holds its own \code{$convergence} diagnostics. See \strong{Value}.}
 
 \item{timeout}{elapsed-second limit per simulation, \code{Inf} (default) for
 none. The optimizer runs with no iteration cap, so a replicate that wanders
-somewhere pathological can stall the whole run, a hang that no convergence
-check can catch, because the fit never returns. One that exceeds the limit
-is stopped, counted as non-converged and reported separately. Approximate:
-the limit is checked when control returns to R, so it fires between the
-optimizer's function evaluations rather than inside one.}
+somewhere pathological can stall the run -- a hang no convergence check can
+catch, because the fit never returns. One that exceeds the limit is
+stopped, counted as non-converged and reported separately. It is
+approximate: the limit is checked when control returns to R, so it fires
+between the optimizer's function evaluations rather than inside one.}
 
 \item{process}{passed to \code{\link{sim_mod}}. \code{FALSE} (default) keeps
 the fitted process deviations, so the test measures whether the estimator
-recovers its own parameters from new observations. Naming a process,
-\code{"recruitment"}, \code{"M"}, \code{"growth"}, \code{"dynamics"},
-\code{TRUE}, ..., redraws it too, so the test instead measures whether the
-estimator recovers a process it has not been shown. The deviations behind
-each replicate come back in \code{attr(result, "process_sim")}; see
-\code{Value}.}
+recovers its own parameters from new observations. Naming a process
+(\code{"recruitment"}, \code{"M"}, \code{"growth"}, \code{"dynamics"},
+\code{TRUE}) redraws it, so the test instead measures recovery of a process
+the estimator has not been shown.}
 
 \item{fit_control}{optional \code{\link[=fit_control]{fit_control()}} bundle for the refits. Only
 \code{phase} and \code{getsd} are read; see \strong{What \code{fit_control()} reaches}.}
@@ -97,61 +92,53 @@ each replicate come back in \code{attr(result, "process_sim")}; see
 scripts keep working. Supplying both is an error.}
 }
 \value{
-A list of Rceattle models named \code{Sim_1}, \code{Sim_2}, ....
-By default only the converged simulations, renumbered contiguously; a
-message reports how many were dropped.
+A list of Rceattle models named \code{Sim_1}, \code{Sim_2}, ... By
+default only the converged simulations, renumbered contiguously, with a
+message reporting how many were dropped. The list has class
+\code{"Rceattle_selftest"} and carries the number attempted in
+\code{attr(, "nsim")}, so printing it reports the convergence rate; it is
+otherwise the plain list it always was.
 
-The list holds class \code{"Rceattle_selftest"} and the number of
-simulations attempted in \code{attr(, "nsim")}, so printing it reports the
-convergence rate; see \code{\link{print.Rceattle_selftest}}. It is
-otherwise the list it always was, \code{sims[["Sim_1"]]},
-\code{length(sims)}, \code{lapply()} and
-\code{plot_biomass(c(sims, list(fit)))} are all unchanged, and \code{c()}
-and \code{[} return a plain list of fits.
+With \code{debug = TRUE}, every simulation, \code{Sim_i} being simulation
+\code{i} so it pairs with seed \code{seed + i}, plus the convergence
+verdicts in \code{attr(, "converged")}. A refit that errored outright comes
+back as the condition object rather than a model, so it cannot abort the
+run.
 
-With \code{debug = TRUE}, every simulation, with \code{Sim_i} being
-simulation \code{i} (so it pairs with the seed \code{seed + i}), and a
-logical vector of the convergence verdicts in \code{attr(, "converged")}.
-Inspect a failure with \code{sims[[j]]$convergence}. A simulation whose
-refit errored outright is returned as the condition object rather than a
-model, so it cannot abort the run.
-
-When \code{process} redrew something, \code{attr(, "process_sim")} holds the
-deviations that generated each replicate's data, a list keyed by the same
-\code{Sim_i} names, so \code{attr(x, "process_sim")[["Sim_1"]]} belongs to
-\code{x[["Sim_1"]]}, subset and renumbered alongside the models. Each entry
-is a named list of whichever of \code{rec_dev}, \code{init_dev},
-\code{log_M1_dev} and \code{beta_linkage_re} were drawn, each with a
-same-shaped \code{_drawn} logical marking the cells the draw touched,
-restrict any recovery statistic to those, since the rest are fitted values
-(see \code{\link{sim_mod}}). Compare estimates against these, not against
-the operating model: its fitted deviations are no longer what generated the
+Where \code{process} redrew something, \code{attr(, "process_sim")} holds
+the deviations that generated each replicate, keyed by the same
+\code{Sim_i} names and subset alongside the models. Each entry names
+whichever of \code{rec_dev}, \code{init_dev}, \code{log_M1_dev} and
+\code{beta_linkage_re} were drawn, each with a same-shaped \code{_drawn}
+logical marking the cells the draw touched. Restrict any recovery statistic
+to those cells, and compare estimates against these rather than against the
+operating model, whose fitted deviations are no longer what generated the
 data.
 }
 \description{
-Simulates data from an Rceattle model and refits the model to the simulated data, to check that the fitting procedure recovers the operating-model parameters. TODO add process variation (i.e. random recruitment deviations) to the simulation.
+Simulates data from an Rceattle model and refits the model to
+the simulated data, to check that the fitting procedure recovers the
+operating-model parameters. Pass \code{process} to redraw a process as well as
+the observations.
 }
 \section{Interpreting the spread}{
 
-\code{\link{sim_mod}} redraws the observations only, indices, catch,
-compositions, CAAL and stomach contents. Some rows are deliberately left
-alone, and \code{\link{sim_mod}} warns about each: a predator whose
-suitability is empirical rather than estimated has no predicted diet to draw
-from, and a covariance (MVN/MVNORM) survey fleet has no covariance outside
-the years it is fitted to. Those data are held fixed across every replicate,
-so recovery of whatever they inform is optimistic.
+\code{\link{sim_mod}} redraws the observations only, and warns about each row
+it leaves alone: a predator with empirical rather than estimated suitability
+has no predicted diet to draw from, and a covariance (MVN/MVNORM) survey
+fleet has no covariance outside its fitted years. Those data are identical in
+every replicate, so recovery of whatever they inform is optimistic.
 
-By default it does not redraw recruitment, so with
-\code{random_rec = TRUE} every replicate shares the operating model's single
-recruitment realization, and that realization is its shrunk empirical-Bayes
-modes rather than a draw from N(0, sigmaR). Two consequences: the spread#' across replicates reflects observation error only and is a lower bound on
-estimation uncertainty in SSB and recruitment (do not read it against the
-model's own uncertainty bands, which include process error); and sigmaR is
-re-estimated from deviations that were shrunk toward zero the same way in
-every replicate, a downward bias that averaging over simulations does not
-remove. Pass \code{process = "recruitment"} (or \code{"dynamics"}, or
-\code{TRUE}) to redraw it and remove both, at the cost of asking a different
-question, see \code{process} above.
+By default recruitment is not redrawn, so under \code{random_rec = TRUE}
+every replicate shares the operating model's single realization -- its shrunk
+empirical-Bayes modes, not a draw from N(0, sigmaR). The spread across
+replicates is then observation error alone and a lower bound on estimation
+uncertainty in SSB and recruitment, so do not read it against the model's own
+uncertainty bands, which include process error; and sigmaR is re-estimated
+from deviations shrunk toward zero the same way every time, a downward bias
+averaging does not remove. \code{process = "recruitment"} removes both, at
+the cost of asking a different question. See
+\code{vignette("model-diagnostics")}.
 }
 
 \examples{

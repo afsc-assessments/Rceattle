@@ -1,36 +1,21 @@
 # =============================================================================
 # Configuration "switch" lifecycle for Rceattle
 # =============================================================================
-# CEATTLE configuration switches (selectivity type, catchability type,
-# composition likelihood, HCR, init mode, ...) can be supplied by the user
-# either as strings ("Logistic") or as the integer codes
-# TMB template ultimately uses (1L). The maps below are the single source
-# of truth for that string <-> integer correspondence, and the four functions
-# in this file implement the lifecycle every switch flows through inside
-# fit_mod():
+# A switch (selectivity form, catchability form, composition likelihood, HCR,
+# init mode, ...) may be supplied as a string ("Logistic") or as the integer
+# code the TMB template reads (1L); the maps below are the single source of
+# truth for that correspondence. Inside fit_mod() the four functions run in
+# this order:
 #
-#   user input (string or integer)
-#        |
-#        v
-#   switch_check()      Fill any missing switches with defaults and normalise
-#        |              to canonical *strings* (delegates to revert_switches()).
-#        v
-#   revert_switches()   Integer code -> canonical string. Provides backwards
-#        |              compatibility for older integer-coded data files.
-#        v
-#   validate_switches() Error early if any switch is not a known code/string.
-#        |              Called by data_check().
-#        v
-#   convert_switches()  Canonical string -> integer code for TMB. Called by
-#        |              rearrange_data(), immediately before the fit.
-#        v
-#   TMB template (integer codes)
+#   switch_check()      fill missing switches, normalise to canonical strings
+#   revert_switches()   integer code -> canonical string, for older data files
+#   validate_switches() refuse an unknown code/string; from data_check()
+#   convert_switches()  canonical string -> integer; from rearrange_data()
 #
-# revert_switches() and convert_switches() are inverse operations (int->string
-# vs string->int), not duplicates; their per-column logic differs (e.g. the
-# Time_varying_q / environmental-index handling) and must be kept in sync by
-# eye. Keeping the maps and all four functions here means the set of valid
-# values and the order of operations are visible in one place.
+# revert_switches() and convert_switches() are inverses, not duplicates, and
+# their per-column logic differs (Time_varying_q doubles as an environmental
+# index column), so the two are kept in step by eye. The switch system is also
+# written up in the developer guide.
 # =============================================================================
 
 
@@ -89,25 +74,23 @@ sel_map <- c(
   "DoubleNormalSS3"  = 15  # Stock Synthesis size pattern 24: six-parameter double normal, own parameter array (sel_dn6)
 )
 
-# Which selectivity forms read each Sel_curve_pen slot as a WEIGHT, with the sd
+# Which selectivity forms read each Sel_curve_pen slot as a WEIGHT, and the sd
 # column that sets the same weight safely. A weight multiplies a squared
 # deviation, so a negative one rewards it. "2DAR1" (6) and "3DAR1" (7) are
 # absent: they reuse these columns as AR1 correlations.
 #
-# `what` names the term for the error message. `dev_forms` are the (slot, form)
-# pairs charged on the time-varying DEVIATES: LogisticPM's slot 1 scores the
-# year-to-year change in realized log-selectivity and its slot 3 the age-1
-# deviate walk, and NonParametricPM's slot 3 scores sel_coff_dev. With
-# Time_varying_sel = "Off" build_map() maps those deviates away and the term is
-# identically zero, so a negative value there is inert, not wrong, and is
-# allowed. (Measured in tests/testthat/test-selectivity-penalty-sd.R.)
+# `what` names the term for the error message, `forms` the forms the slot is
+# charged on, `dev_forms` those charged on the time-varying DEVIATES -- under
+# Time_varying_sel = "Off" build_map() maps those deviates away, the term is
+# identically zero, and a negative weight there is inert rather than wrong, so
+# it is allowed (measured in test-selectivity-penalty-sd.R).
 #
 # The rule throughout: refuse a negative weight only where THIS fleet's wiring
-# reaches it. The template gates the whole penalty block on
-# `flt_type(flt) > 0 && flt_sel_lead(flt) == 1`, so an "Off" fleet and a fleet
-# following another's Selectivity_index are both skipped as well. The lead is
-# read through .rce_sel_pen_lead(), which groups the way flt_sel_lead does --
-# by index AND form -- not the index-only rule the parameter map shares on.
+# reaches it. The template gates the penalty block on
+# `flt_type(flt) > 0 && flt_sel_lead(flt) == 1`, so an "Off" fleet and one
+# following another's Selectivity_index are skipped too; .rce_sel_pen_lead()
+# resolves the lead. The four cases a negative weight is NOT refused in are
+# tabulated in vignette("model-parameterizations").
 .RCE_SEL_PEN_POSITIVE <- list(
   # "Non-parametric" is the legacy spelling of 2 that switch_check() still
   # accepts; it is not in sel_map, so it has to be listed alongside the canonical
@@ -179,17 +162,15 @@ sel_map <- c(
   if (is.null(fleet_control$Selectivity_index)) return(rep(TRUE, n))
   off  <- vapply(seq_len(n), function(i)
     identical(.canon_switch(fleet_control$Fleet_type[i], fleet_map), "Off"), logical(1))
-  # The canonical name stands in for the integer code rearrange_data() pastes.
-  # That is not quite a one-to-one substitution: .canon_switch() trims, while
-  # rearrange_data()'s .pull_int() does not, so " NonParametric" resolves here
-  # and reaches the template as NA -- a different group there, and the fleet
-  # would lead. A value that does not resolve the way the template resolves it
+  # The canonical name stands in for the integer code rearrange_data() pastes,
+  # which is not quite one-to-one: .canon_switch() trims and .pull_int() does
+  # not, so " NonParametric" resolves here but reaches the template as NA, a
+  # different group there. Anything that does not resolve the template's way
   # gets a key of its own, so it leads here too and its weight is checked.
-  # Every out-of-range integer canonicalizes to "<blank>" and so shares one key.
-  # data_check() does reach this with such a value -- it accumulates errors and
-  # refuses the code later in the same pass -- but "<blank>" is in no
-  # .RCE_SEL_PEN_POSITIVE form list, so those fleets are skipped on the form
-  # test above and the lead never decides anything for them.
+  # data_check() does reach this with an invalid code, since it accumulates
+  # errors before refusing one, but every out-of-range integer canonicalizes to
+  # "<blank>", which is in no .RCE_SEL_PEN_POSITIVE form list, so the caller's
+  # form test skips those fleets and the lead never decides anything for them.
   raw   <- as.character(fleet_control$Selectivity)
   clean <- raw %in% names(sel_map) | !is.na(suppressWarnings(as.integer(raw)))
   form  <- vapply(seq_len(n), function(i)
@@ -280,13 +261,12 @@ sel_norm_scope_map <- c(
   "AcrossSexes" = 1   # one pooled reference; relative sex selectivity retained
 )
 
-# "AR1" (2) is REMOVED and refused by data_check(); it is kept in the map, as
-# q_map keeps its own removed forms, so that a workbook carrying the integer 2
-# still canonicalizes and the refusal can name the fleet and the replacement
-# instead of reporting a bare "invalid value". It was never an AR1: the model
-# scores value 2 with the same independent normal penalty as value 1, and there
-# is no correlation parameter for the selectivity deviations to read. An AR1 on a
-# selectivity parameter is a selectivity linkage -- ar1(1 | Year).
+# "AR1" (2) was removed in 5.16.0 and is refused by data_check(). It stays in
+# the map, as q_map keeps its removed "AR1" (6), so a workbook carrying the
+# integer 2 still canonicalizes and the refusal can name the fleet and the
+# replacement instead of a bare "invalid value". It was never an AR1 -- value 2
+# is scored with value 1's independent normal penalty, and there is no
+# correlation parameter -- so the replacement is a linkage, ar1(1 | Year).
 tv_sel_map <-c(
   "Off" = 0,
   "IID" = 1,
@@ -478,22 +458,14 @@ fleet_map <- c(
   "Off" = 0
 )
 
-# Initial age-structure mode
-# 0 = Free parameters for initial age-structure
-# 1 = Equilibrium, no init devs, Finit = 0 (unfished)
-# 2 = Equilibrium + init devs, Finit = 0  [default]
-# 3 = Non-equilibrium: Finit estimated, init devs included
-# 4 = Non-equilibrium: Finit scales R0
-# 5 = OffsetEquilibrium: unfished (Finit = 0) equilibrium seeded by first-year
-#     recruitment (R_init * exp(rec_dev[year 1])), init devs off, no init-dev
-#     penalty (Cole Monnahan / AFSC GOA pollock convention). Modes 1 and 5 both
-#     start from R_init; 5 displaces it by the year-1 recruitment deviation,
-#     which is the only term separating them (init_log_scalar in ceattle.cpp).
-# 6 = FishedNonEquilibriumSelected: like 3, but the initial age structure decays
-#     with sum(M1 + Finit * sel(a)), Stock Synthesis's InitF convention -- the
-#     only one of the three that is an equilibrium under a size-selective
-#     fishery. Finit is then the apical initial F, for a single fishery whose
-#     selectivity is normalized to 1. See ?fit_mod.
+# How the initial age structure is built; 2 is the default. Modes 1 and 5 both
+# start from R_init, and 5 displaces it by the year-1 recruitment deviation,
+# the only term separating them (init_log_scalar in ceattle.cpp; Cole Monnahan
+# / AFSC GOA pollock convention). Modes 3, 4 and 6 estimate Finit, and only 6
+# decays with sum(M1 + Finit * sel(a)), Stock Synthesis's InitF convention and
+# the one equilibrium under a size-selective fishery, where Finit is the apical
+# initial F. Every mode is tabulated in
+# vignette("model-options-and-functionality").
 initMode_map <- c(
   "FreeParams"                 = 0,
   "Equilibrium"                = 1,
@@ -541,13 +513,11 @@ estDynamics_map <- c(
 )
 
 # Validate a switch value against its map WITHOUT converting it, so a typo is
-# reported where it was written rather than several functions later.
-#
-# model_config() stores what the caller wrote, and fit_mod() rebuilds a
-# model_config() from already-resolved values after the fit completes. This must
-# therefore accept every legal form: the canonical string, the integer code,
-# either as a per-species vector, and NULL/NA for an unset switch. Anything
-# stricter would throw on a finished fit and discard it.
+# reported where it was written rather than several functions later. It accepts
+# every legal form -- canonical string, integer code, either as a per-species
+# vector, NULL/NA for an unset switch -- because fit_mod() rebuilds a
+# model_config() from resolved values once the fit is done, and anything
+# stricter would throw there and discard the finished fit.
 .check_switch <- function(x, map, name) {
   if (is.null(x) || !length(x)) return(invisible(x))
   vals <- as.character(x[!is.na(x)])
@@ -611,7 +581,7 @@ estDynamics_map <- c(
 # Observation-SD estimation mode for a survey index or catch series
 # (fleet_control$Estimate_index_sd / Estimate_catch_sd). 0 = use the fixed SD
 # implied by the data CV (not estimated); 1 = estimate; 2 = analytical
-# (Ludwig-Walters 1994). "Fixed" reads plainly for the 0 = not-estimated case.
+# (Walters-Ludwig 1994). "Fixed" reads plainly for the 0 = not-estimated case.
 estimate_sd_map <- c(
   "Fixed"      = 0,
   "Estimated"  = 1,
@@ -858,13 +828,10 @@ switch_check <- function(data_list){
     return(val)
   }
 
-  # Upgrade any deprecated fleet_control column names to their canonical
-  # spellings from the single schema-driven migration (`aliases` field), here
-  # at the top of switch_check() so the rename lands before build_params()
-  # reads the columns and before the non-parametric penalty migration below.
-  # Legacy names accepted: Q_prior, Index_sd_prior/Survey_sd_prior,
-  # Catch_sd_prior, Time_varying_{q,sel}_sd_prior, Sel_sd_prior, Nselages,
-  # Estimate_q, Estimate_survey_sd, Age_first_selected, Age_max_selected(_upper).
+  # Upgrade deprecated fleet_control column names to their canonical spellings,
+  # from the schema's `aliases` field -- the one list of accepted old names.
+  # First in switch_check() so the rename lands before build_params() reads the
+  # columns and before the non-parametric penalty migration below.
   data_list$fleet_control <-
     .rce_upgrade_fleet_control_aliases(data_list$fleet_control)
   # Before anything reads or writes a switch: assigning "Off" into a factor whose
@@ -924,28 +891,24 @@ switch_check <- function(data_list){
     message("'srr_fun' are not included in data, assuming 0")
   }
 
-  # Gate optional-input default messages so they fire only when the model actually
-  # uses the input (mirrors the PR's conditional data-requirement reporting), rather
-  # than nagging about inputs the configuration never consumes. Read here, before the
-  # defaults below overwrite the raw fleet_control values:
-  #   - growth_estimated: weight-length (alpha_wt_len / beta_wt_len) and the
-  #     selectivity dimension are only consumed when growth is estimated (growth_model > 0);
-  #   - has_caal: the CAAL distribution / weights defaults only matter with CAAL data;
-  #   - sel_norm_upper: the selectivity-normalization upper bin only matters when a fleet
-  #     normalizes at a specific bin (Sel_norm_bin >= 0), not max-normalized / off.
+  # Gate the "assuming <default>" messages so each fires only where the model
+  # reads that input, rather than nagging about inputs the configuration never
+  # consumes. Read before the defaults below overwrite the raw fleet_control
+  # values: weight-length (alpha_wt_len / beta_wt_len) and the selectivity
+  # dimension are read only when growth is estimated (growth_model > 0), the
+  # CAAL defaults only with CAAL data, and the normalization upper bin only on a
+  # fleet normalizing at a named bin (Sel_norm_bin >= 0), not max or off.
   .dflt_when <- list(
     growth_estimated = isTRUE(any(data_list$growth_model > 0)),
     has_caal         = isTRUE(nrow(data_list$caal_data) > 0),
     sel_norm_upper   = isTRUE(any(.rce_sel_norm_code(
       data_list$fleet_control$Sel_norm_bin) > 0, na.rm = TRUE)),
-    #   - sel_norm_scope_flip: the one configuration the "AcrossSexes" default
-    #     changes -- a two-sex fleet at a named bin, which used to imply a per-sex
-    #     reference. Max-normalized and one-sex fleets are unaffected. Restricted
-    #     to fleets the normalization block actually runs on, mirroring the gate
-    #     in selectivity.hpp: an "Off" fleet is skipped, Hake normalizes in its own
-    #     year/sex block, and LogisticPM reuses Sel_norm_bin1/2 as a penalty
-    #     age-range rather than a normalization reference. Without this the
-    #     message cries wolf on any AMAK-style model that sets a penalty range.
+    # sel_norm_scope_flip: the one configuration the "AcrossSexes" default
+    # changes -- a two-sex fleet normalizing at a named bin. Restricted to the
+    # fleets selectivity.hpp runs its normalization block on: an "Off" fleet is
+    # skipped, Hake normalizes in its own year/sex block, and LogisticPM reads
+    # Sel_norm_bin1/2 as a penalty age range, so without the gate the message
+    # cries wolf on any AMAK-style model that sets a penalty range.
     sel_norm_scope_flip = isTRUE(any(
       data_list$nsex[data_list$fleet_control$Species] == 2 &
         .rce_sel_norm_code(data_list$fleet_control$Sel_norm_bin) > 0 &
@@ -1017,34 +980,29 @@ switch_check <- function(data_list){
   data_list$M1_model <- set_default(data_list$M1_model, rep(0, data_list$nspp), "'M1_model' is not included in data, assuming 0")
   data_list$msmMode <- set_default(data_list$msmMode, 0, "'msmMode' is not included in data, assuming single-species (0)")
   data_list$M1_re <- set_default(data_list$M1_re, rep(0, data_list$nspp), "'M1_re' is not in data, assuming 0 for all species")
-  # Canonicalise to the integer codes build_map_m1() compares against. A string
-  # matched no arm -- `"iid_year" %in% c(2, 5)` is FALSE -- so every deviation
-  # was mapped out and the random effect was silently absent. build_M1()
-  # canonicalises its own arguments; a list from build_data(),
-  # combine_data_sets(), the deprecated est_M1 alias or built by hand does not
-  # pass through it.
-  #
-  # .map_switch(), not build_M1()'s stricter .coerce_M1_arg(): it is what every
-  # other per-species switch here uses, and it takes a factor
-  # (read.csv(stringsAsFactors = TRUE)), a numeric-looking string and an NA,
-  # which .coerce_M1_arg() refuses. See test-switches-map-switch-factor.R.
+  # Canonicalise to the integer codes build_map_m1() compares against: a string
+  # matches no arm (`"iid_year" %in% c(2, 5)` is FALSE), which would map every
+  # deviation out and leave the random effect silently absent. build_M1()
+  # canonicalises its own arguments, but a list from build_data(),
+  # combine_data(), the deprecated est_M1 alias or built by hand never passes
+  # through it. .map_switch() rather than build_M1()'s stricter
+  # .coerce_M1_arg(), because it also takes a factor, a numeric-looking string
+  # and an NA (test-switches-map-switch-factor.R).
   data_list$M1_model <- .map_switch(data_list$M1_model, .M1_MODELS, "M1_model")
   data_list$M1_re    <- .map_switch(data_list$M1_re,    .M1_RES,    "M1_re")
   data_list$initMode <- set_default(data_list$initMode, 2, "'initMode' is not in the data, setting to 2 (default)")
   data_list$comp_offset <- set_default(data_list$comp_offset, 1e-5, NULL) # Composition proportion offset (added to comp/caal before the multinomial. Filled silently; fit_control(comp_offset=) can override at fit time.
 
-  # Bioenergetics scalars: TMB declares them as DATA_VECTOR length-nspp, so
-  # they must exist even when not used. In single-species mode (msmMode == 0)
-  # nothing downstream of consumption enters the likelihood, so silently fill any
-  # missing entries with safe sentinels. When msmMode > 0 we leave them untouched
-  # and let data_check() report which ones are missing or wrong-length.
-  #
-  # The consumption code itself DOES run in single-species mode -- ceattle.cpp
-  # calls calculate_temperature_function() for every species on every fit. Ceq 4
-  # (constant, fT = 1) is the only equation that reads no environmental index, so
-  # it is the sentinel: Ceq 1 would send the template to env_index(year, Cindex)
-  # for a model that supplied no covariate at all. Cindex is 1-based, so 1 is its
-  # lowest valid value even though Ceq 4 never reads it.
+  # Bioenergetics scalars: TMB declares them as DATA_VECTOR length-nspp, so they
+  # must exist even where nothing reads them. Under msmMode == 0 no consumption
+  # quantity enters the likelihood, so a missing entry is filled silently; under
+  # msmMode > 0 they are left for data_check() to report as missing or
+  # wrong-length. The consumption code still runs in single-species mode --
+  # ceattle.cpp calls calculate_temperature_function() for every species on
+  # every fit -- so the sentinel is Ceq 4 (constant, fT = 1), the one equation
+  # reading no environmental index; Ceq 1 would send the template to
+  # env_index(year, Cindex) with no covariate supplied. Cindex is 1-based, so 1
+  # is its lowest valid value even though Ceq 4 never reads it.
   if(data_list$msmMode == 0){
     bioenergetics_defaults <- list(
       Ceq    = rep(4L,  data_list$nspp),
@@ -1073,13 +1031,11 @@ switch_check <- function(data_list){
   # instead of being hand-copied here. The order of the calls (and thus the
   # message order) is unchanged.
   .sch <- .rce_column_schema()
-  # `[[`, not `$`, for a column with exactly one longer sibling: `$`
-  # partial-matches the sibling, so .rce_apply_default() is handed a non-NULL
-  # value and returns early -- the default is never applied and the sibling's
-  # values are used instead. Three columns have that shape (Sel_norm_bin,
-  # Time_varying_sel, Time_varying_q); every other name here is unique, or
-  # ambiguous and therefore safe, since `$` resolves two or more candidates to
-  # NULL.
+  # `[[`, not `$`, for the three columns with exactly one longer sibling
+  # (Sel_norm_bin, Time_varying_sel, Time_varying_q): `$` partial-matches the
+  # sibling, so .rce_apply_default() is handed a non-NULL value, returns early,
+  # and the sibling's values stand in for the default. Every other name here is
+  # unique, or ambiguous and so safe -- `$` gives NULL on two candidates.
   data_list$fleet_control$Sel_norm_bin <- .rce_apply_default(data_list$fleet_control[["Sel_norm_bin"]], "Sel_norm_bin", .sch)
   data_list$fleet_control$Sel_norm_bin_upper <- .rce_apply_default(data_list$fleet_control[["Sel_norm_bin_upper"]], "Sel_norm_bin_upper", .sch, conditions = .dflt_when)
   # Absent means "no time variation" for either switch. This has to run BEFORE
@@ -1125,17 +1081,14 @@ switch_check <- function(data_list){
   # logistic-only models).
   .np_hake <- any(data_list$fleet_control$Selectivity %in%
                     c(2, "NonParametric", "Non-parametric", 9, "NonParametricPM", 13, "NonParametricIntegrable", 5, "Hake", 11, "LogisticPM"))
-  # Intuitive alternative to the cryptic selectivity penalty WEIGHTS: express each
-  # as a standard deviation. Every such penalty is a Gaussian SSQ
-  # `weight * x^2 = x^2 / (2*sd^2)`, so `weight = 1/(2*sd^2)`. A fleet may supply
-  # the SD column instead of the raw `Sel_curve_pen` weight; convert it here (only
-  # where the legacy weight is not already supplied, so legacy models are untouched
-  # / bit-identical). Each SD column applies to the selectivity FORMS that use its
-  # `Sel_curve_pen` slot as a penalty weight -- on any other form the slot is a
-  # logit-scale correlation (2D/3D-AR1) or unused, so setting the SD there is
-  # rejected rather than silently converted. A non-positive/non-finite SD (sd = 0
-  # would give an Inf penalty; a negative SD squares to a spurious weight) is also
-  # rejected.
+  # Alternative to the cryptic penalty WEIGHTS: a standard deviation. Every such
+  # penalty is a Gaussian SSQ `weight * x^2 = x^2 / (2*sd^2)`, so
+  # `weight = 1/(2*sd^2)`. Converted here only where the fleet left the legacy
+  # weight unset, so legacy models stay bit-identical. An SD on a form whose
+  # slot is not a weight (a logit-scale 2D/3D-AR1 correlation, or unused) is
+  # refused rather than converted, as is a non-positive or non-finite SD (sd = 0
+  # gives an Inf penalty; a negative SD squares to a spurious weight). See
+  # vignette("model-parameterizations"), "Selectivity penalty weights".
   # Whether the workbook SHIPPED the penalty columns, recorded before the
   # defaults below create them. This is what tells a pre-4.4 non-parametric
   # workbook from a modern one (see the format upgrade further down); a blank
@@ -1246,13 +1199,10 @@ switch_check <- function(data_list){
   # Same for Selectivity_dimension: .rce_apply_default() fills a MISSING column,
   # never a blank cell, and a partially-assigned column
   # (fleet_control$Selectivity_dimension[i] <- "Length") is a live idiom in the
-  # assessment scripts. Without this the blank rows would now be a hard error.
-  #
-  # Announced under the same gate as the missing-column default (growth
-  # estimated, so a length-based selectivity is on the table), and naming the
-  # fleets, because only some rows are being filled: a blank left on a
-  # growth-estimated model is where the author meant "Length", and an age-based
-  # curve on a length-based fleet changes the fit without saying so.
+  # assessment scripts, so the blank rows are filled rather than refused.
+  # Announced fleet by fleet, and under the growth-estimated gate: a blank there
+  # is where the author meant "Length", and an age-based curve on a length-based
+  # fleet changes the fit without saying so.
   .sel_dim_blank <- which(is.na(data_list$fleet_control$Selectivity_dimension))
   if (length(.sel_dim_blank) > 0) {
     if (isTRUE(.dflt_when$growth_estimated)) {
@@ -1270,14 +1220,12 @@ switch_check <- function(data_list){
   data_list$fleet_control$Comp_accum_old <- .rce_apply_default(data_list$fleet_control$Comp_accum_old, "Comp_accum_old", .sch)  # old-tail composition accumulation bin (NA -> no accumulation)
   data_list$fleet_control$Month <- .rce_apply_default(data_list$fleet_control$Month, "Month", .sch)
 
-  # Format upgrade for a pre-4.4 non-parametric workbook, which had no
-  # Sel_curve_pen columns and carried the two AMAK penalty WEIGHTS in
-  # Time_varying_sel and Time_varying_sel_sd instead. Move them across.
-  #
-  # A MISSING Sel_curve_pen1 column is the trigger, not the value in
-  # Time_varying_sel: an AMAK shape weight of 4 and the RandomWalk code 4 are the
-  # same number, so the value cannot tell an un-upgraded workbook from a modern
-  # one, while the column's absence can. 0 and 1 are modes, not weights -- a
+  # Format upgrade for a pre-4.4 non-parametric workbook, which carries the two
+  # AMAK penalty WEIGHTS in Time_varying_sel and Time_varying_sel_sd instead of
+  # the Sel_curve_pen columns; move them across. The trigger is the MISSING
+  # Sel_curve_pen1 column, not the value: an AMAK shape weight of 4 and the
+  # RandomWalk code 4 are the same number, so only the column's absence tells an
+  # un-upgraded workbook from a modern one. 0 and 1 are modes, not weights -- a
   # fleet meaning "time-invariant" is not asking for a shape weight of 0.
   np_idx <- data_list$fleet_control$Selectivity %in% c(2, "NonParametric", "Non-parametric", 9, "NonParametricPM", 13, "NonParametricIntegrable")
   .tv_num <- suppressWarnings(as.numeric(data_list$fleet_control$Time_varying_sel))
@@ -1648,15 +1596,14 @@ validate_switches <- function(data_list = NULL){
   } else .fc_none
 
   # Selectivity_dimension and the two Sel_shape_* columns are validated here
-  # because nothing downstream re-checks them: a typo resolves to NA rather
-  # than erroring, giving a missing selectivity dimension or penalty mode.
-  # Each is validated against exactly what its CONSUMER implements,
-  # not against the map alone. rearrange_data() matches Selectivity_dimension on
-  # the exact strings and yields NA for anything else -- including an integer --
-  # so the integer side of its map must not validate. The two Sel_shape_*
-  # columns are read case-insensitively in one spelling each, and Sel_shape_dir
-  # additionally accepts "-1" (the ADMB sign convention), so refusing those
-  # would reject input the model implements.
+  # because nothing downstream re-checks them: a typo resolves to NA rather than
+  # erroring, leaving a missing selectivity dimension or penalty mode. Each is
+  # checked against what its CONSUMER implements, not the map alone --
+  # rearrange_data() matches Selectivity_dimension on the exact strings and
+  # yields NA for anything else, an integer included, so the integer side must
+  # not validate; the Sel_shape_* columns are read case-insensitively in one
+  # spelling each ("Smooth"/"smooth", not "SMOOTH"), and
+  # Sel_shape_dir also accepts "-1" (the ADMB sign convention).
   invalid_sel_dim <- if (.fc_has("Selectivity_dimension")) {
     data_list$fleet_control |>
       dplyr::filter(.data$.rce_is_on & !is.na(.data$Selectivity_dimension) &
@@ -1830,14 +1777,13 @@ convert_switches <- function(data_list) {
     .rce_defactor_fleet_control(data_list$fleet_control)
 
   # Fleet controls ----
-  # Guard: default the newer switch columns when a caller supplies a
-  # fleet_control that never went through switch_check -- a direct
-  # rearrange_data() call (it is exported and documented to work on a data list
-  # read straight from a workbook), or a data_check() run before fitting. Every
-  # pre-5.8.0 data list, including all the bundled ones, is missing
-  # Sel_norm_scope; without this the .data pronoun below fails with a cryptic
-  # "column not found". Defaults come from the schema so they cannot drift from
-  # the ones switch_check() applies.
+  # Default the newer switch columns when a caller supplies a fleet_control that
+  # never went through switch_check(): a direct rearrange_data() call (exported,
+  # and documented to work on a list read straight from a workbook), or a
+  # data_check() before fitting. Every pre-5.8.0 data list, the bundled ones
+  # included, lacks Sel_norm_scope, and the .data pronoun below fails on a
+  # missing column. Defaults come from the schema so they cannot drift from
+  # switch_check()'s.
   .sch_defaults <- .rce_column_schema()
   for (.col in c("Index_distribution", "Sel_norm_scope")) {
     if (is.null(data_list$fleet_control[[.col]]))

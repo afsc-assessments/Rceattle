@@ -19,195 +19,125 @@
 \arguments{
 \item{fitted}{an Rceattle model fit using \code{\link{fit_mod}}}
 
-\item{param}{Name of the parameter to profile. Two ways to specify it:
+\item{param}{Name of the parameter to profile, either a raw slot in
+\code{Rceattle$estimated_params} (with \code{slots} indexing the full array
+and \code{transform} setting the scale) or a natural-scale alias, which
+implies \code{transform = "log"} and, for \code{rec_pars}, fills in the
+column so \code{slots} needs only the species index:
 \describe{
-\item{Raw parameter slot}{any name in
-\code{Rceattle$estimated_params}; tested for \code{"R_log_sd"},
-\code{"rec_pars"}, and \code{"log_M1"}. \code{slots} must index
-into the full array and \code{transform} controls the scale.}
-\item{Natural-scale alias}{convenience shortcut for the three
-documented parameters. Aliases imply \code{transform = "log"}
-(values are taken in natural units and log'd before being
-substituted) and, for \code{rec_pars}, fill in the column from
-the alias name so \code{slots} only needs the species index:
-\itemize{
-\item \code{"sigmaR"}, \code{"R_sd"} -> \code{R_log_sd}
-\item \code{"M1"} -> \code{log_M1}
-\item \code{"R0"} -> \code{rec_pars[, 1]}
-\item \code{"alpha"} -> \code{rec_pars[, 2]}
-\item \code{"beta"} -> \code{rec_pars[, 3]}
-\item \code{"q"} -> \code{index_log_q}, base catchability, one entry
-per fleet. \code{slots} takes a fleet index or a \strong{fleet
-name}. Fleets sharing a \code{Catchability_index} share one q, so
-naming any of them profiles the whole group: the rest are added
-with a message and \code{joint} becomes \code{"value"}.
+\item{\code{"sigmaR"}, \code{"R_sd"}}{\code{R_log_sd}}
+\item{\code{"M1"}}{\code{log_M1}}
+\item{\code{"R0"}, \code{"alpha"}, \code{"beta"}}{\code{rec_pars}
+columns 1, 2 and 3}
+\item{\code{"q"}}{\code{index_log_q}, base catchability, one entry per
+fleet; \code{slots} takes a fleet index or name. Fleets sharing a
+\code{Catchability_index} share one q, so naming any of them profiles
+the group: the rest are added with a message and \code{joint} becomes
+\code{"value"}.}
 }
-If \code{transform} is supplied with an alias it is ignored
-(with a warning).}
-}}
+\code{transform} is ignored with a warning when an alias is used.}
 
-\item{slots}{A list whose entries are integer index vectors, one entry
-per cell to fix. Each entry's length must equal the number of
-dimensions of the resolved parameter, 1 for vectors
-(\code{R_log_sd}), 2 for matrices (\code{rec_pars}), 3 for 3-D arrays
-(\code{log_M1}). When using the \code{"R0"}/\code{"alpha"}/\code{"beta"}
-aliases, supply only the species index (length 1); the column is
-filled in from the alias. E.g. \code{list(c(1, 2, 1))} fixes
-\code{log_M1[1, 2, 1]}; \code{list(c(1, 1, 1), c(1, 2, 1))} fixes both
-sex cells for a males-vs-females cross-profile of species 1;
-\code{list(1, 2)} with \code{param = "sigmaR"} cross-profiles species
-1 and 2. If omitted, defaults to a single species-1 slot shaped to
-match the resolved parameter (e.g. \code{list(1)} for
-\code{R_log_sd}, \code{list(c(1, 1, 1))} for \code{log_M1},
-\code{list(1)} for the \code{rec_pars} aliases) and emits a warning;
-pass \code{slots} explicitly to silence the warning. Defaulting
-requires \code{length(values) == 1L} (otherwise the user must
-explicitly say which cell each grid targets).}
+\item{slots}{A list of integer index vectors, one per cell to fix, each as
+long as the resolved parameter has dimensions: 1 for \code{R_log_sd}, 2 for
+\code{rec_pars}, 3 for \code{log_M1}. The \code{"R0"}/\code{"alpha"}/
+\code{"beta"} aliases take the species index alone. So
+\code{list(c(1, 1, 1), c(1, 2, 1))} crosses the two sex cells of species 1.
+If omitted it defaults to a single species-1 cell shaped to the parameter
+and warns, which requires \code{length(values) == 1L}.}
 
-\item{values}{A list of numeric vectors, one per entry of \code{slots}.
-The full grid of fits is \code{expand.grid(values)}, so a single slot
-gives a 1-D profile and \emph{k} slots give a \emph{k}-D cross-profile.}
+\item{values}{A list of numeric vectors, one per entry of \code{slots}. The
+grid is \code{expand.grid(values)}, so \emph{k} slots give a \emph{k}-D
+cross-profile.}
 
-\item{transform}{How to map user values onto the internal parameter scale
-before substituting them into \code{inits}. Either \code{"log"}
-(default), \code{"identity"}, or a unary function (e.g.
-\code{qlogis}). Applied element-wise to every grid value. Aliases
-override this with \code{"log"}.}
+\item{transform}{How user values map onto the internal scale before
+substitution: \code{"log"} (default), \code{"identity"}, or a unary
+function such as \code{qlogis}, applied element-wise.}
 
-\item{cores}{Number of cores to use for parallel fits. Default
-\code{NULL} picks \code{parallel::detectCores() - 6}, capped at 2 when
-running under \code{R CMD check} (which sets
-\code{_R_CHECK_LIMIT_CORES_}). Set to 1 to force sequential execution.}
+\item{cores}{Cores for the parallel fits. \code{NULL} (default) picks
+\code{parallel::detectCores() - 6}, capped at 2 under \code{R CMD check};
+1 forces sequential.}
 
-\item{getsd}{whether each grid fit runs \code{TMB::sdreport}. The profile
-reads only the objective (\code{nll}), so \code{FALSE} is faster with no
-effect on the profile. Default \code{NULL} inherits the input model's
-setting (\code{TRUE} only if it holds an \code{sdrep}).}
+\item{getsd}{Whether each grid fit runs \code{TMB::sdreport}. The profile
+reads only \code{nll}, so \code{FALSE} is faster and changes nothing.
+\code{NULL} (default) inherits the input model's setting (\code{TRUE} only if it holds an
+\code{sdrep}).}
 
-\item{joint}{How the grid moves the cells in \code{slots}. Use a joint mode
-to profile a parameter supplied as a vector, such as an empirical
-age-based M: under \code{"none"} ten ages over 13 values is \code{13^10}
-fits, not 13.
+\item{joint}{How the grid moves the cells in \code{slots}. A joint mode
+profiles a vector-valued parameter such as an empirical age-based M, where
+\code{"none"} over ten ages and 13 values would be \code{13^10} fits:
 \describe{
-\item{\code{"none"}}{(default) each slot gets its own grid and they
-cross, giving a \emph{k}-dimensional profile for \emph{k} slots.}
-\item{\code{"multiply"}}{one grid, multiplying every cell's current
-value. The schedule keeps its shape and moves up or down as a whole.
-\code{1} is the fitted model.}
-\item{\code{"add"}}{one grid, added to every cell. The schedule keeps
-the differences between cells instead. \code{0} is the fitted model.}
+\item{\code{"none"}}{(default) each slot gets its own grid and they cross.}
+\item{\code{"multiply"}}{one grid multiplying every cell, so the schedule
+keeps its shape; \code{1} is the fitted model.}
+\item{\code{"add"}}{one grid added to every cell, so the schedule keeps
+the differences between cells; \code{0} is the fitted model.}
 \item{\code{"value"}}{one grid; every cell takes that value.}
 }
-A joint mode needs \code{values} to be one vector.
-\code{"multiply"} and \code{"add"} work in natural units, so
-\code{transform} must be \code{"log"} or \code{"identity"}. A grid value
-that would take a log-scale parameter to zero or below is an error naming
-the cell, not a failed fit.}
+A joint mode needs \code{values} to be one vector, and
+\code{"multiply"}/\code{"add"} work in natural units, so \code{transform}
+must be \code{"log"} or \code{"identity"}. A value that would take a
+log-scale parameter to zero or below is an error naming the cell, not a
+failed fit.}
 
 \item{...}{Unused; present for consistency with the \code{stats::profile}
 generic.}
 }
 \value{
-A list with elements:
+A list of class \code{"Rceattle_profile"} with elements:
 \describe{
-\item{Rceattle_list}{list of fitted Rceattle models, one per grid
-row; entries for non-converged fits are \code{NULL} so positions
-stay aligned with \code{grid}.}
-\item{grid}{data frame of grid values on the user scale (before
-\code{transform}); one column per profiled cell, named
-\code{slot_1}, \code{slot_2}, ...}
-\item{nll}{numeric vector of joint negative log-likelihoods
-(\code{opt$objective}); \code{NA} where the fit did not
-converge.}
-\item{param}{the profiled parameter name (echoed).}
-\item{slots}{the slots list (echoed for downstream plotting).}
-\item{alias}{the name you asked for, when it was one of the
-natural-scale aliases. Profiling \code{"M1"} returns \code{param =
-      "log_M1"}, because the model estimates M on the log scale, while
-\code{grid} holds the M values you supplied. \code{alias} keeps
-\code{"M1"}, so a figure can label the axis in the units profiled
-rather than in log units. \code{NA} if you named the parameter slot
-directly.}
-\item{joint}{the \code{joint} mode used, so a figure and \code{print()}
-can say that \code{grid} holds a multiplier or an offset rather than a
-parameter value.}
+\item{Rceattle_list}{the fitted models, one per grid row, \code{NULL}
+where a fit did not converge so positions stay aligned with
+\code{grid}.}
+\item{grid}{grid values on the user scale, one column per profiled cell,
+named \code{slot_1}, \code{slot_2}, ...}
+\item{nll}{joint negative log-likelihoods, \code{NA} where the fit did
+not converge.}
+\item{param}{the profiled parameter name.}
+\item{slots}{the slots list, echoed for plotting.}
+\item{alias}{the natural-scale name asked for, or \code{NA}. Profiling
+\code{"M1"} returns \code{param = "log_M1"} because the model estimates
+M on the log scale, while \code{grid} holds the M values supplied, so a
+figure can label the axis in the units profiled.}
+\item{joint}{the mode used, so a figure can say whether \code{grid} holds
+a multiplier, an offset or a value.}
 }
-
-Has class \code{"Rceattle_profile"}, so printing it reports whether the
-grid brackets the minimum; see \code{\link{print.Rceattle_profile}}. Every
-element indexes exactly as before.
+Printing it reports whether the grid brackets the minimum; see
+\code{\link{print.Rceattle_profile}}.
 }
 \description{
 Re-fits an Rceattle model while holding selected cells of a
-parameter fixed at user-specified values. Supports profiling a single
-cell (e.g. \code{R_log_sd[species = 1]}) and arbitrary N-dimensional
-cross-profiles over multiple cells, e.g. \code{log_M1[1, 1, 1]} and
-\code{log_M1[1, 2, 1]} jointly, to profile residual M for males against
-females. For each grid point the targeted cells are fixed in the TMB
-map and the remaining parameters are re-estimated; the result is a
-grid of Rceattle models for downstream NLL surfaces.
+parameter fixed. Profiles a single cell (\code{R_log_sd[species = 1]}) or
+crosses several, such as \code{log_M1[1, 1, 1]} against
+\code{log_M1[1, 2, 1]} for residual M in males versus females. For each
+grid point the targeted cells are fixed in the TMB map and everything else
+is re-estimated.
 }
 \examples{
 \donttest{
 data(BS2017SS)
-ss_run <- fit_mod(data_list = BS2017SS,
-    inits = NULL, file = NULL,
-    estimateMode = 0, random_rec = FALSE,
-    msmMode = 0, avgnMode = 0,
+ss_run <- fit_mod(data_list = BS2017SS, inits = NULL, file = NULL,
+    estimateMode = 0, random_rec = FALSE, msmMode = 0, avgnMode = 0,
     phase = FALSE, verbose = 0)
 
-# 1-D profile of sigmaR for species 1 (alias form, natural scale)
-p1 <- profile(ss_run,
-    param  = "sigmaR",
-    slots  = list(1),
+# 1-D profile of sigmaR for species 1, natural scale via the alias
+p1 <- profile(ss_run, param = "sigmaR", slots = list(1),
     values = list(seq(0.1, 1.5, by = 0.1)))
 
-# Equivalent raw form (log scale, user does the transform)
-p1_raw <- profile(ss_run,
-    param     = "R_log_sd",
-    slots     = list(1),
-    values    = list(log(seq(0.1, 1.5, by = 0.1))),
-    transform = "identity")
-
-# 2-D cross-profile of M1 across species 1 and 2 (sex 1, age 1).
-# BS2017SS is single-sex; with a multi-sex model the same form
-# (e.g. c(1, 1, 1), c(1, 2, 1)) would cross-profile males vs females.
-p2 <- profile(ss_run,
-    param  = "M1",
+# 2-D cross-profile of M1 across species 1 and 2 (sex 1, age 1)
+p2 <- profile(ss_run, param = "M1",
     slots  = list(c(1, 1, 1), c(2, 1, 1)),
     values = list(seq(0.1, 0.4, length.out = 3),
                   seq(0.1, 0.4, length.out = 3)))
 
-# 1-D profile of SRR alpha for species 1 (alias drops the rec_pars column)
-p3 <- profile(ss_run,
-    param  = "alpha",
-    slots  = list(1),
-    values = list(seq(2, 80, length.out = 20)))
-
-# An empirical age-based M, moved as a whole. One slot per age bin of
-# species 1, all on ONE grid of multipliers, so the shape of the schedule is
-# preserved and 1 is the fitted model. Ages run minage .. minage + nages - 1.
+# An empirical age-based M moved as a whole: one slot per age bin on ONE grid
+# of multipliers, so the schedule keeps its shape and 1 is the fitted model.
 sp <- 1
-p4 <- profile(ss_run,
-    param  = "M1",
+p3 <- profile(ss_run, param = "M1",
     slots  = lapply(seq_len(ss_run$data_list$nages[sp]),
                     function(a) c(sp, 1, a)),
     values = list(seq(0.6, 1.4, by = 0.05)),
     joint  = "multiply")
-
-# The same schedule shifted by a constant instead of scaled; 0 is the fit.
-p5 <- profile(ss_run,
-    param  = "M1",
-    slots  = lapply(seq_len(ss_run$data_list$nages[sp]),
-                    function(a) c(sp, 1, a)),
-    values = list(seq(-0.1, 0.1, by = 0.02)),
-    joint  = "add")
-
-# Base catchability for a fleet, named rather than counted. If it shares a
-# Catchability_index the whole group moves with it.
-p6 <- profile(ss_run,
-    param  = "q",
-    slots  = list("BT_Pollock"),
-    values = list(seq(0.5, 2.0, by = 0.1)))
 }
+# Profiling catchability by fleet name, and reading a profile for where the
+# data disagree, are in vignette("model-diagnostics").
 }

@@ -12,6 +12,136 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.55.1
+
+## Documentation
+
+* **Comments, help pages and vignettes condensed, and the documentation defects
+  found along the way corrected.** Documentation in `R/` fell from 39.3% of the
+  file to 37.8% (16,141 to 15,165 lines, 947,961 to 881,463 characters), `man/`
+  by 580 lines, `src/TMB/` by 35, and the vignettes by 161. Most of the
+  reduction is help-page prose a vignette already carried: `?osa_residuals` held
+  four `@section`s, two of which restate `vignette("model-diagnostics")`, and
+  went from 395 roxygen lines to 121; `?fit_mod`'s initMode section restated the
+  seven-mode table in `vignette("model-options-and-functionality")`. Help pages
+  link to the vignette instead. The 16 affected `man/*.Rd` were regenerated with
+  `devtools::document()`; `NAMESPACE` and `_pkgdown.yml` are unchanged.
+
+* **Nothing executable changed but two documentation strings**, so no fit can
+  move and `/golden-check` has nothing to measure. The four-model golden
+  regression was run regardless and passed, in a full `NOT_CRAN` suite of 10,507
+  assertions. The two strings are `quantity_dictionary()`'s description of
+  `steepness` and one `osa_residuals()` message (both below).
+
+* **Four comment sites in the TMB template gave biomass in the wrong unit.**
+  Three section headers read `BIOMASS-AT-AGE (kg)` and `ssb-AT-AGE (kg)`, where
+  `quantity_dictionary()` gives biomass, SSB and biomass-at-age as **mt** --
+  numbers at age in thousands times weight at age in kg. A fourth read
+  `TOTAL YIELD (kg)`, which is wrong in dimension as well as scale: catch is mt
+  **or thousands of fish**, per the fleet's `Observation_units`. Comments only.
+  The surviving `(kg)` labels in that file -- mature weight-at-age, spawning
+  output per fish, selected body weight, and `other_food`, which the schema
+  declares in kg -- are correct.
+
+* **Four analytical-q equations in `vignette("model-parameterizations")` omitted
+  the `/12`** that `ceattle.cpp` applies to the survey month, making the
+  exponent twelve times too large. The same vignette's snapshot-index equation
+  had it right, so the document contradicted itself.
+
+* **Three `jnll_comp` row labels named the wrong row**, marking `Slot 9` above
+  three writes to `JNLL_SRR_PRIOR`, which is row 8. A second, stale slot
+  registry duplicating the `JnllRow` enum was deleted: it stopped at row 18, so
+  rows 19 to 21 were missing, and it gave catch in kg. `.JNLL_ROW_AXIS` in
+  `R/9-profile.R` remains the registry. Two further stale labels (`Slot 15`,
+  `Slot 16`, on the ration rows) are left as they are, inside a commented-out
+  block of inert Kinzey and Punt code.
+
+* **`vignette("environmental-linkages-and-priors")` said a linkage prior is
+  applied with no lognormal bias correction.** The template applies
+  `p1 - bias_adjust_proc * sd^2/2` and that flag defaults to `TRUE`, so a stated
+  prior is a mean rather than a median -- which the same file said correctly
+  twice elsewhere.
+
+* **`Catchability = "PowerEquation"` was documented as working.** The schema
+  marks code 4 not yet implemented and a user can set it today; the caveat is
+  now stated, and code 7 (`"AnalyticalArith"`) is documented.
+
+* **Six comments and two vignette passages credited `parLapply` on a PSOCK
+  cluster** for `retrospective()`, `jitter()`, `self_test()`, `profile()` and
+  `run_mse()`, which dispatch through `.parallel_lapply()` and fork wherever the
+  platform allows, falling back to PSOCK only on Windows. `mse_summary()` does
+  build a PSOCK cluster and its comment is unchanged.
+
+* Smaller corrections, each verified against the code: a `nages` row in
+  `vignette("stock-synthesis-conversion")` described as the oldest age when it
+  is a count of age bins, which coincide only at `minage = 1`;
+  `CA * Weight^CB` where `bioenergetics.hpp` uses `CA * W^(1+CB)` with W in
+  grams; `estM1`, `combine_data_sets()`, `fit$linkages$K` and `data_list$wt`,
+  none of which exist (the real names being `est_M1`, `combine_data()`,
+  `build_growth()$linkages$K` and `data_list$weight`); a second comment
+  asserting an `osa` argument `fit_control()` has never had; four
+  wrong `ceattle.cpp` section cross-references; a claim that `fit_mod()`
+  suppresses `build_map()`'s warnings when it de-duplicates and re-raises them;
+  `Time_varying_q = "AR1"` listed without the note that `data_check()` refuses
+  it; `re_group` called a placeholder when it keys the sigma group;
+  `DoubleNormalSS3` missing from the supported-forms list; the `apical` refusal
+  list missing `Fleet_type = "Off"`; two MSE conservation metrics named in an
+  index but never computed; a stale `TODO` asking for a feature the `process`
+  argument already provides; and a table row whose unescaped `|` truncated its
+  own advice where it rendered.
+
+* **The analytical-q citation had its authors reversed in 24 of 26 places.** It
+  is Walters, C. and Ludwig, D. (1994) 'Calculation of Bayes posterior
+  probability distributions for key population parameters', *Canadian Journal of
+  Fisheries and Aquatic Sciences*, 51(3), pp. 713-722, doi:10.1139/f94-071 --
+  not "Ludwig and Walters", and one site named Martell, a different author. All
+  24 are corrected across `R/`, `src/TMB/`, `vignettes/` and `tests/`, and
+  `vignette("model-parameterizations")` now carries the full reference.
+
+* **The survey month is read from the `index_data` row, not the fleet.** Five
+  equations in `vignette("model-parameterizations")` subscripted it
+  $Month_{f_i}$, where the template takes `mo = index_n(index_ind, 0)`, so a
+  fleet whose survey timing has moved carries a different value per year. Now
+  $Month_{{f_i},y}$, with the source stated.
+
+* **The ration equation gave no units, and its weight is in grams.** The
+  template powers `weight_hat * 1000` and divides the result by 1000, so
+  $\alpha^{\delta}_p$ is a coefficient for a gram-scale weight and $\delta$
+  comes back in kg per predator per year. Both are now stated; neither was.
+
+* **Two selectivity configurations in that vignette could not be run as
+  printed**, pairing `Time_varying_sel = 1` and `= 5` with
+  `Time_varying_sel_sd = NA`, where the schema reads that column for modes 1, 4
+  and 5. Both now show `0.05`, the value `GOA2018SS` and `GOApollock` set on
+  their time-varying fleets.
+
+* **One message changed.** `osa_residuals()` pointed composition callers at the
+  "Choosing a method" section of its own help page, which this release moves to
+  the vignette; it now names `"Choosing the one-step-ahead method"` in
+  `vignette("model-diagnostics")`. No test pins the text.
+
+* **`steepness` now says it is a placeholder.** Under mean recruitment the
+  reported value is a hard-coded 0.99 rather than an estimate, which
+  `quantity_dictionary()` and `?build_srr` had both stopped saying.
+
+* **Left deliberately long.** `R/data.R`'s `@format` is a registry three guards
+  in `test-schema-canonical.R` pin against the column schema and the switch
+  maps. `R/0-column_schema.R`'s field dictionary is what that file's own roxygen
+  points at. `build_srr()`'s starting-value guidance, including the alpha/beta
+  scaling and the `NA/NaN gradient evaluation` it prevents, appears in no
+  vignette. `articles/developer-guide.Rmd` is untouched: its file table, its
+  filenames and its C++ switch quotes are all pinned by `test-docs-anchors.R`.
+
+* Two behavioural defects found during the sweep are filed in
+  `inst/dev/CLEANUP_BACKLOG.md` rather than fixed, each needing verification of
+  its own: `run_mse()`'s `NByageFixed` projection filter indexes a grouped frame
+  by year position, so an operating model with more than one `Species`/`Sex`
+  group of fixed numbers silently keeps only the first group's rows; and
+  `growth.hpp`'s mixed growth branch compares a slot index with an age, which
+  disagrees with its sibling branches at `minage >= 2`. Both are unreachable in
+  anything shipping -- every bundled dataset and live assessment uses `minage`
+  0 or 1, and no live model carries multi-group fixed numbers.
+
 # Rceattle 5.55.0
 
 ## Breaking changes

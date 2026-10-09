@@ -107,7 +107,7 @@ test_that("every C++ dispatch branch matches the R map that selects it", {
          map_only = integer(0), map_only_why = character(0),
          cpp_only = integer(0), cpp_only_why = character(0)),
 
-    # No exemption: `case 2` (the Ludwig and Walters analytical sigma) was added
+    # No exemption: `case 2` (the Walters and Ludwig analytical sigma) was added
     # in 5.12.0, so this now matches est_sigma_index exactly. The exemption that
     # stood here recorded the gap; this test failing when it was fixed is the
     # guard working, not a regression.

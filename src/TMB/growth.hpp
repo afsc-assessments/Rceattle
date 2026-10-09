@@ -201,13 +201,12 @@ void estimate_growth(
   // with minage = 0 get an SS3-style half-year anchor and minage >= 1 stays
   // backwards-compatible.
   Type age_L1 = growth_age_L1(sp);
-  // age_L1_ceil is compared to current_age (the slot age in years) to detect
-  // the youngest VB-relevant slot. That slot needs the closed-form boundary
-  // formula (not the cohort recursion which would index age-1 = -1 at slot 0
-  // when minage = 0, or use a stale value at slot 1 when the anchor is at
-  // age 0.5). For minage = 0, the youngest VB slot is C++ age = 1
-  // (current_age = 1, anchor at 0.5). For minage >= 1, slot 0 itself
-  // (current_age = minage). Either way: age_L1_ceil = max(1, minage).
+  // age_L1_ceil is compared to current_age (the slot age in years) to mark the
+  // youngest VB-relevant slot, which needs the closed-form boundary formula
+  // rather than the cohort recursion: that would index age - 1 = -1 at slot 0
+  // when minage = 0, or read a stale slot 1 when the anchor sits at age 0.5.
+  // So it is C++ age 1 when minage = 0 (current_age = 1, anchor at 0.5), and
+  // slot 0 itself (current_age = minage) when minage >= 1.
   Type age_L1_ceil = (Type(minage(sp)) >= Type(1)) ? Type(minage(sp)) : Type(1);
 
   // When minage = 0, the linear ramp from Lmin_sp at age 0 to l1 at age_L1
@@ -227,11 +226,10 @@ void estimate_growth(
         Type l1 = growth_parameters(sp, sex, yr, 1);
         Type linf = growth_parameters(sp, sex, yr, 2);
         Type m = growth_parameters(sp, sex, yr, 3);
-        // current_age is the slot's actual age (start of year). Slot index
-        // age (0-based) holds the (age + minage) cohort. The historical
-        // `age + 1.0` shifted everything by one year at any minage != 1
-        // (gave end-of-year length instead of start). Note this is the SLOT
-        // age, NOT the VB anchor (which is age_L1, defined above).
+        // The slot's actual age at the start of the year: 0-based slot `age`
+        // holds the (age + minage) cohort. This is the SLOT age, not the von
+        // Bertalanffy anchor, which is age_L1 above. Adding 1 instead of
+        // minage gives end-of-year length at any minage != 1.
         current_age = Type(age) + Type(minage(sp));
 
         // 1. Calculate Mean Length at Age ---
@@ -467,9 +465,9 @@ void estimate_growth_within_yr(
         Type l1 = growth_parameters(sp, sex, yr, 1);
         Type linf = growth_parameters(sp, sex, yr, 2);
         Type m = growth_parameters(sp, sex, yr, 3);
-        // See month=0 overload: slot k = age (k - 1 + minage); current_age is
-        // slot age (NOT the VB anchor) offset by fracyr. Was
-        // `age + 1.0 + fracyr`, which is off by one when minage != 1.
+        // As the month=0 overload: the slot age, not the von Bertalanffy
+        // anchor, offset by fracyr. Adding 1 instead of minage is off by one
+        // at any minage != 1.
         current_age = Type(age) + Type(minage(sp)) + fracyr;
 
         // 1. Calculate Mean Length at Age ---
