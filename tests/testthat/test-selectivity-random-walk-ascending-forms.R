@@ -119,7 +119,10 @@ testthat::test_that("no selectivity form can silently drop RandomWalkAscending",
   # of which drops it out of the denominator and leaves this block green while
   # measuring less. Update deliberately.
   testthat::expect_equal(length(guards), 12L)
-  testthat::expect_equal(length(tests), 9L)
+  # 10, not 9: the pattern deliberately matches `tv_sel %in% .np_modes` as well
+  # as `tv_sel %in% c(...)`, because hoisting a mode set into a named vector is
+  # exactly how a branch would otherwise drop out of this denominator.
+  testthat::expect_equal(length(tests), 10L)
 
   implements <- character()
   for (ln in tests) {
