@@ -34,8 +34,9 @@ plots, documentation and messages).
    `.index_rows_natural_scale()`) is not optional, or the new family gets the wrong
    residual. A helper earns its place at two callers, or when it names a concept the
    reader needs. A guard that cannot fire is
-   not safety: name the input that reaches it, or leave it out. Keep a change to one concern, and
-   never put a formatting-only hunk in a change that can move a fit.
+   not safety: name the input that reaches it, or leave it out. If the structure of a change
+   needs a paragraph to justify it, propose it before writing it. Keep a change to one concern,
+   and never put a formatting-only hunk in a change that can move a fit.
 3. **Write for a fisheries scientist, briefly.** A comment is one or two lines — the
    assessment reason, the units, the convention — and a `@param` is one sentence. Anything
    longer belongs in
