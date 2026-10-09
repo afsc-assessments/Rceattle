@@ -193,7 +193,7 @@ a deviation where it defines a density for it:
 
 | Selectivity | Modes accepted |
 |---|---|
-| `Logistic`, `DoubleLogistic`, `DescendingLogistic`, `DoubleNormal` | `Off`, `IID`, `Block`, `RandomWalk`; `RandomWalkAscending` on `DoubleLogistic` and `DoubleNormal` |
+| `Logistic`, `DoubleLogistic`, `DescendingLogistic`, `DoubleNormal` | `Off`, `IID`, `Block`, `RandomWalk`; `RandomWalkAscending` on `DoubleLogistic` only -- it walks the ascending limb and only that form's map frees those deviates. For the same model on another form, link its ascending parameters instead (`peak` / `sigma_asc` for `DoubleNormal`, `inf_asc` / `slp_asc` for the logistic family) with `~ rw(1 | Year)` |
 | `NonParametric` | `Off`, `IID`, `RandomWalk` |
 | `NonParametricPM` | `Off`, `RandomWalk`, its deviates *are* the walk increments, so `IID` would describe a different curve than the model builds |
 | `NonParametricIntegrable` | `Off`, `IID`, `RandomWalk`: the base curve holds the shape penalties and the deviations have a proper density, so `random_sel = TRUE` integrates them. `Off` estimates no deviations |

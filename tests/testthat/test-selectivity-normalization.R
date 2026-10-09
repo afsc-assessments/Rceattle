@@ -11,6 +11,10 @@ testthat::test_that("Sex-specific logistic selectivity divided by max sel (acros
   rows_use <- which(GOA2018SS$fleet_control$Selectivity != 0 & GOA2018SS$fleet_control$Fleet_type != 0)
   GOA2018SS$fleet_control$Selectivity <-0
   GOA2018SS$fleet_control$Selectivity[rows_use] <- "Logistic" # Age-based logistic
+  # Fleet 8 ships RandomWalkAscending, which freed no deviates on a
+  # Logistic curve, so this block has always fitted a static one. These
+  # tests are about normalization, not time variation.
+  GOA2018SS$fleet_control$Time_varying_sel[rows_use] <- "Off"
   GOA2018SS$fleet_control$Selectivity_index <- 1:nrow(GOA2018SS$fleet_control)
   GOA2018SS$fleet_control$Bin_first_selected <- 1
   GOA2018SS$fleet_control$Sel_norm_bin <- -999
@@ -61,6 +65,10 @@ testthat::test_that("Sex-specific logistic selectivity not normalized", {
   rows_use <- which(GOA2018SS$fleet_control$Selectivity != 0 & GOA2018SS$fleet_control$Fleet_type != 0)
   GOA2018SS$fleet_control$Selectivity <-0
   GOA2018SS$fleet_control$Selectivity[rows_use] <- "Logistic" # Age-based logistic
+  # Fleet 8 ships RandomWalkAscending, which freed no deviates on a
+  # Logistic curve, so this block has always fitted a static one. These
+  # tests are about normalization, not time variation.
+  GOA2018SS$fleet_control$Time_varying_sel[rows_use] <- "Off"
   GOA2018SS$fleet_control$Selectivity_index <- 1:nrow(GOA2018SS$fleet_control)
   GOA2018SS$fleet_control$Bin_first_selected <- 1
   GOA2018SS$fleet_control$Sel_norm_bin <- NA
@@ -116,6 +124,10 @@ testthat::test_that("Sex-invariant logistic selectivity divided by sel-at-age", 
   rows_use <- which(GOA2018SS$fleet_control$Selectivity != 0 & GOA2018SS$fleet_control$Fleet_type != 0)
   GOA2018SS$fleet_control$Selectivity <-0
   GOA2018SS$fleet_control$Selectivity[rows_use] <- "Logistic" # Age-based logistic
+  # Fleet 8 ships RandomWalkAscending, which freed no deviates on a
+  # Logistic curve, so this block has always fitted a static one. These
+  # tests are about normalization, not time variation.
+  GOA2018SS$fleet_control$Time_varying_sel[rows_use] <- "Off"
   GOA2018SS$fleet_control$Bin_first_selected <- 1
   GOA2018SS$fleet_control$Sel_norm_bin <- 7
 
@@ -163,6 +175,10 @@ testthat::test_that("Sex-invariant logistic selectivity divided by sel-at-age-RA
   rows_use <- which(GOA2018SS$fleet_control$Selectivity != 0 & GOA2018SS$fleet_control$Fleet_type != 0)
   GOA2018SS$fleet_control$Selectivity <-0
   GOA2018SS$fleet_control$Selectivity[rows_use] <- "Logistic" # Age-based logistic
+  # Fleet 8 ships RandomWalkAscending, which freed no deviates on a
+  # Logistic curve, so this block has always fitted a static one. These
+  # tests are about normalization, not time variation.
+  GOA2018SS$fleet_control$Time_varying_sel[rows_use] <- "Off"
   GOA2018SS$fleet_control$Bin_first_selected <- 1
   GOA2018SS$fleet_control$Sel_norm_bin <- 7
   GOA2018SS$fleet_control$Sel_norm_bin_upper <- 9
@@ -210,6 +226,10 @@ testthat::test_that("Sex-specific logistic selectivity divided by sel-at-age-RAN
   rows_use <- which(GOA2018SS$fleet_control$Selectivity != 0 & GOA2018SS$fleet_control$Fleet_type != 0)
   GOA2018SS$fleet_control$Selectivity <-0
   GOA2018SS$fleet_control$Selectivity[rows_use] <- "Logistic" # Age-based logistic
+  # Fleet 8 ships RandomWalkAscending, which freed no deviates on a
+  # Logistic curve, so this block has always fitted a static one. These
+  # tests are about normalization, not time variation.
+  GOA2018SS$fleet_control$Time_varying_sel[rows_use] <- "Off"
   GOA2018SS$fleet_control$Bin_first_selected <- 1
   # Each sex divided by its OWN mean over the range. Before v5.8.0 a named bin
   # always meant this; it is now Sel_norm_scope = "WithinSex", and the pooled
@@ -269,6 +289,10 @@ testthat::test_that("AcrossSexes pools the sel-at-age-RANGE reference over both 
   rows_use <- which(GOA2018SS$fleet_control$Selectivity != 0 & GOA2018SS$fleet_control$Fleet_type != 0)
   GOA2018SS$fleet_control$Selectivity <- 0
   GOA2018SS$fleet_control$Selectivity[rows_use] <- "Logistic"
+  # Fleet 8 ships RandomWalkAscending, which freed no deviates on a
+  # Logistic curve, so this block has always fitted a static one. These
+  # tests are about normalization, not time variation.
+  GOA2018SS$fleet_control$Time_varying_sel[rows_use] <- "Off"
   GOA2018SS$fleet_control$Bin_first_selected <- 1
   GOA2018SS$fleet_control$Sel_norm_scope <- "AcrossSexes"
   GOA2018SS$fleet_control$Sel_norm_bin <- 7

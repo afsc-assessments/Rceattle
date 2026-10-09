@@ -140,7 +140,10 @@ test_that("the switch codes and modes the recipe quotes still hold", {
   # The DoubleNormal map block frees deviates for exactly these modes; the
   # article's "deviates vanished" entry depends on RandomWalkAscending not being one.
   bm <- paste(readLines(file.path(root, "R", "3-build_map.R"), warn = FALSE), collapse = "\n")
-  # From the DoubleNormal branch to the next form's branch.
+  # From the DoubleNormal branch to the next form's branch. The block still
+  # omits RandomWalkAscending deliberately: 5.55.0 refused that combination in
+  # data_check() rather than implementing a second mode-5 form, so the
+  # article's "deviates vanished" entry still describes this block.
   from  <- regexpr('if \\(sel_type == "DoubleNormal"\\)', bm)
   testthat::expect_gt(from, 0)
   rest  <- substr(bm, from + 30, nchar(bm))

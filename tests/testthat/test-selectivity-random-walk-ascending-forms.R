@@ -25,10 +25,21 @@
 # scaling deviations that were all mapped out -- the same stray-hyperparameter
 # shape as `M1_re` under an unimplemented `M1_model` (5.53.0).
 #
-# Refused rather than implemented. Nothing shipping asked for it: of the nine
-# bundled datasets only `GOA2018SS` and `GOApollock` set
-# `RandomWalkAscending`, both on the `DoubleLogistic` GOA pollock fishery, and
-# no script in the sibling assessment repos sets it at all.
+# Refused rather than implemented, because the same model is already reachable:
+# a random-effect linkage on the ascending parameters -- `peak` and `sigma_asc`
+# for DoubleNormal, `inf_asc` and `slp_asc` for the logistic family, which alias
+# the same slots the template scores -- gives a time-varying ascending limb with
+# the descending one fixed. `Time_varying_sel` on a parametric form is
+# soft-deprecated in favour of those linkages, so implementing mode 5 for a
+# second form would add a route to a mechanism already on its way out.
+#
+# `2DAR1` / `3DAR1` are exempt: they estimate their field for every bin and year
+# regardless of `Time_varying_sel`, and `build_map()` says so with a warning.
+#
+# Nothing shipping asked for it. Of the 15 bundled datasets, 11 carry a
+# `fleet_control` directly and only `GOA2018SS` and `GOApollock` set
+# `RandomWalkAscending`, both on the `DoubleLogistic` GOA pollock fishery; no
+# script in the sibling assessment repos sets it at all.
 #
 # `AR1` is refused package-wide ("Time_varying_sel = 'AR1' is removed"), so the
 # `c("IID", "AR1", "RandomWalk")` sets in `build_map()` name a value that can no
@@ -59,13 +70,18 @@ testthat::test_that("RandomWalkAscending is refused on the forms that drop it", 
   for (sel in c("DoubleNormal", "Logistic", "DescendingLogistic")) {
     testthat::expect_error(.rwa_build(sel, "RandomWalkAscending"),
                            "RandomWalkAscending", info = sel)
+    # Anchored: a bare "Logistic" also matches "'DoubleLogistic' selectivity
+    # only" in the message, so it would pass without naming the fleet's form.
     testthat::expect_error(.rwa_build(sel, "RandomWalkAscending"),
-                           sel, info = sel)
+                           paste0("On '", sel, "'"), info = sel)
   }
   # And still builds on the one form that implements it, with its deviates.
   got <- .rwa_devs(.rwa_build("DoubleLogistic", "RandomWalkAscending"))
+  off <- .rwa_devs(.rwa_build("DoubleLogistic", "Off"))
   testthat::expect_equal(unname(got[["devs"]]), 96L)
-  testthat::expect_equal(unname(got[["npar"]]), 316L)
+  # The DIFFERENCE, not the absolute count: a parameter added anywhere else
+  # would otherwise fail this file with a selectivity-sounding message.
+  testthat::expect_equal(unname(got[["npar"]] - off[["npar"]]), 96L)
 })
 
 
@@ -97,9 +113,13 @@ testthat::test_that("no selectivity form can silently drop RandomWalkAscending",
   src <- readLines(f[1], warn = FALSE)
 
   guards <- grep('sel_type\\s*(==|%in%)', src)
-  tests  <- grep('tv_sel\\s*%in%\\s*c\\(', src)
-  testthat::expect_gt(length(guards), 5L)
-  testthat::expect_gt(length(tests), 5L)
+  tests  <- grep('tv_sel\\s*%in%', src)
+  # Pinned, not floored: an `expect_gt(., 5L)` would not notice a branch
+  # rewritten as `switch()` or its mode set hoisted into a named vector, either
+  # of which drops it out of the denominator and leaves this block green while
+  # measuring less. Update deliberately.
+  testthat::expect_equal(length(guards), 12L)
+  testthat::expect_equal(length(tests), 9L)
 
   implements <- character()
   for (ln in tests) {
@@ -112,4 +132,9 @@ testthat::test_that("no selectivity form can silently drop RandomWalkAscending",
   }
   # Exactly one form assigns RandomWalkAscending deviate indices.
   testthat::expect_equal(sort(unique(implements)), "DoubleLogistic")
+  # Every form the refusal names must be a real one, so a renamed form cannot
+  # leave the rule pointing at nothing.
+  testthat::expect_true(all(c("DoubleLogistic", "DoubleNormal", "Logistic",
+                              "DescendingLogistic", "2DAR1", "3DAR1") %in%
+                            names(sel_map)))
 })

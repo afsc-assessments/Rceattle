@@ -1058,17 +1058,47 @@ data_check <- function(data_list) {
          !tvs %in% c("Off", 0)){
         errors <- c(errors, paste0("Fleet '", flt_name, "': for 'DoubleNormalSS3' selectivity, 'Time_varying_sel' must be 'Off'; vary its parameters with build_selectivity(linkages = ...)."))
       }
-      #  - RandomWalkAscending walks the ASCENDING limb only, and build_map()
-      #    assigns deviate indices for it on DoubleLogistic alone -- which is
-      #    the switch's own definition. On any other form the deviates stay
+      #  - RandomWalkAscending walks the ASCENDING limb and holds the
+      #    descending one fixed, and build_map() assigns its deviate indices on
+      #    DoubleLogistic alone. On the other parametric forms the deviates stay
       #    mapped out and a static curve fits where the workbook asked for a
-      #    walk: on the GOA pollock fishery, DoubleNormal frees 220 parameters
-      #    against DoubleLogistic's 316, and Logistic and DescendingLogistic
-      #    218 against 314. Under random_sel the deviation sd is freed anyway,
-      #    so it scaled deviations that did not exist.
-      if(!is.na(sel_form) && sel_form != "DoubleLogistic" &&
-         tvs %in% c("RandomWalkAscending", tv_sel_map[["RandomWalkAscending"]])){
-        errors <- c(errors, paste0("Fleet '", flt_name, "': 'Time_varying_sel = \"RandomWalkAscending\"' is implemented for 'DoubleLogistic' selectivity only, because it walks the ascending limb. On '", sel_form, "' every selectivity deviate is left out of the model and a static curve is fitted with no warning. Use 'RandomWalk' to vary the whole curve, or 'DoubleLogistic'."))
+      #    walk -- on the GOA pollock fishery, DoubleNormal frees 220 parameters
+      #    against DoubleLogistic's 316, and Logistic and DescendingLogistic 218
+      #    against 314 -- while under random_sel the deviation sd is freed
+      #    anyway, so it scales deviations that do not exist. The same model is
+      #    available as a random-effect linkage on the ascending parameters,
+      #    which is where time-varying parametric selectivity is heading, so
+      #    this refuses rather than adding a second route to it.
+      #    2DAR1 / 3DAR1 are exempt: they estimate their field for every bin and
+      #    year regardless, and build_map() says so with a warning that
+      #    Time_varying_sel is ignored for them.
+      .rwa_sel <- if("Selectivity" %in% colnames(fc)){
+        .canon_switch(fc$Selectivity[flt], sel_map)
+      } else NA_character_
+      .rwa_tvs <- if("Time_varying_sel" %in% colnames(fc)){
+        .canon_switch(fc[["Time_varying_sel"]][flt], tv_sel_map)
+      } else "Off"
+      .rwa_live <- isTRUE(.canon_switch(fc$Fleet_type[flt], fleet_map) != "Off")
+      if(.rwa_live && isTRUE(.rwa_tvs == "RandomWalkAscending") &&
+         !is.na(.rwa_sel) &&
+         !.rwa_sel %in% c("DoubleLogistic", "2DAR1", "3DAR1")){
+        # The ascending slope and inflection, under the names this form has:
+        # DoubleNormal aliases slot 0 as sigma_asc and slot 2 as peak.
+        .rwa_pars <- if(.rwa_sel == "DoubleNormal"){
+          c("peak", "sigma_asc")
+        } else c("inf_asc", "slp_asc")
+        .rwa_spec <- paste0("    ", .rwa_pars,
+                            " = linkage_spec(~ rw(1 | Year), by = ~ fleet)",
+                            c(",", ""), collapse = "\n")
+        errors <- c(errors, paste0(
+          "Fleet '", flt_name, "': 'Time_varying_sel = \"RandomWalkAscending\"' is ",
+          "implemented for 'DoubleLogistic' selectivity only, where it walks the ",
+          "ascending limb and holds the descending one fixed. On '", .rwa_sel,
+          "' every selectivity deviate is left out of the model and a static curve ",
+          "is fitted. A random-effect linkage on the ascending parameters fits the ",
+          "same model and is the supported route:\n",
+          "  build_selectivity(linkages = list(\n", .rwa_spec, "))\n",
+          "see vignette('environmental-linkages-and-priors')."))
       }
       #  - LogisticPM (ADMB AMAK "pm" BTS, type 11): random-walk deviates on
       #    slope/inflection/age-1 -> allow only "Off"/"RandomWalk".
