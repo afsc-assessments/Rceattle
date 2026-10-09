@@ -385,7 +385,9 @@ build_params <- function(data_list) {
   # inflection *length*, so the age-scale default of 0 starts below the
   # smallest length bin; from there the optimizer can wander to nonsensical
   # (even negative) lengths. Start it near the middle of the species' length
-  # range instead. Age-based selectivity is left at 0 (unchanged). The length
+  # range instead. Age-based logistic forms are left at 0, where 0 is an
+  # inflection below the first age and the curve still has a gradient;
+  # DoubleNormal reads this slot as a PEAK and is handled below. The length
   # scale used here mirrors data_list$lengths as built in rearrange_data():
   # physical bin centres from caal_data when present, else 1:nlengths indices.
   sel_dim <- data_list$fleet_control$Selectivity_dimension
@@ -414,6 +416,34 @@ build_params <- function(data_list) {
     logisticpm_flts <- which(sel_type %in% c(11, "11", "LogisticPM"))
     if (length(logisticpm_flts) > 0) {
       param_list$sel_inf[2, logisticpm_flts, ] <- 0
+    }
+  }
+
+  # DoubleNormal (type 8) reads the two shared slots as a PEAK and a right-tail
+  # floor, not as two inflections. The defaults put the peak at 0 -- below the
+  # first age -- and the floor at 10 on the logit scale, i.e. plogis(10) = 0.99996,
+  # so the starting curve is flat at ~1 for every age, the ascending width has no
+  # gradient, and the optimizer has no descent direction to leave that ridge.
+  # Measured on the GOApollock fishery, static selectivity, phased: objective
+  # 3085.98 with selectivity constant at 0.999996 across all ten ages, against
+  # 918.15 for the same fleet and the same defaults as a DoubleLogistic.
+  # So start the peak mid-range and the floor at 0 (a floor of 0.5), which is
+  # where LogisticPM starts the same slot.
+  if (!is.null(sel_type)) {
+    dn_flts <- which(sel_type %in% c(8, "8", "DoubleNormal"))
+    if (length(dn_flts) > 0) {
+      param_list$sel_inf[2, dn_flts, ] <- 0
+      # The peak is on the fleet's own bin scale. A length-based fleet already
+      # took the length midpoint above, so only the age-based ones are set here;
+      # ages run minage .. minage + nages - 1, so the midpoint is
+      # minage + (nages - 1) / 2.
+      age_based <- if (is.null(sel_dim)) dn_flts else
+        dn_flts[is.na(sel_dim[dn_flts]) | tolower(sel_dim[dn_flts]) != "length"]
+      for (flt in age_based) {
+        sp <- data_list$fleet_control$Species[flt]
+        param_list$sel_inf[1, flt, ] <-
+          data_list$minage[sp] + (data_list$nages[sp] - 1) / 2
+      }
     }
   }
 

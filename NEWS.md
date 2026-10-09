@@ -12,6 +12,51 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.56.0
+
+## Behavior changes
+
+* **`Selectivity = "DoubleNormal"` fitted a flat curve from its default starting values, and now
+  fits a dome.** DoubleNormal reads the two shared `sel_inf` slots as a PEAK and a right-tail
+  floor, where the logistic family reads them as two inflections, so the shared defaults were
+  wrong for that reading: the peak started at 0 -- below the first age -- and the floor at 10 on
+  the **logit** scale, i.e. `plogis(10) = 0.99996`. The starting curve was therefore flat at ~1 at
+  every age, which leaves the ascending width with no gradient, so the optimizer had no descent
+  direction and stayed on that ridge.
+* Measured on the `GOApollock` fishery, static selectivity, phased, `inits = NULL`:
+
+  | starts | selectivity-at-age | objective | AIC |
+  |---|---|---|---|
+  | peak 0, floor logit 10 (old) | constant 0.999996 | 3085.98 | 6611.96 |
+  | peak 5.5, floor logit 0 (new) | 0.0024 .. 0.9815 .. 0.4407 | **914.10** | **2268.21** |
+  | `DoubleLogistic`, same defaults, for scale | a dome | 918.15 | 2276.31 |
+
+  **2171.88 nats**, and the fixed form now edges out the double logistic by 4.05. 914.1043 is the
+  same optimum a hand-tuned `inits` reached, so the derived starts find what someone previously
+  had to set by hand.
+* **The peak is derived, not chosen.** Ages run `minage .. minage + nages - 1`, so the mid-range is
+  `minage + (nages - 1) / 2` -- 5.5 on a ten-age stock starting at age 1. That mirrors the
+  `length_midpoint()` the length-based branch already applies for the same reason, and a
+  length-based DoubleNormal keeps its length midpoint rather than being given an age.
+* The floor starts at 0 on the logit scale, a floor of 0.5, which is where `LogisticPM` already
+  starts the same slot.
+* **Nothing shipping moves.** No bundled dataset sets `Selectivity = "DoubleNormal"`, and no script
+  in the sibling assessment repos does either -- their only mentions are of SS3 pattern 24, which
+  is the separate `DoubleNormalSS3` form. None of the four golden references reaches this, which is
+  also why `test-selectivity-double-normal.R` never saw it: that file supplies its own starts.
+
+## Internal
+
+* `test-selectivity-double-normal-starts.R`: 4 blocks, 15 assertions, **8 of which fail without the
+  fix**. Three need no fit and so run on a pull request; only the fitted-curve block carries
+  `skip_on_cran()`. It asserts the starts, that **every other fleet's starts are untouched** (the
+  assertion that would catch a `which()` matching too widely, which is how a start change leaks
+  into a fit that never asked for it), that a length-based DoubleNormal keeps its length midpoint,
+  and that the fitted curve is a dome reaching 914.1043. The fit block asserts the *shape* of the
+  reported array before reading any value -- `sel` is not a reported quantity name (`sel_at_age`
+  is), and `all()` over a zero-length vector is `TRUE`, so an empty slice would otherwise satisfy
+  every check.
+
 # Rceattle 5.55.0
 
 ## Breaking changes
