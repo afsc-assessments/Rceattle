@@ -596,9 +596,17 @@ linkage_row <- function(process, param, X_col,
 #' `inf_asc`, fitted with `phase = FALSE`: naming both fleets gives one
 #' coefficient and selectivity identical to 0; naming the lead alone gives one
 #' coefficient and selectivity differing by 0.265 at its worst age; naming the
-#' follower alone, 0.248. So "put it on the lead fleet", which is right for a
-#' prior or the apical offset because those write the shared base, is wrong for
-#' a design column.
+#' follower alone, 0.248. So "put it on the lead fleet" is wrong for a design
+#' column. It is right only for a PRIOR, which `build_selectivity()` re-targets
+#' onto the shared base parameter -- every param code 0-11 and the q offset
+#' write a per-fleet slot, the apical height included
+#' (`apical_offset(flt, sx, yr)`).
+#'
+#' Two rows for one design column on one fleet are refused for the same reason
+#' read the other way: the offset accumulates with `+=` per ROW, so a member
+#' with two rows gets `2 * beta * X` where a member with one gets `beta * X`.
+#' Tied to a single coefficient that is one reported parameter and two different
+#' curves, which no count of parameters would reveal.
 #'
 #' @param process `"sel"` or `"q"`.
 #' @keywords internal
@@ -610,25 +618,44 @@ linkage_row <- function(process, param, X_col,
   }
   idx <- fleet_control[[col]]
   if (is.null(idx)) return(invisible())
-  tbl <- linkage_table[linkage_table$process == process, , drop = FALSE]
+  tbl <- linkage_table[linkage_table[["process"]] == process, , drop = FALSE]
   if (nrow(tbl) == 0L) return(invisible())
 
   what <- if (identical(process, "q")) "catchability" else "selectivity"
-  nm   <- fleet_control$Fleet_name
-  # Read Fleet_type through the map: a workbook that has not been through
-  # switch_check() still holds the integer code, and 0 == "Off" is FALSE.
-  off  <- vapply(fleet_control$Fleet_type,
+  nm   <- fleet_control[["Fleet_name"]]
+  # Read the switch columns through the map, as `.shared_block_lead()` does, so
+  # the two agree on which member leads whatever form the column is held in.
+  off  <- vapply(fleet_control[["Fleet_type"]],
                  function(x) identical(.canon_switch(x, fleet_map), "Off"),
                  logical(1))
+  # A member this process does not estimate cannot carry a linkage row -- the
+  # per-process support check above refuses one -- so it is not owed an offset
+  # and must not be demanded by the coverage rule. Asking for it deadlocked a q
+  # linkage on a group whose follower holds q fixed: naming the lead failed
+  # coverage, naming both failed the Catchability check.
+  # Each arm reads the column exactly as its own support check does -- the q one
+  # on the RAW column, because `.canon_switch()` maps an absent switch to the
+  # string "<blank>" rather than to NA, so an `is.na()` test on the canonical
+  # value is never true and silently makes every fleet linkable.
+  linkable <- if (identical(process, "q")) {
+    qf <- as.character(fleet_control[["Catchability"]])
+    !is.na(qf) & !qf %in% c(.Q_LINKAGE_SELFBUILT_FORMS,
+                            .Q_LINKAGE_UNESTIMATED_FORMS)
+  } else {
+    .canon_switch(fleet_control[["Selectivity"]], sel_map) %in%
+      .SEL_LINKAGE_WIRED_FORMS
+  }
 
   for (g in unique(idx[!is.na(idx)])) {
     members <- which(!is.na(idx) & idx == g)
-    live    <- members[!off[members]]
-    # A group of one estimates nothing jointly, so nothing can diverge. An
-    # `Off` member's curve is not estimated, so it is not owed an offset.
-    if (length(live) < 2L) next
+    # The map ties a follower's coefficient to its donor's for ANY group of two
+    # or more, an `Off` member included, so the agreement rules below have to
+    # run on the same set. Coverage is the exception: it is owed only to a
+    # member whose block is estimated, so it keys on `covers` instead.
+    if (length(members) < 2L) next
+    covers <- members[!off[members] & linkable[members]]
 
-    grp <- tbl[!is.na(tbl$fleet) & tbl$fleet %in% members, , drop = FALSE]
+    grp <- tbl[!is.na(tbl[["fleet"]]) & tbl[["fleet"]] %in% members, , drop = FALSE]
     if (nrow(grp) == 0L) next
 
     # (a) A random-effect linkage gives each named fleet its OWN deviation
@@ -637,7 +664,7 @@ linkage_row <- function(process, param, X_col,
     # tied the way the fixed ones are: the two fleets land in separate sigma
     # groups, so one map level would leave the density scoring the same
     # deviations twice and fitting two SDs to identical data.
-    re <- grp[!is.na(grp$re_struct), , drop = FALSE]
+    re <- grp[!is.na(grp[["re_struct"]]), , drop = FALSE]
     if (nrow(re) > 0L) {
       stop(sprintf(paste0(
         "random-effect %s linkage `%s` on fleet(s) %s, which share a %s and so ",
@@ -645,35 +672,60 @@ linkage_row <- function(process, param, X_col,
         "deviation series and its own deviation SD, and the fleets would not ",
         "mirror each other. Place the random effect on a parameter the group ",
         "does not share, or give the fleets separate %s values."),
-        what, paste(unique(re$param), collapse = ", "),
-        paste(sprintf("'%s'", nm[unique(re$fleet)]), collapse = ", "),
+        what, paste(unique(re[["param"]]), collapse = ", "),
+        paste(sprintf("'%s'", nm[unique(re[["fleet"]])]), collapse = ", "),
         col, col), call. = FALSE)
     }
 
-    # One offset per design column, so coverage and agreement are per column.
-    key <- paste(grp$param, grp$X_col, grp$design_col,
-                 grp$species, grp$sex, grp$age_bin, sep = "\r")
+    # One offset per design column, so every rule below is per column.
+    key <- paste(grp[["param"]], grp[["X_col"]], grp[["design_col"]],
+                 grp[["species"]], grp[["sex"]], grp[["age_bin"]], sep = "\r")
     for (k in unique(key)) {
-      rows    <- grp[key == k, , drop = FALSE]
-      covered <- unique(rows$fleet)
-      missed  <- setdiff(live, covered)
+      rows <- grp[key == k, , drop = FALSE]
+      # An intercept row re-targets the shared BASE parameter and
+      # `build_map_linkages()` pins its coefficient to NA, so it carries no
+      # per-fleet offset and cannot diverge. Setting the donor's intercept is
+      # the documented way to set a shared block, and `.stop_if_shared_block()`
+      # already refuses a follower's, so neither coverage nor agreement applies
+      # here -- demanding them made an intercept `init` unreachable by every
+      # spelling.
+      if (all(.is_pinned_intercept(rows))) next
+      covered <- unique(rows[["fleet"]])
 
-      # (b) Partial coverage: the named members get an offset the rest never
+      # (b) Two rows for one column on one fleet: the offset is added once per
+      # row, so that member moves twice as far as a member with one row.
+      dup <- covered[vapply(covered, function(f)
+        sum(rows[["fleet"]] == f) > 1L, logical(1))]
+      if (length(dup) > 0L) {
+        stop(sprintf(paste0(
+          "%s linkage `%s` has %d rows for design column `%s` on fleet(s) %s, ",
+          "which share %s %d and so estimate ONE coefficient. The offset is ",
+          "added once per row, so that fleet would move twice as far as the ",
+          "rest of the group on the same coefficient. Give the column one row ",
+          "per fleet."),
+          what, rows[["param"]][1], max(table(rows[["fleet"]])),
+          rows[["design_col"]][1],
+          paste(sprintf("'%s'", nm[dup]), collapse = ", "), col, g),
+          call. = FALSE)
+      }
+
+      # (c) Partial coverage: the named members get an offset the rest never
       # get, so a group declared to mirror fits different curves.
-      if (length(missed) > 0L && length(intersect(covered, live)) > 0L) {
+      missed <- setdiff(covers, covered)
+      if (length(missed) > 0L && length(intersect(covered, covers)) > 0L) {
         stop(sprintf(paste0(
           "%s linkage `%s` names fleet(s) %s but not %s, which share %s %d and ",
           "so estimate ONE parameter block. The linkage offset is applied per ",
           "fleet, so the named fleet(s) would move and the rest would not. ",
-          "Name every fleet in the group, or drop the `fleet` filter so the ",
-          "row reaches all of them."),
-          what, rows$param[1],
-          paste(sprintf("'%s'", nm[intersect(covered, live)]), collapse = ", "),
+          "Name every fleet in the group, or pass `by = NULL` so the linkage ",
+          "is one row that reaches all of them."),
+          what, rows[["param"]][1],
+          paste(sprintf("'%s'", nm[intersect(covered, covers)]), collapse = ", "),
           paste(sprintf("'%s'", nm[missed]), collapse = ", "),
           col, g), call. = FALSE)
       }
 
-      # (c) The group's rows collapse to one coefficient, so a field that gives
+      # (d) The group's rows collapse to one coefficient, so a field that gives
       # that coefficient its meaning or its constraint cannot differ between
       # them. Left to merge, the surviving bound is whichever row sits first in
       # the table -- not the donor's -- and two `init` values start at their
@@ -681,21 +733,25 @@ linkage_row <- function(process, param, X_col,
       # held donor holding the whole group is the documented rule, and it is
       # what an SS3 bridge needs when the reference model fixes some blocks.
       # Report a bound as the PAIR the caller wrote, since `bounds = c(-5, 5)`
-      # is one argument: naming only the lower value reads as a different
-      # disagreement from the one on the page.
-      shown <- list(link   = as.character(rows$link),
-                    bounds = sprintf("[%s, %s]",
-                                     format(rows$lower, trim = TRUE),
-                                     format(rows$upper, trim = TRUE)),
-                    init   = format(rows$init, trim = TRUE))
+      # is one argument, and say when a side is the table default rather than
+      # printing it as though the caller had asked for it.
+      dflt <- function(v, is_default) ifelse(is_default, paste(v, "(default)"), v)
+      shown <- list(
+        link   = as.character(rows[["link"]]),
+        bounds = dflt(sprintf("[%s, %s]", format(rows[["lower"]], trim = TRUE),
+                              format(rows[["upper"]], trim = TRUE)),
+                      !is.finite(rows[["lower"]]) & !is.finite(rows[["upper"]])),
+        init   = dflt(format(rows[["init"]], trim = TRUE),
+                      !rows[["init_supplied"]]))
       for (f in names(shown)) {
         v <- unique(shown[[f]])
         if (length(v) > 1L) {
           stop(sprintf(paste0(
             "two %s linkage specs for `%s` on fleet(s) %s, which share %s %d ",
-            "and so estimate ONE coefficient, disagree on `%s`: %s. Give both ",
-            "specs the same value."),
-            what, rows$param[1],
+            "and so estimate ONE coefficient, disagree on `%s`: %s. The group ",
+            "would take one of them by table position, so give both specs the ",
+            "same value."),
+            what, rows[["param"]][1],
             paste(sprintf("'%s'", nm[covered]), collapse = ", "), col, g, f,
             paste(v, collapse = " vs ")), call. = FALSE)
         }

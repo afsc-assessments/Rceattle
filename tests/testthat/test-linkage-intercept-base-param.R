@@ -35,6 +35,17 @@
   Rceattle::linkage_spec(~ temp, init = list(intercept = init), ...)
 }
 
+# Intercept only, for the two shared-block blocks below. `~ temp` also emits a
+# `temp` SLOPE column, and a slope reaches one fleet's offset tensor rather than
+# the group's shared base -- so naming one member of a mirrored block gives that
+# member a time-varying offset the others never get, which is refused since
+# 5.57.0 (`test-linkage-shared-block.R` measures the 0.265 of divergence it
+# caused). These two blocks are about where an intercept `init` lands, so they
+# drop the covariate rather than carry a configuration they do not test.
+.ibp_spec_int <- function(init, ...) {
+  Rceattle::linkage_spec(~ 1, init = list(intercept = init), ...)
+}
+
 
 testthat::test_that("natural mortality takes an intercept init", {
   testthat::skip_on_cran(); testthat::skip_if_not_installed("TMB")
@@ -179,7 +190,7 @@ testthat::test_that("an init on the follower of a shared block is refused", {
   # dropped without a word -- and it is the catch advice that moves.
   testthat::expect_error(
     .ibp_fit(.ibp_shared(), selFun = Rceattle::build_selectivity(linkages = list(
-      slp_asc = .ibp_spec(0.5, by = ~ fleet, fleet = 5L)))),
+      slp_asc = .ibp_spec_int(0.5, by = ~ fleet, fleet = 5L)))),
     "mirrors fleet 4")
 })
 
@@ -190,9 +201,24 @@ testthat::test_that("an init on the donor of a shared block lands", {
   # be refused -- the guard has to tell donor from follower, not merely detect
   # that a fleet belongs to a group.
   fit <- .ibp_fit(.ibp_shared(), selFun = Rceattle::build_selectivity(
-    linkages = list(slp_asc = .ibp_spec(0.5, by = ~ fleet, fleet = 4L))))
+    linkages = list(slp_asc = .ibp_spec_int(0.5, by = ~ fleet, fleet = 4L))))
   testthat::expect_equal(
     as.numeric(fit$estimated_params$log_sel_slp[1, 4, 1]), log(0.5))
+
+  # It lands in the donor's ARRAY CELL, which is what this block is named for.
+  # It does NOT land on the parameter the optimizer starts from, and that is
+  # worth pinning so the name is not read as more than it says: the push writes
+  # the donor's cell only, fleet 5 keeps the build default 0.5, and the shared
+  # map level starts at `TMB:::updateMap()`'s mean of the two -- -0.096574,
+  # where log(0.5) is -0.693147. The documented shared-block trap, with the
+  # intercept push injecting per FLEET rather than per block
+  # (`inst/dev/CLEANUP_BACKLOG.md`).
+  testthat::expect_equal(
+    as.numeric(fit$estimated_params$log_sel_slp[1, 5, 1]), 0.5)
+  pv <- fit$obj$env$parList(fit$obj$par)$log_sel_slp
+  testthat::expect_equal(as.numeric(pv[1, 4, 1]), mean(c(log(0.5), 0.5)),
+                         tolerance = 1e-6)
+  testthat::expect_equal(as.numeric(pv[1, 4, 1]), as.numeric(pv[1, 5, 1]))
 })
 
 

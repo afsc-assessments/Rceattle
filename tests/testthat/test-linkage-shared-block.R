@@ -41,22 +41,35 @@
 #   the lead only (fleet 9)      1     0.265
 #   the follower only (fleet 10) 1     0.248
 #
-# So "put it on the lead fleet", which is right for a prior or the apical
-# offset because those write the shared base, is WRONG for a design column.
-# Partial coverage is refused instead, and `.stop_if_mirrored_block_linkage()`
-# carries the three refusals that make the tie safe: partial coverage, a
-# random-effect linkage (which cannot be tied at all -- the members land in
-# separate sigma groups, so one map level would score the same deviations twice
-# and fit two SDs to identical data; measured at 84 slots and 2 sigmas on this
-# pair, where a mirrored group owes 42 and 1), and two specs that disagree on
-# `link`, `bounds` or `init`, where the surviving value would otherwise be
-# whichever row sits first in the table rather than the donor's.
+# So "put it on the lead fleet" is WRONG for a design column. It is right only
+# for a PRIOR, which is re-targeted onto the shared base parameter; every param
+# code 0-11 and the q offset write a per-fleet slot, the apical height
+# (`apical_offset(flt, sex, yr)`) included.
 #
-# `est_phase` is deliberately NOT a conflict: a held donor holding the whole
-# group is the documented rule and what an SS3 bridge needs where the reference
-# model fixes some blocks. Block 4 pins that.
+# `.stop_if_mirrored_block_linkage()` carries the FOUR refusals that make the
+# tie safe:
 #
-# Two things this fixture cannot show, stated rather than implied:
+#   * partial coverage, as above;
+#   * a random-effect linkage, which cannot be tied at all -- the members land
+#     in separate sigma groups, so one map level would score the same deviations
+#     twice and fit two SDs to identical data; measured at 84 slots and 2 sigmas
+#     on this pair, where a mirrored group owes 42 and 1;
+#   * two rows for one design column on one fleet, because the offset is added
+#     once per ROW, so that member moves twice as far as the rest on the same
+#     coefficient -- one reported parameter and two curves;
+#   * two specs that disagree on `link`, `bounds` or `init`, where the surviving
+#     value would otherwise be whichever row sits first in the table rather than
+#     the donor's.
+#
+# Two things are deliberately NOT refused. `est_phase` may differ: a held donor
+# holding the whole group is the documented rule and what an SS3 bridge needs
+# where the reference model fixes some blocks. And an INTERCEPT row is exempt
+# from coverage and agreement: it re-targets the shared base and
+# `build_map_linkages()` pins its coefficient to NA, so it carries no per-fleet offset and cannot
+# diverge -- holding it to those rules made an intercept `init` on a mirrored
+# block unreachable by every spelling.
+#
+# Three things this fixture cannot show, stated rather than implied:
 #
 #   * `estimateMode = "DebugBuild"` cannot witness the divergence. Nothing is
 #     optimized, so every coefficient sits at its start and the two fleets agree
@@ -71,9 +84,9 @@
 #   * There is no bundled fixture for the CATCHABILITY half's fitted output.
 #     The only mirrored pair available has `Catchability = "Fixed"`, so a q
 #     linkage on it is correctly refused before it can reach the map. The fix
-#     and all three refusals cover `process %in% c("sel", "q")` by the same
-#     code path; block 6 pins the q refusal, and only the selectivity half's
-#     fitted equality is measured.
+#     and all four refusals cover `process %in% c("sel", "q")` by the same
+#     code path, and the blocks below pin the q refusals directly; only the
+#     selectivity half's fitted equality is measured.
 #
 # `by` defaults to `~ fleet` for both `sel` and `q` (`.default_stratum()`), so
 # this was the DEFAULT path rather than a rare spelling. A spec with no
@@ -109,10 +122,13 @@ testthat::test_that("the fixture really is a mirrored pair of live fleets", {
   testthat::skip_on_cran()
   data("GOA2018SS", package = "Rceattle", envir = environment())
   fc <- suppressMessages(Rceattle::switch_check(GOA2018SS))$fleet_control
-  # A group containing an `Off` fleet cannot exhibit the defect: there is only
-  # one estimated member, so there are no two coefficients to diverge. That is
-  # why GOApollock's shared group (fleet 1 + the Off fleet 7) is not used here,
-  # and why the guards skip a group with fewer than two live members.
+  # A group containing an `Off` fleet cannot exhibit the OUTPUT divergence:
+  # there is only one estimated member, so there are no two curves to differ.
+  # That is why GOApollock's shared group (fleet 1 + the Off fleet 7) is not
+  # used here, and why COVERAGE is owed only to a member whose block is
+  # estimated. The agreement rules still run on such a group, because the map
+  # ties a follower's coefficient whatever its Fleet_type -- see the Off-member
+  # block below.
   testthat::expect_equal(unname(fc$Selectivity_index[.sbl_grp]), c(8, 8))
   testthat::expect_equal(unname(fc$Catchability_index[.sbl_grp]), c(8, 8))
   testthat::expect_true(all(as.character(fc$Fleet_type[.sbl_grp]) != "Off"))
@@ -318,6 +334,166 @@ testthat::test_that("specs disagreeing on the shared coefficient are refused", {
     LS(~ cut(Year, 2), fleet = .sbl_grp[1], bounds = one(c(-5, 5))),
     LS(~ cut(Year, 2), fleet = .sbl_grp[2], bounds = one(c(-5, 5)))
   ))$obj$par) == "beta_linkage"), 1L)
+})
+
+
+testthat::test_that("two rows for one design column on one fleet are refused", {
+  # The tie equalises COEFFICIENTS, not row counts. The offset accumulates with
+  # `+=` once per row (`linkage.hpp`), so a member with two rows for a column
+  # moves `2 * beta * X` where a member with one moves `beta * X` -- one
+  # reported parameter and two different curves, which no parameter count would
+  # reveal. Measured before the refusal: `spec(both) + spec(follower)` gave one
+  # free coefficient, beta -0.221315, and 0.203 of divergence; all three of the
+  # other refusals passed it.
+  #
+  # The mirror shape broke the tie instead: with two rows on the DONOR, the
+  # earlier `length(j) == 1L` guard found two matches and tied nothing, so the
+  # pre-fix coefficients came back (-0.116308 twice and -0.352111, summing to
+  # the old -0.232615 / -0.352109 pair) with two of three parameters
+  # non-identified and the objective 65 nats worse.
+  testthat::skip_on_cran()
+  LS  <- Rceattle::linkage_spec
+  dup <- "rows for design column"
+  testthat::expect_error(
+    .sbl_build(list(LS(~ cut(Year, 2), fleet = .sbl_grp),
+                    LS(~ cut(Year, 2), fleet = .sbl_grp[2]))),
+    dup)
+  testthat::expect_error(
+    .sbl_build(list(LS(~ cut(Year, 2), fleet = .sbl_grp),
+                    LS(~ cut(Year, 2), fleet = .sbl_grp[1]))),
+    dup)
+  # The SS3-bridge shape: the donor named twice at different phases. This is the
+  # case the earlier guard swallowed, and the one whose two free levels left the
+  # mirrored pair 0.295 apart.
+  testthat::expect_error(
+    .sbl_build(list(
+      LS(~ cut(Year, 2), fleet = .sbl_grp[1], est_phase = 0),
+      LS(~ cut(Year, 2), fleet = .sbl_grp[1], est_phase = 1),
+      LS(~ cut(Year, 2), fleet = .sbl_grp[2], est_phase = 1))),
+    dup)
+  # A single spec that merely repeats a fleet in its filter is NOT a duplicate:
+  # the strata expand to one row per fleet.
+  testthat::expect_equal(sum(names(.sbl_fit(
+    spec_fleet = c(.sbl_grp, .sbl_grp[2]))$obj$par) == "beta_linkage"), 1L)
+})
+
+
+testthat::test_that("an intercept row is not held to coverage", {
+  # An intercept re-targets the shared BASE parameter and `build_map_linkages()`
+  # pins its coefficient to NA, so it carries no per-fleet offset and cannot
+  # diverge. Holding it to coverage made an intercept `init` on a mirrored block
+  # unreachable by every spelling: naming the donor failed coverage, naming both
+  # hit `.stop_if_shared_block()`, and two specs read the table default as a
+  # disagreement. `test-linkage-intercept-base-param.R` owns the landing
+  # behaviour; this pins that the coverage rule stays out of its way.
+  testthat::skip_on_cran()
+  data("GOA2018SS", package = "Rceattle", envir = environment())
+  m <- suppressMessages(suppressWarnings(Rceattle::fit_mod(
+    data_list = GOA2018SS, inits = NULL, estimateMode = "DebugBuild",
+    msmMode = 0, random_rec = FALSE,
+    fit_control = Rceattle::fit_control(verbose = 0),
+    selFun = Rceattle::build_selectivity(linkages = list(
+      inf_asc = Rceattle::linkage_spec(~ 1, fleet = .sbl_grp[1]))))))
+  tbl <- as.data.frame(unclass(m$data_list$linkage_table))
+  gr  <- which(tbl$fleet %in% .sbl_grp)
+  testthat::expect_equal(length(gr), 1L)
+  testthat::expect_true(all(Rceattle:::.is_pinned_intercept(tbl[gr, ])))
+  # Pinned, so it frees nothing -- which is why coverage is meaningless for it.
+  testthat::expect_true(all(is.na(as.integer(m$obj$env$map$beta_linkage)[gr])))
+})
+
+
+testthat::test_that("a member not estimating the block is not owed one", {
+  # Coverage is owed only to a member whose block the model actually estimates.
+  # Demanding it from every live member deadlocked a q linkage on a group whose
+  # follower holds q fixed or has none: naming the lead failed coverage, and
+  # naming both failed the pre-existing `Catchability` check that refuses a
+  # linkage on a fleet whose q is not estimated. `Pcod_trawl_fishery` has
+  # `Catchability` NA, so joining it to `Pcod_bt_survey`'s q block must leave a
+  # lead-only q linkage buildable.
+  testthat::skip_on_cran()
+  data("GOA2018SS", package = "Rceattle", envir = environment())
+  d <- GOA2018SS
+  lead <- 12L; nonq <- 14L
+  fc <- suppressMessages(Rceattle::switch_check(d))$fleet_control
+  # Fixture validity: the follower really is a fleet whose q is not estimated.
+  testthat::expect_equal(as.character(fc$Catchability[lead]), "Estimated")
+  testthat::expect_true(is.na(fc$Catchability[nonq]))
+  d$fleet_control$Catchability_index[nonq] <-
+    d$fleet_control$Catchability_index[lead]
+  m <- suppressMessages(suppressWarnings(Rceattle::fit_mod(
+    data_list = d, inits = NULL, estimateMode = "DebugBuild", msmMode = 0,
+    random_rec = FALSE, fit_control = Rceattle::fit_control(verbose = 0),
+    qFun = Rceattle::build_catchability(linkages = list(
+      q = Rceattle::linkage_spec(~ cut(Year, 2), fleet = lead))))))
+  testthat::expect_equal(sum(names(m$obj$par) == "beta_linkage"), 1L)
+})
+
+
+testthat::test_that("a group with an Off member is still reconciled", {
+  # The map ties a follower's coefficient for ANY group of two or more, an `Off`
+  # member included, so the agreement rules have to run on the same set.
+  # Skipping a group with fewer than two LIVE members let the Off fleet's bound
+  # win: `GOA2018SS` Selectivity_index 1 is fleet 1 (live) plus the `Off` fleet
+  # 7, and with the Off spec written first `match()`'s first-occurrence rule in
+  # fit_mod's bounds reduction took [-1, 1] while the live fleet asked [-5, 5].
+  testthat::skip_on_cran()
+  data("GOA2018SS", package = "Rceattle", envir = environment())
+  fc <- suppressMessages(Rceattle::switch_check(d <- GOA2018SS))$fleet_control
+  off_grp <- c(7L, 1L)   # Off member first, which is how the bound was taken
+  testthat::expect_equal(unname(fc$Selectivity_index[off_grp]), c(1, 1))
+  testthat::expect_equal(as.character(fc$Fleet_type[off_grp[1]]), "Off")
+  LS <- Rceattle::linkage_spec
+  one <- function(x) { z <- list(x); names(z) <- .sbl_blk; z }
+  testthat::expect_error(
+    .sbl_build(list(LS(~ cut(Year, 2), fleet = off_grp[1],
+                       bounds = one(c(-1, 1))),
+                    LS(~ cut(Year, 2), fleet = off_grp[2],
+                       bounds = one(c(-5, 5))))),
+    "disagree on `bounds`")
+  # Coverage, though, is NOT owed to the Off member: its curve is not estimated.
+  testthat::expect_equal(sum(names(.sbl_build(
+    LS(~ cut(Year, 2), fleet = off_grp[2]))$obj$par) == "beta_linkage"), 1L)
+})
+
+
+testthat::test_that("a q prior on two members of a block is refused", {
+  # The fixed-beta prior loop runs over every ROW of the linkage table with no
+  # lead gate (`ceattle.cpp`), so with the coefficients tied a prior named on
+  # two members of a group is evaluated twice on the one coefficient they share.
+  # Measured on a q block of `Pcod_bt_survey` + `Pcod_ll_survey` with
+  # `normal(0.4, 0.1)`: jnll row "Linkage-table priors" was 13.232707 both with
+  # the tie and without it -- i.e. two terms, which divides the stated variance
+  # by two and enforces an SD of 0.0707 for a declared 0.1.
+  #
+  # `build_selectivity()` has refused this on the selectivity side since 5.42.0;
+  # the catchability half had no such check, and the coverage rule above is what
+  # pushes a caller toward naming both fleets. The accepted spelling is a prior
+  # on one member and a plain row for the rest.
+  testthat::skip_on_cran()
+  data("GOA2018SS", package = "Rceattle", envir = environment())
+  d <- GOA2018SS
+  grp <- c(12L, 13L)
+  d$fleet_control$Catchability_index[grp[2]] <-
+    d$fleet_control$Catchability_index[grp[1]]
+  qbuild <- function(specs) suppressMessages(suppressWarnings(Rceattle::fit_mod(
+    data_list = d, inits = NULL, estimateMode = "DebugBuild", msmMode = 0,
+    random_rec = FALSE, fit_control = Rceattle::fit_control(verbose = 0),
+    qFun = Rceattle::build_catchability(linkages = list(q = specs)))))
+  LS  <- Rceattle::linkage_spec
+  # Discover the block column name rather than hard-coding a second copy of it.
+  qtbl <- as.data.frame(unclass(
+    qbuild(LS(~ cut(Year, 2), fleet = grp))$data_list$linkage_table))
+  blk <- setdiff(unique(qtbl$design_col), "(Intercept)")
+  testthat::expect_length(blk, 1L)
+  pri <- list(Rceattle::prior_normal(0.4, 0.1)); names(pri) <- blk
+  testthat::expect_error(
+    qbuild(LS(~ cut(Year, 2), fleet = grp, priors = pri)),
+    "once per sharing fleet")
+  # The accepted spelling: prior on one member, plain row for the other.
+  testthat::expect_equal(sum(names(qbuild(list(
+    LS(~ cut(Year, 2), fleet = grp[1], priors = pri),
+    LS(~ cut(Year, 2), fleet = grp[2])))$obj$par) == "beta_linkage"), 1L)
 })
 
 

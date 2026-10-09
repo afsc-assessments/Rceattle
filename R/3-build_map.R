@@ -1857,7 +1857,15 @@ build_map_linkages <- function(map_list, data_list) {
                same(tbl$sex, tbl$sex[i]) &
                same(tbl$age_bin, tbl$age_bin[i]) &
                !is.na(tbl$fleet) & tbl$fleet == lead)
-    if (length(j) == 1L) m[i] <- m[j]
+    # The donor's FIRST matching row, not "its only one". Requiring exactly one
+    # abandoned the tie whenever the donor owned two rows for a key -- which
+    # restored the original per-fleet divergence with nothing refusing it, and
+    # swallowed the very configuration this release says the SS3 bridge needs
+    # (two specs for one parameter at different phases). The donor's rows are
+    # guaranteed consistent by `.stop_if_mirrored_block_linkage()`, which
+    # refuses more than one row per design column per fleet inside a shared
+    # group, so any of them carries the group's level.
+    if (length(j) >= 1L) m[i] <- m[j[1]]
   }
   map_list$beta_linkage <- m
   # beta_linkage_re keeps the blanket "all estimable" map (the density damps

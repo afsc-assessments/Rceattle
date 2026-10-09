@@ -122,9 +122,12 @@ shared, but the offset the coefficient scales accumulates into `inf_offset(param
 (`linkage.hpp`), indexed by fleet — so a row naming one member of a mirrored block moves that
 member alone. On the same pair, fitted: naming both fleets gives one coefficient and selectivity
 identical to 0; naming the lead alone gives one coefficient and 0.265 of divergence; naming the
-follower alone, 0.248. **So "put it on the lead fleet" — right for a prior or the apical offset,
-because those write the shared base — is WRONG for a design column, and the pre-5.57.0 refusal
-messages said exactly that.** Partial coverage is refused since 5.57.0, along with two others
+follower alone, 0.248. **So "put it on the lead fleet" — right only for a PRIOR, which is
+re-targeted onto the shared base parameter — is WRONG for a design column, and the pre-5.57.0
+refusal messages said it anyway.** That includes the apical height: every param code 0–11 and the
+q offset write a per-fleet slot, `apical_offset(flt, sex, yr)` among them, so the apical refusal's
+"the fleets sharing the index inherit it" was false and is corrected at 5.57.0.
+Partial coverage is refused since 5.57.0, along with three others
 `.stop_if_mirrored_block_linkage()` carries: a random-effect linkage on a mirrored block (each
 named fleet gets its own deviation series and its own SD — 84 slots in two sigma groups of 42 with
 2 free `log_sigma_linkage` levels, where the lead alone gives 42 in one group with 1; they cannot

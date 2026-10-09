@@ -445,8 +445,11 @@ build_selectivity <- function(linkages = NULL) {
       .bad <- !is.na(lead)
       stop(sprintf(paste0(
         "apical selectivity linkage on %s, which shares a Selectivity_index with ",
-        "the lead fleet named and takes its selectivity block. Place the offset ",
-        "on the lead fleet instead; the fleets sharing the index inherit it."),
+        "the lead fleet named and takes its selectivity block. The apical ",
+        "offset is applied per fleet (`apical_offset(flt, sex, yr)`), so the ",
+        "group does NOT inherit one placed on the lead: name every fleet in ",
+        "the group, or pass `by = NULL` so the linkage is one row that reaches ",
+        "all of them."),
         paste(sprintf("'%s' (lead: '%s')", fc$Fleet_name[flts[.bad]],
                       fc$Fleet_name[lead[.bad]]), collapse = ", ")), call. = FALSE)
     }
