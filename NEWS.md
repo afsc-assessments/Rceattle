@@ -12,6 +12,74 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.56.0
+
+## Behavior changes
+
+* **`Selectivity = "DoubleNormal"` fitted a flat curve from its default starting values, and now
+  fits a dome.** DoubleNormal reads the two shared `sel_inf` slots as a PEAK and a right-tail
+  floor, where the logistic family reads them as two inflections, so the shared defaults were
+  wrong for that reading: the peak started at 0 -- below the first age -- and the floor at 10 on
+  the **logit** scale, i.e. `plogis(10) = 0.99996`. The starting curve was therefore flat at ~1 at
+  every age, which leaves the ascending width with no gradient, so the optimizer had no descent
+  direction and stayed on that ridge.
+* Measured on the `GOApollock` fishery, static selectivity, phased, `inits = NULL`:
+
+  | starts | selectivity-at-age | objective | AIC |
+  |---|---|---|---|
+  | peak 0, floor logit 10 (old) | constant 0.999996 | 3085.98 | 6611.96 |
+  | peak 5.5, floor logit 0 (new) | 0.0024 .. 0.9815 .. 0.4407 | **914.10** | **2268.21** |
+  | `DoubleLogistic`, same defaults, for scale | a dome | 918.15 | 2276.31 |
+
+  **2171.88 nats**, and the fixed form now edges out the double logistic by 4.05. 914.1043 is the
+  same optimum a hand-tuned `inits` reached, so the derived starts find what someone previously
+  had to set by hand.
+* **The peak is derived, not chosen, and it is a BIN ORDINAL.** An age-based curve is evaluated at
+  `bin + 1` (`selectivity.hpp`), so the x-axis is `1 .. nages` and the mid-range is
+  `(nages + 1) / 2` -- 5.5 on a ten-age stock, and independent of `minage`. That is the same
+  expression the `DoubleNormalSS3` block already uses for the same slot. (Reading it as an absolute
+  age gives the same 5.5 at `minage = 1`, which every bundled dataset has, and 7.5 on a
+  `minage = 3` stock -- a milder version of the asymmetry this change removes.) A length-based
+  DoubleNormal keeps its length midpoint rather than being given a bin.
+* **The peak carries the fix; the floor does not.** With the peak at mid-range the fit reaches
+  914.1043 from a floor start of either 0 or 10; with the peak left at 0, a floor of 0 still fails
+  (2973.69, with the peak running to -859 -- `sel_inf` is unbounded). Logit 0 is kept because it is
+  the logistic's maximum-gradient point, not because `LogisticPM` uses 0 in the same slot: that
+  slot is a LOG there (age-1 log-selectivity) and a LOGIT here, which is the conflation
+  `.sel_inf_is_natural()` exists to prevent.
+* **The fitted right-tail floor is not identified**, and this change makes that the default outcome
+  for the form rather than introducing it. On the headline fit it lands near -17.8 with a standard
+  error in the thousands, and anywhere in `[-21.6, -10.4]` across multi-starts with the objective
+  unchanged to four decimal places; under `newtonsteps = 3` it moves again. `pdHess` is TRUE and
+  `convergence_diagnostics()` returns OK, because the conditioning check reads the correlation
+  matrix. `vignettes/articles/adding-a-selectivity-form.Rmd` documents this property of the form.
+* **Nothing shipping moves.** No bundled dataset sets `Selectivity = "DoubleNormal"` (all 12 use
+  codes 0-4 and 6), so none of the four golden references reaches this and `build_params()` output
+  is **bit-identical** between `dev` and this change on every element of its 49-element list for
+  `BS2017SS`, `BS2017MS`, `GOA2018SS` and `GOApollock`. Four scripts under
+  `Rceattle-models/GOA cod/Bridging/` do set the form, but inject their own `sel_inf` immediately
+  afterwards, and the live bridges have since moved to `DoubleNormalSS3` -- so they are inert for
+  that reason rather than for absence. `test-selectivity-double-normal.R` never saw this because it
+  supplies its own starts.
+* **Not a claim that the form is now the best choice.** The escape from the flat ridge generalises
+  -- improvements of 2171.9, 1970.9 and 5970.5 nats on the GOA pollock, Atka and GOA cod fisheries
+  -- but on Atka the dataset's own `NonParametric` still fits better (755.6 against 989.9), and on
+  GOA cod the DoubleNormal collapses to a degenerate corner (`sigma_desc` to 0, floor to 1, i.e. a
+  plain logistic) and returns convergence FAIL. The change makes the form fittable from its
+  defaults; it does not make it safe to choose.
+
+## Internal
+
+* `test-selectivity-double-normal-starts.R`: 4 blocks, 15 assertions, **8 of which fail without the
+  fix**. Three need no fit and so run on a pull request; only the fitted-curve block carries
+  `skip_on_cran()`. It asserts the starts, that **every other fleet's starts are untouched** (the
+  assertion that would catch a `which()` matching too widely, which is how a start change leaks
+  into a fit that never asked for it), that a length-based DoubleNormal keeps its length midpoint,
+  and that the fitted curve is a dome reaching 914.1043. The fit block asserts the *shape* of the
+  reported array before reading any value -- `sel` is not a reported quantity name (`sel_at_age`
+  is), and `all()` over a zero-length vector is `TRUE`, so an empty slice would otherwise satisfy
+  every check.
+
 # Rceattle 5.55.0
 
 ## Breaking changes
