@@ -98,6 +98,43 @@ from a real change in abundance. Measured on an SS3 bridge for GOA Pacific cod, 
 converter-created fleet kept a default init and pulled the survey's q to
 `sqrt(1.496398) = 1.223270` — 18% low across all 16 index observations, 6.23 nats, with the
 standard deviations right to 5e-07 and both composition components agreeing to under 0.001.
+
+**A selectivity or catchability LINKAGE on a shared block used to estimate one coefficient per
+fleet, not one per group** (fixed 5.57.0). The base block is reconciled by
+`adjust_map_shared_params()` across 15 by-fleet map slices; `beta_linkage` is a flat
+`PARAMETER_VECTOR` with no fleet dimension and was never among them, so one design column on a
+mirrored group became one FREE coefficient per member and the copies diverged. This was the
+DEFAULT path: `by` defaults to `~ fleet` for both `sel` and `q`, and omitting `fleet =` does not
+avoid it, because that argument is a filter whose `NULL` default means *every* fleet — the
+shared-block spelling is an explicit `by = NULL`. Measured on `GOA2018SS` fleets 9 and 10, two
+`Logistic` surveys sharing both indices: a `~ cut(Year, 2)` column gave coefficients -0.232615
+and -0.352109 and selectivity differing by 0.123 at its worst age. On the SS3-bridged GOA Pacific
+cod model, 18 paired `Srv`/`Srv_ae1` coefficients differed by up to 20.89 on the log scale, with
+`index_log_q` non-identifiable and a non-invertible Hessian; the fix took free parameters from 344
+to 328 against SS3's 330 and cleared both. **A held donor holds the whole group** — the first fix
+tied a follower only where the donor's map entry was non-NA, which left the group untied wherever
+SS3 fixes a block replacement (`est_phase = 0`), so 2 of those 18 rows stayed divergent. The
+collapse also means a refit of a saved fit starts the shared coefficient at the MEAN of the old
+per-fleet values, as the entry above describes.
+
+**One coefficient is not one curve: the linkage OFFSET is per fleet.** The base parameter is
+shared, but the offset the coefficient scales accumulates into `inf_offset(param, flt, sex, yr)`
+(`linkage.hpp`), indexed by fleet — so a row naming one member of a mirrored block moves that
+member alone. On the same pair, fitted: naming both fleets gives one coefficient and selectivity
+identical to 0; naming the lead alone gives one coefficient and 0.265 of divergence; naming the
+follower alone, 0.248. **So "put it on the lead fleet" — right for a prior or the apical offset,
+because those write the shared base — is WRONG for a design column, and the pre-5.57.0 refusal
+messages said exactly that.** Partial coverage is refused since 5.57.0, along with two others
+`.stop_if_mirrored_block_linkage()` carries: a random-effect linkage on a mirrored block (each
+named fleet gets its own deviation series and its own SD — 84 slots in two sigma groups of 42 with
+2 free `log_sigma_linkage` levels, where the lead alone gives 42 in one group with 1; they cannot
+be map-tied, because separate sigma groups would each score the same 42 deviations and fit two SDs
+to identical data), and two specs for one parameter that disagree on `link`, `bounds` or `init`
+(merged, the surviving bound was whichever row sat FIRST in the table — `match()`'s
+first-occurrence rule in `fit_mod()`'s bounds reduction, so writing the follower's spec first
+silently won — and two `init` values started at their mean, 2.0 and -2.0 beginning at 0).
+`est_phase` is deliberately exempt: a held donor holding the group is the rule, and the SS3 bridge
+needs it.
 `build_map()` warns since 5.44.0 (`.warn_shared_block_start()`), for both deviation sds and the
 catchability. Two edges: a member whose `Catchability_init` is blank, zero or negative seeds the
 WHOLE group at `NA`/`-Inf` and it cannot fit — `data_check()` requires that column positive only

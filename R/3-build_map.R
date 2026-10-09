@@ -1828,23 +1828,36 @@ build_map_linkages <- function(map_list, data_list) {
   # has one parameter and one output.
   #
   # Rows match on everything but the fleet. `X_col` is the design column's
-  # position and is shared by the group's rows (only `fleet` differs), so it is
-  # the key; `species`, `sex` and `age_bin` are carried too because a linkage
+  # position and `design_col` its name; both are shared by the group's rows
+  # (only `fleet` differs), and requiring BOTH means that if a position and a
+  # name ever disagree the rows simply do not merge, rather than merging the
+  # wrong pair. They agree everywhere measured; `species`, `sex` and `age_bin` are carried too because a linkage
   # may stratify on them as well, and they are often NA, which `%in%` would not
   # match. Both rows start from the same spec, so the level's mean -- what
   # `TMB:::updateMap()` takes as the shared start -- is that common value.
+  #
+  # The follower takes the donor's state WHATEVER it is, held included. Guarding
+  # on a non-NA donor left the group untied wherever the donor row is fixed --
+  # `est_phase = 0`, or a pinned intercept -- so the follower kept a free
+  # coefficient against a held donor, which is the same divergence on a subset
+  # of rows. Reachable with two specs for one parameter at different phases, and
+  # measured on the SS3-bridged GOA Pacific cod model, where SS3 fixes two of
+  # `Srv`'s block replacements at phase -5: 2 of `Srv_ae1`'s 18 rows stayed
+  # divergent. `.shared_block_lead()` states the rule this restores -- a value
+  # set on the donor is what the whole group uses.
   same <- function(a, b) (is.na(a) & is.na(b)) | (!is.na(a) & !is.na(b) & a == b)
-  for (i in which(!is.na(m) & tbl$process %in% c("sel", "q") & !is.na(tbl$fleet))) {
+  for (i in which(tbl$process %in% c("sel", "q") & !is.na(tbl$fleet))) {
     lead <- .shared_block_lead(data_list, tbl$fleet[i], tbl$process[i])
     if (is.na(lead)) next
     j <- which(tbl$process == tbl$process[i] &
                same(tbl$param, tbl$param[i]) &
                same(tbl$X_col, tbl$X_col[i]) &
+               same(tbl$design_col, tbl$design_col[i]) &
                same(tbl$species, tbl$species[i]) &
                same(tbl$sex, tbl$sex[i]) &
                same(tbl$age_bin, tbl$age_bin[i]) &
                !is.na(tbl$fleet) & tbl$fleet == lead)
-    if (length(j) == 1L && !is.na(m[j])) m[i] <- m[j]
+    if (length(j) == 1L) m[i] <- m[j]
   }
   map_list$beta_linkage <- m
   # beta_linkage_re keeps the blanket "all estimable" map (the density damps

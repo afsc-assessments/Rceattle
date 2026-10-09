@@ -232,5 +232,9 @@ build_catchability <- function(linkages = NULL) {
         call. = FALSE)
     }
   }
+
+  # Fleets sharing a Catchability_index estimate one q block, so a linkage on
+  # the group has to reach all of it and mean one thing.
+  .stop_if_mirrored_block_linkage(linkage_table, fleet_control, "q")
   invisible()
 }

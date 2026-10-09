@@ -374,6 +374,11 @@ build_selectivity <- function(linkages = NULL) {
       }
     }
   }
+
+  # Fleets sharing a Selectivity_index estimate one block, so a linkage on the
+  # group has to reach all of it and mean one thing. Read from the full table,
+  # which still carries the `apical` rows this function split off.
+  .stop_if_mirrored_block_linkage(linkage_table, fleet_control, "sel")
   invisible()
 }
 

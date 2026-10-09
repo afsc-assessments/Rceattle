@@ -1014,7 +1014,33 @@ shared through `Catchability_index`.
 ## Selectivity
 
 Selectivity is also fleet-indexed (`by = ~ fleet`) and, unlike the other
-processes, has several parameters. `build_selectivity()` accepts these
+processes, has several parameters.
+
+Because `~ fleet` is the default here, **fleets that share a `Selectivity_index`
+or a `Catchability_index` estimate one coefficient per design column for the
+whole group, and keep identical selectivity — provided the linkage reaches
+every member of the group** (5.57.0). Before that the group got one coefficient
+per member fleet and the copies diverged, which is the shape of defect the
+`Selectivity_index` is there to prevent.
+
+The proviso matters, and it is the one thing to remember here. The *base*
+parameter is shared across the group, but the offset a linkage adds is applied
+per fleet, so a `fleet =` filter naming only some members moves only those: the
+group would share a coefficient and still fit different curves. **Name every
+member of the block, or leave `fleet =` out so the row reaches all of them.**
+Naming a strict subset is refused, as are a random-effect linkage on a mirrored
+block (each member would get its own deviation series and its own deviation SD)
+and two specs for one parameter that disagree on `link`, `bounds` or `init`
+(the group estimates one coefficient, so those cannot differ between them).
+Two specs *may* differ in `est_phase`: a fixed donor holds the whole group,
+which is how a reference model that fixes some time blocks is reproduced.
+
+Note that putting a linkage on the lead fleet alone does **not** propagate to
+the group, even though putting a *prior* or an `apical` offset there does —
+those write the shared base parameter, where a design column writes a per-fleet
+offset. If you want one coefficient across fleets that are *not* mirrored, pass
+`by = NULL`; note that omitting `fleet =` does the opposite, since that
+argument is a filter whose `NULL` default means every fleet. `build_selectivity()` accepts these
 keys, which name the underlying slots shared across the parametric forms:
 
 | key | logistic family | DoubleNormal |
