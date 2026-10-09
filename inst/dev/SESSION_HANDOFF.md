@@ -5,8 +5,9 @@ session. Maintained by `/handoff`.
 
 ## Now
 
-**`dev` is at 5.54.3** (`433f02eb`). Eight PRs carrying a version landed since 5.52.0, plus #204
-which set no version:
+**`dev` is at 5.54.3** (`433f02eb`). Nine PRs landed since 5.52.0 (#204 to #212); **seven**
+carried a version. #204 and #212 set none -- #212 is the last row below, with `--` in its version
+cell:
 
 | PR | version | what it fixed |
 |---|---|---|
@@ -27,8 +28,8 @@ which set no version:
     prose line ("Rows marked **Open** were found across several reviews") is an 11th hit and is not
     a row, which is how an earlier version of this paragraph reported 11.
   * **`fit_mod(estimateMode = 3)` on `BS2017SS` costs 3.0 s**, and driving every exported plotter
-    once off it is 38 s. That is why `test-plot-save-paths.R` takes ~2.5 min: 33 PNG writes at
-    300 dpi.
+    once off it is 38 s. That is why `test-plot-save-paths.R` takes ~2.5 min: it writes 67 PNGs
+    at 300 dpi (see below).
   * **29 of the 31 exported plotters write a file on the single-species fixture**, including every
     diet plotter. Only `plot_form` (no `file` formal) and `plot_profile` (needs an
     `Rceattle_profile`) do not. An earlier version of that test claimed the 19 it skipped needed
@@ -37,8 +38,10 @@ which set no version:
   * **At least 215 call sites across the sibling repos pass `file =` to a plotter** (169
     `Rceattle-models`, 34 `GOA-ATF-ESP`, 12 `GOA_circlulation_study`). That is a single-line regex
     and so a FLOOR: a `file =` on a continuation line is invisible to it, and a parse-accurate
-    count is higher. **None** globs the result, so a renamed figure errors nowhere -- it just
-    leaves a differently-named file. One exception worth knowing: `GOA-multispecies-assessment`
+    count is higher. **None** globs the result, but "a renamed figure errors nowhere" is too
+    strong: two Rmds hard-code figure names in `knitr::include_graphics()` -- `Rceattle-models/GOA
+    CEATTLE/Model runs/GOA_25/` and an older BSAI simulation Rmd, the latter already broken. And
+    the biggest exception is structural: `GOA-multispecies-assessment`
     passes `file =` zero times and instead saves plotter RETURN values under its own names
     (`R/07_figures_tables.R`), which its Rmd and `dev/verify_document_objects.R` do error on.
 
@@ -65,17 +68,20 @@ broken when its two are already escaped. Both the review and the first fix got t
 verified 2026-10-08:
 
   * **The installed Rceattle on this machine is 5.33.0**, against `dev` at 5.54.3 -- **21 minor
-    versions stale**. Only `GOA cod/Bridging` and `AI cod - Dev/Bridging` use
-    `pkgload::load_all()`; every other consumer script calls `library(Rceattle)` and silently runs
-    against 5.33.0. **Check `packageVersion("Rceattle")` before trusting any consumer result**, and
+    versions stale**. Only `GOA cod/Bridging`, `AI cod - Dev/Bridging` and
+    `SS3-bridge/attribute_gradient.R` use `pkgload::load_all()` on Rceattle; every other consumer
+    script calls `library(Rceattle)` and silently runs against 5.33.0. (`GOA
+    pollock/2025/00-fit-goa_pk.R` also calls `load_all()`, but on GOApollock, not here.) **Check `packageVersion("Rceattle")` before trusting any consumer result**, and
     drive an `/ecosystem-sweep` through `load_all()`, not `library()`.
   * **`Rceattle-models/SS3-bridge/HANDOFF.md`** is the only pointer to cod-bridge state and is
     named nowhere else in `inst/dev/`.
   * **WHAM's Dirichlet-multinomial theta is a different family** -- `alpha = p*exp(theta)` against
     Rceattle's `N*p*exp(theta)` -- so a theta cross-walked between them errs by a factor that grows
     with sample size.
-  * **The GOA cod script header's 9.96459 nats measures 11.254 on this tree.** Keep the historical
-    and the current figure apart when reading that script.
+  * **The GOA cod script header's 9.9646 nats measured 11.254 at 5.48.0**, and the tree is now at
+    5.54.3, so neither figure is current. Keep them apart, and do not confuse the header's 9.9646
+    with the **9.96459** recorded elsewhere for the LLSrv index component -- they are different
+    quantities.
   * **`\item{Observation}` is still missing from `R/data.R`** (grep: 0 hits).
   * **`## After the release, in order` below is stale in its first item.** It says to make `golden`
     robust "before anything below"; that shipped as **5.45.1** (PR #173, `NEWS.md`: "The golden
@@ -105,8 +111,11 @@ wrong.** There are **15** `test-plot-*.R` files and only **6** carry a column-0
 `skip_on_cran()`. Those six are invisible on a PR, because `R-CMD-check.yaml` sets
 `NOT_CRAN: "false"` and a column-0 skip yields zero result rows; `deep-checks` is the only job
 where a failure in them is fatal, so run `test-plot-save-paths.R` by hand in any PR that changes a
-save path. The other nine DO run on a PR and a failure in them is fatal --
-`test-plot-theme-consistency.R` among them, through the guard job.
+save path. Of the other nine, three skip SOME blocks
+(`test-plot-comp-aggregate.R`, `test-plot-selectivity-ci.R`,
+`test-plot-timeseries-wrappers.R`) and six run whole -- so six files skip entirely, three skip
+partly, six run. A failure in any of the nine IS fatal on a PR, and
+`test-plot-theme-consistency.R` is one of them, through the guard job.
 
 ## Next, in the order I would take them
 
