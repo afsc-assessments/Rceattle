@@ -82,4 +82,5 @@ shorten it, because dropping the past tense can assert an API that no longer wor
 
 Settle ordinary implementation choices yourself and stop at anything that changes what the code
 *means* or what a user's script does. Commit messages are plain and imperative, subject ≤72
-characters, with the body saying *why* and giving the numbers that changed.
+characters, with the body saying *why* and giving the numbers that changed, and no
+`Co-Authored-By` trailer.

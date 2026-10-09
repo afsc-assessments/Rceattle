@@ -6,8 +6,9 @@ convention below exists so that a change cannot move a fit without someone notic
 
 This guide is written for a fisheries scientist or ecologist who wants to fix, extend or
 understand the package. `CLAUDE.md` is the coding agent's operating manual, and holds these
-rules in full plus three that bind only an agent; where a rule is stated in full there, this
-guide points to it rather than repeating it.
+rules plus three that bind only an agent — one of them more strictly than this guide does, since
+an agent must ask before changing an API where you may change one that carries a deprecation
+path. Where a rule is stated in full there, this guide points to it rather than repeating it.
 
 ## Setting up
 
@@ -70,8 +71,8 @@ Three checks sit outside the ordinary suite:
   the files it touches and the tests that catch a half-finished job.
 - `R/0-column_schema.R`: the source of truth for every workbook column and switch value.
 - The C++ reference on the package site (built from the Doxygen comments in `src/TMB/`):
-  the model equations, function by function. `src/TMB/recruitment.hpp` is the header to
-  emulate when you document C++.
+  the model equations, function by function. `src/TMB/spr.hpp` is the header to
+  emulate when you document C++ — one of the four that carry a file block.
 
 `AGENTS.md` at the repository root is the tool-neutral version of this, for an AI assistant that does not read `CLAUDE.md`.
 
@@ -138,7 +139,11 @@ Four habits are specific to this package:
 - Write the simplest thing that works, and nothing for later. No helper, wrapper, class, config
   layer or option flag the change does not need now; a helper earns its place at two callers, or
   when it names a concept the reader needs. A guard that cannot fire is not safety — name the
-  input that reaches it, or leave it out.
+  input that reaches it, or leave it out. Registering in the registries that already exist is a
+  different thing, and it is not optional: a new `jnll_comp` row owes the `JnllRow` partners and
+  `.JNLL_ROW_AXIS`, and a new `Index_distribution` family owes
+  `.index_rows_natural_scale()` — miss that one and the family silently gets the log-scale
+  residual.
 - Write in the idiom of the file you are in, and do not convert one to the other. The plotters
   and `R/5-rearrange_data.R` use dplyr and the pipe; most of `R/1-*` to `R/6-*` is base R. Inside
   the fitting pipeline a rewrite is how a fit moves silently — a verb that reorders rows, drops a
@@ -151,7 +156,7 @@ Four habits are specific to this package:
 
 Write for a fisheries scientist who was not in the room: the assessment reason, the units
 and the convention, in one or two lines. The "Comments" and "Domain vocabulary" sections of
-`CLAUDE.md` give the rules and a before-and-after example; `src/TMB/recruitment.hpp` is the
+`CLAUDE.md` give the rules and a before-and-after example; `src/TMB/spr.hpp` is the
 C++ header to emulate.
 
 ## Getting help

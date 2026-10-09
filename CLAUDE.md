@@ -58,7 +58,7 @@ reason, the units and the convention, then stop; what stays however long is unde
 a literature citation is the specification — never strip one. **You may shorten what is already
 there:** tightening a comment or roxygen block in a file your change is already editing belongs
 in that change, which is what `SIMPLIFY-LOG.md` asks for — unless that change can move a fit,
-where rule 2's reviewer must see only the lines that move it. But shortening can make a comment
+where Scope discipline wants only the lines that can move it. But shortening can make a comment
 **false** — check that every function and argument it names still exists (`fit_control()` has no
 `osa` argument and no `...`, so a comment naming one describes a call that errors), and keep any
 clause the code below still depends on.
@@ -75,7 +75,8 @@ how this package is written; very little over what it means.
    linkage grammar.
 4. `inst/dev/TRAPS.md` — verified traps with the measured numbers behind them.
 5. `inst/RELEASE-CHECKLIST.md` — the release and tag process.
-6. `CONTRIBUTING.md` — the same rules written for a human contributor, plus
+6. `CONTRIBUTING.md` — these rules written for a human contributor, who may change an API where
+   doctrine 1 makes an agent ask first, plus
    `vignettes/articles/adding-a-selectivity-form.Rmd`, one extension end to end.
 
 ---
