@@ -262,10 +262,14 @@ the gradient there is zero at the start, which is the flat-curve case above.
 
 **The deviates vanished.** `build_map_selectivity()` frees deviates only for the
 `Time_varying_sel` modes your block names. A mode it does not name is mapped out
-without a message unless `data_check()` refuses it. The shipped GOA pollock
-fishery uses `RandomWalkAscending`, which the DoubleNormal block does not handle:
-switching that fleet's form drops the fit from 316 to 220 parameters silently.
-Refuse unsupported modes in `data_check()` next to the existing per-form checks.
+without a message unless `data_check()` refuses it, so **every mode your block
+omits needs a refusal next to the existing per-form checks** -- that is the only
+thing standing between a user and a static curve where they asked for a walk.
+`RandomWalkAscending` is the worked example: only the `DoubleLogistic` block
+frees its deviates, so `data_check()` refuses it on every other form and points
+the user at a linkage on the ascending parameters, which fits the same model.
+The shipped GOA pollock fishery uses that mode, so switching its form used to
+drop the fit from 316 to 220 parameters silently (5.55.0).
 
 **The deviates are estimated but unpenalised.** The map freed them and the
 `ceattle.cpp` type lists do not name your code, so `JNLL_SEL_DEV` is zero for the

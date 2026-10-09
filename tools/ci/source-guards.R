@@ -1,6 +1,6 @@
 # Run the tests that read the package's own SOURCE, on a pull request.
 #
-# Seventeen test files assert that two hand-synced copies of something agree: a
+# Eighteen test files assert that two hand-synced copies of something agree: a
 # switch map against the `case` labels in the template, the column schema
 # against `R/data.R`'s field list, the `JnllRow` enum against its two R-side
 # partners, the HCR-2 threshold against the literal source of `run_mse()`, the
@@ -113,6 +113,7 @@ EXPECTED <- c(
   "test-linkage-srr-r-init-level.R",
   "test-mse-cap-and-hcr2-threshold.R",
   "test-plot-theme-consistency.R",
+  "test-selectivity-random-walk-ascending-forms.R",
   "test-schema-canonical.R",
   "test-schema-cpp-dispatch.R",
   "test-schema-jnll-rows.R",

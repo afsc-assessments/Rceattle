@@ -12,6 +12,58 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.55.0
+
+## Breaking changes
+
+* **`Time_varying_sel = "RandomWalkAscending"` is refused on every selectivity form but
+  `DoubleLogistic`, because it was silently fitting a static curve everywhere else.** It walks the
+  ascending limb and holds the descending one fixed, and `build_map()` assigns its deviate indices
+  on `DoubleLogistic` alone. On the other parametric forms the combination fell through both arms of
+  that form's branch, so every deviate stayed mapped out and a static curve fitted where the
+  workbook asked for a walk, with no condition raised. The TEMPLATE does score the ascending
+  density for `Logistic` and `DoubleNormal` too (`flt_sel_type` 1, 3 and 8), so this is a
+  `build_map()` omission rather than a missing model -- which is why the fix is a refusal plus a
+  linkage route, not a claim that the model does not exist.
+* Measured on the GOA pollock fishery, switching only `Selectivity` and `Time_varying_sel`
+  (parameters / free selectivity deviates): `DoubleLogistic` 316 / 96, `DoubleNormal` **220 / 0**,
+  `Logistic` and `DescendingLogistic` **218 / 0** -- identical to `"Off"`. `LogisticPM`, `Hake`,
+  `NonParametric` and `NonParametricPM` also lack the arm but were already refused per form.
+* It was worse under `random_sel = TRUE`: the deviation sd is freed for any form that is not
+  `Fixed` whenever `Time_varying_sel` is `IID`, `AR1`, `RandomWalk` or `RandomWalkAscending`, so
+  `sel_dev_log_sd` became a free parameter scaling deviations that were all mapped out -- the
+  same stray-hyperparameter shape as `M1_re` under an unimplemented `M1_model` (5.53.0).
+* **Refused rather than implemented, because the same model is already reachable.** A
+  random-effect linkage on the ascending parameters -- `peak` and `sigma_asc` for `DoubleNormal`,
+  `inf_asc` and `slp_asc` for the logistic family, which alias the same slots the template scores
+  -- gives a time-varying ascending limb with the descending one fixed. `Time_varying_sel` on a
+  parametric form is itself soft-deprecated in favour of those linkages, so implementing mode 5 for
+  a second form would add a route into a mechanism already on its way out. The error prints the
+  `build_selectivity(linkages = ...)` call for the fleet's own form.
+* **`2DAR1` and `3DAR1` are exempt.** They estimate their deviate field for every bin and year
+  regardless of `Time_varying_sel`, and `build_map()` says so with a warning that the column is
+  ignored for them, so the combination was never static there.
+* **A minor bump rather than a major one**, because nothing shipping asked for it: of the 15
+  bundled datasets, 11 carry a `fleet_control` directly and only `GOA2018SS` and `GOApollock` set
+  `RandomWalkAscending`, both on the `DoubleLogistic` GOA pollock fishery; no script in the sibling
+  assessment repos sets it at all. Per `inst/RELEASE-CHECKLIST.md`, refusing a configuration that
+  never fitted the model it described is a minor bump.
+* The error names the fleet, the form and the alternative. `Time_varying_sel` on a parametric form
+  is separately soft-deprecated in favour of selectivity linkages, so this closes a hole in a
+  mechanism that is already on its way out rather than extending it.
+
+## Internal
+
+* `test-selectivity-random-walk-ascending-forms.R` pins the refusal, asserts the three refused
+  forms still accept `RandomWalk` and still free strictly more parameters than `"Off"` (the thing
+  the dropped combination failed to do), and derives from `R/3-build_map.R` that exactly one form
+  assigns `RandomWalkAscending` deviate indices -- so a new form added without that arm is caught
+  here rather than by a user. 3 blocks, 20 assertions; 6 of them fail without the refusal.
+  Registered in `tools/ci/source-guards.R`, whose set is now 18.
+* `AR1` is refused package-wide, so the `c("IID", "AR1", "RandomWalk")` membership tests in
+  `build_map()`'s selectivity branches name a value that can no longer arrive. Left alone here;
+  noted so the next reader does not take them as evidence AR1 is supported.
+
 # Rceattle 5.54.3
 
 ## Bug fixes
