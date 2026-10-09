@@ -5,8 +5,9 @@ sets US federal catch limits. A wrong number here does not crash; it becomes a q
 convention below exists so that a change cannot move a fit without someone noticing.
 
 This guide is written for a fisheries scientist or ecologist who wants to fix, extend or
-understand the package. `CLAUDE.md` holds the same rules as an operating manual for the coding
-agent; where a rule is stated in full there, this guide points to it rather than repeating it.
+understand the package. `CLAUDE.md` is the coding agent's operating manual, and holds these
+rules in full plus three that bind only an agent; where a rule is stated in full there, this
+guide points to it rather than repeating it.
 
 ## Setting up
 
@@ -99,7 +100,12 @@ builds only for `main`, so check a documentation change locally with
 
 Stated in full under "Hard rules" in `CLAUDE.md`. In brief:
 
-1. Preserve the public API. Deprecate an argument; do not delete it.
+1. Preserve the public API. Deprecate an argument; do not delete it. You may change one —
+   rename it, or move a default — but it owes a deprecation path that keeps old fits working, a
+   `NEWS.md` entry, and a sweep of the repositories in `inst/dev/SIBLING-REPOS.md`. Giving a
+   switch a new meaning has no such path, so it is a breaking change: classify it as
+   one. (A coding agent works under a stricter version of this and has
+   to ask first; see doctrine 1 in `CLAUDE.md`.)
 2. A change that can move a fit needs the golden regression, and the `tools/verify/` harness
    that covers what golden cannot.
 3. The column schema defines every switch value, default and column order. Read them from
@@ -122,11 +128,17 @@ indents, about 80 columns, full words over abbreviations. Neither guide is a rea
 code you did not otherwise need to touch, and TMB idiom outranks both — the C++ keeps its
 snake_case function names.
 
-Three habits are specific to this package:
+Four habits are specific to this package:
 
 - Read a list or a `fleet_control` column with `[[ ]]`, not `$`. `$` partial-matches without a
   warning, so where `Time_varying_sel` is missing, `fleet_control$Time_varying_sel` hands back
-  `Time_varying_sel_sd`. Ten pairs among the schema's 83 columns have that shape.
+  `Time_varying_sel_sd`. Ten pairs among the schema's columns have that shape. In new code
+  only: the existing `$` reads are safe because of which accessor runs first, and rewriting one
+  of them as a bare `$` would trade a loud failure for a silent one.
+- Write the simplest thing that works, and nothing for later. No helper, wrapper, class, config
+  layer or option flag the change does not need now; a helper earns its place at two callers, or
+  when it names a concept the reader needs. A guard that cannot fire is not safety — name the
+  input that reaches it, or leave it out.
 - Write in the idiom of the file you are in, and do not convert one to the other. The plotters
   and `R/5-rearrange_data.R` use dplyr and the pipe; most of `R/1-*` to `R/6-*` is base R. Inside
   the fitting pipeline a rewrite is how a fit moves silently — a verb that reorders rows, drops a

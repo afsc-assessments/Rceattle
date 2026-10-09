@@ -496,6 +496,73 @@ Added 2026-10-08, from three occurrences in one session:
   because the two things that caught it both times were assertions a human would not have written
   by hand. Cheap, and it ends a footgun that has already cost one retraction's visibility.
 
+Found 2026-10-09 while sourcing `CLAUDE.md`'s doctrine section from the PRs that did the work.
+Commit messages are immutable, so these rows are the correction; none is a code defect, and
+nothing in the live docs still repeats the bad figures.
+
+- **`41027b7c` credits deleted lines to two files it does not touch.** Its closing line reads
+  "61 lines out of `.check_exponential_link()`, 21 out of the convergence check, 12 out of
+  `.check_q_linkage_support()`" -- but the commit is `+21 / -64` across exactly four files
+  (`0-build_linkage.R`, `0-linkage_table.R`, `0-quantity_dictionary.R`, `0-switches.R`). It
+  never touches `R/0-convergence.R` or `R/0-build_catchability.R`; those were reduced by
+  `3c5ad825` and `267a951d` in the same PR (#181). The five unreachable guards the PR removed
+  are real -- three here, two in `fbd1c4b2`, four refusals and one defensive early return -- but
+  the 94-line figure is not derivable from any one commit, so cite the guards, not the lines.
+- **PR #196's sweep has three different sizes in the record**, and a fourth claim miscounts.
+  The commit body says twenty-seven blocks, the PR body says eighteen comments, and the PR's own
+  review says ~12 genuine bug-history sites. Measured: 33 comment/roxygen hunks (`--unified=0`)
+  in 18 files under `R/` and `src/TMB/`, of which the ~12 figure is the only one with a stated
+  basis; 27 is the PR's total changed-file count, which includes `NEWS.md`, `DESCRIPTION`,
+  `README.md`, five `man/*.Rd` and this file. Separately, both the commit body and the 5.49.6
+  `NEWS.md` entry said "two comments were made false by compression" and then listed **three**
+  (two in `osa_residuals()`, one in `run_mse()`). The `NEWS.md` entry is corrected on both
+  counts. The distinct "two comments were false about current behaviour" claim *is* two
+  (`R/0-deprecate.R`, `src/TMB/ceattle.cpp`) and is sound.
+- **A fit's quantity count is drifting from its registry.** `CLAUDE.md` says a fit reports 99
+  quantities; `.QUANT_INFO` now holds 104 `r(...)` rows. Not necessarily a contradiction -- the
+  registry documents quantities a given fit need not carry -- but the two have moved apart far
+  enough to be worth one `names(fit$quantities)` check next time a model is in memory.
+
+**The comment-budget CI guard, designed and withdrawn (2026-10-09).** Doctrine 3's budget has
+gone unenforced since 2026-08-22: over the following seven weeks the longest roxygen block in
+`R/6-osa_residuals.R` went from 203 lines to 395, and the one PR devoted to comment hygiene
+(#196) left it untouched. A first implementation read the DIFF and failed anything adding a
+roxygen block over 60 lines, a `@param` over 3, or a comment run over 6. **It was withdrawn
+before merge**, because a sweep of the last 150 commits showed it failing **30 of the 79** that
+touch `R/` or `src/TMB/` (38%; 13 of the last 18 such), with **44 of 46 findings** coming from
+the comment-run rule -- 22 of those on runs of just 7 or 8 lines -- and **none** from the
+roxygen rule it was built for. Those counts include merge commits, which re-report their
+branch's added lines; non-merge only it is 18 of 58 (31%). Three reasons it did not work as
+built, one of them structural to reading a diff at all:
+
+- `is_comment()` matches `/**`, ` * ` and `*/`, so C++ Doxygen is budgeted at 6 lines rather
+  than 60. There are 119 over-budget runs in `src/TMB/`, in all 12 files, worst 107 in
+  `selectivity.hpp` -- i.e. it forbids the style `CLAUDE.md` mandates via `spr.hpp`.
+- Growth *inside* an already-oversized block passes, because the added run is itself under the
+  threshold. This is the structural one. Of the five commits in PR #152 that took that block
+  from 210 to 422 lines, only two produced any finding in the file and only **one** fired the
+  roxygen rule -- so it misses its own motivating case.
+- The verdict depends on diff shape, not on the file: a blank line every 6 lines, a `#` divider
+  every 55 inside a roxygen block, or a `/* */` block whose interior lines start with text all
+  pass; a quoted `+++ "b/..."` header (any non-ASCII path, which `core.quotePath` produces by
+  default) is never matched, so those lines are dropped silently -- reporting 0 changed files
+  when that path is the only change, and otherwise charging its runs to whichever file came
+  before it; and the per-file net-decrease escape clears a 151-line block if you delete 200
+  one-line comments in the same file.
+
+**Grant's call (2026-10-09): rebuild it as a regression check on the FILE, not the diff.** For
+each changed file, compare the post-image against the base and fail only when its longest doc
+block, longest code-comment run, or longest `@param` span gets *worse* and is above threshold --
+so the 395-line block in `R/6-osa_residuals.R` may stay at 395 but may not reach 396. That needs
+no diff parsing, which deletes the header-quoting and `/dev/null` attribution bugs outright; it
+catches the 203 -> 395 drift at every step; and it cannot punish a shortening. Give C++ doc comments the roxygen budget, set the code-comment
+threshold off the measured distribution rather than the prose (`R/` already holds 208 runs over
+6 lines and 108 `@param` spans over 3), and scope the workflow step to `branches: [dev]` -- a
+dev -> main release PR is diffed against the whole release, which on PR #184 produced 17
+unfixable findings. **The withdrawn script was never committed on any ref**, so every figure in
+this entry was measured with something that no longer exists: re-derive the sweep against the
+rebuilt check rather than trusting these numbers, and treat "unfixable" as the judgement it is.
+
 ## `TODO(review)` — Grant's calls, not an agent's
 
 Six, each a judgement about what the right behaviour *is*:
