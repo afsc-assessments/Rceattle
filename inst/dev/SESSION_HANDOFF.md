@@ -5,11 +5,12 @@ session. Maintained by `/handoff`.
 
 ## Now
 
-**`dev` is at 5.54.3** (`433f02eb`), no PR open. Nine PRs landed since 5.52.0, in version order:
+**`dev` is at 5.54.3** (`433f02eb`). Eight PRs carrying a version landed since 5.52.0, plus #204
+which set no version:
 
 | PR | version | what it fixed |
 |---|---|---|
-| #205 | 5.53.0 | `M1_re > 0` was silently inert under `M1_model` 3/4/5 -- 24 of 42 `(M1_model, M1_re)` pairs now refuse at the boundary, and the sd/rho hyperparameters are mapped off with their deviations |
+| #205 | 5.53.0 | `M1_re > 0` was silently inert under `M1_model` 3/4/5 -- **18 of the 42** `(M1_model, M1_re)` pairs refuse through a fit (`NEWS.md`'s figure; #208 then opened one arm, leaving 16), and the sd/rho hyperparameters are mapped off with their deviations |
 | #206 | 5.53.1 | `Time_varying_sel` / `Time_varying_q` had no schema default, so a bare `$` read partial-matched to the `_sd` column and handed back an sd as a mode; both now default to `"Off"` |
 | #207 | 5.53.2 | `M1_re > 0` on a fixed-numbers species (`estDynamics > 0`) is normalised to 0 with a message, restoring the invariant that jnll row 16 is exactly 0 when nothing is estimated |
 | #208 | 5.54.0 | implements the one arm asked for: `M1_model = 3` x `M1_re` 2/5, age-specific level plus year-varying deviations |
@@ -20,19 +21,26 @@ session. Maintained by `/handoff`.
 
 **The numbers a next session should not re-derive:**
 
-  * **Open Tier 0 rows: 11.** That is 15, minus 3 duplicate copies, minus 3 already fixed and now
-    struck, plus 2 filed by #210. Before #212 the file said 15, three of them closed and three of
-    them stale copies.
+  * **Open Tier 0 rows: 10 under the strict rule, 20 counting every `**Open` variant.** Say which
+    rule you mean: `**Open**` matches 10 in-table rows, while `**Open, low**`, `**Open.**`,
+    `**Open, latent**` and the rest bring it to 20. Do NOT grep the whole file -- the section's own
+    prose line ("Rows marked **Open** were found across several reviews") is an 11th hit and is not
+    a row, which is how an earlier version of this paragraph reported 11.
   * **`fit_mod(estimateMode = 3)` on `BS2017SS` costs 3.0 s**, and driving every exported plotter
     once off it is 38 s. That is why `test-plot-save-paths.R` takes ~2.5 min: 33 PNG writes at
     300 dpi.
   * **29 of the 31 exported plotters write a file on the single-species fixture**, including every
     diet plotter. Only `plot_form` (no `file` formal) and `plot_profile` (needs an
     `Rceattle_profile`) do not. An earlier version of that test claimed the 19 it skipped needed
-    a multispecies fit or diet data; that was wrong for 18 of the 19.
-  * **215 call sites across the sibling repos pass `file =` to a plotter** (169 `Rceattle-models`,
-    34 `GOA-ATF-ESP`, 12 `GOA_circlulation_study`), and **none** globs the result -- so a renamed
-    figure errors nowhere, it just leaves a differently-named file.
+    a multispecies fit or diet data; that was wrong for 18 of the 19. Driving all 29 writes **67**
+    PNGs, because `plot_comp` writes 15 and each diet plotter 9.
+  * **At least 215 call sites across the sibling repos pass `file =` to a plotter** (169
+    `Rceattle-models`, 34 `GOA-ATF-ESP`, 12 `GOA_circlulation_study`). That is a single-line regex
+    and so a FLOOR: a `file =` on a continuation line is invisible to it, and a parse-accurate
+    count is higher. **None** globs the result, so a renamed figure errors nowhere -- it just
+    leaves a differently-named file. One exception worth knowing: `GOA-multispecies-assessment`
+    passes `file =` zero times and instead saves plotter RETURN values under its own names
+    (`R/07_figures_tables.R`), which its Rmd and `dev/verify_document_objects.R` do error on.
 
 **Two defects #210 found and deliberately did not fix**, both filed as Tier 0 rows, because
 changing a written filename is user-visible and the names want choosing rather than guessing:
@@ -53,6 +61,27 @@ characters** -- on the M1 row that hid the whole gradient half of a retraction a
 naming the live GOA multispecies assessment. Counting raw pipes instead reports a third row
 broken when its two are already escaped. Both the review and the first fix got that wrong.
 
+**Traps the previous version of this file carried and a rewrite nearly lost.** Each is still live,
+verified 2026-10-08:
+
+  * **The installed Rceattle on this machine is 5.33.0**, against `dev` at 5.54.3 -- **21 minor
+    versions stale**. Only `GOA cod/Bridging` and `AI cod - Dev/Bridging` use
+    `pkgload::load_all()`; every other consumer script calls `library(Rceattle)` and silently runs
+    against 5.33.0. **Check `packageVersion("Rceattle")` before trusting any consumer result**, and
+    drive an `/ecosystem-sweep` through `load_all()`, not `library()`.
+  * **`Rceattle-models/SS3-bridge/HANDOFF.md`** is the only pointer to cod-bridge state and is
+    named nowhere else in `inst/dev/`.
+  * **WHAM's Dirichlet-multinomial theta is a different family** -- `alpha = p*exp(theta)` against
+    Rceattle's `N*p*exp(theta)` -- so a theta cross-walked between them errs by a factor that grows
+    with sample size.
+  * **The GOA cod script header's 9.96459 nats measures 11.254 on this tree.** Keep the historical
+    and the current figure apart when reading that script.
+  * **`\item{Observation}` is still missing from `R/data.R`** (grep: 0 hits).
+  * **`## After the release, in order` below is stale in its first item.** It says to make `golden`
+    robust "before anything below"; that shipped as **5.45.1** (PR #173, `NEWS.md`: "The golden
+    check no longer asks which local minimum the machine found"). The text this file lost was the
+    only record of that, so the instruction reads as outstanding when it is not.
+
 **`source-guards.yaml` is the per-PR guard job.** Seventeen test files assert that two hand-synced
 copies of something agree, by reading `R/*.R` and `src/TMB/*.cpp` off disk. Under `R CMD check`
 they resolve `../../R` against the `.Rcheck` test directory, which does not exist, so each
@@ -71,10 +100,13 @@ but nightly. This job runs them per PR and makes the result fatal.
   * **It cannot block a merge until branch protection requires it.** Still a maintainer call, and
     still the one thing left to finish that work.
 
-**Where the plot tests run: nowhere that gates a PR.** All 14 `test-plot-*.R` files carry a
-file-level `skip_on_cran()` because each builds a real `fit_mod()` object, and `R-CMD-check.yaml`
-sets `NOT_CRAN: "false"`. So `deep-checks` is the only job where a failure in one is fatal. Run
-`test-plot-save-paths.R` by hand in any PR that changes a save path.
+**Where the plot tests run -- NOT a blanket skip, which an earlier version of this paragraph got
+wrong.** There are **15** `test-plot-*.R` files and only **6** carry a column-0
+`skip_on_cran()`. Those six are invisible on a PR, because `R-CMD-check.yaml` sets
+`NOT_CRAN: "false"` and a column-0 skip yields zero result rows; `deep-checks` is the only job
+where a failure in them is fatal, so run `test-plot-save-paths.R` by hand in any PR that changes a
+save path. The other nine DO run on a PR and a failure in them is fatal --
+`test-plot-theme-consistency.R` among them, through the guard job.
 
 ## Next, in the order I would take them
 
@@ -84,14 +116,19 @@ files named in the developer guide, was 21), the partial-match net, the guard jo
 in that plan is documentation, cosmetics, or a two-week decomposition -- and `CLEANUP_BACKLOG.md`
 says catch advice is wrong. So the order below is the backlog, not the plan.
 
-1. **`// Input SB0 (if running in multi-species mode)` -- `msmMode = 0` with `estDynamics > 0`.**
-   The only open row that says in its own words that catch advice is wrong: HCRs 5, 6 and 7 read
-   `SB0` when `DynamicHCR = FALSE` (5 also reads `SBF`), and with `DynamicHCR = FALSE` the
-   depletions divide by `SB0`/`B0` under every HCR, while equilibrium `SB0`/`SBF` are still built
-   on placeholder recruitment. Projected numbers come from `NByageFixed` and are right; the
-   reported depletion and the F and catch advice under those HCRs are not. `/golden-check` is
-   green either way -- no reference model sets `estDynamics > 0` -- so this needs a purpose-built
-   fixture, and `tests/testthat/helpers-fixed-natage.R` already builds one.
+1. **`// Input SB0 (if running in multi-species mode)` -- `msmMode = 0` with `estDynamics > 0`,
+   NARROWED rather than what the row first claimed.** Measured 2026-10-08: the F and
+   catch-advice half is **wrong** -- `proj_F = 0.0` is applied AFTER the HCR switch at both
+   template sites, and that gate is HCR- and msmMode-independent, so `F_spp` is 0 under every HCR.
+   The reported quantities are masked to NA by `rename_output()` (the 11 always-NA ones in 5.34.0,
+   `SB0`/`B0` and the depletions in 5.35.0), so no user reading a fit the normal way sees a
+   placeholder number. **What is left is real but smaller:** `ceattle.cpp` still accumulates
+   `SB0 += NByage0(...)` and `SBF += NByageF(...)` from placeholder recruitment, so a consumer
+   reading `fit$obj$report()` or `quantities` before `rename_output()` still gets those numbers.
+   Closing it means either overriding `NByage0`/`NByageF` in the template for a fixed-numbers
+   species, or deciding the R-side mask is the contract and documenting it where a direct-report
+   consumer reads. `/golden-check` is green either way -- no reference model sets
+   `estDynamics > 0`.
 2. **The two DoubleNormal rows, as one PR.** From the default starts the curve fits flat at 1.000
    at every age (`GOApollock` fishery, static selectivity, phased: objective 3085.98 against
    914.10 from `inits`), and DoubleNormal + `RandomWalkAscending` silently fits 220 parameters
@@ -740,17 +777,19 @@ older line.
 
 ## Resume here
 
-**`dev` is at 5.54.3 (`433f02eb`), clean, no PR open, and the suite was last green at 10,271
-assertions across 258 files.** Nothing is in flight, so this is a clean start rather than a
-hand-off mid-change.
+**`dev` is at 5.54.3 (`433f02eb`).** The repo holds **264** `test-*.R` files. Check `gh pr list`
+before assuming nothing is in flight -- several PRs were open when this was written.
 
-**Start with Tier 0 item 1 above: `msmMode = 0` with `estDynamics > 0`.** The working order is
-`CLEANUP_BACKLOG.md`'s own, and its first rule is the one that matters most here:
+**Tier 0 item 1 is narrowed, not open as first written** -- read its row before picking it up.
+The working order is `CLEANUP_BACKLOG.md`'s own, and its first rule matters most here:
 
-1. **Reproduce first, in a test that fails.** `tests/testthat/helpers-fixed-natage.R` already
-   builds a fixed-numbers fixture from a fit's `N_at_age`, which is the input this row needs.
-   Drive it through `fit_mod()` under each of HCRs 5, 6 and 7 with `DynamicHCR = FALSE` and read
-   `SB0`, `SBF`, `ssb_depletion` and `biomass_depletion` off the result.
+1. **Reproduce first, in a test that fails -- and NOT at `estimateMode = 3`.**
+   `tests/testthat/helpers-fixed-natage.R` builds a fixed-numbers fixture from a fit's `N_at_age`,
+   but `fixed_natage_build()` hardcodes `estimateMode = 3`, which leaves the reorganized
+   `forecast` at `0,0` and zeroes `proj_F` for EVERY species through the first clause of the same
+   gate. A measurement taken there shows F = 0 for the estimated species too and proves nothing
+   about the HCR. Use `estimateMode = 0` so `forecast` is `1,1`, and read `forecast` off
+   `obj$env$data`, never `fit$data_list`, which never carries it.
 2. **Expect `/golden-check` to be green either way** -- none of the four references sets
    `estDynamics > 0`, so it measures nothing here. `tools/verify/verify-golden-cold-start.R` is
    the harness to run for a starting-value or bounds change; neither covers this path.
