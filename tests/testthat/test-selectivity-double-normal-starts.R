@@ -18,15 +18,32 @@
 # 914.1043 is the same optimum a hand-tuned `inits` reached, so the derived
 # starts are not merely better -- they find what someone had to set by hand.
 #
-# Nothing shipping moves: no bundled dataset sets `Selectivity = "DoubleNormal"`
-# (the sibling repos' only mentions are of SS3 pattern 24, which is the separate
-# `DoubleNormalSS3` form), so none of the four golden references reaches this.
-# That is also why `test-selectivity-double-normal.R` never saw it -- that file
-# supplies its own starting values.
+# No bundled dataset sets `Selectivity = "DoubleNormal"` -- all 12 use codes
+# {0,1,2,3,4,6} -- so none of the four golden references reaches this, and
+# `build_params()` output is bit-identical on all four. Four scripts under
+# `Rceattle-models/GOA cod/Bridging/` DO set it, but inject their own `sel_inf`
+# immediately after, and the live bridges have since moved to
+# `DoubleNormalSS3`; so they are inert, for that reason rather than for absence.
+# `test-selectivity-double-normal.R` never saw this because it supplies its own
+# starting values.
 #
-# The peak is derived, not chosen: ages run minage .. minage + nages - 1, so the
-# mid-range is minage + (nages - 1) / 2, which mirrors the `length_midpoint()`
-# the length-based branch already applies for the same reason.
+# The peak is derived, not chosen: an age-based curve is evaluated at `bin + 1`
+# (`selectivity.hpp`), so the x-axis is the 1-based BIN ORDINAL 1..nages and the
+# mid-range is (nages + 1) / 2 -- the same expression the `DoubleNormalSS3`
+# block uses for the same slot, and the bin-scale analogue of the
+# `length_midpoint()` the length branch applies.
+#
+# The floor change is NOT what escapes the ridge: with the peak at mid-range the
+# fit reaches 914.1043 from a floor start of either 0 or 10, and with the peak at
+# 0 a floor of 0 still fails (2973.69, peak running to -859). The peak carries
+# the fix; logit 0 is kept because it is the logistic's maximum-gradient point.
+#
+# The fitted floor is NOT identified: it lands near -17.8 with a standard error
+# in the thousands, and anywhere in [-21.6, -10.4] across multi-starts with the
+# objective unchanged to 4 dp. That is disclosed in
+# `vignettes/articles/adding-a-selectivity-form.Rmd` and is a property of the
+# form, not of these starts -- but it is the default outcome now, so it is
+# named here too.
 
 .dn_data <- function(dimension = NULL) {
   data("GOApollock", package = "Rceattle", envir = environment())
@@ -48,15 +65,40 @@ testthat::test_that("an age-based DoubleNormal starts mid-range with a low floor
   got <- .dn_pars(.dn_data())
   p <- got$pars
   d <- got$data
-  # Ages run minage .. minage + nages - 1 (nages COUNTS bins), so the mid-range
-  # of a 10-age stock starting at age 1 is 5.5, not 5.
-  expect_mid <- d$minage[1] + (d$nages[1] - 1) / 2
-  testthat::expect_equal(expect_mid, 5.5)
-  testthat::expect_equal(unname(p$sel_inf[1, 8, 1]), expect_mid)
+  # A LITERAL, not a recomputation of the implementation's expression. An
+  # earlier version of this block recomputed `minage + (nages - 1) / 2`, which
+  # asserted self-consistency rather than correctness and so could not see that
+  # the formula was on the wrong scale.
+  #
+  # An age-based curve is evaluated at `bin + 1` (selectivity.hpp), so the
+  # x-axis is the 1-based BIN ORDINAL 1..nages and the mid-range is
+  # (nages + 1) / 2. GOApollock has nages = 10, hence 5.5.
+  testthat::expect_equal(unname(d$nages[1]), 10L)
+  testthat::expect_equal(unname(p$sel_inf[1, 8, 1]), 5.5)
   # The right-tail floor is a LOGIT: 0 is a floor of 0.5, where the old default
   # of 10 was a floor of 0.99996 and flattened the whole curve.
   testthat::expect_equal(unname(p$sel_inf[2, 8, 1]), 0)
   testthat::expect_lt(stats::plogis(p$sel_inf[2, 8, 1]), 0.9)
+})
+
+
+testthat::test_that("the peak is a bin ordinal, not an absolute age", {
+  # The two conventions coincide only at minage = 1, which every bundled dataset
+  # has -- so a formula written on the age scale measures correctly on all of
+  # them and silently wrong on a minage = 3 stock. Drive minage directly.
+  #
+  # `Bin_first_selected` is a 1-based bin ordinal while `Sel_norm_bin` is an
+  # absolute age (CLAUDE.md rule 10); this slot follows the former, because
+  # selectivity.hpp evaluates the curve at `bin + 1`.
+  for (ma in c(1L, 3L)) {
+    d <- .dn_data()
+    d$minage <- rep(ma, d$nspp)
+    p <- suppressWarnings(suppressMessages(Rceattle::build_params(
+      suppressMessages(Rceattle::switch_check(d)))))
+    # Unchanged by minage: 10 bins always put the mid-range at 5.5.
+    testthat::expect_equal(unname(p$sel_inf[1, 8, 1]), 5.5,
+                           info = paste("minage", ma))
+  }
 })
 
 

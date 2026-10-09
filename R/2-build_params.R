@@ -434,15 +434,19 @@ build_params <- function(data_list) {
     if (length(dn_flts) > 0) {
       param_list$sel_inf[2, dn_flts, ] <- 0
       # The peak is on the fleet's own bin scale. A length-based fleet already
-      # took the length midpoint above, so only the age-based ones are set here;
-      # ages run minage .. minage + nages - 1, so the midpoint is
-      # minage + (nages - 1) / 2.
+      # took the length midpoint above, so only the age-based ones are set here.
+      # An age-based curve is evaluated at `bin + 1` (selectivity.hpp), so its
+      # x-axis is the 1-BASED BIN ORDINAL 1..nages and the mid-range is
+      # (nages + 1) / 2 -- NOT an absolute age. The two coincide only at
+      # minage = 1; on a minage = 3 stock the age reading would start the peak
+      # at 7.5 of 10 bins and leave the descending limb barely informed, which
+      # is a milder version of the asymmetry this block exists to remove. The
+      # DoubleNormalSS3 block below uses the same expression for the same slot.
       age_based <- if (is.null(sel_dim)) dn_flts else
         dn_flts[is.na(sel_dim[dn_flts]) | tolower(sel_dim[dn_flts]) != "length"]
       for (flt in age_based) {
         sp <- data_list$fleet_control$Species[flt]
-        param_list$sel_inf[1, flt, ] <-
-          data_list$minage[sp] + (data_list$nages[sp] - 1) / 2
+        param_list$sel_inf[1, flt, ] <- (data_list$nages[sp] + 1) / 2
       }
     }
   }
