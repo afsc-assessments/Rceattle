@@ -123,7 +123,7 @@ how this package is written; very little over what it means.
     AGES on an age-based fleet. Check `rearrange_data()`'s offset before reading one.
 11. **`nages` is a count of age bins, not the oldest age.** Ages run
     `minage .. minage + nages - 1`; age `a` sits at index `a - minage + 1`. `minage = 1` hides
-    every confusion, and that is all 11 bundled datasets and the live assessments — so write
+    every confusion, and that is every bundled dataset and the live assessments — so write
     `seq_len(nages[sp]) - 1 + minage[sp]` and mean it. A plotter taking an `age`/`minage`
     argument resolves it with `.rce_age_index()` / `.rce_age_plus_index()`, never by indexing
     the array directly.
@@ -254,7 +254,7 @@ what matters is where they don't:
   case that resolves silently, since an ambiguous prefix returns NULL. So `$` is safe only while
   its column is guaranteed present; `.pull_int()` in `5-rearrange_data.R` has it right,
   `fc[[col]]`. Write `[[` in new code, and always when the name is computed; don't sweep the
-  ~8,500 existing `$`.
+  ~8,340 existing `$`.
   **What keeps the ~50 existing `$` reads of those three names safe is which accessor comes
   FIRST**: `switch_check()` and `data_check()` reach the column through rlang's `.data$` pronoun,
   which *errors* on a missing column instead of partial-matching, so the pipeline dies loudly
@@ -280,9 +280,10 @@ Doctrine 2 covers the unreachable guard and rule 8 the bug history; these are th
 
 - **Ask the predicate's actual question.** In PR #181 a `log()` and a `pmax()` testing whether a
   number is 1 became `abs(q - 1) < 1e-8`, and a group key of `param|fleet`, where `q` has one
-  param, became the fleet. (Both were later deleted with the warning they served.)
+  param, became the fleet. (The predicate went with the warning it served; the fleet key is live
+  in `R/0-build_catchability.R`, where it guards a `stop()`.)
 - **Split a long function by moving a block out, and say in the body that it is a move**
-  (8843c506: 117 lines of `data_check()` into `.check_equil_catch()` beside the other trailing
+  (8843c506: a block of `data_check()` into `.check_equil_catch()` beside the other trailing
   helpers — same checks, same order, same messages). Watch for a closure the helper cannot reach.
 - **Delete dead code rather than guarding it** (PR #192: `src/TMB/Dev`, the Kinzey & Punt
   scaffolding).

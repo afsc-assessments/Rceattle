@@ -154,28 +154,6 @@ than fixing.
 
 ## Tier 2 — design notes and refactor wishes
 
-### Two commit messages that misreport their own diff (found 2026-10-09)
-
-Both surfaced while sourcing `CLAUDE.md`'s new doctrine section from the PRs that did the work.
-Commit messages are immutable, so these rows are the correction; neither is a code defect, and
-nothing in the live docs still repeats them.
-
-- **`41027b7c` credits deleted lines to two files it does not touch.** Its closing line reads
-  "61 lines out of `.check_exponential_link()`, 21 out of the convergence check, 12 out of
-  `.check_q_linkage_support()`" — but the commit is `+21 / -64` across exactly four files
-  (`0-build_linkage.R`, `0-linkage_table.R`, `0-quantity_dictionary.R`, `0-switches.R`). It
-  never touches `R/0-convergence.R` or `R/0-build_catchability.R`; those were reduced by
-  `3c5ad825` and `267a951d` in the same PR (#181). The five unreachable guards the PR removed
-  are real — three here, two in `fbd1c4b2` — but the 94-line figure is not derivable from any
-  one commit, so cite the guards, not the lines.
-- **PR #196's sweep has three different sizes in the record.** The commit body says
-  twenty-seven blocks, the PR body says eighteen comments, and the PR's own review says ~12
-  genuine bug-history sites. Measured: 33 comment/roxygen hunks (`--unified=0`) in 18 files
-  under `R/` and `src/TMB/`; 27 is the PR's total changed-file count, which includes `NEWS.md`,
-  `DESCRIPTION`, `README.md`, five `man/*.Rd` and this file. The 5.49.6 `NEWS.md` entry is
-  corrected to the measured figure. The separate "two comments were false about current
-  behaviour" claim is sound and is independently stated in that entry.
-
 Cleared in 5.14.0 except where noted. As in Tier 0, three of these were not what their marker
 said, so each struck row records what it actually turned out to be.
 

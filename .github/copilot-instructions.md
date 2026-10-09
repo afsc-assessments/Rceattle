@@ -63,4 +63,5 @@ R follows the [tidyverse style guide](https://style.tidyverse.org), C++ the
 `devtools::document()`. A change that can move a fit needs the golden regression
 (`tests/testthat/test-golden-regression.R`) plus the `tools/verify/` harness that covers what
 golden does not. A behaviour, API or documentation change updates `NEWS.md`, the `DESCRIPTION`
-version and the affected vignette in the same commit.
+version and the affected vignette in the same commit. Repo tooling (`.claude/`, `tools/`,
+`.github/`), developer notes in `inst/dev/` and these agent instruction files are exempt.

@@ -99,7 +99,8 @@ builds only for `main`, so check a documentation change locally with
 
 ## The rules that constrain a change
 
-Stated in full under "Hard rules" in `CLAUDE.md`. In brief:
+Numbered as in `CLAUDE.md`'s "Hard rules", which states rule 1 more strictly for an agent — it
+must ask before an API change, where you need only the deprecation path below. In brief:
 
 1. Preserve the public API. Deprecate an argument; do not delete it. You may change one —
    rename it, or move a default — but it owes a deprecation path that keeps old fits working, a
