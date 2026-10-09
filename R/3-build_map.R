@@ -1815,6 +1815,37 @@ build_map_linkages <- function(map_list, data_list) {
   is_re_row <- !is.na(tbl$re_index)
   m <- map_list$beta_linkage
   m[est_phase == 0L | is_intercept | is_re_row] <- NA
+
+  # Fleets sharing a `Selectivity_index` or a `Catchability_index` estimate ONE
+  # parameter block, and `adjust_map_shared_params()` already reconciles the 15
+  # by-fleet slices onto the group's donor. `beta_linkage` is a flat vector with
+  # no fleet dimension, so it was never among them: one design column on a
+  # shared group became one FREE coefficient per member fleet, and estimated
+  # separately the copies diverge -- fleets declared to mirror each other end up
+  # with different realised selectivity, with no warning. Give a follower's row
+  # the donor's map level, so TMB collapses them into one parameter. Same
+  # mechanism as the by-fleet slices, and the same invariant: a mirrored group
+  # has one parameter and one output.
+  #
+  # Rows match on everything but the fleet. `X_col` is the design column's
+  # position and is shared by the group's rows (only `fleet` differs), so it is
+  # the key; `species`, `sex` and `age_bin` are carried too because a linkage
+  # may stratify on them as well, and they are often NA, which `%in%` would not
+  # match. Both rows start from the same spec, so the level's mean -- what
+  # `TMB:::updateMap()` takes as the shared start -- is that common value.
+  same <- function(a, b) (is.na(a) & is.na(b)) | (!is.na(a) & !is.na(b) & a == b)
+  for (i in which(!is.na(m) & tbl$process %in% c("sel", "q") & !is.na(tbl$fleet))) {
+    lead <- .shared_block_lead(data_list, tbl$fleet[i], tbl$process[i])
+    if (is.na(lead)) next
+    j <- which(tbl$process == tbl$process[i] &
+               same(tbl$param, tbl$param[i]) &
+               same(tbl$X_col, tbl$X_col[i]) &
+               same(tbl$species, tbl$species[i]) &
+               same(tbl$sex, tbl$sex[i]) &
+               same(tbl$age_bin, tbl$age_bin[i]) &
+               !is.na(tbl$fleet) & tbl$fleet == lead)
+    if (length(j) == 1L && !is.na(m[j])) m[i] <- m[j]
+  }
   map_list$beta_linkage <- m
   # beta_linkage_re keeps the blanket "all estimable" map (the density damps
   # it), except a random walk fixes its FIRST deviate for identifiability: the

@@ -12,6 +12,66 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.57.0
+
+## Behavior changes
+
+* **A selectivity or catchability linkage on fleets that share a block now estimates ONE
+  coefficient for the group, not one per fleet.** Fleets sharing a `Selectivity_index` or a
+  `Catchability_index` estimate one parameter block, and `adjust_map_shared_params()` reconciles 15
+  by-fleet map slices onto the group's donor. The linkage coefficients were never among them:
+  `beta_linkage` is a flat `PARAMETER_VECTOR` with no fleet dimension, and the linkage table keys
+  its rows on `fleet`, so one design column on a shared group became one **free** coefficient per
+  member fleet. Estimated separately the copies diverge, and fleets declared to mirror each other
+  ended up with different realised selectivity, with no warning.
+* **This was the default path, not a rare spelling.** `by` defaults to `~ fleet` for both `sel` and
+  `q` (`.default_stratum()`), so any such linkage written without an explicit `by = NULL` was
+  affected. Omitting `fleet =` does not avoid it either -- `fleet =` is a filter whose `NULL`
+  default means *every* fleet.
+* Measured on `GOA2018SS` fleets 9 and 10 (`ATF_bottom_trawl` and `ATF_bottom_trawl_length_comp`,
+  the same gear observed two ways, both `Logistic`, sharing both indices), with a
+  `~ cut(Year, 2)` block column on `inf_asc` and a real optimized fit:
+
+  | | coefficients | selectivity across the pair | objective |
+  |---|---|---|---|
+  | before | 2: -0.232615, -0.352109 | differs by **0.123** at its worst age | 12879.8748 |
+  | after | 1: -0.240043 | **identical** (max abs diff 0) | 12879.9970 |
+
+  The objective **rises** by 0.1222 nats, which is the only direction it can go with one fewer
+  free parameter. That is the price of the invariant.
+* **A saved fit DOES still refit** -- measured, because the obvious guess is wrong. The linkage
+  table is unchanged, so `inits$beta_linkage` still carries one entry per row and still matches the
+  parameter array; only the MAP collapses them. `TMB:::updateMap()` is
+  `tapply(parameter.entry, map.entry, mean)`, so the group's shared coefficient starts at the mean
+  of the old per-fleet values -- here -0.292362 from -0.232615 and -0.352109 -- and converges to
+  -0.240044, the same point a cold fit reaches. So there is a back-compat path and this is a
+  behaviour change rather than a breaking one. What does move is the answer: expect the objective
+  and one fleet's selectivity to change on refit, as above.
+* Reported by the GOA cod bridge session, which measured the consequence on a real model: 47
+  selectivity block columns became 59 linkage rows, copies diverging up to **20.89** on the log
+  scale, with a non-invertible Hessian and a fit ~33 nats below SS3's optimum on *fewer* declared
+  parameters.
+* **The catchability half is fixed but not pinned by a test.** The fix covers
+  `process %in% c("sel", "q")` and the mechanism is shared -- same table, same flat vector, same
+  `.shared_block_lead()` -- but no bundled dataset offers a mirrored pair with an estimated `q`:
+  the only one available has `Catchability = "Fixed"`, where a q linkage is correctly refused
+  before it reaches the map. Only the selectivity half is covered by a regression test.
+
+## Internal
+
+* `test-linkage-shared-block.R`: 4 blocks, 15 assertions, **5 of which fail without the fix**. It
+  asserts the fixture really is a mirrored pair of *live* fleets (a group containing an `Off` fleet
+  has only one estimated member and so cannot exhibit the defect -- which is why `GOApollock`'s
+  shared group is not used), that the group gets one map level and one free coefficient, that the
+  **fitted** selectivity is identical across the pair, and that the invariant holds whether the
+  spec names the donor, the follower, or both.
+* Two traps recorded in that file's header, both found while writing it. `estimateMode =
+  "DebugBuild"` cannot witness the divergence -- nothing is optimized, so the coefficients sit at
+  their starts and the two fleets agree trivially; an "identical output" assertion there passes on
+  broken code, as an earlier version of that block did. And an intercept-only spec cannot witness
+  it either, because `build_map_linkages()` pins intercept rows to `NA`, so neither row is
+  estimated.
+
 # Rceattle 5.55.0
 
 ## Breaking changes
