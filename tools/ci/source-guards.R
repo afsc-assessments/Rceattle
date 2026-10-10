@@ -97,8 +97,8 @@ patterns <- c(
 # The expected SET, by name. A count is not a set: an earlier version asserted
 # `length(targets) == 16L`, and a review demonstrated that deleting a real guard
 # while adding one decorative test that happens to match a pattern keeps the
-# count at 16 and the job green. Only 6 of these 17 are named in a vignette, so
-# 11 could be deleted with nothing a reader would miss -- `coverage-costs.tsv`
+# count at 16 and the job green. Only 6 of these 18 are named in a vignette, so
+# 12 could be deleted with nothing a reader would miss -- `coverage-costs.tsv`
 # names 13 of them, but a missing cost there is the `COST_UNMEASURED`
 # placeholder rather than a failure, so it catches nothing either. Pinning the
 # names makes the diff say which guard left.

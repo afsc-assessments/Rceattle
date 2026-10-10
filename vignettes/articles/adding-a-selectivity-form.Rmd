@@ -84,7 +84,7 @@ Stock Synthesis size pattern 24, so **the next form takes 16.**
 | `src/TMB/ceattle.cpp` | if the form takes deviates | The deviate densities in `JNLL_SEL_DEV` are keyed on **hard-coded type lists**: four `if` lines in the block headed `Logistic selectivity penalties` name the codes `1`, `3`, `4` and `8` explicitly. A form whose map block frees deviates but whose code is not in those lists estimates free parameters with no density, and nothing reports it. Add the code to each list your form's deviates belong in. |
 | `R/1-data_check.R` | always | Add the form to the `sel_para` list, so the `Time_varying_sel` soft-deprecation nudge covers it, and restrict `Time_varying_sel` to the modes your `build_map()` block handles, next to the NonParametric, NonParametricPM, Hake and LogisticPM checks. A mode the block does not name is mapped out silently (see Troubleshooting). Add any required-column check here too. |
 | `R/0-parameter_index.R` | if the form re-uses a slot | `.PAR_SEL_SLOTS` names what each `sel_inf` and `log_sel_slp` slot means per form, **and** `.rce_sel_slot_labels()` dispatches to it through a hand-written `switch` on the code and the name. Both need the new form, or `parameter_index()` and the standard-error tables label the slot for the logistic family. |
-| `R/2-build_params.R` | if the defaults are wrong for the form | Starting values are shared across forms: `sel_inf` starts at the values 0 and 10 (slot 1 at the length midpoint on a length-based fleet), `log_sel_slp` at 0.5. LogisticPM is the one form with its own start. See the worked example for why DoubleNormal needs one too. |
+| `R/2-build_params.R` | if the defaults are wrong for the form | Starting values are shared across forms: `sel_inf` starts at the values 0 and 10 (slot 1 at the length midpoint on a length-based fleet), `log_sel_slp` at 0.5. Two forms override them because those defaults describe the wrong curve for their reading of the slots -- LogisticPM, whose slot 2 is an age-1 LOG-selectivity, and DoubleNormal, whose slots are a peak and a logit floor (5.56.0). Both blocks sit together in `build_params()`; copy their shape. Note the peak is on the **1-based bin ordinal**, because `selectivity.hpp` evaluates an age-based curve at `bin + 1` -- `(nages + 1) / 2`, not an absolute age. |
 | `R/0-build_selectivity.R`, `R/0-linkage_encode.R`, `src/TMB/linkage.hpp` | if the form takes linkages | `.SEL_LINKAGE_WIRED_FORMS` lists the forms a selectivity linkage may target and `.SEL_PARAM_TO_SLOT` maps parameter names to slots. A new parameter name needs an entry in `R/0-linkage_encode.R` and the matching slot in `linkage.hpp`; the two are in lockstep. |
 | `R/4-build_parameter_bounds.R`, `R/5-rearrange_data.R`, `R/6-phaser.R` | only for new parameters or columns, plus the two form checks named above | Bounds and phases are keyed on parameter name, not form. `rearrange_data()` passes each selectivity column through under its `tmb_target` name; a new column goes through `R/0-column_schema.R` first. Two exceptions there DO key on the form: `flt_sel_lead`, which groups by `Selectivity_index` and `Selectivity` together, and `.is_pm`, which sets `allow_all` for `Sel_norm_bin`. |
 | `vignettes/model-options-and-functionality.Rmd`, `vignettes/model-parameterizations.Rmd`, `build_map_selectivity()` roxygen | always | The forms table, the equations, and the code list in the map builder's help page. |
@@ -134,19 +134,27 @@ round(unname(b$quantities$sel_at_age[flt, 1, 1:10, 1]), 3)
 
 ```
 #> [1] 4 1 1 0 0 0 4 8
-#> [1]  0 10
+#> [1] 5.5 0.0
 #> [1] 0.5 0.5
-#>  [1] 1 1 1 1 1 1 1 1 1 1
+#>  [1] 0.024 0.105 0.317 0.661 0.955 0.978 0.831 0.658 0.553 0.512
 ```
 
 The fleet receives code 8 and the stored column reads `"DoubleNormal"`. The
-default starting values are the logistic family's, and for this form they
-describe a flat curve: a peak at age 0 and a floor of `plogis(10)`, so selectivity
-is 1 at every age. The ascending width then has no effect on the likelihood, so
-its gradient is zero and the optimizer has no direction to move it in. A phased
-fit from those starts stays on that ridge, with an objective of 3085.98 and
-selectivity 1.000 at every age. Give the form starting values that describe a
-dome:
+starting curve is already a dome, because `build_params()` carries a
+DoubleNormal block: the peak starts at the bin mid-range `(nages + 1) / 2` and
+the floor at logit 0.
+
+**This is what that block is for, and it is the clearest reason to write one.**
+Before 5.56.0 the form took the logistic family's shared defaults, which for its
+reading of the slots describe a peak below the first bin and a floor of
+`plogis(10) = 0.99996` -- selectivity 1 at every age. A flat curve leaves the
+ascending width with no effect on the likelihood, so its gradient is zero and
+the optimizer has no direction to move it in: a phased fit stayed on that ridge
+at an objective of **3085.98**, against **914.10** from the derived starts. The
+peak is what escapes it; a low floor alone does not.
+
+You can still supply your own, which is how the derived values were chosen --
+they reach the same optimum a hand-tuned set did:
 
 ```{r fit}
 inits <- b$initial_params
@@ -174,7 +182,12 @@ round(unname(fit$quantities$sel_at_age[flt, 1, 1:10, 1]), 3)
 
 The same data under the shipped `DoubleLogistic`, also static, reach an objective
 of 918.15 with the same 220 parameters (AIC 2276.31), so the double normal fits
-these age compositions a little better. Terminal female spawning-stock biomass
+these age compositions a little better -- on this stock. That does not
+generalise: on the Atka mackerel fishery the dataset's own `NonParametric` fits
+better still (755.6 against 989.9), and on the GOA cod trawl fishery the double
+normal collapses to a degenerate corner (`sigma_desc` to 0 and the floor to 1,
+i.e. a plain logistic) and returns convergence FAIL. The floor is also only
+weakly identified here -- see the standard error below. Terminal female spawning-stock biomass
 moves from 390,251 t to 344,169 t.
 
 `parameter_index()` shows the relabelled slots, and the standard-error table
