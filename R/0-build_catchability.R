@@ -232,5 +232,43 @@ build_catchability <- function(linkages = NULL) {
         call. = FALSE)
     }
   }
+
+  # Fleets sharing a Catchability_index estimate ONE coefficient per design
+  # column, and the fixed-beta prior loop runs over every ROW of the linkage
+  # table with no lead gate -- so a prior named on two members of the group is
+  # evaluated twice on the one coefficient they share. Doubling a Gaussian log
+  # prior divides its variance by two: a stated SD of 0.1 is enforced as 0.0707.
+  # Same reasoning and same wording as the selectivity guard in
+  # `.check_sel_linkage_support()`; this is the catchability half of it. Keep
+  # the prior on one row and give the other members a plain row, which is what
+  # the coverage rule asks for.
+  qpri <- q[!is.na(q[["prior_family"]]) & q[["prior_family"]] != "none" &
+              !is.na(q[["fleet"]]), , drop = FALSE]
+  if (nrow(qpri) > 0L) {
+    qgrp <- fleet_control[["Catchability_index"]]
+    for (g in unique(stats::na.omit(qgrp))) {
+      mem <- which(!is.na(qgrp) & qgrp == g)
+      if (length(mem) < 2L) next
+      key <- paste(qpri[["param"]], qpri[["design_col"]], sep = "\r")
+      for (k in unique(key)) {
+        hit <- unique(qpri[["fleet"]][key == k & qpri[["fleet"]] %in% mem])
+        if (length(hit) > 1L) {
+          stop(sprintf(paste0(
+            "a catchability prior on `%s` names fleet(s) %s, which share ",
+            "Catchability_index %d and so estimate ONE coefficient: the prior ",
+            "would be counted once per sharing fleet, which divides its stated ",
+            "variance by that count. Put the prior on one of them and give the ",
+            "rest a plain linkage row for the same column."),
+            qpri[["param"]][key == k][1],
+            paste(sprintf("'%s'", fleet_control[["Fleet_name"]][hit]),
+                  collapse = ", "), g), call. = FALSE)
+        }
+      }
+    }
+  }
+
+  # Fleets sharing a Catchability_index estimate one q block, so a linkage on
+  # the group has to reach all of it and mean one thing.
+  .stop_if_mirrored_block_linkage(linkage_table, fleet_control, "q")
   invisible()
 }

@@ -1014,7 +1014,45 @@ shared through `Catchability_index`.
 ## Selectivity
 
 Selectivity is also fleet-indexed (`by = ~ fleet`) and, unlike the other
-processes, has several parameters. `build_selectivity()` accepts these
+processes, has several parameters.
+
+Because `~ fleet` is the default here, **fleets that share a `Selectivity_index`
+or a `Catchability_index` estimate one coefficient per design column for the
+whole group, and keep identical selectivity — provided the linkage reaches
+every member of the group** (5.57.0). Before that the group got one coefficient
+per member fleet and the copies diverged, which is the shape of defect the
+`Selectivity_index` is there to prevent.
+
+The proviso matters, and it is the one thing to remember here. The *base*
+parameter is shared across the group, but the offset a linkage adds is applied
+per fleet, so a `fleet =` filter naming only some members moves only those: the
+group would share a coefficient and still fit different curves. **Name every
+member of the block, or pass `by = NULL` so the linkage is a single row that
+reaches all of them.** Four things are refused on a mirrored block: naming a
+strict subset of it; a random-effect linkage (each member would get its own
+deviation series and its own deviation SD); more than one row for one design
+column on one fleet (the offset is added once per row, so that fleet would move
+twice as far as the rest on the same coefficient); and two specs for one
+parameter that disagree on `link`, `bounds` or `init`, since the group estimates
+one coefficient and would take one of the values by table position. Two specs
+*may* differ in `est_phase`: a fixed donor holds the whole group, which is how a
+reference model that fixes some time blocks is reproduced.
+
+Putting a linkage on the lead fleet alone does **not** propagate to the group.
+That is true of the `apical` height too — every selectivity parameter and the
+catchability offset are applied per fleet. The one thing that *is* re-targeted
+onto the shared base parameter is a **prior**, which is why a prior belongs on a
+single member: named on two it would be counted twice on the one coefficient
+they share, dividing its stated variance by two. The usual spelling is a prior
+on one member plus a plain row for each of the others. An intercept is also
+re-targeted onto the base, so an intercept `init` or `bounds` goes on the donor
+and the group follows.
+
+If you want one coefficient across fleets that are *not* mirrored, pass
+`by = NULL`; note that omitting `fleet =` does the opposite, since that
+argument is a filter whose `NULL` default means every fleet.
+
+`build_selectivity()` accepts these
 keys, which name the underlying slots shared across the parametric forms:
 
 | key | logistic family | DoubleNormal |

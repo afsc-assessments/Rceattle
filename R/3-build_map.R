@@ -1815,6 +1815,26 @@ build_map_linkages <- function(map_list, data_list) {
   is_re_row <- !is.na(tbl$re_index)
   m <- map_list$beta_linkage
   m[est_phase == 0L | is_intercept | is_re_row] <- NA
+
+  # Mirrored fleets share one block, so a follower's row takes the donor's map
+  # level -- `beta_linkage` has no fleet dimension for
+  # `adjust_map_shared_params()` to reach. See TRAPS.md, "Shared parameter blocks".
+  same <- function(a, b) (is.na(a) & is.na(b)) | (!is.na(a) & !is.na(b) & a == b)
+  for (i in which(tbl$process %in% c("sel", "q") & !is.na(tbl$fleet))) {
+    lead <- .shared_block_lead(data_list, tbl$fleet[i], tbl$process[i])
+    if (is.na(lead)) next
+    j <- which(tbl$process == tbl$process[i] &
+               same(tbl$param, tbl$param[i]) &
+               same(tbl$X_col, tbl$X_col[i]) &
+               same(tbl$design_col, tbl$design_col[i]) &
+               same(tbl$species, tbl$species[i]) &
+               same(tbl$sex, tbl$sex[i]) &
+               same(tbl$age_bin, tbl$age_bin[i]) &
+               !is.na(tbl$fleet) & tbl$fleet == lead)
+    # The donor's FIRST match: requiring exactly one left the group untied where
+    # the donor owned two rows, which the guard now refuses.
+    if (length(j) >= 1L) m[i] <- m[j[1]]
+  }
   map_list$beta_linkage <- m
   # beta_linkage_re keeps the blanket "all estimable" map (the density damps
   # it), except a random walk fixes its FIRST deviate for identifiability: the
