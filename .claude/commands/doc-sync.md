@@ -15,11 +15,13 @@ git diff <merge-base>...HEAD -- NEWS.md DESCRIPTION | head -40
 
 ## What to check
 
-1. **Did `R/`, `src/` or `man/` change without a `NEWS.md` bullet?** Exempt: repo tooling
-   (`.claude/`, `tools/`, `.github/`) and developer notes (`inst/dev/`) -- they change no
-   behaviour a user can observe, and `/handoff` rewrites `inst/dev/SESSION_HANDOFF.md` every
-   session. Say which exemption you applied.
-2. **Is the `DESCRIPTION` `Version:` bumped, and at the right level?** Patch for bug fixes and
+1. **Did `R/`, `src/` or `man/` change without a `NEWS.md` bullet?** Exempt: the agent
+   instructions (`CLAUDE.md`, `AGENTS.md`, `CONTRIBUTING.md`, `.claude/`, `.github/`), repo
+   tooling (`tools/`) and developer notes (`inst/dev/`) -- they change no behaviour a user can
+   observe, and `/handoff` rewrites `inst/dev/SESSION_HANDOFF.md` every session. Correcting a
+   figure in an already-released `NEWS.md` entry is exempt too. Say which exemption you applied.
+2. **Is the `DESCRIPTION` `Version:` bumped, and at the right level?** A correction to an
+   already-released `NEWS.md` entry owes no bump (precedent: 389cd4a6). Patch for bug fixes and
    docs, minor for new features, major for breaking. **"Breaking" here means no back-compat
    path** — a removal that ships with a deprecation message and keeps old fits working is a
    *minor* bump even when NEWS files it under `## Breaking changes`.
