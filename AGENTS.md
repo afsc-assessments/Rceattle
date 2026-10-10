@@ -14,10 +14,13 @@ repeated here:
 Read `CONTRIBUTING.md` first. If you are changing anything numeric, read `CLAUDE.md`'s "Hard
 rules" and "Known traps" before you start.
 
-`.github/copilot-instructions.md` is a summary of this file at the path GitHub Copilot reads. It
-and `CLAUDE.md`'s "The three that govern every change" carry the same three rules this file
-states as item 2 below plus the two bold paragraphs under "Scope and style", so a change to one
-of the three is a change in all three files.
+`.github/copilot-instructions.md` is a summary of this file at the path GitHub Copilot reads.
+This file, that one and `CLAUDE.md` each state the three doctrines in full rather than pointing
+at one another, because each is injected by its own tool. They are therefore hand-synced, and
+each carries its own examples and emphasis — what they must share is the set of operative clauses
+pinned in `tests/testthat/test-docs-doctrine-sync.R`, which fails if one of them loses a clause
+the others keep. Change a doctrine and that test tells you which files are now out of step.
+`CONTRIBUTING.md` is different: a human can follow a link, so it points here instead.
 
 ## The five that matter most
 
