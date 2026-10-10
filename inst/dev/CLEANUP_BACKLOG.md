@@ -73,7 +73,7 @@ onward. Most carry a measurement from a real fit; the few that do not say so in 
 | ~~`JNLL_Q_PRIOR` against a q linkage intercept prior~~ | ~~`Catchability = "Estimated-with-prior"` plus a q linkage `(Intercept)` prior on the same fleet~~ | **Resolved in 5.33.0**: both penalized that fleet's log q, so the prior counted twice. `.check_q_linkage_support()` now refuses the pair, taking fleet 1 for a row with no fleet, as the template does. `test-linkage-double-prior-guards.R`. |
 | ~~`JNLL_M_PRIOR` against an M1 linkage intercept prior~~ | ~~`M1_use_prior = TRUE` with `M2_use_prior = FALSE`, plus an M1 linkage `(Intercept)` prior~~ | **Resolved in 5.33.0**: both penalized that species' log M1. `.check_M_linkage_prior()`, run from `fit_mod()`, now refuses the pair, taking species 1 for a row with no species. `test-linkage-double-prior-guards.R`. |
 | ~~`R/3-build_map.R` (`if (sel_type == "DoubleNormal")`)~~ | ~~(found tracing the form for `adding-a-selectivity-form.Rmd`, 2026-09-16). `Selectivity = "DoubleNormal"` with `Time_varying_sel = "RandomWalkAscending"` (5), or any `Time_varying_sel` the branch does not name~~ | **Resolved in 5.55.0** by refusing the combination in `data_check()`, and the surface was THREE forms rather than one. `RandomWalkAscending` walks the ascending limb only and `build_map()` assigns its deviate indices on `DoubleLogistic` alone -- parsed from the source, one form of the 13 in `sel_map`. Measured on the GOA pollock fishery, switching only `Selectivity` and `Time_varying_sel` (parameters / free selectivity deviates): `DoubleLogistic` 316 / 96, `DoubleNormal` **220 / 0** as this row said, and also `Logistic` and `DescendingLogistic` **218 / 0** -- identical to `"Off"`, which this row did not name. `LogisticPM`, `Hake`, `NonParametric`, `NonParametricPM`, `NonParametricIntegrable` and `DoubleNormalSS3` lack the arm too but were already refused per form, and `2DAR1`/`3DAR1` are exempt because they estimate their field regardless and `build_map()` warns the column is ignored for them. So the fix is one rule plus two exemptions. The TEMPLATE scores the ascending density for types 1, 3 and 8, so refusing `Logistic` and `DoubleNormal` is a choice -- taken because the same model is reachable as a linkage on the ascending parameters (`peak`/`sigma_asc`, `inf_asc`/`slp_asc`) and `Time_varying_sel` on a parametric form is soft-deprecated in favour of exactly that. Worse under `random_sel = TRUE`: `sel_dev_log_sd` is freed for any non-`Fixed` form under `RandomWalkAscending`, so it scaled deviations that were all mapped out. Two corrections to this row: `AR1` is refused package-wide, so the branch's apparent AR1 support is dead; and `DoubleNormal` + `Block` frees 220 against `DoubleLogistic`'s 224 because that arm deliberately NAs its four base parameters. Nothing shipping broke -- only `GOA2018SS` and `GOApollock` set `RandomWalkAscending`, both on the `DoubleLogistic` fishery, and no sibling script sets it. Pinned by `test-selectivity-random-walk-ascending-forms.R` (20 assertions, 6 fail without the refusal), whose third block derives the one implementing form from `R/3-build_map.R`. |
-| `R/2-build_params.R` (`sel_inf` starting values) | **Open** (found 2026-09-16, same trace). `Selectivity = "DoubleNormal"` fitted from the default starting values | DoubleNormal reuses the logistic slots, so its peak starts at `sel_inf[1] = 0` (below the first age) and its right-tail floor at `sel_inf[2] = 10` on the logit scale (a floor of 1): the starting curve is flat at 1 for every age, the ascending width has no gradient, and the optimizer stays on that ridge. `GOApollock` fishery, static selectivity, phased fit: objective 3085.98 with selectivity 1.000 at every age from the defaults, against 914.10 (AIC 2268 vs the double-logistic's 2276) from `inits` with the peak at age 4, a logit floor of 0 and widths of 2 ages. `test-selectivity-double-normal.R` sets its own starts, which is why the suite does not see this. The only form-specific start in `build_params()` is LogisticPM's; add DoubleNormal's (peak mid-range, floor near 0). |
+| ~~`R/2-build_params.R` (`sel_inf` starting values)~~ | ~~(found 2026-09-16, same trace). `Selectivity = "DoubleNormal"` fitted from the default starting values~~ | **Resolved in 5.56.0.** A DoubleNormal start block in `build_params()`, beside `LogisticPM`'s, sets the peak to the fleet's own bin mid-range -- `minage + (nages - 1) / 2`, which is 5.5 on a ten-age stock, mirroring the `length_midpoint()` the length branch already applies -- and the right-tail floor to 0 on the logit scale, where `LogisticPM` already starts the same slot. Reproduced and fixed on the `GOApollock` fishery, static selectivity, phased: objective **3085.98 -> 914.1043** (AIC 6611.96 -> 2268.21), selectivity going from constant 0.999996 at every age to 0.0024 .. 0.9815 .. 0.4407. That is **2171.88 nats**, it is the same optimum a hand-tuned `inits` reached, and the form now edges out the same fleet's `DoubleLogistic` (918.15) by 4.05 nats -- which is this row's AIC claim, 2268 against 2276, confirmed to the decimal. A length-based DoubleNormal keeps its length midpoint rather than being handed an age. Pinned by `test-selectivity-double-normal-starts.R`, 15 assertions of which 8 fail without the fix, including one that every OTHER fleet's starts are unchanged. Nothing shipping moved: no bundled dataset and no sibling script sets this form. |
 | `ceattle.cpp` 5.13 (`SIMULATE PROCESS ERROR`) | **Open** (found 2026-09-17 while adding `NonParametricIntegrable`). `sim_mod(process = "selectivity")` on any fleet whose `Time_varying_sel` deviates are scored in `JNLL_SEL_DEV` (`sel_coff_dev`, `log_sel_slp_dev`, `sel_inf_dev`; forms 1, 2, 3, 5, 8, 13) | Slot 4 of `simulate_state` is only consumed by the linkage random effects (5.12b): the `Time_varying_sel` deviates have no `SIMULATE` draw beside their density, so a "redraw selectivity" request keeps the fitted deviates and a self-test measures recovery of those deviates, not of the process. `tools/verify/verify-sim-recovery-np-integrable.R` draws them in R instead. Add the draws in 5.13 gated on `simulate_state(4)`, per form (iid about 0 for IID; increments for the walks), and report them as `*_sim` for `attr(x, "process_sim")`. |
 | `R/0-column_schema.R` (`type = "switch"`) not enforced at the boundary | **Open** (found reviewing the 5.34.0-5.43.0 release, #158). Any `fleet_control` that has not been through `switch_check()` -- `data_check()` is callable on one, and `rearrange_data()` is exported | The schema types **thirteen** columns as `switch` with an `allowed` map (`Fleet_type`, `Selectivity`, `Time_varying_sel`, `Catchability`, `Comp_distribution`, `estDynamics`, ...), but nothing applies those maps on entry, so every comparison written against the canonical spelling is wrong on the integer form the workbook stores -- and every bundled data set stores the integer form. `0 != "Off"` is `TRUE`; `0 == "Off"` is `FALSE`; `0 != "Fishery"` is `TRUE`. The `Fleet_type` half of one line was fixed at 5.43.0 (`est_sel_flts`). **Its `Selectivity` half is still raw, on the same line, and still has a demonstrated effect** (measured reviewing the 5.43.0 delta, #158): `R/1-data_check.R:1255` reads `fc$Selectivity != "Fixed"`, and `0 != "Fixed"` is `TRUE`, so on raw `GOA2018SS` fleets 4 and 5 -- `Selectivity = 0` (Fixed), each on its own `Selectivity_index`, no comp or CAAL rows at `Year > 0` -- are still named by "estimated Selectivity but no comp_data". Canonicalizing both columns names nobody. Note before fixing it: those two fleets are what satisfies the positive control in `test-switches-fleet-type-integer-off.R`, so that assertion needs a fleet with a genuinely estimated form and no comps. The other sites are unreachable **only because their callers canonicalize first**, which is a property of the call graph, not of the code: `R/3-build_map.R:1425` (`flt_off <- Fleet_type == "Off"`) picks the DONOR ROW for a shared selectivity block and its own comment says getting it wrong "would silently stop estimating their selectivity/catchability"; `R/3-build_map.R:1570` maps out comp/CAAL weights the same way; `R/2-build_params.R:157` and `R/3-build_map.R:1554` use `!= "Fishery"`, which is TRUE for every fleet on an integer column. **Fix the class, not the instances:** canonicalize every schema `switch` column once at `data_check()`'s entry through its declared `allowed` map. That changes which errors fire for raw workbooks across thirteen columns, so it wants its own PR and a golden run. Converting sites one at a time was tried and rejected in #158: it left one file with two conventions and installed a third resolver disagreeing with `.canon_switch()` on `" 0 "`, `"0.0"` and `"00"`. |
 | ~~`R/1-data_check.R` (`est_sel_flts <- ...`)~~ / `Fleet_type` read raw | ~~An `NA` `Fleet_type`~~ / **Open:** an integer-coded `Fleet_type` (`0` for Off) read before `switch_check()` canonicalizes | **The NA half is resolved in 5.43.0**: `switch_check()` now refuses a blank `Fleet_type`, naming the fleet, before anything reads the column, so the all-`NA` row that killed `data_check()`'s `vapply` with `missing value where TRUE/FALSE needed` cannot form. `test-switches-fleet-type-blank.R`. **The integer half is open**: `0 != "Off"` coerces to `"0" != "Off"`, which is `TRUE`, so a fleet the workbook marks Off reads as LIVE at every bare `!= "Off"` comparison on a `fleet_control` that has not been through `switch_check()` -- `data_check()` is callable on one, and `validate_switches()` says so in as many words and canonicalizes via `.canon_switch()` first. The remaining raw comparisons do not. Audit them with `grep -n '!= "Off"' R/` and route each through `.canon_switch()` or `%in% c(0, "0", "Off")`. |
@@ -496,6 +496,73 @@ Added 2026-10-08, from three occurrences in one session:
   and `TRAPS.md`'s six. It belongs there rather than in an agent's script,
   because the two things that caught it both times were assertions a human would not have written
   by hand. Cheap, and it ends a footgun that has already cost one retraction's visibility.
+
+Found 2026-10-09 while sourcing `CLAUDE.md`'s doctrine section from the PRs that did the work.
+Commit messages are immutable, so these rows are the correction; none is a code defect, and
+nothing in the live docs still repeats the bad figures.
+
+- **`41027b7c` credits deleted lines to two files it does not touch.** Its closing line reads
+  "61 lines out of `.check_exponential_link()`, 21 out of the convergence check, 12 out of
+  `.check_q_linkage_support()`" -- but the commit is `+21 / -64` across exactly four files
+  (`0-build_linkage.R`, `0-linkage_table.R`, `0-quantity_dictionary.R`, `0-switches.R`). It
+  never touches `R/0-convergence.R` or `R/0-build_catchability.R`; those were reduced by
+  `3c5ad825` and `267a951d` in the same PR (#181). The five unreachable guards the PR removed
+  are real -- three here, two in `fbd1c4b2`, four refusals and one defensive early return -- but
+  the 94-line figure is not derivable from any one commit, so cite the guards, not the lines.
+- **PR #196's sweep has three different sizes in the record**, and a fourth claim miscounts.
+  The commit body says twenty-seven blocks, the PR body says eighteen comments, and the PR's own
+  review says ~12 genuine bug-history sites. Measured: 33 comment/roxygen hunks (`--unified=0`)
+  in 18 files under `R/` and `src/TMB/`, of which the ~12 figure is the only one with a stated
+  basis; 27 is the PR's total changed-file count, which includes `NEWS.md`, `DESCRIPTION`,
+  `README.md`, five `man/*.Rd` and this file. Separately, both the commit body and the 5.49.6
+  `NEWS.md` entry said "two comments were made false by compression" and then listed **three**
+  (two in `osa_residuals()`, one in `run_mse()`). The `NEWS.md` entry is corrected on both
+  counts. The distinct "two comments were false about current behaviour" claim *is* two
+  (`R/0-deprecate.R`, `src/TMB/ceattle.cpp`) and is sound.
+- **A fit's quantity count is drifting from its registry.** `CLAUDE.md` says a fit reports 99
+  quantities; `.QUANT_INFO` now holds 104 `r(...)` rows. Not necessarily a contradiction -- the
+  registry documents quantities a given fit need not carry -- but the two have moved apart far
+  enough to be worth one `names(fit$quantities)` check next time a model is in memory.
+
+**The comment-budget CI guard, designed and withdrawn (2026-10-09).** Doctrine 3's budget has
+gone unenforced since 2026-08-22: over the following seven weeks the longest roxygen block in
+`R/6-osa_residuals.R` went from 203 lines to 395, and the one PR devoted to comment hygiene
+(#196) left it untouched. A first implementation read the DIFF and failed anything adding a
+roxygen block over 60 lines, a `@param` over 3, or a comment run over 6. **It was withdrawn
+before merge**, because a sweep of the last 150 commits showed it failing **30 of the 79** that
+touch `R/` or `src/TMB/` (38%; 13 of the last 18 such), with **44 of 46 findings** coming from
+the comment-run rule -- 22 of those on runs of just 7 or 8 lines -- and **none** from the
+roxygen rule it was built for. Those counts include merge commits, which re-report their
+branch's added lines; non-merge only it is 18 of 58 (31%). Three reasons it did not work as
+built, one of them structural to reading a diff at all:
+
+- `is_comment()` matches `/**`, ` * ` and `*/`, so C++ Doxygen is budgeted at 6 lines rather
+  than 60. There are 119 over-budget runs in `src/TMB/`, in all 12 files, worst 107 in
+  `selectivity.hpp` -- i.e. it forbids the style `CLAUDE.md` mandates via `spr.hpp`.
+- Growth *inside* an already-oversized block passes, because the added run is itself under the
+  threshold. This is the structural one. Of the five commits in PR #152 that took that block
+  from 210 to 422 lines, only two produced any finding in the file and only **one** fired the
+  roxygen rule -- so it misses its own motivating case.
+- The verdict depends on diff shape, not on the file: a blank line every 6 lines, a `#` divider
+  every 55 inside a roxygen block, or a `/* */` block whose interior lines start with text all
+  pass; a quoted `+++ "b/..."` header (any non-ASCII path, which `core.quotePath` produces by
+  default) is never matched, so those lines are dropped silently -- reporting 0 changed files
+  when that path is the only change, and otherwise charging its runs to whichever file came
+  before it; and the per-file net-decrease escape clears a 151-line block if you delete 200
+  one-line comments in the same file.
+
+**Grant's call (2026-10-09): rebuild it as a regression check on the FILE, not the diff.** For
+each changed file, compare the post-image against the base and fail only when its longest doc
+block, longest code-comment run, or longest `@param` span gets *worse* and is above threshold --
+so the 395-line block in `R/6-osa_residuals.R` may stay at 395 but may not reach 396. That needs
+no diff parsing, which deletes the header-quoting and `/dev/null` attribution bugs outright; it
+catches the 203 -> 395 drift at every step; and it cannot punish a shortening. Give C++ doc comments the roxygen budget, set the code-comment
+threshold off the measured distribution rather than the prose (`R/` already holds 208 runs over
+6 lines and 108 `@param` spans over 3), and scope the workflow step to `branches: [dev]` -- a
+dev -> main release PR is diffed against the whole release, which on PR #184 produced 17
+unfixable findings. **The withdrawn script was never committed on any ref**, so every figure in
+this entry was measured with something that no longer exists: re-derive the sweep against the
+rebuilt check rather than trusting these numbers, and treat "unfixable" as the judgement it is.
 
 ## `TODO(review)` — Grant's calls, not an agent's
 

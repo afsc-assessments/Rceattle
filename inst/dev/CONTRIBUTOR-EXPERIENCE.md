@@ -181,8 +181,8 @@ in all eleven headers; this is a build and a link, and it makes the C++ browsabl
 `pkgdown.yaml` triggers on `main` only, so a PR to `dev` gets no CI for it — run
 `/pkgdown-check` locally.
 
-**Acceptance:** the site renders `recruitment.hpp` (the canonical Doxygen header per
-`CLAUDE.md`) with its equations, and B is reachable from it.
+**Acceptance:** the site renders `spr.hpp` (the canonical Doxygen header per `CLAUDE.md`, and
+one of the four carrying a file block) with its equations, and B is reachable from it.
 **Doc-sync:** `_pkgdown.yml`. No version bump.
 
 ### D. `CONTRIBUTING.md`, split out of `CLAUDE.md` — half a day

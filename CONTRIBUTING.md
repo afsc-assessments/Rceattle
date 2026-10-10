@@ -5,8 +5,10 @@ sets US federal catch limits. A wrong number here does not crash; it becomes a q
 convention below exists so that a change cannot move a fit without someone noticing.
 
 This guide is written for a fisheries scientist or ecologist who wants to fix, extend or
-understand the package. `CLAUDE.md` holds the same rules as an operating manual for the coding
-agent; where a rule is stated in full there, this guide points to it rather than repeating it.
+understand the package. `CLAUDE.md` is the coding agent's operating manual, and holds these
+rules plus three that bind only an agent — one of them more strictly than this guide does, since
+an agent must ask before changing an API where you may change one that carries a deprecation
+path. Where a rule is stated in full there, this guide points to it rather than repeating it.
 
 ## Setting up
 
@@ -69,8 +71,8 @@ Three checks sit outside the ordinary suite:
   the files it touches and the tests that catch a half-finished job.
 - `R/0-column_schema.R`: the source of truth for every workbook column and switch value.
 - The C++ reference on the package site (built from the Doxygen comments in `src/TMB/`):
-  the model equations, function by function. `src/TMB/recruitment.hpp` is the header to
-  emulate when you document C++.
+  the model equations, function by function. `src/TMB/spr.hpp` is the header to
+  emulate when you document C++ — one of the four that carry a file block.
 
 `AGENTS.md` at the repository root is the tool-neutral version of this, for an AI assistant that does not read `CLAUDE.md`.
 
@@ -97,9 +99,15 @@ builds only for `main`, so check a documentation change locally with
 
 ## The rules that constrain a change
 
-Stated in full under "Hard rules" in `CLAUDE.md`. In brief:
+Numbered as in `CLAUDE.md`'s "Hard rules", which states rule 1 more strictly for an agent — it
+must ask before an API change, where you need only the deprecation path below. In brief:
 
-1. Preserve the public API. Deprecate an argument; do not delete it.
+1. Preserve the public API. Deprecate an argument; do not delete it. You may change one —
+   rename it, or move a default — but it owes a deprecation path that keeps old fits working, a
+   `NEWS.md` entry, and a sweep of the repositories in `inst/dev/SIBLING-REPOS.md`. Giving a
+   switch a new meaning has no such path, so it is a breaking change: classify it as
+   one. (A coding agent works under a stricter version of this and has
+   to ask first; see doctrine 1 in `CLAUDE.md`.)
 2. A change that can move a fit needs the golden regression, and the `tools/verify/` harness
    that covers what golden cannot.
 3. The column schema defines every switch value, default and column order. Read them from
@@ -122,11 +130,20 @@ indents, about 80 columns, full words over abbreviations. Neither guide is a rea
 code you did not otherwise need to touch, and TMB idiom outranks both — the C++ keeps its
 snake_case function names.
 
-Three habits are specific to this package:
+Four habits are specific to this package:
 
 - Read a list or a `fleet_control` column with `[[ ]]`, not `$`. `$` partial-matches without a
   warning, so where `Time_varying_sel` is missing, `fleet_control$Time_varying_sel` hands back
-  `Time_varying_sel_sd`. Ten pairs among the schema's 83 columns have that shape.
+  `Time_varying_sel_sd`. Ten pairs among the schema's columns have that shape. In new code
+  only: the existing `$` reads are safe because of which accessor runs first, and rewriting one
+  of them as a bare `$` would trade a loud failure for a silent one.
+- Add nothing the change does not need now — no helper, wrapper, class, config layer or option
+  flag for later. `CLAUDE.md`'s doctrine 2 states this in full, with what earns a helper its
+  place and why an unreachable guard is not safety. **But registering in a registry that already
+  exists is the opposite, and is not optional:** a new `jnll_comp` row owes the `JnllRow`
+  partners and `.JNLL_ROW_AXIS`, and a new `Index_distribution` family owes
+  `.index_rows_natural_scale()` — miss that one and the family silently gets the log-scale
+  residual.
 - Write in the idiom of the file you are in, and do not convert one to the other. The plotters
   and `R/5-rearrange_data.R` use dplyr and the pipe; most of `R/1-*` to `R/6-*` is base R. Inside
   the fitting pipeline a rewrite is how a fit moves silently — a verb that reorders rows, drops a
@@ -139,7 +156,7 @@ Three habits are specific to this package:
 
 Write for a fisheries scientist who was not in the room: the assessment reason, the units
 and the convention, in one or two lines. The "Comments" and "Domain vocabulary" sections of
-`CLAUDE.md` give the rules and a before-and-after example; `src/TMB/recruitment.hpp` is the
+`CLAUDE.md` give the rules and a before-and-after example; `src/TMB/spr.hpp` is the
 C++ header to emulate.
 
 ## Getting help
