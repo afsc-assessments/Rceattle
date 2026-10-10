@@ -52,8 +52,8 @@ of the three is a change in all three files.
 ## Two facts that cause wrong answers
 
 - **`nages` is a count of age bins, not the oldest age.** Ages run
-  `minage .. minage + nages - 1`, and age `a` sits at index `a - minage + 1`. All 11 bundled
-  datasets use `minage = 1`, and so do the live assessments, which hides the confusion.
+  `minage .. minage + nages - 1`, and age `a` sits at index `a - minage + 1`. Every bundled
+  dataset uses `minage = 1`, and so do the live assessments, which hides the confusion.
 - **`$` partial-matches silently, on lists and on data frames.** Where `Time_varying_sel` is
   absent from a `fleet_control`, `fleet_control$Time_varying_sel` returns `Time_varying_sel_sd`.
   Use `[[ ]]` for a new read.
