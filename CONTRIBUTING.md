@@ -137,12 +137,11 @@ Four habits are specific to this package:
   `Time_varying_sel_sd`. Ten pairs among the schema's columns have that shape. In new code
   only: the existing `$` reads are safe because of which accessor runs first, and rewriting one
   of them as a bare `$` would trade a loud failure for a silent one.
-- Write the simplest thing that works, and nothing for later. No helper, wrapper, class, config
-  layer or option flag the change does not need now; a helper earns its place at two callers, or
-  when it names a concept the reader needs. A guard that cannot fire is not safety — name the
-  input that reaches it, or leave it out. Registering in the registries that already exist is a
-  different thing, and it is not optional: a new `jnll_comp` row owes the `JnllRow` partners and
-  `.JNLL_ROW_AXIS`, and a new `Index_distribution` family owes
+- Add nothing the change does not need now — no helper, wrapper, class, config layer or option
+  flag for later. `CLAUDE.md`'s doctrine 2 states this in full, with what earns a helper its
+  place and why an unreachable guard is not safety. **But registering in a registry that already
+  exists is the opposite, and is not optional:** a new `jnll_comp` row owes the `JnllRow`
+  partners and `.JNLL_ROW_AXIS`, and a new `Index_distribution` family owes
   `.index_rows_natural_scale()` — miss that one and the family silently gets the log-scale
   residual.
 - Write in the idiom of the file you are in, and do not convert one to the other. The plotters
