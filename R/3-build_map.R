@@ -1816,35 +1816,9 @@ build_map_linkages <- function(map_list, data_list) {
   m <- map_list$beta_linkage
   m[est_phase == 0L | is_intercept | is_re_row] <- NA
 
-  # Fleets sharing a `Selectivity_index` or a `Catchability_index` estimate ONE
-  # parameter block, and `adjust_map_shared_params()` already reconciles the 15
-  # by-fleet slices onto the group's donor. `beta_linkage` is a flat vector with
-  # no fleet dimension, so it was never among them: one design column on a
-  # shared group became one FREE coefficient per member fleet, and estimated
-  # separately the copies diverge -- fleets declared to mirror each other end up
-  # with different realised selectivity, with no warning. Give a follower's row
-  # the donor's map level, so TMB collapses them into one parameter. Same
-  # mechanism as the by-fleet slices, and the same invariant: a mirrored group
-  # has one parameter and one output.
-  #
-  # Rows match on everything but the fleet. `X_col` is the design column's
-  # position and `design_col` its name; both are shared by the group's rows
-  # (only `fleet` differs), and requiring BOTH means that if a position and a
-  # name ever disagree the rows simply do not merge, rather than merging the
-  # wrong pair. They agree everywhere measured; `species`, `sex` and `age_bin` are carried too because a linkage
-  # may stratify on them as well, and they are often NA, which `%in%` would not
-  # match. Both rows start from the same spec, so the level's mean -- what
-  # `TMB:::updateMap()` takes as the shared start -- is that common value.
-  #
-  # The follower takes the donor's state WHATEVER it is, held included. Guarding
-  # on a non-NA donor left the group untied wherever the donor row is fixed --
-  # `est_phase = 0`, or a pinned intercept -- so the follower kept a free
-  # coefficient against a held donor, which is the same divergence on a subset
-  # of rows. Reachable with two specs for one parameter at different phases, and
-  # measured on the SS3-bridged GOA Pacific cod model, where SS3 fixes two of
-  # `Srv`'s block replacements at phase -5: 2 of `Srv_ae1`'s 18 rows stayed
-  # divergent. `.shared_block_lead()` states the rule this restores -- a value
-  # set on the donor is what the whole group uses.
+  # Mirrored fleets share one block, so a follower's row takes the donor's map
+  # level -- `beta_linkage` has no fleet dimension for
+  # `adjust_map_shared_params()` to reach. See TRAPS.md, "Shared parameter blocks".
   same <- function(a, b) (is.na(a) & is.na(b)) | (!is.na(a) & !is.na(b) & a == b)
   for (i in which(tbl$process %in% c("sel", "q") & !is.na(tbl$fleet))) {
     lead <- .shared_block_lead(data_list, tbl$fleet[i], tbl$process[i])
@@ -1857,14 +1831,8 @@ build_map_linkages <- function(map_list, data_list) {
                same(tbl$sex, tbl$sex[i]) &
                same(tbl$age_bin, tbl$age_bin[i]) &
                !is.na(tbl$fleet) & tbl$fleet == lead)
-    # The donor's FIRST matching row, not "its only one". Requiring exactly one
-    # abandoned the tie whenever the donor owned two rows for a key -- which
-    # restored the original per-fleet divergence with nothing refusing it, and
-    # swallowed the very configuration this release says the SS3 bridge needs
-    # (two specs for one parameter at different phases). The donor's rows are
-    # guaranteed consistent by `.stop_if_mirrored_block_linkage()`, which
-    # refuses more than one row per design column per fleet inside a shared
-    # group, so any of them carries the group's level.
+    # The donor's FIRST match: requiring exactly one left the group untied where
+    # the donor owned two rows, which the guard now refuses.
     if (length(j) >= 1L) m[i] <- m[j[1]]
   }
   map_list$beta_linkage <- m

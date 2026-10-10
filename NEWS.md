@@ -17,209 +17,97 @@ version throughout.
 ## Behavior changes
 
 * **A selectivity or catchability linkage on fleets that share a block now estimates ONE
-  coefficient for the group, not one per fleet.** Fleets sharing a `Selectivity_index` or a
-  `Catchability_index` estimate one parameter block, and `adjust_map_shared_params()` reconciles 15
-  by-fleet map slices onto the group's donor. The linkage coefficients were never among them:
-  `beta_linkage` is a flat `PARAMETER_VECTOR` with no fleet dimension, and the linkage table keys
-  its rows on `fleet`, so one design column on a shared group became one **free** coefficient per
-  member fleet. Estimated separately the copies diverge, and fleets declared to mirror each other
-  ended up with different realised selectivity, with no warning.
-* **This was the default path, not a rare spelling.** `by` defaults to `~ fleet` for both `sel` and
-  `q` (`.default_stratum()`), so any such linkage written without an explicit `by = NULL` was
-  affected. Omitting `fleet =` does not avoid it either -- `fleet =` is a filter whose `NULL`
-  default means *every* fleet.
-* Measured on `GOA2018SS` fleets 9 and 10 (`ATF_bottom_trawl` and `ATF_bottom_trawl_length_comp`,
-  the same gear observed two ways, both `Logistic`, sharing both indices), with a
-  `~ cut(Year, 2)` block column on `inf_asc` and a real optimized fit:
+  coefficient for the group, not one per fleet.** `beta_linkage` is a flat `PARAMETER_VECTOR` with
+  no fleet dimension, so `adjust_map_shared_params()` -- which reconciles 15 by-fleet slices onto
+  the group's donor -- could never reach it, and one design column on a shared group became one
+  **free** coefficient per member. Estimated separately the copies diverge, so fleets declared to
+  mirror each other fitted different selectivity, with no warning. This was the **default** path:
+  `by` defaults to `~ fleet` for `sel` and `q`, and omitting `fleet =` does not avoid it, because
+  that argument is a filter whose `NULL` default means every fleet. The shared-block spelling is an
+  explicit `by = NULL`.
+* Measured on `GOA2018SS` fleets 9 and 10 (`ATF_bottom_trawl` and its length-comp twin, sharing
+  both indices), a `~ cut(Year, 2)` block column on `inf_asc`, optimized:
 
   | | coefficients | selectivity across the pair | objective |
   |---|---|---|---|
   | before | 2: -0.232615, -0.352109 | differs by **0.123** at its worst age | 12879.8748 |
-  | after | 1: -0.240043 | **identical** (max abs diff 0) | 12879.9970 |
+  | after | 1: -0.240043 | **identical** | 12879.9970 |
 
-  The objective **rises** by 0.1222 nats, which is the only direction it can go with one fewer
-  free parameter. That is the price of the invariant.
-* **A saved fit DOES still refit** -- measured, because the obvious guess is wrong. The linkage
-  table is unchanged, so `inits$beta_linkage` still carries one entry per row and still matches the
-  parameter array; only the MAP collapses them. `TMB:::updateMap()` is
-  `tapply(parameter.entry, map.entry, mean)`, so the group's shared coefficient starts at the mean
-  of the old per-fleet values -- here -0.292362 from -0.232615 and -0.352109 -- and converges to
-  -0.240044, the same point a cold fit reaches. So there is a back-compat path and this is a
-  behaviour change rather than a breaking one. What does move is the answer: expect the objective
-  and one fleet's selectivity to change on refit, as above.
-* **A held donor holds the whole group.** The first version tied a follower only where the donor's
-  map entry was non-`NA`, which left the group untied wherever the donor row is fixed
-  (`est_phase = 0`, or a pinned intercept) -- the follower kept a free coefficient against a held
-  donor, which is the same divergence on a subset of rows. `.shared_block_lead()` states the rule
-  this restores: a value set on the donor is what the whole group uses. Reachable with two specs
-  for one parameter at different phases, and live on the SS3-bridged GOA Pacific cod model, where
-  SS3 fixes two of `Srv`'s block replacements at phase -5 and 2 of `Srv_ae1`'s 18 rows stayed
-  divergent.
-* Rows match on `X_col` **and** `design_col` -- a position and a name. Requiring both means a
-  disagreement between them refuses to merge rather than merging the wrong pair; they agree
-  everywhere measured (0 of 129 `param` + `design_col` groups on GOA cod have a non-unique
-  `X_col`).
-* Reported by the GOA cod bridge session, which measured the consequence on a real model: 47
-  selectivity block columns became 59 linkage rows, copies diverging up to **20.89** on the log
-  scale, with a non-invertible Hessian and a fit ~33 nats below SS3's optimum on *fewer* declared
-  parameters. With the fix, on that model: the 18 paired `Srv`/`Srv_ae1` coefficients go from a
-  maximum absolute difference of 20.89 to exactly **0**; free parameters **344 to 328** against
-  SS3's 330; exactly-flat Hessian directions **9 to 5**, the remainder being unblocked `sel_dn6`
-  bases rather than `beta_linkage`; and the `index_log_q` and terminal-year `log_F`
-  non-identifiabilities both clear.
-* Documented in `inst/dev/TRAPS.md` beside the shared-block geometric-mean entry -- the same
-  machinery -- and in the Selectivity section of
-  `vignettes/environmental-linkages-and-priors.Rmd`, which is where a reader meets
-  `by = ~ fleet`.
-* **The catchability half is fixed, and its refusals are pinned, but its fitted output is not.**
-  The fix and all three refusals below cover `process %in% c("sel", "q")` by one code path -- same
-  table, same flat vector, same `.shared_block_lead()` -- and the q refusal is asserted directly.
-  But no bundled dataset offers a mirrored pair with an estimated `q`: the only one available has
-  `Catchability = "Fixed"`, where a q linkage is correctly refused before it reaches the map. So
-  only the selectivity half's *fitted equality* is measured.
+  The objective rises by 0.1222 nats, the only direction one fewer free parameter can go.
+* **A saved fit still refits.** The linkage table is unchanged, so `inits$beta_linkage` still has
+  one entry per row; only the map collapses them. `TMB:::updateMap()` means the level, so the
+  shared coefficient starts at -0.292362 and converges to -0.240044 -- the same point a cold fit
+  reaches. So there is a back-compat path and this is a behaviour change, not a breaking one. What
+  moves is the answer: expect the objective and one fleet's selectivity to change on refit.
+* Reported by the GOA cod bridge session, which measured it on a real model: 47 selectivity block
+  columns became 59 linkage rows, copies diverging up to **20.89** on the log scale, with a
+  non-invertible Hessian and a fit ~33 nats below SS3's optimum on *fewer* declared parameters.
+  With the fix, the 18 paired `Srv`/`Srv_ae1` coefficients go to an exact match and exactly-flat
+  Hessian directions fall 9 to 5. (Its free-parameter counts, 344 to 328 against SS3's 330, are
+  specific to that session's uncommitted bridge configuration and are not package figures.)
 
-## Three configurations a mirrored block cannot honour are now refused
+## Four configurations a mirrored block cannot honour are now refused
 
-One coefficient makes a group's offsets equal only where every member has one. **The base
-parameter is shared, but the offset it scales accumulates into a per-fleet tensor** --
-`inf_offset(param, flt, sex, yr)` in `linkage.hpp` -- so a row naming one member moves that member
-alone. That makes "put it on the lead fleet" **wrong for a design column**. It is right only for a
-PRIOR, which `build_selectivity()` re-targets onto the shared base parameter; every param code
-0-11 and the q offset write a per-fleet slot, the apical height included. Fitted on the pair above:
+One coefficient equalises a group's offsets only where every member has one. The base parameter is
+shared, but the offset it scales accumulates **per fleet** (`inf_offset(param, flt, sex, yr)`), so
+a row naming one member moves that member alone -- fitted, naming the lead alone leaves the pair
+0.265 apart and the follower alone 0.248. "Put it on the lead fleet" is therefore right only for a
+**prior**, which is re-targeted onto the shared base; every param code and the q offset write a
+per-fleet slot, the apical height included. `.stop_if_mirrored_block_linkage()` refuses:
 
-| spec names | coefficients | selectivity across the pair |
-|---|---|---|
-| both fleets | 1 | **identical** (0) |
-| the lead only (fleet 9) | 1 | differs by **0.265** |
-| the follower only (fleet 10) | 1 | differs by **0.248** |
+* **partial coverage** -- a `fleet =` filter naming some but not all members whose block is
+  estimated, with the missing fleets named. A member that cannot carry a row at all (q `Fixed`,
+  `Analytical`, absent; a selectivity form not wired for linkages) is not owed one.
+* **a random-effect linkage** -- each named fleet would get its own deviation series and its own
+  SD (84 slots in two sigma groups of 42, where a mirrored pair owes 42 and 1). These cannot be
+  tied: separate sigma groups would score the same deviations twice and fit two SDs to identical
+  data. Collapsing a block into one RE group is an encoder change and is not done here.
+* **two rows for one design column on one fleet** -- the offset is added once per row, so that
+  member moves `2 * beta * X` against the group's `beta * X`: one reported coefficient and two
+  curves, which no parameter count reveals.
+* **two specs disagreeing** on `link`, `bounds` or `init` -- the group would take one value by
+  table position. `est_phase` may differ: a held donor holds the whole group, which is how a
+  reference model that fixes some time blocks is reproduced.
 
-`.stop_if_mirrored_block_linkage()` therefore refuses, for a group of two or more members:
+An **intercept** row is exempt from coverage and agreement: it re-targets the shared base and is
+pinned to `NA`, so it cannot diverge, and `.stop_if_shared_block()` already governs it.
 
-* **Partial coverage.** A `sel`/`q` linkage whose `fleet` filter names some but not all of the
-  members whose block the model estimates, with the missing fleets named so the message is
-  actionable. Naming the whole group, or passing `by = NULL` for a single row that reaches all of
-  it, is accepted and is what the message recommends. Coverage is owed only to a member that
-  *has* an estimated block: a member whose `Catchability` is `Fixed`, `Analytical`,
-  `AnalyticalArith` or absent, or whose `Selectivity` is not a linkage-wired form, cannot carry a
-  linkage row at all -- the per-process support check refuses one -- so demanding coverage from it
-  deadlocked a q linkage on a group whose follower holds q fixed.
-* **Two rows for one design column on one fleet.** The offset accumulates with `+=` once per
-  *row*, so a member with two rows moves `2 * beta * X` where a member with one moves
-  `beta * X` -- one reported coefficient and two different curves, which no parameter count
-  reveals. Measured: a spec naming both fleets plus a second naming the follower gave one free
-  coefficient, `beta` -0.221315, and **0.203** of divergence, with every other rule satisfied.
-* **A random-effect linkage.** `beta_linkage` is pinned at 0 on an RE row and the deviation lives
-  in `beta_linkage_re`, indexed by `re_index` -- which `encode_linkage_for_tmb()` asserts is a
-  bijection over *rows*. So each named fleet gets its own deviation series: measured at **84 RE
-  slots in two sigma groups of 42, with 2 free `log_sigma_linkage` levels**, where the lead alone
-  gives 42 slots in one group with 1. These cannot be tied the way the fixed coefficients are --
-  the members land in **separate** sigma groups, so one map level would leave each group's density
-  scoring the same 42 deviations, counting them twice and fitting two SDs to identical data.
-  Collapsing a mirrored block into one RE group is an encoder change and is not done here.
-* **Specs that disagree.** Two specs for one parameter on one block that differ on `link`,
-  `bounds` or `init`. Merged, the surviving bound was whichever row sits first in the table --
-  the `match()` first-occurrence rule in `fit_mod()`'s bounds reduction, so writing the follower's
-  spec first silently won -- and two `init` values started at their **mean**: 2.0 and -2.0 began
-  at 0. Measured before the refusal: bounds (-5, 5) and (-1, 1) merged to one parameter keeping
-  one bound. `est_phase` is deliberately **not** a conflict, because a held donor holding the
-  whole group is the documented rule and is what an SS3 bridge needs where the reference model
-  fixes some blocks.
-
-An **intercept** row is exempt from coverage and from agreement. It re-targets the shared base
-parameter and `build_map_linkages()` pins its coefficient to `NA`, so it carries no per-fleet
-offset and cannot diverge; `.stop_if_shared_block()` already governs where an intercept value may
-be set. Holding it to these rules made an intercept `init` on a mirrored block unreachable by
-every spelling.
-
-A valid configuration's numbers are unchanged -- objective 12879.9970, coefficient -0.240043,
-selectivity difference exactly 0, as above.
-
-**What this refuses in the sibling repositories.** Of 104 `linkage_spec()` call sites there, 13
-declare a random-effect structure and the GOA pollock 2025 scripts do pass lists of specs for one
-parameter, so both of the configurations above are written in live code. They are nevertheless not
-refused on that model: its workbook has **no** `Selectivity_index` or `Catchability_index` group
-with two or more members whose block is estimated -- the one shared group, index 1, pairs
-`Pollock_survey_1_shelikof_acoustic` with an `Off` fleet -- and the guards skip a group of one.
-The model at risk is the SS3-bridged GOA Pacific cod bridge, whose `*_ae1` fleets do share their
-parent's `Selectivity_index` and `Catchability_index` while
-`ss3_to_ceattle_forward_pass.R` filters a q linkage to a single fleet. **That script is not
-runnable from this checkout** -- its `Data/` directory is empty, nothing under it is tracked, and
-`../SS3-bridge/ss3_to_rceattle.R` does not resolve -- so the clearance is a measurement made on
-the fitted model by the session that owns the bridge, not a run of this code against it. On that
-model: the only shared selectivity group is `Selectivity_index` 4 (`Srv`, `Srv_ae1`) and the
-bridge names both members by construction (`fleet = fleet_meta$ss3_num[grp]`); the only shared
-catchability group is index 4 and carries no q linkage; `LLSrv`, which does carry one, is alone in
-`Catchability_index` 5; and every value injected through `linkage_spec(init = )` lands on a slope
-row or an unstratified growth row, so none meets the intercept case. Each of those is a condition
-one of the four refusals tests, so none of them fires -- but it is corroboration from a second
-party, and the run itself remains owed.
-
-## Internal
-
-* `test-linkage-shared-block.R`: 13 blocks, 56 assertions, measured in three code states so the
-  file is known to discriminate rather than assumed to.
-
-  | code state | result |
-  |---|---|
-  | this release | 13 blocks, **56 pass**, 0 fail, 0 error, 0 skip |
-  | the four refusals removed, the map tie kept | **15 failures + 1 error** across 5 blocks |
-  | neither the tie nor the refusals | **27 failures + 1 error** across 10 of 13 blocks |
-
-  It asserts the fixture really is a mirrored pair of estimated fleets, that the group gets one
-  map level and one free coefficient, that the **fitted** selectivity is identical across the pair
-  and that the coefficient and objective are the values above, that a held donor holds the whole
-  group, that each of the four refusals fires and names the fleets involved, and that the
-  configurations which remain valid still build -- the whole group named, two specs covering it
-  between them, a repeated fleet in one filter, differing `est_phase`, an intercept on the donor,
-  a member whose block is not estimated, and a prior on one member with a plain row on the other.
-* Three test files were failing on the first version of this change and are green again:
-  `test-linkage-intercept-base-param.R` (2 errors), which the coverage rule had made impossible to
-  satisfy, and `test-linkage-double-prior-guards.R` (1). The intercept blocks now use an
-  intercept-only formula, because `~ temp` also emits a `temp` slope and a slope on one member of
-  a mirrored block is the configuration this release refuses -- the covariate was incidental to
-  what those blocks test.
-* The block that asserted "the group shares one coefficient however the spec names it" was
-  **asserting the wrong invariant** and is replaced. It checked the parameter count for a spec
-  naming the donor, the follower, or both, and all three give one coefficient -- but two of those
-  three spellings fit *divergent* selectivity, which is the thing the change exists to prevent. A
-  parameter count is not the invariant; identical output is.
-* `.stop_if_mirrored_block_linkage()` is called from `.check_sel_linkage_support()` and
-  `.check_q_linkage_support()`, so both processes reach it on the one path `fit_mod()` already
-  used for the other linkage refusals.
-* Its `linkable` test reads each process's switch column exactly as that process's own support
-  check does -- the catchability one on the **raw** column. A first version tested
-  `is.na(.canon_switch(...))`, which is never true: `.canon_switch()` maps an absent switch to the
-  string `"<blank>"`, so every fleet read as linkable and the rule it gated was a no-op. Caught by
-  a test failing rather than by reading it. There is no shipped instance of that pattern --
-  checked across `R/*.R` on `dev`, zero `is.na()`/`anyNA()` tests are applied to a canonicalized
-  switch value; the one such test near a canonicalizer is a fail-safe default on a comparison
-  result in `data_check()`'s `.tv_ar1()`, which sets `FALSE` rather than gating anything.
+**Nothing shipping is refused.** Of 104 `linkage_spec()` call sites in the sibling repositories, 13
+declare a random-effect structure and the GOA pollock 2025 scripts do pass spec lists, so both
+shapes are live code -- but that workbook has no index group with two or more members whose block
+is estimated (its one shared group pairs a survey with an `Off` fleet). The SS3-bridged GOA Pacific
+cod bridge, which does share both indices across its `*_ae1` fleets, was run against this branch by
+the session that owns it: clean in three configurations, forward-pass objective **1912.2067** in
+all three, and the baseline console output byte-identical to the same run before these rules. That
+is a build and forward pass at `estimateMode = 3`, not a fit, and that model happens not to
+exercise the `Off`-member case; `GOA2018SS` `Selectivity_index` 1 is the fixture that does.
 
 ## Bug fixes
 
 * **A prior on a catchability linkage is no longer counted once per fleet sharing the q block.**
-  The fixed-beta prior loop runs over every ROW of the linkage table with no lead gate, so with
-  the group's coefficients tied a prior named on two members was evaluated twice on the one
-  coefficient they share -- and doubling a Gaussian log prior divides its variance by two, so a
-  stated SD of 0.1 was enforced as 0.0707. Measured on a two-member q block with
-  `normal(0.4, 0.1)`: `jnll_comp["Linkage-table priors"]` was 13.232707 both with the tie and
-  without it, i.e. two terms either way. `build_selectivity()` has refused the selectivity
-  equivalent since 5.42.0 ("the shared block would be penalized once per sharing fleet");
-  `build_catchability()` had no such check and now carries it, with the same reasoning. The
-  accepted spelling is a prior on one member and a plain linkage row for the rest.
-* **The apical selectivity refusal no longer tells the caller the group inherits the offset.**
-  It said "Place the offset on the lead fleet instead; the fleets sharing the index inherit it",
-  and they do not: `apical_offset(flt, sex, yr)` (`linkage.hpp`) is per fleet and
-  `selectivity.hpp` reads it per fleet, so an apical linkage on the lead of a mirrored block moves
-  the lead alone. Every param code 0-11 and the q offset are per fleet; only a **prior** is
-  re-targeted onto the shared base parameter. The message now says so and points at naming the
-  whole group or `by = NULL`.
-* Two traps recorded in that file's header, both found while writing it. `estimateMode =
-  "DebugBuild"` cannot witness the divergence -- nothing is optimized, so the coefficients sit at
-  their starts and the two fleets agree trivially; an "identical output" assertion there passes on
-  broken code, as an earlier version of that block did. And an intercept-only spec cannot witness
-  it either, because `build_map_linkages()` pins intercept rows to `NA`, so neither row is
-  estimated.
+  The fixed-beta prior loop runs over every row with no lead gate, so with the coefficients tied a
+  prior named on two members was evaluated twice on the one they share -- halving its stated
+  variance, so a declared SD of 0.1 was enforced as 0.0707. Measured on a two-member q block with
+  `normal(0.4, 0.1)`: `jnll_comp["Linkage-table priors"]` 13.232707, i.e. two terms, with and
+  without the tie. `build_selectivity()` has refused the selectivity equivalent since 5.42.0; the
+  accepted spelling is a prior on one member and a plain row for the rest.
+* **The apical selectivity refusal no longer says the group inherits an offset placed on the
+  lead.** `apical_offset(flt, sex, yr)` is per fleet like every other slot, so it does not; the
+  message now points at naming the whole group or `by = NULL`.
+
+## Internal
+
+* `test-linkage-shared-block.R`: 13 blocks, 56 assertions, measured in three code states so the
+  file is known to discriminate -- 56 pass as shipped, **15 failures + 1 error** with the four
+  refusals removed, **27 failures + 1 error** with neither the tie nor the refusals.
+* `test-linkage-intercept-base-param.R` and `test-linkage-double-prior-guards.R` were failing on
+  the first version of this change and are green again. The intercept blocks now use an
+  intercept-only formula: `~ temp` also emits a slope, and a slope on one member of a mirrored
+  block is what this release refuses, so the covariate was incidental to what they test.
+* The block that asserted "the group shares one coefficient however the spec names it" was
+  asserting the wrong invariant and is replaced -- all three spellings give one coefficient, but
+  two of them fit *divergent* selectivity. A parameter count is not the invariant; identical
+  output is.
 
 # Rceattle 5.55.0
 
