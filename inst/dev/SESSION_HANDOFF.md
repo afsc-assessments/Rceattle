@@ -5,117 +5,49 @@ session. Maintained by `/handoff`.
 
 ## Now
 
-**`dev` is at 5.54.3** (`433f02eb`). Nine PRs landed since 5.52.0 (#204 to #212); **seven**
-carried a version. #204 and #212 set none -- #212 is the last row below, with `--` in its version
-cell:
+**`dev` is at 5.57.0** (`07b9f0a3`). Six PRs landed after 5.54.3; **two** carried a version.
 
-| PR | version | what it fixed |
+| PR | version | what it did |
 |---|---|---|
-| #205 | 5.53.0 | `M1_re > 0` was silently inert under `M1_model` 3/4/5 -- **18 of the 42** `(M1_model, M1_re)` pairs refuse through a fit (`NEWS.md`'s figure; #208 then opened one arm, leaving 16), and the sd/rho hyperparameters are mapped off with their deviations |
-| #206 | 5.53.1 | `Time_varying_sel` / `Time_varying_q` had no schema default, so a bare `$` read partial-matched to the `_sd` column and handed back an sd as a mode; both now default to `"Off"` |
-| #207 | 5.53.2 | `M1_re > 0` on a fixed-numbers species (`estDynamics > 0`) is normalised to 0 with a message, restoring the invariant that jnll row 16 is exactly 0 when nothing is estimated |
-| #208 | 5.54.0 | implements the one arm asked for: `M1_model = 3` x `M1_re` 2/5, age-specific level plus year-varying deviations |
-| #209 | 5.54.1 | `retrospective()` inherits a fit's stored map by design, and now warns when a rebuild would differ, so the silent inconsistency is diagnosable |
-| #210 | 5.54.2 | the plotters' save path had **no** coverage; 29 of the 31 exported plotters are now pinned, and it exposed two filename defects |
-| #211 | 5.54.3 | `plot_comp()` and `plot_diet_comp2()` each drew one figure family at two looks; one look per function now, with a guard |
-| #212 | -- | `CLEANUP_BACKLOG.md` held three Tier 0 rows twice with divergent content, one copy asserting a number the other retracts |
+| #217 | 5.56.0 | DoubleNormal (type 8) started at peak 0 and a logit floor of 10, giving a curve flat at ~1 and no gradient. Derived starts: peak at the mid-range BIN ORDINAL `(nages + 1) / 2`, floor at logit 0. Objective 3085.98 -> **914.10** on the GOApollock fishery |
+| #218 | -- | three doctrines at the top of `CLAUDE.md`; `AGENTS.md` and a new `.github/copilot-instructions.md`; `CONTRIBUTING.md` split |
+| #219 | 5.57.0 | a sel/q linkage on a shared block estimated one FREE coefficient per member, so mirrored fleets fitted different curves. Now one coefficient, plus four refusals |
+| #221 | -- | `source-guards.R` said 17 where `EXPECTED` held 18 |
+| #223 | -- | `TRAPS.md`: a map built from a skeleton model freezes both DoubleNormalSS3 ends |
+| #224 | -- | the three-file doctrine contract is now enforced by a test, not declared |
+
+**#222 is open and reviewed, not merged.** Titled "condense the documentation" at +3962/-5579, but
+it touches the schema and the template, so the numeric surface was measured rather than read:
+**all six `src/TMB/` files are comment-only** (strip `//` and `/* */`, diff the remainder), **20 of
+23 `R/` files are comment/roxygen only** (compare deparsed `parse()`), and the schema's **86
+columns, their order and every non-`doc` argument are identical**. The whole code delta is three
+string literals, one of them a message now pointing at `vignette("model-diagnostics")`. It overlaps
+#219 on four files, so it wants a real merge, not a fast-forward.
 
 **The numbers a next session should not re-derive:**
 
-  * **Open Tier 0 rows: 10 under the strict rule, 20 counting every `**Open` variant.** Say which
-    rule you mean: `**Open**` matches 10 in-table rows, while `**Open, low**`, `**Open.**`,
-    `**Open, latent**` and the rest bring it to 20. Do NOT grep the whole file -- the section's own
-    prose line ("Rows marked **Open** were found across several reviews") is an 11th hit and is not
-    a row, which is how an earlier version of this paragraph reported 11.
-  * **`fit_mod(estimateMode = 3)` on `BS2017SS` costs 3.0 s**, and driving every exported plotter
-    once off it is 38 s. That is why `test-plot-save-paths.R` takes ~2.5 min: it writes 67 PNGs
-    at 300 dpi (see below).
-  * **29 of the 31 exported plotters write a file on the single-species fixture**, including every
-    diet plotter. Only `plot_form` (no `file` formal) and `plot_profile` (needs an
-    `Rceattle_profile`) do not. An earlier version of that test claimed the 19 it skipped needed
-    a multispecies fit or diet data; that was wrong for 18 of the 19. Driving all 29 writes **67**
-    PNGs, because `plot_comp` writes 15 and each diet plotter 9.
-  * **At least 215 call sites across the sibling repos pass `file =` to a plotter** (169
-    `Rceattle-models`, 34 `GOA-ATF-ESP`, 12 `GOA_circlulation_study`). That is a single-line regex
-    and so a FLOOR: a `file =` on a continuation line is invisible to it, and a parse-accurate
-    count is higher. **None** globs the result, but "a renamed figure errors nowhere" is too
-    strong: two Rmds hard-code figure names in `knitr::include_graphics()` -- `Rceattle-models/GOA
-    CEATTLE/Model runs/GOA_25/` and an older BSAI simulation Rmd, the latter already broken. And
-    the biggest exception is structural: `GOA-multispecies-assessment`
-    passes `file =` zero times and instead saves plotter RETURN values under its own names
-    (`R/07_figures_tables.R`), which its Rmd and `dev/verify_document_objects.R` do error on.
+  * **Open Tier 0 rows: 9 under the strict rule, 19 counting every `**Open` variant.** Say which
+    you mean: `**Open**` matches 9 in-table rows; `**Open, low**`, `**Open.**`, `**Open, latent**`
+    and the rest bring it to 19. Count IN-TABLE rows only -- the section's own prose line is a hit
+    and is not a row. (Was 10/20; #219 closed the shared-block row.)
+  * **An intercept `init` on the DONOR of a shared block does not reach the optimizer's starting
+    value** -- new Tier 0 row, found writing #219 and deliberately not fixed there. The push writes
+    the donor's cell, the others keep their build default, and `TMB:::updateMap()` starts the level
+    at their mean: `log(0.5) = -0.693147` asked for, **-0.096574** actual. Pinned as current
+    behaviour in `test-linkage-intercept-base-param.R`. Fixing it moves any fit that sets one.
+  * **A linkage offset is applied PER FLEET** (`inf_offset(param, flt, sex, yr)`), the apical height
+    included. Only a PRIOR is re-targeted onto the shared base. So "put it on the lead fleet" is
+    wrong for a design column, and the pre-5.57.0 apical refusal said it anyway.
+  * **The suite is 266 files / 1651 blocks / 10,567 assertions** at `NOT_CRAN=true` serial, ~2h50m.
+    Golden is inside it; it is 6 blocks / 21 assertions and must show **skip=0**.
 
-**Two defects #210 found and deliberately did not fix**, both filed as Tier 0 rows, because
-changing a written filename is user-visible and the names want choosing rather than guessing:
-
-  * `plot_index()`'s suffix does not depend on `log`, so the natural-scale and the log-scale
-    survey index figure both write `<stem>_survey_indices.png` -- two figures, one file.
-    `plot_logindex()` forwards with `log = TRUE`, and `GOA-ATF-ESP/R/Run_2025_ceattle.R:274`
-    calls it with `file =`.
-  * `plot_diet_comp()` builds its name from `paste("Pred-", spnames[i])`, so it writes
-    `<stem>_aggregated_diet_comps_year1_Pred- Arrowtooth flounder_prey_Cod.png` -- spaces, and a
-    stray one after the dash. `plot_timeseries()` already sanitises a species name for its CSV
-    with `gsub("[^A-Za-z0-9]+", "_", ...)`; the diet plotters do not use it.
-
-**A measurement trap this file itself hit.** In a markdown table a cell separator is a pipe NOT
-preceded by a backslash. `CLEANUP_BACKLOG.md` carried `max|gradient|` unescaped in two rows, so
-GitHub split them into five cells against a three-column header and **discarded the last ~700
-characters** -- on the M1 row that hid the whole gradient half of a retraction and the paragraph
-naming the live GOA multispecies assessment. Counting raw pipes instead reports a third row
-broken when its two are already escaped. Both the review and the first fix got that wrong.
-
-**Traps the previous version of this file carried and a rewrite nearly lost.** Each is still live,
-verified 2026-10-08:
-
-  * **The installed Rceattle on this machine is 5.33.0**, against `dev` at 5.54.3 -- **21 minor
-    versions stale**. Only `GOA cod/Bridging`, `AI cod - Dev/Bridging` and
-    `SS3-bridge/attribute_gradient.R` use `pkgload::load_all()` on Rceattle; every other consumer
-    script calls `library(Rceattle)` and silently runs against 5.33.0. (`GOA
-    pollock/2025/00-fit-goa_pk.R` also calls `load_all()`, but on GOApollock, not here.) **Check `packageVersion("Rceattle")` before trusting any consumer result**, and
-    drive an `/ecosystem-sweep` through `load_all()`, not `library()`.
-  * **`Rceattle-models/SS3-bridge/HANDOFF.md`** is the only pointer to cod-bridge state and is
-    named nowhere else in `inst/dev/`.
-  * **WHAM's Dirichlet-multinomial theta is a different family** -- `alpha = p*exp(theta)` against
-    Rceattle's `N*p*exp(theta)` -- so a theta cross-walked between them errs by a factor that grows
-    with sample size.
-  * **The GOA cod script header's 9.9646 nats measured 11.254 at 5.48.0**, and the tree is now at
-    5.54.3, so neither figure is current. Keep them apart, and do not confuse the header's 9.9646
-    with the **9.96459** recorded elsewhere for the LLSrv index component -- they are different
-    quantities.
-  * **`\item{Observation}` is still missing from `R/data.R`** (grep: 0 hits).
-  * **`## After the release, in order` below is stale in its first item.** It says to make `golden`
-    robust "before anything below"; that shipped as **5.45.1** (PR #173, `NEWS.md`: "The golden
-    check no longer asks which local minimum the machine found"). The text this file lost was the
-    only record of that, so the instruction reads as outstanding when it is not.
-
-**`source-guards.yaml` is the per-PR guard job.** Seventeen test files assert that two hand-synced
-copies of something agree, by reading `R/*.R` and `src/TMB/*.cpp` off disk. Under `R CMD check`
-they resolve `../../R` against the `.Rcheck` test directory, which does not exist, so each
-skipped and the job was green. `test-coverage` DOES run them against the real source but discards
-failures (`stop_on_failure = FALSE`, nothing reads the result); `deep-checks` runs them properly
-but nightly. This job runs them per PR and makes the result fatal.
-
-  * **Adding or removing a test that reads `R/*.R` or `src/TMB/*` means updating `EXPECTED` in
-    `tools/ci/source-guards.R`**, which pins the set BY NAME so the diff says which guard moved.
-    A count would not: only 6 of the 17 are named in a vignette, so 11 could be deleted with
-    nothing a reader would miss.
-  * Its measured-nothing check is **per BLOCK**. A guard whose source read sits in a TOP-LEVEL
-    helper rather than in the block body falls under the weaker rule, where a skip is not a
-    failure. `test-plot-theme-consistency.R` was refactored into that state and back out of it,
-    so keep the `test_path()` call inside each block.
-  * **It cannot block a merge until branch protection requires it.** Still a maintainer call, and
-    still the one thing left to finish that work.
-
-**Where the plot tests run -- NOT a blanket skip, which an earlier version of this paragraph got
-wrong.** There are **15** `test-plot-*.R` files and only **6** carry a column-0
-`skip_on_cran()`. Those six are invisible on a PR, because `R-CMD-check.yaml` sets
-`NOT_CRAN: "false"` and a column-0 skip yields zero result rows; `deep-checks` is the only job
-where a failure in them is fatal, so run `test-plot-save-paths.R` by hand in any PR that changes a
-save path. Of the other nine, three skip SOME blocks
-(`test-plot-comp-aggregate.R`, `test-plot-selectivity-ci.R`,
-`test-plot-timeseries-wrappers.R`) and six run whole -- so six files skip entirely, three skip
-partly, six run. A failure in any of the nine IS fatal on a PR, and
-`test-plot-theme-consistency.R` is one of them, through the guard job.
+**The method that found everything today, and the only one worth carrying forward:** every probe
+needs a POSITIVE CONTROL -- a case that must come back non-empty -- because every failure this
+session was an under-measurement reported green. Flatten prose with `tr '\n' ' '` before counting
+(a line-based grep of a wrapping sentence returns a confident 0: this bit four times, once inside
+a control experiment that therefore proved nothing), parse rather than grep for code, and scope the
+probe to the CLAIM rather than to the file you edited. Two real defects in #219's own fix were found
+this way after a green suite; neither would have surfaced otherwise.
 
 ## Next, in the order I would take them
 
