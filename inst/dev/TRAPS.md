@@ -243,6 +243,42 @@ fits exercise. Grep both loops, and pin the pair with an invariance test rather 
 `age_error`, with a finiteness guard, because an alternative model that comes back `NaN`
 differs from the base everywhere and passes a difference check for free.
 
+**A map built from a SKELETON model freezes both double-normal ends before the real values land.**
+`build_params()` defaults `sel_dn6[5:6]` -- `start_logit` and `end_logit` -- to the sentinel
+**-999**, and `build_map()` masks those two slots on that VALUE (`R/3-build_map.R`, the
+DoubleNormalSS3 branch). Both are correct in isolation: an unscaled end has no meaningful default,
+and masking a sentinel is right. The hazard is the build ORDER when a caller stages it. A common
+bridging pattern builds one model with `inits = NULL` purely to get the parameter skeleton, derives
+a map from it, then passes that map to the real fit alongside real starting values — and the map
+still carries the mask, so the ends are held at values the caller did supply. Nothing warns: the
+parameters hold the right numbers and simply never move.
+
+Measured on `make_test_data()` with both fleets on `Selectivity = "DoubleNormalSS3"` and
+`Selectivity_dimension = "Age"`, `estimateMode = 3` throughout. The skeleton map frees **8 of 12**
+`sel_dn6` entries and masks **both** `end_logit` cells. Injecting `inits$sel_dn6[6, , 1] <- -0.5`
+and building twice:
+
+| map | `end_logit` value | map entry | free `sel_dn6` |
+|---|---|---|---|
+| reused from the skeleton | -0.5 | `NA` | **8** |
+| rebuilt from the same `inits` | -0.5 | 5 | **10** |
+
+Same model, same starting values; the only difference is where the map came from. **Rebuild the
+map from the inits you intend to fit, or inject `sel_dn6` before building the skeleton.** The
+fixture above is the durable instance: it needs no consumer, no bridge and no SS3 report, and it
+holds for as long as `build_params()` defaults the ends to the sentinel.
+
+**What it looks like from the outside, which is why it costs a day to find.** The parameters hold
+exactly the values the caller asked for, the forward pass matches, the fit converges, and the only
+symptom is a free-parameter count two short of the reference model. Every mechanism a reader
+suspects first is individually correct — the per-cell mask on the sentinel value,
+`.rce_dn6_ends()`, `adjust_map_shared_params()`, `map_linkage_adjuster()` — so the search goes
+through all of them before reaching the build order. Found in the SS3-bridged GOA Pacific cod
+work, on two `end_logit`s that SS3 estimated and Rceattle held; stated here as the behaviour of a
+staged caller rather than as a property of that model, because once such a caller rebuilds its map
+the instance goes away and the trap does not. Note this is a different code path from the
+group-level sentinel patch, which keys on `Selectivity_index` rather than on the cell's value.
+
 **A linkage parameter has THREE registries, and the rule-12 pair is only two of them.**
 `LINKAGE_PARAM_CODES` (`R/0-linkage_encode.R`) must match `linkage.hpp`, which is rule 12 — but
 `build_srr()` keeps its own whitelist in `RECRUITMENT_LINKAGE_PARAMS` (`R/0-build_srr.R`), and
