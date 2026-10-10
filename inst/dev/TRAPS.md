@@ -522,7 +522,7 @@ whose `sigma^2/2` is then a number the size of the index squared.
 **`nages` is a COUNT of age bins, not the oldest age.** Ages run
 `minage .. minage + nages - 1`, and the array's 3rd dimension is a 1-based bin index, so age `a`
 is at index `a - minage + 1`. `minage = 1` makes the two coincide — which is every bundled
-dataset and all three live assessments — so a bin/age confusion passes every test and every real
+dataset and the live assessments — so a bin/age confusion passes every test and every real
 model, and only shows up on the next `minage != 1` species. Write
 `seq_len(nages[sp]) - 1 + minage[sp]` and mean it.
 
@@ -684,7 +684,7 @@ The class is closed by fixtures, not by those three fixes. `test-plot-predation-
 fitted model to `minage = 2` and requires `age = 2` to draw what `age = 1` drew before;
 `test-plot-smoke.R` runs the rest of the exported plotters against a `minage = 3` model. Without
 a `minage != 1` fixture the whole suite passes on a bin index read as an age, because every
-bundled dataset and all three live assessments have `minage = 1`.
+bundled dataset and the live assessments have `minage = 1`.
 
 **The same class in prose: `Bin_first_selected` is a 1-based BIN ORDINAL, not an age.**
 `rearrange_data()` converts it with a bare `- 1`, while `Sel_norm_bin` beside it gets

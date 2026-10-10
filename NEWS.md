@@ -800,9 +800,9 @@ of 5.49.5; `inst/dev/TRAPS.md` has the class.
 
 * **Removed bug history from comments**, per the standing rule that a comment states current
   behaviour, units and the assessment reason -- never how the code used to be wrong.
-  Twenty-seven comment and roxygen blocks across `R/` and `src/TMB/` narrated a past defect or a
-  past version in the past tense; each now states what the code does, or states the counterfactual
-  that explains why a guard is written the way it is. The substantive ones: `.refit_converged()`'s
+  Thirty-three comment and roxygen hunks, across 18 files under `R/` and `src/TMB/`; about twelve
+  narrated a past defect or a past version in the past tense, and each now states what the code
+  does, or states the counterfactual that explains why a guard is written the way it is. The substantive ones: `.refit_converged()`'s
   roxygen spent fourteen lines on a superseded test against `opt$Convergence_check`;
   `build_map_catchability()` and `.fleets_with_index()` each described the wrong `Fleet_type`
   keying they replaced; `fit_mod()`'s skeleton filter narrated the `MakeADFun` error a stale
@@ -826,7 +826,7 @@ of 5.49.5; `inst/dev/TRAPS.md` has the class.
   figures made before 5.9.0 are mirrored about zero relative to these. A reader comparing last
   year's figure is the person at risk, and they are reading the help page, not `NEWS.md`. The
   fuller account stays in the 5.9.0 entry.
-* Corrected two comments that compression had made **false**. Two in `osa_residuals()` said OSA
+* Corrected three comments that compression had made **false**. Two in `osa_residuals()` said OSA
   residuals work "with or without `fit_control(osa = TRUE)`" -- but `fit_control()` has no `osa`
   argument and no `...`, so that call errors; it was removed as a breaking change in **4.6.0**.
   They now say what is true: nothing has to be set at fit time, and any fit optimized at
