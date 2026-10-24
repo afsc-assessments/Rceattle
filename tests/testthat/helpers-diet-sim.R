@@ -85,9 +85,10 @@
 # 1e-2 -- invisible at the default, unmissable here.
 .diet_roundtrip_check <- function(fam) {
   mod <- .diet_sim_fit(fam, if (fam == "Multinomial") 1 else log(1))
+  # One seeded draw serves both offsets: `off` enters only the transform below.
+  reps <- .diet_reps(mod, nrep = 150)
   for (off in c(1e-5, 1e-2)) {
     pred <- .diet_pred(mod, offset = off)
-    reps <- .diet_reps(mod, nrep = 150)
     seen <- apply(reps, 2, function(x) .diet_seen(mod, x, offset = off))
     keep <- which(pred > 1e-4)
     testthat::expect_gt(length(keep), 50)
