@@ -144,8 +144,9 @@ Four habits are specific to this package:
   place and why an unreachable guard is not safety. **But registering in a registry that already
   exists is the opposite, and is not optional:** a new `jnll_comp` row owes the `JnllRow`
   partners and `.JNLL_ROW_AXIS`, and a new `Index_distribution` family owes
-  `.index_rows_natural_scale()` — miss that one and the family silently gets the log-scale
-  residual.
+  `.index_rows_natural_scale()`, plus `.index_fleets_covariance()` if it carries a covariance
+  rather than a scalar sd — miss either and the family silently gets the log-scale residual, or
+  a denominator its likelihood never read.
 - Write in the idiom of the file you are in, and do not convert one to the other. The plotters
   and `R/5-rearrange_data.R` use dplyr and the pipe; most of `R/1-*` to `R/6-*` is base R. Inside
   the fitting pipeline a rewrite is how a fit moves silently — a verb that reorders rows, drops a

@@ -431,13 +431,15 @@ residuals and plot intervals are computed.
 The `MVN` families read their Σ from `index_cov`, a VAST-derived covariance for
 instance, and pair with the AMAK arithmetic-mean q (`"AnalyticalArith"`).
 
-**A family's scale is recorded in two places.** Adding one to
+**A family's scale is recorded in three places.** Adding one to
 `index_distribution_map` is not enough: it must also be classified in
 `.index_rows_natural_scale()`, which is what `residuals(type = "pearson")`,
 `plot_index()`'s observation interval and `plot_index_residual()` read. A
 natural-scale family that misses it does not error, it silently gets the
 log-scale formula, whose `σ²/2` term is then a number the size of the index
-squared.
+squared. A family carrying a covariance matrix rather than a scalar sd goes in
+`.index_fleets_covariance()` as well, which is what those same three consumers
+read to take their sd from `index_cov` instead.
 
 Time-varying behavior is set by `Time_varying_q` (per fleet):
 

@@ -293,7 +293,7 @@ plot_comp(model_1)
 
 ### Survey indices
 
-`plot_index()` shows observed vs. predicted survey biomass; pass `log = TRUE` for the log scale. `plot_index_residual()` plots the residuals as observed minus predicted, on whichever scale the fleet is fitted on (log for a `Lognormal` fleet, the natural scale for the others), a useful first check for time trends or heteroscedasticity. A positive residual means the survey saw more than the model predicted. These return `ggplot` objects.
+`plot_index()` shows observed vs. predicted survey biomass; pass `log = TRUE` for the log scale. The predicted line is the median of the fitted observation distribution, which is where the lognormal likelihood is centred and what the observation intervals bracket. `plot_index_residual()` plots the Pearson residual -- observed minus predicted, standardized by the sd the row was fitted with -- a useful first check for time trends or heteroscedasticity. A positive residual means the survey saw more than the model predicted. These return `ggplot` objects.
 
 ```{r}
 plot_index(model_1)

@@ -80,7 +80,7 @@ prior on the double-normal \code{right_floor} is unsupported. Fleets sharing a
 \code{Selectivity_index} estimate one block, so place the prior on the group's
 lead fleet (its first that is not \code{Off}): a prior on a follower would
 penalize the shared block once per sharing fleet. A prior on an \code{Off} fleet
-is refused, its selectivity not being estimated.
+is dropped with a warning, its selectivity not being estimated.
 
 Like every selectivity linkage, a covariate acts in the hindcast years;
 projection years hold the last hindcast year's curve.

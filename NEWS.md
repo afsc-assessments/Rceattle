@@ -12,6 +12,115 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.64.5
+
+## Bug fixes
+
+* **A pinned-intercept selectivity prior on an `Off` fleet is now dropped with a
+  warning instead of refusing the fit.** Turning a survey off is an ordinary
+  sensitivity run and one prior spec is reused across the series, so refusing
+  the whole configuration blocked drop-one-survey runs outright. The prior is
+  removed rather than merely allowed: such a prior re-targets to a base
+  selectivity parameter the `Off` fleet does not estimate, and would still be
+  scored, adding a constant that differs per run and would make a drop-one
+  series' objectives incomparable. Reported by an AFSC GOA pollock user who had
+  replaced the refusal with a warning locally; that workaround keeps the
+  constant this drops, so such a user's objectives will shift.
+
+  **A fit that previously errored now runs, provided the `Off` fleet keeps a
+  wired `Selectivity` form; no fit that worked before is affected.** A workbook
+  that also blanks `Selectivity` still errors, on the unwired form rather than
+  on the prior. Three cases are deliberately left as they were: a slope row,
+  whose coefficient is estimated rather than re-targeted; `apical`, still
+  refused on an `Off` fleet because that parameter is freed rather than scored,
+  making it a flat direction and a non-positive-definite Hessian; and a fleet
+  sharing a `Selectivity_index`, where the shared block can be estimated even on
+  an `Off` member, so the prior is live and the existing refusal names the lead
+  fleet to move it to.
+
+# Rceattle 5.64.4
+
+## Internal
+
+* **`src/TMB/selectivity.hpp` rewritten for readability; no fit moves.** 738 lines
+  to 520 and comment lines 237 to 89. Each curve now writes one array, `sel`,
+  at `x(bin)`, and the logistic forms read their slots through `slope(k)` and
+  `inflection(k)` rather than repeating the deviate and linkage-offset sum about
+  ten times. NonParametric, NonParametricIntegrable and its random walk share
+  one block, and the cases run in numeric order. Verified bit-identical (the
+  objective, the joint gradient over fixed and random effects, and the
+  selectivity, F, biomass and SSB reports) at 282 parameter vectors spanning
+  every form, age- and length-based, both sexes and each `Time_varying_sel`
+  mode the model accepts.
+
+
+# Rceattle 5.64.3
+
+## Bug fixes
+
+* **The index and catch fit figures now draw the MEDIAN of the fitted
+  observation distribution, not its mean.** The lognormal likelihood fits
+  `log(obs)` to a mean of `log(hat) - bias_adjust_obs * sd^2 / 2`, so
+  `index_hat` and `catch_hat` are that distribution's mean while the likelihood
+  is centred on its median -- and the observation intervals these figures draw
+  are quantiles that bracket the median. `plot_index()` and `plot_catch()`
+  plotted the mean against them, raising the line by `exp(b * sd^2 / 2)`: 2% at
+  an sd of 0.2, 13% at 0.5, 38% at 0.8. That shifts the line off the centre the
+  interval brackets, so more of the series falls below it than above and the fit
+  reads worse than it is. Both now draw
+  `hat * exp(-bias_adjust_obs * sd^2 / 2)`, using the sd each row was actually
+  fitted with, on the hindcast rows only. A projection row's prediction is the
+  removal taken, not an observation drawn with error, so it keeps the reported
+  value. **`plot_catch(mse = TRUE)` is unchanged in full**, on hindcast and
+  projection rows alike: `run_mse()` advances the operating model's `endyr` to
+  the last assessment year, so no year test separates the two there, and the
+  realized MSE catch *is* `catch_hat`, leaving nothing to convert.
+  **`bias_adjust_obs` defaults to `TRUE`, so index and
+  catch fit figures from earlier versions draw the mean and need redrawing.**
+  Natural-scale index fleets (`MVN`, `MVNORM`, `Normal`, `TruncatedNormal`) are
+  unchanged: their likelihood carries no offset, and their sd is absolute.
+  Nothing about the fit itself moves -- the offset was always in the likelihood;
+  only the figure changes.
+
+* **`plot_index_residual(residual_type = "pearson")` now returns the Pearson
+  residual it claims.** It computed `log(obs) - log(hat)` on a log-scale fleet
+  and `obs - hat` on a natural-scale one, neither standardized by the sd nor
+  offset to the likelihood's centre, so it disagreed with
+  `residuals(fit, type = "pearson")` on the same fit. It now matches that
+  method, which was already correct.
+
+* **An `MVN` / `MVNORM` index fleet now standardizes by its covariance matrix,
+  not by the scalar sd its likelihood never reads.** Those families score
+  `0.5 r' Sigma^-1 r` against `index_cov` and never read the scalar sd, which
+  stays at whatever the workbook carried -- so a fleet supplying `index_cov` in
+  natural units squared while leaving `Log_sd` at an old lognormal CV got a
+  Pearson residual wrong by the ratio of the two. `residuals(type = "pearson")`
+  and `plot_index_residual()` now divide by `sqrt(diag(index_cov))`, the
+  MARGINAL sd, and return `NA` on such a row where the matrix cannot be
+  resolved against the fitted years. `plot_index()`'s observation band for such
+  a fleet took the same wrong sd and is corrected with it: on one EBS pollock
+  configuration the drawn 95% half-width was +/-0.13 against a correct +/-1904,
+  so the figure asserted a survey biomass known to the tonne. **Pearson
+  residuals, SDNR and the observation band change for covariance fleets; no
+  other family and no fit is affected** -- `report_tables()` and
+  `standard_output()` republish that residual, so their `fits$residual` and
+  `fits$sdnr` move too. The marginal sd ignores the off-diagonal correlation
+  the likelihood does use (up to 0.54 on that same matrix), so these are
+  marginal residuals rather than fully whitened ones: a run of same-sign
+  residuals is expected under the model, and summing their squares understates
+  the fleet's likelihood contribution. `osa_residuals()` whitens.
+
+  `data_check()`'s warning for `Estimate_index_sd = "Analytical"` on a
+  covariance fleet is corrected with it. It told the user that
+  `residuals(type = "pearson")` and `plot_index()`'s observation interval
+  divide by the reported `index_sd`, which is no longer true of either, and
+  offered a remedy for a problem they no longer have. It now says that the
+  reported value is not the fleet's sd, names `sqrt(diag(index_cov))` as the
+  one that is, and warns against reading `fit$quantities$index_sd` directly.
+  The trigger and the severity are unchanged. **The y axis is therefore on a
+  different scale than before** (standardized, labelled "Index Pearson
+  residual"), so these figures also need redrawing.
+
 # Rceattle 5.64.2
 
 ## Bug fixes

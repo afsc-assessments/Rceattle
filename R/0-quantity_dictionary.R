@@ -213,7 +213,7 @@
       "Predicted survey index on the log scale.",
       "log mt or log thousands of fish", "[nrow(index_data)]", TRUE, NA_character_),
     r("index_sd", "catchability",
-      "Observation-error sd the index likelihood used for each row. It is NOT a log: a log-scale sd for a Lognormal fleet, and an ABSOLUTE sd in index units for a natural-scale Index_distribution.",
+      "Observation-error sd the index likelihood used for each row. It is NOT a log: a log-scale sd for a Lognormal fleet, and an ABSOLUTE sd in index units for a natural-scale Index_distribution. An MVN/MVNORM fleet is the exception -- it scores index_cov, so this value is whatever Log_sd carried and the likelihood never reads it; sqrt(diag(index_cov)) is that fleet's sd.",
       "log scale sd or index units", "[nrow(index_data)]", FALSE, NA_character_),
     r("log_index_sd", "catchability",
       "Deprecated spelling of index_sd, kept one release; identical values. Use index_sd.",

@@ -1460,9 +1460,10 @@ data_check <- function(data_list) {
   # family. Normal / TruncatedNormal read the sd as an ABSOLUTE value in index
   # units, so the likelihood itself is evaluated on the wrong scale: refused.
   # MVN / MVNORM score through index_cov_mat and never read the scalar sd, so the
-  # FIT is unaffected and only the reported index_sd is wrong -- that is what
-  # residuals(type = "pearson") and plot_index()'s interval divide by, so the
-  # diagnostics are warned about rather than the model refused.
+  # FIT is unaffected and only the reported index_sd is wrong. The diagnostics
+  # take their sd from sqrt(diag(index_cov)), so nothing in the package divides
+  # by it on such a fleet -- but a user reading fit$quantities$index_sd would,
+  # so this warns rather than refusing the model.
   if(has_data(fc) && all(c("Index_distribution", "Estimate_index_sd") %in% colnames(fc))){
     is_analytical <- fc$Estimate_index_sd %in% c("Analytical", 2, "2")
     is_on <- !(fc$Fleet_type %in% c("Off", 0, "0"))
@@ -1489,9 +1490,11 @@ data_check <- function(data_list) {
         " combine Estimate_index_sd = 'Analytical' with a covariance index ",
         "family. The fit is unaffected -- MVN/MVNORM score through index_cov ",
         "and never read the scalar sd -- but the reported index_sd is then a ",
-        "log-scale number, and residuals(type = 'pearson') and plot_index()'s ",
-        "observation interval divide by it. Read those two on this fleet with ",
-        "care, or set Estimate_index_sd = 'Fixed'."), call. = FALSE)
+        "log-scale number that is not this fleet's sd. Its sd is ",
+        "sqrt(diag(index_cov)), which is what residuals(type = 'pearson'), ",
+        "plot_index()'s observation interval and plot_index_residual() use. Do ",
+        "not read fit$quantities$index_sd as this fleet's sd, or set ",
+        "Estimate_index_sd = 'Fixed'."), call. = FALSE)
     }
   }
 

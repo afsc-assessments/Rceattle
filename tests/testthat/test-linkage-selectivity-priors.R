@@ -166,3 +166,97 @@ testthat::test_that("a prior on a limb the fleet's curve lacks is rejected", {
                                      priors = list(intercept = normal(0, 3)))))),
     "Rceattle")
 })
+
+
+# A prior on a fleet turned Off. Dropping a survey is an ordinary sensitivity
+# and the prior spec is written once for the series, so this must not refuse
+# the fit (it did until 5.64.4). It is DROPPED rather than allowed through:
+# the base parameter is mapped out but the cpp prior loop scores the prior
+# anyway, so allowing it would add a per-run constant to the objective.
+.fit3_data <- function(sel, mutate) {
+  e <- new.env(parent = asNamespace("Rceattle"))
+  for (f in list.files(testthat::test_path(), "^helper", full.names = TRUE)) sys.source(f, e)
+  d <- mutate(e$make_test_data())
+  suppressMessages(Rceattle::fit_mod(
+    data_list = d, selFun = sel, estimateMode = 3, msmMode = 0,
+    random_rec = FALSE,
+    fit_control = Rceattle::fit_control(getsd = FALSE, phase = FALSE, verbose = 0)))
+}
+
+testthat::test_that("a selectivity prior on an Off fleet is dropped, not refused", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("TMB")
+
+  srv_off <- function(d) {
+    d$fleet_control$Fleet_type[d$fleet_control$Fleet_name == "Survey"] <- "Off"
+    d
+  }
+  srv <- function(d) which(d$fleet_control$Fleet_name == "Survey")
+  code <- srv(local({
+    e <- new.env(parent = asNamespace("Rceattle"))
+    for (f in list.files(testthat::test_path(), "^helper", full.names = TRUE)) sys.source(f, e)
+    e$make_test_data()
+  }))
+  sel <- Rceattle::build_selectivity(linkages = list(
+    inf_asc = Rceattle::linkage_spec(~1, fleet = as.integer(code),
+                                     priors = list(`(Intercept)` = normal(4, 0.5)))))
+
+  # It warns rather than erroring.
+  testthat::expect_warning(fit <- .fit3_data(sel, srv_off), "is dropped")
+  testthat::expect_false(is.null(fit$obj))
+
+  # Dropped, not merely tolerated: the prior contributes nothing at all.
+  testthat::expect_equal(
+    sum(fit$quantities$jnll_comp["Linkage-table priors", ]), 0)
+
+  # Not vacuous -- that row IS non-zero when the same prior lands on a live
+  # fleet, so a prior left in the objective would have been caught.
+  live <- suppressWarnings(.fit3_data(sel, identity))
+  testthat::expect_gt(sum(live$quantities$jnll_comp["Linkage-table priors", ]), 0)
+})
+
+
+# The three rows the drop deliberately leaves alone. Each is a case where
+# Fleet_type = "Off" does NOT mean the prior is inert, so dropping it would
+# silently discard a live prior or hide a refusal that names the real fix.
+testthat::test_that("the Off-fleet drop spares slope, apical and shared rows", {
+  testthat::skip_on_cran()
+
+  e <- new.env(parent = asNamespace("Rceattle"))
+  for (f in list.files(testthat::test_path(), "^helper", full.names = TRUE)) sys.source(f, e)
+  d  <- e$make_test_data()
+  fc <- Rceattle::switch_check(Rceattle::clean_data(d))$fleet_control
+  srv <- which(fc$Fleet_name == "Survey")
+  fc$Fleet_type[srv] <- "Off"
+
+  tbl <- function(param, design_col, prior = "normal") {
+    data.frame(process = "sel", param = param, design_col = design_col,
+               fleet = srv, species = NA_integer_, sex = NA_integer_,
+               prior_family = prior, prior_p1 = 4, prior_p2 = 0.5,
+               stringsAsFactors = FALSE)
+  }
+  drop <- function(x) suppressWarnings(
+    Rceattle:::.drop_off_fleet_sel_priors(x, fc, verbose = 0))
+
+  # A slope row's coefficient is ESTIMATED, not re-targeted, so the prior is
+  # live and must survive.
+  slope <- tbl("inf_asc", "cold_pool")
+  testthat::expect_equal(drop(slope)$prior_family, "normal")
+
+  # apical is refused by .check_sel_apical_rows() on an Off fleet; dropping it
+  # first would warn that it had been handled and then error anyway.
+  testthat::expect_equal(drop(tbl("apical", "(Intercept)"))$prior_family,
+                         "normal")
+
+  # A pinned intercept on an unshared Off fleet IS inert -- the positive
+  # control, so the three negatives above cannot pass by the drop doing nothing.
+  testthat::expect_equal(drop(tbl("inf_asc", "(Intercept)"))$prior_family, "none")
+
+  # Sharing a Selectivity_index can leave the block estimated on an Off member,
+  # so the prior is live; the existing check names the lead to move it to.
+  fc_shared <- fc
+  fc_shared$Selectivity_index <- 1L
+  shared <- suppressWarnings(Rceattle:::.drop_off_fleet_sel_priors(
+    tbl("inf_asc", "(Intercept)"), fc_shared, verbose = 0))
+  testthat::expect_equal(shared$prior_family, "normal")
+})

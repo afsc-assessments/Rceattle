@@ -39,8 +39,8 @@ for the shared-block start, and raise a severity without rewriting the text.
 **2. Write the simplest thing that works, and nothing for later.** No helper, wrapper, class,
 config layer, option flag or *new* registry this change does not need now, and no second grammar
 for what the linkage formula already expresses (rule 12) — but registering in the registries that
-already exist (the `JnllRow` partners, `.JNLL_ROW_AXIS`, `.index_rows_natural_scale()`) is not
-optional. A helper earns its place at two callers, or when it names a concept the reader needs.
+already exist (the `JnllRow` partners, `.JNLL_ROW_AXIS`, `.index_rows_natural_scale()`,
+`.index_fleets_covariance()`) is not optional. A helper earns its place at two callers, or when it names a concept the reader needs.
 Both halves of that were settled in 5.63.0 and the example is kept because it shows the rule
 working: `.is_timeout()` had no caller in `R/` and now has two (`R/0-convergence.R`), while
 `.par_description()` never earned one and was deleted. Check a helper's callers in the current
@@ -393,7 +393,7 @@ section holds the fuller text as of 2026-09-14).
 
 - **`newtonsteps > 0` can return a parameter OUTSIDE its bounds**: nlminb respects them, the Newton refinement after it does not, in either `.fit_tmb()` path. `convergence` reports `parameters_outside_bounds` (FAIL); default is 0 but golden runs 3.
 - **A shared parameter block starts at the GEOMETRIC MEAN of its members' starting values**, not the lead's; inject per BLOCK, never per fleet. Cost a GOA cod survey 18% of its index.
-- **`Index_distribution` has a second registry**: a new family must also be classified in `.index_rows_natural_scale()`, or it gets the log-scale residual.
+- **`Index_distribution` has two more registries**: a new family must also be classified in `.index_rows_natural_scale()`, and in `.index_fleets_covariance()` if it carries a covariance rather than a scalar sd, or it gets the log-scale residual or a denominator its likelihood never read.
 - **`jnll_comp` columns count fleets on rows 1–8 AND row 22, species on 9–20, and neither on row 21** — the fleet axis is NOT contiguous (row 21 is the model-wide linkage REs, row 22 the initial equilibrium catch, by fleet); `.JNLL_ROW_AXIS` is the registry, so `rowSums()` mixes axes and an axis guess that stops at row 20 is wrong.
 - **A reference point CEATTLE never estimated is a number, not a gap**: `Ftarget`/`Flimit` = 1, `MSSB0` = 999 mt, per-recruit quantities 0 under `msmMode > 0`.
 - **`GOA2018SS`/`GOAcod` cod maturity is 2.0 at every age they use, and it is a data defect, not a sex-ratio convention**: inert there because `nsex = 1` cancels it against `sex_ratio = 0.5`, but on a two-sex species it doubles SSB exactly, and `data_check()`'s upper bound is commented out. Golden cannot see it.

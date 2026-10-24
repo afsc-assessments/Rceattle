@@ -311,3 +311,103 @@ calc_mcall_ianelli_diet <- function(data_list = NULL, quantities = NULL){
   if (is.null(got)) got <- quantities[[paste0("log_", what, "_sd")]]
   got
 }
+
+#' Replace a covariance fleet's reported sd with its marginal sd
+#'
+#' An MVN / MVNORM fleet scores `index_cov` and leaves the reported `index_sd`
+#' at whatever its `index_data` `Log_sd` column carried, which that likelihood
+#' never reads, so standardizing those rows by it can be wrong by orders of
+#' magnitude. Their sd is `sqrt(diag(index_cov))`, the
+#' MARGINAL sd: it ignores the off-diagonal correlation the likelihood does use,
+#' so a residual standardized this way is marginal, not fully whitened.
+#'
+#' @param data_list The fit's `data_list` (pre-`rearrange_data()`, so the input
+#'   `index_cov`, not the `index_cov_mat` that `rearrange_data()` builds).
+#' @param sigma `index_sd`, one value per `index_data` row.
+#' @return `sigma`, with covariance-fleet rows replaced, and `NA` on such a row
+#'   wherever the matrix cannot be resolved against the fitted years.
+#' @noRd
+.index_marginal_sd <- function(data_list, sigma) {
+  cov_rows <- .index_rows_covariance(data_list)
+  if (!length(cov_rows) || !any(cov_rows) || length(sigma) != length(cov_rows)) {
+    return(sigma)
+  }
+  idx <- data_list$index_data
+  fc  <- data_list$fleet_control
+  for (code in unique(idx[["Fleet_code"]][cov_rows])) {
+    i  <- match(code, fc[["Fleet_code"]])
+    nm <- as.character(fc[["Fleet_name"]][i])
+    Sigma <- data_list$index_cov[[nm]]
+    if (is.null(Sigma)) Sigma <- data_list$index_cov[[as.character(code)]]
+    Sigma <- tryCatch(as.matrix(Sigma), error = function(e) NULL)
+    # Sigma's rows follow this fleet's FITTED observations in index_data order
+    # and are year-dimnamed by clean_data(); see .align_index_cov().
+    this <- cov_rows & idx[["Fleet_code"]] == code
+    # !is.na() first: an NA observation would otherwise put NA in the mask, and
+    # a logical subscript carrying NA errors on assignment.
+    fitted <- this & idx[["Year"]] > 0 & idx[["Year"]] <= data_list$endyr &
+      !is.na(idx[["Observation"]]) & idx[["Observation"]] > 0
+    sigma[this] <- NA_real_
+    if (is.null(Sigma) || !nrow(Sigma)) next
+    # diag() of a non-square matrix, or of a bare vector passed as one, is
+    # shorter than the fitted rows and would recycle silently.
+    sd_diag <- sqrt(diag(Sigma))
+    if (anyNA(sd_diag) || any(sd_diag <= 0)) next
+    yrs <- suppressWarnings(as.integer(rownames(Sigma)))
+    if (sum(fitted) == nrow(Sigma) && length(sd_diag) == nrow(Sigma)) {
+      # Positional first: Sigma's rows ARE this fleet's fitted rows in
+      # index_data order, which rearrange_data() enforces with a stop(), so a
+      # mismatch is a fit-time error rather than a plot-time wrong number.
+      sigma[fitted] <- sd_diag
+    } else if (length(yrs) == nrow(Sigma) && !anyNA(yrs) &&
+               !anyDuplicated(idx[["Year"]][fitted])) {
+      # Year key for a Sigma whose row count no longer matches -- and only when
+      # years are unique, since match() would give two rows in one year the
+      # same entry. A legacy Index_loglike workbook reaches fit_mod() untagged,
+      # because switch_check() renames the column after clean_data() runs.
+      sigma[fitted] <- sd_diag[match(idx[["Year"]][fitted], yrs)]
+    }
+  }
+  sigma
+}
+
+#' Read a fit's observation bias-adjustment flag
+#'
+#' The index and catch lognormal likelihoods fit `log(obs)` to a mean of
+#' `log(hat) - bias_adjust_obs * sigma^2 / 2`, so anything comparing an
+#' observation against `hat` needs the same flag. `data_list` carries it after
+#' `fit_mod()`; older fits fall back to the TMB data, then to the default 1.
+#'
+#' @param object A fitted `Rceattle` object.
+#' @return Length-one numeric: 1, 0, or a fraction where a partial correction
+#'   was configured.
+#' @noRd
+.bias_adjust_obs <- function(object) {
+  got <- object$data_list$bias_adjust_obs
+  if (is.null(got) && !is.null(object$obj)) {
+    got <- object$obj$env$data$bias_adjust_obs
+  }
+  if (is.null(got)) got <- 1
+  as.numeric(got)[1]
+}
+
+#' Convert a reported mean observation to the median its likelihood centres on
+#'
+#' Log-scale rows only: a natural-scale family has no offset, and its `sigma` is
+#' an ABSOLUTE sd, so the lognormal form would collapse the prediction to zero
+#' (see `.observation_sd()`).
+#'
+#' @param hat Reported `index_hat` / `catch_hat`.
+#' @param sigma The sd the likelihood used, from `.observation_sd()`.
+#' @param ba_obs The flag, from `.bias_adjust_obs()`.
+#' @param log_scale Logical, one per row: is this row fitted on the log scale?
+#' @return `hat`, with the log-scale rows converted to medians.
+#' @noRd
+.hat_as_median <- function(hat, sigma, ba_obs, log_scale) {
+  out <- hat
+  # No usable sd keeps the reported MEAN rather than wiping the row, since
+  # exp(-b * NA / 2) is NA and the figure can still draw a prediction.
+  use <- log_scale & is.finite(sigma) & is.finite(hat)
+  out[use] <- hat[use] * exp(-ba_obs * sigma[use]^2 / 2)
+  out
+}
