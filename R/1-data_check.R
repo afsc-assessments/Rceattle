@@ -1727,7 +1727,7 @@ data_check <- function(data_list) {
   #
   # Required only where the TEMPLATE reads sel_dev_sd, which is a property of the
   # (Selectivity, Time_varying_sel) pair rather than of either alone, transcribed
-  # from the density sites in ceattle.cpp section 13.1. The absences are the part
+  # from the density sites in ceattle.cpp section 13.7. The absences are the part
   # the code below cannot show: LogisticPM never reads it -- its two walks are
   # weighted by Sel_curve_pen1 and Sel_curve_pen3, and the model's own conditions
   # exclude type 11 from every sel_dev_sd site -- and nor does Fixed. 2DAR1 and
@@ -2014,7 +2014,7 @@ data_check <- function(data_list) {
       }
     }
     # Stomach grouping. The diet likelihood takes stomach i's prey as the run
-    # of rows where stomach_id == i (ceattle.cpp, section 13.2), so the ids must
+    # of rows where stomach_id == i (ceattle.cpp, section 13.6), so the ids must
     # be sorted 0, 1, 2, ... with no gaps -- grouped-but-unsorted is not enough,
     # and any stomach out of order drops out of the likelihood. clean_data()
     # sorts by stomach_id; this catches a hand-built or re-sorted diet table.

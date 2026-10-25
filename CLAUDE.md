@@ -205,7 +205,7 @@ rcmdcheck::rcmdcheck()                 # what CI runs (slow; usually backgrounde
 - **`src/TMB/`** — `ceattle.cpp` is the main model (numbered section index); process logic lives
   in headers (`recruitment.hpp`, `selectivity.hpp`, `predation.hpp`, `growth.hpp`, `linkage.hpp`,
   `spr.hpp`, `comp_osa.hpp`, `comp_sim.hpp`, `helper_functions.hpp`, `bioenergetics.hpp`,
-  `diet_data.hpp`).
+  `diet_data.hpp`), and the likelihood (section 13) keeps its shared math in `likelihood.hpp`.
   `jnll_comp` rows are addressed by the **`JnllRow` enum** — refer to a row by its constant,
   never a bare integer. The enum has **two hand-synced partners**: display names in
   `R/6-rename_output.R`, and `.JNLL_ROW_AXIS` in `R/9-profile.R`, which records whether a row's
@@ -336,9 +336,9 @@ comp_weights[flt] <- 0
 
 **Match the surrounding form, not the surrounding volume** (doctrine 3). The codebase favours
 explanatory section headers in R and Doxygen on the C++, so write those. Canonical
-references: `src/TMB/spr.hpp` for a fully Doxygen-documented header — one of four with an
-`@file` block (`comp_osa.hpp`, `comp_sim.hpp`
-and `helper_functions.hpp` are the others), where `recruitment.hpp` has `@brief`/`@param`/
+references: `src/TMB/spr.hpp` for a fully Doxygen-documented header — one of five with an
+`@file` block (`comp_osa.hpp`, `comp_sim.hpp`, `helper_functions.hpp`
+and `likelihood.hpp` are the others), where `recruitment.hpp` has `@brief`/`@param`/
 `@return` per function but no file block. And any `R/*.R` + its `tests/testthat/*` pair.
 
 **Roxygen:** markdown, regenerated with `/document`. A `@param` is one sentence: what the
@@ -400,7 +400,7 @@ section holds the fuller text as of 2026-09-14).
 - **Under `HCR = 0 & msmMode > 0` the depletions divide by last-projection-year biomass**, not `SB0`; don't blank them with a placeholder `SB0`.
 - **A fit reports 102 quantities, or 104 under `selectivity_se = TRUE`**: `quantity_dictionary()` has all 104, and the two it adds are `log_sel_at_age` / `log_sel_at_age_index`. Enumerate `names(fit$quantities)`, not a `REPORT(` grep — and say which `selectivity_se` you counted under, because that is why three different totals are on record.
 - **`retrospective(getsd = TRUE)` can drop peels `getsd = FALSE` keeps**, so Mohn's rho can differ.
-- **`unweighted_jnll_comp` is written for 5 of its 22 rows**; the rest are structurally zero.
+- **`unweighted_jnll_comp` differs from `jnll_comp` only on the composition, CAAL and stomach rows** (no data weights) in ordinary fitting; under OSA those three are 0.
 - **`fit_mod(d, config = cfg)` replaces `d$model_config`**: build `cfg` with `run_config(d, ...)` or every linkage is dropped.
 - **`bias_adjust_proc` centres the lognormal priors and the recruitment deviations together** (5.33.0).
 - **A `data_list` element without `write_data()`/`read_data()` support round-trips to nothing.**

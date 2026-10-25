@@ -520,7 +520,7 @@ table said "1 coefficient(s)" for the inert case. Count `beta_linkage` in
 `obj$env$last.par.best` to tell the difference.
 
 **The C++ linkage-prior block re-targets an `(Intercept)` prior onto the base parameter, and will
-read off the end of the matrix for a parameter that has none.** `ceattle.cpp` slot 19 sets
+read off the end of the matrix for a parameter that has none.** `ceattle.cpp` section 13.13 sets
 `b = rec_pars(sp_idx, param)` for every recruitment intercept; `rec_pars` is `nspp x 3` and
 `R_init` is code 3, so a prior on an `R_init` intercept read one element past a
 `PARAMETER_MATRIX` and promoted adjacent heap memory to an AD variable — no crash guaranteed, no
@@ -576,7 +576,7 @@ says nothing. Build the spec through `build_srr(linkages = ...)`. Same shape as
 weights can change meaning when rows move.** `.group_lead()` picks the group's first fleet that
 is not `Off`, and `Fleet_code` must equal the row number, so inserting or reordering a fleet —
 or switching the lead `Off` — promotes a different row. Only the lead's `Sel_curve_pen1/2/3` are
-read (`ceattle.cpp:4051` gates on `flt_sel_lead(flt) == 1`), and a follower's are neither read
+read (section 13.7 of `ceattle.cpp` gates on `flt_sel_lead(flt) == 1`), and a follower's are neither read
 nor checked against the lead's: `.sel_shaping_cols` deliberately excludes them, and the negative-
 weight refusal skips followers for the same reason. So a stale or wrong weight sitting on a
 follower is inert until a reordering makes that fleet the lead, at which point it is charged
@@ -584,7 +584,7 @@ silently. Keep the whole group's penalty columns in agreement even though nothin
 
 **A `NonParametricPM` (9) `RandomWalk` fleet at the default `Sel_curve_pen3 = 0` has an exactly
 flat direction.** Slot 3 is the only term charged on the RAW `sel_coff_dev`
-(`ceattle.cpp:4233`); every other term — shape, curvature, the random walk, and the data —
+(section 13.7 of `ceattle.cpp`); every other term — shape, curvature, the random walk, and the data —
 reads `log_non_par_sel`, which `selectivity.hpp` (case 9) mean-centres per year. A shift common
 to all bins in a year is therefore invisible everywhere except slot 3, verified by objectives
 bit-identical across `Time_varying_sel_sd` of 0.1, 0.2, 1 and 3 while the deviates moved. With
@@ -608,17 +608,17 @@ start-0 version. Fix: assign `Ftarget` from `Flimit` before the F loop; see
 5.29.0; the structure that caused it is still there, so a fourth composition-like source would
 repeat it.
 
-- `Comp_weights` multiplies the multinomial log-likelihood (`ceattle.cpp:3790`), so it is an
+- `Comp_weights` multiplies the multinomial log-likelihood (`comp_row_nll()`), so it is an
   effective sample size — the model's own simulator says so, drawing at
-  `n_nom * comp_weights(flt)` (`:3870`). Dividing by the raw `Sample_size` gives a residual
+  `n_nom * comp_weights(flt)` (`ceattle.cpp` section 13.4). Dividing by the raw `Sample_size` gives a residual
   `1/sqrt(w)` times the right one: too small on an upweighted fleet, too large on a downweighted
   one. `MultinomialAFSC` is the schema default, so this was the *common* case, and
   `reweight_comps()` tunes either side of 1.
 - A Dirichlet-multinomial is additionally overdispersed by `(n + conc)/(1 + conc)`, so those
   residuals were inflated into apparent misfit.
-- **Three sources, three different alpha constructions.** comp (`ceattle.cpp:3776`) and CAAL
-  (`:3931`) build the concentration on the offset-inflated total, so `sum(alpha) = N·S²·theta`
-  with `S = 1 + comp_offset·nbins`; diet (`:5009`) renormalizes first, so it is the clean
+- **Three sources, three different alpha constructions.** comp and CAAL (both through
+  `comp_row_nll()`) build the concentration on the offset-inflated total, so `sum(alpha) = N·S²·theta`
+  with `S = 1 + comp_offset·nbins`; diet (section 13.6) renormalizes first, so it is the clean
   `N_s·theta`. Sharing one formula across all three is wrong for two of them — measured up to
   1% in the sd on the smallest bins from the offset alone, at the default `comp_offset = 1e-5`.
 
@@ -758,14 +758,12 @@ and asserts each row's declared axis matches the column it is actually indexed b
 2026-08-26: 124 writes, all 21 rows covered; 133 writes at 5.41.0, same 21 rows; 134 writes at
 5.48.0 over 22 rows, the new one being the initial equilibrium catch.
 
-**`unweighted_jnll_comp` is populated for 5 of its 22 rows.** It exists so Francis and
-McAllister-Ianelli can read a composition likelihood without its `Comp_weights` multiplier, so
-only the rows carrying such a multiplier are written: composition, CAAL, stomach content, and the
-two linkage rows. Index, catch, selectivity, catchability and every penalty are **structurally
-zero** there, not small. Anything that treats the two matrices as the same quantity at different
-weights — a reweighting diagnostic, a component profile, a "which term dominates" table — reports
-those components as absent rather than unweighted. `profile_components(weighted = FALSE)` says so
-in its `@param`.
+**In ordinary fitting `unweighted_jnll_comp` differs from `jnll_comp` only on the
+composition, CAAL and stomach rows**, which it scores without `Comp_weights`, `CAAL_weights` and
+`Diet_comp_weights` (a Dirichlet-multinomial at theta = 1); the linkage rows are written to both,
+and section 13.15 copies the rest. Under OSA (`osa_mode > 0`) those three rows are **0** there,
+because their OSA densities are written to `jnll_comp` only; under `osa_mode == 2` the linkage
+random-effect row's CDF term is too.
 
 **`retrospective(getsd = TRUE)` can return fewer peels than `getsd = FALSE`, so Mohn's rho
 differs.** `.refit_converged()` drops a peel on a non-positive-definite Hessian, and that check
@@ -1470,8 +1468,8 @@ section above.
   `test-schema-quantity-dictionary.R` holds the two together.
 - **`retrospective(getsd = TRUE)` can drop peels `getsd = FALSE` keeps** — the non-PD Hessian
   check only runs when an `sdreport` exists — so Mohn's rho can differ between the two.
-- **`unweighted_jnll_comp` is written for 5 of its 22 rows** — composition, CAAL, stomach and the
-  two linkage rows. Everything else is structurally zero there, not small.
+- **`unweighted_jnll_comp` differs from `jnll_comp` only on the composition, CAAL and stomach
+  rows** in ordinary fitting; under OSA those are 0 there.
 - **`fit_mod(d, config = cfg)` replaces `d$model_config` with the config's** — a config from
   `run_config(model_config(), ...)` silently drops every linkage on `d` (57 REs → 0). Build it
   with `run_config(d, ...)`. `random_sel` never gates linkage REs.

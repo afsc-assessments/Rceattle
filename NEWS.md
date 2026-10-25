@@ -30,6 +30,54 @@ version throughout.
   sd 0 (and no `N_sel_bins`), so it never fitted as shipped and needs the
   selectivity overrides its vignettes already make.
 
+# Rceattle 5.64.8
+
+## Bug fixes
+
+* **`unweighted_jnll_comp` now drops the CAAL weight, and carries the initial
+  equilibrium catch.** The copy that fills its unweighted rows overwrote the
+  CAAL row with the weighted value, so on the test fixture with
+  `CAAL_weights = 0.5` it reported 2.957 where 5.913 was due, and it stopped
+  before the equilibrium-catch row, leaving that 0.
+  `profile_components(weighted = FALSE)`, `plot_profile(weighted = FALSE)` and
+  the `unweighted` column of `report_tables()` read these rows. The objective
+  and every fit are unchanged. The documentation that called the index, catch
+  and penalty rows "structurally zero" there was also wrong: they always
+  equalled `jnll_comp`, and now say so.
+
+# Rceattle 5.64.7
+
+## Internal
+
+* **The linkage code's comments rewritten for readability; no fit moves.**
+  `src/TMB/linkage.hpp` and `R/0-linkage_{encode,formula,table}.R` go from
+  1,795 lines to 1,690 (comment lines 645 to 540); only comments change. The
+  linkage table's documentation now says `re_index` counts deviations across
+  both random-effect vectors, `?linkage_row` documents its `init_supplied`
+  argument, and two internal helpers' documented arguments and return match the
+  code.
+
+# Rceattle 5.64.6
+
+## Internal
+
+* **The likelihood section of `src/TMB/ceattle.cpp` (section 13) rewritten for
+  readability; no fit moves.** About 2,020 lines become about 1,570, counting the
+  new header, and comment lines 666 become 309. Data likelihoods now come first
+  (13.1-13.6: index, catch, initial equilibrium catch, compositions, CAAL,
+  stomach contents), then priors and penalties (13.7-13.14); the random-effect
+  sd and rho priors and the random-effect density moved up from the REPORT
+  section. A new `src/TMB/likelihood.hpp` holds `comp_row_nll()` (shared by
+  compositions and CAAL), `linkage_log_prior()` (shared by the three linkage
+  prior loops) and `fold_comp_tails()`. Each simulation draw still sits beside
+  its density, in the same order.
+  Verified bit-identical to 5.64.5 (`identical()`, not a tolerance) at a
+  perturbed parameter vector for 2,196 of the 2,200 models the test suite
+  builds: the joint objective, the joint gradient over fixed and random effects,
+  every reported quantity, and a seeded `simulate()`. The other 4 differ only in
+  `fT` and `consumption_at_age`, which also differ between two runs of 5.64.5
+  because `make_test_data()` draws `env_data` unseeded.
+
 # Rceattle 5.64.5
 
 ## Bug fixes
