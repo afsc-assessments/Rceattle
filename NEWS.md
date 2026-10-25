@@ -42,9 +42,11 @@ version throughout.
   prior loops) and `fold_comp_tails()`. Each simulation draw still sits beside
   its density, in the same order.
   Verified bit-identical to 5.64.5 (`identical()`, not a tolerance) at a
-  perturbed parameter vector for every model the test suite builds: the joint
-  objective, the joint gradient over fixed and random effects, every reported
-  quantity, and a seeded `simulate()`.
+  perturbed parameter vector for 2,196 of the 2,200 models the test suite
+  builds: the joint objective, the joint gradient over fixed and random effects,
+  every reported quantity, and a seeded `simulate()`. The other 4 differ only in
+  `fT` and `consumption_at_age`, which also differ between two runs of 5.64.5
+  because `make_test_data()` draws `env_data` unseeded.
 
 # Rceattle 5.64.5
 
