@@ -4115,8 +4115,9 @@ Type objective_function<Type>::operator() () {
 
       // Logistic-family selectivity deviates: logistic (1), double logistic (3),
       // descending logistic (4), double normal (8). Each limb's inflection has sd and log
-      // slope 4 * sd, swapped on the ascending random walk. Double normal: slot 0 is the
-      // peak and ascending width, slot 1 the right-floor logit and descending width.
+      // slope 4 * sd; the ascending random walk swaps them, to match the GOA pollock
+      // assessment. Double normal: slot 0 is the peak and ascending width, slot 1 the
+      // right-floor logit and descending width.
       bool asc_limb  = (flt_sel_type(flt) == 1) || (flt_sel_type(flt) == 3) || (flt_sel_type(flt) == 8);
       bool desc_limb = (flt_sel_type(flt) == 3) || (flt_sel_type(flt) == 4) || (flt_sel_type(flt) == 8);
 
