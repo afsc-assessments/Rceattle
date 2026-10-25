@@ -812,7 +812,8 @@ print.Rceattle_linkage_spec <- function(x, ...) {
 #' Expands an [linkage_spec()] into rows of the canonical linkage table.
 #' One row is produced for every combination of:
 #'
-#'   * design-matrix column from `model.matrix(spec$formula, env_data)`,
+#'   * design-matrix column: the fixed part through `model.matrix()`, then one
+#'     indicator column per random-effect level,
 #'   * stratum implied by `spec$by` (e.g. one per species when
 #'     `by = ~species`).
 #'
@@ -836,6 +837,8 @@ print.Rceattle_linkage_spec <- function(x, ...) {
 #'   `fleet_control$Fleet_name`); those labels are what a spec built with
 #'   `linkage_spec(fleet = "Shelikof")` is resolved against. Without them,
 #'   such a spec errors, ids always work.
+#' @param quiet if `TRUE`, suppress the warning that a species / sex / fleet
+#'   filter has no effect because `by` omits it.
 #'
 #' @return An `Rceattle_linkage_table` with one row per coefficient.
 #' @keywords internal
@@ -854,17 +857,75 @@ materialize_linkage <- function(spec, process, env_data, strata = list(), quiet 
   if (!is.data.frame(env_data)) {
     stop("`env_data` must be a data.frame")
   }
+
+  # 1. The design matrix: fixed-effect columns, then one indicator column per
+  #    random-effect level.
+  design  <- .linkage_design(spec$formula, env_data)
+  X       <- design[["X"]]
+  X_names <- colnames(X)
+  re      <- design[["re"]]
+
+  # 2. Check that every init / bounds / priors name is a design column, and that an
+  #    `observe` covariate has an ar1 term.
+  spec <- .check_linkage_keys(spec, X_names, re)
+  .check_linkage_observe(spec, re, env_data)
+
+  # 3. The strata `by` asks for: one row of level_grid per (species, sex, ...).
+  by_vars <- if (is.null(spec$by)) character(0) else all.vars(spec$by)
+  unknown_by <- setdiff(by_vars, c("species", "sex", "age_bin", "fleet"))
+  if (length(unknown_by) > 0) {
+    stop("unknown grouping variable(s) in `by`: ",
+         paste(unknown_by, collapse = ", "),
+         "; allowed: species, sex, age_bin, fleet")
+  }
+  for (v in by_vars) {
+    if (is.null(strata[[v]])) {
+      stop(sprintf("`strata$%s` must be supplied because `by` references it",
+                   v))
+    }
+  }
+
+  # `species` / `fleet` may have been given as names rather than ids. Resolve
+  # them here -- this is the first point that knows the model -- so everything
+  # below, and every id column of the materialized table, stays integer.
+  # Resolution runs even when the corresponding filter is a no-op (`by` does not
+  # stratify by that factor), so a misspelled name is always an error rather
+  # than a silently ignored one.
+  spec   <- .resolve_spec_strata_names(spec, strata)
+  strata <- .strata_drop_labels(strata)
+  .check_sex_strata(strata, by_vars)
+
+  level_grid <- .expand_linkage_strata(strata, by_vars)
+  level_grid <- .filter_linkage_strata(level_grid, spec, process, quiet)
+  if (nrow(level_grid) == 0L) {
+    return(.empty_materialized(X, X_names))
+  }
+
+  # 4. One row per design column per stratum, carrying its init, bounds and prior,
+  #    and on a random-effect column its sd, rho and any observation.
+  out <- bind_linkage(.linkage_rows(spec, process, env_data, X_names,
+                                    design[["col_re"]], level_grid, by_vars))
+  attr(out, "design_colnames") <- X_names
+  attr(out, "design_matrix")   <- X
+  out
+}
+
+
+# The steps of materialize_linkage(), in the order it calls them.
+
+#' The design matrix from a linkage formula: the fixed part through
+#' model.matrix(), then one indicator column per random-effect level.
+#' @return `X`, the bar-term design `re`, and `col_re`: per column of X, the
+#'   random effect's grouping variable, structure (us = IID, rw, ar1) and level
+#'   as a number (its year, re_time); NA on a fixed column.
+#' @noRd
+.linkage_design <- function(formula, env_data) {
   # Split fixed from random before building the design matrix. Passing a
   # formula containing a bar straight to model.matrix() evaluates `1 | Year`
   # as a logical OR and yields a nonsense column ("1 | YearTRUE"), so the
   # split has to happen first.
-  parsed <- .parse_linkage_formula(spec$formula)
+  parsed <- .parse_linkage_formula(formula)
 
-  # Fixed part: standard design matrix. Random parts (bar terms) are expanded
-  # into per-level indicator columns appended after the fixed columns, so the
-  # C++ accumulator adds beta[i] * indicator(level) exactly as for a fixed
-  # column -- the only differences are which beta vector supplies the
-  # coefficient (beta_linkage_re) and that a density is placed on it.
   # Fixed-effect covariates must be finite over the model range: model.matrix()
   # silently DROPS rows whose covariate is NA (e.g. a fixed-effect covariate with
   # missing years after env_data extension), which would misalign X_fixed against
@@ -884,10 +945,21 @@ materialize_linkage <- function(spec, process, env_data, strata = list(), quiet 
   X_fixed <- stats::model.matrix(parsed$fixed, data = env_data)
   re <- .materialize_re_design(parsed$re_terms, parsed$re_structures, env_data)
 
+  # Random parts become indicator columns after the fixed ones, so the C++ adds
+  # beta * indicator(level) as for a fixed column; only the beta vector
+  # (beta_linkage_re) and the density on it differ.
   X <- cbind(X_fixed, re$X)
-  X_names <- colnames(X)
-  n_cols  <- ncol(X)
+  list(X = X, re = re,
+       col_re = list(group  = c(rep(NA_character_, ncol(X_fixed)), re$group),
+                     struct = c(rep(NA_character_, ncol(X_fixed)), re$struct),
+                     time   = c(rep(NA_real_,      ncol(X_fixed)), re$time)))
+}
 
+#' Accept `intercept` for `(Intercept)` in init / bounds / priors, and refuse a
+#' name that matches no design column (nor `sigma` / `rho` where the formula has
+#' those terms). Returns the spec.
+#' @noRd
+.check_linkage_keys <- function(spec, X_names, re) {
   # Translate the backtick-free intercept spelling now that the design columns
   # are known (see .canonical_intercept_names: a covariate named `intercept`
   # keeps its own meaning).
@@ -921,12 +993,13 @@ materialize_linkage <- function(spec, process, env_data, strata = list(), quiet 
         else ""), call. = FALSE)
     }
   }
-  # Per-column RE metadata, aligned with the columns of X (NA for fixed).
-  col_re_group  <- c(rep(NA_character_, ncol(X_fixed)), re$group)
-  col_re_struct <- c(rep(NA_character_, ncol(X_fixed)), re$struct)
-  col_re_time   <- c(rep(NA_real_,      ncol(X_fixed)), re$time)
+  spec
+}
 
-  # State-space (Rogers QAR1) `observe` needs an ar1 term and a real column.
+#' A state-space (Rogers QAR1) `observe` covariate needs an ar1 term and a real
+#' column; warn when it is not about zero-mean.
+#' @noRd
+.check_linkage_observe <- function(spec, re, env_data) {
   if (!is.null(spec$observe)) {
     if (!"ar1" %in% re$struct) {
       stop("`observe` (a state-space covariate observation) requires an ",
@@ -949,30 +1022,13 @@ materialize_linkage <- function(spec, process, env_data, strata = list(), quiet 
         spec$observe, mean(obs_present)), call. = FALSE)
     }
   }
+  invisible(NULL)
+}
 
-  by_vars <- if (is.null(spec$by)) character(0) else all.vars(spec$by)
-  unknown_by <- setdiff(by_vars, c("species", "sex", "age_bin", "fleet"))
-  if (length(unknown_by) > 0) {
-    stop("unknown grouping variable(s) in `by`: ",
-         paste(unknown_by, collapse = ", "),
-         "; allowed: species, sex, age_bin, fleet")
-  }
-  for (v in by_vars) {
-    if (is.null(strata[[v]])) {
-      stop(sprintf("`strata$%s` must be supplied because `by` references it",
-                   v))
-    }
-  }
-
-  # `species` / `fleet` may have been given as names rather than ids. Resolve
-  # them here -- this is the first point that knows the model -- so everything
-  # below, and every id column of the materialized table, stays integer.
-  # Resolution runs even when the corresponding filter is a no-op (`by` does not
-  # stratify by that factor), so a misspelled name is always an error rather
-  # than a silently ignored one.
-  spec   <- .resolve_spec_strata_names(spec, strata)
-  strata <- .strata_drop_labels(strata)
-
+#' Warn when `by` stratifies by sex in a single-sex model; refuse sex levels given
+#' per species (a list in `strata$sex`) unless `by` includes species.
+#' @noRd
+.check_sex_strata <- function(strata, by_vars) {
   if ("sex" %in% by_vars) {
     sex_levels_one <- FALSE
     if (is.list(strata$sex)) {
@@ -993,63 +1049,68 @@ materialize_linkage <- function(spec, process, env_data, strata = list(), quiet 
       )
     }
   }
+  invisible(NULL)
+}
 
-  expand_linkage_strata <- function(strata, by_vars) {
-    if (length(by_vars) == 0L) {
-      return(data.frame(.dummy = 1L))
-    }
-
-    if (!"species" %in% by_vars) {
-      if (any(vapply(strata[by_vars], is.list, logical(1)))) {
-        stop("species-specific strata values are only supported when `by` includes species",
-             call. = FALSE)
-      }
-      return(do.call(expand.grid,
-                     c(strata[by_vars], list(KEEP.OUT.ATTRS = FALSE,
-                                             stringsAsFactors = FALSE))))
-    }
-
-    species_vals <- as.integer(strata$species)
-    rows <- vector("list", length(species_vals))
-    for (i in seq_along(species_vals)) {
-      sp <- species_vals[i]
-      row_vars <- list(species = sp)
-      for (v in setdiff(by_vars, "species")) {
-        vals <- strata[[v]]
-        if (is.list(vals)) {
-          if (is.null(names(vals))) {
-            if (length(vals) != length(species_vals)) {
-              stop(sprintf(
-                "species-specific strata$%s must be a named list keyed by species id or a list of length %d",
-                v, length(species_vals)), call. = FALSE)
-            }
-            vals <- vals[[i]]
-          } else {
-            sp_key <- as.character(sp)
-            if (!sp_key %in% names(vals)) {
-              stop(sprintf(
-                "species-specific strata$%s must include an entry for species %s",
-                v, sp_key), call. = FALSE)
-            }
-            vals <- vals[[sp_key]]
-          }
-        }
-        row_vars[[v]] <- vals
-      }
-      rows[[i]] <- do.call(expand.grid,
-                            c(row_vars, list(KEEP.OUT.ATTRS = FALSE,
-                                            stringsAsFactors = FALSE)))
-    }
-    out <- do.call(rbind, rows)
-    row.names(out) <- NULL
-    out
+#' One row per stratum `by` asks for; with species, the other strata may be
+#' given per species as a list.
+#' @noRd
+.expand_linkage_strata <- function(strata, by_vars) {
+  # No `by`: one stratum shared by all, held by a placeholder column.
+  if (length(by_vars) == 0L) {
+    return(data.frame(.dummy = 1L))
   }
 
-  level_grid <- expand_linkage_strata(strata, by_vars)
+  if (!"species" %in% by_vars) {
+    if (any(vapply(strata[by_vars], is.list, logical(1)))) {
+      stop("species-specific strata values are only supported when `by` includes species",
+           call. = FALSE)
+    }
+    return(do.call(expand.grid,
+                   c(strata[by_vars], list(KEEP.OUT.ATTRS = FALSE,
+                                           stringsAsFactors = FALSE))))
+  }
 
-  # A species / sex / fleet filter keeps only those levels of a term `by`
-  # stratifies on; on a spec that does not stratify by it there is nothing to
-  # filter, which is said rather than done silently.
+  species_vals <- as.integer(strata$species)
+  rows <- vector("list", length(species_vals))
+  for (i in seq_along(species_vals)) {
+    sp <- species_vals[i]
+    row_vars <- list(species = sp)
+    for (v in setdiff(by_vars, "species")) {
+      vals <- strata[[v]]
+      if (is.list(vals)) {
+        if (is.null(names(vals))) {
+          if (length(vals) != length(species_vals)) {
+            stop(sprintf(
+              "species-specific strata$%s must be a named list keyed by species id or a list of length %d",
+              v, length(species_vals)), call. = FALSE)
+          }
+          vals <- vals[[i]]
+        } else {
+          sp_key <- as.character(sp)
+          if (!sp_key %in% names(vals)) {
+            stop(sprintf(
+              "species-specific strata$%s must include an entry for species %s",
+              v, sp_key), call. = FALSE)
+          }
+          vals <- vals[[sp_key]]
+        }
+      }
+      row_vars[[v]] <- vals
+    }
+    rows[[i]] <- do.call(expand.grid,
+                          c(row_vars, list(KEEP.OUT.ATTRS = FALSE,
+                                          stringsAsFactors = FALSE)))
+  }
+  out <- do.call(rbind, rows)
+  row.names(out) <- NULL
+  out
+}
+
+#' Keep the strata a spec's `species` / `sex` / `fleet` filter names, warning
+#' when it matches nothing, or (unless `quiet`) when `by` does not stratify by it.
+#' @noRd
+.filter_linkage_strata <- function(level_grid, spec, process, quiet) {
   lab  <- if (process %in% names(.LINKAGE_PROCESS_LABELS)) .LINKAGE_PROCESS_LABELS[[process]] else process
   what <- paste0("the ", lab, " linkage",
                  if (!is.null(spec$param)) paste0(" for `", spec$param, "`") else "")
@@ -1075,10 +1136,18 @@ materialize_linkage <- function(spec, process, env_data, strata = list(), quiet 
                           term, "`", hint, ".", call. = FALSE)
     }
   }
-  if (nrow(level_grid) == 0L) {
-    return(.empty_materialized(X, X_names))
-  }
+  level_grid
+}
 
+#' The linkage-table rows: one per design column per stratum.
+#' @param col_re per-column random-effect fields, from .linkage_design().
+#' @param level_grid one row per stratum (columns species / sex / age_bin / fleet).
+#' @noRd
+.linkage_rows <- function(spec, process, env_data, X_names, col_re, level_grid, by_vars) {
+  n_cols        <- length(X_names)
+  col_re_group  <- col_re[["group"]]
+  col_re_struct <- col_re[["struct"]]
+  col_re_time   <- col_re[["time"]]
   rows <- vector("list", n_cols * nrow(level_grid))
   k <- 0L
   for (col_idx in seq_len(n_cols)) {
@@ -1100,48 +1169,10 @@ materialize_linkage <- function(spec, process, env_data, strata = list(), quiet 
         pf <- prior$family; pp1 <- prior$p1; pp2 <- prior$p2
       }
 
-      # Per-group RE-SD (sigma) routing: only on random-effect columns. The
-      # reserved `sigma` key in the spec's init/priors sets the deviation SD's
-      # start value (or, with est_phase == 0, its fixed value) and an optional
-      # prior. Resolved per (species, sex) so a `by = ~ species` RE can carry a
-      # species-specific sigma prior; the fixed-effect columns keep NA.
-      if (!is.na(col_re_struct[col_idx])) {
-        s_init  <- spec$init[["sigma"]] %||% NA_real_
-        s_prior <- .resolve_prior(spec$priors[["sigma"]], sp_id, sx_id)
-        if (is.null(s_prior)) {
-          spf <- NA_character_; sp1 <- NA_real_; sp2 <- NA_real_
-        } else {
-          spf <- s_prior$family; sp1 <- s_prior$p1; sp2 <- s_prior$p2
-        }
-        # rho routing + state-space observation apply only to ar1 columns.
-        if (col_re_struct[col_idx] == "ar1") {
-          r_init  <- spec$init[["rho"]] %||% NA_real_
-          r_prior <- .resolve_prior(spec$priors[["rho"]], sp_id, sx_id)
-          if (is.null(r_prior)) {
-            rpf <- NA_character_; rp1 <- NA_real_; rp2 <- NA_real_
-          } else {
-            rpf <- r_prior$family; rp1 <- r_prior$p1; rp2 <- r_prior$p2
-          }
-          # Rogers QAR1: the latent ar1 deviate is observed as env_data[[observe]]
-          # at this level's time, with fixed SD obs_sd.
-          if (!is.null(spec$observe)) {
-            grp_col <- col_re_group[col_idx]
-            o_val <- env_data[[spec$observe]][
-              match(col_re_time[col_idx], env_data[[grp_col]])]
-            o_val <- if (length(o_val) == 1L) as.numeric(o_val) else NA_real_
-            r_obs_v <- o_val; r_obs_sd <- as.numeric(spec$obs_sd); r_obs_est <- isTRUE(spec$obs_sd_est)
-          } else {
-            r_obs_v <- NA_real_; r_obs_sd <- NA_real_; r_obs_est <- NA
-          }
-        } else {
-          r_init <- NA_real_; rpf <- NA_character_; rp1 <- NA_real_; rp2 <- NA_real_
-          r_obs_v <- NA_real_; r_obs_sd <- NA_real_; r_obs_est <- NA
-        }
-      } else {
-        s_init <- NA_real_; spf <- NA_character_; sp1 <- NA_real_; sp2 <- NA_real_
-        r_init <- NA_real_; rpf <- NA_character_; rp1 <- NA_real_; rp2 <- NA_real_
-        r_obs_v <- NA_real_; r_obs_sd <- NA_real_; r_obs_est <- NA
-      }
+      # Random-effect fields: sd and rho from the reserved `sigma` / `rho` keys (their
+      # priors resolved per species and sex), and on an ar1 column any observation.
+      re_f <- .linkage_re_fields(spec, env_data, col_re_struct[col_idx],
+                                 col_re_group[col_idx], col_re_time[col_idx], sp_id, sx_id)
 
       k <- k + 1L
       rows[[k]] <- linkage_row(
@@ -1161,23 +1192,23 @@ materialize_linkage <- function(spec, process, env_data, strata = list(), quiet 
         prior_family  = pf,
         prior_p1      = pp1,
         prior_p2      = pp2,
-        # A random-effect column carries its own group id (made unique per
-        # process/param/stratum below in pool_linkages) and structure; a fixed
-        # column inherits the spec's re_group (usually NA).
+        # A random-effect column's group is its grouping variable (made unique per
+        # process/param/stratum in pool_linkages()). A fixed column's is NA, so
+        # spec$re_group is never reached: `%||%` replaces only NULL.
         re_group      = col_re_group[col_idx] %||% spec$re_group,
         re_struct     = col_re_struct[col_idx],
         re_time       = col_re_time[col_idx],
-        re_sigma_init = s_init,
-        re_sigma_prior_family = spf,
-        re_sigma_prior_p1     = sp1,
-        re_sigma_prior_p2     = sp2,
-        re_rho_init   = r_init,
-        re_rho_prior_family = rpf,
-        re_rho_prior_p1     = rp1,
-        re_rho_prior_p2     = rp2,
-        re_obs_value  = r_obs_v,
-        re_obs_sd     = r_obs_sd,
-        re_obs_est    = r_obs_est,
+        re_sigma_init = re_f[["re_sigma_init"]],
+        re_sigma_prior_family = re_f[["re_sigma_prior_family"]],
+        re_sigma_prior_p1     = re_f[["re_sigma_prior_p1"]],
+        re_sigma_prior_p2     = re_f[["re_sigma_prior_p2"]],
+        re_rho_init   = re_f[["re_rho_init"]],
+        re_rho_prior_family = re_f[["re_rho_prior_family"]],
+        re_rho_prior_p1     = re_f[["re_rho_prior_p1"]],
+        re_rho_prior_p2     = re_f[["re_rho_prior_p2"]],
+        re_obs_value  = re_f[["re_obs_value"]],
+        re_obs_sd     = re_f[["re_obs_sd"]],
+        re_obs_est    = re_f[["re_obs_est"]],
         # Integrated vs penalized, on RE columns only. Read defensively so a spec
         # built before `integrate` existed (an older saved config) still reads as
         # integrated rather than as a missing field.
@@ -1187,10 +1218,57 @@ materialize_linkage <- function(spec, process, env_data, strata = list(), quiet 
       )
     }
   }
-  out <- bind_linkage(rows)
-  attr(out, "design_colnames") <- X_names
-  attr(out, "design_matrix")   <- X
-  out
+  rows
+}
+
+#' A design column's random-effect fields for one (species, sex): its sd (natural
+#' scale; an `init` fixes it unless sigma also has a prior), and on an ar1 column
+#' its rho and any QAR1 observation. All NA on a fixed column. Named as the
+#' linkage_row() arguments they fill.
+#' @noRd
+.linkage_re_fields <- function(spec, env_data, col_re_struct, col_re_group,
+                               col_re_time, sp_id, sx_id) {
+  if (!is.na(col_re_struct)) {
+    s_init  <- spec$init[["sigma"]] %||% NA_real_
+    s_prior <- .resolve_prior(spec$priors[["sigma"]], sp_id, sx_id)
+    if (is.null(s_prior)) {
+      spf <- NA_character_; sp1 <- NA_real_; sp2 <- NA_real_
+    } else {
+      spf <- s_prior$family; sp1 <- s_prior$p1; sp2 <- s_prior$p2
+    }
+    # rho and the `observe` covariate apply only to an ar1() term.
+    if (col_re_struct == "ar1") {
+      r_init  <- spec$init[["rho"]] %||% NA_real_
+      r_prior <- .resolve_prior(spec$priors[["rho"]], sp_id, sx_id)
+      if (is.null(r_prior)) {
+        rpf <- NA_character_; rp1 <- NA_real_; rp2 <- NA_real_
+      } else {
+        rpf <- r_prior$family; rp1 <- r_prior$p1; rp2 <- r_prior$p2
+      }
+      # Rogers QAR1: the latent ar1 deviation is observed as env_data[[observe]]
+      # at this level's time, with SD obs_sd (estimated if obs_sd_est = TRUE).
+      if (!is.null(spec$observe)) {
+        o_val <- env_data[[spec$observe]][
+          match(col_re_time, env_data[[col_re_group]])]
+        o_val <- if (length(o_val) == 1L) as.numeric(o_val) else NA_real_
+        r_obs_v <- o_val; r_obs_sd <- as.numeric(spec$obs_sd); r_obs_est <- isTRUE(spec$obs_sd_est)
+      } else {
+        r_obs_v <- NA_real_; r_obs_sd <- NA_real_; r_obs_est <- NA
+      }
+    } else {
+      r_init <- NA_real_; rpf <- NA_character_; rp1 <- NA_real_; rp2 <- NA_real_
+      r_obs_v <- NA_real_; r_obs_sd <- NA_real_; r_obs_est <- NA
+    }
+  } else {
+    s_init <- NA_real_; spf <- NA_character_; sp1 <- NA_real_; sp2 <- NA_real_
+    r_init <- NA_real_; rpf <- NA_character_; rp1 <- NA_real_; rp2 <- NA_real_
+    r_obs_v <- NA_real_; r_obs_sd <- NA_real_; r_obs_est <- NA
+  }
+  list(re_sigma_init = s_init, re_sigma_prior_family = spf,
+       re_sigma_prior_p1 = sp1, re_sigma_prior_p2 = sp2,
+       re_rho_init = r_init, re_rho_prior_family = rpf,
+       re_rho_prior_p1 = rp1, re_rho_prior_p2 = rp2,
+       re_obs_value = r_obs_v, re_obs_sd = r_obs_sd, re_obs_est = r_obs_est)
 }
 
 
