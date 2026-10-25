@@ -12,6 +12,17 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.64.7
+
+## Internal
+
+* **The linkage code's comments rewritten for readability; no fit moves.**
+  `src/TMB/linkage.hpp` and `R/0-linkage_{encode,formula,table}.R` go from
+  1,795 lines to 1,688 (comment lines 645 to 538); only comments change. In the
+  linkage table docs, `re_index` now counts deviations across both
+  random-effect vectors, and two helpers' documented arguments and return now
+  match the code.
+
 # Rceattle 5.64.6
 
 ## Internal

@@ -7,8 +7,8 @@
 LINKAGE_STRATUM_ALL
 }
 \description{
-Stored where the user passed \code{NA} for \code{species}, \code{sex}, or
-\code{age_bin}. The TMB template expands these by iterating over
-\code{1:nspp} / \code{1:nsex} / \code{1:nages} rather than indexing a single cell.
+Stored where the user passed \code{NA} for \code{species}, \code{sex}, \code{age_bin} or
+\code{fleet}; the offsets loop over every level, but the intercept-prior loop
+reads 0 as level 1 (which \code{.drop_off_fleet_sel_priors()} relies on).
 }
 \keyword{internal}

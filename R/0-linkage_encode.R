@@ -1,13 +1,10 @@
 #' Encode an Rceattle linkage table into TMB-friendly inputs
 #'
-#' The TMB template consumes the pooled linkage table as a set of
-#' parallel `IVECTOR` / `VECTOR` inputs plus a dense design matrix.
-#' R encodes the string-valued columns (`process`, `param`, `link`,
-#' `prior_family`) as 0-based integer codes; converts the
-#' `NA` stratum ids (`species`, `sex`, `age_bin`, `fleet`) to a sentinel `0`
-#' meaning "applies to all levels" (TMB-side dispatch expands the
-#' shared rows over the relevant 1-based levels); and converts the 1-based
-#' `X_col` to 0-based.
+#' The template reads the linkage table as parallel integer and numeric
+#' vectors plus a design matrix. Text columns (`process`, `param`, `link`,
+#' `prior_family`) become 0-based integer codes, an `NA` stratum id
+#' (`species`, `sex`, `age_bin`, `fleet`) becomes `0` ("every level"), and
+#' `X_col` becomes 0-based.
 #'
 #' @keywords internal
 #' @name linkage_encode
@@ -18,8 +15,7 @@ NULL
 
 #' Integer codes for the `process` column
 #'
-#' Stable across versions. New processes append at the end so existing
-#' codes never shift.
+#' Stable across versions: a new process is appended, so no code shifts.
 #'
 #' @keywords internal
 LINKAGE_PROCESS_CODES <- c(
@@ -35,10 +31,9 @@ LINKAGE_PROCESS_CODES <- c(
 
 #' Rows of a linkage table that are the recruitment `R_init` parameter
 #'
-#' `R_init` multiplies the initial age-structure and is the one linkage
-#' parameter with no base parameter in `rec_pars`, so nothing else holds the
-#' level. Shared by the builders and by `data_check()` so they cannot disagree
-#' about which rows those are.
+#' `R_init` scales the initial age structure and has no base parameter in
+#' `rec_pars`. `.check_r_init_linkage()` and, through `.is_pinned_intercept()`
+#' and `.is_level_intercept()`, the builders all read it, so they agree.
 #'
 #' @param tbl A pooled `linkage_table`.
 #' @keywords internal
@@ -50,10 +45,9 @@ LINKAGE_PROCESS_CODES <- c(
 
 #' Intercept rows whose coefficient is pinned at `NA`
 #'
-#' An `(Intercept)` coefficient is pinned because the process's own base
-#' parameter (`rec_pars`, `log_M1`, `index_log_q`, ...) already carries the
-#' level, so estimating both would be a flat ridge. `R_init` has no base
-#' parameter, so its intercept IS the level and stays estimable.
+#' The base parameter (`rec_pars`, `log_M1`, `index_log_q`, ...) already sets
+#' the level, so estimating the intercept too would be a flat ridge. `R_init`
+#' has no base parameter, so its intercept IS the level and stays estimable.
 #'
 #' @param tbl A pooled `linkage_table`.
 #' @keywords internal
@@ -65,11 +59,9 @@ LINKAGE_PROCESS_CODES <- c(
 
 #' The one intercept row that carries a level instead of pinning one
 #'
-#' The complement of `.is_pinned_intercept()` among intercept rows: the
-#' `R_init` intercept IS the initial recruitment level. Its `init` and `bounds`
-#' are natural-scale multipliers on R0, like every other intercept's, and land
-#' on a log coefficient, so the builders log them. A slope row on the same
-#' linkage is on the link scale and is deliberately excluded.
+#' The `R_init` intercept, whose `init` and `bounds` are natural-scale
+#' multipliers on R0 that the builders log. A slope row is on the link scale
+#' and is not included.
 #'
 #' @param tbl A pooled `linkage_table`.
 #' @keywords internal
@@ -81,9 +73,8 @@ LINKAGE_PROCESS_CODES <- c(
 
 #' The log-scale starting coefficient for a natural-scale `R_init` level
 #'
-#' `build_params()` writes the level's starting value, and `fit_mod()` writes it
-#' again for an `est_phase = 0` row so a fixed level beats a warm start. Both go
-#' through here so they cannot disagree about the scale.
+#' Used by `build_params()` and by `fit_mod()` (which rewrites a fixed,
+#' `est_phase = 0` level over a warm start), so both use the same scale.
 #'
 #' @param init_val The `init` column value, a natural-scale multiplier on R0.
 #' @param supplied The row's `init_supplied` flag.
@@ -95,8 +86,7 @@ LINKAGE_PROCESS_CODES <- c(
          "multiplier on R0, so it must be greater than 0. Got ", init_val, ".",
          call. = FALSE)
   }
-  # An unset `init` comes through as the table's default of 0, which is no
-  # multiplier at all, so it reads as 1: no shift off R0.
+  # An unset `init` arrives as the table default 0 and means a multiplier of 1.
   if (init_val == 0) return(0)
   log(init_val)
 }
@@ -147,35 +137,26 @@ LINKAGE_PRIOR_CODES <- c(
 
 #' Integer codes for the `param` column, per process
 #'
-#' Each process has its own independent parameter namespace (`K`
-#' means something different to growth than `alpha` does to
-#' recruitment), so the param column is encoded against a per-process
-#' table. Unknown parameter names error.
+#' Each process numbers its own parameters, so a name is looked up within its
+#' process. An unknown name is an error.
 #'
 #' @keywords internal
 LINKAGE_PARAM_CODES <- list(
-  # Codes 0..3 index `growth_linkage_offset` (year-varying mean-growth
-  # offsets); codes 4..5 are the SD endpoints which live on
-  # `growth_log_sd` and only consume intercept rows. Keep the SD codes
-  # >= RCEATTLE_N_GROWTH_PARAMS so the env-offset loop in linkage.hpp
-  # short-circuits on them (see the param-range guard there).
+  # 0-3 are year-varying mean-growth offsets. The SD endpoints 4-5 take
+  # intercept rows only; keep them >= RCEATTLE_N_GROWTH_PARAMS (linkage.hpp).
   growth      = c(K = 0L, L1 = 1L, Linf = 2L, m = 3L,
                   sd_L1 = 4L, sd_Linf = 5L),
   M           = c(M1 = 0L),
-  # `R_init` is the initial recruitment LEVEL, read at year 0 only (the initial
-  # state is one year), and carries no deviate penalty.
+  # R_init: the initial recruitment level, read at year 0 only, no deviate penalty.
   recruitment = c(R0 = 0L, alpha = 1L, beta = 2L, R_init = 3L),
   q           = c(q = 0L),
-  # Selectivity codes index the underlying parameter slots, which are shared
-  # across the parametric forms:
-  #   0/1 = log_sel_slp[asc/desc]  (log-scale: slope, or log-sigma in DoubleNormal)
-  #   2/3 = sel_inf[asc/desc]      (natural: inflection, or peak/logit-floor)
-  #   4   = sel_coff               (non-parametric per-bin coefficients)
-  #   5   = log_sel_apical         (log-scale per-sex multiplier on the curve)
-  #   6-11 = sel_dn6[1..6]         (DoubleNormalSS3: SS3 pattern-24 P1-P6, each
-  #                                 on SS3's own scale)
-  # The form-specific aliases (sigma_*, peak, right_floor) resolve to the same
-  # slot, so a user names the quantity their form actually has.
+  # Selectivity codes are parameter slots shared across the forms:
+  #   0/1  log_sel_slp asc/desc (log slope, or log sigma for DoubleNormal)
+  #   2/3  sel_inf asc/desc     (natural: inflection, or DoubleNormal peak/logit floor)
+  #   4    sel_coff             (non-parametric, every bin)
+  #   5    log_sel_apical       (log-scale per-sex multiplier on the curve)
+  #   6-11 DoubleNormalSS3 P1-P6 (SS3 pattern 24), each on SS3's own scale
+  # Aliases (sigma_*, peak, right_floor) name the same slot in a form's terms.
   sel         = c(slp_asc     = 0L, slp_desc = 1L,
                   inf_asc     = 2L, inf_desc = 3L,
                   coff        = 4L,
@@ -183,29 +164,26 @@ LINKAGE_PARAM_CODES <- list(
                   # DoubleNormal aliases
                   sigma_asc   = 0L, sigma_desc = 1L,
                   peak        = 2L, right_floor = 3L,
-                  # DoubleNormalSS3 (SS3 pattern 24), P1-P6 under the SS3
-                  # manual's names. P1 is dn_peak because peak is taken above.
+                  # DoubleNormalSS3 P1-P6 under the SS3 manual's names
+                  # (P1 is dn_peak, as peak is taken above).
                   dn_peak     = 6L,
                   top_logit   = 7L,
                   ascend_se   = 8L,
                   descend_se  = 9L,
                   start_logit = 10L,
                   end_logit   = 11L),
-  # Dirichlet-multinomial composition-weighting overdispersion. Prior-only
-  # (no year-varying accumulator): the intercept re-targets the log DM scalar
-  # (comp_weights / caal_weights per fleet, diet_comp_weights per predator;
-  # theta = exp()), so a prior on the natural theta falls out of the shared
-  # intercept prior loop. theta_comp = age/length comps, theta_caal = CAAL,
-  # theta_diet = diet composition.
+  # Dirichlet-multinomial theta = exp(weight), prior only, no year-varying
+  # offset: the intercept re-targets comp_weights, caal_weights (per fleet)
+  # or diet_comp_weights (per predator).
   comp        = c(theta_comp = 0L, theta_caal = 1L, theta_diet = 2L)
 )
 
 
 #' Sentinel meaning "applies to every level of this stratum"
 #'
-#' Stored where the user passed `NA` for `species`, `sex`, or
-#' `age_bin`. The TMB template expands these by iterating over
-#' `1:nspp` / `1:nsex` / `1:nages` rather than indexing a single cell.
+#' Stored where the user passed `NA` for `species`, `sex`, `age_bin` or
+#' `fleet`; the offsets loop over every level, but the intercept-prior loop
+#' reads 0 as level 1 (which `.drop_off_fleet_sel_priors()` relies on).
 #'
 #' @keywords internal
 LINKAGE_STRATUM_ALL <- 0L
@@ -228,7 +206,7 @@ LINKAGE_STRATUM_ALL <- 0L
 #'     linkage_sex, linkage_age_bin, linkage_fleet, linkage_X_col, linkage_link,
 #'     linkage_re_index, linkage_prior_family}{Parallel `integer(n_linkage)`
 #'     vectors. `linkage_re_index` is `-1` on fixed rows, else the 0-based
-#'     `beta_linkage_re` slot.}
+#'     deviation across `beta_linkage_re` and `beta_linkage_re_pen`.}
 #'   \item{linkage_prior_p1, linkage_prior_p2}{Parallel
 #'     `numeric(n_linkage)` vectors.}
 #'   \item{linkage_X}{The design matrix as passed in.}
@@ -269,25 +247,23 @@ encode_linkage_for_tmb <- function(table, X) {
   link_int  <- unname(LINKAGE_LINK_CODES[table$link])
   prior_int <- unname(LINKAGE_PRIOR_CODES[table$prior_family])
 
-  # Random-effect coefficient index (per row): -1 on fixed rows, else the
-  # 0-based slot in `beta_linkage_re`. The C++ accumulators read
-  # `beta_linkage_re(re_index)` for these rows instead of `beta_linkage(i)`.
+  # Random-effect slot per row: -1 on a fixed row, else the 0-based deviation
+  # the template reads in place of beta_linkage(i).
   re_index_int <- ifelse(is.na(table$re_index), -1L, as.integer(table$re_index))
   is_re <- re_index_int >= 0L
-  # Per-slot sigma-group index (length n_re): slot g's log_sigma_linkage group.
-  # The C++ density reads sigma = exp(log_sigma_linkage(linkage_re_sigma(g))).
+  # Per deviation: its sigma group, sigma = exp(log_sigma_linkage(group)).
   re_sigma_int <- integer(0)
   if (any(is_re)) {
-    # Bijection: every beta_linkage_re slot is referenced by exactly one row,
-    # so each has one data path (via the accumulators) and one density term.
+    # Each deviation belongs to exactly one row, so it enters the model once
+    # and is scored once.
     n_re <- sum(is_re)
     if (!setequal(re_index_int[is_re], 0:(n_re - 1L)) ||
         anyDuplicated(re_index_int[is_re])) {
       stop("encode_linkage_for_tmb: re_index is not a bijection onto ",
            "0:(n_re-1); the RE registry is inconsistent.", call. = FALSE)
     }
-    # A stray prior on an RE indicator column would leak into the fixed-beta
-    # prior loop (which reads beta_linkage(i), frozen at 0 for RE rows).
+    # The fixed-effect prior loop would read such a prior on beta_linkage(i),
+    # which is held at 0 on a random-effect row.
     if (any(prior_int[is_re] != 0L)) {
       stop("encode_linkage_for_tmb: random-effect rows must not carry a ",
            "fixed-effect prior (prior on the deviation SD goes through ",
@@ -296,11 +272,8 @@ encode_linkage_for_tmb <- function(table, X) {
     re_rows <- which(is_re)
     re_sigma_int <- integer(n_re)
     re_sigma_int[re_index_int[re_rows] + 1L] <- as.integer(table$sigma_index[re_rows])
-    # Per-slot observed covariate value (Rogers QAR1) + a mask flagging which
-    # slots actually carry an observation. A slot is un-observed when its year is
-    # absent from env_data (`re_obs_value` NA there): the latent still exists (the
-    # AR1 runs over all years) but no observation term is added. Store 0 for the
-    # value (never read when masked) and 0 in the mask.
+    # Observed covariate per deviation (Rogers QAR1), with a mask: a year missing
+    # from env_data keeps its latent deviation but adds no observation term.
     re_obs_value <- numeric(n_re)
     re_obs_mask  <- integer(n_re)
     ov <- table$re_obs_value[re_rows]
@@ -314,8 +287,8 @@ encode_linkage_for_tmb <- function(table, X) {
     re_obs_mask  <- integer(0)
   }
 
-  # Per-group sigma-prior triple (length n_re_group), from the reserved `sigma`
-  # key in linkage_spec(priors = ). Groups are ordered by sigma_index.
+  # Per random-effect group, ordered by sigma_index: structure, priors on its
+  # SD and correlation, and its QAR1 observation.
   gt <- .re_group_table(table)
   n_re_group <- if (is.null(gt)) 0L else nrow(gt)
   if (is.null(gt)) {
@@ -331,8 +304,7 @@ encode_linkage_for_tmb <- function(table, X) {
     re_obs_sd          <- numeric(0)
   } else {
     re_struct_codes    <- unname(LINKAGE_STRUCT_CODES[gt$re_struct])
-    # Per group: its 0-based slot in trans_rho_linkage (ar1 groups only, in
-    # group order), -1 for non-ar1 groups.
+    # 0-based slot in trans_rho_linkage for an ar1 group, -1 otherwise.
     re_rho_idx <- rep(-1L, nrow(gt))
     is_ar1 <- gt$re_struct == "ar1"
     re_rho_idx[is_ar1] <- seq_len(sum(is_ar1)) - 1L
@@ -342,18 +314,15 @@ encode_linkage_for_tmb <- function(table, X) {
     re_rho_prior_fam   <- unname(LINKAGE_PRIOR_CODES[gt$rho_prior_family])
     re_rho_prior_p1    <- as.numeric(gt$rho_prior_p1)
     re_rho_prior_p2    <- as.numeric(gt$rho_prior_p2)
-    # Per group (Rogers QAR1): 0-based slot in beta_linkage_obs (observed groups,
-    # in group order), -1 otherwise; and the fixed observation SD (0 otherwise).
+    # Observed (QAR1) groups: 0-based slot in beta_linkage_obs and the
+    # observation SD; -1 and 0 for an unobserved group.
     re_obs_idx <- rep(-1L, nrow(gt))
     re_obs_idx[gt$observed] <- seq_len(sum(gt$observed)) - 1L
     re_obs_sd <- ifelse(gt$observed, as.numeric(gt$obs_sd), 0)
   }
 
-  # Per-slot destination routing: whether a slot is Laplace-integrated (and so
-  # stored in beta_linkage_re) or penalized (beta_linkage_re_pen), plus its dense
-  # 0-based position within that vector. Same shape as linkage_re_rho above -- a
-  # dense sub-index over a subset. For every model without a penalized spec these
-  # are all 1 and 0:(n_re - 1), i.e. the identity, so the C++ read is unchanged.
+  # Where each deviation is stored: beta_linkage_re if Laplace-integrated,
+  # beta_linkage_re_pen if penalized, and its 0-based position there.
   rt <- .re_slot_routing(table)
   if (is.null(rt)) {
     re_integrate_int <- integer(0)
@@ -361,8 +330,8 @@ encode_linkage_for_tmb <- function(table, X) {
   } else {
     re_integrate_int <- as.integer(rt$integrate)
     re_slot_int      <- as.integer(rt$pos)
-    # Each destination's positions must be a bijection onto 0:(k-1); otherwise a
-    # deviation would share a parameter with another, or leave one unreferenced.
+    # Positions must cover 0:(k-1) once each, or two deviations share a
+    # parameter or one is never used.
     for (want in c(TRUE, FALSE)) {
       p <- rt$pos[rt$integrate == want]
       if (length(p) && !setequal(p, seq_along(p) - 1L)) {
