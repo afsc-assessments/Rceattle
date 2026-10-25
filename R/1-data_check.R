@@ -2430,9 +2430,8 @@ data_check <- function(data_list) {
   }
 
   # ONE coefficient per species is all the initial state can identify.
-  # linkage.hpp's `rceattle_apply_recruitment_linkages()` discards sex and
-  # age_bin outright (`(void)linkage_sex; (void)linkage_age_bin;`), takes no
-  # fleet, and ACCUMULATES every matching row onto one offset per species, a
+  # linkage.hpp's `rceattle_apply_recruitment_linkages()` never reads sex or
+  # age_bin (nor fleet), and ACCUMULATES every matching row onto one offset per species, a
   # `species = NA` row broadcasting to all of them. Only year 0 is read, so the
   # linkage collapses there to sum_i beta_i * X(0, col_i) -- a single number per
   # species. Any second row on a species is therefore aliased against the first

@@ -54,21 +54,39 @@ inline void rceattle_stratum_range(int id, int n_levels, int& lo, int& hi) {
 }
 
 
+/**
+ * @brief The linkage table: one entry per row, and the shared design matrix.
+ *
+ * Holds references (to the DATA_ vectors and beta_linkage_eff), so building one copies
+ * nothing. Stratum ids are 1-based, with 0 meaning "every level".
+ */
+template<class Type>
+struct LinkageTable {
+  const vector<int>&  process;   // process code (RCEATTLE_PROC_*)
+  const vector<int>&  param;     // parameter code within the process (codes above)
+  const vector<int>&  species;   // species id
+  const vector<int>&  sex;       // sex id
+  const vector<int>&  age_bin;   // age index (age - minage + 1), not the age itself
+  const vector<int>&  fleet;     // Fleet_code
+  const vector<int>&  X_col;     // 0-based column of X
+  const vector<int>&  link;      // 0 identity, 1 log, 3 exponential (note below)
+  const matrix<Type>& X;         // design matrix [model year, row 0 = styr; column]
+  const vector<Type>& beta;      // the row's estimated beta, or its random-effect value (5.2b)
+};
+
+
 // ---------------------------------------------------------------------
-// The five functions below share one pattern: for each linkage row of this
-// process whose link matches `link_code`, add beta * linkage_X(yr, col) to the
-// offset for every stratum and year the row covers. Shared arguments:
-//   linkage_X  covariate design matrix, one row per model year;
-//   beta       one effect size per linkage row (length 0 = no linkages);
-//   link_code  which rows this call adds:
-//     0 = identity: beta * x is added to the parameter's natural-scale value
-//         (to the stored logit or log for DoubleNormalSS3 P2-P6, DoubleNormal's
-//         logit floor and LogisticPM's log first-bin selectivity);
-//     1 = log: that value is multiplied by exp(beta * x);
-//     2 = logit: reserved, refused in R;
-//     3 = exponential, catchability only: (log q + any log-link offset) is
-//         multiplied by exp(beta * x), SS3's environmental link type 1.
-// Years beyond linkage_X keep an offset of 0, so env_data need not cover the
+// The five functions below share one pattern: for each row of `lt` naming this
+// process whose link matches `link_code`, add beta * X(yr, X_col) to the offset
+// for every stratum and year the row covers. `link_code` picks the rows:
+//   0 = identity: beta * x is added to the parameter's natural-scale value
+//       (to the stored logit or log for DoubleNormalSS3 P2-P6, DoubleNormal's
+//       logit floor and LogisticPM's log first-bin selectivity);
+//   1 = log: that value is multiplied by exp(beta * x);
+//   2 = logit: reserved, refused in R;
+//   3 = exponential, catchability only: (log q + any log-link offset) is
+//       multiplied by exp(beta * x), SS3's environmental link type 1.
+// Years beyond X keep an offset of 0, so env_data need not cover the
 // projection. See vignette("environmental-linkages-and-priors").
 // ---------------------------------------------------------------------
 
@@ -80,51 +98,42 @@ inline void rceattle_stratum_range(int id, int n_levels, int& lo, int& hi) {
  * (sd_L1 = 4, sd_Linf = 5) take intercept rows only and are skipped here.
  *
  * @param growth_offset [in,out] Offsets [nspp, max_sex, nyrs, n_growth_params].
- * @param link_code,linkage_X,beta See the note above.
+ * @param link_code,lt See the note above.
  */
 template<class Type>
 void rceattle_apply_growth_linkages(
-    array<Type>&          growth_offset,
-    int                   link_code,
-    const vector<int>&    linkage_process,
-    const vector<int>&    linkage_param,
-    const vector<int>&    linkage_species,
-    const vector<int>&    linkage_sex,
-    const vector<int>&    linkage_age_bin,
-    const vector<int>&    linkage_X_col,
-    const vector<int>&    linkage_link,
-    const matrix<Type>&   linkage_X,
-    const vector<Type>&   beta,
-    int                   nspp,
-    const vector<int>&    nsex,
-    int                   nyrs)
+    array<Type>&                growth_offset,
+    int                         link_code,
+    const LinkageTable<Type>&   lt,
+    int                         nspp,
+    const vector<int>&          nsex,
+    int                         nyrs)
 {
-  (void)linkage_age_bin;               // growth is not age-stratified
-  int n = beta.size();
+  int n = lt.beta.size();
   if (n == 0) return;
 
-  int yr_hi = std::min(nyrs, (int)linkage_X.rows());
+  int yr_hi = std::min(nyrs, (int)lt.X.rows());
 
   for (int i = 0; i < n; ++i) {
-    if (linkage_process(i) != RCEATTLE_PROC_GROWTH) continue;
-    if (linkage_link(i)    != link_code)            continue;
+    if (lt.process(i) != RCEATTLE_PROC_GROWTH) continue;
+    if (lt.link(i)    != link_code)            continue;
 
-    int param = linkage_param(i);
+    int param = lt.param(i);
     if (param < 0 || param >= RCEATTLE_N_GROWTH_PARAMS) continue;
 
-    int xc = linkage_X_col(i);
-    Type b = beta(i);
+    int xc = lt.X_col(i);
+    Type b = lt.beta(i);
 
     int sp_lo, sp_hi;
-    rceattle_stratum_range(linkage_species(i), nspp, sp_lo, sp_hi);
+    rceattle_stratum_range(lt.species(i), nspp, sp_lo, sp_hi);
 
     for (int sp = sp_lo; sp < sp_hi; ++sp) {
       int sx_lo, sx_hi;
-      rceattle_stratum_range(linkage_sex(i), nsex(sp), sx_lo, sx_hi);
+      rceattle_stratum_range(lt.sex(i), nsex(sp), sx_lo, sx_hi);
 
       for (int sx = sx_lo; sx < sx_hi; ++sx) {
         for (int yr = 0; yr < yr_hi; ++yr) {
-          growth_offset(sp, sx, yr, param) += b * linkage_X(yr, xc);
+          growth_offset(sp, sx, yr, param) += b * lt.X(yr, xc);
         }
       }
     }
@@ -138,51 +147,42 @@ void rceattle_apply_growth_linkages(
  * Age-specific, unlike growth. M1 (code 0) is the only parameter.
  *
  * @param M_offset [in,out] Offsets [nspp, max_sex, max_age, nyrs].
- * @param link_code,linkage_X,beta See the note above.
+ * @param link_code,lt See the note above.
  */
 template<class Type>
 void rceattle_apply_M_linkages(
-    array<Type>&          M_offset,
-    int                   link_code,
-    const vector<int>&    linkage_process,
-    const vector<int>&    linkage_param,
-    const vector<int>&    linkage_species,
-    const vector<int>&    linkage_sex,
-    const vector<int>&    linkage_age_bin,
-    const vector<int>&    linkage_X_col,
-    const vector<int>&    linkage_link,
-    const matrix<Type>&   linkage_X,
-    const vector<Type>&   beta,
-    int                   nspp,
-    const vector<int>&    nsex,
-    const vector<int>&    nages,
-    int                   nyrs)
+    array<Type>&                M_offset,
+    int                         link_code,
+    const LinkageTable<Type>&   lt,
+    int                         nspp,
+    const vector<int>&          nsex,
+    const vector<int>&          nages,
+    int                         nyrs)
 {
-  (void)linkage_param;                 // only log_M1 is exposed so far
-  int n = beta.size();
+  int n = lt.beta.size();
   if (n == 0) return;
 
-  int yr_hi = std::min(nyrs, (int)linkage_X.rows());
+  int yr_hi = std::min(nyrs, (int)lt.X.rows());
 
   for (int i = 0; i < n; ++i) {
-    if (linkage_process(i) != RCEATTLE_PROC_M) continue;
-    if (linkage_link(i)    != link_code)       continue;
+    if (lt.process(i) != RCEATTLE_PROC_M) continue;
+    if (lt.link(i)    != link_code)       continue;
 
-    int xc = linkage_X_col(i);
-    Type b = beta(i);
+    int xc = lt.X_col(i);
+    Type b = lt.beta(i);
 
     int sp_lo, sp_hi;
-    rceattle_stratum_range(linkage_species(i), nspp, sp_lo, sp_hi);
+    rceattle_stratum_range(lt.species(i), nspp, sp_lo, sp_hi);
 
     for (int sp = sp_lo; sp < sp_hi; ++sp) {
       int sx_lo, sx_hi, ab_lo, ab_hi;
-      rceattle_stratum_range(linkage_sex(i),     nsex(sp),  sx_lo, sx_hi);
-      rceattle_stratum_range(linkage_age_bin(i), nages(sp), ab_lo, ab_hi);
+      rceattle_stratum_range(lt.sex(i),     nsex(sp),  sx_lo, sx_hi);
+      rceattle_stratum_range(lt.age_bin(i), nages(sp), ab_lo, ab_hi);
 
       for (int sx = sx_lo; sx < sx_hi; ++sx) {
         for (int ab = ab_lo; ab < ab_hi; ++ab) {
           for (int yr = 0; yr < yr_hi; ++yr) {
-            M_offset(sp, sx, ab, yr) += b * linkage_X(yr, xc);
+            M_offset(sp, sx, ab, yr) += b * lt.X(yr, xc);
           }
         }
       }
@@ -198,47 +198,37 @@ void rceattle_apply_M_linkages(
  * recruits later), so those ids are ignored. R0 = 0, alpha = 1, beta = 2, R_init = 3.
  *
  * @param rec_offset [in,out] Offsets [nspp, n_rec_params, nyrs].
- * @param link_code,linkage_X,beta See the note above.
+ * @param link_code,lt See the note above.
  */
 template<class Type>
 void rceattle_apply_recruitment_linkages(
-    array<Type>&          rec_offset,
-    int                   link_code,
-    const vector<int>&    linkage_process,
-    const vector<int>&    linkage_param,
-    const vector<int>&    linkage_species,
-    const vector<int>&    linkage_sex,
-    const vector<int>&    linkage_age_bin,
-    const vector<int>&    linkage_X_col,
-    const vector<int>&    linkage_link,
-    const matrix<Type>&   linkage_X,
-    const vector<Type>&   beta,
-    int                   nspp,
-    int                   nyrs)
+    array<Type>&                rec_offset,
+    int                         link_code,
+    const LinkageTable<Type>&   lt,
+    int                         nspp,
+    int                         nyrs)
 {
-  (void)linkage_sex;
-  (void)linkage_age_bin;
-  int n = beta.size();
+  int n = lt.beta.size();
   if (n == 0) return;
 
-  int yr_hi = std::min(nyrs, (int)linkage_X.rows());
+  int yr_hi = std::min(nyrs, (int)lt.X.rows());
 
   for (int i = 0; i < n; ++i) {
-    if (linkage_process(i) != RCEATTLE_PROC_RECRUIT) continue;
-    if (linkage_link(i)    != link_code)             continue;
+    if (lt.process(i) != RCEATTLE_PROC_RECRUIT) continue;
+    if (lt.link(i)    != link_code)             continue;
 
-    int param = linkage_param(i);
+    int param = lt.param(i);
     if (param < 0 || param >= RCEATTLE_N_REC_PARAMS) continue;
 
-    int xc = linkage_X_col(i);
-    Type b = beta(i);
+    int xc = lt.X_col(i);
+    Type b = lt.beta(i);
 
     int sp_lo, sp_hi;
-    rceattle_stratum_range(linkage_species(i), nspp, sp_lo, sp_hi);
+    rceattle_stratum_range(lt.species(i), nspp, sp_lo, sp_hi);
 
     for (int sp = sp_lo; sp < sp_hi; ++sp) {
       for (int yr = 0; yr < yr_hi; ++yr) {
-        rec_offset(sp, param, yr) += b * linkage_X(yr, xc);
+        rec_offset(sp, param, yr) += b * lt.X(yr, xc);
       }
     }
   }
@@ -252,48 +242,34 @@ void rceattle_apply_recruitment_linkages(
  * ignored. q (code 0) is the only parameter.
  *
  * @param q_offset [in,out] Offsets [n_flt, nyrs].
- * @param linkage_fleet Fleet id per row (0 = all fleets).
- * @param link_code,linkage_X,beta See the note above.
+ * @param link_code,lt See the note above.
  */
 template<class Type>
 void rceattle_apply_q_linkages(
-    matrix<Type>&         q_offset,
-    int                   link_code,
-    const vector<int>&    linkage_process,
-    const vector<int>&    linkage_param,
-    const vector<int>&    linkage_species,
-    const vector<int>&    linkage_sex,
-    const vector<int>&    linkage_age_bin,
-    const vector<int>&    linkage_fleet,
-    const vector<int>&    linkage_X_col,
-    const vector<int>&    linkage_link,
-    const matrix<Type>&   linkage_X,
-    const vector<Type>&   beta,
-    int                   n_flt,
-    int                   nyrs)
+    matrix<Type>&               q_offset,
+    int                         link_code,
+    const LinkageTable<Type>&   lt,
+    int                         n_flt,
+    int                         nyrs)
 {
-  (void)linkage_param;                 // only q itself is exposed
-  (void)linkage_species;
-  (void)linkage_sex;
-  (void)linkage_age_bin;
-  int n = beta.size();
+  int n = lt.beta.size();
   if (n == 0) return;
 
-  int yr_hi = std::min(nyrs, (int)linkage_X.rows());
+  int yr_hi = std::min(nyrs, (int)lt.X.rows());
 
   for (int i = 0; i < n; ++i) {
-    if (linkage_process(i) != RCEATTLE_PROC_Q) continue;
-    if (linkage_link(i)    != link_code)       continue;
+    if (lt.process(i) != RCEATTLE_PROC_Q) continue;
+    if (lt.link(i)    != link_code)       continue;
 
-    int xc = linkage_X_col(i);
-    Type b = beta(i);
+    int xc = lt.X_col(i);
+    Type b = lt.beta(i);
 
     int fl_lo, fl_hi;
-    rceattle_stratum_range(linkage_fleet(i), n_flt, fl_lo, fl_hi);
+    rceattle_stratum_range(lt.fleet(i), n_flt, fl_lo, fl_hi);
 
     for (int flt = fl_lo; flt < fl_hi; ++flt) {
       for (int yr = 0; yr < yr_hi; ++yr) {
-        q_offset(flt, yr) += b * linkage_X(yr, xc);
+        q_offset(flt, yr) += b * lt.X(yr, xc);
       }
     }
   }
@@ -316,54 +292,43 @@ void rceattle_apply_q_linkages(
  * @param coff_offset [in,out] Nonparametric offsets [n_flt, max_sex, n_sel_bins, nyrs].
  * @param apical_offset [in,out] Apical-height offsets [n_flt, max_sex, nyrs].
  * @param dn6_offset [in,out] DoubleNormalSS3 offsets [6, n_flt, max_sex, nyrs].
- * @param link_code,linkage_X,beta See the note above.
+ * @param link_code,lt See the note above.
  */
 template<class Type>
 void rceattle_apply_sel_linkages(
-    array<Type>&          slp_offset,   // [2, n_flt, max_sex, nyrs]
-    array<Type>&          inf_offset,   // [2, n_flt, max_sex, nyrs]
-    array<Type>&          coff_offset,  // [n_flt, max_sex, n_sel_bins, nyrs]
-    array<Type>&          apical_offset,// [n_flt, max_sex, nyrs]
-    array<Type>&          dn6_offset,   // [6, n_flt, max_sex, nyrs]
-    int                   link_code,
-    const vector<int>&    linkage_process,
-    const vector<int>&    linkage_param,
-    const vector<int>&    linkage_species,
-    const vector<int>&    linkage_sex,
-    const vector<int>&    linkage_age_bin,
-    const vector<int>&    linkage_fleet,
-    const vector<int>&    linkage_X_col,
-    const vector<int>&    linkage_link,
-    const matrix<Type>&   linkage_X,
-    const vector<Type>&   beta,
-    int                   n_flt,
-    int                   max_sex,
-    int                   n_sel_bins,
-    int                   nyrs)
+    array<Type>&                slp_offset,   // [2, n_flt, max_sex, nyrs]
+    array<Type>&                inf_offset,   // [2, n_flt, max_sex, nyrs]
+    array<Type>&                coff_offset,  // [n_flt, max_sex, n_sel_bins, nyrs]
+    array<Type>&                apical_offset,// [n_flt, max_sex, nyrs]
+    array<Type>&                dn6_offset,   // [6, n_flt, max_sex, nyrs]
+    int                         link_code,
+    const LinkageTable<Type>&   lt,
+    int                         n_flt,
+    int                         max_sex,
+    int                         n_sel_bins,
+    int                         nyrs)
 {
-  (void)linkage_species;
-  (void)linkage_age_bin;
-  int n = beta.size();
+  int n = lt.beta.size();
   if (n == 0) return;
 
-  int yr_hi = std::min(nyrs, (int)linkage_X.rows());
+  int yr_hi = std::min(nyrs, (int)lt.X.rows());
 
   for (int i = 0; i < n; ++i) {
-    if (linkage_process(i) != RCEATTLE_PROC_SEL) continue;
-    if (linkage_link(i)    != link_code)         continue;
+    if (lt.process(i) != RCEATTLE_PROC_SEL) continue;
+    if (lt.link(i)    != link_code)         continue;
 
-    int param = linkage_param(i);
-    int xc    = linkage_X_col(i);
-    Type b    = beta(i);
+    int param = lt.param(i);
+    int xc    = lt.X_col(i);
+    Type b    = lt.beta(i);
 
     int fl_lo, fl_hi, sx_lo, sx_hi;
-    rceattle_stratum_range(linkage_fleet(i), n_flt,   fl_lo, fl_hi);
-    rceattle_stratum_range(linkage_sex(i),   max_sex, sx_lo, sx_hi);
+    rceattle_stratum_range(lt.fleet(i), n_flt,   fl_lo, fl_hi);
+    rceattle_stratum_range(lt.sex(i),   max_sex, sx_lo, sx_hi);
 
     for (int flt = fl_lo; flt < fl_hi; ++flt) {
       for (int sx = sx_lo; sx < sx_hi; ++sx) {
         for (int yr = 0; yr < yr_hi; ++yr) {
-          Type v = b * linkage_X(yr, xc);
+          Type v = b * lt.X(yr, xc);
           if (param == 0 || param == 1) {
             slp_offset(param, flt, sx, yr) += v;
           } else if (param == 2 || param == 3) {
@@ -392,7 +357,6 @@ void rceattle_apply_sel_linkages(
     }
   }
 }
-
 
 /**
  * @brief The random-effect slots of one group, in slot order, which is time order
