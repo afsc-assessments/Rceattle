@@ -670,7 +670,9 @@ print.Rceattle_profile <- function(x, cutoff = 1.92, ...) {
 #' `unweighted_jnll_comp` scores the composition, CAAL and stomach-content
 #' rows without their data weights (`Comp_weights`, `CAAL_weights`,
 #' `Diet_comp_weights`); every other row equals `jnll_comp`, so
-#' `weighted = FALSE` changes only those three components.
+#' `weighted = FALSE` changes only those three components. A
+#' Dirichlet-multinomial row is scored at theta = 1, an effective sample size of
+#' about (1 + N)/2 rather than N, so it is not comparable with a multinomial row.
 #'
 #' **Placing each series on the y axis** (`relative`).
 #' \describe{

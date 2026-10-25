@@ -72,7 +72,9 @@ off the weighted components, since those are what moved the fit.
 \code{unweighted_jnll_comp} scores the composition, CAAL and stomach-content
 rows without their data weights (\code{Comp_weights}, \code{CAAL_weights},
 \code{Diet_comp_weights}); every other row equals \code{jnll_comp}, so
-\code{weighted = FALSE} changes only those three components.
+\code{weighted = FALSE} changes only those three components. A
+Dirichlet-multinomial row is scored at theta = 1, an effective sample size of
+about (1 + N)/2 rather than N, so it is not comparable with a multinomial row.
 
 \strong{Placing each series on the y axis} (\code{relative}).
 \describe{
