@@ -93,7 +93,7 @@ m5 <- fit_mod(data_list = d5, msmMode = 0, estimateMode = "Hindcast",
 
 ## --- 6. 2DAR1 over age x year ----
 ## Sel_curve_pen1/2 become estimated correlations on the logit scale.
-## Time_varying_sel is ignored: the field supplies its own deviations and sd.
+## Time_varying_sel is ignored: the field always has deviations, at sd Time_varying_sel_sd.
 d6 <- d
 d6$fleet_control$Selectivity[FISHERY]      <- "2DAR1"
 d6$fleet_control$N_sel_bins[FISHERY]       <- 19
