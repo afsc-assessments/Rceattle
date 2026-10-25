@@ -45,15 +45,17 @@ linkage_row(
 \arguments{
 \item{process, param, X_col}{required identifying fields.}
 
-\item{species, sex, age_bin, fleet}{stratum ids; \code{NA} = shared across the
-dimension. \code{fleet} is a 1-based \code{Fleet_code}, used by catchability and
-selectivity linkages; the process-level linkages leave it \code{NA}.}
+\item{species, sex, age_bin, fleet}{stratum ids, \code{NA} = every level; \code{fleet}
+is a 1-based \code{Fleet_code}, used by catchability, selectivity and
+composition-weight linkages.}
 
 \item{design_col}{name of the design matrix column.}
 
 \item{link}{link function; one of \link{LINKAGE_LINKS}.}
 
 \item{init}{initial value (default \code{0}).}
+
+\item{init_supplied}{\code{TRUE} if the user supplied \code{init} (default \code{FALSE}).}
 
 \item{lower, upper}{bounds (default \code{-Inf}, \code{Inf}).}
 
@@ -69,39 +71,33 @@ selectivity linkages; the process-level linkages leave it \code{NA}.}
 
 \item{est_phase}{estimation phase ordinal; \code{0} = fix at \code{init}.}
 
-\item{re_index, sigma_index, re_time}{random-effect registry fields filled by
-\code{pool_linkages()}; \code{NA} on fixed rows. \code{re_index} is the 0-based slot in
-\code{beta_linkage_re}, \code{sigma_index} the 0-based slot in \code{log_sigma_linkage},
-and \code{re_time} the numeric grouping value used to order \code{rw()}/\code{ar1()}
-deviations in real elapsed time.}
+\item{re_index, sigma_index, re_time}{random-effect fields filled by
+\code{pool_linkages()} (deviation slot, SD slot, time order); \code{NA} on fixed rows.}
 
-\item{re_sigma_init, re_sigma_prior_family, re_sigma_prior_p1, re_sigma_prior_p2}{per-group RE-SD routing from \code{linkage_spec(init = list(sigma = ), priors = list(sigma = ))}; identical across a group's rows, \code{NA} on fixed rows.
-\code{re_sigma_init} is the start (or, when supplied without a prior, fixed) SD
-on the natural scale; the prior triple places a prior on that SD.}
+\item{re_sigma_init, re_sigma_prior_family, re_sigma_prior_p1, re_sigma_prior_p2}{the group's natural-scale SD start value (held fixed if given without a
+prior) and prior, from \code{linkage_spec(init = , priors = )}; \code{NA} on fixed rows.}
 
-\item{re_rho_init, re_rho_prior_family, re_rho_prior_p1, re_rho_prior_p2}{per-group \code{ar1} correlation routing from \code{linkage_spec(init = list(rho = ), priors = list(rho = ))}; natural \verb{(-1, 1)} scale, \code{NA} on non-\code{ar1} rows.}
+\item{re_rho_init, re_rho_prior_family, re_rho_prior_p1, re_rho_prior_p2}{the \code{ar1} group's correlation on \verb{(-1, 1)}, start value (held fixed if
+given without a prior) and prior, from \code{linkage_spec()}; \code{NA} otherwise.}
 
-\item{re_obs_value, re_obs_sd}{state-space (Rogers QAR1) observation from
-\code{linkage_spec(observe = , obs_sd = )}: the observed covariate value at this
-row's time and the fixed measurement SD. \code{NA} when the group is unobserved.}
+\item{re_obs_value, re_obs_sd}{the Rogers QAR1 observed covariate value and
+measurement SD, from \code{linkage_spec(observe = , obs_sd = )}; \code{NA} when unobserved.}
 
-\item{re_obs_est}{\code{TRUE} to estimate the QAR1 measurement SD; \code{FALSE}/\code{NA}
-holds it fixed.}
+\item{re_obs_est}{\code{TRUE} to estimate the QAR1 measurement SD
+(\code{linkage_spec(obs_sd_est = )}); \code{FALSE}/\code{NA} holds it fixed.}
 
-\item{re_integrate}{\code{FALSE} when the deviations are estimated as a penalized
-fixed effect rather than integrated out by the Laplace approximation, from
-\code{linkage_spec(integrate = FALSE)}. \code{TRUE}/\code{NA} = integrated.}
+\item{re_integrate}{\code{FALSE} for a penalized fixed effect rather than a
+Laplace-integrated random effect, from \code{linkage_spec(integrate = )};
+\code{TRUE}/\code{NA} = integrated.}
 
-\item{re_pos}{0-based position of this row's deviation within the parameter
-vector that holds it (\code{beta_linkage_re} when \code{re_integrate}, else
-\code{beta_linkage_re_pen}). Distinct from \code{re_index}, which is the global slot.}
+\item{re_pos}{0-based position of the deviation within \code{beta_linkage_re} or
+\code{beta_linkage_re_pen}, whichever holds it.}
 }
 \value{
 A one-row \code{Rceattle_linkage_table}.
 }
 \description{
-Convenience constructor that returns a one-row linkage table with
-default values for optional columns. Useful in tests and for
-incremental table assembly.
+Returns a one-row linkage table with defaults for the optional columns, for
+tests and for assembling a table row by row.
 }
 \keyword{internal}

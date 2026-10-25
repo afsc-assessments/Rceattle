@@ -1,23 +1,14 @@
 #' Linkage table: long-format coefficient registry for Rceattle processes
 #'
-#' A *linkage table* is the unified data structure used to describe every
-#' estimated coefficient that connects a process (recruitment, natural
-#' mortality, growth, ...) to a covariate or stratum. Each row of the
-#' table corresponds to exactly one scalar coefficient (a `beta`) and
-#' identifies (a) which process and parameter it modifies, (b) which
-#' species/sex/age subset it applies to, (c) which column of the shared
-#' design matrix `X` it multiplies, and (d) its prior, bounds, link, and
-#' estimation phase.
+#' A *linkage table* lists every coefficient (`beta`) that ties a process
+#' (recruitment, natural mortality, growth, ...) to a covariate, time block or
+#' stratum. Each row is one coefficient and records the process and parameter
+#' it changes, the species/sex/age/fleet it applies to, the column of the
+#' design matrix `X` it multiplies, and its link, prior, bounds and phase.
 #'
-#' The motivation is that the historical Rceattle pattern of one wide
-#' parameter array per process (e.g. `M1_beta[nspp, nsex, n_env]`)
-#' does not generalize cleanly across
-#' processes that need different stratifications. A long-format table
-#' grows only with the linkages the user actually requests, regardless
-#' of the underlying species/sex/age dimensionality.
-#'
-#' This file defines the schema and basic helpers; user-facing
-#' formula-driven constructors live in `R/0-build_linkage.R`.
+#' One row per coefficient, rather than one array per process, means the table
+#' grows only with the linkages requested. The user-facing constructors are in
+#' `R/0-build_linkage.R`.
 #'
 #' @keywords internal
 #' @name linkage_table
@@ -31,12 +22,12 @@ NULL
 #'
 #' @keywords internal
 LINKAGE_COLS <- c(
-  process       = "character",  # "recruitment", "M", "growth", "q", "sel"
+  process       = "character",  # "recruitment", "M", "growth", "q", "sel", "comp"
   param         = "character",  # e.g. "R0", "alpha", "K"
-  species       = "integer",    # 1-based species id; NA = shared
-  sex           = "integer",    # 1 or 2; NA = shared
-  age_bin       = "integer",    # 1-based age index; NA = shared
-  fleet         = "integer",    # 1-based Fleet_code; NA = shared
+  species       = "integer",    # 1-based species id; NA = every level
+  sex           = "integer",    # 1 or 2; NA = every level
+  age_bin       = "integer",    # 1-based age index; NA = every level
+  fleet         = "integer",    # 1-based Fleet_code; NA = every level
   X_col         = "integer",    # column of the global design matrix
   design_col    = "character",  # name of the design matrix column
   link          = "character",  # "identity", "log", "logit", "exponential"
@@ -50,37 +41,32 @@ LINKAGE_COLS <- c(
   re_group      = "character",  # random-effect group name (NA = fixed)
   re_struct     = "character",  # covariance structure (us/rw/ar1/...; NA = fixed)
   est_phase     = "integer",    # phase ordinal; 0 = fixed
-  # Random-effect registry (filled by pool_linkages(); NA on fixed rows).
-  re_index      = "integer",    # 0-based slot in beta_linkage_re (NA = fixed row)
-  sigma_index   = "integer",    # 0-based slot in log_sigma_linkage (NA = fixed row)
-  re_time       = "numeric",    # numeric grouping value, for rw/ar1 time order (NA = fixed)
-  # Per-group RE-SD (sigma) routing from linkage_spec(); identical across a
-  # group's rows, deduped per sigma_index at encode time. NA on fixed rows.
+  # Random effects, filled by pool_linkages(); NA on fixed rows.
+  re_index      = "integer",    # 0-based deviation slot, across both RE vectors
+  sigma_index   = "integer",    # 0-based slot in log_sigma_linkage
+  re_time       = "numeric",    # grouping value that orders rw/ar1 deviations in time
+  # Per-group SD (sigma), from linkage_spec(init = , priors = list(sigma = ));
+  # the same on every row of a group.
   re_sigma_init = "numeric",       # start / fixed SD on natural scale (NA = default)
   re_sigma_prior_family = "character", # prior on the SD; "none"/NA = no prior
   re_sigma_prior_p1     = "numeric",
   re_sigma_prior_p2     = "numeric",
-  # Per-group ar1 correlation (rho) routing from linkage_spec(); natural (-1,1)
-  # scale. NA on non-ar1 rows.
+  # Per-group ar1 correlation rho on (-1, 1), from linkage_spec(init = ,
+  # priors = list(rho = )); NA on non-ar1 rows.
   re_rho_init   = "numeric",       # start / fixed correlation (NA = default 0)
   re_rho_prior_family = "character",   # prior on rho; "none"/NA = no prior
   re_rho_prior_p1     = "numeric",
   re_rho_prior_p2     = "numeric",
-  # State-space (Rogers QAR1) observation: this row's latent ar1 deviate is also
-  # observed as `re_obs_value` (an env_data column) with fixed SD `re_obs_sd`,
-  # and enters the target through an estimated effect size. NA when not observed.
+  # Rogers QAR1, from linkage_spec(observe = , obs_sd = , obs_sd_est = ): the
+  # latent ar1 deviation is also observed as an env_data column, and acts
+  # through an estimated effect size. NA when not observed.
   re_obs_value  = "numeric",       # observed covariate value at this row's time
   re_obs_sd     = "numeric",       # measurement SD start/fixed value (NA = not observed)
   re_obs_est    = "logical",       # TRUE = estimate the obs SD; FALSE/NA = hold it fixed
-  # Laplace-integrated vs penalized fixed effect, from linkage_spec(integrate =).
-  # Constant within a sigma group (the registry key includes it, so a group cannot
-  # straddle both). NA on fixed rows.
+  # From linkage_spec(integrate = ); the same on every row of a group.
   re_integrate  = "logical",       # TRUE/NA = integrated; FALSE = penalized fixed effect
-  # Where this row's deviation actually sits. `re_index` is the GLOBAL slot; the
-  # deviations are stored in two vectors, so the position within the one that
-  # holds it is a different number. Supplied so a caller setting `inits` by hand
-  # can write beta_linkage_re[re_pos + 1] / beta_linkage_re_pen[re_pos + 1]
-  # without having to reconstruct the split. NA on fixed rows.
+  # Position within beta_linkage_re or beta_linkage_re_pen (re_index is the
+  # slot across both), for setting `inits` by hand.
   re_pos        = "integer"        # 0-based position within its own parameter vector
 )
 
@@ -129,21 +115,16 @@ LINKAGE_LINKS <- c("identity", "log", "logit", "exponential")
 
 #' Link functions with a C++ accumulator behind them
 #'
-#' Every accumulator in `src/TMB/linkage.hpp` gates on `linkfn == 1` (log),
-#' `linkfn == 0` (identity) or `linkfn == 3` (exponential). `"logit"` stays
-#' reserved, the code is referenced by the C++ header, but is rejected until an
-#' accumulator implements it.
+#' The accumulators read link codes 1 (log), 0 (identity) and 3 (exponential).
+#' `"logit"` is reserved and refused until one implements it.
 #'
-#' `"exponential"` MULTIPLIES the parameter on its stored log scale rather than
-#' shifting it, `exp((log_base + log_offset) * exp(beta * x))`. It reproduces
-#' Stock Synthesis's environmental link type 1 (SS3's own name for it:
-#' `case 1: // exponential env link`, `SS_timevaryparm.tpl:206`), and is
-#' meaningful ONLY where SS3 itself stores the parameter as a log. Wired for
-#' catchability, and only for a lognormal/t survey error -- SS3 keeps `Q_parm`
-#' arithmetic under a normal index likelihood (`SS_expval.tpl:413-419`), where
-#' its type 1 is `q * exp(beta * x)`, i.e. Rceattle's `"log"`. SS3 also stores
-#' the recruitment level as a log (`SR_LN(R0)`), so the form applies there in
-#' principle, but no accumulator consumes it yet.
+#' `"exponential"` multiplies the parameter on its log scale,
+#' `exp((log_base + log_offset) * exp(beta * x))`: Stock Synthesis's
+#' environmental link type 1 (`SS_timevaryparm.tpl:206`). It applies only where
+#' SS3 stores the parameter as a log, so it is wired for catchability under a
+#' lognormal/t index error; under a normal index SS3 keeps `Q_parm` arithmetic
+#' (`SS_expval.tpl:413-419`) and its type 1 is Rceattle's `"log"`. SS3's
+#' `SR_LN(R0)` is a log too, but no recruitment accumulator reads this link yet.
 #'
 #' @keywords internal
 #' @noRd
@@ -310,9 +291,8 @@ validate_linkage_table <- function(x) {
          paste(bad_proc, collapse = ", "),
          "; allowed: ", paste(LINKAGE_PROCESSES, collapse = ", "))
   }
-  # Backstop for tables assembled without going through
-  # materialize_linkage(): a reserved-but-unwired process must not
-  # reach TMB as a silently inert (q) or cryptically failing (sel) row.
+  # Backstop for a table not built by materialize_linkage(): a reserved process
+  # must not reach the template, where nothing would read it.
   for (pr in setdiff(unique(x$process), LINKAGE_PROCESSES_IMPLEMENTED)) {
     .check_process_implemented(pr)
   }
@@ -322,13 +302,11 @@ validate_linkage_table <- function(x) {
          paste(bad_link, collapse = ", "),
          "; allowed: ", paste(LINKAGE_LINKS, collapse = ", "))
   }
-  # Backstop for tables assembled without going through linkage_spec():
-  # a reserved-but-unimplemented link must not reach TMB silently.
+  # The same backstop for a link not set through linkage_spec().
   for (lk in setdiff(unique(x$link), LINKAGE_LINKS_IMPLEMENTED)) {
     .check_link_implemented(lk)
   }
-  # After the type checks: it reads `link`, `process` and `re_struct`, and at the
-  # top a non-data.frame errored out of `||` instead of reporting its class.
+  # After the type checks, as it reads `link`, `process` and `re_struct`.
   .check_exponential_link(x)
   bad_fam <- setdiff(unique(x$prior_family), PRIOR_FAMILIES)
   if (length(bad_fam) > 0) {
@@ -352,17 +330,17 @@ validate_linkage_table <- function(x) {
 
 #' Build a single linkage row
 #'
-#' Convenience constructor that returns a one-row linkage table with
-#' default values for optional columns. Useful in tests and for
-#' incremental table assembly.
+#' Returns a one-row linkage table with defaults for the optional columns, for
+#' tests and for assembling a table row by row.
 #'
 #' @param process,param,X_col required identifying fields.
-#' @param species,sex,age_bin,fleet stratum ids; `NA` = shared across the
-#'   dimension. `fleet` is a 1-based `Fleet_code`, used by catchability and
-#'   selectivity linkages; the process-level linkages leave it `NA`.
+#' @param species,sex,age_bin,fleet stratum ids, `NA` = every level; `fleet`
+#'   is a 1-based `Fleet_code`, used by catchability, selectivity and
+#'   composition-weight linkages.
 #' @param design_col name of the design matrix column.
 #' @param link link function; one of [LINKAGE_LINKS].
 #' @param init initial value (default `0`).
+#' @param init_supplied `TRUE` if the user supplied `init` (default `FALSE`).
 #' @param lower,upper bounds (default `-Inf`, `Inf`).
 #' @param prior_family one of [PRIOR_FAMILIES]. `"none"` = no prior.
 #' @param prior_p1,prior_p2 family-specific prior parameters; ignored when
@@ -371,30 +349,23 @@ validate_linkage_table <- function(x) {
 #' @param re_struct random-effect covariance structure (`"us"`/`"rw"`/`"ar1"`);
 #'   `NA` = fixed.
 #' @param est_phase estimation phase ordinal; `0` = fix at `init`.
-#' @param re_index,sigma_index,re_time random-effect registry fields filled by
-#'   `pool_linkages()`; `NA` on fixed rows. `re_index` is the 0-based slot in
-#'   `beta_linkage_re`, `sigma_index` the 0-based slot in `log_sigma_linkage`,
-#'   and `re_time` the numeric grouping value used to order `rw()`/`ar1()`
-#'   deviations in real elapsed time.
+#' @param re_index,sigma_index,re_time random-effect fields filled by
+#'   `pool_linkages()` (deviation slot, SD slot, time order); `NA` on fixed rows.
 #' @param re_sigma_init,re_sigma_prior_family,re_sigma_prior_p1,re_sigma_prior_p2
-#'   per-group RE-SD routing from `linkage_spec(init = list(sigma = ), priors =
-#'   list(sigma = ))`; identical across a group's rows, `NA` on fixed rows.
-#'   `re_sigma_init` is the start (or, when supplied without a prior, fixed) SD
-#'   on the natural scale; the prior triple places a prior on that SD.
+#'   the group's natural-scale SD start value (held fixed if given without a
+#'   prior) and prior, from `linkage_spec(init = , priors = )`; `NA` on fixed rows.
 #' @param re_rho_init,re_rho_prior_family,re_rho_prior_p1,re_rho_prior_p2
-#'   per-group `ar1` correlation routing from `linkage_spec(init = list(rho = ),
-#'   priors = list(rho = ))`; natural `(-1, 1)` scale, `NA` on non-`ar1` rows.
-#' @param re_obs_value,re_obs_sd state-space (Rogers QAR1) observation from
-#'   `linkage_spec(observe = , obs_sd = )`: the observed covariate value at this
-#'   row's time and the fixed measurement SD. `NA` when the group is unobserved.
-#' @param re_obs_est `TRUE` to estimate the QAR1 measurement SD; `FALSE`/`NA`
-#'   holds it fixed.
-#' @param re_integrate `FALSE` when the deviations are estimated as a penalized
-#'   fixed effect rather than integrated out by the Laplace approximation, from
-#'   `linkage_spec(integrate = FALSE)`. `TRUE`/`NA` = integrated.
-#' @param re_pos 0-based position of this row's deviation within the parameter
-#'   vector that holds it (`beta_linkage_re` when `re_integrate`, else
-#'   `beta_linkage_re_pen`). Distinct from `re_index`, which is the global slot.
+#'   the `ar1` group's correlation on `(-1, 1)`, start value (held fixed if
+#'   given without a prior) and prior, from `linkage_spec()`; `NA` otherwise.
+#' @param re_obs_value,re_obs_sd the Rogers QAR1 observed covariate value and
+#'   measurement SD, from `linkage_spec(observe = , obs_sd = )`; `NA` when unobserved.
+#' @param re_obs_est `TRUE` to estimate the QAR1 measurement SD
+#'   (`linkage_spec(obs_sd_est = )`); `FALSE`/`NA` holds it fixed.
+#' @param re_integrate `FALSE` for a penalized fixed effect rather than a
+#'   Laplace-integrated random effect, from `linkage_spec(integrate = )`;
+#'   `TRUE`/`NA` = integrated.
+#' @param re_pos 0-based position of the deviation within `beta_linkage_re` or
+#'   `beta_linkage_re_pen`, whichever holds it.
 #' @return A one-row `Rceattle_linkage_table`.
 #' @keywords internal
 linkage_row <- function(process, param, X_col,
@@ -477,16 +448,13 @@ linkage_row <- function(process, param, X_col,
 
 #' Resolve a linkage row's stratum ids against per-species dimensions.
 #'
-#' A row's `species`, `sex`, and `age_bin` are integer ids or `NA` (which
-#' means "shared / broadcast across this dimension"). Both
-#' `map_linkage_adjuster()` and the intercept-zeroing pass in
-#' `build_params()` need to translate that into concrete index vectors.
+#' Turns the row's `species`, `sex`, `age_bin` and `fleet` ids (`NA` = every
+#' level) into index vectors, for the parameter, map and bounds builders.
 #'
 #' @param row a one-row slice of an `Rceattle_linkage_table`.
-#' @param data_list the data list (used for `nspp`, `nsex`, `nages`).
-#' @return a list with components `species`, `sex`, `age`, each a list
-#'   keyed by species id, giving the sex/age index vectors to apply for
-#'   that species.
+#' @param data_list the data list (used for `nspp`, `nsex`, `nages`, `fleet_control`).
+#' @return a list: `species` (ids), `per_sp` (the `sex` and `age` vectors for
+#'   each species, keyed by its id as a string) and `fleet` (fleet rows).
 #' @keywords internal
 #' @noRd
 .linkage_row_indices <- function(row, data_list) {
@@ -498,9 +466,7 @@ linkage_row <- function(process, param, X_col,
     ag <- if (is.na(row$age_bin)) seq_len(data_list$nages[s]) else as.integer(row$age_bin)
     per_sp[[as.character(s)]] <- list(sex = sx, age = ag)
   }
-  # Fleet is not nested inside species the way sex and age are: a fleet
-  # already implies its species via fleet_control$Species, so it resolves
-  # once against the full fleet set rather than per species.
+  # A fleet already implies its species, so fleets resolve once, not per species.
   flt <- if (is.na(row$fleet)) {
     seq_len(nrow(data_list$fleet_control))
   } else {
@@ -513,14 +479,13 @@ linkage_row <- function(process, param, X_col,
 
 #' Is a `sel_inf` slot held on the natural scale for this selectivity form?
 #'
-#' `sel_inf` is dual-purpose. Slot 1 (`inf_asc` / `peak`) is always an age or
-#' length midpoint. Slot 2 is an inflection for the logistic family, but
-#' DoubleNormal reuses it as `logit(right_floor)` and LogisticPM as a log
-#' age-1 selectivity override. A value written on the wrong one of those is
-#' silently wrong, `right_floor = 0.2` would become `plogis(0.2) = 0.55`,
-#' so the transformed slots are refused rather than guessed at.
+#' Slot 1 (`inf_asc` / `peak`) is always an age or length. Slot 2 is an
+#' inflection for DoubleLogistic and DescendingLogistic (Logistic never reads
+#' it), but DoubleNormal stores `logit(right_floor)` there and LogisticPM the
+#' log selectivity of the first bin, where a natural-scale value would be wrong
+#' (`right_floor = 0.2` would read as 0.55), so the caller refuses those slots.
 #'
-#' @param param linkage parameter name; `slot` its `.SEL_PARAM_TO_SLOT` index.
+#' @param slot the parameter's `.SEL_PARAM_TO_SLOT` index (1 or 2).
 #' @param form the fleet's `Selectivity` value.
 #' @keywords internal
 #' @noRd
@@ -534,20 +499,13 @@ linkage_row <- function(process, param, X_col,
 
 #' Is this fleet a follower in a shared selectivity / catchability block?
 #'
-#' `Selectivity_index` / `Catchability_index` are group keys, not fleet codes:
-#' fleets holding the same value estimate ONE parameter block, and
-#' `adjust_map_shared_params()` copies the group's donor slice over the rest.
-#' The donor is the first estimated fleet in the group, the same rule
-#' `.group_lead()` applies for `flt_sel_lead` / `flt_q_lead`, and the reason an
-#' `Off` fleet (whose slice is all NA) never leads. A value set on the donor is
-#' what the whole group uses; one set on any other member is overwritten.
+#' Fleets with the same `Selectivity_index` / `Catchability_index` estimate ONE
+#' parameter block, copied from the donor: the group's first fleet that is not
+#' `Off` (the `.group_lead()` rule). A value set on any other member is
+#' overwritten. A group of one is not shared.
 #'
-#' A group of one is not shared, whatever its key happens to be, a survey
-#' catchability counter runs 1..n_survey and rarely matches the fleet code.
-#'
-#' @return `NA_integer_` if `flt` is not a follower, otherwise the fleet_control
-#'   ROW of the donor whose value would win. `data_check()` requires `Fleet_code`
-#'   to equal the row number, so the two coincide, but this is a row index.
+#' @return `NA_integer_` if `flt` is not a follower, else the donor's
+#'   fleet_control row (equal to its `Fleet_code`, which `data_check()` requires).
 #' @keywords internal
 #' @noRd
 .shared_block_lead <- function(data_list, flt, process) {
@@ -560,8 +518,7 @@ linkage_row <- function(process, param, X_col,
   rows <- which(!is.na(idx) & idx == idx[flt])
   if (length(rows) < 2L) return(NA_integer_)
 
-  # Read through the map: a workbook that has not been through switch_check()
-  # still holds the integer code, and 0 == "Off" is FALSE.
+  # Read through the map: before switch_check() Fleet_type may be the code 0.
   off  <- if (is.null(fc$Fleet_type)) rep(FALSE, nrow(fc)) else
     vapply(fc$Fleet_type, function(x) identical(.canon_switch(x, fleet_map), "Off"), logical(1))
   est  <- rows[!off[rows]]
@@ -572,18 +529,11 @@ linkage_row <- function(process, param, X_col,
 
 #' Every member of the blocks the named fleets belong to
 #'
-#' An intercept value written to the donor's cell alone is diluted: a shared
-#' block starts at `TMB:::updateMap()`'s mean over the whole map level, so the
-#' other members' build defaults pull it off the request. Bounds take one entry
-#' per level by first occurrence, so they need the same expansion to land on
-#' whichever cell wins.
-#'
-#' A group may span species -- `adjust_map_shared_params()` keys on the index
-#' alone, and so does the mean -- so the expansion does not filter on species.
-#' The sex range a caller writes is the NAMED fleet's species', and sex 1 exists
-#' for every species, so the worst case for a member of a one-sex species in a
-#' two-sex caller's group is a write into a padding cell, which is mapped off
-#' and so is neither read nor part of the level.
+#' A shared block starts at `TMB:::updateMap()`'s mean over all its members,
+#' and `fit_mod()` takes one bound per map level by first occurrence, so a start
+#' value or bound written to the donor alone would not survive. Groups may span
+#' species, so members are not filtered by species; a second-sex write to a
+#' one-sex member lands in a mapped-off padding cell (harmless: it is never read).
 #'
 #' @keywords internal
 #' @noRd
@@ -604,9 +554,8 @@ linkage_row <- function(process, param, X_col,
 #' @keywords internal
 #' @noRd
 .stop_if_shared_block <- function(data_list, flt, process, param) {
-  # Only a fleet the user NAMED is checked. An unstratified linkage expands to
-  # every fleet, where setting the whole group is unambiguous and the followers
-  # take the donor's value anyway.
+  # Only a fleet the user named is checked; a linkage on every fleet sets the
+  # whole group, which is unambiguous.
   if (length(flt) != 1L || is.na(flt)) return(invisible())
   lead <- .shared_block_lead(data_list, flt, process)
   if (is.na(lead)) return(invisible())
@@ -622,11 +571,10 @@ linkage_row <- function(process, param, X_col,
 
 #' Refuse a selectivity / catchability linkage a mirrored block cannot honour
 #'
-#' A mirrored group shares one coefficient but each member gets its own offset
-#' tensor, so the group keeps its promise only where every member has a row,
-#' exactly one, and they agree. Refuses partial coverage, a random-effect
-#' linkage, a duplicate row, and specs disagreeing on `link`/`bounds`/`init`.
-#' Intercepts are exempt: they re-target the shared base and are pinned.
+#' A mirrored group shares one coefficient but each member gets its own offset,
+#' so the members stay identical only if each has exactly one row and the rows
+#' agree. Refuses partial coverage, a random effect, a duplicate row, and specs
+#' disagreeing on `link`/`bounds`/`init`; pinned intercepts are exempt.
 #' Measured numbers in `inst/dev/TRAPS.md`, "Shared parameter blocks".
 #'
 #' @param process `"sel"` or `"q"`.
@@ -648,11 +596,9 @@ linkage_row <- function(process, param, X_col,
   off  <- vapply(fleet_control[["Fleet_type"]],
                  function(x) identical(.canon_switch(x, fleet_map), "Off"),
                  logical(1))
-  # Coverage is owed only to a member whose block is estimated: one this process
-  # does not estimate cannot carry a row at all, and demanding it deadlocked a q
-  # linkage whose follower holds q fixed. Each arm reads the column as its own
-  # support check does -- the q one RAW, because `.canon_switch()` maps an absent
-  # switch to "<blank>", not NA, so `is.na()` there is never true.
+  # Coverage is owed only by members whose parameter is estimated, as only they
+  # can carry a row. q is read raw, as `.canon_switch()` maps an absent switch
+  # to "<blank>", not NA.
   linkable <- if (identical(process, "q")) {
     qf <- as.character(fleet_control[["Catchability"]])
     !is.na(qf) & !qf %in% c(.Q_LINKAGE_SELFBUILT_FORMS,
@@ -664,17 +610,16 @@ linkage_row <- function(process, param, X_col,
 
   for (g in unique(idx[!is.na(idx)])) {
     members <- which(!is.na(idx) & idx == g)
-    # The map ties a follower for ANY group of two or more, `Off` included, so
-    # the agreement rules run on that set; coverage keys on `covers`.
+    # The map ties any group of two or more, `Off` members included; only
+    # `covers` owes a row.
     if (length(members) < 2L) next
     covers <- members[!off[members] & linkable[members]]
 
     grp <- tbl[!is.na(tbl[["fleet"]]) & tbl[["fleet"]] %in% members, , drop = FALSE]
     if (nrow(grp) == 0L) next
 
-    # (a) Each named fleet would get its own deviation series and its own SD,
-    # and these cannot be tied: separate sigma groups would score the same
-    # deviations twice and fit two SDs to identical data.
+    # (a) Each named fleet would get its own deviations and SD: separate sigma
+    # groups would score the same deviations twice and fit two SDs to them.
     re <- grp[!is.na(grp[["re_struct"]]), , drop = FALSE]
     if (nrow(re) > 0L) {
       stop(sprintf(paste0(
@@ -693,9 +638,8 @@ linkage_row <- function(process, param, X_col,
                  grp[["species"]], grp[["sex"]], grp[["age_bin"]], sep = "\r")
     for (k in unique(key)) {
       rows <- grp[key == k, , drop = FALSE]
-      # An intercept re-targets the shared base and is pinned to NA, so it
-      # carries no per-fleet offset and cannot diverge; `.stop_if_shared_block()`
-      # already governs where its value may be set.
+      # A pinned intercept has no per-fleet offset; `.stop_if_shared_block()`
+      # governs where its value may be set.
       if (all(.is_pinned_intercept(rows))) next
       covered <- unique(rows[["fleet"]])
 
@@ -731,12 +675,9 @@ linkage_row <- function(process, param, X_col,
           col, g), call. = FALSE)
       }
 
-      # (d) One coefficient, so a field giving it its meaning or constraint
-      # cannot differ: the surviving bound would be whichever row sits first in
-      # the table, and two `init`s would start at their mean. `est_phase` is
-      # exempt -- a held donor holding the group is the rule, and an SS3 bridge
-      # needs it. Report a bound as the PAIR the caller wrote, and flag a side
-      # that is only the table default.
+      # (d) One coefficient, so link, bounds and init must agree: the surviving
+      # bound would be the first row's, and two inits would start at their mean.
+      # est_phase may differ (a fixed donor holds the group). Defaults are labelled.
       dflt <- function(v, is_default) ifelse(is_default, paste(v, "(default)"), v)
       shown <- list(
         link   = as.character(rows[["link"]]),
