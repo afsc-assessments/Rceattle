@@ -5,6 +5,12 @@
 // into year-by-year offsets that recruitment, M, growth, catchability and
 // selectivity add to their parameters. Each offset is beta * X(year, column).
 //
+// Example: build_M1(linkages = list(M1 = linkage_spec(~ temp))) makes two rows per
+// species, an (Intercept) held at 0 and a `temp` slope beta. rceattle_apply_M_linkages()
+// fills M_linkage_offset(sp, sex, age, yr) = beta * temp_yr, and ceattle.cpp section 6.1
+// reads M1_yr = exp(log M1 + M_offset_yr). The equations for every link and
+// the row / slot / group terms are at ceattle.cpp section 2.3b.
+//
 // Process and parameter codes are in lockstep with R/0-linkage_encode.R
 // (LINKAGE_PROCESS_CODES / LINKAGE_PARAM_CODES); change one, change both.
 // A stratum id of 0 (species, sex, age bin or fleet) means "every level".
@@ -24,7 +30,7 @@
 // 4 and 5 sit at or above this count, so the growth loop skips them.
 #define RCEATTLE_N_GROWTH_PARAMS 4
 
-// Recruitment offsets: log R0, log alpha, log beta (the `rec_pars` columns),
+// Recruitment offsets: log R0, log alpha, log Beta (the stock-recruit `rec_pars` columns),
 // and R_init, the initial recruitment level, read at year 0 only.
 #define RCEATTLE_N_REC_PARAMS 4
 #define RCEATTLE_REC_R0    0
