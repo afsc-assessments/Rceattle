@@ -12,6 +12,19 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.65.4
+
+## Internal
+
+* **Linkage codes are named in the template.** `linkage.hpp` defines
+  `RCEATTLE_SEL_*`, `RCEATTLE_COMP_*`, `RCEATTLE_LINK_*` and `RCEATTLE_RE_*`
+  after the tables in `R/0-linkage_encode.R`, and the accumulators, the
+  random-effect density, the offset calls and the prior lookup in
+  `ceattle.cpp` read those names instead of bare numbers.
+  `test-linkage-encode.R` checks each definition's value against R, and that
+  every selectivity and composition code has a consume site in code, not a
+  comment. No number moves.
+
 # Rceattle 5.65.3
 
 ## Internal

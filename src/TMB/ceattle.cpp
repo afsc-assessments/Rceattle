@@ -276,26 +276,26 @@ Type objective_function<Type>::operator() () {
   //                   random walk or AR1. An observed AR1 is QAR1 (Rogers et al. 2024), its
   //                   latent also fitted to an env_data series.
   //          Empty when no build_*() supplied `linkages`.
-  DATA_IVECTOR(linkage_process);       // process code (recruitment = 0, M = 1, growth = 2, q = 3, sel = 4, comp = 5)
+  DATA_IVECTOR(linkage_process);       // process code, RCEATTLE_PROC_* (linkage.hpp): recruitment, M, growth, q, sel, comp
   DATA_IVECTOR(linkage_param);         // per-process parameter code
   DATA_IVECTOR(linkage_species);       // 1-based sp id; 0 = all
   DATA_IVECTOR(linkage_sex);           // 1-based sex id; 0 = all
   DATA_IVECTOR(linkage_age_bin);       // 1-based age id; 0 = all
   DATA_IVECTOR(linkage_fleet);         // 1-based Fleet_code; 0 = all
   DATA_IVECTOR(linkage_X_col);         // 0-based column of linkage_X
-  DATA_IVECTOR(linkage_link);          // identity = 0, log = 1, logit = 2 (refused in R), exponential = 3 (q only)
+  DATA_IVECTOR(linkage_link);          // link code, RCEATTLE_LINK_* (linkage.hpp): identity, log, logit (refused), exponential (q)
   // Only an identity-link recruitment offset can make the curve non-positive, so
   // the recruitment floors (sections 6.3, 6.5, 6.6 and 6.9) run only then; every
   // other model's AD tape is left exactly as it was.
   int rec_floor_on = 0;
   for (int i = 0; i < linkage_link.size(); ++i) {
-    if (linkage_process(i) == RCEATTLE_PROC_RECRUIT && linkage_link(i) == 0) rec_floor_on = 1;
+    if (linkage_process(i) == RCEATTLE_PROC_RECRUIT && linkage_link(i) == RCEATTLE_LINK_IDENTITY) rec_floor_on = 1;
   }
   DATA_IVECTOR(linkage_re_index);      // per row: -1 = fixed; else its 0-based slot in beta_linkage_re_all
   DATA_IVECTOR(linkage_re_sigma);      // per RE slot: its 0-based group (an index, not an sd)
   DATA_IVECTOR(linkage_re_integrate);  // per RE slot: 1 = random effect integrated out (Laplace), 0 = penalized fixed effect
   DATA_IVECTOR(linkage_re_slot);       // per RE slot: its position in beta_linkage_re (integrated) or beta_linkage_re_pen (penalized)
-  DATA_IVECTOR(linkage_re_struct);     // per RE group: 0 = IID, a plain (1 | Year); 1 = random walk; 2 = AR1
+  DATA_IVECTOR(linkage_re_struct);     // per RE group: RCEATTLE_RE_IID (a plain (1 | Year)), _RW or _AR1 (linkage.hpp)
   DATA_IVECTOR(linkage_re_rho);        // per RE group: 0-based position in trans_rho_linkage (ar1 only; -1 otherwise)
   DATA_IVECTOR(linkage_re_sigma_prior_family); // per RE group: prior on the SD (0=none,1=normal,2=lognormal,3=gamma,4=beta)
   DATA_IVECTOR(linkage_re_rho_prior_family);   // per RE group: prior on rho (natural (-1,1) scale)
@@ -812,16 +812,16 @@ Type objective_function<Type>::operator() () {
 
         // Each slot sits in beta_linkage_re if integrated, else beta_linkage_re_pen, at
         // position linkage_re_slot(slot).
-        if (st == 1) {                                   // random walk
+        if (st == RCEATTLE_RE_RW) {
           re(0) = linkage_re_integrate(slots(0))
               ? beta_linkage_re(linkage_re_slot(slots(0)))
               : beta_linkage_re_pen(linkage_re_slot(slots(0)));
           for (int t = 1; t < len; ++t) re(t) = re(t - 1) + rnorm(Type(0), sigma);
-        } else if (st == 2) {                            // AR1
+        } else if (st == RCEATTLE_RE_AR1) {
           Type rho = rho_trans(trans_rho_linkage(linkage_re_rho(grp)));
           AR1(rho).simulate(re);
           re *= sigma;
-        } else {                                         // IID
+        } else {                                         // RCEATTLE_RE_IID
           for (int t = 0; t < len; ++t) re(t) = rnorm(Type(0), sigma);
         }
 
@@ -833,7 +833,7 @@ Type objective_function<Type>::operator() () {
           }
           // A random walk keeps its first slot at the fitted level (it has no density
           // term of its own), so that slot is written but not drawn.
-          if (!(st == 1 && t == 0)) beta_linkage_re_drawn_sim(slots(t)) = 1;
+          if (!(st == RCEATTLE_RE_RW && t == 0)) beta_linkage_re_drawn_sim(slots(t)) = 1;
         }
       }
     }
@@ -894,11 +894,11 @@ Type objective_function<Type>::operator() () {
   matrix<Type> q_linkage_offset_nat(n_flt, nyrs_hind); q_linkage_offset_nat.setZero();
   matrix<Type> q_linkage_log_mult(n_flt, nyrs_hind);   q_linkage_log_mult.setZero();
 
-  // Link codes: 1 = log, into the log-scale offset; 0 = identity, into the natural-scale
-  // one; 3 = exponential, the log of the multiplier on log q (applied as exp() below).
-  rceattle_apply_q_linkages(q_linkage_offset,     /*link_code=*/ 1, linkage_table, n_flt, nyrs_hind);
-  rceattle_apply_q_linkages(q_linkage_offset_nat, /*link_code=*/ 0, linkage_table, n_flt, nyrs_hind);
-  rceattle_apply_q_linkages(q_linkage_log_mult,   /*link_code=*/ 3, linkage_table, n_flt, nyrs_hind);
+  // Log-link rows into the log-scale offset, identity-link rows into the natural-scale
+  // one, exponential rows into the log of the multiplier on log q (applied as exp()).
+  rceattle_apply_q_linkages(q_linkage_offset,     RCEATTLE_LINK_LOG,         linkage_table, n_flt, nyrs_hind);
+  rceattle_apply_q_linkages(q_linkage_offset_nat, RCEATTLE_LINK_IDENTITY,    linkage_table, n_flt, nyrs_hind);
+  rceattle_apply_q_linkages(q_linkage_log_mult,   RCEATTLE_LINK_EXPONENTIAL, linkage_table, n_flt, nyrs_hind);
 
   REPORT(q_linkage_offset);
   REPORT(q_linkage_offset_nat);
@@ -906,16 +906,16 @@ Type objective_function<Type>::operator() () {
 
   for(flt = 0; flt < n_flt; flt++){
     for(yr = 0; yr < nyrs_hind; yr++){
-      // Order follows SS3: an `exponential` row multiplies log q, and the
-      // index_q_dev deviate is added after that product, as SS3 applies its dev
-      // blocks after the env link. Inside it the deviate's effective sd would be
-      // sd * exp(beta * x), year-varying, against a constant index_q_dev_sd.
+      // q_y = exp((log q + S_log) * exp(S_exp) + index_q_dev) + S_id. The deviate is added
+      // after the product, as SS3 applies its devs after the env link; inside, its sd
+      // would vary by year.
       index_q(flt, yr) = exp((index_log_q(flt) + q_linkage_offset(flt, yr))
                                * exp(q_linkage_log_mult(flt, yr))
                              + index_q_dev(flt, yr))
                            + q_linkage_offset_nat(flt, yr);
 
-      // Q as a function of environmental index
+      // Catchability 5 ("Environmental", legacy): log q_y = log q + beta * env_index,
+      // replacing the line above; R refuses a q linkage on such a fleet.
       if(est_index_q(flt) == 5){
         beta_q_tmp = index_q_beta.row(flt);
         env_q_tmp = env_index.row(yr) ;
@@ -960,8 +960,8 @@ Type objective_function<Type>::operator() () {
                                              nyrs);
   recruitment_linkage_offset.setZero();
   recruitment_linkage_offset_nat.setZero();
-  rceattle_apply_recruitment_linkages(recruitment_linkage_offset,     /*link_code=*/ 1, linkage_table, nspp, nyrs);   // log link
-  rceattle_apply_recruitment_linkages(recruitment_linkage_offset_nat, /*link_code=*/ 0, linkage_table, nspp, nyrs);   // identity link
+  rceattle_apply_recruitment_linkages(recruitment_linkage_offset,     RCEATTLE_LINK_LOG,      linkage_table, nspp, nyrs);
+  rceattle_apply_recruitment_linkages(recruitment_linkage_offset_nat, RCEATTLE_LINK_IDENTITY, linkage_table, nspp, nyrs);
   REPORT(recruitment_linkage_offset);
   REPORT(recruitment_linkage_offset_nat);
 
@@ -970,8 +970,8 @@ Type objective_function<Type>::operator() () {
   array<Type> M_linkage_offset_nat(nspp, max_sex, max_age, nyrs);
   M_linkage_offset.setZero();
   M_linkage_offset_nat.setZero();
-  rceattle_apply_M_linkages(M_linkage_offset,     /*link_code=*/ 1, linkage_table, nspp, nsex, nages, nyrs);   // log link
-  rceattle_apply_M_linkages(M_linkage_offset_nat, /*link_code=*/ 0, linkage_table, nspp, nsex, nages, nyrs);   // identity link
+  rceattle_apply_M_linkages(M_linkage_offset,     RCEATTLE_LINK_LOG,      linkage_table, nspp, nsex, nages, nyrs);
+  rceattle_apply_M_linkages(M_linkage_offset_nat, RCEATTLE_LINK_IDENTITY, linkage_table, nspp, nsex, nages, nyrs);
   REPORT(M_linkage_offset);
   REPORT(M_linkage_offset_nat);
 
@@ -981,8 +981,8 @@ Type objective_function<Type>::operator() () {
   array<Type> growth_linkage_offset_nat(nspp, max_sex, nyrs, RCEATTLE_N_GROWTH_PARAMS);
   growth_linkage_offset.setZero();
   growth_linkage_offset_nat.setZero();
-  rceattle_apply_growth_linkages(growth_linkage_offset,     /*link_code=*/ 1, linkage_table, nspp, nsex, nyrs);   // log link
-  rceattle_apply_growth_linkages(growth_linkage_offset_nat, /*link_code=*/ 0, linkage_table, nspp, nsex, nyrs);   // identity link
+  rceattle_apply_growth_linkages(growth_linkage_offset,     RCEATTLE_LINK_LOG,      linkage_table, nspp, nsex, nyrs);
+  rceattle_apply_growth_linkages(growth_linkage_offset_nat, RCEATTLE_LINK_IDENTITY, linkage_table, nspp, nsex, nyrs);
   REPORT(growth_linkage_offset);
   REPORT(growth_linkage_offset_nat);
 
@@ -992,25 +992,25 @@ Type objective_function<Type>::operator() () {
   // TODO: a negative nat_offset can make R0, alpha or Beta non-positive; only hindcast R, R_hat and the penalty curve are floored (issue #234).
   for(sp = 0; sp < nspp; sp++){
     for(yr = 0; yr < nyrs; yr++){
-      R0(sp, yr)    = exp(rec_pars(sp, 0) + recruitment_linkage_offset(sp, RCEATTLE_REC_R0,    yr))
+      R0(sp, yr)    = exp(rec_pars(sp, RCEATTLE_REC_R0)    + recruitment_linkage_offset(sp, RCEATTLE_REC_R0,    yr))
                     + recruitment_linkage_offset_nat(sp, RCEATTLE_REC_R0,    yr);
-      alpha(sp, yr) = exp(rec_pars(sp, 1) + recruitment_linkage_offset(sp, RCEATTLE_REC_ALPHA, yr))
+      alpha(sp, yr) = exp(rec_pars(sp, RCEATTLE_REC_ALPHA) + recruitment_linkage_offset(sp, RCEATTLE_REC_ALPHA, yr))
                     + recruitment_linkage_offset_nat(sp, RCEATTLE_REC_ALPHA, yr);
-      Beta(sp, yr)  = exp(rec_pars(sp, 2) + recruitment_linkage_offset(sp, RCEATTLE_REC_BETA,  yr))
+      Beta(sp, yr)  = exp(rec_pars(sp, RCEATTLE_REC_BETA)  + recruitment_linkage_offset(sp, RCEATTLE_REC_BETA,  yr))
                     + recruitment_linkage_offset_nat(sp, RCEATTLE_REC_BETA,  yr);
     }
   }
 
 
   // 5.7. GROWTH
-  // -- Rearange growth parameters. Log-link offset enters additively
+  // -- Rearrange growth parameters. Log-link offset enters additively
   //    on the log scale (multiplicative on natural K/L1/Linf/m);
   //    identity-link offset enters additively on the natural scale.
   array<Type> growth_parameters(nspp, max_sex, nyrs, RCEATTLE_N_GROWTH_PARAMS); growth_parameters.setZero(); // K, L1, Linf, m
   for(sp = 0; sp < nspp; sp++){
     for(sex = 0; sex < nsex(sp); sex ++){
       for(yr = 0; yr < nyrs; yr++){
-        for(int par = 0; par < 4; par++){
+        for(int par = 0; par < RCEATTLE_N_GROWTH_PARAMS; par++){
           growth_parameters(sp, sex, yr, par) = exp(
             log_growth_pars(sp, sex, par)
           + growth_linkage_offset(sp, sex, yr, par)
@@ -1094,19 +1094,19 @@ Type objective_function<Type>::operator() () {
   array<Type> sel_dn6_off_nat    (6, n_flt, max_sex, nyrs);     sel_dn6_off_nat.setZero();
 
   // The per-sex apical multiplier is compiled in only when a selectivity
-  // linkage names it (param 5); otherwise the curve is untouched and the AD
+  // linkage names it (RCEATTLE_SEL_APICAL); otherwise the curve is untouched and the AD
   // tape of every existing model is unchanged.
   int sel_apical_on = 0;
   for (int i = 0; i < linkage_process.size(); i++) {
-    if (linkage_process(i) == RCEATTLE_PROC_SEL && linkage_param(i) == 5) sel_apical_on = 1;
+    if (linkage_process(i) == RCEATTLE_PROC_SEL && linkage_param(i) == RCEATTLE_SEL_APICAL) sel_apical_on = 1;
   }
 
   rceattle_apply_sel_linkages(   // log link, into the log-scale tensors
     sel_slp_off, sel_inf_off, sel_coff_off, sel_apical_off, sel_dn6_off,
-    /*link_code=*/ 1, linkage_table, n_flt, max_sex, max_bin, nyrs);
+    RCEATTLE_LINK_LOG, linkage_table, n_flt, max_sex, max_bin, nyrs);
   rceattle_apply_sel_linkages(   // identity link, into the natural-scale tensors
     sel_slp_off_nat, sel_inf_off_nat, sel_coff_off_nat, sel_apical_off_nat, sel_dn6_off_nat,
-    /*link_code=*/ 0, linkage_table, n_flt, max_sex, max_bin, nyrs);
+    RCEATTLE_LINK_IDENTITY, linkage_table, n_flt, max_sex, max_bin, nyrs);
 
   // "sel_at_age" and "sel_at_length" modified via pass-by-reference
   // when "sel_at_length" is used, it is converted to "sel_at_age" using the growth matrix
@@ -4410,12 +4410,13 @@ Type objective_function<Type>::operator() () {
 
 
   // 13.13. LINKAGE PRIORS (JNLL_LINKAGE_PRIOR)
-  // Families are in linkage_log_prior() (likelihood.hpp). A prior is on the natural-scale
-  // parameter it names (R0, alpha, M1, K, ...). Most (Intercept) rows are held at 0 (2.3b), so
+  // Families are in linkage_log_prior() (likelihood.hpp). A prior on a log-stored base (R0,
+  // alpha, M1, K, q, slope, apical) is on its natural scale; one on a sel inflection or
+  // DoubleNormalSS3 parameter is on its stored scale. Most (Intercept) rows are held at 0 (2.3b), so
   // the prior reads the base parameter they stand in for; a slope row reads its coefficient.
   for (int i = 0; i < beta_linkage.size(); ++i) {
     int fam = linkage_prior_family(i);
-    if (fam == 0) continue;
+    if (fam == 0) continue;   // 0 = no prior
     Type p1  = linkage_prior_p1(i);
     Type p2  = linkage_prior_p2(i);
     int slot_col = linkage_species(i) - 1;   // jnll column: the row's species, or 0 if it names none
@@ -4459,28 +4460,27 @@ Type objective_function<Type>::operator() () {
         // Dirichlet-multinomial log theta: comp and CAAL by fleet, diet by predator.
         int fl_in  = linkage_fleet(i);
         int fl_idx = (fl_in == 0) ? 0 : (fl_in - 1);
-        if (param == 0)      b = comp_weights(fl_idx);
-        else if (param == 1) b = caal_weights(fl_idx);
-        else if (param == 2) b = diet_comp_weights(sp_idx);
+        if (param == RCEATTLE_COMP_THETA_COMP)      b = comp_weights(fl_idx);
+        else if (param == RCEATTLE_COMP_THETA_CAAL) b = caal_weights(fl_idx);
+        else if (param == RCEATTLE_COMP_THETA_DIET) b = diet_comp_weights(sp_idx);
       } else if (proc == RCEATTLE_PROC_SEL) {
         // Parametric selectivity, element 0 ascending, 1 descending. The (Intercept)
         // adds no offset, so the prior regularizes the base parameter (as in Cole
-        // Monnahan's GOA pollock priors). param 4 (coff) has no scalar base and is
+        // Monnahan's GOA pollock priors). RCEATTLE_SEL_COFF has no scalar base and is
         // refused by .check_sel_linkage_support().
         int fl_in  = linkage_fleet(i);
         int fl_idx = (fl_in == 0) ? 0 : (fl_in - 1);
-        int slot   = param % 2;
-        if (param == 0 || param == 1) {
-          b = log_sel_slp(slot, fl_idx, sx_idx);          // log slope
-        } else if (param == 2 || param == 3) {
-          b = sel_inf(slot, fl_idx, sx_idx);              // inflection age, natural scale
+        if (param == RCEATTLE_SEL_SLP_ASC || param == RCEATTLE_SEL_SLP_DESC) {
+          b = log_sel_slp(param - RCEATTLE_SEL_SLP_ASC, fl_idx, sx_idx);   // log slope
+        } else if (param == RCEATTLE_SEL_INF_ASC || param == RCEATTLE_SEL_INF_DESC) {
+          b = sel_inf(param - RCEATTLE_SEL_INF_ASC, fl_idx, sx_idx);       // as stored: inflection, DN peak/logit floor, LogisticPM log first-bin
           base_is_log = false;
-        } else if (param == 5) {
+        } else if (param == RCEATTLE_SEL_APICAL) {
           b = log_sel_apical(fl_idx, sx_idx);             // log apical multiplier; 0 = a multiplier of 1
-        } else if (param >= 6 && param <= 11) {
-          // DoubleNormalSS3, on SS3's own scale (peak in cm, log widths, logits),
+        } else if (param >= RCEATTLE_SEL_DN_PEAK && param <= RCEATTLE_SEL_END_LOGIT) {
+          // DoubleNormalSS3, on SS3's own scale (peak in age or cm, log widths, logits),
           // where an SS3 control file puts its priors.
-          b = sel_dn6(param - 6, fl_idx, sx_idx);
+          b = sel_dn6(param - RCEATTLE_SEL_DN_PEAK, fl_idx, sx_idx);
           base_is_log = false;
         }
       }
@@ -4498,7 +4498,7 @@ Type objective_function<Type>::operator() () {
   if (log_sigma_linkage.size() > 0) {
     for (int g = 0; g < log_sigma_linkage.size(); ++g) {
       int fam = linkage_re_sigma_prior_family(g);
-      if (fam == 0) continue;
+      if (fam == 0) continue;   // 0 = no prior
       Type sd = exp(log_sigma_linkage(g));
       Type log_prior = linkage_log_prior(fam, sd, false, linkage_re_sigma_prior_p1(g),
                                          linkage_re_sigma_prior_p2(g), bias_adjust_proc);
@@ -4513,7 +4513,7 @@ Type objective_function<Type>::operator() () {
   if (trans_rho_linkage.size() > 0) {
     for (int g = 0; g < linkage_re_rho.size(); ++g) {
       int fam = linkage_re_rho_prior_family(g);
-      if ((fam != 1) && (fam != 4)) continue;
+      if ((fam != 1) && (fam != 4)) continue;   // only normal (1) and beta (4) are read for rho
       Type rho = rho_trans(trans_rho_linkage(linkage_re_rho(g)));
       Type x = (fam == 4) ? (rho + Type(1)) / Type(2) : rho;
       Type log_prior = linkage_log_prior(fam, x, false, linkage_re_rho_prior_p1(g),
@@ -4537,7 +4537,7 @@ Type objective_function<Type>::operator() () {
 
     int st = linkage_re_struct(grp);
     Type sigma = exp(log_sigma_linkage(grp));
-    Type rho = (st == 2) ? rho_trans(trans_rho_linkage(linkage_re_rho(grp))) : Type(0);
+    Type rho = (st == RCEATTLE_RE_AR1) ? rho_trans(trans_rho_linkage(linkage_re_rho(grp))) : Type(0);
     rceattle_re_group_nll(st, re, sigma, rho,
                           jnll_comp(JNLL_LINKAGE_RE, 0), unweighted_jnll_comp(JNLL_LINKAGE_RE, 0));
 

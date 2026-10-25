@@ -158,6 +158,10 @@ LINKAGE_PARAM_CODES <- list(
   #   5    log_sel_apical       (log-scale per-sex multiplier on the curve)
   #   6-11 DoubleNormalSS3 P1-P6 (SS3 pattern 24), each on SS3's own scale
   # Aliases (sigma_*, peak, right_floor) name the same slot in a form's terms.
+  # linkage.hpp defines each primary name as RCEATTLE_SEL_<NAME> and comp as
+  # RCEATTLE_COMP_<NAME>; LINKAGE_LINK_CODES as RCEATTLE_LINK_<NAME>, and
+  # LINKAGE_STRUCT_CODES as RCEATTLE_RE_IID / _RW / _AR1. test-linkage-encode.R
+  # checks the values agree and that each sel / comp code has a consume site.
   sel         = c(slp_asc     = 0L, slp_desc = 1L,
                   inf_asc     = 2L, inf_desc = 3L,
                   coff        = 4L,
