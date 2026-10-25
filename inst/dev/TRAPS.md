@@ -520,7 +520,7 @@ table said "1 coefficient(s)" for the inert case. Count `beta_linkage` in
 `obj$env$last.par.best` to tell the difference.
 
 **The C++ linkage-prior block re-targets an `(Intercept)` prior onto the base parameter, and will
-read off the end of the matrix for a parameter that has none.** `ceattle.cpp` slot 19 sets
+read off the end of the matrix for a parameter that has none.** `ceattle.cpp` section 13.13 sets
 `b = rec_pars(sp_idx, param)` for every recruitment intercept; `rec_pars` is `nspp x 3` and
 `R_init` is code 3, so a prior on an `R_init` intercept read one element past a
 `PARAMETER_MATRIX` and promoted adjacent heap memory to an AD variable — no crash guaranteed, no

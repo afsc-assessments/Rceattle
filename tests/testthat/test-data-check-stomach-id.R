@@ -1,5 +1,5 @@
 # The TMB diet likelihood reads each stomach's prey as the contiguous run of
-# diet_ctl where stomach_id equals the stomach number (ceattle.cpp section 13.2),
+# diet_ctl where stomach_id equals the stomach number (ceattle.cpp section 13.6),
 # while build_osa_data() matches with which(stomach_id == i). The two agree only
 # while the ids are numbered 0, 1, ... with each stomach's rows consecutive.
 # clean_data() guarantees that; these tests pin that data_check() enforces it,

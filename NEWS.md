@@ -12,6 +12,25 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.64.6
+
+## Internal
+
+* **The likelihood section of `src/TMB/ceattle.cpp` (section 13) rewritten for
+  readability; no fit moves.** About 2,020 lines become about 1,570, counting the
+  new header, and comment lines 666 become 309. Data likelihoods now come first
+  (13.1-13.6: index, catch, initial equilibrium catch, compositions, CAAL,
+  stomach contents), then priors and penalties (13.7-13.14); the random-effect
+  sd and rho priors and the random-effect density moved up from the REPORT
+  section. A new `src/TMB/likelihood.hpp` holds `comp_row_nll()` (shared by
+  compositions and CAAL), `linkage_log_prior()` (shared by the three linkage
+  prior loops) and `fold_comp_tails()`. Each simulation draw still sits beside
+  its density, in the same order.
+  Verified bit-identical to 5.64.5 (`identical()`, not a tolerance) at a
+  perturbed parameter vector for every model the test suite builds: the joint
+  objective, the joint gradient over fixed and random effects, every reported
+  quantity, and a seeded `simulate()`.
+
 # Rceattle 5.64.5
 
 ## Bug fixes

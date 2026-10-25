@@ -855,7 +855,7 @@ residuals.Rceattle <- function(object, type = "response", source = "all",
 #' Each stomach holds an "other prey" balance that enters the density but not
 #' the residual frame, so the normalizing total is rebuilt from it. Proportions
 #' are renormalized before scaling by the stomach sample size
-#' (`ceattle.cpp`, section 13.2), so the count total is `N_s`. The predicted
+#' (`ceattle.cpp`, section 13.6), so the count total is `N_s`. The predicted
 #' other-prey bin is floored at 1e-5, within 1e-5 of the C++ `posfun()` it
 #' stands in for; `posfun()` decays towards zero once the prey proportions sum
 #' past one, where a flat floor holds. A difference at the scale of the offset itself,
@@ -870,7 +870,7 @@ residuals.Rceattle <- function(object, type = "response", source = "all",
   off <- .rce_comp_offset(d)
 
   # Each stomach is scored separately, on a contiguous run of stomach_id
-  # (ceattle.cpp, section 13.2). Without that column the predator/sex/age/year
+  # (ceattle.cpp, section 13.6). Without that column the predator/sex/age/year
   # key is one stomach per group, which is every bundled dataset.
   sid <- dd$stomach_id
   if (is.null(sid) || length(sid) != nrow(dd)) {

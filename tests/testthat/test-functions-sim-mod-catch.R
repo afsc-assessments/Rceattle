@@ -1,5 +1,5 @@
 # Total catch is drawn by the TMB model's SIMULATE block, beside the catch
-# density (ceattle.cpp, slot 1). These tests pin what would otherwise drift
+# density (ceattle.cpp, section 13.2). These tests pin what would otherwise drift
 # silently: the draw's location and spread against what the likelihood assumes,
 # the standard deviation being indexed per row, and simulating leaving nothing
 # behind on the fitted object.
