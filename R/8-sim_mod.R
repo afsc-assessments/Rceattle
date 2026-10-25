@@ -815,7 +815,7 @@ sim_mod <- function(object = NULL, simulate = FALSE, process = FALSE, Rceattle =
   if (simulate) {
     # One obj$simulate() per sim_mod() call: it draws every observation type at
     # once, so the catch and diet blocks below read this same report. The survey
-    # draw follows each fleet's own Index_distribution (ceattle.cpp, slot 0).
+    # draw follows each fleet's own Index_distribution (ceattle.cpp, section 13.1).
     sim_obj <- .sim_obj(object)
     sim_state <- .sim_state_codes(process)
     sim_rep <- .sim_draw(sim_obj, state = sim_state)
@@ -847,7 +847,7 @@ sim_mod <- function(object = NULL, simulate = FALSE, process = FALSE, Rceattle =
 
 
   # Age/Length composition ----
-  # Drawn in RAW bin space (ceattle.cpp, slot 2): tail accumulation folds bins
+  # Drawn in RAW bin space (ceattle.cpp, section 13.4): tail accumulation folds bins
   # before the density and the fold has no inverse, so a draw taken there could
   # not be written back, while drawing raw and letting the refit fold again is
   # exact, both families being closed under merging categories.
@@ -897,7 +897,7 @@ sim_mod <- function(object = NULL, simulate = FALSE, process = FALSE, Rceattle =
   catch_hat <- quantities$catch_hat
 
   if (simulate) {
-    # Drawn beside the catch density that defines it (ceattle.cpp, slot 1), and
+    # Drawn beside the catch density that defines it (ceattle.cpp, section 13.2), and
     # read from the single obj$simulate() in the index block above: a second call
     # would give catch a replicate of its own, out of step with the index.
     catch_sim <- .sim_report_obs(sim_rep, "catch_obs_sim")
@@ -944,7 +944,7 @@ sim_mod <- function(object = NULL, simulate = FALSE, process = FALSE, Rceattle =
 
   # Diet (stomach content) ----
   # Drawn alongside the catch under each predator's own Diet_distribution
-  # (ceattle.cpp, section 13.2). Only rows of a stomach the model actually fits
+  # (ceattle.cpp, section 13.6). Only rows of a stomach the model actually fits
   # are redrawn: the template skips a predator whose suitability is not
   # estimated, and those rows come back carrying the values they went in with.
   # The "other prey" balance is not stored -- it is recomputed from the prey

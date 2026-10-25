@@ -205,7 +205,7 @@ rcmdcheck::rcmdcheck()                 # what CI runs (slow; usually backgrounde
 - **`src/TMB/`** — `ceattle.cpp` is the main model (numbered section index); process logic lives
   in headers (`recruitment.hpp`, `selectivity.hpp`, `predation.hpp`, `growth.hpp`, `linkage.hpp`,
   `spr.hpp`, `comp_osa.hpp`, `comp_sim.hpp`, `helper_functions.hpp`, `bioenergetics.hpp`,
-  `diet_data.hpp`).
+  `diet_data.hpp`), and the likelihood (section 13) keeps its shared math in `likelihood.hpp`.
   `jnll_comp` rows are addressed by the **`JnllRow` enum** — refer to a row by its constant,
   never a bare integer. The enum has **two hand-synced partners**: display names in
   `R/6-rename_output.R`, and `.JNLL_ROW_AXIS` in `R/9-profile.R`, which records whether a row's
@@ -336,9 +336,9 @@ comp_weights[flt] <- 0
 
 **Match the surrounding form, not the surrounding volume** (doctrine 3). The codebase favours
 explanatory section headers in R and Doxygen on the C++, so write those. Canonical
-references: `src/TMB/spr.hpp` for a fully Doxygen-documented header — one of four with an
-`@file` block (`comp_osa.hpp`, `comp_sim.hpp`
-and `helper_functions.hpp` are the others), where `recruitment.hpp` has `@brief`/`@param`/
+references: `src/TMB/spr.hpp` for a fully Doxygen-documented header — one of five with an
+`@file` block (`comp_osa.hpp`, `comp_sim.hpp`, `helper_functions.hpp`
+and `likelihood.hpp` are the others), where `recruitment.hpp` has `@brief`/`@param`/
 `@return` per function but no file block. And any `R/*.R` + its `tests/testthat/*` pair.
 
 **Roxygen:** markdown, regenerated with `/document`. A `@param` is one sentence: what the
