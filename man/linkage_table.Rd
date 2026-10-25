@@ -4,24 +4,15 @@
 \alias{linkage_table}
 \title{Linkage table: long-format coefficient registry for Rceattle processes}
 \description{
-A \emph{linkage table} is the unified data structure used to describe every
-estimated coefficient that connects a process (recruitment, natural
-mortality, growth, ...) to a covariate or stratum. Each row of the
-table corresponds to exactly one scalar coefficient (a \code{beta}) and
-identifies (a) which process and parameter it modifies, (b) which
-species/sex/age subset it applies to, (c) which column of the shared
-design matrix \code{X} it multiplies, and (d) its prior, bounds, link, and
-estimation phase.
+A \emph{linkage table} lists every coefficient (\code{beta}) that ties a process
+(recruitment, natural mortality, growth, ...) to a covariate, time block or
+stratum. Each row is one coefficient and records the process and parameter
+it changes, the species/sex/age/fleet it applies to, the column of the
+design matrix \code{X} it multiplies, and its link, prior, bounds and phase.
 }
 \details{
-The motivation is that the historical Rceattle pattern of one wide
-parameter array per process (e.g. \code{M1_beta[nspp, nsex, n_env]})
-does not generalize cleanly across
-processes that need different stratifications. A long-format table
-grows only with the linkages the user actually requests, regardless
-of the underlying species/sex/age dimensionality.
-
-This file defines the schema and basic helpers; user-facing
-formula-driven constructors live in \code{R/0-build_linkage.R}.
+One row per coefficient, rather than one array per process, means the table
+grows only with the linkages requested. The user-facing constructors are in
+\code{R/0-build_linkage.R}.
 }
 \keyword{internal}
