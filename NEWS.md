@@ -12,6 +12,21 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.65.0
+
+## Bug fixes
+
+* **`data_check()` now requires a positive `Time_varying_sel_sd` on 2DAR1 and
+  3DAR1 fleets.** Both forms score their deviation field at that sd under every
+  `Time_varying_sel`, but were exempt from the check, so a blank value built a
+  model whose objective was `NA` (and `0` one whose objective was `NaN`) with no
+  error naming the fleet or column -- measured on `GOA2018SS`. Mirror fleets
+  (sharing a `Selectivity_index`) and warm starts are asked too, as for every
+  other form: a blank-sd mirror fitted under `random_sel = FALSE` but gave an
+  `NA` objective under `random_sel = TRUE`. The bundled `whamGrowthData` ships
+  2DAR1 fleets with sd 0 (and no `N_sel_bins`), so it needs the selectivity
+  overrides its vignettes already make before it fits.
+
 # Rceattle 5.64.5
 
 ## Bug fixes

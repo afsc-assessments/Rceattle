@@ -58,9 +58,25 @@ testthat::test_that("modes and forms that never read the sd are not asked for on
   # Block carries no penalty, and Off has no deviation at all.
   testthat::expect_no_error(run_check(sel_dat("DoubleLogistic", "Block", 0)))
   testthat::expect_no_error(run_check(sel_dat("Logistic", "Off", 0)))
-  # The 2DAR1/3DAR1 fields carry their own sd through sel_curve_pen, and
-  # Time_varying_sel is ignored for them.
-  testthat::expect_no_error(run_check(sel_dat("2DAR1", "IID", 0)))
+})
+
+# 2DAR1 and 3DAR1 score their deviation field at sel_dev_sd under every
+# Time_varying_sel. When data_check() exempted them, a lead fleet with a blank
+# sd built a model whose objective was NA (sd = 0: NaN) on GOA2018SS, with no error.
+testthat::test_that("2DAR1 and 3DAR1 need the sd under every mode", {
+  for (form in c("2DAR1", "3DAR1")) {
+    for (tv in c("Off", "IID")) {
+      for (bad in list(0, -1, NA_real_)) {
+        testthat::expect_error(run_check(sel_dat(form, tv, bad)),
+                               regexp = needs_sd, fixed = TRUE)
+      }
+      testthat::expect_no_error(run_check(sel_dat(form, tv, 0.5)))
+    }
+  }
+  # An Off fleet scores nothing, so it is not asked.
+  d <- sel_dat("2DAR1", "Off", NA_real_)
+  d$fleet_control$Fleet_type[8] <- "Off"
+  testthat::expect_no_error(run_check(d))
 })
 
 
