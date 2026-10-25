@@ -12,6 +12,19 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.64.8
+
+## Bug fixes
+
+* **`unweighted_jnll_comp` now drops the CAAL weight, and carries the initial
+  equilibrium catch.** The copy that fills its unweighted rows overwrote the
+  CAAL row with the weighted value, so with `CAAL_weights = 0.5` it reported
+  2.957 where 5.913 was due, and it stopped before the equilibrium-catch row,
+  leaving that 0. `profile_components(weighted = FALSE)` and `report_tables()`
+  read these rows. The objective and every fit are unchanged. The documentation
+  that called the index, catch and penalty rows "structurally zero" there was
+  also wrong: they always equalled `jnll_comp`, and now say so.
+
 # Rceattle 5.64.6
 
 ## Internal

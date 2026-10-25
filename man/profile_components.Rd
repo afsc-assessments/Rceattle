@@ -69,13 +69,10 @@ failed fit leaves a gap in the curve rather than a segment drawn across it.
 
 \strong{Weighted or unweighted components} (\code{weighted}). Conflict is normally read
 off the weighted components, since those are what moved the fit.
-\code{unweighted_jnll_comp} exists so Francis and McAllister-Ianelli can read a
-composition likelihood without its \code{Comp_weights} multiplier, so only the
-rows carrying such a multiplier are filled -- composition, CAAL, stomach
-content and the two linkage rows. Every other row is zero there and is
-dropped as unfitted, so \code{weighted = FALSE} returns a much smaller set: the
-index, catch, selectivity, catchability and penalty components are absent,
-not flat.
+\code{unweighted_jnll_comp} scores the composition, CAAL and stomach-content
+rows without their data weights (\code{Comp_weights}, \code{CAAL_weights},
+\code{Diet_comp_weights}); every other row equals \code{jnll_comp}, so
+\code{weighted = FALSE} changes only those three components.
 
 \strong{Placing each series on the y axis} (\code{relative}).
 \describe{

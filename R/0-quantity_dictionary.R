@@ -342,7 +342,7 @@
       "Weighted negative log-likelihood by component and fleet or species. Rows are named; columns count FLEETS on rows 1-8 and 22, SPECIES on rows 9-20 and neither on row 21, so rowSums() pools across different axes. .JNLL_ROW_AXIS is the registry.",
       "unitless", "[22, max(n_flt, nspp)]", FALSE, "likelihood"),
     r("unweighted_jnll_comp", "likelihood",
-      "As jnll_comp before data weights are applied. Written for only 5 of its 22 rows -- composition, CAAL, stomach and the two linkage rows; every other row is structurally zero here, not small.",
+      "As jnll_comp without data weights: the composition, CAAL and stomach-content rows are scored without Comp_weights, CAAL_weights and Diet_comp_weights (a Dirichlet-multinomial at theta = 1); in ordinary fitting every other row equals jnll_comp.",
       "unitless", "[22, max(n_flt, nspp)]", FALSE, NA_character_),
 
     # -- linkage -----------------------------------------------------------

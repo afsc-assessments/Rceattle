@@ -667,13 +667,10 @@ print.Rceattle_profile <- function(x, cutoff = 1.92, ...) {
 #'
 #' **Weighted or unweighted components** (`weighted`). Conflict is normally read
 #' off the weighted components, since those are what moved the fit.
-#' `unweighted_jnll_comp` exists so Francis and McAllister-Ianelli can read a
-#' composition likelihood without its `Comp_weights` multiplier, so only the
-#' rows carrying such a multiplier are filled -- composition, CAAL, stomach
-#' content and the two linkage rows. Every other row is zero there and is
-#' dropped as unfitted, so `weighted = FALSE` returns a much smaller set: the
-#' index, catch, selectivity, catchability and penalty components are absent,
-#' not flat.
+#' `unweighted_jnll_comp` scores the composition, CAAL and stomach-content
+#' rows without their data weights (`Comp_weights`, `CAAL_weights`,
+#' `Diet_comp_weights`); every other row equals `jnll_comp`, so
+#' `weighted = FALSE` changes only those three components.
 #'
 #' **Placing each series on the y axis** (`relative`).
 #' \describe{

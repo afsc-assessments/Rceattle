@@ -400,7 +400,7 @@ section holds the fuller text as of 2026-09-14).
 - **Under `HCR = 0 & msmMode > 0` the depletions divide by last-projection-year biomass**, not `SB0`; don't blank them with a placeholder `SB0`.
 - **A fit reports 102 quantities, or 104 under `selectivity_se = TRUE`**: `quantity_dictionary()` has all 104, and the two it adds are `log_sel_at_age` / `log_sel_at_age_index`. Enumerate `names(fit$quantities)`, not a `REPORT(` grep — and say which `selectivity_se` you counted under, because that is why three different totals are on record.
 - **`retrospective(getsd = TRUE)` can drop peels `getsd = FALSE` keeps**, so Mohn's rho can differ.
-- **`unweighted_jnll_comp` is written for 5 of its 22 rows**; the rest are structurally zero.
+- **`unweighted_jnll_comp` differs from `jnll_comp` only on the composition, CAAL and stomach rows** (no data weights) in ordinary fitting; under OSA those three are 0.
 - **`fit_mod(d, config = cfg)` replaces `d$model_config`**: build `cfg` with `run_config(d, ...)` or every linkage is dropped.
 - **`bias_adjust_proc` centres the lognormal priors and the recruitment deviations together** (5.33.0).
 - **A `data_list` element without `write_data()`/`read_data()` support round-trips to nothing.**

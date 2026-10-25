@@ -758,14 +758,12 @@ and asserts each row's declared axis matches the column it is actually indexed b
 2026-08-26: 124 writes, all 21 rows covered; 133 writes at 5.41.0, same 21 rows; 134 writes at
 5.48.0 over 22 rows, the new one being the initial equilibrium catch.
 
-**`unweighted_jnll_comp` is populated for 5 of its 22 rows.** It exists so Francis and
-McAllister-Ianelli can read a composition likelihood without its `Comp_weights` multiplier, so
-only the rows carrying such a multiplier are written: composition, CAAL, stomach content, and the
-two linkage rows. Index, catch, selectivity, catchability and every penalty are **structurally
-zero** there, not small. Anything that treats the two matrices as the same quantity at different
-weights — a reweighting diagnostic, a component profile, a "which term dominates" table — reports
-those components as absent rather than unweighted. `profile_components(weighted = FALSE)` says so
-in its `@param`.
+**In ordinary fitting `unweighted_jnll_comp` differs from `jnll_comp` only on the
+composition, CAAL and stomach rows**, which it scores without `Comp_weights`, `CAAL_weights` and
+`Diet_comp_weights` (a Dirichlet-multinomial at theta = 1); the linkage rows are written to both,
+and section 13.15 copies the rest. Under OSA (`osa_mode > 0`) those three rows are **0** there,
+because their OSA densities are written to `jnll_comp` only; under `osa_mode == 2` the linkage
+random-effect row's CDF term is too.
 
 **`retrospective(getsd = TRUE)` can return fewer peels than `getsd = FALSE`, so Mohn's rho
 differs.** `.refit_converged()` drops a peel on a non-positive-definite Hessian, and that check
@@ -1470,8 +1468,8 @@ section above.
   `test-schema-quantity-dictionary.R` holds the two together.
 - **`retrospective(getsd = TRUE)` can drop peels `getsd = FALSE` keeps** — the non-PD Hessian
   check only runs when an `sdreport` exists — so Mohn's rho can differ between the two.
-- **`unweighted_jnll_comp` is written for 5 of its 22 rows** — composition, CAAL, stomach and the
-  two linkage rows. Everything else is structurally zero there, not small.
+- **`unweighted_jnll_comp` differs from `jnll_comp` only on the composition, CAAL and stomach
+  rows** in ordinary fitting; under OSA those are 0 there.
 - **`fit_mod(d, config = cfg)` replaces `d$model_config` with the config's** — a config from
   `run_config(model_config(), ...)` silently drops every linkage on `d` (57 REs → 0). Build it
   with `run_config(d, ...)`. `random_sel` never gates linkage REs.
