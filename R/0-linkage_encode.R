@@ -152,7 +152,8 @@ LINKAGE_PARAM_CODES <- list(
   q           = c(q = 0L),
   # Selectivity codes are parameter slots shared across the forms:
   #   0/1  log_sel_slp asc/desc (log slope, or log sigma for DoubleNormal)
-  #   2/3  sel_inf asc/desc     (natural: inflection, or DoubleNormal peak/logit floor)
+  #   2/3  sel_inf asc/desc     (inflection/peak; 3 is DoubleNormal's logit floor
+  #                             and LogisticPM's log first-bin selectivity)
   #   4    sel_coff             (non-parametric, every bin)
   #   5    log_sel_apical       (log-scale per-sex multiplier on the curve)
   #   6-11 DoubleNormalSS3 P1-P6 (SS3 pattern 24), each on SS3's own scale

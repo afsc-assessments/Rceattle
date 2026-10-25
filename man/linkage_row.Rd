@@ -46,7 +46,8 @@ linkage_row(
 \item{process, param, X_col}{required identifying fields.}
 
 \item{species, sex, age_bin, fleet}{stratum ids, \code{NA} = every level; \code{fleet}
-is a 1-based \code{Fleet_code}, used by catchability and selectivity linkages.}
+is a 1-based \code{Fleet_code}, used by catchability, selectivity and
+composition-weight linkages.}
 
 \item{design_col}{name of the design matrix column.}
 

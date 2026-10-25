@@ -55,9 +55,9 @@ inline void rceattle_stratum_range(int id, int n_levels, int& lo, int& hi) {
 //   linkage_X  covariate design matrix, one row per model year;
 //   beta       one effect size per linkage row (length 0 = no linkages);
 //   link_code  which rows this call adds:
-//     0 = identity: beta * x is added to the parameter's value (its logit or
-//         log width for DoubleNormalSS3 P2-P6 and DoubleNormal/LogisticPM
-//         sel_inf slot 2);
+//     0 = identity: beta * x is added to the parameter's natural-scale value
+//         (to the stored logit or log for DoubleNormalSS3 P2-P6, DoubleNormal's
+//         logit floor and LogisticPM's log first-bin selectivity);
 //     1 = log: that value is multiplied by exp(beta * x);
 //     2 = logit: reserved, refused in R;
 //     3 = exponential, catchability only: (log q + any log-link offset) is

@@ -335,7 +335,8 @@ validate_linkage_table <- function(x) {
 #'
 #' @param process,param,X_col required identifying fields.
 #' @param species,sex,age_bin,fleet stratum ids, `NA` = every level; `fleet`
-#'   is a 1-based `Fleet_code`, used by catchability and selectivity linkages.
+#'   is a 1-based `Fleet_code`, used by catchability, selectivity and
+#'   composition-weight linkages.
 #' @param design_col name of the design matrix column.
 #' @param link link function; one of [LINKAGE_LINKS].
 #' @param init initial value (default `0`).
@@ -479,10 +480,10 @@ linkage_row <- function(process, param, X_col,
 #' Is a `sel_inf` slot held on the natural scale for this selectivity form?
 #'
 #' Slot 1 (`inf_asc` / `peak`) is always an age or length. Slot 2 is an
-#' inflection for Logistic, DoubleLogistic and DescendingLogistic, but
-#' DoubleNormal stores `logit(right_floor)` there and LogisticPM a log age-1
-#' selectivity, where a natural-scale value would be wrong (`right_floor = 0.2`
-#' would read as 0.55), so the caller refuses those slots.
+#' inflection for DoubleLogistic and DescendingLogistic (Logistic never reads
+#' it), but DoubleNormal stores `logit(right_floor)` there and LogisticPM the
+#' log selectivity of the first bin, where a natural-scale value would be wrong
+#' (`right_floor = 0.2` would read as 0.55), so the caller refuses those slots.
 #'
 #' @param slot the parameter's `.SEL_PARAM_TO_SLOT` index (1 or 2).
 #' @param form the fleet's `Selectivity` value.
