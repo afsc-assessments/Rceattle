@@ -66,7 +66,9 @@ Depends:
     R (>= 4.1.0)
 Config/testthat/edition: 3
 Config/testthat/parallel: true
-Config/testthat/start-first: functions-profile-param, functions-mse,
-    dynamics-brps, functions-retrospective, likelihood-osa-residuals,
-    selectivity-normalization, dynamics-recruitment-linkage
+Config/testthat/start-first: report-tables, golden-regression,
+    convergence-variance-collapse, selectivity-nonparametric-integrable,
+    fit-config-overlay, functions-sim-mod-diet-roundtrip-dm,
+    functions-sim-mod-comp-fold, functions-sim-mod-diet-roundtrip-mn,
+    functions-sim-mod-diet-dispersion, functions-retrospective
 Config/roxygen2/version: 8.1.0
