@@ -576,7 +576,7 @@ says nothing. Build the spec through `build_srr(linkages = ...)`. Same shape as
 weights can change meaning when rows move.** `.group_lead()` picks the group's first fleet that
 is not `Off`, and `Fleet_code` must equal the row number, so inserting or reordering a fleet —
 or switching the lead `Off` — promotes a different row. Only the lead's `Sel_curve_pen1/2/3` are
-read (`ceattle.cpp:4051` gates on `flt_sel_lead(flt) == 1`), and a follower's are neither read
+read (section 13.7 of `ceattle.cpp` gates on `flt_sel_lead(flt) == 1`), and a follower's are neither read
 nor checked against the lead's: `.sel_shaping_cols` deliberately excludes them, and the negative-
 weight refusal skips followers for the same reason. So a stale or wrong weight sitting on a
 follower is inert until a reordering makes that fleet the lead, at which point it is charged
@@ -584,7 +584,7 @@ silently. Keep the whole group's penalty columns in agreement even though nothin
 
 **A `NonParametricPM` (9) `RandomWalk` fleet at the default `Sel_curve_pen3 = 0` has an exactly
 flat direction.** Slot 3 is the only term charged on the RAW `sel_coff_dev`
-(`ceattle.cpp:4233`); every other term — shape, curvature, the random walk, and the data —
+(section 13.7 of `ceattle.cpp`); every other term — shape, curvature, the random walk, and the data —
 reads `log_non_par_sel`, which `selectivity.hpp` (case 9) mean-centres per year. A shift common
 to all bins in a year is therefore invisible everywhere except slot 3, verified by objectives
 bit-identical across `Time_varying_sel_sd` of 0.1, 0.2, 1 and 3 while the deviates moved. With
@@ -608,17 +608,17 @@ start-0 version. Fix: assign `Ftarget` from `Flimit` before the F loop; see
 5.29.0; the structure that caused it is still there, so a fourth composition-like source would
 repeat it.
 
-- `Comp_weights` multiplies the multinomial log-likelihood (`ceattle.cpp:3790`), so it is an
+- `Comp_weights` multiplies the multinomial log-likelihood (`comp_row_nll()`), so it is an
   effective sample size — the model's own simulator says so, drawing at
-  `n_nom * comp_weights(flt)` (`:3870`). Dividing by the raw `Sample_size` gives a residual
+  `n_nom * comp_weights(flt)` (`ceattle.cpp` section 13.4). Dividing by the raw `Sample_size` gives a residual
   `1/sqrt(w)` times the right one: too small on an upweighted fleet, too large on a downweighted
   one. `MultinomialAFSC` is the schema default, so this was the *common* case, and
   `reweight_comps()` tunes either side of 1.
 - A Dirichlet-multinomial is additionally overdispersed by `(n + conc)/(1 + conc)`, so those
   residuals were inflated into apparent misfit.
-- **Three sources, three different alpha constructions.** comp (`ceattle.cpp:3776`) and CAAL
-  (`:3931`) build the concentration on the offset-inflated total, so `sum(alpha) = N·S²·theta`
-  with `S = 1 + comp_offset·nbins`; diet (`:5009`) renormalizes first, so it is the clean
+- **Three sources, three different alpha constructions.** comp and CAAL (both through
+  `comp_row_nll()`) build the concentration on the offset-inflated total, so `sum(alpha) = N·S²·theta`
+  with `S = 1 + comp_offset·nbins`; diet (section 13.6) renormalizes first, so it is the clean
   `N_s·theta`. Sharing one formula across all three is wrong for two of them — measured up to
   1% in the sd on the smallest bins from the offset alone, at the default `comp_offset = 1e-5`.
 
