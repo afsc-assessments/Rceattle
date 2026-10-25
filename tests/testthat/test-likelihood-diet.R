@@ -60,7 +60,7 @@ testthat::skip_on_cran()
 }
 
 
-# Walk the stomachs as ceattle.cpp section 13.2 does, apply `dens` to each one's
+# Walk the stomachs as ceattle.cpp section 13.6 does, apply `dens` to each one's
 # observed counts and predicted proportions, and accumulate per predator species.
 .diet_nll_r <- function(mod, nspp, dens) {
   out <- rep(0, nspp)

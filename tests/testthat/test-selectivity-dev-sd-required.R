@@ -7,7 +7,7 @@
 # selectivity twin did not.
 #
 # The gate is the (Selectivity, Time_varying_sel) PAIR, transcribed from the
-# sel_dev_sd density sites in ceattle.cpp section 13.1 (FIT OBJECTIVE FUNCTION),
+# sel_dev_sd density sites in ceattle.cpp section 13.7 (SELECTIVITY PENALTIES),
 # so a combination that penalizes nothing is not asked for a value it would
 # never read. These tests pin both halves: it fires where the sd is read, and
 # stays quiet where it is not.

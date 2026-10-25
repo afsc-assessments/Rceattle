@@ -6,7 +6,7 @@
 # test-linkage-priors.R) only exercise priors on SLOPE terms (temp, PDO),
 # where the prior is evaluated directly on beta_linkage. For an (Intercept) row
 # the linkage coefficient is mapped out (beta_linkage(i) == 0) and the level is
-# carried by the base parameter (log_growth_pars / log_M1). The cpp (Slot 19 /
+# carried by the base parameter (log_growth_pars / log_M1). The cpp (section 13.13 /
 # row 20) re-targets the prior onto that base parameter and back-transforms
 # through the log link:
 #   normal/gamma/beta : evaluated on exp(base_par)   (natural scale)
