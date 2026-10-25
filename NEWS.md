@@ -12,6 +12,15 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.65.2
+
+## Internal
+
+* **The linkage random-effect density reads as statistics.** Section 13.14 of
+  `ceattle.cpp` scores each group through `rceattle_re_group_nll()` (IID, random
+  walk or AR1) and gathers its deviations with `rceattle_group_slots()`, which
+  the linkage simulation in section 5.2 now shares. No number moves.
+
 # Rceattle 5.65.1
 
 ## Internal

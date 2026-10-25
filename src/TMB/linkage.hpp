@@ -393,4 +393,58 @@ void rceattle_apply_sel_linkages(
   }
 }
 
+
+/**
+ * @brief The random-effect slots of one group, in slot order, which is time order
+ * within a group (.assign_re_registry()).
+ *
+ * @param group_of_slot Each slot's group (ceattle.cpp's linkage_re_sigma: an index, not an sd).
+ * @param grp The group.
+ * @return The group's slot indices, ascending; empty if it has none.
+ */
+inline vector<int> rceattle_group_slots(const vector<int>& group_of_slot, int grp) {
+  int len = 0;
+  for (int s = 0; s < group_of_slot.size(); ++s) if (group_of_slot(s) == grp) len++;
+  vector<int> slots(len);
+  int j = 0;
+  for (int s = 0; s < group_of_slot.size(); ++s) if (group_of_slot(s) == grp) slots(j++) = s;
+  return slots;
+}
+
+
+/**
+ * @brief Add the negative log density of one group's deviations to two accumulators.
+ *
+ * Structure 0 = IID, sd sigma; 1 = random walk, sd sigma on first differences (the
+ * first deviation has no term of its own; build_map() holds it at its start, 0 by
+ * default, so the base parameter carries the level); 2 = stationary AR1 with MARGINAL
+ * sd sigma and correlation rho (the glmmTMB / Rogers QAR1 convention).
+ *
+ * @param structure 0, 1 or 2, as above.
+ * @param re The group's deviations, in time order.
+ * @param sigma The group's sd, natural scale (AR1: the marginal sd).
+ * @param rho The AR1 correlation in (-1, 1); read only when structure = 2.
+ * @param nll,nll_unweighted Cells of jnll_comp and unweighted_jnll_comp to add to.
+ */
+template<class Type>
+void rceattle_re_group_nll(int structure, vector<Type> re, Type sigma, Type rho,
+                           Type& nll, Type& nll_unweighted)
+{
+  if (structure == 1) {                    // random walk
+    for (int t = 1; t < re.size(); ++t) {
+      Type log_dens = dnorm(re(t) - re(t - 1), Type(0), sigma, true);
+      nll            -= log_dens;
+      nll_unweighted -= log_dens;
+    }
+  } else if (structure == 2) {             // AR1
+    Type neg_log_dens = density::SCALE(density::AR1(rho), sigma)(re);   // a negative log density
+    nll            += neg_log_dens;
+    nll_unweighted += neg_log_dens;
+  } else {                                 // IID
+    Type log_dens = sum(dnorm(re, Type(0), sigma, true));
+    nll            -= log_dens;
+    nll_unweighted -= log_dens;
+  }
+}
+
 #endif
