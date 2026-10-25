@@ -880,8 +880,8 @@ head(comps)
 Under `random_rec = TRUE` the total is the Laplace-approximated marginal
 likelihood while the components are the inner joint negative log-likelihood, so
 they will not sum; compare the shapes, not the sums. See `?plot_profile` for
-`relative`, `minfraction`, model overlays, and what `weighted = FALSE` does and
-does not include.
+`relative`, `minfraction`, model overlays, and which components `weighted = FALSE`
+changes.
 
 ## Comparing runs
 

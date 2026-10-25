@@ -4675,8 +4675,7 @@ Type objective_function<Type>::operator() () {
             if (pos >= 0) {
               jnll_comp(JNLL_LINKAGE_RE, 0)            -= keep(pos) * dnorm(obsvec(pos), re(t), osd, true);
               unweighted_jnll_comp(JNLL_LINKAGE_RE, 0) -= keep(pos) * dnorm(obsvec(pos), re(t), osd, true);
-              // The CDF term is not a likelihood, so only jnll_comp gets it, as at every
-              // other CDF site.
+              // The CDF term is not a likelihood, so only jnll_comp gets it here.
               if (osa_mode == 2) {
                 jnll_comp(JNLL_LINKAGE_RE, 0) -= osa_norm_cdf_terms(
                   obsvec(pos), re(t), osd, keep.cdf_lower(pos), keep.cdf_upper(pos));
@@ -4690,12 +4689,14 @@ Type objective_function<Type>::operator() () {
 
 
   // 13.15. UNWEIGHTED COMPONENTS
-  // Every row before JNLL_LINKAGE_PRIOR is copied from jnll_comp except JNLL_COMP and
-  // JNLL_STOMACH, which keep their unweighted values; JNLL_CAAL is overwritten with its
-  // weighted value. The linkage rows are written to both above; JNLL_EQUIL_CATCH stays 0.
+  // jnll_comp without data weights. In ordinary fitting the composition, CAAL and
+  // stomach rows were written unweighted above (0 under OSA), and the linkage rows to
+  // both; every other row carries no data weight, so it is copied.
   for(flt = 0; flt < n_col; flt++){
-    for(int ind = 0; ind < JNLL_LINKAGE_PRIOR; ind++){
-      if((ind != JNLL_COMP) & (ind != JNLL_STOMACH)){
+    for(int ind = 0; ind < JNLL_N_ROWS; ind++){
+      bool written_above = (ind == JNLL_COMP) || (ind == JNLL_CAAL) || (ind == JNLL_STOMACH) ||
+                           (ind == JNLL_LINKAGE_PRIOR) || (ind == JNLL_LINKAGE_RE);
+      if(!written_above){
         unweighted_jnll_comp(ind, flt) = jnll_comp(ind, flt);
       }
     }
