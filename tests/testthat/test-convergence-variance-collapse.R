@@ -20,15 +20,27 @@
 # `R_log_sd` and `log_sigma_linkage` are confirmed present and healthy below.
 testthat::skip_on_cran()
 
+# The healthy and collapsed-sd tests read the same BS2017SS random-recruitment
+# hindcast, which takes ~150 s, so it is fitted once on first use.
+.healthy_fit <- local({
+  m <- NULL
+  function() {
+    if (is.null(m)) {
+      data("BS2017SS")
+      m <<- suppressMessages(suppressWarnings(Rceattle::fit_mod(
+        data_list = BS2017SS, inits = NULL, msmMode = 0,
+        estimateMode = "Hindcast", random_rec = TRUE,
+        fit_control = Rceattle::fit_control(getsd = FALSE, verbose = 0))))
+    }
+    m
+  }
+})
+
 testthat::test_that("a healthy fit does not fire the check", {
   testthat::skip_if_not_installed("TMB")
   testthat::skip_if_not_installed("Rceattle")
 
-  data("BS2017SS")
-  m <- suppressMessages(suppressWarnings(Rceattle::fit_mod(
-    data_list = BS2017SS, inits = NULL, msmMode = 0, estimateMode = "Hindcast",
-    random_rec = TRUE,
-    fit_control = Rceattle::fit_control(getsd = FALSE, verbose = 0))))
+  m <- .healthy_fit()
 
   # The recruitment sds are O(1) here, which is what an assessment intends.
   p   <- m$.conv_hindcast$par
@@ -61,11 +73,8 @@ testthat::test_that("a collapsed sd is reported, and named", {
   testthat::skip_if_not_installed("TMB")
   testthat::skip_if_not_installed("Rceattle")
 
-  data("BS2017SS")
-  m <- suppressMessages(suppressWarnings(Rceattle::fit_mod(
-    data_list = BS2017SS, inits = NULL, msmMode = 0, estimateMode = "Hindcast",
-    random_rec = TRUE,
-    fit_control = Rceattle::fit_control(getsd = FALSE, verbose = 0))))
+  # A local copy: the injection below does not reach the shared fit.
+  m <- .healthy_fit()
 
   # The value Atka2022 reaches, injected so the assertion does not depend on a
   # configuration fit_mod() now refuses.

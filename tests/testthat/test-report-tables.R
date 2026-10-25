@@ -453,9 +453,10 @@ testthat::test_that("the parameter table names sigma_R and its process", {
   testthat::skip_on_cran()
   # random_rec = TRUE, because sigma_R is only ESTIMATED when recruitment is a
   # random effect. Fixed, it never enters coef() and is read off quantities$R_sd.
-  utils::data("GOAatf", package = "Rceattle", envir = environment())
+  # Atka2022 fits it with a positive-definite Hessian, so sigma_R has an SE.
+  utils::data("Atka2022", package = "Rceattle", envir = environment())
   fit <- suppressMessages(suppressWarnings(fit_mod(
-    data_list = GOAatf, estimateMode = 1, msmMode = 0, phase = FALSE,
+    data_list = Atka2022, estimateMode = 1, msmMode = 0, phase = FALSE,
     random_rec = TRUE, fit_control = fit_control(getsd = TRUE, verbose = 0))))
 
   p <- report_tables(fit)$parameters
@@ -468,6 +469,7 @@ testthat::test_that("the parameter table names sigma_R and its process", {
   testthat::expect_equal(nrow(sr), 1L)
   testthat::expect_equal(sr$natural, "sigma_R")
   testthat::expect_equal(sr$process, "recruitment")
+  testthat::expect_true(is.finite(sr$std_error))
 
   # Only a repeated block is numbered, so a row identifies which element it is.
   testthat::expect_true(all(table(p$parameter[!is.na(p$index)]) > 1))
@@ -475,7 +477,7 @@ testthat::test_that("the parameter table names sigma_R and its process", {
 
   # With recruitment fixed, sigma_R is not estimated and so is not in the table.
   fixed <- suppressMessages(suppressWarnings(fit_mod(
-    data_list = GOAatf, estimateMode = 1, msmMode = 0, phase = FALSE,
+    data_list = Atka2022, estimateMode = 1, msmMode = 0, phase = FALSE,
     random_rec = FALSE, fit_control = fit_control(getsd = TRUE, verbose = 0))))
   testthat::expect_equal(
     nrow(report_tables(fixed)$parameters[
