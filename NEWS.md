@@ -14,18 +14,21 @@ version throughout.
 
 # Rceattle 5.65.0
 
-## Bug fixes
+## Breaking changes
 
 * **`data_check()` now requires a positive `Time_varying_sel_sd` on 2DAR1 and
   3DAR1 fleets.** Both forms score their deviation field at that sd under every
-  `Time_varying_sel`, but were exempt from the check, so a blank value built a
-  model whose objective was `NA` (and `0` one whose objective was `NaN`) with no
-  error naming the fleet or column -- measured on `GOA2018SS`. Mirror fleets
-  (sharing a `Selectivity_index`) and warm starts are asked too, as for every
-  other form: a blank-sd mirror fitted under `random_sel = FALSE` but gave an
-  `NA` objective under `random_sel = TRUE`. The bundled `whamGrowthData` ships
-  2DAR1 fleets with sd 0 (and no `N_sel_bins`), so it needs the selectivity
-  overrides its vignettes already make before it fits.
+  `Time_varying_sel`, but were exempt from the check, so a blank value on the
+  fleet leading a `Selectivity_index` built a model whose objective was `NA`
+  (and a `0` one whose objective was `NaN`) with no error naming the fleet or
+  column -- measured on `GOA2018SS`. Every fleet sharing the
+  `Selectivity_index` is asked, and so is a warm start, as for every other form.
+  Two of those did fit before and now stop: a mirror fleet with a blank sd under
+  `random_sel = FALSE`, whose sd is never read, and a warm start, which takes
+  the sd from `inits`. Enter any positive sd to refit either; neither reads it,
+  so the fit is unchanged. The bundled `whamGrowthData` ships 2DAR1 fleets with
+  sd 0 (and no `N_sel_bins`), so it never fitted as shipped and needs the
+  selectivity overrides its vignettes already make.
 
 # Rceattle 5.64.5
 

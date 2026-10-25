@@ -1731,7 +1731,7 @@ data_check <- function(data_list) {
   # the code below cannot show: LogisticPM never reads it -- its two walks are
   # weighted by Sel_curve_pen1 and Sel_curve_pen3, and the model's own conditions
   # exclude type 11 from every sel_dev_sd site -- and nor does Fixed. 2DAR1 and
-  # 3DAR1 read it under every Time_varying_sel: it is their field's conditional sd.
+  # 3DAR1 read it whatever their Time_varying_sel, so they are checked separately.
   # `Block` is absent for the reason it is on the q side (a time block carries no
   # penalty, and build_map() refuses it on a non-parametric fleet outright), and
   # `AR1` because it is refused above -- asking for the column here would
@@ -1758,12 +1758,18 @@ data_check <- function(data_list) {
       .stv[.sel == "NonParametricPM"] == "RandomWalk"
     .reads_sel_sd[.sel == "NonParametricIntegrable"] <-
       .stv[.sel == "NonParametricIntegrable"] %in% c("IID", "RandomWalk")
-    .reads_sel_sd[.sel %in% c("2DAR1", "3DAR1")] <- TRUE
+    # 2DAR1 and 3DAR1 read it under every valid Time_varying_sel; a blank or
+    # `AR1` mode is left to the refusal that names it.
+    .ar1_field <- .sel %in% c("2DAR1", "3DAR1") &
+      .stv %in% setdiff(names(tv_sel_map), "AR1")
 
     .require_positive(.fc, .col, list(
       list(col = "Time_varying_sel_sd",
            when = .on & .reads_sel_sd,
-           why  = "the time-varying selectivity deviations are penalized at this standard deviation")
+           why  = "the time-varying selectivity deviations are penalized at this standard deviation"),
+      list(col = "Time_varying_sel_sd",
+           when = .on & .ar1_field,
+           why  = "2DAR1 and 3DAR1 read it as the conditional sd of their deviation field")
     ))
   }
 
