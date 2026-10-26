@@ -25,13 +25,14 @@ version throughout.
   Hessian was not positive definite, or set by its prior alone, adding a per-run
   constant that made a drop-one-survey series' objectives incomparable. So a
   linkage and its prior can stay in the spec while a fleet is switched off. A
-  row with no fleet (it reaches the live fleets) stays estimated, and an `Off`
-  fleet sharing a `Selectivity_index` stays tied to its lead's coefficient
-  where the lead has one. **Fits with a selectivity linkage on an `Off` fleet
-  move** by that prior's constant and lose the flat parameter; no other fit
-  changes. Not covered yet: a random-effect selectivity linkage or a
-  catchability linkage on an `Off` fleet, and a prior on a shared block's lead
-  when that lead is switched off, which is still refused.
+  row with no fleet (it reaches the live fleets) stays estimated. On an `Off`
+  member of a shared `Selectivity_index` block the prior moves, with a warning,
+  to the block's lead (its first fleet not `Off`), so switching off the lead
+  that carried the block's prior no longer refuses the fit; the coefficient
+  stays tied to the lead's where the lead has one. **Fits with a selectivity
+  linkage on an `Off` fleet move** by that prior's constant and lose the flat
+  parameter; no other fit changes. Not covered yet: a random-effect selectivity
+  linkage or a catchability linkage on an `Off` fleet.
 
 ## Documentation
 

@@ -81,7 +81,8 @@ prior on the double-normal \code{right_floor} is unsupported. Fleets sharing a
 lead fleet (its first that is not \code{Off}): a prior on a follower would
 penalize the shared block once per sharing fleet. On an \code{Off} fleet a prior
 is dropped with a warning and the fleet's linkage coefficients are held at
-their starting values, since the fleet has no data.
+their starting values, since the fleet has no data; on an \code{Off} member of a
+shared block it moves to the block's lead instead.
 
 Like every selectivity linkage, a covariate acts in the hindcast years;
 projection years hold the last hindcast year's curve.

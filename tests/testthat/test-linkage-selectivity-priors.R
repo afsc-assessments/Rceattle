@@ -254,13 +254,14 @@ testthat::test_that("the Off-fleet drop takes slope rows and spares apical and s
   # control, so the negatives here cannot pass by the drop doing nothing.
   testthat::expect_equal(drop(tbl("inf_asc", "(Intercept)"))$prior_family, "none")
 
-  # Sharing a Selectivity_index can leave the block estimated on an Off member,
-  # so the prior is live; the existing check names the lead to move it to.
+  # On an Off member of a shared block the intercept prior moves to the lead,
+  # the first fleet not Off, and stays live there.
   fc_shared <- fc
   fc_shared$Selectivity_index <- 1L
   shared <- suppressWarnings(Rceattle:::.drop_off_fleet_sel_priors(
     tbl("inf_asc", "(Intercept)"), fc_shared, verbose = 0))
   testthat::expect_equal(shared$prior_family, "normal")
+  testthat::expect_equal(shared$fleet, which(fc_shared$Fleet_type != "Off")[1])
 })
 
 
@@ -301,17 +302,45 @@ testthat::test_that("an Off fleet's covariate coefficient is held and its prior 
                                      priors = list(Index1 = normal(0, 0.5)))))
   testthat::expect_false(is.na(slope_map(suppressWarnings(.fit3_data(every, srv_off)))))
 
-  # In a shared block the Off follower's coefficient is tied to the lead, so the
-  # shared-block check (c) answers, naming the lead.
+  # An Off member of a shared block whose lead has no matching row: the slope is
+  # held and its prior dropped, and the model runs.
   shared_off <- function(d) {
     d <- srv_off(d)
     d$fleet_control$Selectivity_index <- 1L
     d
   }
-  testthat::expect_error(.fit3_data(sel, shared_off), "lead")
+  testthat::expect_warning(sh <- .fit3_data(sel, shared_off), "is dropped")
+  testthat::expect_true(is.na(slope_map(sh)))
   # Without a prior, an Off follower whose lead has no row is held too, rather
   # than left free and flat.
   no_prior <- Rceattle::build_selectivity(linkages = list(
     inf_asc = Rceattle::linkage_spec(~ Index1, fleet = as.integer(code))))
   testthat::expect_true(is.na(slope_map(suppressWarnings(.fit3_data(no_prior, shared_off)))))
 })
+
+
+# Switching off the lead of a shared block that carries the prior: the prior
+# moves to the new lead (the first fleet not Off), so the model runs and the
+# block keeps its prior.
+testthat::test_that("a prior on a shared block's Off lead moves to the new lead", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("TMB")
+
+  e <- new.env(parent = asNamespace("Rceattle"))
+  for (f in list.files(testthat::test_path(), "^helper", full.names = TRUE)) sys.source(f, e)
+  srv <- which(e$make_test_data()$fleet_control$Fleet_name == "Survey")
+  testthat::expect_equal(srv, 1L)        # fleet 1, so it leads a shared block
+  lead_off <- function(d) {
+    d$fleet_control$Selectivity_index <- 1L
+    d$fleet_control$Fleet_type[srv] <- "Off"
+    d
+  }
+  sel <- Rceattle::build_selectivity(linkages = list(
+    inf_asc = Rceattle::linkage_spec(~ 1, fleet = srv,
+                                     priors = list(`(Intercept)` = normal(4, 0.5)))))
+  testthat::expect_warning(fit <- .fit3_data(sel, lead_off), "moved to the lead")
+  testthat::expect_false(is.null(fit$obj))
+  # Still scored, on the block's estimated parameter.
+  testthat::expect_gt(sum(fit$quantities$jnll_comp["Linkage-table priors", ]), 0)
+})
+
