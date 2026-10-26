@@ -122,8 +122,8 @@ testthat::test_that("*_LINKAGE_PARAMS stays in sync with LINKAGE_PARAM_CODES", {
 
 testthat::test_that("the linkage codes match the template's constants and consume sites", {
   # linkage.hpp names each code (RCEATTLE_SEL_*, RCEATTLE_COMP_*, RCEATTLE_LINK_*,
-  # RCEATTLE_RE_*) after the R tables in R/0-linkage_encode.R. Comments are stripped
-  # before matching, so a consume site means code, not a mention.
+  # RCEATTLE_RE_*) after the R tables in R/0-linkage_encode.R. `//` comments are
+  # stripped before matching, so a consume site is not a line-comment mention.
   src <- testthat::test_path("..", "..", "src", "TMB")
   testthat::skip_if(!dir.exists(src), "src/TMB not available")
   code <- function(f) paste(sub("//.*$", "", readLines(file.path(src, f), warn = FALSE)),

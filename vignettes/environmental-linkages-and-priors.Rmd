@@ -34,8 +34,8 @@ weights**.
 
 ## A first example: temperature on `K`
 
-Sex- and species-specific von Bertalanffy growth, with `K` responding to a
-temperature index by species:
+Von Bertalanffy growth with `K` responding to a temperature index, one slope
+per species and sex (`whamGrowthData` has one of each, so one slope here):
 
 ```{r}
 library(Rceattle)
@@ -84,8 +84,8 @@ fit <- fit_mod(
 summary(fit)
 ```
 
-This fits $K_{s,x,y} = K_{s,x}\,e^{\beta_{s,x}\,\mathrm{temp}_y}$ for species $s$
-and sex $x$; *How the pieces fit together* below gives the general form.
+This fits $K_{s,\mathrm{sex},y} = K_{s,\mathrm{sex}}\,e^{\beta_{s,\mathrm{sex}}\,\mathrm{temp}_y}$
+for species $s$; *How the pieces fit together* below gives the general form.
 
 ## The `linkage_spec()` API
 
@@ -730,16 +730,18 @@ log-, identity- and exponential-link rows:
 | `identity` | $p_{s,y} = p_s + S_{\mathrm{id}}$ |
 | `exponential` (catchability only) | $\log q_{s,y} = (\log q_s + S_{\log})\, e^{S_{\exp}}$; `index_q_dev` is added after the product, $S_{\mathrm{id}}$ after the exponential |
 
-A parameter's own deviations (`M1_re`, `Time_varying_q`, ...) still apply. With
-both a log and an identity link on one parameter, the identity sum is added
-after the multiplication, $p_{s,y} = p_s e^{S_{\log}} + S_{\mathrm{id}}$. On the
-selectivity inflection slots and the `DoubleNormalSS3` parameters it is added
-before, $p_{s,y} = (p_s + S_{\mathrm{id}})\, e^{S_{\log}}$, on the scale each
-is stored on: an age or length (per `Selectivity_dimension`) for a logistic
-inflection, but a logit (P2, P5, P6) or log width (P3, P4) for `DoubleNormalSS3`,
-so there a log link multiplies the logit or the log width.
+A parameter's own deviations (those `M1_re`, `Time_varying_q` or
+`Time_varying_sel` turn on) still apply. With both a log and an identity link on one parameter, the identity sum
+is added after the multiplication, $p_{s,y} = p_s e^{S_{\log}} + S_{\mathrm{id}}$.
+On the selectivity inflection slots and the `DoubleNormalSS3` parameters it is
+added before, $p_{s,y} = (p_s + S_{\mathrm{id}})\, e^{S_{\log}}$, on the scale
+each is stored on: a length (cm), or on an age-based fleet a bin number
+(age - minage + 1), for an inflection or peak; a logit for `DoubleNormalSS3` P2,
+P5, P6 and DoubleNormal's floor; a log for `DoubleNormalSS3`'s widths (P3, P4)
+and LogisticPM's first-bin selectivity. There a log link multiplies the logit or
+the log.
 
-In the first example, $K_{s,x,y} = K_{s,x}\,e^{\beta_{s,x}\,\mathrm{temp}_y}$:
+In the first example, $K_{s,\mathrm{sex},y} = K_{s,\mathrm{sex}}\,e^{\beta_{s,\mathrm{sex}}\,\mathrm{temp}_y}$:
 a log-scale slope, so $\beta = 0.1$ raises $K$ by about 10.5% ($e^{0.1} - 1$)
 per unit of temperature.
 
@@ -806,8 +808,9 @@ grammar: `linkage_spec(~ temp + (1 | Year))`.
 
 `linkages` on M is age-aware: by default a row's `age_bin` is `NA` and the
 offset broadcasts across every age. To pin an effect to one age slice, set
-`by = ~ species + age_bin` and supply `strata$age_bin`; `fit_mod()` supplies it
-automatically, so only a direct materialize call needs it.
+`by = ~ species + age_bin` and supply `strata$age_bin`, a bin index
+(age - minage + 1) rather than an age; `fit_mod()` supplies it automatically,
+so only a direct materialize call needs it.
 
 The `M1_indices` column-index argument for `M1_model = 4` / `5` adds the same
 log-scale environmental effect and is soft-deprecated. Prefer `linkages`: it
@@ -1421,10 +1424,11 @@ being non-stationary with no overall spread. Under `ar1()` it is the
 `glmmTMB` convention. The two agree at `rho = 0`, where `ar1` reduces to IID,
 so a `sigma` estimated under `rw()` is not comparable with one under `ar1()`.
 
-Each grouping level gets one deviation; each random term in each stratum estimates its own SD. The
-SD and (for `ar1`) the correlation route through the same `init` / `priors`
-arguments as every other parameter: `init = list(sigma = 0.1)` fixes the SD
-(the same as fixing `Time_varying_*_sd`), `init = list(rho =
+Each grouping level gets one deviation; each random term in each stratum
+estimates its own SD. The SD and (for `ar1`) the correlation route through the
+same `init` / `priors` arguments as every other parameter:
+`init = list(sigma = 0.1)` fixes the SD (the same as fixing
+`Time_varying_*_sd`), `init = list(rho =
 0.7)` fixes the correlation, and `priors = list(sigma = lognormal(...))` /
 `priors = list(rho = normal(...))` place priors. `rw()` / `ar1()` need a
 numeric grouping variable (a real elapsed-time lag).
