@@ -16,7 +16,6 @@ linkage_spec(
   init = NULL,
   bounds = NULL,
   priors = NULL,
-  re_group = NA_character_,
   est_phase = 1L,
   observe = NULL,
   obs_sd = NULL,
@@ -25,8 +24,9 @@ linkage_spec(
 )
 }
 \arguments{
-\item{formula}{one-sided R formula whose RHS describes the linear
-predictor for \code{param} (e.g. \code{~ 1}, \code{~ temp}, \code{~ temp + PDO}).}
+\item{formula}{one-sided R formula whose RHS describes the linear predictor
+for \code{param} (e.g. \code{~ 1}, \code{~ temp}, \code{~ temp + (1 | Year)}), where a \code{(1 | g)},
+\code{rw(1 | g)} or \code{ar1(1 | g)} term adds a random effect with one deviation per level of \code{g}.}
 
 \item{param}{target parameter name on the natural scale (e.g. \code{"alpha"},
 \code{"M1"}, \code{"K"}). May be \code{NULL} when the spec is built inside a \verb{build_*()}
@@ -90,9 +90,6 @@ default to \code{0}. An intercept's value is logged onto the parameter's base
 design-matrix column. Inside this argument \code{normal()}, \code{lognormal()},
 \code{gamma()} and \code{beta()} may be written directly, so
 \code{priors = list(temp = normal(0, 1))} is the same as \code{prior_normal(0, 1)}.}
-
-\item{re_group}{optional character naming a random-effect grouping for these
-coefficients. \code{NA} (default) means fixed.}
 
 \item{est_phase}{optional integer estimation phase, default \code{1L}. \code{0} fixes
 the coefficient at its \code{init}, which then holds over any \code{inits} given to
