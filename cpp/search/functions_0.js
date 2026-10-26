@@ -10,7 +10,8 @@ var searchData=
   ['calculate_5ftemperature_5ffunction_7',['calculate_temperature_function',['../bioenergetics_8hpp.html#a364cceaaa8805710e64e664f1e25be3b',1,'bioenergetics.hpp']]],
   ['calculate_5fvulnerability_8',['calculate_vulnerability',['../predation_8hpp.html#aa580c2b12a8427109ba0fb887135045f',1,'predation.hpp']]],
   ['calculate_5fweight_9',['calculate_weight',['../growth_8hpp.html#a49bb9f3b6109f77a05e466c6ac3f115f',1,'growth.hpp']]],
-  ['concentrated_5flognormal_5fsd_10',['concentrated_lognormal_sd',['../helper__functions_8hpp.html#a184d8fd61f8e7b41997faf8b6eaa507d',1,'helper_functions.hpp']]],
-  ['construct_5fq_11',['construct_Q',['../helper__functions_8hpp.html#a50b0d73a40763302c039db3518d6278b',1,'helper_functions.hpp']]],
-  ['convert_5flength_5fselectivity_12',['convert_length_selectivity',['../selectivity_8hpp.html#a94dac806d8bc628d9a868760c01f5dc0',1,'selectivity.hpp']]]
+  ['comp_5frow_5fnll_10',['comp_row_nll',['../likelihood_8hpp.html#afedd276748f16d47fc44bebe8744a443',1,'likelihood.hpp']]],
+  ['concentrated_5flognormal_5fsd_11',['concentrated_lognormal_sd',['../helper__functions_8hpp.html#a184d8fd61f8e7b41997faf8b6eaa507d',1,'helper_functions.hpp']]],
+  ['construct_5fq_12',['construct_Q',['../helper__functions_8hpp.html#a50b0d73a40763302c039db3518d6278b',1,'helper_functions.hpp']]],
+  ['convert_5flength_5fselectivity_13',['convert_length_selectivity',['../selectivity_8hpp.html#a94dac806d8bc628d9a868760c01f5dc0',1,'selectivity.hpp']]]
 ];

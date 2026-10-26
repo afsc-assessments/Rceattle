@@ -3,9 +3,10 @@
 Maps `beta_linkage` (one entry per row of `data_list$linkage_table`).
 Rows whose `est_phase == 0` are fixed at their initial values via `NA`;
 `(Intercept)` rows are also fixed (their value stays at 0, the base
-parameter holds the level). Everything else is estimated. Phased
-estimation honoring nonzero phase ordinals can layer on later via the
-`phase` argument to
+parameter holds the level), as is a selectivity coefficient on an `Off`
+fleet, which has no data (an `Off` follower stays tied to its lead's
+coefficient). Everything else is estimated. Phased estimation honoring
+nonzero phase ordinals can layer on later via the `phase` argument to
 [`fit_control()`](https://afsc-assessments.github.io/Rceattle/reference/fit_control.md).
 
 ## Usage

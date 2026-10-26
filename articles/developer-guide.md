@@ -376,8 +376,9 @@ file):
 | `recruitment.hpp` | Stock–recruitment functions. |
 | `bioenergetics.hpp` | Temperature-dependent ration / consumption (`Ceq`). |
 | `predation.hpp` | Prey suitability and predation mortality (MSVPA type-2, estimated iteratively). |
-| `diet_data.hpp` | Predator diet (stomach-content) likelihood. |
-| `linkage.hpp` | Applies the encoded linkage tables (covariates, time blocks, random effects) to each process’s parameters, and accumulates the linkage priors / RE densities into the likelihood. |
+| `diet_data.hpp` | Diet data for MSVPA suitability, and the predicted stomach contents (`diet_hat`) the diet likelihood scores. |
+| `linkage.hpp` | Applies the encoded linkage tables (covariates, time blocks, random effects) to each process’s parameters. Their priors and random-effect densities are scored in `ceattle.cpp` §13. |
+| `likelihood.hpp` | Likelihood math for §13: one composition or CAAL row (`comp_row_nll()`), the linkage prior families, and the composition tail fold. |
 | `comp_sim.hpp` | Composition draws: multinomial (sequential conditional binomial), Dirichlet, and Dirichlet-multinomial, used by the `SIMULATE` blocks. |
 
 The model opens with the `DATA_*` block (switches such as
@@ -575,11 +576,13 @@ catch a half-finished addition. The general shape:
 
 ### Change the likelihood
 
-The joint negative log-likelihood is assembled at the end of
+The joint negative log-likelihood is assembled in section 13 of
 `ceattle.cpp`, in the `jnll_comp` matrix, addressed by the `JnllRow` row
-constant and the species/fleet column. Add or modify the relevant term
-there, then recompile and re-run the regression tests (below) to confirm
-the objective changes only as intended.
+constant and the species/fleet column: data likelihoods first, then
+priors and penalties. Add or modify the relevant term there, with any
+math it shares with another term in `likelihood.hpp`, then recompile and
+re-run the regression tests (below) to confirm the objective changes
+only as intended.
 
 **Add or update the matching `SIMULATE` block at the same time.** Every
 observation and every process error is drawn in a `SIMULATE` block next

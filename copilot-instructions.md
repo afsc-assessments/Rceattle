@@ -38,13 +38,14 @@ in plots, documentation and messages).
     helper, wrapper, class, config layer, option flag or *new* registry
     the change does not need now — but registering in the registries
     that already exist (the `JnllRow` partners, `.JNLL_ROW_AXIS`,
-    `.index_rows_natural_scale()`) is not optional, or the new family
-    gets the wrong residual. A helper earns its place at two callers, or
-    when it names a concept the reader needs. A guard that cannot fire
-    is not safety: name the input that reaches it, or leave it out. If
-    the structure of a change needs a paragraph to justify it, propose
-    it before writing it. Keep a change to one concern, and never put a
-    formatting-only hunk in a change that can move a fit.
+    `.index_rows_natural_scale()`, `.index_fleets_covariance()`) is not
+    optional, or the new family gets the wrong residual. A helper earns
+    its place at two callers, or when it names a concept the reader
+    needs. A guard that cannot fire is not safety: name the input that
+    reaches it, or leave it out. If the structure of a change needs a
+    paragraph to justify it, propose it before writing it. Keep a change
+    to one concern, and never put a formatting-only hunk in a change
+    that can move a fit.
 3.  **Write for a fisheries scientist, briefly.** A comment is one or
     two lines — the assessment reason, the units, the convention — and a
     `@param` is one sentence. Anything longer belongs in `@details`, a

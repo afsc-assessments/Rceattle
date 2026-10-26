@@ -88,3 +88,10 @@ plot_catch(
 ## Value
 
 A `ggplot` object.
+
+## Details
+
+The predicted line is the MEDIAN, as in
+[`plot_index()`](https://afsc-assessments.github.io/Rceattle/reference/plot_index.md):
+`catch_hat * exp(-bias_adjust_obs * sd^2 / 2)`. The catch likelihood is
+lognormal for every fishery, so this applies throughout.

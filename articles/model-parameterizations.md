@@ -332,8 +332,10 @@ Selectivity is controlled by `Selectivity_index`, `Selectivity`,
   value, per fleet. Under `random_sel = TRUE` the deviates are
   integrated out and the sd is *estimated*, so this is only a starting
   value, and fleets sharing a `Selectivity_index` share one estimated sd
-  started at the geometric mean of theirs. `Time_varying_q_sd` is the
-  catchability equivalent, under `random_q`.
+  started at the geometric mean of theirs. The 2DAR1 and 3DAR1 forms
+  read it under every `Time_varying_sel`, as the conditional sd of their
+  deviation field, so they always need a positive value.
+  `Time_varying_q_sd` is the catchability equivalent, under `random_q`.
 - `Bin_first_selected`: First age/length bin with non-zero selectivity;
   the curve is 0 below it. A 1-based bin ordinal on the fleet’s
   `Selectivity_dimension`.

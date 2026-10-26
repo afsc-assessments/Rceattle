@@ -1,11 +1,10 @@
 var searchData=
 [
-  ['parameter_20section_0',['3. PARAMETER SECTION                                                      //',['..//home/runner/work/Rceattle/Rceattle/src/TMB/ceattle.cpp#autotoc_md2',1,'']]],
-  ['per_5frecruit_5fsurvivors_1',['per_recruit_survivors',['../spr_8hpp.html#ac7750dfaef1626032c1beb65eba90358',1,'spr.hpp']]],
-  ['population_20dynamics_20equations_2',['6. POPULATION DYNAMICS EQUATIONS                                          //',['..//home/runner/work/Rceattle/Rceattle/src/TMB/ceattle.cpp#autotoc_md5',1,'']]],
-  ['posfun_3',['posfun',['../helper__functions_8hpp.html#ad16913b60b6d39dcc690c129a204f36e',1,'helper_functions.hpp']]],
-  ['predation_20mortality_20equations_4',['7. MSVPA PREDATION MORTALITY EQUATIONS                                   //',['..//home/runner/work/Rceattle/Rceattle/src/TMB/ceattle.cpp#autotoc_md6',1,'']]],
-  ['predation_2ehpp_5',['predation.hpp',['../predation_8hpp.html',1,'']]],
-  ['predict_5fstomach_5fcontent_6',['predict_stomach_content',['../diet__data_8hpp.html#a933afc3e03859053434d274e378c0c97',1,'diet_data.hpp']]],
-  ['predicted_20stomach_20content_7',['11. PREDICTED STOMACH CONTENT                                             //',['..//home/runner/work/Rceattle/Rceattle/src/TMB/ceattle.cpp#autotoc_md10',1,'']]]
+  ['organize_5fdiet_5fobs_0',['organize_diet_obs',['../diet__data_8hpp.html#a1b440b2dfbcb3ae9de7ee8eb7cab05ef',1,'diet_data.hpp']]],
+  ['osa_5fnorm_5fcdf_5fterms_1',['osa_norm_cdf_terms',['../comp__osa_8hpp.html#a381fc84a295eb5601510810b556c8e45',1,'comp_osa.hpp']]],
+  ['osa_5forder_2',['osa_order',['../comp__osa_8hpp.html#aa807727a505faa39669d85455106d050',1,'comp_osa.hpp']]],
+  ['osa_5fpbinom_3',['osa_pbinom',['../comp__osa_8hpp.html#a1df25030b704eee07af4f0b447e35c1f',1,'comp_osa.hpp']]],
+  ['osa_5fsqueeze_4',['osa_squeeze',['../comp__osa_8hpp.html#a8151f10b0a759522b5395ba564d55293',1,'comp_osa.hpp']]],
+  ['osa_5fsqueeze_5fcdf_5',['osa_squeeze_cdf',['../comp__osa_8hpp.html#a981c5bfaf18a6ef73ccc0c847cdeef0b',1,'comp_osa.hpp']]],
+  ['osa_5ftrunc_5fnorm_5fcdf_5fterms_6',['osa_trunc_norm_cdf_terms',['../comp__osa_8hpp.html#a71125b3b6cce27bdcaa2feb74dfbb9a0',1,'comp_osa.hpp']]]
 ];

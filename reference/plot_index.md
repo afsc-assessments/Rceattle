@@ -78,3 +78,10 @@ quantiles on a `"Lognormal"` fleet, and `observed +/- 1.96 sd` truncated
 at zero on a natural-scale one (`"MVN"`, `"MVNORM"`, `"Normal"`,
 `"TruncatedNormal"`), whose sd is absolute and in the units of the
 index.
+
+The predicted line is the MEDIAN of the fitted observation distribution,
+`index_hat * exp(-bias_adjust_obs * sd^2 / 2)`, which is where the
+lognormal likelihood is centred, so about half the observations should
+fall below it. It equals the reported `index_hat` where
+`bias_adjust_obs = FALSE`. A natural-scale fleet has no such offset and
+is drawn unchanged.

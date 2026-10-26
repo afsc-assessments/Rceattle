@@ -33,7 +33,8 @@ A named list with components:
   linkage_re_index, linkage_prior_family:
 
   Parallel `integer(n_linkage)` vectors. `linkage_re_index` is `-1` on
-  fixed rows, else the 0-based `beta_linkage_re` slot.
+  fixed rows, else the 0-based deviation across `beta_linkage_re` and
+  `beta_linkage_re_pen`.
 
 - linkage_prior_p1, linkage_prior_p2:
 

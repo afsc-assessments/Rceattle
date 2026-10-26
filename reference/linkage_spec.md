@@ -17,7 +17,6 @@ linkage_spec(
   init = NULL,
   bounds = NULL,
   priors = NULL,
-  re_group = NA_character_,
   est_phase = 1L,
   observe = NULL,
   obs_sd = NULL,
@@ -31,7 +30,9 @@ linkage_spec(
 - formula:
 
   one-sided R formula whose RHS describes the linear predictor for
-  `param` (e.g. `~ 1`, `~ temp`, `~ temp + PDO`).
+  `param` (e.g. `~ 1`, `~ temp`, `~ temp + (1 | Year)`), where a
+  `(1 | g)`, `rw(1 | g)` or `ar1(1 | g)` term adds a random effect with
+  one deviation per level of `g`.
 
 - param:
 
@@ -121,11 +122,6 @@ linkage_spec(
   [`beta()`](https://rdrr.io/r/base/Special.html) may be written
   directly, so `priors = list(temp = normal(0, 1))` is the same as
   `prior_normal(0, 1)`.
-
-- re_group:
-
-  optional character naming a random-effect grouping for these
-  coefficients. `NA` (default) means fixed.
 
 - est_phase:
 

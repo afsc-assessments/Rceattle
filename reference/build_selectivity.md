@@ -103,8 +103,10 @@ value comes from the data, and a prior on the double-normal
 `right_floor` is unsupported. Fleets sharing a `Selectivity_index`
 estimate one block, so place the prior on the group's lead fleet (its
 first that is not `Off`): a prior on a follower would penalize the
-shared block once per sharing fleet. A prior on an `Off` fleet is
-refused, its selectivity not being estimated.
+shared block once per sharing fleet. On an `Off` fleet a prior is
+dropped with a warning and the fleet's linkage coefficients are held at
+their starting values, since the fleet has no data; on an `Off` member
+of a shared block it moves to the block's lead instead.
 
 Like every selectivity linkage, a covariate acts in the hindcast years;
 projection years hold the last hindcast year's curve.

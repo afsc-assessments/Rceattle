@@ -53,7 +53,7 @@ plot_index_residual(
 
 - residual_type:
 
-  `"pearson"` (index residuals on the fleet's own scale) or `"osa"`.
+  `"pearson"` (standardized index residuals) or `"osa"`.
 
 - line_col, right_adj, top_adj, single.plots:
 
@@ -70,14 +70,16 @@ A `ggplot` object.
 
 ## Details
 
-The residual is **observed minus predicted**, taken on the scale the
-fleet is fitted on and read from its `Index_distribution`:
-`log(observed) - log(predicted)` for a log-scale (`"Lognormal"`) fleet,
-and `observed - predicted` for a natural-scale one (`"MVN"`, `"MVNORM"`,
-`"Normal"`, `"TruncatedNormal"`), whose sd is absolute. A positive
-residual means the survey saw more than the model predicted. Panels hold
-different units where a model mixes the two families, which is why the y
-scale is free per fleet.
-
-Index residual figures made before 5.9.0 are mirrored about zero
-relative to these, so a figure carried forward from one needs redrawing.
+The residual is observed minus predicted, standardized by the sd the row
+was fitted with – the same quantity
+[`residuals.Rceattle()`](https://afsc-assessments.github.io/Rceattle/reference/residuals.Rceattle.md)
+returns for `type = "pearson"`. On a log-scale fleet it is measured
+against the likelihood's centre,
+`log(hat) - bias_adjust_obs * sd^2 / 2`; on a natural-scale fleet
+(`"MVN"`, `"MVNORM"`, `"Normal"`, `"TruncatedNormal"` in
+`Index_distribution`), whose sd is absolute, it is `(obs - hat) / sd`. A
+covariance fleet (`"MVN"`, `"MVNORM"`) takes that sd from
+`sqrt(diag(index_cov))`, which its likelihood actually scores, so the
+residual is marginal rather than whitened. A positive residual means the
+survey saw more than the model predicted. The y scale stays free per
+fleet, since residual spread differs by fleet.

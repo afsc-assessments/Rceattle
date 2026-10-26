@@ -1,7 +1,7 @@
 var searchData=
 [
-  ['fill_5fage_5flength_5fkey_0',['fill_age_length_key',['../growth_8hpp.html#a98a9553b417f4427702bebf21aa315a7',1,'growth.hpp']]],
-  ['first_5fdifference_1',['first_difference',['../helper__functions_8hpp.html#ae118e56a848386e6498dd69e34701dc2',1,'helper_functions.hpp']]],
-  ['fishery_20components_20equations_2',['9. FISHERY COMPONENTS EQUATIONS                                          //',['..//home/runner/work/Rceattle/Rceattle/src/TMB/ceattle.cpp#autotoc_md8',1,'']]],
-  ['forms_3',['Selectivity forms',['../selectivity_8hpp.html#functional_forms',1,'']]]
+  ['end_20model_0',['15. END MODEL //',['..//home/runner/work/Rceattle/Rceattle/src/TMB/ceattle.cpp#autotoc_md14',1,'']]],
+  ['equations_1',['EQUATIONS',['..//home/runner/work/Rceattle/Rceattle/src/TMB/ceattle.cpp#autotoc_md9',1,'10. COMPOSITION EQUATIONS //'],['..//home/runner/work/Rceattle/Rceattle/src/TMB/ceattle.cpp#autotoc_md12',1,'13. LIKELIHOOD EQUATIONS'],['..//home/runner/work/Rceattle/Rceattle/src/TMB/ceattle.cpp#autotoc_md5',1,'6. POPULATION DYNAMICS EQUATIONS //'],['..//home/runner/work/Rceattle/Rceattle/src/TMB/ceattle.cpp#autotoc_md6',1,'7. MSVPA PREDATION MORTALITY EQUATIONS //'],['..//home/runner/work/Rceattle/Rceattle/src/TMB/ceattle.cpp#autotoc_md7',1,'8. INDEX COMPONENTS EQUATIONS //'],['..//home/runner/work/Rceattle/Rceattle/src/TMB/ceattle.cpp#autotoc_md8',1,'9. FISHERY COMPONENTS EQUATIONS //']]],
+  ['estimate_5fgrowth_2',['estimate_growth',['../growth_8hpp.html#a51b9eaf89069f579bd6d636dd249e1da',1,'growth.hpp']]],
+  ['estimate_5fgrowth_5fwithin_5fyr_3',['estimate_growth_within_yr',['../growth_8hpp.html#aba0fcdf30c929793bff18c40a7830300',1,'growth.hpp']]]
 ];

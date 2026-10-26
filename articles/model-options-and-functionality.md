@@ -207,7 +207,7 @@ scores a deviation where it defines a density for it:
 | `NonParametricPM` | `Off`, `RandomWalk`, its deviates *are* the walk increments, so `IID` would describe a different curve than the model builds |
 | `NonParametricIntegrable` | `Off`, `IID`, `RandomWalk`: the base curve holds the shape penalties and the deviations have a proper density, so `random_sel = TRUE` integrates them. `Off` estimates no deviations |
 | `Hake` | `Off`, `IID` |
-| `2DAR1`, `3DAR1` | none; the field has its own correlations and sd through `Sel_curve_pen` |
+| `2DAR1`, `3DAR1` | none; the field’s correlations come from `Sel_curve_pen`, and its conditional sd from `Time_varying_sel_sd`, which they always need |
 
 The two non-parametric modes differ in what they are a deviation *of*.
 `"IID"` scores each annual coefficient deviation about an estimated base
@@ -467,7 +467,7 @@ The `MVN` families read their Σ from `index_cov`, a VAST-derived
 covariance for instance, and pair with the AMAK arithmetic-mean q
 (`"AnalyticalArith"`).
 
-**A family’s scale is recorded in two places.** Adding one to
+**A family’s scale is recorded in three places.** Adding one to
 `index_distribution_map` is not enough: it must also be classified in
 `.index_rows_natural_scale()`, which is what
 `residuals(type = "pearson")`,
@@ -476,7 +476,10 @@ observation interval and
 [`plot_index_residual()`](https://afsc-assessments.github.io/Rceattle/reference/plot_index_residual.md)
 read. A natural-scale family that misses it does not error, it silently
 gets the log-scale formula, whose `σ²/2` term is then a number the size
-of the index squared.
+of the index squared. A family carrying a covariance matrix rather than
+a scalar sd goes in `.index_fleets_covariance()` as well, which is what
+those same three consumers read to take their sd from `index_cov`
+instead.
 
 Time-varying behavior is set by `Time_varying_q` (per fleet):
 

@@ -328,13 +328,14 @@ plot_comp(model_1)
 
 [`plot_index()`](https://afsc-assessments.github.io/Rceattle/reference/plot_index.md)
 shows observed vs. predicted survey biomass; pass `log = TRUE` for the
-log scale.
+log scale. The predicted line is the median of the fitted observation
+distribution, which is where the lognormal likelihood is centred, so
+about half the observations should fall below it.
 [`plot_index_residual()`](https://afsc-assessments.github.io/Rceattle/reference/plot_index_residual.md)
-plots the residuals as observed minus predicted, on whichever scale the
-fleet is fitted on (log for a `Lognormal` fleet, the natural scale for
-the others), a useful first check for time trends or heteroscedasticity.
-A positive residual means the survey saw more than the model predicted.
-These return `ggplot` objects.
+plots the Pearson residual – observed minus predicted, standardized by
+the sd the row was fitted with – a useful first check for time trends or
+heteroscedasticity. A positive residual means the survey saw more than
+the model predicted. These return `ggplot` objects.
 
 ``` r
 
@@ -1166,8 +1167,8 @@ likelihood while the components are the inner joint negative
 log-likelihood, so they will not sum; compare the shapes, not the sums.
 See
 [`?plot_profile`](https://afsc-assessments.github.io/Rceattle/reference/plot_profile.md)
-for `relative`, `minfraction`, model overlays, and what
-`weighted = FALSE` does and does not include.
+for `relative`, `minfraction`, model overlays, and which components
+`weighted = FALSE` changes.
 
 ## Comparing runs
 

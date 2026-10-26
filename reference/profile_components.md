@@ -89,13 +89,13 @@ it.
 
 **Weighted or unweighted components** (`weighted`). Conflict is normally
 read off the weighted components, since those are what moved the fit.
-`unweighted_jnll_comp` exists so Francis and McAllister-Ianelli can read
-a composition likelihood without its `Comp_weights` multiplier, so only
-the rows carrying such a multiplier are filled – composition, CAAL,
-stomach content and the two linkage rows. Every other row is zero there
-and is dropped as unfitted, so `weighted = FALSE` returns a much smaller
-set: the index, catch, selectivity, catchability and penalty components
-are absent, not flat.
+`unweighted_jnll_comp` scores the composition, CAAL and stomach-content
+rows without their data weights (`Comp_weights`, `CAAL_weights`,
+`Diet_comp_weights`); every other row equals `jnll_comp`, so
+`weighted = FALSE` changes only those three components. A
+Dirichlet-multinomial row is scored at theta = 1, an effective sample
+size of about (1 + N)/2 rather than N, so it is not comparable with a
+multinomial row.
 
 **Placing each series on the y axis** (`relative`).
 
@@ -150,7 +150,7 @@ prof <- profile(ss_run, param = "M1", slots = list(c(1, 1, 1)),
 comps <- profile_components(prof)
 head(comps)
 #>   slot_1 fit component unit  axis series     value
-#> 1   0.20   1     Total <NA> model  Total 28.479708
+#> 1   0.20   1     Total <NA> model  Total 28.479709
 #> 2   0.25   2     Total <NA> model  Total 23.399627
 #> 3   0.30   3     Total <NA> model  Total 18.451669
 #> 4   0.35   4     Total <NA> model  Total 13.636791

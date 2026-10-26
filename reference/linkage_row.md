@@ -1,8 +1,7 @@
 # Build a single linkage row
 
-Convenience constructor that returns a one-row linkage table with
-default values for optional columns. Useful in tests and for incremental
-table assembly.
+Returns a one-row linkage table with defaults for the optional columns,
+for tests and for assembling a table row by row.
 
 ## Usage
 
@@ -54,9 +53,8 @@ linkage_row(
 
 - species, sex, age_bin, fleet:
 
-  stratum ids; `NA` = shared across the dimension. `fleet` is a 1-based
-  `Fleet_code`, used by catchability and selectivity linkages; the
-  process-level linkages leave it `NA`.
+  stratum ids, `NA` = every level; `fleet` is a 1-based `Fleet_code`,
+  used by catchability, selectivity and composition-weight linkages.
 
 - design_col:
 
@@ -70,6 +68,10 @@ linkage_row(
 - init:
 
   initial value (default `0`).
+
+- init_supplied:
+
+  `TRUE` if the user supplied `init` (default `FALSE`).
 
 - lower, upper:
 
@@ -101,51 +103,43 @@ linkage_row(
 
 - re_index, sigma_index, re_time:
 
-  random-effect registry fields filled by `pool_linkages()`; `NA` on
-  fixed rows. `re_index` is the 0-based slot in `beta_linkage_re`,
-  `sigma_index` the 0-based slot in `log_sigma_linkage`, and `re_time`
-  the numeric grouping value used to order `rw()`/`ar1()` deviations in
-  real elapsed time.
+  random-effect fields filled by `pool_linkages()` (deviation slot, SD
+  slot, time order); `NA` on fixed rows.
 
 - re_sigma_init, re_sigma_prior_family, re_sigma_prior_p1,
   re_sigma_prior_p2:
 
-  per-group RE-SD routing from
-  `linkage_spec(init = list(sigma = ), priors = list(sigma = ))`;
-  identical across a group's rows, `NA` on fixed rows. `re_sigma_init`
-  is the start (or, when supplied without a prior, fixed) SD on the
-  natural scale; the prior triple places a prior on that SD.
+  the group's natural-scale SD start value (held fixed if given without
+  a prior) and prior, from `linkage_spec(init = , priors = )`; `NA` on
+  fixed rows.
 
 - re_rho_init, re_rho_prior_family, re_rho_prior_p1, re_rho_prior_p2:
 
-  per-group `ar1` correlation routing from
-  `linkage_spec(init = list(rho = ), priors = list(rho = ))`; natural
-  `(-1, 1)` scale, `NA` on non-`ar1` rows.
+  the `ar1` group's correlation on `(-1, 1)`, start value (held fixed if
+  given without a prior) and prior, from
+  [`linkage_spec()`](https://afsc-assessments.github.io/Rceattle/reference/linkage_spec.md);
+  `NA` otherwise.
 
 - re_obs_value, re_obs_sd:
 
-  state-space (Rogers QAR1) observation from
-  `linkage_spec(observe = , obs_sd = )`: the observed covariate value at
-  this row's time and the fixed measurement SD. `NA` when the group is
-  unobserved.
+  the Rogers QAR1 observed covariate value and measurement SD, from
+  `linkage_spec(observe = , obs_sd = )`; `NA` when unobserved.
 
 - re_obs_est:
 
-  `TRUE` to estimate the QAR1 measurement SD; `FALSE`/`NA` holds it
-  fixed.
+  `TRUE` to estimate the QAR1 measurement SD
+  (`linkage_spec(obs_sd_est = )`); `FALSE`/`NA` holds it fixed.
 
 - re_integrate:
 
-  `FALSE` when the deviations are estimated as a penalized fixed effect
-  rather than integrated out by the Laplace approximation, from
-  `linkage_spec(integrate = FALSE)`. `TRUE`/`NA` = integrated.
+  `FALSE` for a penalized fixed effect rather than a Laplace-integrated
+  random effect, from `linkage_spec(integrate = )`; `TRUE`/`NA` =
+  integrated.
 
 - re_pos:
 
-  0-based position of this row's deviation within the parameter vector
-  that holds it (`beta_linkage_re` when `re_integrate`, else
-  `beta_linkage_re_pen`). Distinct from `re_index`, which is the global
-  slot.
+  0-based position of the deviation within `beta_linkage_re` or
+  `beta_linkage_re_pen`, whichever holds it.
 
 ## Value
 
