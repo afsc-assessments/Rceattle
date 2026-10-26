@@ -38,7 +38,7 @@ LINKAGE_COLS <- c(
   prior_family  = "character",  # "none" or one of PRIOR_FAMILIES
   prior_p1      = "numeric",    # family param 1 (mean/meanlog/shape/shape1)
   prior_p2      = "numeric",    # family param 2 (sd/sdlog/rate/shape2)
-  re_group      = "character",  # random-effect group name (NA = fixed)
+  re_group      = "character",  # grouping variable of the random term (NA = fixed)
   re_struct     = "character",  # covariance structure (us/rw/ar1/...; NA = fixed)
   est_phase     = "integer",    # phase ordinal; 0 = fixed
   # Random effects, filled by pool_linkages(); NA on fixed rows.

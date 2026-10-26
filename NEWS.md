@@ -12,6 +12,17 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.65.5
+
+## Internal
+
+* **`materialize_linkage()` reads as its steps.** The 352-line function that
+  turns a `linkage_spec()` into linkage-table rows is now 64 lines over eight
+  helpers: the design matrix, the init / bounds / priors keys, the `observe`
+  checks, the strata, and the rows with their random-effect fields. The blocks
+  were moved, not rewritten; no output, error or package message changes (R's
+  own coercion warnings, from malformed input, now name the helper as their call).
+
 # Rceattle 5.65.4
 
 ## Internal
