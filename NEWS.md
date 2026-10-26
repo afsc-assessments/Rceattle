@@ -19,8 +19,9 @@ version throughout.
 * **The linkage accumulators take one table, not eight parallel vectors.**
   `linkage.hpp`'s five `rceattle_apply_*_linkages()` functions read a
   `LinkageTable` (process, parameter, strata, design column, link, design matrix
-  and coefficients), so each call in `ceattle.cpp` fits on one line and no
-  function carries arguments it ignores. No number moves.
+  and coefficients), so nine of the eleven calls in `ceattle.cpp` fit on one
+  line (the two selectivity calls take three) and no function carries arguments
+  it ignores. No number moves.
 
 # Rceattle 5.65.2
 
