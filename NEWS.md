@@ -22,8 +22,9 @@ version throughout.
   random-effect density, the offset calls and the prior lookup in
   `ceattle.cpp` read those names instead of bare numbers.
   `test-linkage-encode.R` checks each definition's value against R, and that
-  every selectivity and composition code has a consume site in code, not a
-  comment. No number moves.
+  every selectivity and composition code has a consume site outside a `//`
+  comment. The linkage vignette now says `strata$age_bin` is a bin index
+  (age - minage + 1), as `fit_mod()` supplies it. No number moves.
 
 # Rceattle 5.65.3
 

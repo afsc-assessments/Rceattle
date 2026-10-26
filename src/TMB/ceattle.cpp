@@ -4478,12 +4478,14 @@ Type objective_function<Type>::operator() () {
         if (param == RCEATTLE_SEL_SLP_ASC || param == RCEATTLE_SEL_SLP_DESC) {
           b = log_sel_slp(param - RCEATTLE_SEL_SLP_ASC, fl_idx, sx_idx);   // log slope
         } else if (param == RCEATTLE_SEL_INF_ASC || param == RCEATTLE_SEL_INF_DESC) {
-          b = sel_inf(param - RCEATTLE_SEL_INF_ASC, fl_idx, sx_idx);       // as stored: inflection, DN peak/logit floor, LogisticPM log first-bin
+          // As stored: an inflection, DoubleNormal's peak or logit floor, or LogisticPM's
+          // log first-bin selectivity.
+          b = sel_inf(param - RCEATTLE_SEL_INF_ASC, fl_idx, sx_idx);
           base_is_log = false;
         } else if (param == RCEATTLE_SEL_APICAL) {
           b = log_sel_apical(fl_idx, sx_idx);             // log apical multiplier; 0 = a multiplier of 1
         } else if (param >= RCEATTLE_SEL_DN_PEAK && param <= RCEATTLE_SEL_END_LOGIT) {
-          // DoubleNormalSS3, on SS3's own scale (peak in age or cm, log widths, logits),
+          // DoubleNormalSS3, on SS3's own scale (peak in bins or cm, log widths, logits),
           // where an SS3 control file puts its priors.
           b = sel_dn6(param - RCEATTLE_SEL_DN_PEAK, fl_idx, sx_idx);
           base_is_log = false;

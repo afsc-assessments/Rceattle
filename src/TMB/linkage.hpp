@@ -58,7 +58,7 @@
 #define RCEATTLE_SEL_INF_DESC     3   // sel_inf, descending (DoubleNormal logit floor; LogisticPM log first-bin)
 #define RCEATTLE_SEL_COFF         4   // sel_coff, every bin; refused in R, so its offset stays 0
 #define RCEATTLE_SEL_APICAL       5   // log_sel_apical, the per-sex multiplier
-#define RCEATTLE_SEL_DN_PEAK      6   // DoubleNormalSS3 P1, peak (age or cm, per Selectivity_dimension)
+#define RCEATTLE_SEL_DN_PEAK      6   // DoubleNormalSS3 P1, peak (bin number age - minage + 1, or cm)
 #define RCEATTLE_SEL_TOP_LOGIT    7   // P2, top width (logit)
 #define RCEATTLE_SEL_ASCEND_SE    8   // P3, ascending width (log)
 #define RCEATTLE_SEL_DESCEND_SE   9   // P4, descending width (log)
