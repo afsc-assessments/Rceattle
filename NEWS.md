@@ -16,16 +16,22 @@ version throughout.
 
 ## Bug fixes
 
-* **A selectivity prior on a covariate coefficient of an `Off` fleet is refused
-  again, as 5.64.0 refused it and 5.64.5 meant to keep.** 5.64.5 dropped the
-  check that refused every selectivity prior on an `Off` fleet and replaced it
-  with a drop for intercept priors, so a prior on a slope row was accepted
-  silently from 5.64.5 to 5.66.0 (never released). With no data on that fleet,
-  the prior alone sets the coefficient and adds a per-run constant to the
-  objective, the drop-one incomparability 5.64.5 set out to remove. Remove the
-  linkage from the `Off` fleet. Unlike 5.64.0, a row with no fleet (it reaches
-  every fleet, live ones included) builds, and a fleet sharing a
-  `Selectivity_index` gets the shared-block refusal naming its lead.
+* **Turning a fleet `Off` no longer leaves a free selectivity coefficient or a
+  scored prior.** A selectivity linkage on a fleet whose `Fleet_type` is `Off`
+  now has its covariate coefficients held at their starting values, as that
+  fleet's base selectivity parameters already were, and a prior on one is
+  dropped with the same warning 5.64.5 gives an intercept prior. Before, the
+  coefficient was estimated with no data: free and flat with no prior, so the
+  Hessian was not positive definite, or set by its prior alone, adding a per-run
+  constant that made a drop-one-survey series' objectives incomparable. So a
+  linkage and its prior can stay in the spec while a fleet is switched off. A
+  row with no fleet (it reaches the live fleets) stays estimated, and an `Off`
+  fleet sharing a `Selectivity_index` stays tied to its lead's coefficient
+  where the lead has one. **Fits with a selectivity linkage on an `Off` fleet
+  move** by that prior's constant and lose the flat parameter; no other fit
+  changes. Not covered yet: a random-effect selectivity linkage or a
+  catchability linkage on an `Off` fleet, and a prior on a shared block's lead
+  when that lead is switched off, which is still refused.
 
 ## Documentation
 

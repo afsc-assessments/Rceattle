@@ -87,9 +87,9 @@ SEL_LINKAGE_PARAMS <- c("slp_asc", "slp_desc", "inf_asc", "inf_desc", "coff",
 #' prior on the double-normal `right_floor` is unsupported. Fleets sharing a
 #' `Selectivity_index` estimate one block, so place the prior on the group's
 #' lead fleet (its first that is not `Off`): a prior on a follower would
-#' penalize the shared block once per sharing fleet. On an `Off` fleet an
-#' intercept prior is dropped with a warning, its selectivity not being
-#' estimated, and a prior on a covariate coefficient is refused.
+#' penalize the shared block once per sharing fleet. On an `Off` fleet a prior
+#' is dropped with a warning and the fleet's linkage coefficients are held at
+#' their starting values, since the fleet has no data.
 #'
 #' Like every selectivity linkage, a covariate acts in the hindcast years;
 #' projection years hold the last hindcast year's curve.
@@ -306,26 +306,8 @@ build_selectivity <- function(linkages = NULL) {
 
     prior_flt <- unique(vapply(prior_rows$fleet, row_flt, integer(1)))
 
-    # (b) A pinned-intercept prior on an "Off" fleet is dropped before this
-    # runs, by .drop_off_fleet_sel_priors() in fit_mod(). A covariate
-    # coefficient on one unshared Off fleet has no data, so its prior alone
-    # would set it. A row with no fleet reaches every fleet, and a shared block
-    # is left to (c).
-    slope_rows <- prior_rows[!.is_pinned_intercept(prior_rows) &
-                               !is.na(prior_rows$fleet), , drop = FALSE]
-    off_flt <- unique(as.integer(slope_rows$fleet))
-    off_flt <- off_flt[vapply(off_flt, function(f)
-      identical(.canon_switch(fleet_control$Fleet_type[f], fleet_map), "Off") &&
-        is.na(.shared_block_lead(list(fleet_control = fleet_control), f, "sel")),
-      logical(1))]
-    if (length(off_flt) > 0L) {
-      stop(sprintf(paste0(
-        "selectivity prior on a covariate coefficient of fleet(s) %s with ",
-        "Fleet_type = \"Off\": the fleet has no data, so the prior alone would set ",
-        "the coefficient and add a constant to the objective. Remove the ",
-        "linkage from this fleet."),
-        paste(fleet_control$Fleet_name[off_flt], collapse = ", ")), call. = FALSE)
-    }
+    # (b) A prior on an unshared "Off" fleet is dropped before this runs, by
+    # .drop_off_fleet_sel_priors() in fit_mod().
 
     # (c) Fleets sharing a Selectivity_index estimate one parameter block, so a
     # prior on a follower penalizes that block once per sharing fleet.
@@ -383,19 +365,17 @@ build_selectivity <- function(linkages = NULL) {
 
 #' Drop a selectivity prior that lands on an `Off` fleet
 #'
-#' A pinned intercept prior on an `Off` fleet re-targets to a base selectivity
-#' parameter that fleet does not estimate, so it constrains nothing -- but it is
-#' still scored (`ceattle.cpp`'s `beta_linkage` prior loop skips only family 0),
-#' adding a constant that differs per run across a drop-one-survey series.
+#' An `Off` fleet has no data, so its base selectivity parameters and its
+#' linkage coefficients are held fixed (`build_map_linkages()`), and a prior on
+#' either would only add a constant that differs per run across a
+#' drop-one-survey series (`ceattle.cpp`'s prior loop skips only family 0).
 #' Dropped rather than refused: turning a survey off is an ordinary sensitivity
 #' that reuses one prior spec.
 #'
-#' Three kinds of row are deliberately left alone, because the prior is live or
-#' the refusal is the better answer: a slope row, whose `beta_linkage`
-#' coefficient is estimated rather than re-targeted; `apical`, which
-#' `.check_sel_apical_rows()` refuses on an `Off` fleet; and a fleet sharing a
-#' `Selectivity_index`, where `adjust_map_shared_params()` can leave the block
-#' estimated even on an `Off` member, so check (c) names the lead to move to.
+#' Two kinds of row are left alone: `apical`, which `.check_sel_apical_rows()`
+#' refuses on an `Off` fleet; and a fleet sharing a `Selectivity_index`, whose
+#' block can be estimated through the lead, so check (c) names the lead. A slope
+#' row with no fleet reaches every fleet and is not dropped.
 #'
 #' @param linkage_table the `data_list` linkage table.
 #' @param fleet_control the `data_list` fleet control.
@@ -406,30 +386,21 @@ build_selectivity <- function(linkages = NULL) {
 #' @noRd
 .drop_off_fleet_sel_priors <- function(linkage_table, fleet_control, verbose = 1) {
   if (is.null(linkage_table) || !nrow(linkage_table)) return(linkage_table)
-  if (is.null(fleet_control) || !"Fleet_type" %in% colnames(fleet_control)) {
-    return(linkage_table)
-  }
   has_prior <- linkage_table$process == "sel" &
     !is.na(linkage_table$prior_family) & linkage_table$prior_family != "none" &
-    .is_pinned_intercept(linkage_table) &
     linkage_table$param != "apical"
   if (!any(has_prior)) return(linkage_table)
-  # An NA fleet is cell 1, the template's default, matching row_flt() in
-  # .check_sel_linkage_support().
-  flt <- ifelse(is.na(linkage_table$fleet), 1L, as.integer(linkage_table$fleet))
-  type <- .canon_switch(fleet_control$Fleet_type, fleet_map)
-  in_range <- flt >= 1L & flt <= length(type)
-  shared <- in_range & vapply(flt, function(f) {
-    if (is.na(f) || f < 1L || f > nrow(fleet_control)) return(FALSE)
-    !is.na(.shared_block_lead(list(fleet_control = fleet_control), f, "sel"))
-  }, logical(1))
-  is_off <- has_prior & in_range & type[flt] == "Off" & !shared
+  # An intercept prior re-targets one cell, cell 1 when the row names no fleet
+  # (the template's default); a slope row with no fleet reaches every fleet.
+  icpt <- .is_pinned_intercept(linkage_table)
+  flt <- ifelse(is.na(linkage_table$fleet) & icpt, 1L, as.integer(linkage_table$fleet))
+  is_off <- has_prior & .off_sel_fleet(flt, fleet_control)
   if (!any(is_off)) return(linkage_table)
   if (verbose > 0) {
     warning(sprintf(paste0(
-      "selectivity prior on fleet(s) %s with Fleet_type = \"Off\": that base ",
-      "parameter is held at its starting value here, so the prior constrains ",
-      "nothing and is dropped."),
+      "selectivity prior on fleet(s) %s with Fleet_type = \"Off\": that fleet has ",
+      "no data, so its selectivity is held at its starting values and the prior ",
+      "is dropped."),
       paste(unique(fleet_control$Fleet_name[flt[is_off]]), collapse = ", ")),
       call. = FALSE)
   }
@@ -437,6 +408,20 @@ build_selectivity <- function(linkages = NULL) {
   linkage_table$prior_p1[is_off] <- NA_real_
   linkage_table$prior_p2[is_off] <- NA_real_
   linkage_table
+}
+
+
+# TRUE for each fleet index that is an "Off" fleet, outside any shared
+# Selectivity_index block unless `shared`; NA or out-of-range indices are FALSE.
+.off_sel_fleet <- function(flt, fleet_control, shared = FALSE) {
+  if (is.null(fleet_control) || !"Fleet_type" %in% colnames(fleet_control)) {
+    return(rep(FALSE, length(flt)))
+  }
+  type <- .canon_switch(fleet_control$Fleet_type, fleet_map)
+  vapply(flt, function(f) {
+    !is.na(f) && f >= 1L && f <= length(type) && type[f] == "Off" &&
+      (shared || is.na(.shared_block_lead(list(fleet_control = fleet_control), f, "sel")))
+  }, logical(1))
 }
 
 

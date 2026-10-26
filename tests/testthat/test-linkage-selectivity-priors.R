@@ -216,10 +216,10 @@ testthat::test_that("a selectivity prior on an Off fleet is dropped, not refused
 })
 
 
-# The three rows the drop deliberately leaves alone. Each is a case where
-# Fleet_type = "Off" does NOT mean the prior is inert, so dropping it would
-# silently discard a live prior or hide a refusal that names the real fix.
-testthat::test_that("the Off-fleet drop spares slope, apical and shared rows", {
+# Which rows the drop takes. A prior on an unshared Off fleet is inert, so it is
+# dropped; apical (refused on its own) and a shared block (whose lead can carry
+# data) are left to the checks that name the fix.
+testthat::test_that("the Off-fleet drop takes slope rows and spares apical and shared rows", {
   testthat::skip_on_cran()
 
   e <- new.env(parent = asNamespace("Rceattle"))
@@ -238,10 +238,12 @@ testthat::test_that("the Off-fleet drop spares slope, apical and shared rows", {
   drop <- function(x) suppressWarnings(
     Rceattle:::.drop_off_fleet_sel_priors(x, fc, verbose = 0))
 
-  # A slope row's coefficient is ESTIMATED, not re-targeted, so the drop spares
-  # it; .check_sel_linkage_support() then refuses it on an unshared Off fleet.
+  # A slope row's coefficient is held fixed on an Off fleet (build_map_linkages()),
+  # so its prior is dropped too; with no fleet it reaches live fleets and stays.
   slope <- tbl("inf_asc", "cold_pool")
-  testthat::expect_equal(drop(slope)$prior_family, "normal")
+  testthat::expect_equal(drop(slope)$prior_family, "none")
+  slope_all <- slope; slope_all$fleet <- NA_integer_
+  testthat::expect_equal(drop(slope_all)$prior_family, "normal")
 
   # apical is refused by .check_sel_apical_rows() on an Off fleet; dropping it
   # first would warn that it had been handled and then error anyway.
@@ -249,7 +251,7 @@ testthat::test_that("the Off-fleet drop spares slope, apical and shared rows", {
                          "normal")
 
   # A pinned intercept on an unshared Off fleet IS inert -- the positive
-  # control, so the three negatives above cannot pass by the drop doing nothing.
+  # control, so the negatives here cannot pass by the drop doing nothing.
   testthat::expect_equal(drop(tbl("inf_asc", "(Intercept)"))$prior_family, "none")
 
   # Sharing a Selectivity_index can leave the block estimated on an Off member,
@@ -262,9 +264,9 @@ testthat::test_that("the Off-fleet drop spares slope, apical and shared rows", {
 })
 
 
-# The slope row the drop spares is then refused, as 5.64.0 refused every
-# Off-fleet prior: with no data the prior alone sets the coefficient.
-testthat::test_that("a covariate-coefficient prior on an Off fleet is refused", {
+# An Off fleet has no data, so a coefficient there would be flat, or set by its
+# prior alone; it is held at its start instead, and the model still runs.
+testthat::test_that("an Off fleet's covariate coefficient is held and its prior dropped", {
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("TMB")
 
@@ -279,22 +281,37 @@ testthat::test_that("a covariate-coefficient prior on an Off fleet is refused", 
     inf_asc = Rceattle::linkage_spec(~ Index1, fleet = as.integer(code),
                                      priors = list(Index1 = normal(0, 0.5)))))
 
-  testthat::expect_error(.fit3_data(sel, srv_off), "covariate coefficient")
-  # The same prior on the live fleet builds, so the refusal is the Off fleet's.
-  testthat::expect_false(is.null(suppressWarnings(.fit3_data(sel, identity))$obj))
+  slope_map <- function(fit) {
+    lt <- fit$data_list$linkage_table
+    as.character(fit$map$mapList$beta_linkage)[lt$design_col == "Index1"]
+  }
+  # Off: the model builds, the prior is dropped with a warning and scores
+  # nothing, and the coefficient is held (no flat direction).
+  testthat::expect_warning(off <- .fit3_data(sel, srv_off), "is dropped")
+  testthat::expect_equal(sum(off$quantities$jnll_comp["Linkage-table priors", ]), 0)
+  testthat::expect_true(is.na(slope_map(off)))
+  # Live: the coefficient is estimated and the prior scored.
+  live <- suppressWarnings(.fit3_data(sel, identity))
+  testthat::expect_false(is.na(slope_map(live)))
+  testthat::expect_gt(sum(live$quantities$jnll_comp["Linkage-table priors", ]), 0)
 
-  # A row with no fleet reaches the live fleets too, so it has data and builds.
+  # A row with no fleet reaches the live fleets too, so it stays estimated.
   every <- Rceattle::build_selectivity(linkages = list(
     inf_asc = Rceattle::linkage_spec(~ Index1, by = NULL,
                                      priors = list(Index1 = normal(0, 0.5)))))
-  testthat::expect_false(is.null(suppressWarnings(.fit3_data(every, srv_off))$obj))
+  testthat::expect_false(is.na(slope_map(suppressWarnings(.fit3_data(every, srv_off)))))
 
   # In a shared block the Off follower's coefficient is tied to the lead, so the
-  # shared-block check (c) answers, naming the lead, not this refusal.
+  # shared-block check (c) answers, naming the lead.
   shared_off <- function(d) {
     d <- srv_off(d)
     d$fleet_control$Selectivity_index <- 1L
     d
   }
   testthat::expect_error(.fit3_data(sel, shared_off), "lead")
+  # Without a prior, an Off follower whose lead has no row is held too, rather
+  # than left free and flat.
+  no_prior <- Rceattle::build_selectivity(linkages = list(
+    inf_asc = Rceattle::linkage_spec(~ Index1, fleet = as.integer(code))))
+  testthat::expect_true(is.na(slope_map(suppressWarnings(.fit3_data(no_prior, shared_off)))))
 })
