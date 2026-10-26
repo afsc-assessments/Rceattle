@@ -252,18 +252,40 @@ Type objective_function<Type>::operator() () {
   DATA_MATRIX(mat_len_pars);     // Maturity-at-length [sp, 2]: L50 (cm), logistic slope (per cm)
   DATA_VECTOR(growth_age_L1); // VB anchor age (= SS3 Growth_Age_for_L1) per sp; defaults to max(0.5, minage[sp]) in R-side fit_mod()
 
-  // -- 2.3b. Long-format linkage table (see R/0-linkage_encode.R). Each row is one
-  //          estimated coefficient connecting a process parameter (growth/M/recruit/...)
-  //          to a column of the shared design matrix `linkage_X`. Empty when no
-  //          build_*() supplied a `linkages` argument.
-  DATA_IVECTOR(linkage_process);       // process code (recruitment = 0, M = 1, growth = 2, q = 3, sel = 4)
+  // -- 2.3b. Linkage table (R/0-linkage_encode.R): covariate and year effects on a
+  //          process parameter p in one stratum (species, sex, age bin, fleet; 0 = all).
+  //          Row i adds beta_i * x_i(y), with x_i(y) = linkage_X(y, linkage_X_col(i)) its
+  //          design column in model year y (row 0 = styr; offset 0 past the last row).
+  //          With S_log, S_id and S_exp the sums of beta_i * x_i(y) over p's log-,
+  //          identity- and exponential-link rows, and p's own deviates (log_M1_dev,
+  //          index_q_dev, sel_inf_dev, log_sel_slp_dev) still applied:
+  //            most parameters:        p_y = exp(log p + S_log) + S_id
+  //            sel_inf, DoubleNormalSS3 P1-P6:  p_y = (p + S_id) * exp(S_log), stored scale
+  //            catchability (5.3):     q_y = exp((log q + S_log) * exp(S_exp) + index_q_dev) + S_id
+  //          (Intercept) rows are held at 0, so p carries the level, except R_init's,
+  //          which is estimated: a log multiplier on the initial age structure, not on
+  //          year-1 recruitment (6.4). Composition and growth-sd rows add no offset;
+  //          an (Intercept)'s init, bounds and prior go to the base parameter.
+  //          Terms used below:
+  //            row    one beta_i; fixed-effect rows read beta_linkage.
+  //            slot   one random-effect deviation, e.g. one year of (1 | Year) in one
+  //                   stratum; its row's beta is beta_linkage_re_all(slot) (5.2b), times
+  //                   beta_linkage_obs if observed.
+  //            position  where a slot sits in beta_linkage_re (integrated) or
+  //                   beta_linkage_re_pen (penalized): linkage_re_slot.
+  //            group  the slots of one random term (re_group, e.g. Year, and structure)
+  //                   on one parameter and stratum: one sd, log_sigma_linkage, and one
+  //                   structure, IID, random walk or AR1. An observed AR1 is QAR1 (Rogers
+  //                   et al. 2024), its latent also fitted to an env_data series.
+  //          Empty when no build_*() supplied `linkages`.
+  DATA_IVECTOR(linkage_process);       // process code (recruitment = 0, M = 1, growth = 2, q = 3, sel = 4, comp = 5)
   DATA_IVECTOR(linkage_param);         // per-process parameter code
   DATA_IVECTOR(linkage_species);       // 1-based sp id; 0 = all
   DATA_IVECTOR(linkage_sex);           // 1-based sex id; 0 = all
-  DATA_IVECTOR(linkage_age_bin);       // 1-based age id; 0 = all
+  DATA_IVECTOR(linkage_age_bin);       // 1-based age bin, age - minage + 1; 0 = all
   DATA_IVECTOR(linkage_fleet);         // 1-based Fleet_code; 0 = all
   DATA_IVECTOR(linkage_X_col);         // 0-based column of linkage_X
-  DATA_IVECTOR(linkage_link);          // identity=0, log=1, logit=2
+  DATA_IVECTOR(linkage_link);          // identity 0, log 1, logit 2 (refused), exponential 3 (q)
   // Only an identity-link recruitment offset can make the curve non-positive, so
   // the recruitment floors (sections 6.3, 6.5, 6.6 and 6.9) run only then; every
   // other model's AD tape is left exactly as it was.
@@ -271,28 +293,31 @@ Type objective_function<Type>::operator() () {
   for (int i = 0; i < linkage_link.size(); ++i) {
     if (linkage_process(i) == RCEATTLE_PROC_RECRUIT && linkage_link(i) == 0) rec_floor_on = 1;
   }
-  DATA_IVECTOR(linkage_re_index);      // -1 = fixed row; else 0-based slot in beta_linkage_re
-  DATA_IVECTOR(linkage_re_sigma);      // per RE slot: its 0-based log_sigma_linkage group
-  DATA_IVECTOR(linkage_re_integrate);  // per RE slot: 1 = Laplace-integrated, 0 = penalized
-  DATA_IVECTOR(linkage_re_slot);       // per RE slot: 0-based position within its own parameter vector
-  DATA_IVECTOR(linkage_re_struct);     // per RE group: covariance structure (0=us/IID, 1=rw, 2=ar1)
-  DATA_IVECTOR(linkage_re_rho);        // per RE group: 0-based slot in trans_rho_linkage (ar1 only; -1 otherwise)
+  DATA_IVECTOR(linkage_re_index);      // per row: -1 = fixed; else its 0-based slot in beta_linkage_re_all
+  // linkage_re_sigma, _rho and _obs give positions in log_sigma_linkage, trans_rho_linkage
+  // and beta_linkage_obs; one sd per group, so linkage_re_sigma is the slot's group.
+  DATA_IVECTOR(linkage_re_sigma);      // per RE slot: its 0-based group (an index, not an sd)
+  DATA_IVECTOR(linkage_re_integrate);  // per RE slot: 1 = integrated out (Laplace), 0 = penalized
+  DATA_IVECTOR(linkage_re_slot);       // per RE slot: its position (2.3b)
+  DATA_IVECTOR(linkage_re_struct);     // per RE group: 0 = IID, a plain (1 | Year); 1 = random walk; 2 = AR1
+  DATA_IVECTOR(linkage_re_rho);        // per RE group: 0-based position in trans_rho_linkage (ar1 only; -1 otherwise)
   DATA_IVECTOR(linkage_re_sigma_prior_family); // per RE group: prior on the SD (0=none,1=normal,2=lognormal,3=gamma,4=beta)
   DATA_IVECTOR(linkage_re_rho_prior_family);   // per RE group: prior on rho (natural (-1,1) scale)
   DATA_VECTOR(linkage_re_rho_prior_p1);        // per RE group: rho prior param 1
   DATA_VECTOR(linkage_re_rho_prior_p2);        // per RE group: rho prior param 2
-  DATA_IVECTOR(linkage_re_obs);        // per RE group: 0-based slot in beta_linkage_obs (Rogers QAR1 observed ar1; -1 otherwise)
-  DATA_VECTOR(linkage_re_obs_sd);      // per RE group: fixed measurement SD (0 if unobserved)
-  DATA_VECTOR(linkage_re_obs_value);   // per beta_linkage_re slot: observed covariate value (0 if unobserved)
-  DATA_IVECTOR(linkage_re_obs_mask);   // per beta_linkage_re slot: 1 if the covariate is observed that year, 0 otherwise
-  DATA_IVECTOR(linkage_re_obsvec_idx); // per beta_linkage_re slot: 0-based obsvec position for OSA (-1 if unobserved / not built)
+  DATA_IVECTOR(linkage_re_obs);        // per RE group: 0-based position in beta_linkage_obs (Rogers QAR1 observed ar1; -1 otherwise)
+  // linkage_re_obs_sd is unread here; log_obs_sd_linkage starts at its log.
+  DATA_VECTOR(linkage_re_obs_sd);      // per RE group: the obs_sd supplied (0 if unobserved)
+  DATA_VECTOR(linkage_re_obs_value);   // per RE slot: observed covariate value (0 if unobserved)
+  DATA_IVECTOR(linkage_re_obs_mask);   // per RE slot: 1 if the covariate is observed that year, 0 otherwise
+  DATA_IVECTOR(linkage_re_obsvec_idx); // per RE slot: 0-based obsvec position for OSA (-1 if unobserved / not built)
   DATA_VECTOR(linkage_re_sigma_prior_p1);      // per RE group: prior param 1
   DATA_VECTOR(linkage_re_sigma_prior_p2);      // per RE group: prior param 2
   DATA_IVECTOR(linkage_is_intercept);  // 1 if design_col == "(Intercept)", 0 otherwise
   DATA_IVECTOR(linkage_prior_family);  // none=0, normal=1, lognormal=2, gamma=3, beta=4
   DATA_VECTOR(linkage_prior_p1);       // family-specific prior param 1
   DATA_VECTOR(linkage_prior_p2);       // family-specific prior param 2
-  DATA_MATRIX(linkage_X);              // dense design matrix [nyrs, n_design_cols]
+  DATA_MATRIX(linkage_X);              // design matrix [model year from styr, design column]
 
   // -- 2.4. Fleet controls (i.e. how to assign data to objects)
   DATA_IVECTOR(flt_type);                 // Fleet_type: 0 = Off, 1 = Fishery, 2 = Survey (NOT a boolean)
@@ -464,24 +489,20 @@ Type objective_function<Type>::operator() () {
   PARAMETER_ARRAY(growth_log_sd);                  // Log standard deviation of length-at- min and max age [sp, sex, 2]
   PARAMETER_MATRIX(weight_length_pars);           // Length-weight parameters [sp, (alpha, beta)]
 
-  // -- 3.3b. Linkage-table coefficients (see linkage.hpp). Aligned row-for-row with the
+  // -- 3.3b. Linkage-table coefficients (see section 2.3b). Aligned row-for-row with the
   //          linkage_* DATA vectors above. May be length 0 (no linkages supplied).
   PARAMETER_VECTOR(beta_linkage);
 
   // Random-effect linkage coefficients and their hyperparameters. All length 0 unless a
   // `~ (1|group)` / rw() / ar1() linkage was supplied; when present, beta_linkage_re
-  // enters the Laplace approximation (added to random=) and its density goes to jnll_comp
-  // row 20.
+  // enters the Laplace approximation (added to random=) and its density goes to
+  // JNLL_LINKAGE_RE (13.14).
   PARAMETER_VECTOR(beta_linkage_re);     // RE deviation coefficients (Laplace-integrated)
-  // Penalized RE deviations: same row-20 density as beta_linkage_re, but NOT in the
-  // `random` set, so the density acts as a plain penalty instead of being integrated out.
-  // Two vectors rather than one flag because TMB selects random effects by parameter
-  // NAME, and one model may mix both. Permitted only with a fixed SD -- estimating
-  // deviations and their SD jointly as fixed effects is degenerate (see
-  // .re_group_table()).
+  // Penalized RE deviations: same density, outside `random` (TMB picks random effects by
+  // name). Fixed SD (and AR1 rho) only; see the vignette, "Integrated or penalized".
   PARAMETER_VECTOR(beta_linkage_re_pen);
   PARAMETER_VECTOR(log_sigma_linkage);   // one log-SD per RE group
-  PARAMETER_VECTOR(trans_rho_linkage);   // one transformed rho per AR1 group
+  PARAMETER_VECTOR(trans_rho_linkage);   // one per AR1 group; rho = tanh(trans_rho_linkage), via rho_trans()
   PARAMETER_VECTOR(beta_linkage_obs);    // Rogers QAR1 effect size: one per observed ar1 group
   PARAMETER_VECTOR(log_obs_sd_linkage);  // Rogers QAR1 observation log-SD: one per observed ar1 group (estimated if obs_sd_est = TRUE)
 
@@ -745,12 +766,11 @@ Type objective_function<Type>::operator() () {
 
 
   // -- 5.2. SIMULATE LINKAGE RANDOM EFFECTS (sim_mod(simulate = TRUE))
-  // Time-varying recruitment, M, growth, q and selectivity are all written as a random
-  // linkage, so all five draw here, before the processes read them. Each structure draws
-  // from the density that scores it in section 13.14, slots being in ascending time order
-  // so "next slot" is "next year": a rw group leaves slot 0 alone, a level the density
-  // never sees and the map pins, and an ar1 draw is standardized then scaled by the
-  // MARGINAL SD sigma.
+  // A random linkage on any of the five processes draws here, before they read it. Each
+  // structure draws from the density that scores it in section 13.14, slots being in
+  // ascending time order so "next slot" is "next year": a rw group leaves slot 0 alone, a
+  // level the density never sees and that is held fixed, and an ar1 draw is standardized
+  // then scaled by the MARGINAL SD sigma.
   //
   // beta_linkage_re_drawn_sim marks which slots this call wrote. The reported deviation
   // vector spans EVERY random linkage, drawn or not, so without the mask a caller would
@@ -763,8 +783,8 @@ Type objective_function<Type>::operator() () {
       int n_grp  = log_sigma_linkage.size();
 
       // Drawn only if EVERY row using the group names a process the caller asked for.
-      // Groups are per (process, param) in practice, so this matters only for a sigma
-      // shared across processes, where redrawing for one would quietly move the other.
+      // A group belongs to one process (.assign_re_registry() keys it on process,
+      // parameter, stratum and random term), so this reads that process's simulate_state.
       vector<int> grp_used(n_grp), grp_draw(n_grp);
       grp_used.setZero();
       grp_draw.fill(1);
@@ -829,6 +849,7 @@ Type objective_function<Type>::operator() () {
     REPORT(beta_linkage_re_drawn_sim);
   }
 
+  // -- 5.2b. EFFECTIVE LINKAGE COEFFICIENTS (beta_linkage_re_all, beta_linkage_eff)
   // Every deviation in one vector, indexed by RE slot: integrated deviations in
   // beta_linkage_re, penalized ones in beta_linkage_re_pen, with linkage_re_slot giving
   // the position within whichever holds it. With no penalized group it copies
@@ -853,15 +874,14 @@ Type objective_function<Type>::operator() () {
 
   // Effective linkage coefficient per table row. A fixed row uses its beta_linkage(i); a
   // random-effect row (linkage_re_index >= 0) takes its deviation from the slot-space
-  // vector, whose density is jnll_comp row 20. The accumulators below see one beta vector
+  // vector, whose density is JNLL_LINKAGE_RE (13.14). The accumulators below see one beta vector
   // either way; with no RE rows this copies beta_linkage.
   vector<Type> beta_linkage_eff = beta_linkage;
   for (int i = 0; i < beta_linkage_eff.size(); ++i) {
     if (linkage_re_index(i) >= 0) {
       Type z = beta_linkage_re_all(linkage_re_index(i));
-      // Rogers QAR1: an observed ar1 latent enters the target scaled by an
-      // estimated effect size beta. Unobserved groups (the common case) keep
-      // the deviate as-is, so those fits stay bit-identical.
+      // Rogers QAR1: an observed AR1 latent enters the target scaled by an estimated
+      // effect size, beta_linkage_obs. Unobserved groups keep the deviate as is.
       int grp = linkage_re_sigma(linkage_re_index(i));
       if (linkage_re_obs(grp) >= 0) z *= beta_linkage_obs(linkage_re_obs(grp));
       beta_linkage_eff(i) = z;
@@ -944,15 +964,9 @@ Type objective_function<Type>::operator() () {
   }
 
   // 5.5. OFFSETS
-  // Each process gets two parallel offset tensors, combined at the consume site
-  // as param_nat_yr = exp(log_base + log_offset) + nat_offset:
-  //   `*_linkage_offset`      log-scale, from log-link rows (linkfn == 1, the
-  //                           default); added to log_<param> before exp.
-  //   `*_linkage_offset_nat`  natural-scale, from identity-link rows
-  //                           (linkfn == 0); added after exp.
-  // Catchability has a third, `q_linkage_log_mult`, from exponential-link rows
-  // (linkfn == 3), which MULTIPLIES the log rather than shifting it (see 5.3).
-  // With no linkages every tensor stays at zero.
+  // One array per link scale per process: `*_linkage_offset` from log-link rows (S_log),
+  // `*_linkage_offset_nat` from identity-link rows (S_id), combined as in section 2.3b.
+  // Catchability has a third, `q_linkage_log_mult` (S_exp, 5.3). All zero with no linkages.
   //
   // - RECRUITMENT OFFSETS
   array<Type> recruitment_linkage_offset(nspp,
@@ -1081,9 +1095,7 @@ Type objective_function<Type>::operator() () {
 
 
   // 5.6. RECRUITMENT PARAMETERS
-  // Linkage offsets combine log-link (multiplicative) and identity-link
-  // (natural-scale additive) contributions:
-  //   R0(yr) = exp(rec_pars(sp,0) + log_offset) + nat_offset.
+  // R0, alpha, Beta: p_y = exp(log p + S_log) + S_id (2.3b).
   // TODO: a negative nat_offset can make R0, alpha or Beta non-positive; only hindcast R, R_hat and the penalty curve are floored (issue #234).
   for(sp = 0; sp < nspp; sp++){
     for(yr = 0; yr < nyrs; yr++){
@@ -4513,14 +4525,14 @@ Type objective_function<Type>::operator() () {
 
   // 13.13. LINKAGE PRIORS (JNLL_LINKAGE_PRIOR)
   // Families are in linkage_log_prior() (likelihood.hpp). A prior is on the natural-scale
-  // parameter it names (R0, alpha, M1, K, ...). Most (Intercept) rows are mapped out, so
+  // parameter it names (R0, alpha, M1, K, ...). Most (Intercept) rows are held at 0 (2.3b), so
   // the prior reads the base parameter they stand in for; a slope row reads its coefficient.
   for (int i = 0; i < beta_linkage.size(); ++i) {
     int fam = linkage_prior_family(i);
     if (fam == 0) continue;
     Type p1  = linkage_prior_p1(i);
     Type p2  = linkage_prior_p2(i);
-    int slot_col = linkage_species(i) - 1;
+    int slot_col = linkage_species(i) - 1;   // jnll column: the row's species, or 0 if it names none
     if (slot_col < 0) slot_col = 0;        // all species => column 0
     if (slot_col >= n_col) slot_col = 0;
 
@@ -4538,7 +4550,7 @@ Type objective_function<Type>::operator() () {
       int proc  = linkage_process(i);
       int param = linkage_param(i);
       if (proc == RCEATTLE_PROC_RECRUIT) {
-        // rec_pars columns: log R0, log alpha, log beta. R_init has no base parameter;
+        // rec_pars columns: log R0, log alpha, log Beta (stock-recruit). R_init has no base parameter;
         // its intercept is the level, so its prior stays on beta_linkage(i).
         if (param != RCEATTLE_REC_R_INIT) {
           b = rec_pars(sp_idx, param);
@@ -4565,7 +4577,7 @@ Type objective_function<Type>::operator() () {
         else if (param == 1) b = caal_weights(fl_idx);
         else if (param == 2) b = diet_comp_weights(sp_idx);
       } else if (proc == RCEATTLE_PROC_SEL) {
-        // Parametric selectivity, slot 0 ascending and 1 descending. The (Intercept)
+        // Parametric selectivity, element 0 ascending, 1 descending. The (Intercept)
         // adds no offset, so the prior regularizes the base parameter (as in Cole
         // Monnahan's GOA pollock priors). param 4 (coff) has no scalar base and is
         // refused by .check_sel_linkage_support().
@@ -4578,7 +4590,7 @@ Type objective_function<Type>::operator() () {
           b = sel_inf(slot, fl_idx, sx_idx);              // inflection age, natural scale
           base_is_log = false;
         } else if (param == 5) {
-          b = log_sel_apical(fl_idx, sx_idx);             // log apical multiplier; 1 = no offset
+          b = log_sel_apical(fl_idx, sx_idx);             // log apical multiplier; 0 = a multiplier of 1
         } else if (param >= 6 && param <= 11) {
           // DoubleNormalSS3, on SS3's own scale (peak in cm, log widths, logits),
           // where an SS3 control file puts its priors.
@@ -4627,7 +4639,8 @@ Type objective_function<Type>::operator() () {
 
 
   // 13.14. LINKAGE RANDOM EFFECTS (JNLL_LINKAGE_RE)
-  // Per group, the deviations in slot (= time) order, then the group's structure:
+  // Groups and slots are defined at section 2.3b. Per group, the deviations in slot
+  // (= time) order, then the group's structure:
   // IID normal; random walk on first differences, the first deviate mapped to 0; or
   // stationary AR1 with MARGINAL sd sigma (the glmmTMB / Rogers QAR1 convention).
   if (log_sigma_linkage.size() > 0) {

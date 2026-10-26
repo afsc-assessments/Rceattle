@@ -34,8 +34,8 @@ weights**.
 
 ## A first example: temperature on `K`
 
-Sex- and species-specific von Bertalanffy growth, with `K` responding to a
-temperature index by species:
+Von Bertalanffy growth with `K` responding to a temperature index, one slope
+per species and sex (`whamGrowthData` has one of each, so one slope here):
 
 ```{r}
 library(Rceattle)
@@ -84,6 +84,8 @@ fit <- fit_mod(
 summary(fit)
 ```
 
+This fits $K_{s,\mathrm{sex},y} = K_{s,\mathrm{sex}}\,e^{\beta_{s,\mathrm{sex}}\,\mathrm{temp}_y}$
+for species $s$; *How the pieces fit together* below gives the general form.
 
 ## The `linkage_spec()` API
 
@@ -128,7 +130,7 @@ Key arguments (see `?linkage_spec` for the full list):
   `"identity"` **adds** to the natural-scale parameter, `"log"` (the default)
   **multiplies** it, and `"exponential"` raises it to a covariate-dependent
   power, `q^exp(beta * x)` — the power is of the parameter, not of the
-  covariate.
+  covariate (equations under *How the pieces fit together*).
 
   This is Stock Synthesis's environmental link type 1, and `"exponential"` is
   SS3's own name for it (`case 1: // exponential env link`). It is *not* SS3's q
@@ -713,6 +715,40 @@ table and one shared design matrix (both stored on `data_list`), then adds the
 per-process offset to the base parameter each year; priors and bounds travel in
 the same table and add to the joint negative log-likelihood. With no linkages
 every offset is zero, so an unlinked model is unaffected.
+
+Each row of the table is one coefficient $\beta_i$ on one covariate column
+$x_i(y)$ of the design matrix, for one parameter and stratum $s$ (species, sex,
+age bin, fleet). The `(Intercept)` row is held at 0, so the base parameter
+$p_s$ keeps the level, and the intercept's `init`, bounds and prior go to $p_s$
+(the exception is `R_init`; see *Recruitment*). For year $y$, write $S_{\log}$,
+$S_{\mathrm{id}}$ and $S_{\exp}$ for $\sum_i \beta_i x_i(y)$ over the stratum's
+log-, identity- and exponential-link rows:
+
+| Link | Parameter in year $y$ |
+|---|---|
+| `log` (the default) | $p_{s,y} = p_s \exp(S_{\log})$ |
+| `identity` | $p_{s,y} = p_s + S_{\mathrm{id}}$ |
+| `exponential` (catchability only) | $\log q_{s,y} = (\log q_s + S_{\log})\, e^{S_{\exp}}$; `index_q_dev` is added after the product, $S_{\mathrm{id}}$ after the exponential |
+
+A parameter's own deviations (those `M1_re`, `Time_varying_q` or
+`Time_varying_sel` turn on) still apply. With both a log and an identity link on one parameter, the identity sum
+is added after the multiplication, $p_{s,y} = p_s e^{S_{\log}} + S_{\mathrm{id}}$.
+On the selectivity inflection slots and the `DoubleNormalSS3` parameters it is
+added before, $p_{s,y} = (p_s + S_{\mathrm{id}})\, e^{S_{\log}}$, on the scale
+each is stored on: a length (cm), or on an age-based fleet a bin number
+(age - minage + 1), for an inflection or peak; a logit for `DoubleNormalSS3` P2,
+P5, P6 and DoubleNormal's floor; a log for `DoubleNormalSS3`'s widths (P3, P4)
+and LogisticPM's first-bin selectivity. There a log link multiplies the logit or
+the log.
+
+In the first example, $K_{s,\mathrm{sex},y} = K_{s,\mathrm{sex}}\,e^{\beta_{s,\mathrm{sex}}\,\mathrm{temp}_y}$:
+a log-scale slope, so $\beta = 0.1$ raises $K$ by about 10.5% ($e^{0.1} - 1$)
+per unit of temperature.
+
+A random effect such as `(1 | Year)` adds one row per year in each stratum,
+each with an indicator column, whose $\beta$ is that year's deviation; each
+stratum's deviations share one SD and a structure (IID, random walk or AR1),
+and their density is part of the objective.
 
 ## Natural mortality
 
@@ -1358,8 +1394,8 @@ estimated density rather than fixed covariate slopes:
 * `rw(1 | Year)`: a **random walk**, `N(0, sigma)` on first differences
   (first deviate fixed so the base parameter holds the level, fixed at its
   `inits` value, 0 unless you supply another);
-* `ar1(1 | Year)`: a stationary **AR1**, `SCALE(AR1(rho), sigma)` with
-  `sigma` the marginal SD and `rho` the correlation.
+* `ar1(1 | Year)`: a stationary **AR1**, $u_t = \rho\, u_{t-1} + e_t$, with
+  `sigma` the marginal SD of $u_t$ and `rho` the correlation.
 
 These structures are the general way to write a time-varying parameter, and
 cover what the `Time_varying_q`, `Time_varying_sel` and `M1_re` switches do. A
@@ -1387,10 +1423,11 @@ being non-stationary with no overall spread. Under `ar1()` it is the
 `glmmTMB` convention. The two agree at `rho = 0`, where `ar1` reduces to IID,
 so a `sigma` estimated under `rw()` is not comparable with one under `ar1()`.
 
-Each grouping level gets one deviation; each group estimates its own SD. The
-SD and (for `ar1`) the correlation route through the same `init` / `priors`
-arguments as every other parameter: `init = list(sigma = 0.1)` fixes the SD
-(the same as fixing `Time_varying_*_sd`), `init = list(rho =
+Each grouping level gets one deviation; each random term in each stratum
+estimates its own SD. The SD and (for `ar1`) the correlation route through the
+same `init` / `priors` arguments as every other parameter:
+`init = list(sigma = 0.1)` fixes the SD (the same as fixing
+`Time_varying_*_sd`), `init = list(rho =
 0.7)` fixes the correlation, and `priors = list(sigma = lognormal(...))` /
 `priors = list(rho = normal(...))` place priors. `rw()` / `ar1()` need a
 numeric grouping variable (a real elapsed-time lag).
