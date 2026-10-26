@@ -12,6 +12,21 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.66.1
+
+## Bug fixes
+
+* **A selectivity prior on a covariate coefficient of an `Off` fleet is refused
+  again, as 5.64.0 refused it and 5.64.5 meant to keep.** 5.64.5 dropped the
+  check that refused every selectivity prior on an `Off` fleet and replaced it
+  with a drop for intercept priors, so a prior on a slope row was accepted
+  silently from 5.64.5 to 5.66.0 (never released). With no data on that fleet,
+  the prior alone sets the coefficient and adds a per-run constant to the
+  objective, the drop-one incomparability 5.64.5 set out to remove. Remove the
+  linkage from the `Off` fleet. Unlike 5.64.0, a row with no fleet (it reaches
+  every fleet, live ones included) builds, and a fleet sharing a
+  `Selectivity_index` gets the shared-block refusal naming its lead.
+
 # Rceattle 5.66.0
 
 ## Breaking changes

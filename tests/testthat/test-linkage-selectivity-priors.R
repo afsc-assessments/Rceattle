@@ -238,8 +238,8 @@ testthat::test_that("the Off-fleet drop spares slope, apical and shared rows", {
   drop <- function(x) suppressWarnings(
     Rceattle:::.drop_off_fleet_sel_priors(x, fc, verbose = 0))
 
-  # A slope row's coefficient is ESTIMATED, not re-targeted, so the prior is
-  # live and must survive.
+  # A slope row's coefficient is ESTIMATED, not re-targeted, so the drop spares
+  # it; .check_sel_linkage_support() then refuses it on an unshared Off fleet.
   slope <- tbl("inf_asc", "cold_pool")
   testthat::expect_equal(drop(slope)$prior_family, "normal")
 
@@ -259,4 +259,42 @@ testthat::test_that("the Off-fleet drop spares slope, apical and shared rows", {
   shared <- suppressWarnings(Rceattle:::.drop_off_fleet_sel_priors(
     tbl("inf_asc", "(Intercept)"), fc_shared, verbose = 0))
   testthat::expect_equal(shared$prior_family, "normal")
+})
+
+
+# The slope row the drop spares is then refused, as 5.64.0 refused every
+# Off-fleet prior: with no data the prior alone sets the coefficient.
+testthat::test_that("a covariate-coefficient prior on an Off fleet is refused", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("TMB")
+
+  e <- new.env(parent = asNamespace("Rceattle"))
+  for (f in list.files(testthat::test_path(), "^helper", full.names = TRUE)) sys.source(f, e)
+  code <- which(e$make_test_data()$fleet_control$Fleet_name == "Survey")
+  srv_off <- function(d) {
+    d$fleet_control$Fleet_type[d$fleet_control$Fleet_name == "Survey"] <- "Off"
+    d
+  }
+  sel <- Rceattle::build_selectivity(linkages = list(
+    inf_asc = Rceattle::linkage_spec(~ Index1, fleet = as.integer(code),
+                                     priors = list(Index1 = normal(0, 0.5)))))
+
+  testthat::expect_error(.fit3_data(sel, srv_off), "covariate coefficient")
+  # The same prior on the live fleet builds, so the refusal is the Off fleet's.
+  testthat::expect_false(is.null(suppressWarnings(.fit3_data(sel, identity))$obj))
+
+  # A row with no fleet reaches the live fleets too, so it has data and builds.
+  every <- Rceattle::build_selectivity(linkages = list(
+    inf_asc = Rceattle::linkage_spec(~ Index1, by = NULL,
+                                     priors = list(Index1 = normal(0, 0.5)))))
+  testthat::expect_false(is.null(suppressWarnings(.fit3_data(every, srv_off))$obj))
+
+  # In a shared block the Off follower's coefficient is tied to the lead, so the
+  # shared-block check (c) answers, naming the lead, not this refusal.
+  shared_off <- function(d) {
+    d <- srv_off(d)
+    d$fleet_control$Selectivity_index <- 1L
+    d
+  }
+  testthat::expect_error(.fit3_data(sel, shared_off), "lead")
 })

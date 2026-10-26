@@ -87,8 +87,9 @@ SEL_LINKAGE_PARAMS <- c("slp_asc", "slp_desc", "inf_asc", "inf_desc", "coff",
 #' prior on the double-normal `right_floor` is unsupported. Fleets sharing a
 #' `Selectivity_index` estimate one block, so place the prior on the group's
 #' lead fleet (its first that is not `Off`): a prior on a follower would
-#' penalize the shared block once per sharing fleet. A prior on an `Off` fleet
-#' is dropped with a warning, its selectivity not being estimated.
+#' penalize the shared block once per sharing fleet. On an `Off` fleet an
+#' intercept prior is dropped with a warning, its selectivity not being
+#' estimated, and a prior on a covariate coefficient is refused.
 #'
 #' Like every selectivity linkage, a covariate acts in the hindcast years;
 #' projection years hold the last hindcast year's curve.
@@ -306,7 +307,25 @@ build_selectivity <- function(linkages = NULL) {
     prior_flt <- unique(vapply(prior_rows$fleet, row_flt, integer(1)))
 
     # (b) A pinned-intercept prior on an "Off" fleet is dropped before this
-    # runs, by .drop_off_fleet_sel_priors() in fit_mod().
+    # runs, by .drop_off_fleet_sel_priors() in fit_mod(). A covariate
+    # coefficient on one unshared Off fleet has no data, so its prior alone
+    # would set it. A row with no fleet reaches every fleet, and a shared block
+    # is left to (c).
+    slope_rows <- prior_rows[!.is_pinned_intercept(prior_rows) &
+                               !is.na(prior_rows$fleet), , drop = FALSE]
+    off_flt <- unique(as.integer(slope_rows$fleet))
+    off_flt <- off_flt[vapply(off_flt, function(f)
+      identical(.canon_switch(fleet_control$Fleet_type[f], fleet_map), "Off") &&
+        is.na(.shared_block_lead(list(fleet_control = fleet_control), f, "sel")),
+      logical(1))]
+    if (length(off_flt) > 0L) {
+      stop(sprintf(paste0(
+        "selectivity prior on a covariate coefficient of fleet(s) %s with ",
+        "Fleet_type = \"Off\": the fleet has no data, so the prior alone would set ",
+        "the coefficient and add a constant to the objective. Remove the ",
+        "linkage from this fleet."),
+        paste(fleet_control$Fleet_name[off_flt], collapse = ", ")), call. = FALSE)
+    }
 
     # (c) Fleets sharing a Selectivity_index estimate one parameter block, so a
     # prior on a follower penalizes that block once per sharing fleet.
