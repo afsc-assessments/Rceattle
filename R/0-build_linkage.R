@@ -1279,18 +1279,18 @@ materialize_linkage <- function(spec, process, env_data, strata = list(), quiet 
 #' @description
 #' Each bar term `struct(<lhs> | <group>)` becomes one indicator column per
 #' level of its grouping variable, so the deviation for that level enters the
-#' offset the same way a fixed coefficient does. This increment supports the
-#' unstructured / IID case (a plain `(1 | group)` bar, structure `"us"`);
-#' `rw()` / `ar1()` and other structures are recognized by the parser but
-#' rejected here until their densities are wired.
+#' offset the same way a fixed coefficient does. Supported structures are IID
+#' (a plain `(1 | group)` bar, structure `"us"`), `rw()` and `ar1()`; any other
+#' structure the parser recognizes is refused here.
 #'
 #' @param re_terms list of bar expressions from `.parse_linkage_formula()`.
 #' @param re_structures character vector of structure names, one per term.
 #' @param env_data the covariate/time table.
 #'
 #' @return A list with `X` (indicator design, 0 columns if no RE terms),
-#'   `group` (character, one per column: the grouping variable name), and
-#'   `struct` (character, one per column: the covariance structure).
+#'   `group` (character, one per column: the grouping variable name),
+#'   `struct` (character, one per column: the covariance structure), and
+#'   `time` (numeric, one per column: the level's value, which orders rw()/ar1()).
 #' @keywords internal
 #' @noRd
 .materialize_re_design <- function(re_terms, re_structures, env_data) {
