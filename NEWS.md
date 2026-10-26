@@ -12,6 +12,17 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.65.3
+
+## Internal
+
+* **The linkage accumulators take one table, not eight parallel vectors.**
+  `linkage.hpp`'s five `rceattle_apply_*_linkages()` functions read a
+  `LinkageTable` (process, parameter, strata, design column, link, design matrix
+  and coefficients), so nine of the eleven calls in `ceattle.cpp` fit on one
+  line (the two selectivity calls take three) and no function carries arguments
+  it ignores. No number moves.
+
 # Rceattle 5.65.2
 
 ## Internal

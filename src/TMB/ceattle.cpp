@@ -884,6 +884,13 @@ Type objective_function<Type>::operator() () {
     }
   }
 
+  // The table every rceattle_apply_*_linkages() call below reads (linkage.hpp): each row
+  // adds offset = beta * X(yr, X_col) to one parameter in one stratum (2.3b).
+  LinkageTable<Type> linkage_table = {
+    linkage_process, linkage_param,                                // which parameter
+    linkage_species, linkage_sex, linkage_age_bin, linkage_fleet,  // which stratum (0 = all)
+    linkage_X_col, linkage_link, linkage_X, beta_linkage_eff};     // the offset
+
 
   // 5.3. CATCHABILITY
   // Environmental linkage offsets, one pass per link scale. Zero unless a
@@ -892,26 +899,11 @@ Type objective_function<Type>::operator() () {
   matrix<Type> q_linkage_offset_nat(n_flt, nyrs_hind); q_linkage_offset_nat.setZero();
   matrix<Type> q_linkage_log_mult(n_flt, nyrs_hind);   q_linkage_log_mult.setZero();
 
-  rceattle_apply_q_linkages(
-    q_linkage_offset,
-    /*link_code=*/ 1,   // log-link rows -> log-scale tensor
-    linkage_process, linkage_param, linkage_species, linkage_sex,
-    linkage_age_bin, linkage_fleet, linkage_X_col, linkage_link,
-    linkage_X, beta_linkage_eff, n_flt, nyrs_hind);
-
-  rceattle_apply_q_linkages(
-    q_linkage_offset_nat,
-    /*link_code=*/ 0,   // identity-link rows -> natural-scale tensor
-    linkage_process, linkage_param, linkage_species, linkage_sex,
-    linkage_age_bin, linkage_fleet, linkage_X_col, linkage_link,
-    linkage_X, beta_linkage_eff, n_flt, nyrs_hind);
-
-  rceattle_apply_q_linkages(
-    q_linkage_log_mult,
-    /*link_code=*/ 3,   // exponential rows -> log-scale multiplier tensor
-    linkage_process, linkage_param, linkage_species, linkage_sex,
-    linkage_age_bin, linkage_fleet, linkage_X_col, linkage_link,
-    linkage_X, beta_linkage_eff, n_flt, nyrs_hind);
+  // Link codes: 1 = log, into the log-scale offset; 0 = identity, into the natural-scale
+  // one; 3 = exponential, the log of the multiplier on log q (applied as exp() below).
+  rceattle_apply_q_linkages(q_linkage_offset,     /*link_code=*/ 1, linkage_table, n_flt, nyrs_hind);
+  rceattle_apply_q_linkages(q_linkage_offset_nat, /*link_code=*/ 0, linkage_table, n_flt, nyrs_hind);
+  rceattle_apply_q_linkages(q_linkage_log_mult,   /*link_code=*/ 3, linkage_table, n_flt, nyrs_hind);
 
   REPORT(q_linkage_offset);
   REPORT(q_linkage_offset_nat);
@@ -973,36 +965,8 @@ Type objective_function<Type>::operator() () {
                                              nyrs);
   recruitment_linkage_offset.setZero();
   recruitment_linkage_offset_nat.setZero();
-  rceattle_apply_recruitment_linkages(
-    recruitment_linkage_offset,
-    /*link_code=*/ 1,   // log-link rows -> log-scale tensor
-    linkage_process,
-    linkage_param,
-    linkage_species,
-    linkage_sex,
-    linkage_age_bin,
-    linkage_X_col,
-    linkage_link,
-    linkage_X,
-    beta_linkage_eff,
-    nspp,
-    nyrs
-  );
-  rceattle_apply_recruitment_linkages(
-    recruitment_linkage_offset_nat,
-    /*link_code=*/ 0,   // identity-link rows -> natural-scale tensor
-    linkage_process,
-    linkage_param,
-    linkage_species,
-    linkage_sex,
-    linkage_age_bin,
-    linkage_X_col,
-    linkage_link,
-    linkage_X,
-    beta_linkage_eff,
-    nspp,
-    nyrs
-  );
+  rceattle_apply_recruitment_linkages(recruitment_linkage_offset,     /*link_code=*/ 1, linkage_table, nspp, nyrs);   // log link
+  rceattle_apply_recruitment_linkages(recruitment_linkage_offset_nat, /*link_code=*/ 0, linkage_table, nspp, nyrs);   // identity link
   REPORT(recruitment_linkage_offset);
   REPORT(recruitment_linkage_offset_nat);
 
@@ -1011,40 +975,8 @@ Type objective_function<Type>::operator() () {
   array<Type> M_linkage_offset_nat(nspp, max_sex, max_age, nyrs);
   M_linkage_offset.setZero();
   M_linkage_offset_nat.setZero();
-  rceattle_apply_M_linkages(
-    M_linkage_offset,
-    /*link_code=*/ 1,   // log-link rows -> log-scale tensor
-    linkage_process,
-    linkage_param,
-    linkage_species,
-    linkage_sex,
-    linkage_age_bin,
-    linkage_X_col,
-    linkage_link,
-    linkage_X,
-    beta_linkage_eff,
-    nspp,
-    nsex,
-    nages,
-    nyrs
-  );
-  rceattle_apply_M_linkages(
-    M_linkage_offset_nat,
-    /*link_code=*/ 0,   // identity-link rows -> natural-scale tensor
-    linkage_process,
-    linkage_param,
-    linkage_species,
-    linkage_sex,
-    linkage_age_bin,
-    linkage_X_col,
-    linkage_link,
-    linkage_X,
-    beta_linkage_eff,
-    nspp,
-    nsex,
-    nages,
-    nyrs
-  );
+  rceattle_apply_M_linkages(M_linkage_offset,     /*link_code=*/ 1, linkage_table, nspp, nsex, nages, nyrs);   // log link
+  rceattle_apply_M_linkages(M_linkage_offset_nat, /*link_code=*/ 0, linkage_table, nspp, nsex, nages, nyrs);   // identity link
   REPORT(M_linkage_offset);
   REPORT(M_linkage_offset_nat);
 
@@ -1054,38 +986,8 @@ Type objective_function<Type>::operator() () {
   array<Type> growth_linkage_offset_nat(nspp, max_sex, nyrs, RCEATTLE_N_GROWTH_PARAMS);
   growth_linkage_offset.setZero();
   growth_linkage_offset_nat.setZero();
-  rceattle_apply_growth_linkages(
-    growth_linkage_offset,
-    /*link_code=*/ 1,   // log-link rows -> log-scale tensor
-    linkage_process,
-    linkage_param,
-    linkage_species,
-    linkage_sex,
-    linkage_age_bin,
-    linkage_X_col,
-    linkage_link,
-    linkage_X,
-    beta_linkage_eff,
-    nspp,
-    nsex,
-    nyrs
-  );
-  rceattle_apply_growth_linkages(
-    growth_linkage_offset_nat,
-    /*link_code=*/ 0,   // identity-link rows -> natural-scale tensor
-    linkage_process,
-    linkage_param,
-    linkage_species,
-    linkage_sex,
-    linkage_age_bin,
-    linkage_X_col,
-    linkage_link,
-    linkage_X,
-    beta_linkage_eff,
-    nspp,
-    nsex,
-    nyrs
-  );
+  rceattle_apply_growth_linkages(growth_linkage_offset,     /*link_code=*/ 1, linkage_table, nspp, nsex, nyrs);   // log link
+  rceattle_apply_growth_linkages(growth_linkage_offset_nat, /*link_code=*/ 0, linkage_table, nspp, nsex, nyrs);   // identity link
   REPORT(growth_linkage_offset);
   REPORT(growth_linkage_offset_nat);
 
@@ -1183,7 +1085,7 @@ Type objective_function<Type>::operator() () {
 
 
   // 5.8. SELECTIVITY
-  // Environmental-linkage offsets. Two tensors per parameter family (log and
+  // Environmental-linkage offsets. Two arrays per parameter family (log and
   // natural scale), all zero unless a selectivity linkage was supplied.
   array<Type> sel_slp_off (2, n_flt, max_sex, nyrs);            sel_slp_off.setZero();
   array<Type> sel_slp_off_nat (2, n_flt, max_sex, nyrs);        sel_slp_off_nat.setZero();
@@ -1204,19 +1106,12 @@ Type objective_function<Type>::operator() () {
     if (linkage_process(i) == RCEATTLE_PROC_SEL && linkage_param(i) == 5) sel_apical_on = 1;
   }
 
-  rceattle_apply_sel_linkages(
+  rceattle_apply_sel_linkages(   // log link, into the log-scale arrays
     sel_slp_off, sel_inf_off, sel_coff_off, sel_apical_off, sel_dn6_off,
-    /*link_code=*/ 1,   // log-link rows -> log-scale tensors
-    linkage_process, linkage_param, linkage_species, linkage_sex,
-    linkage_age_bin, linkage_fleet, linkage_X_col, linkage_link,
-    linkage_X, beta_linkage_eff, n_flt, max_sex, max_bin, nyrs);
-
-  rceattle_apply_sel_linkages(
+    /*link_code=*/ 1, linkage_table, n_flt, max_sex, max_bin, nyrs);
+  rceattle_apply_sel_linkages(   // identity link, into the natural-scale arrays
     sel_slp_off_nat, sel_inf_off_nat, sel_coff_off_nat, sel_apical_off_nat, sel_dn6_off_nat,
-    /*link_code=*/ 0,   // identity-link rows -> natural-scale tensors
-    linkage_process, linkage_param, linkage_species, linkage_sex,
-    linkage_age_bin, linkage_fleet, linkage_X_col, linkage_link,
-    linkage_X, beta_linkage_eff, n_flt, max_sex, max_bin, nyrs);
+    /*link_code=*/ 0, linkage_table, n_flt, max_sex, max_bin, nyrs);
 
   // "sel_at_age" and "sel_at_length" modified via pass-by-reference
   // when "sel_at_length" is used, it is converted to "sel_at_age" using the growth matrix
