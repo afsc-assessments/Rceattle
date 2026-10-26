@@ -277,10 +277,10 @@ void rceattle_apply_q_linkages(
 
 
 /**
- * @brief Add selectivity offsets, by fleet, sex and year, to one of five tensors.
+ * @brief Add selectivity offsets, by fleet, sex and year, to one of five arrays.
  *
  * Offsets are per fleet; fleets sharing a `Selectivity_index` still share one
- * parameter block through the map. The param code picks the tensor:
+ * parameter block through the map. The param code picks the array:
  *   0/1  log_sel_slp, ascending/descending  (`slp_offset`)
  *   2/3  sel_inf, ascending/descending      (`inf_offset`)
  *   4    sel_coff, every bin                (`coff_offset`)

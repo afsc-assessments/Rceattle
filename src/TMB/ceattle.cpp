@@ -1085,7 +1085,7 @@ Type objective_function<Type>::operator() () {
 
 
   // 5.8. SELECTIVITY
-  // Environmental-linkage offsets. Two tensors per parameter family (log and
+  // Environmental-linkage offsets. Two arrays per parameter family (log and
   // natural scale), all zero unless a selectivity linkage was supplied.
   array<Type> sel_slp_off (2, n_flt, max_sex, nyrs);            sel_slp_off.setZero();
   array<Type> sel_slp_off_nat (2, n_flt, max_sex, nyrs);        sel_slp_off_nat.setZero();
@@ -1106,10 +1106,10 @@ Type objective_function<Type>::operator() () {
     if (linkage_process(i) == RCEATTLE_PROC_SEL && linkage_param(i) == 5) sel_apical_on = 1;
   }
 
-  rceattle_apply_sel_linkages(   // log link, into the log-scale tensors
+  rceattle_apply_sel_linkages(   // log link, into the log-scale arrays
     sel_slp_off, sel_inf_off, sel_coff_off, sel_apical_off, sel_dn6_off,
     /*link_code=*/ 1, linkage_table, n_flt, max_sex, max_bin, nyrs);
-  rceattle_apply_sel_linkages(   // identity link, into the natural-scale tensors
+  rceattle_apply_sel_linkages(   // identity link, into the natural-scale arrays
     sel_slp_off_nat, sel_inf_off_nat, sel_coff_off_nat, sel_apical_off_nat, sel_dn6_off_nat,
     /*link_code=*/ 0, linkage_table, n_flt, max_sex, max_bin, nyrs);
 
