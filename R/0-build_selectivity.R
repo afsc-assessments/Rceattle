@@ -407,8 +407,11 @@ build_selectivity <- function(linkages = NULL) {
   same <- function(a, b) (is.na(a) & is.na(b)) | (!is.na(a) & !is.na(b) & a == b)
   for (i in which(has_prior & !clear & .off_sel_fleet(flt, fleet_control, shared = TRUE))) {
     lead <- lead_of(flt[i])
-    if (is.na(lead) || .off_sel_fleet(lead, fleet_control, shared = TRUE)) {
-      clear[i] <- TRUE                                   # the whole block is Off
+    # A row with no fleet also sets init and bounds on every other fleet, so it
+    # is never moved; its prior targets only cell 1, which is Off here.
+    if (is.na(lt$fleet[i]) || is.na(lead) ||
+        .off_sel_fleet(lead, fleet_control, shared = TRUE)) {
+      clear[i] <- TRUE                    # or the whole block is Off
       next
     }
     j <- which(lt$process == "sel" & lt$param == lt$param[i] &
@@ -442,9 +445,9 @@ build_selectivity <- function(linkages = NULL) {
   dropped <- clear & !moved
   if (verbose > 0 && any(dropped)) {
     warning(sprintf(paste0(
-      "selectivity prior on fleet(s) %s with Fleet_type = \"Off\": that fleet has ",
-      "no data, so its selectivity is held at its starting values and the prior ",
-      "is dropped."),
+      "selectivity prior on fleet(s) %s with Fleet_type = \"Off\" is dropped: that ",
+      "fleet has no data, and in a shared block the lead's own row and prior ",
+      "govern."),
       paste(unique(fleet_control$Fleet_name[flt[dropped]]), collapse = ", ")),
       call. = FALSE)
   }

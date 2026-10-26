@@ -32,7 +32,9 @@ version throughout.
   stays tied to the lead's where the lead has one. **Fits with a selectivity
   linkage on an `Off` fleet move** by that prior's constant and lose the flat
   parameter; no other fit changes. Not covered yet: a random-effect selectivity
-  linkage or a catchability linkage on an `Off` fleet.
+  linkage or a catchability linkage on an `Off` fleet, and an intercept that
+  carries only an `init` or `bounds` on a switched-off lead, which is still
+  refused.
 
 ## Documentation
 

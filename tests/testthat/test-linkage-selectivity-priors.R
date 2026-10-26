@@ -340,7 +340,23 @@ testthat::test_that("a prior on a shared block's Off lead moves to the new lead"
                                      priors = list(`(Intercept)` = normal(4, 0.5)))))
   testthat::expect_warning(fit <- .fit3_data(sel, lead_off), "moved to the lead")
   testthat::expect_false(is.null(fit$obj))
-  # Still scored, on the block's estimated parameter.
-  testthat::expect_gt(sum(fit$quantities$jnll_comp["Linkage-table priors", ]), 0)
+  # Scored once, exactly as if it had been written on the new lead.
+  on_lead <- Rceattle::build_selectivity(linkages = list(
+    inf_asc = Rceattle::linkage_spec(~ 1, fleet = 2L,
+                                     priors = list(`(Intercept)` = normal(4, 0.5)))))
+  direct <- suppressWarnings(.fit3_data(on_lead, lead_off))
+  pri <- function(x) sum(x$quantities$jnll_comp["Linkage-table priors", ])
+  testthat::expect_gt(pri(fit), 0)
+  testthat::expect_equal(pri(fit), pri(direct))
+  testthat::expect_equal(fit$quantities$jnll, direct$quantities$jnll)
+
+  # A row with no fleet is never moved (it also sets init on every fleet); its
+  # prior, on the Off fleet 1's cell, is dropped.
+  every <- Rceattle::build_selectivity(linkages = list(
+    inf_asc = Rceattle::linkage_spec(~ 1, by = NULL,
+                                     priors = list(`(Intercept)` = normal(4, 0.5)))))
+  testthat::expect_warning(nf <- .fit3_data(every, lead_off), "is dropped")
+  testthat::expect_true(all(is.na(nf$data_list$linkage_table$fleet)))
+  testthat::expect_equal(pri(nf), 0)
 })
 
