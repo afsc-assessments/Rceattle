@@ -1824,7 +1824,7 @@ Type objective_function<Type>::operator() () {
       // drawn, sim_mod() says why, and the full argument is in
       // vignette("model-diagnostics").
       //
-      // Excluded under a DSEM (dsem_on == 1). There, rec_dev is not an
+      // Excluded where the DSEM drives recruitment. There, rec_dev is not an
       // independent deviation at all: section 5.5b OVERWRITES it from the GMRF
       // latent states, so this draw would run first and be discarded -- except
       // that it runs AFTER 5.5b in the same pass, so it would instead discard
@@ -3707,7 +3707,7 @@ Type objective_function<Type>::operator() () {
     JNLL_LINKAGE_PRIOR  = 19,  // Linkage-table priors (per-row)
     JNLL_LINKAGE_RE     = 20,  // Linkage random effects
     JNLL_EQUIL_CATCH    = 21,  // Initial equilibrium catch
-    JNLL_DSEM           = 22,  // DSEM latent-state GMRF (recruitment)
+    JNLL_DSEM           = 22,  // DSEM negative log-likelihood, and the recruitment-sd prior
     JNLL_N_ROWS         = 23   // total row count (for dimensioning)
   };
   matrix<Type> jnll_comp(JNLL_N_ROWS, n_col); jnll_comp.setZero();  // negative log-likelihood components
@@ -5057,7 +5057,7 @@ Type objective_function<Type>::operator() () {
 
 
   // 13.14b. DSEM (JNLL_DSEM)
-  // The DSEM GMRF density, computed back in section 5.5b. Routed through
+  // The DSEM negative log-likelihood, computed back in section 5.5b. Routed through
   // jnll_comp rather than added straight to jnll so it appears in the reported
   // breakdown like every other component; JNLL_DSEM stays exactly 0 without one.
   // Column 0 because the density is joint over all species, not separable.

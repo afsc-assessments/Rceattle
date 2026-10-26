@@ -365,7 +365,7 @@
     # field (rmvnorm_prec(xhat + delta, Q)) rather than reimplementing the
     # recursion; see ceattle.cpp section 5.5.
     r("jnll_dsem", "linkage",
-      "The DSEM latent field's own GMRF contribution to the joint negative log-likelihood, as a scalar. The same value appears in the jnll_comp DSEM row; 0 without a DSEM.",
+      "The DSEM's whole negative log-likelihood, as a scalar: the GMRF over the latent field plus the measurement density of any observed covariate. Column 1 of the jnll_comp DSEM row, which also carries species 1's recruitment-sd prior when build_DSEM(sigmaR_prior_sd =) sets one; 0 without a DSEM.",
       "unitless", "[1]", FALSE, NA_character_),
     r("dsem_z_tj", "linkage",
       "DSEM latent states after the measurement link, in the SEM's own variable order; empty without a DSEM.",

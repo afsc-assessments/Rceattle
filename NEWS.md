@@ -23,7 +23,7 @@ mistaken for it: both numbers exist on both lines with different content, the
 divergence the comment at the top of this file describes.
 
 Unreleased, and deliberately carrying a DEVELOPMENT suffix rather than a release
-number: `DESCRIPTION` reads `5.66.1.9000`, the released line this branch now
+number: `DESCRIPTION` reads `5.66.1.9001`, the released line this branch now
 contains plus a suffix. A bare release number here would make an install from
 this branch report a version that exists on `main` or `dev` and holds different
 code -- the mislabelling `95153bbc` fixed when it first moved this branch to a
@@ -408,6 +408,12 @@ numbered on the 5.23.0 line.
   hand is what reaches them.
 
 ## Bug fixes
+
+* **`quantity_dictionary()` describes `jnll_dsem` correctly.** It is the DSEM's
+  whole negative log-likelihood -- the GMRF plus any covariate measurement
+  density -- and equals column 1 of the `jnll_comp` DSEM row unless
+  `build_DSEM(sigmaR_prior_sd = )` puts a recruitment-sd prior on species 1,
+  which that column also holds.
 
 * **`retrospective()`'s map-drift warning fired on every DSEM fit, naming the
   three things a SEM is supposed to change.** The check rebuilds the map with
