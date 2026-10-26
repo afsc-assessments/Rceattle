@@ -14,8 +14,8 @@ structure, including a correct one. They do not displace the hard rules below, a
 and 9. Accuracy beats speed, every time. The rules and sections below cite them by number, as
 doctrine 1, 2 and 3.
 
-**1. Don't change an API or a workflow without asking.** Rule 1 forbids deleting one; this
-forbids changing one. An argument name or default, a switch code or its meaning, a schema column,
+**1. Don't change an API or a workflow without asking.** Rule 1 forbids deleting one unless
+Grant directs it; this forbids changing one. An argument name or default, a switch code or its meaning, a schema column,
 the names or shape of anything in `fit$`, a message an assessment script reads, how a figure
 looks: if a user's existing script would behave differently, stop and ask — even when the change
 is plainly an improvement, and even when you are already in the file for another reason. File the
@@ -39,8 +39,8 @@ for the shared-block start, and raise a severity without rewriting the text.
 **2. Write the simplest thing that works, and nothing for later.** No helper, wrapper, class,
 config layer, option flag or *new* registry this change does not need now, and no second grammar
 for what the linkage formula already expresses (rule 12) — but registering in the registries that
-already exist (the `JnllRow` partners, `.JNLL_ROW_AXIS`, `.index_rows_natural_scale()`) is not
-optional. A helper earns its place at two callers, or when it names a concept the reader needs.
+already exist (the `JnllRow` partners, `.JNLL_ROW_AXIS`, `.index_rows_natural_scale()`,
+`.index_fleets_covariance()`) is not optional. A helper earns its place at two callers, or when it names a concept the reader needs.
 Both halves of that were settled in 5.63.0 and the example is kept because it shows the rule
 working: `.is_timeout()` had no caller in `R/` and now has two (`R/0-convergence.R`), while
 `.par_description()` never earned one and was deleted. Check a helper's callers in the current
@@ -86,8 +86,9 @@ how this package is written; very little over what it means.
 
 ## Hard rules
 
-1. **Preserve the public API. Deprecate, never delete** — and don't change one without asking
-   (doctrine 1). Rceattle ships and has users (`cran-comments.md`). Exported `build_*()`
+1. **Preserve the public API. Deprecate, don't delete**, unless Grant explicitly directs a
+   deletion, recorded in NEWS (5.66.0, `linkage_spec(re_group =)`); and don't change one
+   without asking (doctrine 1). Rceattle ships and has users (`cran-comments.md`). Exported `build_*()`
    arguments carry deprecation paths. Internal refactors are free as long as golden-reference
    equivalence holds.
 2. **A numeric change needs `/golden-check`.** Any edit that can move a fit must keep the four
@@ -107,8 +108,9 @@ how this package is written; very little over what it means.
    did live in `../Rceattle-dev/`.
    Correcting a figure in an already-released `NEWS.md` entry is not a new change and owes no
    bump (precedent: 389cd4a6). **"Breaking" means no back-compat path**: a
-   deprecation that keeps old fits working, or refusing a configuration that never fitted the
-   model it described, is a minor bump — see `inst/RELEASE-CHECKLIST.md` for the examples.
+   deprecation that keeps old fits working, refusing a configuration that never fitted the
+   model it described, or a directed deletion of something that never changed a fit, is a minor
+   bump — see `inst/RELEASE-CHECKLIST.md` for the examples.
 6. **Never hand-edit `man/*.Rd` or `NAMESPACE`.** Run `/document`. Check `git diff DESCRIPTION`
    **first** — if the roxygen version key moved, the `man/` churn is the version, not your change.
 7. **TMB source is inert until `pkgload::load_all(".")`.** Then test with
@@ -163,7 +165,7 @@ how this package is written; very little over what it means.
 This is a TMB package, so the C++ must be compiled before the R can run.
 
 ```r
-pkgload::load_all(".", quiet = TRUE)   # recompiles the TMB DLL + loads R/ (after any .cpp/.hpp edit)
+pkgload::load_all(".", quiet = TRUE)   # rebuilds the TMB DLL only if ceattle.cpp changed (see below)
 devtools::document(quiet = TRUE)       # regenerate man/*.Rd + NAMESPACE after roxygen changes
 NOT_CRAN=true TESTTHAT_PARALLEL=false Rscript -e 'devtools::test()'   # full suite, serial (rule 7)
 rcmdcheck::rcmdcheck()                 # what CI runs (slow; usually backgrounded)
@@ -172,6 +174,12 @@ rcmdcheck::rcmdcheck()                 # what CI runs (slow; usually backgrounde
 - **Toolchain:** prefix R compile/check commands with `export PATH=/usr/bin:$PATH` — system
   toolchain first, so a Homebrew clang/gfortran does not shadow the TMB build.
 - `load_all()` recompiles via `src/TMB/compile.R`; add `compile = FALSE` for R-only changes.
+  **A `.hpp`-only edit can leave it loading the OLD binary with nothing printed amiss**, and
+  every process lives in a header, so that is the normal case. Delete `src/TMB/ceattle.o`
+  and the three `.so`s, then confirm the **`.o`** mtime moved — never an `.so`, which is
+  copied up unconditionally. `inst/dev/TRAPS.md`, "Build and test", has the recipe and warns
+  that the mechanism is NOT established; anything measured after a header edit is suspect
+  until the rebuild is confirmed.
   Compiled artifacts are gitignored — never commit them. `ceattle.o` is the big one and it
   grows with the template (89 MB at 5.45.3, 94 MB at 5.46.0), so treat any figure here as a
   snapshot; `*.so` is a few MB.
@@ -182,7 +190,7 @@ rcmdcheck::rcmdcheck()                 # what CI runs (slow; usually backgrounde
   `R CMD check` stays fast. Leave fast unit tests unguarded.
 - **CI:** `.github/workflows/R-CMD-check.yaml` (multi-OS) + `pkgdown.yaml` + `test-coverage.yaml`
   + `source-guards.yaml` (the registry/doc guards, per PR) + `vignettes.yaml` (weekly,
-  non-blocking) + `deep-checks.yaml` (nightly: golden, safebounds, the full `NOT_CRAN` suite).
+  non-blocking) + `deep-checks.yaml` (golden on PRs that touch `src/`, `R/` or `data/`; nightly: golden, safebounds, the full `NOT_CRAN` suite).
   No lint config, no coverage gate. **`pkgdown.yaml` triggers on `main` only**, so a PR to `dev`
   gets no pkgdown CI — run `/pkgdown-check` yourself. **Adding or removing a test that reads
   `R/*.R` or `src/TMB/*` means updating `EXPECTED` in `tools/ci/source-guards.R`**, which pins
@@ -199,7 +207,7 @@ rcmdcheck::rcmdcheck()                 # what CI runs (slow; usually backgrounde
 - **`src/TMB/`** — `ceattle.cpp` is the main model (numbered section index); process logic lives
   in headers (`recruitment.hpp`, `selectivity.hpp`, `predation.hpp`, `growth.hpp`, `linkage.hpp`,
   `spr.hpp`, `comp_osa.hpp`, `comp_sim.hpp`, `helper_functions.hpp`, `bioenergetics.hpp`,
-  `diet_data.hpp`).
+  `diet_data.hpp`), and the likelihood (section 13) keeps its shared math in `likelihood.hpp`.
   `jnll_comp` rows are addressed by the **`JnllRow` enum** — refer to a row by its constant,
   never a bare integer. The enum has **two hand-synced partners**: display names in
   `R/6-rename_output.R`, and `.JNLL_ROW_AXIS` in `R/9-profile.R`, which records whether a row's
@@ -330,9 +338,9 @@ comp_weights[flt] <- 0
 
 **Match the surrounding form, not the surrounding volume** (doctrine 3). The codebase favours
 explanatory section headers in R and Doxygen on the C++, so write those. Canonical
-references: `src/TMB/spr.hpp` for a fully Doxygen-documented header — one of four with an
-`@file` block (`comp_osa.hpp`, `comp_sim.hpp`
-and `helper_functions.hpp` are the others), where `recruitment.hpp` has `@brief`/`@param`/
+references: `src/TMB/spr.hpp` for a fully Doxygen-documented header — one of five with an
+`@file` block (`comp_osa.hpp`, `comp_sim.hpp`, `helper_functions.hpp`
+and `likelihood.hpp` are the others), where `recruitment.hpp` has `@brief`/`@param`/
 `@return` per function but no file block. And any `R/*.R` + its `tests/testthat/*` pair.
 
 **Roxygen:** markdown, regenerated with `/document`. A `@param` is one sentence: what the
@@ -387,14 +395,14 @@ section holds the fuller text as of 2026-09-14).
 
 - **`newtonsteps > 0` can return a parameter OUTSIDE its bounds**: nlminb respects them, the Newton refinement after it does not, in either `.fit_tmb()` path. `convergence` reports `parameters_outside_bounds` (FAIL); default is 0 but golden runs 3.
 - **A shared parameter block starts at the GEOMETRIC MEAN of its members' starting values**, not the lead's; inject per BLOCK, never per fleet. Cost a GOA cod survey 18% of its index.
-- **`Index_distribution` has a second registry**: a new family must also be classified in `.index_rows_natural_scale()`, or it gets the log-scale residual.
+- **`Index_distribution` has two more registries**: a new family must also be classified in `.index_rows_natural_scale()`, and in `.index_fleets_covariance()` if it carries a covariance rather than a scalar sd, or it gets the log-scale residual or a denominator its likelihood never read.
 - **`jnll_comp` columns count fleets on rows 1–8 AND row 22, species on 9–20 AND row 23, and neither on row 21** — neither axis is contiguous (row 21 is the model-wide linkage REs, row 22 the initial equilibrium catch by fleet, row 23 the DSEM GMRF); `.JNLL_ROW_AXIS` is the registry, so `rowSums()` mixes axes and an axis guess that stops at row 20 is wrong.
 - **A reference point CEATTLE never estimated is a number, not a gap**: `Ftarget`/`Flimit` = 1, `MSSB0` = 999 mt, per-recruit quantities 0 under `msmMode > 0`.
 - **`GOA2018SS`/`GOAcod` cod maturity is 2.0 at every age they use, and it is a data defect, not a sex-ratio convention**: inert there because `nsex = 1` cancels it against `sex_ratio = 0.5`, but on a two-sex species it doubles SSB exactly, and `data_check()`'s upper bound is commented out. Golden cannot see it.
 - **Under `HCR = 0 & msmMode > 0` the depletions divide by last-projection-year biomass**, not `SB0`; don't blank them with a placeholder `SB0`.
 - **A fit reports 102 quantities, or 104 under `selectivity_se = TRUE`**: `quantity_dictionary()` has all 104, and the two it adds are `log_sel_at_age` / `log_sel_at_age_index`. Enumerate `names(fit$quantities)`, not a `REPORT(` grep — and say which `selectivity_se` you counted under, because that is why three different totals are on record.
 - **`retrospective(getsd = TRUE)` can drop peels `getsd = FALSE` keeps**, so Mohn's rho can differ.
-- **`unweighted_jnll_comp` is written for 6 of its 23 rows**; the rest are structurally zero.
+- **`unweighted_jnll_comp` differs from `jnll_comp` only on the composition, CAAL and stomach rows** (no data weights) in ordinary fitting; under OSA those three are 0.
 - **`fit_mod(d, config = cfg)` replaces `d$model_config`**: build `cfg` with `run_config(d, ...)` or every linkage is dropped.
 - **`bias_adjust_proc` centres the lognormal priors and the recruitment deviations together** (5.33.0).
 - **A `data_list` element without `write_data()`/`read_data()` support round-trips to nothing.**

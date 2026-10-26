@@ -71,6 +71,41 @@ test_that("the same holds under predation, with the fitted suitability", {
   expect_gt(max(abs(r$R_hat[1, pre] / exp(m$obj$env$parList(pars)$rec_pars[1, 1]) - 1)), 1e-3)
 })
 
+test_that("under predation and fishing, dynamic B0 is the biomass of a run with no fishing", {
+  testthat::skip_on_cran()
+  # Only a fished run shows dynamic B0 using unfished predators, the term pinned
+  # here. The identity holds under LognormalWeight suitability (suitMode 4),
+  # where parametric suitability does not read abundance; under Empirical
+  # (suitMode 0, the model_config() default, so NOT the common configuration) it
+  # does not, and that is by design -- dynamic B0 holds suitability at its
+  # FITTED value, since suitability is a property of the predator-prey
+  # relationship and must not change because of fishing. See "Deliberately not
+  # changed" in ../Rceattle-dev/CLEANUP_BACKLOG.md before changing predation.hpp.
+  set.seed(1)
+  d  <- make_msm_test_data()$data_list
+  nh <- d$endyr - d$styr + 1
+  bld <- function(inits = NULL) suppressMessages(suppressWarnings(fit_mod(
+    data_list = d, inits = inits, estimateMode = 3, msmMode = 1, suitMode = 4,
+    initMode = "NonEquilibrium", random_rec = FALSE,
+    fit_control = fit_control(phase = FALSE, verbose = 0, getsd = FALSE))))
+  # The simulator's mean recruitment (100 and 1,000) keeps both runs off the
+  # hindcast's 0.001 numbers-at-age floor, which dynamic B0 does not have.
+  p <- bld()$estimated_params
+  p$rec_pars[, 1] <- log(c(100, 1000))
+  fishery <- d$fleet_control[["Fleet_type"]] == 1
+  p$log_F[fishery, ] <- log(0.3)
+  fished <- bld(p)$quantities
+  p$log_F[fishery, ] <- -30
+  unfished <- bld(p)$quantities
+
+  expect_gt(min(fished$N_at_age[, 1, , 1:nh], unfished$N_at_age[, 1, , 1:nh]), 0.01)
+  expect_equal(unname(fished$DynamicB0[, 1:nh]), unname(unfished$biomass[, 1:nh]),
+               tolerance = 1e-8)
+  # Not vacuous: fishing lowers biomass, and changes M2 by more than 0.1 somewhere.
+  expect_lt(max(fished$biomass[, nh] / fished$DynamicB0[, nh]), 0.5)
+  expect_gt(max(unfished$M2_at_age[, 1, , 1:nh] - fished$M2_at_age[, 1, , 1:nh]), 0.1)
+})
+
 test_that("with F near zero, dynamic SB0 equals hindcast SSB for every recruitment form", {
   # Fast, and run on CRAN: the bundled Bering Sea data, built but not optimized, with
   # mean recruitment and a curve fitted in the hindcast as controls.

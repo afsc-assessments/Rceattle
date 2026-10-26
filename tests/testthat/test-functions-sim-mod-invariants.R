@@ -165,3 +165,78 @@ testthat::test_that("a 2DAR1 selectivity fleet reports that its deviations were 
   # Nothing is returned as truth for a process that was not drawn.
   testthat::expect_null(attr(sim, "process_sim")$sel_coff_dev)
 })
+
+# ---------------------------------------------------------------------------
+# A missing hindcast survey year stays missing; a projection row is still drawn.
+#
+# The index likelihood skips a hindcast row whose Observation is NA, but the
+# draw used to fill every row, so a self_test() refit fitted survey years the
+# real data lacked and recovery looked better than it was. run_mse() still needs
+# the negative-Year rows drawn, since it reveals them as each assessment's data.
+# ---------------------------------------------------------------------------
+testthat::test_that("a missing hindcast survey year simulates to NA", {
+  testthat::skip_if_not_installed("TMB")
+
+  for (dist in c("Lognormal", "Normal", "TruncatedNormal")) {
+    d <- make_test_data(nyrs = 12, nages = 5, seed = 7)
+    srv <- which(d$index_data$Fleet_name == "Survey")
+    d$fleet_control$Index_distribution[d$fleet_control$Fleet_name == "Survey"] <- dist
+    if (dist != "Lognormal") d$index_data$Log_sd[srv] <- 10   # absolute sd
+    missing_row <- srv[5]
+    d$index_data$Observation[missing_row] <- NA
+    proj <- d$index_data[utils::tail(srv, 1), , drop = FALSE]
+    proj$Year <- -(d$endyr + 1)
+    proj$Observation <- NA
+    d$index_data <- rbind(d$index_data, proj)
+    proj_row <- nrow(d$index_data)
+
+    fit <- suppressMessages(suppressWarnings(Rceattle::fit_mod(
+      d, file = NULL, estimateMode = 1, msmMode = 0, random_rec = FALSE,
+      fit_control = Rceattle::fit_control(getsd = FALSE, verbose = 0, phase = FALSE))))
+
+    set.seed(11)
+    sim <- testthat::expect_no_warning(Rceattle::sim_mod(fit, simulate = TRUE))
+    obs <- sim$index_data$Observation
+    testthat::expect_true(is.na(obs[missing_row]), info = dist)
+    testthat::expect_gt(obs[proj_row], 0)
+    testthat::expect_true(all(obs[setdiff(srv, missing_row)] > 0), info = dist)
+  }
+})
+
+# ---------------------------------------------------------------------------
+# The same, for `simulate = FALSE`. This is the path `self_test(simulate =
+# FALSE)` and `run_mse(regenerate_past = TRUE)` take, and it wrote `index_hat`
+# over every row -- so a survey year the operating model never produced came
+# back as the model's PREDICTION for it, which a refit then fits. That is the
+# same defect as drawing one, through a different door, and it is why the
+# predicate is shared between the two branches rather than written twice.
+# ---------------------------------------------------------------------------
+testthat::test_that("a missing hindcast survey year stays NA without simulation", {
+  testthat::skip_if_not_installed("TMB")
+
+  d <- make_test_data(nyrs = 12, nages = 5, seed = 7)
+  srv <- which(d$index_data$Fleet_name == "Survey")
+  missing_row <- srv[5]
+  d$index_data$Observation[missing_row] <- NA
+  proj <- d$index_data[utils::tail(srv, 1), , drop = FALSE]
+  proj$Year <- -(d$endyr + 1)
+  proj$Observation <- NA
+  d$index_data <- rbind(d$index_data, proj)
+  proj_row <- nrow(d$index_data)
+
+  fit <- suppressMessages(suppressWarnings(Rceattle::fit_mod(
+    d, file = NULL, estimateMode = 1, msmMode = 0, random_rec = FALSE,
+    fit_control = Rceattle::fit_control(getsd = FALSE, verbose = 0, phase = FALSE))))
+
+  sim <- suppressMessages(suppressWarnings(Rceattle::sim_mod(fit, simulate = FALSE)))
+  obs <- sim$index_data$Observation
+  # The unfitted hindcast year keeps its NA ...
+  testthat::expect_true(is.na(obs[missing_row]))
+  # ... while the projection row DOES take the expected value, which is what
+  # run_mse() splices in, and every fitted year is filled as before.
+  testthat::expect_gt(obs[proj_row], 0)
+  testthat::expect_true(all(obs[setdiff(srv, missing_row)] > 0))
+  # Not vacuous: the model does predict a value for that year, so the old
+  # behaviour had something to write and this is not an empty assertion.
+  testthat::expect_gt(as.numeric(fit$quantities$index_hat)[missing_row], 0)
+})

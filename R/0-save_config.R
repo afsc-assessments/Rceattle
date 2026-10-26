@@ -100,7 +100,7 @@ print.Rceattle_run_config <- function(x, ...) {
 # `priors` become {family,p1,p2}. NULL slots are dropped so a spec re-built with
 # the constructor picks up the same defaults.
 .RCE_LINKAGE_SPEC_ARGS <- c("formula", "param", "by", "species", "sex", "fleet",
-                            "link", "init", "bounds", "priors", "re_group",
+                            "link", "init", "bounds", "priors",
                             "est_phase", "observe", "obs_sd", "obs_sd_est",
                             "integrate")
 

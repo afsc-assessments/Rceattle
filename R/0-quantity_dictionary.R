@@ -213,7 +213,7 @@
       "Predicted survey index on the log scale.",
       "log mt or log thousands of fish", "[nrow(index_data)]", TRUE, NA_character_),
     r("index_sd", "catchability",
-      "Observation-error sd the index likelihood used for each row. It is NOT a log: a log-scale sd for a Lognormal fleet, and an ABSOLUTE sd in index units for a natural-scale Index_distribution.",
+      "Observation-error sd the index likelihood used for each row. It is NOT a log: a log-scale sd for a Lognormal fleet, and an ABSOLUTE sd in index units for a natural-scale Index_distribution. An MVN/MVNORM fleet is the exception -- it scores index_cov, so this value is whatever Log_sd carried and the likelihood never reads it; sqrt(diag(index_cov)) is that fleet's sd.",
       "log scale sd or index units", "[nrow(index_data)]", FALSE, NA_character_),
     r("log_index_sd", "catchability",
       "Deprecated spelling of index_sd, kept one release; identical values. Use index_sd.",
@@ -342,7 +342,7 @@
       "Weighted negative log-likelihood by component and fleet or species. Rows are named; columns count FLEETS on rows 1-8 and 22, SPECIES on rows 9-20 and 23, and neither on row 21, so rowSums() pools across different axes. .JNLL_ROW_AXIS is the registry.",
       "unitless", "[23, max(n_flt, nspp)]", FALSE, "likelihood"),
     r("unweighted_jnll_comp", "likelihood",
-      "As jnll_comp before data weights are applied. Written for only 6 of its 23 rows -- composition, CAAL, stomach, the two linkage rows and the DSEM GMRF; every other row is structurally zero here, not small.",
+      "As jnll_comp without data weights: the composition, CAAL and stomach-content rows are scored without Comp_weights, CAAL_weights and Diet_comp_weights (a Dirichlet-multinomial at theta = 1); in ordinary fitting every other row equals jnll_comp.",
       "unitless", "[23, max(n_flt, nspp)]", FALSE, NA_character_),
 
     # -- linkage -----------------------------------------------------------

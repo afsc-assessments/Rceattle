@@ -22,24 +22,26 @@
 #
 #   * `test-coverage` DOES run them against the real source. `coverage-shard.R`
 #     resolves `tests/testthat` to an absolute path in the source checkout, so
-#     `../../R/data.R` exists. But it passes `stop_on_failure = FALSE` and no
-#     later step reads the result, so a failure prints into a shard log and the
-#     job stays green.
+#     `../../R/data.R` exists. Since PR #261 it also fails the shard on a
+#     failing test, so a failure there is no longer silent -- but the shard
+#     contexts are not required for a merge, so that red advises, not blocks.
 #
 #   * `deep-checks.yaml` runs them properly -- `load_all()` on a source
 #     checkout, NOT_CRAN=true, failures fatal -- but nightly, gating no merge.
 #
 # So the gap was never "these never run on a pull request". It is that where
-# they run, their result is discarded or arrives a day late. This job runs them
-# on a source checkout and makes the result fatal.
+# they run, the result either does not BLOCK (the coverage shards read it since
+# PR #261, but their contexts are not among the six the ruleset requires) or
+# arrives a day late. This job runs them on a source checkout, makes the result
+# fatal, and IS one of the six.
 #
 # IT FAILS ON THREE CONDITIONS, not one, because two of the three are the ways
 # a guard dies quietly:
 #   * a guard fails;
 #   * a guard returns NO RESULT ROWS -- a file-level `skip_on_cran()`, at column
 #     0 outside any `test_that()`, aborts the file and yields zero rows, so it
-#     reports neither a pass nor a skip and vanishes from the counts. 94 of the
-#     255 test files are written that way;
+#     reports neither a pass nor a skip and vanishes from the counts. 95 of the
+#     271 test files are written that way;
 #   * a BLOCK that reads package source skipped, or asserted nothing.
 #
 # That last condition is per BLOCK, deliberately. Two earlier versions checked
@@ -49,7 +51,7 @@
 # the fewest, 14 at the most -- so one block can be switched off while its
 # siblings keep the file's total well above zero.
 # Adding a `skip_on_cran()` is the single most likely accidental edit in this
-# repo (it is the idiom in 181 of 255 files), and doing it to the block that
+# repo (it is the idiom in 195 of 271 files), and doing it to the block that
 # guards the C++ dispatch map took 33 assertions dark with the job still green.
 #
 # WHAT THE PER-BLOCK CHECK DOES NOT COVER, because the first version of it

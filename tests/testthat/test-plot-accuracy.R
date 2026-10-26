@@ -128,6 +128,10 @@ testthat::test_that("plot_f keys its reference lines to the species it drew", {
 })
 
 # --- fit diagnostics (index/catch) --------------------------------------------
+# The fit plots draw the MEDIAN of the fitted observation distribution, so the
+# expected value here is hat * exp(-b*sd^2/2) rather than hat; before 5.64.3
+# this pinned the mean. Recomputed from the reported sd and flag, not from the
+# plotter's own helper.
 testthat::test_that("index/catch fit plots plot the model's predictions", {
   testthat::skip_if_not_installed("TMB")
   testthat::skip_if_not_installed("Rceattle")
@@ -144,22 +148,25 @@ testthat::test_that("index/catch fit plots plot the model's predictions", {
   testthat::expect_s3_class(pidx, "ggplot")
   idx <- ss$data_list$index_data
   idx$hat <- ss$quantities$index_hat
+  idx$sd  <- as.numeric(ss$quantities$index_sd)
   surv <- fc$Fleet_code[fc$Fleet_type == "Survey"]
   idx <- idx[idx$Fleet_code %in% surv & idx$Year <= ss$data_list$endyr, ]
   pd  <- pidx$data[order(pidx$data$Fleet, pidx$data$Year), ]
   src <- idx[order(idx$Fleet_code, abs(idx$Year)), ]
-  testthat::expect_equal(pd$Predicted, src$hat)
+  ba  <- 1   # bias_adjust_obs defaults to TRUE
+  testthat::expect_equal(pd$Predicted, src$hat * exp(-ba * src$sd^2 / 2))
 
   # fishery catch: plotted Predicted == quantities$catch_hat on the fishery rows
   pcat <- Rceattle::plot_catch(ss)
   testthat::expect_s3_class(pcat, "ggplot")
   cat_d <- ss$data_list$catch_data
   cat_d$hat <- ss$quantities$catch_hat
+  cat_d$sd  <- as.numeric(ss$quantities$catch_sd)
   fish <- fc$Fleet_code[fc$Fleet_type == "Fishery"]
   cat_d <- cat_d[cat_d$Fleet_code %in% fish & cat_d$Year <= ss$data_list$endyr, ]
   pdc <- pcat$data[order(pcat$data$Fleet, pcat$data$Year), ]
   srcc <- cat_d[order(cat_d$Fleet_code, abs(cat_d$Year)), ]
-  testthat::expect_equal(pdc$Predicted, srcc$hat)
+  testthat::expect_equal(pdc$Predicted, srcc$hat * exp(-ba * srcc$sd^2 / 2))
 })
 
 # --- maturity -----------------------------------------------------------------

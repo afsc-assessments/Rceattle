@@ -7,9 +7,7 @@
 LINKAGE_PARAM_CODES
 }
 \description{
-Each process has its own independent parameter namespace (\code{K}
-means something different to growth than \code{alpha} does to
-recruitment), so the param column is encoded against a per-process
-table. Unknown parameter names error.
+Each process numbers its own parameters, so a name is looked up within its
+process. An unknown name is an error.
 }
 \keyword{internal}

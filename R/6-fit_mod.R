@@ -691,6 +691,12 @@ fit_mod <-
     # (Fixed-effect covariates with missing years are rejected earlier, in
     # materialize_linkage(), before model.matrix() can silently drop NA rows.)
 
+    # A sel prior on an unshared Off fleet is dropped here, with a warning, so
+    # the checks below and the encoder never see it.
+    data_list$linkage_table <- .drop_off_fleet_sel_priors(
+      data_list$linkage_table, data_list$fleet_control,
+      verbose = if (isTRUE(quiet_data_check)) 0 else 1)
+
     # Only the parametric forms wired in the TMB template consume a sel linkage,
     # so one on an unwired form, or on the non-parametric `coff` param, is
     # refused rather than silently dropped (empirical and the RPM random walk

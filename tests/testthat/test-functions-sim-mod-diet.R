@@ -1,5 +1,5 @@
 # Stomach contents are drawn by the TMB model's SIMULATE block, beside the diet
-# density (ceattle.cpp, section 13.2). Before that they were the one observation
+# density (ceattle.cpp, section 13.6). Before that they were the one observation
 # type never simulated, so a multispecies self_test() refit against the same
 # stomachs every replicate and recovered suitability from data that never varied.
 #

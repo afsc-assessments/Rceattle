@@ -230,6 +230,71 @@ testthat::test_that("Test SPR0 calculation", {
 })
 
 
+# Female SSB rebuilt from the reported numbers- and weight-at-age, for all three
+# species and all 74 years, hindcast AND projection. Two terms no other test
+# could see, each with the error it produces if dropped:
+#
+#   * The spawn-month discount `exp(-Z * spawn_month/12)`. GOA pollock spawns in
+#     mid-March (spawn_month 2.52); removing the factor moves its SSB by up to
+#     24.8%. Species 2 and 3 spawn at month 0, where the factor is identically 1,
+#     so they are the controls that show the term is read PER SPECIES.
+#   * `spawn_output`'s sex branch (`ceattle.cpp` ~1166 and ~940): `mature_females`
+#     is maturity times sex_ratio on a ONE-sex species and maturity alone on a
+#     two-sex one. Arrowtooth is GOA2018SS's two-sex species; applying sex_ratio
+#     there too moves its SSB by 182%.
+#
+# Projection years take `spawn_output(sp, age, nyrs_hind - 1)` rather than year
+# `yr` (`ceattle.cpp` ~2442 against ~2088). That is NOT what this test pins:
+# `weight_hat` already carries the last hindcast year forward, so its projection
+# columns equal column `nh` exactly here, and the two readings agree. Using year
+# `y` throughout is therefore correct and the distinction is invisible on this
+# fixture.
+testthat::test_that("SSB is taken at the spawn month in every year and species", {
+  testthat::skip_if_not_installed("TMB")
+  g <- Rceattle::GOA2018SS
+  fit <- suppressMessages(suppressWarnings(
+    Rceattle::fit_mod(data_list = g, estimateMode = 3, msmMode = 0,
+                      fit_control = Rceattle::fit_control(getsd = FALSE, verbose = 0))))
+  q  <- fit$quantities
+  nh <- g$endyr - g$styr + 1
+  ny <- ncol(q$ssb)
+  testthat::expect_gt(ny, nh)            # there ARE projection years to cover
+  # By name, not `-1`: the age columns are the convention here, but `M1_base` is
+  # `Species, Sex, Age1...`, so a leading-column count is not portable in this
+  # data_list.
+  agecols <- grep("^Age", names(g$maturity))
+  testthat::expect_gt(length(agecols), 0L)
+
+  for (sp in seq_len(g$nspp)) {
+    na  <- g$nages[sp]
+    sm  <- g$spawn_month[sp]
+    mat <- as.numeric(g$maturity[g$maturity[["Species"]] == sp, agecols])[1:na]
+    sr  <- as.numeric(g$sex_ratio[g$sex_ratio[["Species"]] == sp, agecols])[1:na]
+    spawners <- if (g$nsex[sp] == 1) mat * sr else mat
+    # weight_hat row 2*sp is this species' spawning weight: wt_idx_ssb is
+    # `2 * sp + 1` on a 0-based species index.
+    want <- vapply(seq_len(ny), function(y) sum(
+      q$N_at_age[sp, 1, 1:na, y] * exp(-q$Z_at_age[sp, 1, 1:na, y] * sm / 12) *
+        q$weight_hat[2 * sp, 1, 1:na, y] * spawners), numeric(1))
+    testthat::expect_equal(unname(q$ssb[sp, ]), want, tolerance = 1e-10,
+                           info = paste("species", sp))
+  }
+
+  # The premise for the species that carries the timing term: without it the
+  # reconstruction is wrong, so the assertion above is not passing on a fixture
+  # where the discount is inert.
+  na <- g$nages[1]
+  mat <- as.numeric(g$maturity[g$maturity[["Species"]] == 1, agecols])[1:na]
+  sr  <- as.numeric(g$sex_ratio[g$sex_ratio[["Species"]] == 1, agecols])[1:na]
+  testthat::expect_gt(g$spawn_month[1], 0)
+  undiscounted <- vapply(seq_len(ny), function(y) sum(
+    q$N_at_age[1, 1, 1:na, y] * q$weight_hat[2, 1, 1:na, y] * mat * sr), numeric(1))
+  testthat::expect_gt(max(abs(unname(q$ssb[1, ]) / undiscounted - 1)), 0.1)
+  # And the two-sex species really is two-sex, so its branch was exercised.
+  testthat::expect_equal(unname(g$nsex), c(1, 2, 1))
+})
+
+
 testthat::test_that("Test hindcast the same across different HCRs/BRPs", {
   data("BS2017SS") # ?BS2017SS for more information on the data
   BS2017SS$fleet_control$Proj_F_proportion <- rep(1, 7)

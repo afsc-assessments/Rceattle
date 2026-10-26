@@ -120,16 +120,49 @@ testthat::test_that("*_LINKAGE_PARAMS stays in sync with LINKAGE_PARAM_CODES", {
 })
 
 
-testthat::test_that("the selectivity param codes match the template's consume sites", {
-  # linkage.hpp routes each code to a tensor; ceattle.cpp's prior re-target
-  # reads the same codes. A code added on one side only is silent at fit time.
+testthat::test_that("the linkage codes match the template's constants and consume sites", {
+  # linkage.hpp names each code (RCEATTLE_SEL_*, RCEATTLE_COMP_*, RCEATTLE_LINK_*,
+  # RCEATTLE_RE_*) after the R tables in R/0-linkage_encode.R. `//` comments are
+  # stripped before matching, so a consume site is not a line-comment mention.
   src <- testthat::test_path("..", "..", "src", "TMB")
   testthat::skip_if(!dir.exists(src), "src/TMB not available")
-  lk <- paste(readLines(file.path(src, "linkage.hpp"), warn = FALSE), collapse = "\n")
-  codes <- sort(unique(unname(Rceattle:::LINKAGE_PARAM_CODES$sel)))
-  testthat::expect_equal(codes, 0:11)
-  for (k in codes) {
-    testthat::expect_match(lk, paste0("param == ", k, "\\b"), perl = TRUE,
-                           info = paste("sel code", k, "has no consume site in linkage.hpp"))
+  code <- function(f) paste(sub("//.*$", "", readLines(file.path(src, f), warn = FALSE)),
+                            collapse = "\n")
+  lk  <- code("linkage.hpp")
+  cpp <- code("ceattle.cpp")
+  defined <- function(const, value) {
+    testthat::expect_match(lk, paste0("#define ", const, "\\s+", value, "\\b"), perl = TRUE,
+                           info = paste(const, "is not defined as", value))
+  }
+  used_in <- function(txt, const, where) {
+    testthat::expect_match(txt, paste0("==\\s*", const, "\\b"), perl = TRUE,
+                           info = paste(const, "has no consume site in", where))
+  }
+  codes <- Rceattle:::LINKAGE_PARAM_CODES
+  testthat::expect_equal(sort(unique(unname(codes$sel))), 0:11)
+  dn_all <- 6:11   # DoubleNormalSS3 P1-P6: reached through the range
+  rng <- "param >= RCEATTLE_SEL_DN_PEAK && param <= RCEATTLE_SEL_END_LOGIT"
+  testthat::expect_match(lk,  rng, fixed = TRUE)
+  testthat::expect_match(cpp, rng, fixed = TRUE)
+  sel <- codes$sel[!duplicated(codes$sel)]   # aliases share a code
+  for (nm in names(sel)) {
+    const <- paste0("RCEATTLE_SEL_", toupper(nm))
+    defined(const, sel[[nm]])
+    if (sel[[nm]] %in% dn_all) next
+    used_in(lk, const, "linkage.hpp (accumulator)")
+    # coff has no scalar base parameter, so no prior lookup.
+    if (nm != "coff") used_in(cpp, const, "ceattle.cpp (prior lookup)")
+  }
+  for (nm in names(codes$comp)) {
+    const <- paste0("RCEATTLE_COMP_", toupper(nm))
+    defined(const, codes$comp[[nm]])
+    used_in(cpp, const, "ceattle.cpp (prior lookup)")
+  }
+  for (nm in names(Rceattle:::LINKAGE_LINK_CODES)) {
+    defined(paste0("RCEATTLE_LINK_", toupper(nm)), Rceattle:::LINKAGE_LINK_CODES[[nm]])
+  }
+  re_names <- c(us = "RCEATTLE_RE_IID", rw = "RCEATTLE_RE_RW", ar1 = "RCEATTLE_RE_AR1")
+  for (nm in names(Rceattle:::LINKAGE_STRUCT_CODES)) {
+    defined(re_names[[nm]], Rceattle:::LINKAGE_STRUCT_CODES[[nm]])
   }
 })

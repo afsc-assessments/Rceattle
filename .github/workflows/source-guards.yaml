@@ -18,15 +18,17 @@
 #     and is never on the path these tests build, so "R/ holds the .rdb" is
 #     NOT the reason.) Each guard skips, and a skip is not a failure.
 #   * `test-coverage` DOES run them against the real source -- it resolves
-#     `tests/testthat` to an absolute path in the checkout -- but passes
-#     `stop_on_failure = FALSE` and nothing reads the result, so a failure
-#     prints into a shard log and the job stays green.
+#     `tests/testthat` to an absolute path in the checkout -- and since PR #261
+#     fails the shard on a failing test. But its shard contexts are not
+#     required for a merge, so that red advises rather than blocks.
 #   * `deep-checks.yaml` runs them properly and fatally, but nightly.
 #
 # So the gap was never "these never run on a pull request". It is that where
-# they run their result is discarded, or it arrives a day late. This job runs
-# them on a source checkout, on every PR, and fails on the result -- in about
-# five seconds of R, though the dependency install in front of it costs minutes.
+# they run, the result either does not BLOCK (the coverage shards read it since
+# PR #261, but their contexts are not among the six the ruleset requires) or it
+# arrives a day late. This job runs them on a source checkout, on every PR,
+# fails on the result, and IS one of the six -- in about five seconds of R,
+# though the dependency install in front of it costs minutes.
 #
 # THIS CHECK IS REQUIRED on `main` and `dev`, by the ruleset "Require the guards
 # before merging". The ruleset names it by the string "registry and documentation
@@ -37,7 +39,7 @@
 # It fails on three conditions, because two of the three are how a guard dies
 # quietly: a guard failing; a guard returning NO RESULT ROWS (a file-level
 # `skip_on_cran()` aborts the file and yields zero rows, so it reports neither
-# a pass nor a skip -- 94 of the 255 test files are written that way); and a
+# a pass nor a skip -- 95 of the 271 test files are written that way); and a
 # source-reading BLOCK that skipped or asserted nothing.
 #
 # That last check is per BLOCK. Two earlier drafts checked per file, and an

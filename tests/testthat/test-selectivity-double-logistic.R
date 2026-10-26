@@ -20,8 +20,8 @@ testthat::test_that("Sex-specific age-based double logistic selectivity not norm
   inf1 = 7; alpha = 0.2
   inf2 = 15
   ages <- 1:21
-  sel <- 1/(1+exp(-alpha*(ages-inf1))) * (1-1/(1+exp(-alpha*(ages-inf2))))
-  sel2 <- 1/(1+exp(-alpha*(ages-inf1)))*(1-1/(1+exp(-alpha*(ages-16))))
+  sel <- 1/(1+exp(-alpha*(ages-inf1))) * (1/(1+exp(alpha*(ages-inf2))))
+  sel2 <- 1/(1+exp(-alpha*(ages-inf1)))*(1/(1+exp(alpha*(ages-16))))
 
   # Set params to double logistic
   mod0 <- suppressMessages( fit_mod(data_list = GOA2018SS, inits = NULL, estimateMode = 3, random_rec = FALSE, msmMode = 0, fit_control = fit_control(verbose = 0)) )
@@ -97,9 +97,9 @@ testthat::test_that("Sex-specific age-based time-varying double logistic selecti
   alpha = 0.5
   ages <- 1:21
   sel <- apply(cbind(log_slp_dev, inf_dev, log_slp_dev_desc, inf_dev_desc), 1,
-               function(x) 1/(1+exp(-(alpha)*exp(x[1]) * (ages - inf - x[2]))) * (1 - 1/(1+exp(-(alpha)*exp(x[3]) * (ages - inf2 - x[4])))))
+               function(x) 1/(1+exp(-(alpha)*exp(x[1]) * (ages - inf - x[2]))) * (1/(1+exp((alpha)*exp(x[3]) * (ages - inf2 - x[4])))))
   sel2 <- apply(cbind(log_slp_dev, inf_dev, log_slp_dev_desc, inf_dev_desc), 1,
-                function(x) 1/(1+exp(-(alpha+1)*exp(x[1]) * (ages - inf - x[2]))) * (1 - 1/(1+exp(-(alpha+1)*exp(x[3]) * (ages - inf2 - x[4])))))
+                function(x) 1/(1+exp(-(alpha+1)*exp(x[1]) * (ages - inf - x[2]))) * (1/(1+exp((alpha+1)*exp(x[3]) * (ages - inf2 - x[4])))))
 
 
   # Set params to double logistic
@@ -227,9 +227,9 @@ testthat::test_that("Time-varying double logistic selectivity likelihood", {
   alpha = 0.5
   ages <- 1:21
   sel <- apply(cbind(log_slp_dev, inf_dev, log_slp_dev_desc, inf_dev_desc), 1,
-               function(x) 1/(1+exp(-(alpha)*exp(x[1]) * (ages - inf - x[2]))) * (1 - 1/(1+exp(-(alpha)*exp(x[3]) * (ages - inf2 - x[4])))))
+               function(x) 1/(1+exp(-(alpha)*exp(x[1]) * (ages - inf - x[2]))) * (1/(1+exp((alpha)*exp(x[3]) * (ages - inf2 - x[4])))))
   sel2 <- apply(cbind(log_slp_dev, inf_dev, log_slp_dev_desc, inf_dev_desc), 1,
-                function(x) 1/(1+exp(-(alpha+1)*exp(x[1]) * (ages - inf - x[2]))) * (1 - 1/(1+exp(-(alpha+1)*exp(x[3]) * (ages - inf2 - x[4])))))
+                function(x) 1/(1+exp(-(alpha+1)*exp(x[1]) * (ages - inf - x[2]))) * (1/(1+exp((alpha+1)*exp(x[3]) * (ages - inf2 - x[4])))))
 
 
   # Set params to double logistic

@@ -84,7 +84,7 @@ test_that("the R objects and C++ symbols the recipe relies on exist, and are nam
                    ".SEL_PARAM_TO_SLOT", ".JNLL_ROW_AXIS")
   cpp_symbols <- c("flt_sel_type", "sel_at_age", "sel_at_length", "is_length_based",
                    "JnllRow", "JNLL_SEL_DEV", "REPORT",
-                   "Logistic selectivity penalties")
+                   "Logistic-family selectivity deviates")
   tok_bare <- sub("\\(\\)$", "", tok)
   testthat::expect_equal(setdiff(c(r_objects, cpp_symbols), tok_bare), character(0),
                          info = "a pinned anchor is no longer named in the article")
@@ -107,10 +107,10 @@ test_that("the R objects and C++ symbols the recipe relies on exist, and are nam
   src_of <- function(...) paste(readLines(file.path(root, ...), warn = FALSE), collapse = "\n")
   testthat::expect_match(src_of("R", "1-data_check.R"), "sel_para <-", fixed = TRUE)
   testthat::expect_match(src_of("R", "0-parameter_index.R"), '"8" = "DoubleNormal"', fixed = TRUE)
-  # Four hard-coded type lists carry code 8 in the deviate densities.
+  # Two hard-coded type lists, asc_limb and desc_limb, carry code 8 in the deviate densities.
   main <- src_of("src", "TMB", "ceattle.cpp")
-  testthat::expect_match(main, "Logistic selectivity penalties", fixed = TRUE)
-  testthat::expect_length(gregexpr("flt_sel_type(flt) == 8", main, fixed = TRUE)[[1]], 4L)
+  testthat::expect_match(main, "Logistic-family selectivity deviates", fixed = TRUE)
+  testthat::expect_length(gregexpr("flt_sel_type(flt) == 8", main, fixed = TRUE)[[1]], 2L)
 })
 
 test_that("the switch codes and modes the recipe quotes still hold", {

@@ -40,9 +40,10 @@ testthat::test_that("the encoder, the accumulator and the prior re-target agree 
   testthat::skip_if(!dir.exists(src), "src/TMB not available")
   lk  <- paste(readLines(file.path(src, "linkage.hpp"), warn = FALSE), collapse = "\n")
   cpp <- paste(readLines(file.path(src, "ceattle.cpp"), warn = FALSE), collapse = "\n")
-  testthat::expect_match(lk,  "param == 5", fixed = TRUE)
-  testthat::expect_match(cpp, "linkage_param(i) == 5", fixed = TRUE)
-  testthat::expect_match(cpp, "else if (param == 5)", fixed = TRUE)
+  testthat::expect_match(lk,  "#define RCEATTLE_SEL_APICAL       5", fixed = TRUE)
+  testthat::expect_match(lk,  "param == RCEATTLE_SEL_APICAL", fixed = TRUE)
+  testthat::expect_match(cpp, "linkage_param(i) == RCEATTLE_SEL_APICAL", fixed = TRUE)
+  testthat::expect_match(cpp, "else if (param == RCEATTLE_SEL_APICAL)", fixed = TRUE)
 })
 
 testthat::test_that("an apical linkage frees the named sex's cell and changes nothing at its start", {
@@ -119,7 +120,10 @@ testthat::test_that("an apical linkage the model cannot identify is refused", {
   # data_check() also says "AR1" when it rejects Sel_curve_pen2 as an
   # out-of-range correlation on these forms, and that message would satisfy a
   # looser pattern whether or not this refusal existed.
-  testthat::expect_error(apical_build(apical_data(form = "2DAR1"), male_offset()),
+  # GOAatf ships Time_varying_sel_sd = 0, which data_check() refuses on 2DAR1.
+  d_ar1 <- apical_data(form = "2DAR1")
+  d_ar1$fleet_control$Time_varying_sel_sd[3] <- 1
+  testthat::expect_error(apical_build(d_ar1, male_offset()),
                          "apical selectivity linkage on fleet\\(s\\) .* with an AR1")
 
   # A one-sex species: the offset is the common level log_F already carries.

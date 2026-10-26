@@ -79,9 +79,9 @@ testthat::test_that("Time-varying double logistic selectivity bin first selected
   alpha = 0.5
   ages <- 1:21
   sel <- apply(cbind(log_slp_dev, inf_dev, log_slp_dev_desc, inf_dev_desc), 1,
-               function(x) 1/(1+exp(-(alpha)*exp(x[1]) * (ages - inf - x[2]))) * (1 - 1/(1+exp(-(alpha)*exp(x[3]) * (ages - inf2 - x[4])))))
+               function(x) 1/(1+exp(-(alpha)*exp(x[1]) * (ages - inf - x[2]))) * (1/(1+exp((alpha)*exp(x[3]) * (ages - inf2 - x[4])))))
   sel2 <- apply(cbind(log_slp_dev, inf_dev, log_slp_dev_desc, inf_dev_desc), 1,
-                function(x) 1/(1+exp(-(alpha+1)*exp(x[1]) * (ages - inf - x[2]))) * (1 - 1/(1+exp(-(alpha+1)*exp(x[3]) * (ages - inf2 - x[4])))))
+                function(x) 1/(1+exp(-(alpha+1)*exp(x[1]) * (ages - inf - x[2]))) * (1/(1+exp((alpha+1)*exp(x[3]) * (ages - inf2 - x[4])))))
 
 
   # Set params to double logistic

@@ -19,9 +19,8 @@
 #'     penalized fixed effect instead and requires that SD to be fixed.}
 #' }
 #'
-#' The split is the same one `lme4` and `glmmTMB` use, and the parsing is done
-#' by `reformulas`, the package both of those rely on, so the syntax behaves
-#' the way a user of either would expect.
+#' Parsing is done by `reformulas`, as in `lme4` and `glmmTMB`, so the syntax
+#' behaves as it does there.
 #'
 #' @param formula a one-sided formula.
 #'
@@ -68,15 +67,9 @@ LINKAGE_STRUCTURES <- c(
 #' Reject unrecognized covariance-structure wrappers
 #'
 #' @description
-#' `reformulas::splitForm()` silently treats an unrecognized wrapper as the
-#' default structure: `bogus(Year + 0 | fleet)` comes back as `"us"` with no
-#' warning. A user would then get an unstructured term while believing they
-#' had asked for something else, and nothing downstream could tell the
-#' difference.
-#'
-#' So check the wrappers ourselves before handing the formula over. Anything
-#' that wraps a bar and is not in `LINKAGE_STRUCTURES` is an error naming both
-#' the offending term and the available structures.
+#' `reformulas::splitForm()` silently reads an unknown wrapper as `"us"`
+#' (`bogus(Year + 0 | fleet)` becomes an unstructured term), so any wrapper
+#' around a bar that is not in `LINKAGE_STRUCTURES` is an error here.
 #'
 #' @param formula a one-sided formula.
 #' @return `formula` invisibly, on success.

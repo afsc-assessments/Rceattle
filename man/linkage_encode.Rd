@@ -4,13 +4,10 @@
 \alias{linkage_encode}
 \title{Encode an Rceattle linkage table into TMB-friendly inputs}
 \description{
-The TMB template consumes the pooled linkage table as a set of
-parallel \code{IVECTOR} / \code{VECTOR} inputs plus a dense design matrix.
-R encodes the string-valued columns (\code{process}, \code{param}, \code{link},
-\code{prior_family}) as 0-based integer codes; converts the
-\code{NA} stratum ids (\code{species}, \code{sex}, \code{age_bin}, \code{fleet}) to a sentinel \code{0}
-meaning "applies to all levels" (TMB-side dispatch expands the
-shared rows over the relevant 1-based levels); and converts the 1-based
-\code{X_col} to 0-based.
+The template reads the linkage table as parallel integer and numeric
+vectors plus a design matrix. Text columns (\code{process}, \code{param}, \code{link},
+\code{prior_family}) become 0-based integer codes, an \code{NA} stratum id
+(\code{species}, \code{sex}, \code{age_bin}, \code{fleet}) becomes \code{0} ("every level"), and
+\code{X_col} becomes 0-based.
 }
 \keyword{internal}

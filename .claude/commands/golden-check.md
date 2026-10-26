@@ -13,8 +13,10 @@ re-optimizing, so the gate answers "is this the same likelihood" and not "which 
 `goa_ss`'s two minima did this machine reach". It also asserts the reference is still a
 stationary point, and carries `skip_on_cran()` / `skip_on_covr()`, plus a second, larger
 "golden reference by configuration" block that does still fit. Run it with `NOT_CRAN=true`.
-The four objectives are literals in the test file; the fixture holds only the parameters they
-were measured at, so a re-pin is visible as changed text in a diff.
+The four objectives are literals in the test file, so a re-pin is visible as changed text in a
+diff. The fixture holds the parameters they were measured at, plus the SSB, biomass,
+recruitment, SB0, B0, dynamic B0 and M2 arrays the test also pins at them (relative 1e-8 per
+element; SB0 and B0 for the single-species pair only).
 
 **Cold starts moved to `tools/verify/verify-golden-cold-start.R`.** The gate no longer covers a
 change confined to the optimization path -- a phase order, a starting value, a bound inactive at
@@ -91,9 +93,13 @@ Wrap everything in one `export PATH=/usr/bin:$PATH && NOT_CRAN=true Rscript -e '
 6. If `dev/golden-ref.rds` does **not** exist: save these as the reference and report
    "pinned new golden reference" — only do this on a known-good commit.
    If it **does** exist: load it and report the MAX absolute deviation per field per model.
-   **PASS** if every field is within `1e-6` -- the same tolerance the committed
-   `test-golden-regression.R` uses, so the two gates cannot disagree; otherwise **FAIL** and show the largest-deviating
-   fields so I can investigate. NOTE: `goa_ms` (fixed-M GOA multispecies) has a flat
+   **PASS** if every field is within `1e-6`; otherwise **FAIL** and show the
+   largest-deviating fields so I can investigate. This is a DIFFERENT and looser
+   gate than the committed `test-golden-regression.R`, which pins the objective
+   at 1e-10 relative, the gradient at 1e-8 absolute, and the derived quantities
+   element by element at 1e-8 relative -- on an SSB of 8.8e6 mt a 1e-6 absolute
+   tolerance is 1.1e-13 relative, so the two can disagree in either direction.
+   The committed test is the gate; this recipe is the quick local read. NOTE: `goa_ms` (fixed-M GOA multispecies) has a flat
    likelihood ridge — its `par`/`ssb` are ridge-sensitive across *different* code, though
    deterministic on same-code re-runs; judge it primarily on `obj` (and `jnll`). The
    reference values (this branch): ss=10241.0304272585, ms=10267.2478324443,

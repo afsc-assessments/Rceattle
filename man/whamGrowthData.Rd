@@ -13,6 +13,9 @@ whamGrowthData
 \description{
 A data list containing inputs for a CEATTLE model that uses growth
 estimated from the Woods Hole Assessment Model (WHAM). See
-\code{\link{BS2017SS}} for format details.
+\code{\link{BS2017SS}} for format details. Its two 2DAR1 fleets ship with
+\code{Time_varying_sel_sd = 0} and no \code{N_sel_bins}, so
+\code{data_check()} refuses it as shipped; the vignettes set a different
+selectivity before fitting.
 }
 \keyword{datasets}

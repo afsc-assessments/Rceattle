@@ -179,22 +179,55 @@ message(sprintf("\nPer-file timings -> %s", timing_log))
 # source tree, and `package =` makes the test environment's parent the Rceattle
 # namespace so the internal helpers the suite calls resolve (see CLAUDE.md).
 #
-# stop_on_failure = FALSE: a failing test must not throw away the shard's
-# coverage before it is written. R-CMD-check is the correctness gate for this
-# suite -- test-coverage is deliberately non-blocking -- and the progress
-# reporter prints any failure into this log.
+# stop_on_failure = FALSE so a failing test does not throw away the shard's
+# coverage. Instead the subprocess writes the passing-expectation count, the
+# failing and erroring tests, and the files that produced no result at all to
+# `failures_log`, and this script stops after the coverage report is written.
+# This is the only per-PR job that runs the skip_on_cran() suite, since
+# R-CMD-check sets NOT_CRAN=false.
+#
+# The subprocess asserts NOT_CRAN itself, BEFORE the fits: this whole job's
+# value is that the skip_on_cran() suite runs, and NOT_CRAN going false presents
+# as a fast green run of nothing but the unguarded unit tests. 195 of 271 files
+# carry the skip, 95 of them at file level, where a skipped file reports no row
+# at all rather than a skip -- so every shard would still pass expectations and
+# report green. Asserting the mode is the only way to see it.
+#
+# `[[` not `$` on the result columns: if testthat ever stops returning `error`,
+# `results$error` is NULL, `results$failed > 0 | NULL` is logical(0), and a
+# logical(0) row index selects NO rows whatever `failed` holds -- a shard with
+# real failures would write an empty list and pass. The stopifnot() pins the
+# column contract that the indexing depends on (DESCRIPTION floors testthat at
+# 3.2.0, which does not promise it).
 #
 # MultiReporter leaves the progress reporter's console output exactly as it was
 # and writes the timing rows alongside it.
+failures_log <- tempfile(sprintf("coverage-failures-shard-%d-", shard), fileext = ".txt")
 code <- sprintf(
   'source(%s)
-   testthat::test_dir(%s, package = "Rceattle", load_package = "installed",
-                      filter = %s, stop_on_failure = FALSE,
-                      reporter = testthat::MultiReporter$new(reporters = list(
-                        testthat::ProgressReporter$new(),
-                        CoverageTimingReporter$new(%s))))',
+   if (!identical(Sys.getenv("NOT_CRAN"), "true"))
+     stop("NOT_CRAN must be true for this shard: every skip_on_cran() test ",
+          "would otherwise leave the run, 195 of 271 files, and the shard ",
+          "would still report green")
+   results <- as.data.frame(testthat::test_dir(
+     %s, package = "Rceattle", load_package = "installed",
+     filter = %s, stop_on_failure = FALSE,
+     reporter = testthat::MultiReporter$new(reporters = list(
+       testthat::ProgressReporter$new(),
+       CoverageTimingReporter$new(%s)))))
+   stopifnot(all(c("file", "test", "passed", "failed", "error") %%in%%
+                 names(results)))
+   failed <- results[results[["failed"]] > 0 | results[["error"]],
+                     c("file", "test")]
+   writeLines(c(as.character(sum(results[["passed"]])),
+                sprintf("FAIL %%s: %%s", failed[["file"]],
+                        ifelse(is.na(failed[["test"]]), "(outside test_that)",
+                               failed[["test"]])),
+                sprintf("NORESULT %%s",
+                        setdiff(%s, unique(results[["file"]]))),
+                "--shard-complete--"), %s)',
   deparse1(timing_src), deparse1(test_dir), deparse1(filter),
-  deparse1(timing_log)
+  deparse1(timing_log), deparse1(mine), deparse1(failures_log)
 )
 
 install_path <- Sys.getenv("RUNNER_TEMP", unset = "")
@@ -215,3 +248,48 @@ cov <- covr::package_coverage(
 
 covr::to_cobertura(cov)
 message(sprintf("\nShard %d coverage: %s", shard, format(covr::percent_coverage(cov))))
+
+# covr keeps the test output in Rceattle-commands.Rout, which
+# test-coverage.yaml uploads as the coverage-test-failures-shard-N artifact, so
+# name the failing tests here.
+#
+# The sentinel is written last, so a half-written file cannot read as a clean
+# shard. Be honest about its reach: a subprocess that DIES is already caught
+# upstream, because covr's run_commands() stops on a non-zero exit before this
+# line is reached. What is left is a child that exits 0 having written only
+# part of the file, which has not been observed. The sentinel is kept because
+# it turns that case, and a missing or empty file, into a named error instead
+# of a bare readLines() failure.
+shard_results <- readLines(failures_log)
+if (length(shard_results) == 0L ||
+    shard_results[length(shard_results)] != "--shard-complete--") {
+  stop("Shard ", shard, " did not finish writing its result: the test ",
+       "subprocess died before its last line. Read the ",
+       "coverage-test-failures-shard-", shard, " artifact.")
+}
+shard_passed <- as.integer(shard_results[1])
+failed_tests <- grep("^FAIL ", shard_results, value = TRUE)
+no_result    <- sub("^NORESULT ", "",
+                    grep("^NORESULT ", shard_results, value = TRUE))
+
+# Count what executed, not that it passed: a green shard should say how much it
+# measured. The files with no result are the ones this job cannot see at all --
+# a file-level skip_on_covr() reports no row rather than a skip.
+message(sprintf("\nShard %d ran %d passing expectations in %d of %d files",
+                shard, shard_passed, length(mine) - length(no_result),
+                length(mine)))
+if (length(no_result) > 0) {
+  message(sprintf("  no result from %d file%s (skipped at file level): %s",
+                  length(no_result), if (length(no_result) == 1) "" else "s",
+                  paste(no_result, collapse = ", ")))
+}
+
+if (length(failed_tests) > 0) {
+  stop("Shard ", shard, " has ", length(failed_tests), " failing or erroring tests ",
+       "(full output in the coverage-test-failures-shard-", shard, " artifact):\n",
+       paste0("  ", sub("^FAIL ", "", failed_tests), collapse = "\n"))
+}
+if (shard_passed == 0) {
+  stop("Shard ", shard, " passed no expectations, so its tests were skipped ",
+       "(NOT_CRAN false, or every file skipped at file level under covr)")
+}
