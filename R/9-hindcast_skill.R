@@ -97,7 +97,12 @@
 #'   peel's PREDICTED SURVEY INDEX to the index values actually observed in the
 #'   held-out years. Both can be asked for. `"model"` scores the quantity a
 #'   projection is used for (SSB, recruitment); `"observed"` scores the only
-#'   thing that was really measured.
+#'   thing that was really measured. Its forecast for a lognormal survey row is
+#'   the predicted median, `index_hat * exp(-bias_adjust_obs * sd^2 / 2)` with
+#'   the row's log-scale sd and the fit's own [fit_control()] `bias_adjust_obs`
+#'   (so `index_hat` itself under `FALSE`): the point forecast that minimizes
+#'   absolute error. An analytical sd is the peel's, solved without the held-out
+#'   years.
 #'
 #'   **`"observed"` is not numerically comparable to published MASE values.**
 #'   Kell et al. (2021) eq. 5 averages its denominator over a WIDER window than
@@ -306,6 +311,13 @@ hindcast_skill <- function(object = NULL, peels = 5,
            "own q and the score would be leaked. Use reference = \"model\".",
            call. = FALSE)
     }
+    # An analytical index sd (Walters and Ludwig 1994) is solved from every row the
+    # rebuild fits, held-out rows included, so the median takes the peel's own.
+    .fc <- object$data_list$fleet_control
+    .esd <- .fc$Estimate_index_sd
+    .ana_sd_flt <- .fc$Fleet_code[
+      (suppressWarnings(as.integer(.esd)) %in% .rce_allowed_map("Estimate_index_sd")[["Analytical"]]) |
+        (as.character(.esd) %in% "Analytical")]
 
     for (m in peel_models) {
       ep <- m$data_list$endyr_peel
@@ -347,6 +359,16 @@ hindcast_skill <- function(object = NULL, peels = 5,
                 "; cannot align them.", call. = FALSE)
         next
       }
+      # MASE scores absolute errors, which the median minimizes; a lognormal row's
+      # likelihood is centred on hat * exp(-b sd^2 / 2), not on the reported mean.
+      sd_i <- as.numeric(.observation_sd(pred$quantities, "index"))
+      if (length(.ana_sd_flt)) {
+        peel_sd <- as.numeric(.observation_sd(m$quantities, "index"))
+        for (f in .ana_sd_flt) {
+          sd_i[idx_full$Fleet_code == f] <- peel_sd[match(f, m$data_list$index_data$Fleet_code)]
+        }
+      }
+      ih <- .hat_as_median(ih, sd_i, .bias_adjust_obs(pred), !.index_rows_natural_scale(dl))
 
       held <- which(idx_full$Year > ep & idx_full$Year <= endyr)
       for (flt in unique(idx_full$Fleet_code[held])) {

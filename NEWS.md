@@ -23,7 +23,7 @@ mistaken for it: both numbers exist on both lines with different content, the
 divergence the comment at the top of this file describes.
 
 Unreleased, and deliberately carrying a DEVELOPMENT suffix rather than a release
-number: `DESCRIPTION` reads `5.66.1.9001`, the released line this branch now
+number: `DESCRIPTION` reads `5.66.1.9002`, the released line this branch now
 contains plus a suffix. A bare release number here would make an install from
 this branch report a version that exists on `main` or `dev` and holds different
 code -- the mislabelling `95153bbc` fixed when it first moved this branch to a
@@ -33,6 +33,18 @@ suffix stays until the DSEM work is given a release number of its own. The
 numbered on the 5.23.0 line.
 
 ## Behavior changes
+
+* **`hindcast_skill(reference = "observed")` scores the predicted median of a
+  lognormal survey row.** MASE is a mean absolute error, which the median
+  minimizes, and the likelihood is centred on
+  `index_hat * exp(-bias_adjust_obs * sd^2 / 2)` (sd on the log scale), the line
+  5.64.3 made `plot_index()` draw; an analytical sd (`Estimate_index_sd = 2`) is
+  the peel's own, solved without the held-out years. Under
+  `fit_control(bias_adjust_obs = TRUE)`, the default, the forecast falls by
+  that factor (2% at an sd of 0.2, 12% at 0.5), so MASE moves for every
+  lognormal fleet. Under `FALSE` `index_hat` is already the
+  median and nothing changes, nor for natural-scale fleets (`Normal`,
+  `TruncatedNormal`, `MVN`, `MVNORM`) or `reference = "model"`.
 
 * **`unweighted_jnll_comp`'s DSEM row now equals `jnll_comp`'s.** The DSEM
   density carries no data weight, so 5.64.8's copy of the rows without one now

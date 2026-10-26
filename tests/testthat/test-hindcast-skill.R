@@ -80,6 +80,15 @@ testthat::test_that("hindcast_skill can score the held-out index instead", {
     estimateMode = 0, random_rec = TRUE, msmMode = 0,
     fit_control = Rceattle::fit_control(phase = FALSE, getsd = FALSE,
                                         verbose = 0))))
+  # Record each peel's reported mean as it reaches the median conversion; the
+  # real conversion still runs, so the scored result is unchanged.
+  means <- list()
+  real_median <- Rceattle:::.hat_as_median
+  testthat::local_mocked_bindings(
+    .hat_as_median = function(hat, sigma, ba_obs, log_scale) {
+      means[[length(means) + 1L]] <<- hat
+      real_median(hat, sigma, ba_obs, log_scale)
+    }, .package = "Rceattle")
   hs <- suppressWarnings(suppressMessages(
     Rceattle::hindcast_skill(fit, peels = 2, reference = "observed",
                              cores = 1, getsd = FALSE)))
@@ -112,6 +121,54 @@ testthat::test_that("hindcast_skill can score the held-out index instead", {
 
   # And the peel must be predicting years it did not fit.
   testthat::expect_true(all(by[["Forecast year"]] >= 1))
+
+  # The forecast is the predicted MEDIAN: BS2017SS's surveys are lognormal with
+  # fixed sds, so each is its peel's mean times exp(-Log_sd^2 / 2) (bias_adjust_obs
+  # = 1), with Log_sd read from the data rather than from the function.
+  testthat::expect_length(means, 2L)
+  r <- mapply(function(o, y) which(obs$Fleet_code == o & obs$Year == y),
+              as.integer(sub("^index_fleet_", "", by[["Object"]])), by$year)
+  med <- exp(-obs$Log_sd[r]^2 / 2)
+  for (p in unique(by$peel)) {
+    i <- by$peel == p
+    hit <- vapply(means, function(m) isTRUE(all.equal(by$forecast[i], m[r[i]] * med[i],
+                                                      tolerance = 1e-12)), logical(1))
+    testthat::expect_true(any(hit), info = paste("peel", p))
+    testthat::expect_true(all(by$forecast[i] < means[[which(hit)[1]]][r[i]]))
+  }
+})
+
+testthat::test_that("hindcast_skill takes the median from the fit's bias_adjust_obs", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("TMB")
+  # Under fit_control(bias_adjust_obs = FALSE) the likelihood is centred on
+  # log(index_hat), so the reported value already is the median and is scored as is.
+  fit <- suppressWarnings(suppressMessages(Rceattle::fit_mod(
+    data_list = Rceattle::BS2017SS, inits = NULL, file = NULL,
+    estimateMode = 0, random_rec = TRUE, msmMode = 0,
+    fit_control = Rceattle::fit_control(phase = FALSE, getsd = FALSE, verbose = 0,
+                                        bias_adjust_obs = FALSE))))
+  means <- list()
+  real_median <- Rceattle:::.hat_as_median
+  testthat::local_mocked_bindings(
+    .hat_as_median = function(hat, sigma, ba_obs, log_scale) {
+      means[[length(means) + 1L]] <<- hat
+      real_median(hat, sigma, ba_obs, log_scale)
+    }, .package = "Rceattle")
+  hs <- suppressWarnings(suppressMessages(
+    Rceattle::hindcast_skill(fit, peels = 2, reference = "observed",
+                             cores = 1, getsd = FALSE)))
+  by <- hs$by_year[grepl("^index_fleet", hs$by_year[["Object"]]), ]
+  obs <- fit$data_list$index_data
+  testthat::expect_gt(nrow(by), 0)
+  testthat::expect_length(means, 2L)
+  r <- mapply(function(o, y) which(obs$Fleet_code == o & obs$Year == y),
+              as.integer(sub("^index_fleet_", "", by[["Object"]])), by$year)
+  for (p in unique(by$peel)) {
+    i <- by$peel == p
+    hit <- vapply(means, function(m) identical(by$forecast[i], m[r[i]]), logical(1))
+    testthat::expect_true(any(hit), info = paste("peel", p))
+  }
 })
 
 
@@ -253,4 +310,38 @@ testthat::test_that("a peel with two rows at one horizon is weighted once", {
     nrow(z) > length(unique(z$peel))
   }, logical(1))
   testthat::expect_true(any(hit))
+})
+
+testthat::test_that("an analytical index sd comes from the peel, not the rebuild", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("TMB")
+  # Walters-Ludwig solves the sd from every row a model fits; the rebuild that
+  # predicts the held-out years fits them too, so the median must use the peel's.
+  d <- Rceattle::BS2017SS
+  srv <- which(d$fleet_control$Fleet_name == "BT_Pollock")
+  d$fleet_control$Estimate_index_sd[srv] <- 2
+  fit <- suppressWarnings(suppressMessages(Rceattle::fit_mod(
+    data_list = d, inits = NULL, file = NULL, estimateMode = 0,
+    random_rec = TRUE, msmMode = 0,
+    fit_control = Rceattle::fit_control(phase = FALSE, getsd = FALSE, verbose = 0))))
+  sds <- list()
+  real_median <- Rceattle:::.hat_as_median
+  testthat::local_mocked_bindings(
+    .hat_as_median = function(hat, sigma, ba_obs, log_scale) {
+      sds[[length(sds) + 1L]] <<- sigma
+      real_median(hat, sigma, ba_obs, log_scale)
+    }, .package = "Rceattle")
+  hs <- suppressWarnings(suppressMessages(
+    Rceattle::hindcast_skill(fit, peels = 1, reference = "observed",
+                             cores = 1, getsd = FALSE)))
+  testthat::expect_length(sds, 1L)
+
+  peel <- retro_peel_for(hs, fit, peel = 1)
+  code <- d$fleet_control$Fleet_code[srv]
+  peel_sd <- peel$quantities$index_sd[match(code, peel$data_list$index_data$Fleet_code)]
+  full_sd <- fit$quantities$index_sd[match(code, fit$data_list$index_data$Fleet_code)]
+  # Non-vacuity: the analytical sd does depend on which years were fitted.
+  testthat::expect_false(isTRUE(all.equal(peel_sd, full_sd, tolerance = 1e-8)))
+  rows <- fit$data_list$index_data$Fleet_code == code
+  testthat::expect_true(all(abs(sds[[1]][rows] - peel_sd) < 1e-12))
 })

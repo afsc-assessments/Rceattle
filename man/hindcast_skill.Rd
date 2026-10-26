@@ -35,7 +35,12 @@ happened. \code{"observed"} is classic hindcast cross-validation: it compares th
 peel's PREDICTED SURVEY INDEX to the index values actually observed in the
 held-out years. Both can be asked for. \code{"model"} scores the quantity a
 projection is used for (SSB, recruitment); \code{"observed"} scores the only
-thing that was really measured.
+thing that was really measured. Its forecast for a lognormal survey row is
+the predicted median, \code{index_hat * exp(-bias_adjust_obs * sd^2 / 2)} with
+the row's log-scale sd and the fit's own \code{\link[=fit_control]{fit_control()}} \code{bias_adjust_obs}
+(so \code{index_hat} itself under \code{FALSE}): the point forecast that minimizes
+absolute error. An analytical sd is the peel's, solved without the held-out
+years.
 
 \strong{\code{"observed"} is not numerically comparable to published MASE values.}
 Kell et al. (2021) eq. 5 averages its denominator over a WIDER window than
