@@ -1772,9 +1772,8 @@ build_map_linkages <- function(map_list, data_list) {
   # level, so the coefficient itself is the level.
   is_intercept <- .is_pinned_intercept(tbl)
   # Random-effect indicator rows carry their deviation in beta_linkage_re (which
-  # holds the density), so the fixed beta_linkage entry is pinned at 0. Key on
-  # re_index -- the registry marker -- so a fixed row that merely inherited a
-  # spec-level re_group stays estimable.
+  # holds the density), so the fixed beta_linkage entry is pinned at 0. re_index
+  # is filled only on those rows (.assign_re_registry()).
   is_re_row <- !is.na(tbl$re_index)
   m <- map_list$beta_linkage
   m[est_phase == 0L | is_intercept | is_re_row] <- NA

@@ -12,6 +12,19 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.66.0
+
+## Breaking changes
+
+* **`linkage_spec()` no longer has a `re_group` argument.** It never did
+  anything, so a call that passes it now stops with `unused argument
+  (re_group = ...)`: delete it, and the fit is unchanged. A config saved with
+  it stops the same way in `load_config()`; delete its `re_group:` line. If you
+  set it expecting year-to-year deviations, your model had none. Write them in
+  the formula, one deviation per level of the variable after the bar:
+  `~ temp + (1 | Year)` (IID), `~ temp + rw(1 | Year)` (random walk) or
+  `~ temp + ar1(1 | Year)` (AR1). Adding one changes the fit.
+
 # Rceattle 5.65.5
 
 ## Internal

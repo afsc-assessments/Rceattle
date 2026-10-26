@@ -25,8 +25,9 @@ NULL
 
 #' Capture a linkage specification
 #'
-#' @param formula one-sided R formula whose RHS describes the linear
-#'   predictor for `param` (e.g. `~ 1`, `~ temp`, `~ temp + PDO`).
+#' @param formula one-sided R formula whose RHS describes the linear predictor
+#'   for `param` (e.g. `~ 1`, `~ temp`, `~ temp + (1 | Year)`), where a `(1 | g)`,
+#'   `rw(1 | g)` or `ar1(1 | g)` term adds a random effect with one deviation per level of `g`.
 #' @param param target parameter name on the natural scale (e.g. `"alpha"`,
 #'   `"M1"`, `"K"`). May be `NULL` when the spec is built inside a `build_*()`
 #'   call that infers it from the enclosing list key; see [build_growth()].
@@ -80,8 +81,6 @@ NULL
 #'   design-matrix column. Inside this argument `normal()`, `lognormal()`,
 #'   `gamma()` and `beta()` may be written directly, so
 #'   `priors = list(temp = normal(0, 1))` is the same as `prior_normal(0, 1)`.
-#' @param re_group optional character naming a random-effect grouping for these
-#'   coefficients. `NA` (default) means fixed.
 #' @param est_phase optional integer estimation phase, default `1L`. `0` fixes
 #'   the coefficient at its `init`, which then holds over any `inits` given to
 #'   [fit_mod()] (an estimated intercept's `init` is only a starting value, and
@@ -158,7 +157,6 @@ linkage_spec <- function(formula,
                          init      = NULL,
                          bounds    = NULL,
                          priors    = NULL,
-                         re_group  = NA_character_,
                          est_phase = 1L,
                          observe   = NULL,
                          obs_sd    = NULL,
@@ -297,7 +295,6 @@ linkage_spec <- function(formula,
       init      = init,
       bounds    = bounds,
       priors    = priors_obj,
-      re_group  = as.character(re_group),
       est_phase = .phase,
       observe   = observe,
       obs_sd    = obs_sd,
@@ -1192,10 +1189,9 @@ materialize_linkage <- function(spec, process, env_data, strata = list(), quiet 
         prior_family  = pf,
         prior_p1      = pp1,
         prior_p2      = pp2,
-        # A random-effect column's group is its grouping variable (made unique per
-        # process/param/stratum in pool_linkages()). A fixed column's is NA, so
-        # spec$re_group is never reached: `%||%` replaces only NULL.
-        re_group      = col_re_group[col_idx] %||% spec$re_group,
+        # A random-effect column's group is the variable after its bar ("Year");
+        # NA on a fixed column. Each process/param/stratum gets its own SD.
+        re_group      = col_re_group[col_idx],
         re_struct     = col_re_struct[col_idx],
         re_time       = col_re_time[col_idx],
         re_sigma_init = re_f[["re_sigma_init"]],

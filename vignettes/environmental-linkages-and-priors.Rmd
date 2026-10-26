@@ -59,7 +59,7 @@ whamGrowthData$env_data <- data.frame(
 # 2. Build a growth specification with one linkage per parameter that
 #    you want to vary. linkage_spec() captures one process parameter's
 #    formula, strata (by / species / sex / fleet), link, init, bounds,
-#    priors, random-effect handling (re_group, integrate) and any
+#    priors, random-effect handling (formula terms, integrate) and any
 #    state-space covariate (observe, obs_sd, obs_sd_est). ?linkage_spec
 #    documents each.
 growth_spec <- build_growth(
@@ -101,7 +101,6 @@ linkage_spec(
   init      = NULL,
   bounds    = NULL,
   priors    = NULL,
-  re_group  = NA_character_,
   est_phase = 1L
 )
 ```
@@ -110,7 +109,10 @@ Key arguments (see `?linkage_spec` for the full list):
 
 * **`formula`**: one-sided R formula describing the linear
   predictor (anything `model.matrix()` understands: `~ 1`, `~ temp`,
-  `~ temp + PDO`, `~ poly(temp, 2)`, factor predictors, etc.).
+  `~ temp + PDO`, `~ poly(temp, 2)`, factor predictors, etc.). A
+  `(1 | Year)` (IID), `rw(1 | Year)` (random walk) or `ar1(1 | Year)` (AR1)
+  term adds a random effect with one deviation per level of the variable after
+  the bar (*Random effects* below).
 * **`param`**: target parameter name (e.g. `"K"`). Filled in
   automatically when the spec is registered under a `linkages = list(K = ...)`
   list key.
@@ -217,9 +219,7 @@ Key arguments (see `?linkage_spec` for the full list):
 * **`priors`**: named list keyed by design-matrix column. Each
   entry is either an `Rceattle_prior` or a list keyed by species id;
   see *Priors* below.
-* **`re_group`** / **`est_phase`**: a random-effect group label (`NA`, the
-  default, means fixed; the `(1 | Year)` forms below set it from the formula)
-  and the estimation phase ordinal (`0` fixes, `1+` estimates).
+* **`est_phase`**: the estimation phase ordinal (`0` fixes, `1+` estimates).
 
 ## Priors
 
