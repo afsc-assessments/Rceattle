@@ -60,9 +60,4 @@ residual is marginal rather than whitened. A positive residual means the
 survey saw more than the
 model predicted. The y scale stays free per fleet, since residual spread
 differs by fleet.
-
-Figures made before 5.9.0 are mirrored about zero relative to these, and
-those before 5.64.3 were unstandardized and unoffset -- \code{log(obs) - log(hat)}
-on a log-scale fleet, \code{obs - hat} on a natural-scale one -- despite the
-\code{residual_type = "pearson"} name; either needs redrawing.
 }

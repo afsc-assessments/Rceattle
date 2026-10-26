@@ -3458,7 +3458,7 @@ Type objective_function<Type>::operator() () {
     }
   }
 
-  // Reported under a _sim name -- see the naming rule in section 5.2.
+  // Reported under a _sim name -- see the naming rule in section 5.2b.
   SIMULATE {
     matrix<Type> index_obs_sim = index_obs;
     REPORT(index_obs_sim);
@@ -3533,7 +3533,7 @@ Type objective_function<Type>::operator() () {
     }
   }
 
-  // Reported under _sim names -- see the naming rule in section 5.2. obsvec_sim is for
+  // Reported under _sim names -- see the naming rule in section 5.2b. obsvec_sim is for
   // inspection: only its catch and index entries are redrawn.
   SIMULATE {
     matrix<Type> catch_obs_sim = catch_obs;
@@ -3551,7 +3551,7 @@ Type objective_function<Type>::operator() () {
   // FIXME: the multinomial (type 0) is renormalized after the offset, so its reported
   // NLL carries a per-row constant N_eff * log(1 + n_bins * offset); fit and MLE unchanged.
   Type comp_prop_offset = comp_offset;
-  matrix<Type> comp_sim = comp_obs;   // simulated comps; see the _sim rule in section 5.2
+  matrix<Type> comp_sim = comp_obs;   // simulated comps; see the _sim rule in section 5.2b
 
   for(comp_ind = 0; comp_ind < comp_obs.rows(); comp_ind++) {
 
@@ -3627,7 +3627,7 @@ Type objective_function<Type>::operator() () {
 
   // 13.5. CONDITIONAL AGE-AT-LENGTH (JNLL_CAAL)
   // One row per fleet, year, sex and length bin, scored like a composition row.
-  matrix<Type> caal_sim = caal_obs;   // simulated CAAL; see the _sim rule in section 5.2
+  matrix<Type> caal_sim = caal_obs;   // simulated CAAL; see the _sim rule in section 5.2b
 
   for(int caal_ind = 0; caal_ind < caal_hat.rows(); caal_ind++){
 
@@ -3683,7 +3683,7 @@ Type objective_function<Type>::operator() () {
   // 13.6. STOMACH CONTENTS (JNLL_STOMACH)
   // Each stomach's prey proportions plus an "other prey" balance, scored per predator
   // when suitability is estimated.
-  matrix<Type> diet_sim = diet_obs;   // simulated diet; see the _sim rule in section 5.2
+  matrix<Type> diet_sim = diet_obs;   // simulated diet; see the _sim rule in section 5.2b
 
   if((msmMode > 2) || (imax(suitMode) > 0)) {
 
@@ -3817,7 +3817,7 @@ Type objective_function<Type>::operator() () {
     }
   }
 
-  // Reported under a _sim name -- see the naming rule in section 5.2.
+  // Reported under a _sim name -- see the naming rule in section 5.2b.
   SIMULATE {
     matrix<Type> diet_obs_sim = diet_sim;
     REPORT(diet_obs_sim);

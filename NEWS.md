@@ -27,6 +27,22 @@ version throughout.
   every fleet, live ones included) builds, and a fleet sharing a
   `Selectivity_index` gets the shared-block refusal naming its lead.
 
+## Documentation
+
+* **Deleting an exported function or argument now happens only at the
+  maintainer's direction, recorded in `NEWS.md`** (`CONTRIBUTING.md`,
+  `inst/RELEASE-CHECKLIST.md`); 5.66.0 says so for `linkage_spec(re_group =)`.
+* Corrections from the 5.66.0 release review:
+  * The index fit figures' observation intervals are centred on the
+    observation, not the median; `?plot_index`, the diagnostics vignette and the
+    5.64.3 entry now give the reason that holds: about half the observations
+    should fall below the median.
+  * Six section headings in `NEWS.md` lacked the blank line pandoc needs, so
+    the pkgdown changelog filed 5.64.1 under 5.64.2 (and five older versions
+    likewise).
+  * `inst/RELEASE-CHECKLIST.md` no longer says `deep-checks` can be dispatched
+    only on the default branch.
+
 # Rceattle 5.66.0
 
 ## Breaking changes
@@ -38,14 +54,16 @@ version throughout.
   set it expecting year-to-year deviations, your model had none. Write them in
   the formula, one deviation per level of the variable after the bar:
   `~ temp + (1 | Year)` (IID), `~ temp + rw(1 | Year)` (random walk) or
-  `~ temp + ar1(1 | Year)` (AR1). Adding one changes the fit.
+  `~ temp + ar1(1 | Year)` (AR1). Adding one changes the fit. The argument is
+  removed outright rather than deprecated, at the maintainer's direction; it is
+  a minor bump because it never changed a fit.
 
 # Rceattle 5.65.5
 
 ## Internal
 
 * **`materialize_linkage()` reads as its steps.** The 352-line function that
-  turns a `linkage_spec()` into linkage-table rows is now 64 lines over eight
+  turns a `linkage_spec()` into linkage-table rows is now 66 lines over eight
   helpers: the design matrix, the init / bounds / priors keys, the `observe`
   checks, the strata, and the rows with their random-effect fields. The blocks
   were moved, not rewritten; no output, error or package message changes (R's
@@ -114,7 +132,9 @@ version throughout.
   the sd from `inits`. Enter any positive sd to refit either; neither reads it,
   so the fit is unchanged. The bundled `whamGrowthData` ships 2DAR1 fleets with
   sd 0 (and no `N_sel_bins`), so it never fitted as shipped and needs the
-  selectivity overrides its vignettes already make.
+  selectivity overrides its vignettes already make. It is a minor bump despite
+  the two setups that did fit, by the maintainer's decision, since any positive
+  sd restores them unchanged.
 
 # Rceattle 5.64.8
 
@@ -169,7 +189,8 @@ version throughout.
 ## Bug fixes
 
 * **A pinned-intercept selectivity prior on an `Off` fleet is now dropped with a
-  warning instead of refusing the fit.** Turning a survey off is an ordinary
+  warning instead of refusing the fit.** (`quiet_data_check = TRUE`, as on a
+  refit, silences the warning.) Turning a survey off is an ordinary
   sensitivity run and one prior spec is reused across the series, so refusing
   the whole configuration blocked drop-one-survey runs outright. The prior is
   removed rather than merely allowed: such a prior re-targets to a base
@@ -214,12 +235,11 @@ version throughout.
   observation distribution, not its mean.** The lognormal likelihood fits
   `log(obs)` to a mean of `log(hat) - bias_adjust_obs * sd^2 / 2`, so
   `index_hat` and `catch_hat` are that distribution's mean while the likelihood
-  is centred on its median -- and the observation intervals these figures draw
-  are quantiles that bracket the median. `plot_index()` and `plot_catch()`
-  plotted the mean against them, raising the line by `exp(b * sd^2 / 2)`: 2% at
-  an sd of 0.2, 13% at 0.5, 38% at 0.8. That shifts the line off the centre the
-  interval brackets, so more of the series falls below it than above and the fit
-  reads worse than it is. Both now draw
+  is centred on its median, so about half the observations should fall below
+  the line. `plot_index()` and `plot_catch()` plotted the mean, raising the line
+  by `exp(b * sd^2 / 2)`: 2% at an sd of 0.2, 13% at 0.5, 38% at 0.8. More of
+  the series then fell below it than above, and the fit read worse than it
+  was. Both now draw
   `hat * exp(-bias_adjust_obs * sd^2 / 2)`, using the sd each row was actually
   fitted with, on the hindcast rows only. A projection row's prediction is the
   removal taken, not an observation drawn with error, so it keeps the reported
@@ -312,6 +332,7 @@ version throughout.
   workbooks across `Rceattle-models`, `GOA-multispecies-assessment`,
   `GOA-ATF-ESP` and `GOA_circlulation_study` found none either — so no bundled,
   golden, hake-MSE or sibling-assessment draw changes.
+
 # Rceattle 5.64.1
 
 ## Bug fixes
@@ -335,8 +356,9 @@ version throughout.
   slope x (age - a50) is 0.83 on `goa_ss` and 1.16 on `goa_ms` across the three
   fleets that use these forms (GOA2018SS fleets 1, 7 `DescendingLogistic` and 8
   `DoubleLogistic`, all pollock, `nages` 10), where the old form's relative
-  error is at most one unit in the last place (2.2e-16). Hence `goa_ss` is
-  unchanged to the last digit and `goa_ms` moves by 1 unit in the last place
+  error is at most one unit in the last place (2.2e-16). Hence `goa_ss`'s
+  objective is unchanged to the last digit (single `jnll_comp` cells move by a
+  few units in the last place) and `goa_ms` moves by 1 unit in the last place
   (1.8e-12). Bering Sea references use neither form.
 
 # Rceattle 5.64.0
@@ -1220,6 +1242,7 @@ linkage on a fleet that shares its block. Nothing in the bundled datasets or the
 assessment scripts does -- the GOA cod bridge's three intercept inits are all unstratified growth
 rows, and its selectivity specs are intercept-free -- so no shipped configuration changes. A fit
 that does set one was starting somewhere nobody asked for and will now start where it was told.
+
 # Rceattle 5.57.3
 
 ## Bug fixes
@@ -1436,6 +1459,7 @@ cover.
   disagrees with its sibling branches at `minage >= 2`. Both are unreachable in
   anything shipping -- every bundled dataset and live assessment uses `minage`
   0 or 1, and no live model carries multi-group fixed numbers.
+
 # Rceattle 5.57.0
 
 ## Behavior changes
@@ -1533,6 +1557,7 @@ exercise the `Off`-member case; `GOA2018SS` `Selectivity_index` 1 is the fixture
   asserting the wrong invariant and is replaced -- all three spellings give one coefficient, but
   two of them fit *divergent* selectivity. Those two spellings are now refused, which is what
   the replacement asserts.
+
 # Rceattle 5.56.0
 
 ## Behavior changes
@@ -2068,6 +2093,7 @@ exercise the `Off`-member case; `GOA2018SS` `Selectivity_index` 1 is the fixture
   multispecies assessment (arrowtooth is two-sex at species 2 of 3).
 * No golden reference moves: all four run `growth_model = 0`, where the whole growth block is
   mapped out. Verified -- six golden blocks, 21 assertions, unchanged.
+
 # Rceattle 5.51.0
 
 ## Bug fixes
@@ -2175,6 +2201,7 @@ The same bare-comma pattern remains in the `log_M1_dev`, `M1_beta`, `M1_rho` and
 writes and is deliberately left alone: every one of those starts at 0, so averaging a padding cell
 into the level is exactly inert, and changing them would alter random-effect map structure for no
 numerical gain.
+
 # Rceattle 5.50.0
 
 ## Bug fixes
