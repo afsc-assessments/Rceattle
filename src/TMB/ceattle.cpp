@@ -766,11 +766,10 @@ Type objective_function<Type>::operator() () {
 
 
   // -- 5.2. SIMULATE LINKAGE RANDOM EFFECTS (sim_mod(simulate = TRUE))
-  // A random linkage on any of the five processes draws here, before they read it. Each
-  // structure draws from the density that scores it in section 13.14, slots being in
-  // ascending time order so "next slot" is "next year": a rw group leaves slot 0 alone, a
-  // level the density never sees and that is held fixed, and an ar1 draw is standardized
-  // then scaled by the MARGINAL SD sigma.
+  // A random linkage on any of the five processes draws here, before they read it, from
+  // its density in rceattle_re_group_nll() (linkage.hpp, called in 13.14). Slots are in
+  // time order within a group, so a random walk starts from the fitted first slot, and an
+  // AR1 draw is standardized then scaled by the MARGINAL sd sigma.
   //
   // beta_linkage_re_drawn_sim marks which slots this call wrote. The reported deviation
   // vector spans EVERY random linkage, drawn or not, so without the mask a caller would
@@ -779,7 +778,6 @@ Type objective_function<Type>::operator() () {
     vector<Type> beta_linkage_re_drawn_sim(linkage_re_sigma.size());
     beta_linkage_re_drawn_sim.setZero();
     if (log_sigma_linkage.size() > 0 && simulate_period(0) == 1) {
-      int n_slot = linkage_re_sigma.size();
       int n_grp  = log_sigma_linkage.size();
 
       // Drawn only if EVERY row using the group names a process the caller asked for.
@@ -809,40 +807,38 @@ Type objective_function<Type>::operator() () {
         // Left as fitted; sim_mod() warns that it was.
         if (linkage_re_obs(grp) >= 0) continue;
 
-        int len = 0;
-        for (int s = 0; s < n_slot; ++s) if (linkage_re_sigma(s) == grp) len++;
+        vector<int> slots = rceattle_group_slots(linkage_re_sigma, grp);
+        int len = slots.size();
         if (len == 0) continue;
-
-        vector<int> slot_of(len);
-        int j = 0;
-        for (int s = 0; s < n_slot; ++s) if (linkage_re_sigma(s) == grp) slot_of(j++) = s;
 
         Type sigma = exp(log_sigma_linkage(grp));
         vector<Type> re(len);
         int st = linkage_re_struct(grp);
 
-        if (st == 1) {                                   // rw / RandomWalk
-          re(0) = linkage_re_integrate(slot_of(0))
-              ? beta_linkage_re(linkage_re_slot(slot_of(0)))
-              : beta_linkage_re_pen(linkage_re_slot(slot_of(0)));
+        // Each slot sits in beta_linkage_re if integrated, else beta_linkage_re_pen, at
+        // position linkage_re_slot(slot).
+        if (st == 1) {                                   // random walk
+          re(0) = linkage_re_integrate(slots(0))
+              ? beta_linkage_re(linkage_re_slot(slots(0)))
+              : beta_linkage_re_pen(linkage_re_slot(slots(0)));
           for (int t = 1; t < len; ++t) re(t) = re(t - 1) + rnorm(Type(0), sigma);
-        } else if (st == 2) {                            // ar1
+        } else if (st == 2) {                            // AR1
           Type rho = rho_trans(trans_rho_linkage(linkage_re_rho(grp)));
           AR1(rho).simulate(re);
           re *= sigma;
-        } else {                                         // us / IID
+        } else {                                         // IID
           for (int t = 0; t < len; ++t) re(t) = rnorm(Type(0), sigma);
         }
 
         for (int t = 0; t < len; ++t) {
-          if (linkage_re_integrate(slot_of(t))) {
-            beta_linkage_re(linkage_re_slot(slot_of(t))) = re(t);
+          if (linkage_re_integrate(slots(t))) {
+            beta_linkage_re(linkage_re_slot(slots(t))) = re(t);
           } else {
-            beta_linkage_re_pen(linkage_re_slot(slot_of(t))) = re(t);
+            beta_linkage_re_pen(linkage_re_slot(slots(t))) = re(t);
           }
-          // A `rw` group keeps slot 0 at its fitted level -- the density never
-          // sees it -- so that slot is written but not drawn.
-          if (!(st == 1 && t == 0)) beta_linkage_re_drawn_sim(slot_of(t)) = 1;
+          // A random walk keeps its first slot at the fitted level (it has no density
+          // term of its own), so that slot is written but not drawn.
+          if (!(st == 1 && t == 0)) beta_linkage_re_drawn_sim(slots(t)) = 1;
         }
       }
     }
@@ -4639,60 +4635,44 @@ Type objective_function<Type>::operator() () {
 
 
   // 13.14. LINKAGE RANDOM EFFECTS (JNLL_LINKAGE_RE)
-  // Groups and slots are defined at section 2.3b. Per group, the deviations in slot
-  // (= time) order, then the group's structure:
-  // IID normal; random walk on first differences, the first deviate mapped to 0; or
-  // stationary AR1 with MARGINAL sd sigma (the glmmTMB / Rogers QAR1 convention).
-  if (log_sigma_linkage.size() > 0) {
-    int n_re = beta_linkage_re_all.size();
-    for (int grp = 0; grp < log_sigma_linkage.size(); ++grp) {
-      Type sigma = exp(log_sigma_linkage(grp));
-      int len = 0;
-      for (int g = 0; g < n_re; ++g) if (linkage_re_sigma(g) == grp) len++;
-      if (len == 0) continue;
-      vector<Type> re(len), obs(len);
-      vector<int> obs_mask(len), obs_slot(len);
-      int j = 0;
-      for (int g = 0; g < n_re; ++g) if (linkage_re_sigma(g) == grp) {
-        obs(j) = linkage_re_obs_value(g); re(j) = beta_linkage_re_all(g);
-        obs_mask(j) = linkage_re_obs_mask(g); obs_slot(j) = g; j++;
-      }
+  // Group g's deviations u, in time order: IID u_t ~ N(0, sigma_g); random walk
+  // u_t - u_{t-1} ~ N(0, sigma_g); or stationary AR1, marginal sd sigma_g
+  // (rceattle_re_group_nll()). Integrated and penalized deviations share this density.
+  for (int grp = 0; grp < log_sigma_linkage.size(); ++grp) {
+    vector<int> slots = rceattle_group_slots(linkage_re_sigma, grp);
+    int len = slots.size();
+    if (len == 0) continue;
+    vector<Type> re(len);
+    for (int t = 0; t < len; ++t) re(t) = beta_linkage_re_all(slots(t));
 
-      int st = linkage_re_struct(grp);
-      if (st == 1) {                                   // random walk
-        for (int t = 1; t < len; ++t) {
-          jnll_comp(JNLL_LINKAGE_RE, 0)            -= dnorm(re(t) - re(t - 1), Type(0), sigma, true);
-          unweighted_jnll_comp(JNLL_LINKAGE_RE, 0) -= dnorm(re(t) - re(t - 1), Type(0), sigma, true);
-        }
-      } else if (st == 2) {                            // AR1; SCALE() is a negative log density
-        Type rho = rho_trans(trans_rho_linkage(linkage_re_rho(grp)));
-        jnll_comp(JNLL_LINKAGE_RE, 0)            += SCALE(AR1(rho), sigma)(re);
-        unweighted_jnll_comp(JNLL_LINKAGE_RE, 0) += SCALE(AR1(rho), sigma)(re);
-      } else {                                         // IID
-        jnll_comp(JNLL_LINKAGE_RE, 0)            -= sum(dnorm(re, Type(0), sigma, true));
-        unweighted_jnll_comp(JNLL_LINKAGE_RE, 0) -= sum(dnorm(re, Type(0), sigma, true));
-      }
+    int st = linkage_re_struct(grp);
+    Type sigma = exp(log_sigma_linkage(grp));
+    Type rho = (st == 2) ? rho_trans(trans_rho_linkage(linkage_re_rho(grp))) : Type(0);
+    rceattle_re_group_nll(st, re, sigma, rho,
+                          jnll_comp(JNLL_LINKAGE_RE, 0), unweighted_jnll_comp(JNLL_LINKAGE_RE, 0));
 
-      // Rogers QAR1: the AR1 latent re(t) is observed as an environmental series, with
-      // sd obs_sd (estimated if obs_sd_est = TRUE); this identifies the effect size.
-      if (linkage_re_obs(grp) >= 0) {
-        Type osd = exp(log_obs_sd_linkage(linkage_re_obs(grp)));
-        for (int t = 0; t < len; ++t) {
-          if (obs_mask(t) == 0) continue;   // no observation that year
-          if (osa_mode == 0) {
-            jnll_comp(JNLL_LINKAGE_RE, 0)            -= dnorm(obs(t), re(t), osd, true);
-            unweighted_jnll_comp(JNLL_LINKAGE_RE, 0) -= dnorm(obs(t), re(t), osd, true);
-          } else {
-            // OSA: read from obsvec, keep-gated, residualized against re(t) (as WHAM's Ecov).
-            int pos = linkage_re_obsvec_idx(obs_slot(t));
-            if (pos >= 0) {
-              jnll_comp(JNLL_LINKAGE_RE, 0)            -= keep(pos) * dnorm(obsvec(pos), re(t), osd, true);
-              unweighted_jnll_comp(JNLL_LINKAGE_RE, 0) -= keep(pos) * dnorm(obsvec(pos), re(t), osd, true);
-              // The CDF term is not a likelihood, so only jnll_comp gets it here.
-              if (osa_mode == 2) {
-                jnll_comp(JNLL_LINKAGE_RE, 0) -= osa_norm_cdf_terms(
-                  obsvec(pos), re(t), osd, keep.cdf_lower(pos), keep.cdf_upper(pos));
-              }
+    // Rogers QAR1: covariate x(t) ~ N(re(t), obs_sd), obs_sd fixed unless obs_sd_est =
+    // TRUE. Tying re to x identifies beta_linkage_obs, which multiplies re (5.2b).
+    if (linkage_re_obs(grp) >= 0) {
+      Type osd = exp(log_obs_sd_linkage(linkage_re_obs(grp)));
+      for (int t = 0; t < len; ++t) {
+        int s = slots(t);
+        if (linkage_re_obs_mask(s) == 0) continue;   // no observation that year
+        if (osa_mode == 0) {
+          Type log_dens = dnorm(linkage_re_obs_value(s), re(t), osd, true);
+          jnll_comp(JNLL_LINKAGE_RE, 0)            -= log_dens;
+          unweighted_jnll_comp(JNLL_LINKAGE_RE, 0) -= log_dens;
+        } else {
+          // OSA (osa_mode 1-2): the same x(t), from obsvec so oneStepPredict() can hold
+          // it out through keep(pos); residualized against re(t), as WHAM's Ecov.
+          int pos = linkage_re_obsvec_idx(s);
+          if (pos >= 0) {
+            jnll_comp(JNLL_LINKAGE_RE, 0)            -= keep(pos) * dnorm(obsvec(pos), re(t), osd, true);
+            unweighted_jnll_comp(JNLL_LINKAGE_RE, 0) -= keep(pos) * dnorm(obsvec(pos), re(t), osd, true);
+            // The CDF term is not a likelihood, so only jnll_comp gets it here.
+            if (osa_mode == 2) {
+              jnll_comp(JNLL_LINKAGE_RE, 0) -= osa_norm_cdf_terms(
+                obsvec(pos), re(t), osd, keep.cdf_lower(pos), keep.cdf_upper(pos));
             }
           }
         }
