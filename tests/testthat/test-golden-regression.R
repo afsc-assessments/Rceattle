@@ -1,8 +1,10 @@
 # =============================================================================
 # Golden-reference regression: the four reference models (Bering Sea + Gulf of
 # Alaska, single- and multi-species) must reproduce their pinned objective
-# functions. This is the committed backstop for "numeric changes need golden
-# equivalence" -- any edit that moves the LIKELIHOOD fails here.
+# functions and the derived quantities that set catch advice. This is the
+# committed backstop for "numeric changes need golden equivalence" -- any edit
+# that moves the LIKELIHOOD, SSB, biomass, recruitment, dynamic B0, M2, or the
+# single-species SB0 and B0 fails here.
 #
 # It does not re-optimize, so an edit confined to the optimization path -- a
 # phase order, a starting value, a bound inactive at the reference -- no longer
@@ -33,7 +35,7 @@
 # phased fit AND from the previous reference's parameters, to ten decimals.
 #
 # WHAT THIS PINS, AND WHY IT NO LONGER RE-OPTIMIZES. The question golden exists
-# to answer is "is this still the same likelihood". Re-fitting answered a second
+# to answer is "is this still the same model". Re-fitting answered a second
 # question as well -- "does a cold phased optimization find the lower of two
 # minima on this machine" -- and that one has a platform-dependent answer:
 # `goa_ss` has a second local minimum 52.9 units up, and a one-ULP change in a
@@ -45,7 +47,7 @@
 #
 # The likelihood is now evaluated AT the reference parameters, which removes the
 # optimizer from the gate entirely: `fit_mod(estimateMode = 3)` builds the object
-# and evaluates without optimizing, so any change to the model moves the
+# and evaluates without optimizing, so any change to the likelihood moves the
 # objective while a change to the optimizer's path cannot. Measured at 5.45.1:
 # all four reproduce their pinned objective to 7e-12 absolute, which is the
 # rounding of the 15-digit literal and not a model difference, at max|gradient|
@@ -57,7 +59,7 @@
 # The cold-start path moved to tools/verify/verify-golden-cold-start.R. Regenerate
 # the fixture with tools/verify/regenerate-golden-reference.R, and only when a
 # model change is intended.
-testthat::test_that("the likelihood at the reference parameters is unchanged", {
+testthat::test_that("the likelihood and derived quantities at the reference parameters are unchanged", {
   testthat::skip_on_cran()
   # covr instruments the TMB model at -O0. The evaluation here no longer depends
   # on an optimizer path, so the historical reason for this skip is gone, but a
@@ -68,7 +70,8 @@ testthat::test_that("the likelihood at the reference parameters is unchanged", {
 
   # The objectives are literals HERE, not in the fixture, so a re-pin shows as
   # changed text in a diff rather than as changed bytes in a binary. The fixture
-  # holds the parameters they were measured at, and nothing else.
+  # holds the parameters they were measured at, and the derived quantities below
+  # at those parameters, which are arrays too large to keep as literals.
   ref_obj <- c(ss     = 10241.0304272585,
                ms     = 10267.2478324443,
                goa_ss = 12866.8457276232,
@@ -109,6 +112,24 @@ testthat::test_that("the likelihood at the reference parameters is unchanged", {
     # drift to a number that merely reproduces at a non-stationary point.
     testthat::expect_lt(max(abs(fit$obj$gr(par))), 1e-8,
                         label = paste0("max|gradient| for ", m))
+
+    # The outputs that set catch advice, over hindcast and projection. SSB
+    # (female, mt), biomass, SB0, B0 and dynamic B0 never enter the objective
+    # under mean recruitment, so they can move while it does not. Under
+    # msmMode = 1, SB0 and B0 are only the 999 mt MSSB0/MSB0 inputs. 1e-8 per
+    # element is 100x the move from perturbing every parameter by 1e-12; the
+    # element-wise check is there because expect_equal() averages the
+    # differences, so on another platform a move in a few elements can hide.
+    derived <- c("ssb", "biomass", "R", "SB0", "B0", "DynamicSB0",
+                 "DynamicB0", "M2_at_age")
+    if (s$msmMode > 0) derived <- setdiff(derived, c("SB0", "B0"))
+    for (k in derived) {
+      now <- unname(fit$quantities[[k]])
+      was <- ref[[m]]$derived[[k]]
+      testthat::expect_equal(now, was, tolerance = 1e-8, info = paste(m, k))
+      testthat::expect_true(all(abs(now - was) <= 1e-8 * abs(was)),
+                            info = paste(m, k))
+    }
   }
 })
 

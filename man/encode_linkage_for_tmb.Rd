@@ -22,7 +22,7 @@ A named list with components:
 linkage_sex, linkage_age_bin, linkage_fleet, linkage_X_col, linkage_link,
 linkage_re_index, linkage_prior_family}{Parallel \code{integer(n_linkage)}
 vectors. \code{linkage_re_index} is \code{-1} on fixed rows, else the 0-based
-\code{beta_linkage_re} slot.}
+deviation across \code{beta_linkage_re} and \code{beta_linkage_re_pen}.}
 \item{linkage_prior_p1, linkage_prior_p2}{Parallel
 \code{numeric(n_linkage)} vectors.}
 \item{linkage_X}{The design matrix as passed in.}

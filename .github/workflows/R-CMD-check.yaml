@@ -31,13 +31,19 @@ jobs:
 
     name: ${{ matrix.config.os }} (${{ matrix.config.r }})
 
-    # Observed successful runs are 11-33 minutes (macOS ~11, Windows ~19,
-    # ubuntu oldrel-1 ~33). 60 leaves headroom for a slow runner while failing
-    # fast on a stalled one. Without it a job that hangs -- which happens when a
-    # GitHub-hosted Ubuntu runner cannot reach the apt mirrors during setup-r --
-    # sits until GitHub's 360-minute cap and reports as "cancelled", which reads
-    # like a check failure rather than the infrastructure stall it is.
-    timeout-minutes: 60
+    # Runs have outgrown the 11-33 minutes this comment used to record.
+    # `ubuntu-latest (release)` took 55.3 minutes on dev's own green run at
+    # 5.64.3, and `oldrel-1` passed once at 59m59s: every config pays
+    # `--run-donttest`, because the single `args:` below carries `--as-cran`
+    # (495 s elapsed / 1071 s CPU on ubuntu-release). At 60 there was no
+    # headroom, and five jobs were cancelled at 1h0m over 2026-10-22/23, each
+    # reported as a check failure with no failing step. 120 matches
+    # test-coverage and deep-checks. The cap still earns its place: a
+    # GitHub-hosted Ubuntu runner that cannot reach the apt mirrors during
+    # setup-r hangs until GitHub's 360-minute cap, reporting as "cancelled",
+    # which reads like a check failure rather than the infrastructure stall it
+    # is.
+    timeout-minutes: 120
 
     strategy:
       fail-fast: false

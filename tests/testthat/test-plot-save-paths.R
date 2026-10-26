@@ -20,16 +20,13 @@
 # formal) and `plot_profile` (needs an `Rceattle_profile`) do not, and they are
 # named as exclusions.
 #
-# WHERE THIS RUNS: nightly, not on a pull request, because THIS file carries a
-# file-level `skip_on_cran()` and builds a real `fit_mod()` object, and
-# `R-CMD-check.yaml` sets `NOT_CRAN: "false"`. That is not the family
-# convention: of the 15 `test-plot-*.R` files only 6 skip at file level and 6
-# carry no `skip_on_cran()` at all (two of those six do carry a `skip_if`), so `test-plot-helpers.R` and `test-plot-profile.R` do
-# run on a PR -- `test-plot-helpers.R` needs no fitted model and says so.
-# `test-coverage` runs it but
-# passes `stop_on_failure = FALSE`. So `deep-checks.yaml` is the only job where
-# a failure here is fatal -- run this by hand in the PR that changes a save
-# path rather than trusting CI to catch it.
+# WHERE THIS RUNS: the two registry blocks run everywhere, including under
+# `R-CMD-check.yaml`'s `NOT_CRAN: "false"`, because the `skip_on_cran()` sits in
+# the one block that builds a fit rather than at file level (see below). That
+# fit block runs in `test-coverage`, which sets `NOT_CRAN=true` and, since
+# PR #261, fails its shard on a failure here -- though that shard is not one of
+# the six contexts the ruleset requires, so the red advises rather than blocks.
+# `deep-checks.yaml` is where a failure here is fatal, nightly.
 
 # skip_on_cran() sits in the one block that builds a fit, not at file level:
 # the two registry blocks below read only this file's own literals and

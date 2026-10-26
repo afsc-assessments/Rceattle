@@ -54,4 +54,10 @@ The interval follows the fleet's \code{Index_distribution}: lognormal quantiles 
 a \code{"Lognormal"} fleet, and \verb{observed +/- 1.96 sd} truncated at zero on a
 natural-scale one (\code{"MVN"}, \code{"MVNORM"}, \code{"Normal"}, \code{"TruncatedNormal"}),
 whose sd is absolute and in the units of the index.
+
+The predicted line is the MEDIAN of the fitted observation distribution,
+\code{index_hat * exp(-bias_adjust_obs * sd^2 / 2)}, which is where the lognormal
+likelihood is centred, so about half the observations should fall below it.
+It equals the reported \code{index_hat} where \code{bias_adjust_obs = FALSE}. A
+natural-scale fleet has no such offset and is drawn unchanged.
 }

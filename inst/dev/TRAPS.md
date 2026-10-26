@@ -9,9 +9,14 @@ Verified against source, 2026-08.
 ## Build and test
 
 **A header-only edit under `src/TMB/` can leave `pkgload::load_all(".")` loading the OLD binary,
-with nothing printed amiss.** Observed twice: a one-line `selectivity.hpp` fix left the defect it
-fixed still reproducing until `ceattle.cpp` was touched, and `growth.hpp` edited at 21:18:18 ran
-against a `ceattle.o` of 21:02:45. **It silently voids a before/after comparison** — a
+with nothing printed amiss.** Observed three times: a one-line `selectivity.hpp` fix left the
+defect it fixed still reproducing until `ceattle.cpp` was touched; `growth.hpp` edited at
+21:18:18 ran against a `ceattle.o` of 21:02:45; and reviewing PR #263 (2026-10-21) the stable
+descending-limb fix read as FAILING its own new test, 4 of 4, across two reload attempts — the
+second after deleting `src/TMB/ceattle.so` and `src/TMB/ceattle.o`, which is not enough because
+the loaded library is `src/ceattle.so`. It passed 4 of 4, matching the closed form to 4.8e-25 at
+age 15, once a reload rebuilt the `.o`. **The failure direction is not fixed**: that reading
+accused a correct fix, where the first observation above excused a broken one. **It silently voids a before/after comparison** — a
 revert-and-retest ran the same binary twice and showed "no difference", which reads as a test that
 does not discriminate when the test was never given the reverted code. Anything measured after a
 header-only edit is suspect until the rebuild is confirmed.
@@ -146,6 +151,94 @@ tied a follower only where the donor's map entry was non-NA, which left the grou
 SS3 fixes a block replacement (`est_phase = 0`), so 2 of those 18 rows stayed divergent. The
 collapse also means a refit of a saved fit starts the shared coefficient at the MEAN of the old
 per-fleet values, as the entry above describes.
+
+**NOTHING fitted by that configuration is pinnable -- not the objective, not the coefficient --
+and the reason is NOT "a flat surface".** The mirrored-pair regression fit (`GOA2018SS` fleets 9
+and 10, `phase = FALSE`) measures, same source and data throughout:
+
+| where | objective | `beta_linkage` | iters | max&#124;grad&#124; |
+|---|---|---|---|---|
+| macOS arm64, cold | 12879.997040 | -0.240043 | 1,759 | 8.56e-4 |
+| macOS arm64, 3 jittered starts | 12879.997040 | -0.240042/4 | | ~1e-3 |
+| ubuntu CI, **2 runs** (39345727752, 39449526638) | 13807.6 | -0.240043 | | |
+| ubuntu CI, **2 runs** (39624390458, 39710679542) | **13818.2** | **-0.216** | | |
+| macOS, `phase = TRUE` | **12862.289542** | -0.240042 | **31** | 9.39e-4 |
+
+**Four ubuntu runs gave exactly TWO answers, each reproduced twice**, two of them on *different*
+runner images, on byte-identical model code (`git diff` over the intervening `dev` commits touches
+only `.github/`, `tools/ci/`, `inst/dev/`, `.claude/` and test files), the same R 4.6.1 / TMB
+1.9.25, and with **no OpenMP** (no `_OPENMP` or `parallel_accumulator` in `src/TMB/`), **no Laplace
+block** (`random_rec = FALSE`), **no RNG** (`inits = NULL`) and no clock in the path. Deterministic
+code cannot return two answers, so the earlier explanation in this entry -- that the optimizer's
+arithmetic path decides where it lands -- **does not hold**. Linux has two reproducible attractors
+~930 nats worse than macOS, and that is the anomaly to explain.
+
+**The cold fit is also simply a bad fit**, which is a separate point worth keeping: 1,759
+iterations to land 17.7 nats WORSE than a phased fit reaches in 31. Both stop near 1e-3 in max
+gradient, so phasing wins on objective, not on convergence -- do not describe it as
+"better converged".
+
+**What the platforms actually differ in, measured 2026-10-22.** A probe on `ubuntu-latest`
+(`tools/ci/machine-fingerprint.sh` now records this on every golden and coverage run):
+
+| | macOS arm64 (local) | ubuntu-latest |
+|---|---|---|
+| CPU | Apple M3 Pro | AMD EPYC 9V45, AVX-512 |
+| compiler | Apple clang 21.0.0 | gcc 13.3.0 |
+| R / TMB | 4.5.1 / 1.9.21 | 4.6.1 / 1.9.25 |
+| BLAS | `libRblas` (reference, **single-threaded**) | `libopenblasp-r0.3.26.so` (**pthread**) |
+
+Three things that probe established. **The model is deterministic per machine**: the same fit twice
+in ONE process is bitwise identical in objective, coefficient and iteration count -- so this is
+arithmetic between machines, NOT memory corruption, and not something non-deterministic inside
+TMB. **There are at least THREE Linux answers, not two**: that run gave objective 13817.0067341985
+with `beta_linkage` **-0.030399468** after **13,581** iterations, against 13807.6/-0.240043 and
+13818.2/-0.216 from the coverage shards. The coefficient therefore ranges 8-fold. **And the
+landing point is locally stable on macOS**: perturbing the converged parameters by a relative
+1e-14, 1e-12 and 1e-10 returns to 12879.997040 / -0.240043 in 5 iterations every time, so the
+macOS point is a real attractor rather than wherever the optimizer stopped.
+
+**BLAS is the LEAST likely culprit, despite being the loudest difference in that table.** This
+template does not route Eigen through an external BLAS -- no `EIGEN_USE_BLAS` anywhere in `src/`,
+and one BLAS-level operation in `ceattle.cpp`. Its arithmetic is transcendental: **246 `exp()`,
+105 `log()`, 55 `pow()`, 11 `pnorm()`** across `src/TMB/`. The better candidate is therefore
+**glibc's libm, which dispatches `exp`/`log`/`pow` by CPU feature through ifunc resolvers** -- a
+different kernel on a different runner is a different last bit, at every one of those call sites,
+many of which sit inside the species-age-year loops. That is a candidate, not a conclusion; an earlier draft of this entry asserted BLAS
+and was wrong, which is the second mechanism this entry has had to withdraw.
+
+**None of it is a defect in TMB, glibc or OpenBLAS.** Floating-point addition is not associative
+and libm implementations are not required to agree bit-for-bit across platforms; both are working
+as specified. **What makes it matter is local: the fit does not converge**, so there is no optimum
+to absorb the difference. 1,759 iterations on macOS and 13,581 on Linux, both stopping near 1e-3
+in max gradient, while a phased fit reaches a BETTER objective in **31**. Fix the convergence, not
+the arithmetic.
+
+**What has been ruled out, and what has not.** A bounds-checked build
+(`RCEATTLE_SAFEBOUNDS=true`) driven over this exact configuration reports **no violation** on
+macOS and reproduces the ordinary build's numbers to all digits, so an out-of-range Eigen access
+is not the explanation there -- but the divergence is on Linux, and a bounds-checked run on
+`ubuntu` is the outstanding test (note safebounds catches out-of-RANGE accesses, not uninitialized
+reads). `TMBhelper` is not the explanation: the **coverage** shard logs -- which is the workflow
+that produced these numbers, not deep-checks -- show `TMBhelper 1.4.0` in sessioninfo, and local
+is 1.4.0 too, so `.fit_tmb()` (`R/0-tmb_helpers.R:21`) dispatches the same way on both. That does
+NOT clear the macOS-vs-Linux half, where local TMB 1.9.21 / R 4.5.1 / arm64 faces CI's 1.9.25 /
+4.6.1 / x86-64; it clears only the Linux-vs-Linux anomaly, which is the one that cannot be
+arithmetic. **Do not reason from a mechanism.**
+
+**Pin history, corrected.** The objective literal and the coefficient pin shipped **together** in
+`54c3ff32` (5.57.0, 2026-10-09), before any Linux evidence existed -- an earlier draft of this
+entry said they were added in sequence, each in response to the last failing, and only the
+ceiling was. All three were then falsified: the literal and the ceiling by the objective, the
+coefficient by run 3. The file now asserts only the structural facts -- one estimated level, two
+identical curves -- which held on Linux in **all four** runs.
+
+`../Rceattle-dev/CLEANUP_BACKLOG.md` carries this as an open reproducibility defect rather than a
+test nuisance: a user can run this configuration and get a 10% different coefficient by machine,
+and `convergence` does not flag a max gradient of 1e-3. **Do not pin any fitted number from an
+unphased fit that stops this flat** -- and note it failed invisibly on Linux from 5.57.0 (on `dev`
+2026-10-10 UTC) until 2026-10-20, because `tools/ci/coverage-shard.R` discarded the shard result
+(see "The guards are not themselves guarded"). It surfaced on the first run that read one.
 
 **One coefficient is not one curve: the linkage OFFSET is per fleet.** The base parameter is
 shared, but the offset the coefficient scales accumulates into `inf_offset(param, flt, sex, yr)`
@@ -427,7 +520,7 @@ table said "1 coefficient(s)" for the inert case. Count `beta_linkage` in
 `obj$env$last.par.best` to tell the difference.
 
 **The C++ linkage-prior block re-targets an `(Intercept)` prior onto the base parameter, and will
-read off the end of the matrix for a parameter that has none.** `ceattle.cpp` slot 19 sets
+read off the end of the matrix for a parameter that has none.** `ceattle.cpp` section 13.13 sets
 `b = rec_pars(sp_idx, param)` for every recruitment intercept; `rec_pars` is `nspp x 3` and
 `R_init` is code 3, so a prior on an `R_init` intercept read one element past a
 `PARAMETER_MATRIX` and promoted adjacent heap memory to an AD variable — no crash guaranteed, no
@@ -483,7 +576,7 @@ says nothing. Build the spec through `build_srr(linkages = ...)`. Same shape as
 weights can change meaning when rows move.** `.group_lead()` picks the group's first fleet that
 is not `Off`, and `Fleet_code` must equal the row number, so inserting or reordering a fleet —
 or switching the lead `Off` — promotes a different row. Only the lead's `Sel_curve_pen1/2/3` are
-read (`ceattle.cpp:4051` gates on `flt_sel_lead(flt) == 1`), and a follower's are neither read
+read (section 13.7 of `ceattle.cpp` gates on `flt_sel_lead(flt) == 1`), and a follower's are neither read
 nor checked against the lead's: `.sel_shaping_cols` deliberately excludes them, and the negative-
 weight refusal skips followers for the same reason. So a stale or wrong weight sitting on a
 follower is inert until a reordering makes that fleet the lead, at which point it is charged
@@ -491,8 +584,8 @@ silently. Keep the whole group's penalty columns in agreement even though nothin
 
 **A `NonParametricPM` (9) `RandomWalk` fleet at the default `Sel_curve_pen3 = 0` has an exactly
 flat direction.** Slot 3 is the only term charged on the RAW `sel_coff_dev`
-(`ceattle.cpp:4233`); every other term — shape, curvature, the random walk, and the data —
-reads `log_non_par_sel`, which `selectivity.hpp:449-459` mean-centres per year. A shift common
+(section 13.7 of `ceattle.cpp`); every other term — shape, curvature, the random walk, and the data —
+reads `log_non_par_sel`, which `selectivity.hpp` (case 9) mean-centres per year. A shift common
 to all bins in a year is therefore invisible everywhere except slot 3, verified by objectives
 bit-identical across `Time_varying_sel_sd` of 0.1, 0.2, 1 and 3 while the deviates moved. With
 the schema default of 0 nothing scores that direction at all, so under `random_sel = TRUE` the
@@ -515,17 +608,17 @@ start-0 version. Fix: assign `Ftarget` from `Flimit` before the F loop; see
 5.29.0; the structure that caused it is still there, so a fourth composition-like source would
 repeat it.
 
-- `Comp_weights` multiplies the multinomial log-likelihood (`ceattle.cpp:3790`), so it is an
+- `Comp_weights` multiplies the multinomial log-likelihood (`comp_row_nll()`), so it is an
   effective sample size — the model's own simulator says so, drawing at
-  `n_nom * comp_weights(flt)` (`:3870`). Dividing by the raw `Sample_size` gives a residual
+  `n_nom * comp_weights(flt)` (`ceattle.cpp` section 13.4). Dividing by the raw `Sample_size` gives a residual
   `1/sqrt(w)` times the right one: too small on an upweighted fleet, too large on a downweighted
   one. `MultinomialAFSC` is the schema default, so this was the *common* case, and
   `reweight_comps()` tunes either side of 1.
 - A Dirichlet-multinomial is additionally overdispersed by `(n + conc)/(1 + conc)`, so those
   residuals were inflated into apparent misfit.
-- **Three sources, three different alpha constructions.** comp (`ceattle.cpp:3776`) and CAAL
-  (`:3931`) build the concentration on the offset-inflated total, so `sum(alpha) = N·S²·theta`
-  with `S = 1 + comp_offset·nbins`; diet (`:5009`) renormalizes first, so it is the clean
+- **Three sources, three different alpha constructions.** comp and CAAL (both through
+  `comp_row_nll()`) build the concentration on the offset-inflated total, so `sum(alpha) = N·S²·theta`
+  with `S = 1 + comp_offset·nbins`; diet (section 13.6) renormalizes first, so it is the clean
   `N_s·theta`. Sharing one formula across all three is wrong for two of them — measured up to
   1% in the sd on the smallest bins from the offset alone, at the default `comp_offset = 1e-5`.
 
@@ -629,13 +722,20 @@ epsilon, 0 at four (`osa_squeeze_cdf()` in `comp_osa.hpp`). The reference implem
 ships uses `squeeze()`, i.e. one epsilon, and has the same latent failure. The cost of four is
 where `|residual|` saturates: 8.04 rather than 8.13.
 
-**`Index_distribution` has a second hand-synced registry.** A family added to
+**`Index_distribution` has TWO more hand-synced registries.** A family added to
 `index_distribution_map` (`R/0-switches.R`) must also be classified in
 `.index_rows_natural_scale()` in the same file, which is what `residuals(type = "pearson")`,
-`plot_index()`'s observation interval and `plot_indexresidual()` read to pick a scale. A
+`plot_index()`'s observation interval and `plot_index_residual()` read to pick a scale. A
 natural-scale family that misses it **does not error** — it silently gets the log-scale formula,
-whose `sigma^2/2` is then a number the size of the index squared.
-`test-index-natural-scale-downstream.R` enumerates the map and is the net.
+whose `sigma^2/2` is then a number the size of the index squared. Since 5.64.3 a family that
+carries a COVARIANCE rather than a scalar sd goes in `.index_fleets_covariance()` too, which
+those same three consumers read to take their sd from `sqrt(diag(index_cov))`; miss it and the
+fleet is standardized by a `Log_sd` its likelihood never read (measured 10,180-18,439x wrong on
+one EBS pollock BTS configuration). The MVN/MVNORM code set is additionally spelled out by hand
+in `0-clean_data.R`, `1-data_check.R` and `5-rearrange_data.R`.
+`test-index-natural-scale-downstream.R` enumerates the map and is the net — but note its
+fixture passed `cov_sd` equal to `sd` until 5.64.3, so the right and wrong denominators were
+equal by construction and nothing there could see the covariance defect.
 
 **`nages` is a COUNT of age bins, not the oldest age.** Ages run
 `minage .. minage + nages - 1`, and the array's 3rd dimension is a 1-based bin index, so age `a`
@@ -658,14 +758,12 @@ and asserts each row's declared axis matches the column it is actually indexed b
 2026-08-26: 124 writes, all 21 rows covered; 133 writes at 5.41.0, same 21 rows; 134 writes at
 5.48.0 over 22 rows, the new one being the initial equilibrium catch.
 
-**`unweighted_jnll_comp` is populated for 5 of its 22 rows.** It exists so Francis and
-McAllister-Ianelli can read a composition likelihood without its `Comp_weights` multiplier, so
-only the rows carrying such a multiplier are written: composition, CAAL, stomach content, and the
-two linkage rows. Index, catch, selectivity, catchability and every penalty are **structurally
-zero** there, not small. Anything that treats the two matrices as the same quantity at different
-weights — a reweighting diagnostic, a component profile, a "which term dominates" table — reports
-those components as absent rather than unweighted. `profile_components(weighted = FALSE)` says so
-in its `@param`.
+**In ordinary fitting `unweighted_jnll_comp` differs from `jnll_comp` only on the
+composition, CAAL and stomach rows**, which it scores without `Comp_weights`, `CAAL_weights` and
+`Diet_comp_weights` (a Dirichlet-multinomial at theta = 1); the linkage rows are written to both,
+and section 13.15 copies the rest. Under OSA (`osa_mode > 0`) those three rows are **0** there,
+because their OSA densities are written to `jnll_comp` only; under `osa_mode == 2` the linkage
+random-effect row's CDF term is too.
 
 **`retrospective(getsd = TRUE)` can return fewer peels than `getsd = FALSE`, so Mohn's rho
 differs.** `.refit_converged()` drops a peel on a non-positive-definite Hessian, and that check
@@ -935,12 +1033,13 @@ some lets a neighbouring block's guard drift into range and satisfy it.
 
 **And on a pull request these three have no second line of defence.**
 `.github/workflows/R-CMD-check.yaml` sets step-level `NOT_CRAN: "false"`, so every `skip_on_cran()`
-fit block in the same files skips; `test-coverage` runs at `NOT_CRAN=true` but
-`tools/ci/coverage-shard.R` passes `stop_on_failure = FALSE` and nothing reads the result;
-`deep-checks` runs them fatally but nightly, gating no merge. `source-guards.yaml` is the cover,
-and since the ruleset below it is a required one. For the sex-index and age-width guards the
-consequence of a gap is an unchecked write, which is not observable from R at all — so the static
-pin is the only cover there is.
+fit block in the same files skips; `test-coverage` runs at `NOT_CRAN=true` and since PR #261
+`tools/ci/coverage-shard.R` fails the shard on a failing test, but its shard contexts are not
+among the six the ruleset requires, so that red advises rather than blocks;
+`deep-checks` runs golden per-PR since 5.64.0 and the whole suite nightly, gating no merge.
+`source-guards.yaml` is the cover, and since the ruleset below it is a required one. For the
+sex-index and age-width guards the consequence of a gap is an unchecked write, which is not
+observable from R at all — so the static pin is the only cover there is.
 
 **`dev` and `main` are governed by a RULESET, which the branch-protection endpoint cannot see.**
 `gh api repos/afsc-assessments/Rceattle/branches/dev/protection` answers 404 "Branch not
@@ -1049,21 +1148,38 @@ the multi-OS matrix fast), so the first fires; `test-coverage` runs under covr, 
 does. The committed backstop for "a numeric change needs golden equivalence" therefore only ever
 ran when someone typed `/golden-check` locally. Its measured cost of `0` in
 `tools/ci/coverage-costs.tsv` is the tell — four phased fits do not cost nothing. The
-`deep-checks` workflow now runs it nightly, and **asserts the run produced assertions**, because
-a skipped file otherwise reports as a pass.
+`deep-checks` workflow runs it nightly and, since 5.64.0, on every pull request that touches
+`src/**`, `R/**`, `data/**`, the golden test or its fixture — and **asserts the run produced
+assertions**, by name, because a skipped file otherwise reports as a pass. That per-PR run is
+still not one of the six contexts the ruleset requires, so a red golden advises rather than
+blocks.
 
 **And golden was only the worst case of it: no `skip_on_cran()` test could fail any job.** That
-is 173 of the 240 test files — every test that runs a real `fit_mod()` optimization. `R-CMD-check`
-sets `NOT_CRAN=false`, so it skips all of them. `test-coverage` does run them, but
-`tools/ci/coverage-shard.R` passes `stop_on_failure = FALSE` (deliberately: a failure must not
-throw away the shard's coverage before it is written) and no later step reads the result — the
-"Upload test results" step is `if: failure()`, which never fires because nothing failed. So a
-broken regression test printed into a shard log and the run went green. Found while reviewing
-5.25.1, whose own PR body claimed a new test "fails if anyone restores the old comparison"; it
-would not have. `deep-checks` now runs the whole suite nightly with `NOT_CRAN=true`, asserting
-the mode **before** the fits rather than after, since `NOT_CRAN` going false presents as a fast
-green run of nothing but the unguarded unit tests. **Writing a regression test is not the same as
-having one run** — check which job executes it, and whether that job can go red.
+is 195 of the 271 test files, 95 of them carrying the skip at file level — every test that runs a
+real `fit_mod()` optimization. `R-CMD-check`
+sets `NOT_CRAN=false`, so it skips all of them. `test-coverage` does run them, and
+`tools/ci/coverage-shard.R` still passes `stop_on_failure = FALSE` (deliberately: a failure must
+not throw away the shard's coverage before it is written) — but since PR #261 it reads the result
+afterwards and stops, so the "Upload test results" step now fires and the shard goes red. Before
+that, a broken regression test printed into a shard log and the run went green; the first run
+with the check on found `test-linkage-shared-block.R` had been failing on Linux for 11 days.
+Found while reviewing 5.25.1, whose own PR body claimed a new test "fails if anyone restores the
+old comparison"; it would not have. `deep-checks` runs the whole suite nightly with
+`NOT_CRAN=true`, and `coverage-shard.R` asserts the mode in its own subprocess since PR #261 —
+both **before** the fits rather than after, since `NOT_CRAN` going false presents as a fast green
+run of nothing but the unguarded unit tests. **The nightly suite has two gaps of its own.**
+First, the `schedule` fires on the DEFAULT branch, which is `main`, so `dev` never gets a
+nightly suite at all — on `dev` the per-PR coverage shards are the only job that runs the
+`skip_on_cran()` tests. Second, it has mostly stopped completing: measured over the last eight
+scheduled runs to 2026-10-21, 10-13 cancelled, **10-14 success**, 10-15 cancelled, 10-16
+**failure**, and 10-17 through 10-21 cancelled — five consecutive, and six of the last eight not
+completing. A `cancelled` conclusion here is the 300-minute `timeout-minutes` killing the job,
+not someone cancelling it: on run 39403748904 the `suite` job ran 09:51:40 to 14:52:40, exactly
+301 minutes, while `golden` and both `safebounds` legs succeeded. **So its last completed run
+was 2026-10-14, and the right reading of a green deep-checks badge is "golden and safebounds
+passed", not "the suite passed".**
+**Writing a regression test is not the same as having one run** — check which job executes it,
+and whether that job can go red.
 
 **`NOT_CRAN=false` was set through `$GITHUB_ENV` and did not hold reliably.** On `7e16fa73` the
 skip fired (testthat recorded `test-selectivity-catchability.R:3:1`); on `7611bd1c`, differing
@@ -1180,7 +1296,10 @@ across the boundary.
 
 ## Coverage gaps in the golden check
 
-`/golden-check` fits four models and diffs the result. It does not reach:
+The committed gate (`test-golden-regression.R`) EVALUATES four reference models at stored
+parameters rather than refitting them — it has not refitted since 5.45.1 — and pins the
+objective, the gradient and the derived quantities below. The `/golden-check` recipe is a looser
+local read at a 1e-6 absolute tolerance, so the two are not the same gate. Neither reaches:
 
 - **The refit paths.** Eight entry points re-invoke `fit_mod()` through `.refit_like()`. Use
   `tools/verify/verify-refit-like.R`, which covers six of them —
@@ -1192,9 +1311,25 @@ across the boundary.
   the corner where SSB is pure derived output, so `maturity` never enters the objective there:
   every maturity perturbation gives `dObj = +0.0000e+00` on both `goa_ss` and `goa_ms` (positive
   controls on the same probe: an index observation x1.5 moves it +3.7664, a fitted catch row x1.5
-  moves it +32.674). Golden therefore cannot see the cod maturity defect above, and correcting the
-  data would leave both objectives bit-unchanged. Maturity reaches the objective only where
-  `srr_pred_fun > 0` or `srr_fun > 1`, through `R_hat` into `jnll_comp(JNLL_SRR_PENALTY)`.
+  moves it +32.674). Correcting the cod maturity defect above would leave both objectives
+  bit-unchanged. Maturity reaches the objective only where `srr_pred_fun > 0` or `srr_fun > 1`,
+  through `R_hat` into `jnll_comp(JNLL_SRR_PENALTY)`. The gate therefore also pins `ssb`,
+  `biomass`, `R`, single-species `SB0` and `B0`, `DynamicSB0`, `DynamicB0` and `M2_at_age` at the reference
+  parameters (relative 1e-8), so a change to maturity, spawn timing or dynamic-B0 predation fails
+  through those while the objective stays put.
+  **Read the element count honestly**: 24,280 of the 32,976 asserted elements (73.6%) are exact
+  zeros, leaving 8,696 informative numbers. `M2_at_age` is identically zero on BOTH
+  single-species references, where it asserts "predation has not leaked into `msmMode = 0`"
+  rather than pinning a predation mortality — the real M2 pin is the multispecies pair. A zero
+  element is not a free pass, though: its relative band is exactly 0, so 0 to 1e-300 fails the
+  element check (`expect_equal` alone would pass it).
+  `SB0`/`B0` ARE stored for the multispecies pair but are not asserted — they are the 999
+  MSSB0/MSB0 inputs there — so 876 stored elements go unchecked by design.
+- **Harvest control rules.** All four references run `HCR = NoFishing`, so `proj_F` is 0,
+  `Ftarget`/`Flimit` are the placeholder 1, and every fleet's `Proj_F_proportion` is 0, so `SBF`
+  equals `SB0`. None of them is pinned. `test-dynamics-brps.R`, `test-switches-hcr-*.R`,
+  `test-functions-fixed-n-hcr-outputs.R`, `test-functions-mse.R` and
+  `test-mse-cap-and-hcr2-threshold.R` exercise the rules, against no golden value.
 - **Linkage rows.** The four golden models carry none. The constructive linkage tests
   (`test-dynamics-recruitment-linkage.R`, `test-linkage-random-effects.R`) are the net.
 - **Selectivity normalization.** No bundled dataset enters the normalization block in
@@ -1296,7 +1431,7 @@ pins the level. **Exception:** if the vector already carries its own penalty -- 
 penalty or a random-effects density -- that pins it, and turning off the first element as well
 over-constrains it.
 
-**AMAK conventions are reproduced deliberately, not corrected.** `src/TMB/selectivity.hpp:609`
+**AMAK conventions are reproduced deliberately, not corrected.** `src/TMB/selectivity.hpp` (case 11)
 evaluates the logistic at mid-age (`age_vector(j) = j + 0.5`, so `bin + 1.5`) for `LogisticPM`
 (11); the standard `Logistic` (1) uses `bin + 1`. `NonParametricPM` (9) and `LogisticPM` exist
 to match ADMB AMAK's "pm" parameterizations, penalties included, and
@@ -1333,8 +1468,8 @@ section above.
   `test-schema-quantity-dictionary.R` holds the two together.
 - **`retrospective(getsd = TRUE)` can drop peels `getsd = FALSE` keeps** — the non-PD Hessian
   check only runs when an `sdreport` exists — so Mohn's rho can differ between the two.
-- **`unweighted_jnll_comp` is written for 5 of its 22 rows** — composition, CAAL, stomach and the
-  two linkage rows. Everything else is structurally zero there, not small.
+- **`unweighted_jnll_comp` differs from `jnll_comp` only on the composition, CAAL and stomach
+  rows** in ordinary fitting; under OSA those are 0 there.
 - **`fit_mod(d, config = cfg)` replaces `d$model_config` with the config's** — a config from
   `run_config(model_config(), ...)` silently drops every linkage on `d` (57 REs → 0). Build it
   with `run_config(d, ...)`. `random_sel` never gates linkage REs.

@@ -59,7 +59,7 @@ cpp_switch_cases <- function(src, var) {
     at <- findInterval(abs_pos, br)
     keep <- depth[pmax(at, 1L)] == body_depth
     txt <- regmatches(block, gregexpr("case\\s+-?\\d+\\s*:", block, perl = TRUE))[[1]]
-    # Keep the sign: comp_ll_type dispatches `case -1:` (MultinomialAFSC).
+    # Keep the sign: comp_row_nll() dispatches `case -1:` (MultinomialAFSC).
     out <- c(out, as.integer(sub("case\\s+(-?\\d+)\\s*:", "\\1", txt[keep])))
   }
   sort(unique(out))
@@ -93,11 +93,9 @@ test_that("every C++ dispatch branch matches the R map that selects it", {
          map_only_why = "an Off fleet is dropped from the likelihood before dispatch",
          cpp_only = integer(0), cpp_only_why = character(0)),
 
-    list(var = "comp_ll_type", values = comp_loglike_map,
-         map_only = integer(0), map_only_why = character(0),
-         cpp_only = integer(0), cpp_only_why = character(0)),
-
-    list(var = "caal_ll_type", values = comp_loglike_map,
+    # Compositions and CAAL share one dispatch, comp_row_nll() in likelihood.hpp,
+    # whose `ll_type` is comp_ll_type or caal_ll_type, both from this map.
+    list(var = "ll_type", values = comp_loglike_map,
          map_only = integer(0), map_only_why = character(0),
          cpp_only = integer(0), cpp_only_why = character(0)),
 

@@ -194,6 +194,46 @@ run_case("GOA2018SS, estimated catchability (the CI crash config)", {
   stopifnot(is.finite(f$obj$fn(f$obj$par)))
 })
 
+# The mirrored-block selectivity LINKAGE, OPTIMIZED. Two reasons this one is
+# here and not covered by the cases above. First, the linkage offset tensors
+# (`inf_offset(param, flt, sex, yr)` and the natural-scale twin) are indexed on
+# a different key from everything else in the model, and nothing else in this
+# harness builds one. Second, every case above stops at `estimateMode = 3`, so
+# none of them runs the optimizer -- and the thing being chased here only shows
+# up across ~1,759 nlminb iterations.
+#
+# Why it is worth the minutes: this exact configuration returns TWO reproducible
+# objectives on ubuntu (13807.6 and 13818.2, each from two runs on byte-identical
+# code) against 12879.997040 on macOS arm64, with the fitted coefficient moving
+# from -0.240043 to -0.216. Deterministic code cannot do that, and OpenMP, the
+# Laplace block, the RNG and the clock are all absent from this path, so an
+# uninitialized or out-of-range read is the remaining candidate. A bounds-checked
+# run on macOS reports nothing; this case puts the same question to ubuntu and
+# windows, where the divergence actually lives. See
+# `../Rceattle-dev/CLEANUP_BACKLOG.md` and `inst/dev/TRAPS.md`,
+# "Shared parameter blocks".
+#
+# A violation here would mean the coefficient is not merely irreproducible but
+# WRONG, which is a selectivity curve and therefore a quota.
+run_case("GOA2018SS mirrored-block linkage, optimized (irreproducible on Linux)", {
+  data("GOA2018SS", envir = environment())
+  f <- suppressWarnings(suppressMessages(fit_mod(
+    data_list = GOA2018SS, inits = NULL, file = NULL,
+    estimateMode = "Hindcast", random_rec = FALSE, msmMode = 0,
+    fit_control = fit_control(phase = FALSE, verbose = 0, getsd = FALSE),
+    selFun = build_selectivity(linkages = list(
+      inf_asc = linkage_spec(~ cut(Year, 2), fleet = c(9L, 10L)))))))
+  stopifnot(is.finite(f$opt$objective))
+  # Report rather than assert: the point is whether a BOUNDS violation fires,
+  # and the objective itself is platform-dependent, so pinning it here would
+  # reintroduce exactly the false failure that sent it to the backlog.
+  b <- f$opt$par[names(f$opt$par) == "beta_linkage"]
+  cat(sprintf("      objective %.6f   beta_linkage %.6f   iterations %s
+",
+              f$opt$objective, unname(b)[1],
+              paste(f$opt$iterations, collapse = ",")))
+})
+
 # Simulation drives every SIMULATE block, including the composition and CAAL
 # draws that write into comp_sim / caal_sim at the raw bin width -- the ragged
 # tail those blocks clear by hand.

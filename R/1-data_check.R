@@ -1460,9 +1460,10 @@ data_check <- function(data_list) {
   # family. Normal / TruncatedNormal read the sd as an ABSOLUTE value in index
   # units, so the likelihood itself is evaluated on the wrong scale: refused.
   # MVN / MVNORM score through index_cov_mat and never read the scalar sd, so the
-  # FIT is unaffected and only the reported index_sd is wrong -- that is what
-  # residuals(type = "pearson") and plot_index()'s interval divide by, so the
-  # diagnostics are warned about rather than the model refused.
+  # FIT is unaffected and only the reported index_sd is wrong. The diagnostics
+  # take their sd from sqrt(diag(index_cov)), so nothing in the package divides
+  # by it on such a fleet -- but a user reading fit$quantities$index_sd would,
+  # so this warns rather than refusing the model.
   if(has_data(fc) && all(c("Index_distribution", "Estimate_index_sd") %in% colnames(fc))){
     is_analytical <- fc$Estimate_index_sd %in% c("Analytical", 2, "2")
     is_on <- !(fc$Fleet_type %in% c("Off", 0, "0"))
@@ -1489,9 +1490,11 @@ data_check <- function(data_list) {
         " combine Estimate_index_sd = 'Analytical' with a covariance index ",
         "family. The fit is unaffected -- MVN/MVNORM score through index_cov ",
         "and never read the scalar sd -- but the reported index_sd is then a ",
-        "log-scale number, and residuals(type = 'pearson') and plot_index()'s ",
-        "observation interval divide by it. Read those two on this fleet with ",
-        "care, or set Estimate_index_sd = 'Fixed'."), call. = FALSE)
+        "log-scale number that is not this fleet's sd. Its sd is ",
+        "sqrt(diag(index_cov)), which is what residuals(type = 'pearson'), ",
+        "plot_index()'s observation interval and plot_index_residual() use. Do ",
+        "not read fit$quantities$index_sd as this fleet's sd, or set ",
+        "Estimate_index_sd = 'Fixed'."), call. = FALSE)
     }
   }
 
@@ -1724,11 +1727,11 @@ data_check <- function(data_list) {
   #
   # Required only where the TEMPLATE reads sel_dev_sd, which is a property of the
   # (Selectivity, Time_varying_sel) pair rather than of either alone, transcribed
-  # from the density sites in ceattle.cpp section 13.1. The absences are the part
+  # from the density sites in ceattle.cpp section 13.7. The absences are the part
   # the code below cannot show: LogisticPM never reads it -- its two walks are
   # weighted by Sel_curve_pen1 and Sel_curve_pen3, and the model's own conditions
-  # exclude type 11 from every sel_dev_sd site -- and nor do Fixed / 2DAR1 /
-  # 3DAR1, which have no deviation or carry their own sd through sel_curve_pen.
+  # exclude type 11 from every sel_dev_sd site -- and nor does Fixed. 2DAR1 and
+  # 3DAR1 read it whatever their Time_varying_sel, so they are checked separately.
   # `Block` is absent for the reason it is on the q side (a time block carries no
   # penalty, and build_map() refuses it on a non-parametric fleet outright), and
   # `AR1` because it is refused above -- asking for the column here would
@@ -1755,11 +1758,18 @@ data_check <- function(data_list) {
       .stv[.sel == "NonParametricPM"] == "RandomWalk"
     .reads_sel_sd[.sel == "NonParametricIntegrable"] <-
       .stv[.sel == "NonParametricIntegrable"] %in% c("IID", "RandomWalk")
+    # 2DAR1 and 3DAR1 read it under every valid Time_varying_sel; a blank or
+    # `AR1` mode is left to the refusal that names it.
+    .ar1_field <- .sel %in% c("2DAR1", "3DAR1") &
+      .stv %in% setdiff(names(tv_sel_map), "AR1")
 
     .require_positive(.fc, .col, list(
       list(col = "Time_varying_sel_sd",
            when = .on & .reads_sel_sd,
-           why  = "the time-varying selectivity deviations are penalized at this standard deviation")
+           why  = "the time-varying selectivity deviations are penalized at this standard deviation"),
+      list(col = "Time_varying_sel_sd",
+           when = .on & .ar1_field,
+           why  = "2DAR1 and 3DAR1 read it as the conditional sd of their deviation field")
     ))
   }
 
@@ -2004,7 +2014,7 @@ data_check <- function(data_list) {
       }
     }
     # Stomach grouping. The diet likelihood takes stomach i's prey as the run
-    # of rows where stomach_id == i (ceattle.cpp, section 13.2), so the ids must
+    # of rows where stomach_id == i (ceattle.cpp, section 13.6), so the ids must
     # be sorted 0, 1, 2, ... with no gaps -- grouped-but-unsorted is not enough,
     # and any stomach out of order drops out of the likelihood. clean_data()
     # sorts by stomach_id; this catches a hand-built or re-sorted diet table.
@@ -2420,16 +2430,15 @@ data_check <- function(data_list) {
   }
 
   # ONE coefficient per species is all the initial state can identify.
-  # linkage.hpp's `rceattle_apply_recruitment_linkages()` discards sex and
-  # age_bin outright (`(void)linkage_sex; (void)linkage_age_bin;`), takes no
-  # fleet, and ACCUMULATES every matching row onto one offset per species, a
-  # `species = NA` row broadcasting to all of them. Only year 0 is read, so the
-  # linkage collapses there to sum_i beta_i * X(0, col_i) -- a single number per
-  # species. Any second row on a species is therefore aliased against the first
-  # whatever its design column, covariate, sex or age bin, which is why the count
-  # is per species alone: counting within a species/sex/age_bin/fleet stratum
-  # would let `by = ~ species + age_bin` through as five coefficients with
-  # identical gradients.
+  # linkage.hpp's `rceattle_apply_recruitment_linkages()` never reads sex,
+  # age_bin or fleet, and ACCUMULATES every matching row onto one offset per
+  # species, a `species = NA` row broadcasting to all of them. Only year 0 is
+  # read, so the linkage collapses there to sum_i beta_i * X(0, col_i) -- a
+  # single number per species. Any second row on a species is therefore aliased
+  # against the first whatever its design column, covariate, sex or age bin,
+  # which is why the count is per species alone: counting within a
+  # species/sex/age_bin/fleet stratum would let `by = ~ species + age_bin`
+  # through as five coefficients with identical gradients.
   nspp  <- as.integer(data_list[["nspp"]])
   cols  <- as.character(lt[["design_col"]][rows])
   sp_of <- lt[["species"]][rows]

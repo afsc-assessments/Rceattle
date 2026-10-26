@@ -55,9 +55,11 @@ testthat::test_file("tests/testthat/test-selectivity-logisticpm.R", env = e)
 
 Three checks sit outside the ordinary suite:
 
-- **The golden regression** (`tests/testthat/test-golden-regression.R`) fits four reference
-  models and pins their objectives. Any change that can move a fit must leave them unchanged,
-  or re-pin them with the numbers in `NEWS.md`. It runs only under `NOT_CRAN=true`.
+- **The golden regression** (`tests/testthat/test-golden-regression.R`) evaluates four
+  reference models at stored parameters and pins their objectives and the derived quantities
+  that set catch advice (SSB, biomass, recruitment, SB0, dynamic B0, M2). Any change that can
+  move a fit must leave them unchanged, or re-pin them with the objective changes in `NEWS.md`.
+  It runs only under `NOT_CRAN=true`.
 - **`tools/verify/`** holds harnesses for what the golden fits cannot see: refit paths,
   simulation draws, MSE reproducibility. `tools/README.md` says which to run for which change.
 - **`inst/dev/TRAPS.md`** lists the ways a change has silently gone wrong before, with the
@@ -102,7 +104,8 @@ builds only for `main`, so check a documentation change locally with
 Numbered as in `CLAUDE.md`'s "Hard rules", which states rule 1 more strictly for an agent — it
 must ask before an API change, where you need only the deprecation path below. In brief:
 
-1. Preserve the public API. Deprecate an argument; do not delete it. You may change one —
+1. Preserve the public API. Deprecate a function or argument; do not delete it unless the
+   maintainer directs it, and record that direction in `NEWS.md`. You may change one —
    rename it, or move a default — but it owes a deprecation path that keeps old fits working, a
    `NEWS.md` entry, and a sweep of the repositories in `inst/dev/SIBLING-REPOS.md`. Giving a
    switch a new meaning has no such path, so it is a breaking change: classify it as
@@ -142,8 +145,9 @@ Four habits are specific to this package:
   place and why an unreachable guard is not safety. **But registering in a registry that already
   exists is the opposite, and is not optional:** a new `jnll_comp` row owes the `JnllRow`
   partners and `.JNLL_ROW_AXIS`, and a new `Index_distribution` family owes
-  `.index_rows_natural_scale()` — miss that one and the family silently gets the log-scale
-  residual.
+  `.index_rows_natural_scale()`, plus `.index_fleets_covariance()` if it carries a covariance
+  rather than a scalar sd — miss either and the family silently gets the log-scale residual, or
+  a denominator its likelihood never read.
 - Write in the idiom of the file you are in, and do not convert one to the other. The plotters
   and `R/5-rearrange_data.R` use dplyr and the pipe; most of `R/1-*` to `R/6-*` is base R. Inside
   the fitting pipeline a rewrite is how a fit moves silently — a verb that reorders rows, drops a

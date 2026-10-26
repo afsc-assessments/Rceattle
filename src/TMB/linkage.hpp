@@ -1,52 +1,83 @@
 // =====================================================================
 // linkage.hpp
 //
-// Turns each row of the Rceattle linkage table -- encoded by R into parallel
-// IVECTORs/VECTORs and the design matrix `linkage_X` -- into a tensor of
-// year-varying offsets that the recruitment, mortality, growth, catchability
-// and selectivity modules add to their parameters.
+// Turns the linkage table (a covariate or time effect on a process parameter)
+// into year-by-year offsets that recruitment, M, growth, catchability and
+// selectivity add to their parameters. Each offset is beta * X(year, column).
+//
+// Example: build_M1(linkages = list(M1 = linkage_spec(~ temp))) makes two rows per
+// species, an (Intercept) held at 0 and a `temp` slope beta. rceattle_apply_M_linkages()
+// fills M_linkage_offset(sp, sex, age, yr) = beta * temp_yr, and ceattle.cpp section 6.1
+// reads M1_at_age = exp(log M1 + M_linkage_offset). The equations for every link and
+// the row / slot / group terms are at ceattle.cpp section 2.3b.
 //
 // Process and parameter codes are in lockstep with R/0-linkage_encode.R
-// (LINKAGE_PROCESS_CODES / LINKAGE_PARAM_CODES):
-//   PROC: recruitment=0, M=1, growth=2, q=3, sel=4, comp=5
-//   PARAM is a per-process namespace: growth K=0, L1=1, Linf=2, m=3
-//     (natural-scale names) plus the SD endpoints 4/5; M1=0 for M.
-//
-// A stratum id of 0 in `linkage_species`, `linkage_sex`, `linkage_age_bin` or
-// `linkage_fleet` applies the row to every level of that stratum; otherwise it
-// is a 1-based index into that stratum's levels.
+// (LINKAGE_PROCESS_CODES / LINKAGE_PARAM_CODES); change one, change both.
+// A stratum id of 0 (species, sex, age bin or fleet) means "every level".
 // =====================================================================
 #ifndef RCEATTLE_LINKAGE_HPP
 #define RCEATTLE_LINKAGE_HPP
 
-// Process codes (must match R/0-linkage_encode.R::LINKAGE_PROCESS_CODES)
+// Process codes (R/0-linkage_encode.R::LINKAGE_PROCESS_CODES)
 #define RCEATTLE_PROC_RECRUIT 0
 #define RCEATTLE_PROC_M       1
 #define RCEATTLE_PROC_GROWTH  2
 #define RCEATTLE_PROC_Q       3
 #define RCEATTLE_PROC_SEL     4
-#define RCEATTLE_PROC_COMP    5   // prior-only: DM composition-weighting overdispersion
+#define RCEATTLE_PROC_COMP    5   // prior only, no offset: Dirichlet-multinomial theta
 
-// Growth parameters in the offset tensor: log_K, log_L1, log_Linf, log_m.
+// Growth offsets: log_K, log_L1, log_Linf, log_m (codes 0-3). The SD codes
+// 4 and 5 sit at or above this count, so the growth loop skips them.
 #define RCEATTLE_N_GROWTH_PARAMS 4
 
-// Recruitment parameters in the offset tensor: R0, alpha and beta, held on the log scale
-// in `rec_pars`, plus R_init, the initial recruitment level, read at year 0 only.
+// Recruitment offsets: log R0, log alpha, log Beta (the stock-recruit `rec_pars` columns),
+// and R_init, the initial recruitment level, read at year 0 only.
 #define RCEATTLE_N_REC_PARAMS 4
 #define RCEATTLE_REC_R0    0
 #define RCEATTLE_REC_ALPHA 1
 #define RCEATTLE_REC_BETA  2
 #define RCEATTLE_REC_R_INIT 3
 
+// Link codes (LINKAGE_LINK_CODES in R/0-linkage_encode.R); see the note below.
+#define RCEATTLE_LINK_IDENTITY    0
+#define RCEATTLE_LINK_LOG         1
+#define RCEATTLE_LINK_LOGIT       2   // reserved; refused in R
+#define RCEATTLE_LINK_EXPONENTIAL 3   // catchability only (SS3 environmental link type 1)
+
+// Random-effect structures (LINKAGE_STRUCT_CODES). R calls IID "us", which is not
+// glmmTMB's unstructured us().
+#define RCEATTLE_RE_IID 0
+#define RCEATTLE_RE_RW  1
+#define RCEATTLE_RE_AR1 2
+
+// Selectivity parameter codes, under their primary names in LINKAGE_PARAM_CODES$sel
+// (R/0-linkage_encode.R); a form's aliases (sigma_*, peak, right_floor) share them.
+#define RCEATTLE_SEL_SLP_ASC      0   // log_sel_slp, ascending (log slope; DoubleNormal log sigma)
+#define RCEATTLE_SEL_SLP_DESC     1   // log_sel_slp, descending
+#define RCEATTLE_SEL_INF_ASC      2   // sel_inf, ascending (inflection; DoubleNormal peak)
+#define RCEATTLE_SEL_INF_DESC     3   // sel_inf, descending (DoubleNormal logit floor; LogisticPM log first-bin)
+#define RCEATTLE_SEL_COFF         4   // sel_coff, every bin; refused in R, so its offset stays 0
+#define RCEATTLE_SEL_APICAL       5   // log_sel_apical, the per-sex multiplier
+#define RCEATTLE_SEL_DN_PEAK      6   // DoubleNormalSS3 P1, peak (bin number age - minage + 1, or cm)
+#define RCEATTLE_SEL_TOP_LOGIT    7   // P2, top width (logit)
+#define RCEATTLE_SEL_ASCEND_SE    8   // P3, ascending width (log)
+#define RCEATTLE_SEL_DESCEND_SE   9   // P4, descending width (log)
+#define RCEATTLE_SEL_START_LOGIT 10   // P5, initial selectivity (logit)
+#define RCEATTLE_SEL_END_LOGIT   11   // P6, final selectivity (logit)
+
+// Dirichlet-multinomial theta codes, LINKAGE_PARAM_CODES$comp.
+#define RCEATTLE_COMP_THETA_COMP 0    // comp_weights = log theta, per fleet
+#define RCEATTLE_COMP_THETA_CAAL 1    // caal_weights = log theta, per fleet
+#define RCEATTLE_COMP_THETA_DIET 2    // diet_comp_weights = log theta, per predator
+
 /**
- * @brief Expand a stratum sentinel id into the half-open iteration range [lo, hi).
+ * @brief Expand a stratum id into the loop range [lo, hi).
  *
- * Clamped to the levels this species actually has, so a sex-2 row on a single-sex stock
- * resolves to an empty range.
+ * Clamped to `n_levels`, so an id past the last level gives an empty range.
  *
  * @param id 1-based stratum id, or 0 for "all levels".
- * @param n_levels Number of levels this stratum has for the current species.
- * @param lo,hi [out] The range bounds: `lo` inclusive, `hi` exclusive.
+ * @param n_levels Number of levels the caller loops over.
+ * @param lo,hi [out] First level, and one past the last level.
  */
 inline void rceattle_stratum_range(int id, int n_levels, int& lo, int& hi) {
   lo = (id == 0) ? 0 : (id - 1);
@@ -55,74 +86,86 @@ inline void rceattle_stratum_range(int id, int n_levels, int& lo, int& hi) {
 }
 
 
+/**
+ * @brief The linkage table: one entry per row, and the shared design matrix.
+ *
+ * Holds references (to the DATA_ vectors and beta_linkage_eff), so building one copies
+ * nothing. Stratum ids are 1-based, with 0 meaning "every level".
+ */
+template<class Type>
+struct LinkageTable {
+  const vector<int>&  process;   // process code (RCEATTLE_PROC_*)
+  const vector<int>&  param;     // parameter code within the process (codes above)
+  const vector<int>&  species;   // species id
+  const vector<int>&  sex;       // sex id
+  const vector<int>&  age_bin;   // age index (age - minage + 1), not the age itself
+  const vector<int>&  fleet;     // Fleet_code
+  const vector<int>&  X_col;     // 0-based column of X
+  const vector<int>&  link;      // RCEATTLE_LINK_* (note below)
+  const matrix<Type>& X;         // design matrix [model year, row 0 = styr; column]
+  const vector<Type>& beta;      // the row's estimated beta, or its random-effect value (5.2b)
+};
+
+
 // ---------------------------------------------------------------------
-// Every accumulator below has one shape: for each linkage row of this process on this
-// link scale, expand the stratum sentinels and add beta * X(yr, col) into the offset
-// tensor for every (stratum, year) the row applies to. Three arguments are shared and
-// documented only here: `linkage_X`, the environmental covariate matrix whose rows are
-// years; `beta`, the per-row effect sizes (0-length = no-op); and `link_code`, which
-// picks the rows a call consumes -- 1 = log (added inside the exp), 0 = identity (added
-// to the natural-scale value after it), 3 = exponential (MULTIPLIES the log, raising the
-// parameter to exp(beta * x); catchability only, where index_q = exp((index_log_q +
-// log_offset) * exp(log_mult) + dev) + nat_offset). Years past linkage_X.rows() keep a
-// zero offset, so env_data need not span the projection. See
-// vignette("environmental-linkages-and-priors").
+// The five functions below share one pattern: for each row of `lt` naming this
+// process whose link matches `link_code`, add beta * X(yr, X_col) to the offset
+// for every stratum and year the row covers. `link_code` picks the rows:
+//   RCEATTLE_LINK_IDENTITY: beta * x is added to the parameter's natural-scale value
+//       (to the stored logit or log for DoubleNormalSS3 P2-P6, DoubleNormal's
+//       logit floor and LogisticPM's log first-bin selectivity);
+//   RCEATTLE_LINK_LOG: that value is multiplied by exp(beta * x);
+//   RCEATTLE_LINK_LOGIT: reserved, refused in R;
+//   RCEATTLE_LINK_EXPONENTIAL, catchability only: (log q + any log-link offset) is
+//       multiplied by exp(beta * x), SS3's environmental link type 1.
+// Years beyond X keep an offset of 0, so env_data need not cover the
+// projection. See vignette("environmental-linkages-and-priors").
 // ---------------------------------------------------------------------
 
 
 /**
- * @brief Accumulate growth offsets into `growth_offset[sp, sex, yr, param]`.
+ * @brief Add growth offsets to `growth_offset[sp, sex, yr, param]`.
  *
- * Not age-stratified, so the age_bin sentinel is ignored. The growth SD codes (sd_L1 = 4,
- * sd_Linf = 5) are skipped by the param-range guard below: they live on `growth_log_sd`
- * and consume intercept rows only.
+ * Growth is not age-specific, so the age-bin id is ignored. The SD codes
+ * (sd_L1 = 4, sd_Linf = 5) take intercept rows only and are skipped here.
  *
- * @param growth_offset [in,out] Offset tensor [nspp, max_sex, nyrs, n_growth_params].
- * @param link_code,linkage_X,beta Shared arguments; see the note above this group.
+ * @param growth_offset [in,out] Offsets [nspp, max_sex, nyrs, n_growth_params].
+ * @param link_code,lt See the note above.
  */
 template<class Type>
 void rceattle_apply_growth_linkages(
-    array<Type>&          growth_offset,
-    int                   link_code,
-    const vector<int>&    linkage_process,
-    const vector<int>&    linkage_param,
-    const vector<int>&    linkage_species,
-    const vector<int>&    linkage_sex,
-    const vector<int>&    linkage_age_bin,
-    const vector<int>&    linkage_X_col,
-    const vector<int>&    linkage_link,
-    const matrix<Type>&   linkage_X,
-    const vector<Type>&   beta,
-    int                   nspp,
-    const vector<int>&    nsex,
-    int                   nyrs)
+    array<Type>&                growth_offset,
+    int                         link_code,
+    const LinkageTable<Type>&   lt,
+    int                         nspp,
+    const vector<int>&          nsex,
+    int                         nyrs)
 {
-  (void)linkage_age_bin;               // growth is not age-stratified
-  int n = beta.size();
+  int n = lt.beta.size();
   if (n == 0) return;
 
-  int yr_hi = std::min(nyrs, (int)linkage_X.rows());
+  int yr_hi = std::min(nyrs, (int)lt.X.rows());
 
   for (int i = 0; i < n; ++i) {
-    if (linkage_process(i) != RCEATTLE_PROC_GROWTH) continue;
-    if (linkage_link(i)    != link_code)            continue;
+    if (lt.process(i) != RCEATTLE_PROC_GROWTH) continue;
+    if (lt.link(i)    != link_code)            continue;
 
-    int param = linkage_param(i);
+    int param = lt.param(i);
     if (param < 0 || param >= RCEATTLE_N_GROWTH_PARAMS) continue;
 
-    int xc = linkage_X_col(i);
-    Type b = beta(i);
+    int xc = lt.X_col(i);
+    Type b = lt.beta(i);
 
     int sp_lo, sp_hi;
-    rceattle_stratum_range(linkage_species(i), nspp, sp_lo, sp_hi);
+    rceattle_stratum_range(lt.species(i), nspp, sp_lo, sp_hi);
 
     for (int sp = sp_lo; sp < sp_hi; ++sp) {
       int sx_lo, sx_hi;
-      rceattle_stratum_range(linkage_sex(i), nsex(sp), sx_lo, sx_hi);
+      rceattle_stratum_range(lt.sex(i), nsex(sp), sx_lo, sx_hi);
 
       for (int sx = sx_lo; sx < sx_hi; ++sx) {
         for (int yr = 0; yr < yr_hi; ++yr) {
-          growth_offset(sp, sx, yr, param) += b * linkage_X(yr, xc);
+          growth_offset(sp, sx, yr, param) += b * lt.X(yr, xc);
         }
       }
     }
@@ -131,56 +174,47 @@ void rceattle_apply_growth_linkages(
 
 
 /**
- * @brief Accumulate natural-mortality offsets into `M_offset[sp, sex, age, yr]`.
+ * @brief Add natural-mortality offsets to `M_offset[sp, sex, age, yr]`.
  *
- * Age-stratified, unlike growth; `log_M1` (M1 = 0) is the only param code.
+ * Age-specific, unlike growth. M1 (code 0) is the only parameter.
  *
- * @param M_offset [in,out] Offset tensor [nspp, max_sex, max_age, nyrs].
- * @param link_code,linkage_X,beta Shared arguments; see the note above this group.
+ * @param M_offset [in,out] Offsets [nspp, max_sex, max_age, nyrs].
+ * @param link_code,lt See the note above.
  */
 template<class Type>
 void rceattle_apply_M_linkages(
-    array<Type>&          M_offset,
-    int                   link_code,
-    const vector<int>&    linkage_process,
-    const vector<int>&    linkage_param,
-    const vector<int>&    linkage_species,
-    const vector<int>&    linkage_sex,
-    const vector<int>&    linkage_age_bin,
-    const vector<int>&    linkage_X_col,
-    const vector<int>&    linkage_link,
-    const matrix<Type>&   linkage_X,
-    const vector<Type>&   beta,
-    int                   nspp,
-    const vector<int>&    nsex,
-    const vector<int>&    nages,
-    int                   nyrs)
+    array<Type>&                M_offset,
+    int                         link_code,
+    const LinkageTable<Type>&   lt,
+    int                         nspp,
+    const vector<int>&          nsex,
+    const vector<int>&          nages,
+    int                         nyrs)
 {
-  (void)linkage_param;                 // only log_M1 is exposed so far
-  int n = beta.size();
+  int n = lt.beta.size();
   if (n == 0) return;
 
-  int yr_hi = std::min(nyrs, (int)linkage_X.rows());
+  int yr_hi = std::min(nyrs, (int)lt.X.rows());
 
   for (int i = 0; i < n; ++i) {
-    if (linkage_process(i) != RCEATTLE_PROC_M) continue;
-    if (linkage_link(i)    != link_code)       continue;
+    if (lt.process(i) != RCEATTLE_PROC_M) continue;
+    if (lt.link(i)    != link_code)       continue;
 
-    int xc = linkage_X_col(i);
-    Type b = beta(i);
+    int xc = lt.X_col(i);
+    Type b = lt.beta(i);
 
     int sp_lo, sp_hi;
-    rceattle_stratum_range(linkage_species(i), nspp, sp_lo, sp_hi);
+    rceattle_stratum_range(lt.species(i), nspp, sp_lo, sp_hi);
 
     for (int sp = sp_lo; sp < sp_hi; ++sp) {
       int sx_lo, sx_hi, ab_lo, ab_hi;
-      rceattle_stratum_range(linkage_sex(i),     nsex(sp),  sx_lo, sx_hi);
-      rceattle_stratum_range(linkage_age_bin(i), nages(sp), ab_lo, ab_hi);
+      rceattle_stratum_range(lt.sex(i),     nsex(sp),  sx_lo, sx_hi);
+      rceattle_stratum_range(lt.age_bin(i), nages(sp), ab_lo, ab_hi);
 
       for (int sx = sx_lo; sx < sx_hi; ++sx) {
         for (int ab = ab_lo; ab < ab_hi; ++ab) {
           for (int yr = 0; yr < yr_hi; ++yr) {
-            M_offset(sp, sx, ab, yr) += b * linkage_X(yr, xc);
+            M_offset(sp, sx, ab, yr) += b * lt.X(yr, xc);
           }
         }
       }
@@ -190,54 +224,43 @@ void rceattle_apply_M_linkages(
 
 
 /**
- * @brief Accumulate recruitment offsets into `rec_offset[sp, param, yr]`.
+ * @brief Add recruitment offsets to `rec_offset[sp, param, yr]`.
  *
- * Recruitment happens at age 0 with no sex stratification on the parameter itself
- * (`sex_ratio` splits recruits downstream), so the sex and age_bin sentinels are ignored.
- * Param codes R0 = 0, alpha = 1, beta = 2, R_init = 3.
+ * Recruitment parameters are not sex- or age-specific (`sex_ratio` splits
+ * recruits later), so those ids are ignored. Parameters are RCEATTLE_REC_* (above).
  *
- * @param rec_offset [in,out] Offset tensor [nspp, n_rec_params, nyrs].
- * @param link_code,linkage_X,beta Shared arguments; see the note above this group.
+ * @param rec_offset [in,out] Offsets [nspp, n_rec_params, nyrs].
+ * @param link_code,lt See the note above.
  */
 template<class Type>
 void rceattle_apply_recruitment_linkages(
-    array<Type>&          rec_offset,
-    int                   link_code,
-    const vector<int>&    linkage_process,
-    const vector<int>&    linkage_param,
-    const vector<int>&    linkage_species,
-    const vector<int>&    linkage_sex,
-    const vector<int>&    linkage_age_bin,
-    const vector<int>&    linkage_X_col,
-    const vector<int>&    linkage_link,
-    const matrix<Type>&   linkage_X,
-    const vector<Type>&   beta,
-    int                   nspp,
-    int                   nyrs)
+    array<Type>&                rec_offset,
+    int                         link_code,
+    const LinkageTable<Type>&   lt,
+    int                         nspp,
+    int                         nyrs)
 {
-  (void)linkage_sex;
-  (void)linkage_age_bin;
-  int n = beta.size();
+  int n = lt.beta.size();
   if (n == 0) return;
 
-  int yr_hi = std::min(nyrs, (int)linkage_X.rows());
+  int yr_hi = std::min(nyrs, (int)lt.X.rows());
 
   for (int i = 0; i < n; ++i) {
-    if (linkage_process(i) != RCEATTLE_PROC_RECRUIT) continue;
-    if (linkage_link(i)    != link_code)             continue;
+    if (lt.process(i) != RCEATTLE_PROC_RECRUIT) continue;
+    if (lt.link(i)    != link_code)             continue;
 
-    int param = linkage_param(i);
+    int param = lt.param(i);
     if (param < 0 || param >= RCEATTLE_N_REC_PARAMS) continue;
 
-    int xc = linkage_X_col(i);
-    Type b = beta(i);
+    int xc = lt.X_col(i);
+    Type b = lt.beta(i);
 
     int sp_lo, sp_hi;
-    rceattle_stratum_range(linkage_species(i), nspp, sp_lo, sp_hi);
+    rceattle_stratum_range(lt.species(i), nspp, sp_lo, sp_hi);
 
     for (int sp = sp_lo; sp < sp_hi; ++sp) {
       for (int yr = 0; yr < yr_hi; ++yr) {
-        rec_offset(sp, param, yr) += b * linkage_X(yr, xc);
+        rec_offset(sp, param, yr) += b * lt.X(yr, xc);
       }
     }
   }
@@ -245,55 +268,40 @@ void rceattle_apply_recruitment_linkages(
 
 
 /**
- * @brief Accumulate catchability offsets into `q_offset[fleet, yr]`.
+ * @brief Add catchability offsets to `q_offset[fleet, yr]`.
  *
- * Indexed by fleet rather than species/sex/age -- a fleet already implies its species
- * through `fleet_control` -- so those sentinels are ignored, and `q` (q = 0) is the only
- * param code.
+ * By fleet, which already implies the species, so species, sex and age ids are
+ * ignored. q (code 0) is the only parameter.
  *
- * @param q_offset [in,out] Offset matrix [n_flt, nyrs].
- * @param linkage_fleet Fleet stratum id per row (0 = all fleets).
- * @param link_code,linkage_X,beta Shared arguments; see the note above this group.
+ * @param q_offset [in,out] Offsets [n_flt, nyrs].
+ * @param link_code,lt See the note above.
  */
 template<class Type>
 void rceattle_apply_q_linkages(
-    matrix<Type>&         q_offset,
-    int                   link_code,
-    const vector<int>&    linkage_process,
-    const vector<int>&    linkage_param,
-    const vector<int>&    linkage_species,
-    const vector<int>&    linkage_sex,
-    const vector<int>&    linkage_age_bin,
-    const vector<int>&    linkage_fleet,
-    const vector<int>&    linkage_X_col,
-    const vector<int>&    linkage_link,
-    const matrix<Type>&   linkage_X,
-    const vector<Type>&   beta,
-    int                   n_flt,
-    int                   nyrs)
+    matrix<Type>&               q_offset,
+    int                         link_code,
+    const LinkageTable<Type>&   lt,
+    int                         n_flt,
+    int                         nyrs)
 {
-  (void)linkage_param;                 // only q itself is exposed
-  (void)linkage_species;
-  (void)linkage_sex;
-  (void)linkage_age_bin;
-  int n = beta.size();
+  int n = lt.beta.size();
   if (n == 0) return;
 
-  int yr_hi = std::min(nyrs, (int)linkage_X.rows());
+  int yr_hi = std::min(nyrs, (int)lt.X.rows());
 
   for (int i = 0; i < n; ++i) {
-    if (linkage_process(i) != RCEATTLE_PROC_Q) continue;
-    if (linkage_link(i)    != link_code)       continue;
+    if (lt.process(i) != RCEATTLE_PROC_Q) continue;
+    if (lt.link(i)    != link_code)       continue;
 
-    int xc = linkage_X_col(i);
-    Type b = beta(i);
+    int xc = lt.X_col(i);
+    Type b = lt.beta(i);
 
     int fl_lo, fl_hi;
-    rceattle_stratum_range(linkage_fleet(i), n_flt, fl_lo, fl_hi);
+    rceattle_stratum_range(lt.fleet(i), n_flt, fl_lo, fl_hi);
 
     for (int flt = fl_lo; flt < fl_hi; ++flt) {
       for (int yr = 0; yr < yr_hi; ++yr) {
-        q_offset(flt, yr) += b * linkage_X(yr, xc);
+        q_offset(flt, yr) += b * lt.X(yr, xc);
       }
     }
   }
@@ -301,98 +309,125 @@ void rceattle_apply_q_linkages(
 
 
 /**
- * @brief Accumulate selectivity offsets into the five parameter-family tensors.
+ * @brief Add selectivity offsets, by fleet, sex and year, to one of five arrays.
  *
- * Routed by the row's param code, for every (fleet, sex, year) the row applies to. The
- * tensors are dimensioned per fleet and sex; fleets sharing a `Selectivity_index` are
- * collapsed onto one parameter block by the TMB map.
- *
- * Param codes: `0`/`1` -> log_sel_slp[asc/desc] (`slp_offset`);
- *              `2`/`3` -> sel_inf[asc/desc]      (`inf_offset`);
- *              `4`     -> sel_coff, all bins     (`coff_offset`);
- *              `5`     -> log_sel_apical         (`apical_offset`);
- *              `6`-`11` -> sel_dn6[0..5], the six DoubleNormalSS3 (SS3
- *                         pattern 24) parameters (`dn6_offset`).
+ * Offsets are per fleet; fleets sharing a `Selectivity_index` still share one
+ * parameter block through the map. The param code (RCEATTLE_SEL_*, above) picks
+ * the array: slopes `slp_offset`, inflections `inf_offset`, non-parametric
+ * coefficients `coff_offset` (every bin), apical height `apical_offset`, and
+ * DoubleNormalSS3 P1-P6 (SS3 pattern 24) `dn6_offset`.
  *
  * @param slp_offset [in,out] Slope offsets [2, n_flt, max_sex, nyrs].
  * @param inf_offset [in,out] Inflection offsets [2, n_flt, max_sex, nyrs].
  * @param coff_offset [in,out] Nonparametric offsets [n_flt, max_sex, n_sel_bins, nyrs].
- * @param apical_offset [in,out] Per-sex apical-height offsets [n_flt, max_sex, nyrs].
- * @param dn6_offset [in,out] DoubleNormalSS3 parameter offsets [6, n_flt, max_sex, nyrs].
- * @param link_code,linkage_X,beta Shared arguments; see the note above this group.
+ * @param apical_offset [in,out] Apical-height offsets [n_flt, max_sex, nyrs].
+ * @param dn6_offset [in,out] DoubleNormalSS3 offsets [6, n_flt, max_sex, nyrs].
+ * @param link_code,lt See the note above.
  */
 template<class Type>
 void rceattle_apply_sel_linkages(
-    array<Type>&          slp_offset,   // [2, n_flt, max_sex, nyrs]
-    array<Type>&          inf_offset,   // [2, n_flt, max_sex, nyrs]
-    array<Type>&          coff_offset,  // [n_flt, max_sex, n_sel_bins, nyrs]
-    array<Type>&          apical_offset,// [n_flt, max_sex, nyrs]
-    array<Type>&          dn6_offset,   // [6, n_flt, max_sex, nyrs]
-    int                   link_code,
-    const vector<int>&    linkage_process,
-    const vector<int>&    linkage_param,
-    const vector<int>&    linkage_species,
-    const vector<int>&    linkage_sex,
-    const vector<int>&    linkage_age_bin,
-    const vector<int>&    linkage_fleet,
-    const vector<int>&    linkage_X_col,
-    const vector<int>&    linkage_link,
-    const matrix<Type>&   linkage_X,
-    const vector<Type>&   beta,
-    int                   n_flt,
-    int                   max_sex,
-    int                   n_sel_bins,
-    int                   nyrs)
+    array<Type>&                slp_offset,   // [2, n_flt, max_sex, nyrs]
+    array<Type>&                inf_offset,   // [2, n_flt, max_sex, nyrs]
+    array<Type>&                coff_offset,  // [n_flt, max_sex, n_sel_bins, nyrs]
+    array<Type>&                apical_offset,// [n_flt, max_sex, nyrs]
+    array<Type>&                dn6_offset,   // [6, n_flt, max_sex, nyrs]
+    int                         link_code,
+    const LinkageTable<Type>&   lt,
+    int                         n_flt,
+    int                         max_sex,
+    int                         n_sel_bins,
+    int                         nyrs)
 {
-  (void)linkage_species;
-  (void)linkage_age_bin;
-  int n = beta.size();
+  int n = lt.beta.size();
   if (n == 0) return;
 
-  int yr_hi = std::min(nyrs, (int)linkage_X.rows());
+  int yr_hi = std::min(nyrs, (int)lt.X.rows());
 
   for (int i = 0; i < n; ++i) {
-    if (linkage_process(i) != RCEATTLE_PROC_SEL) continue;
-    if (linkage_link(i)    != link_code)         continue;
+    if (lt.process(i) != RCEATTLE_PROC_SEL) continue;
+    if (lt.link(i)    != link_code)         continue;
 
-    int param = linkage_param(i);
-    int xc    = linkage_X_col(i);
-    Type b    = beta(i);
+    int param = lt.param(i);
+    int xc    = lt.X_col(i);
+    Type b    = lt.beta(i);
 
     int fl_lo, fl_hi, sx_lo, sx_hi;
-    rceattle_stratum_range(linkage_fleet(i), n_flt,   fl_lo, fl_hi);
-    rceattle_stratum_range(linkage_sex(i),   max_sex, sx_lo, sx_hi);
+    rceattle_stratum_range(lt.fleet(i), n_flt,   fl_lo, fl_hi);
+    rceattle_stratum_range(lt.sex(i),   max_sex, sx_lo, sx_hi);
 
     for (int flt = fl_lo; flt < fl_hi; ++flt) {
       for (int sx = sx_lo; sx < sx_hi; ++sx) {
         for (int yr = 0; yr < yr_hi; ++yr) {
-          Type v = b * linkage_X(yr, xc);
-          if (param == 0 || param == 1) {
-            slp_offset(param, flt, sx, yr) += v;
-          } else if (param == 2 || param == 3) {
-            inf_offset(param - 2, flt, sx, yr) += v;
-          } else if (param == 4) {
+          Type v = b * lt.X(yr, xc);
+          if (param == RCEATTLE_SEL_SLP_ASC || param == RCEATTLE_SEL_SLP_DESC) {
+            slp_offset(param - RCEATTLE_SEL_SLP_ASC, flt, sx, yr) += v;
+          } else if (param == RCEATTLE_SEL_INF_ASC || param == RCEATTLE_SEL_INF_DESC) {
+            inf_offset(param - RCEATTLE_SEL_INF_ASC, flt, sx, yr) += v;
+          } else if (param == RCEATTLE_SEL_COFF) {
             for (int bin = 0; bin < n_sel_bins; ++bin) {
               coff_offset(flt, sx, bin, yr) += v;
             }
-          } else if (param == 5) {
+          } else if (param == RCEATTLE_SEL_APICAL) {
             apical_offset(flt, sx, yr) += v;
-          } else if (param == 6) {
-            dn6_offset(0, flt, sx, yr) += v;   // P1 peak
-          } else if (param == 7) {
-            dn6_offset(1, flt, sx, yr) += v;   // P2 top width (logit)
-          } else if (param == 8) {
-            dn6_offset(2, flt, sx, yr) += v;   // P3 ascending width (log)
-          } else if (param == 9) {
-            dn6_offset(3, flt, sx, yr) += v;   // P4 descending width (log)
-          } else if (param == 10) {
-            dn6_offset(4, flt, sx, yr) += v;   // P5 initial selectivity (logit)
-          } else if (param == 11) {
-            dn6_offset(5, flt, sx, yr) += v;   // P6 final selectivity (logit)
+          } else if (param >= RCEATTLE_SEL_DN_PEAK && param <= RCEATTLE_SEL_END_LOGIT) {
+            dn6_offset(param - RCEATTLE_SEL_DN_PEAK, flt, sx, yr) += v;   // P1-P6
           }
         }
       }
     }
+  }
+}
+
+/**
+ * @brief The random-effect slots of one group, in slot order, which is time order
+ * within a group (.assign_re_registry()).
+ *
+ * @param group_of_slot Each slot's group (ceattle.cpp's linkage_re_sigma: an index, not an sd).
+ * @param grp The group.
+ * @return The group's slot indices, ascending; empty if it has none.
+ */
+inline vector<int> rceattle_group_slots(const vector<int>& group_of_slot, int grp) {
+  int len = 0;
+  for (int s = 0; s < group_of_slot.size(); ++s) if (group_of_slot(s) == grp) len++;
+  vector<int> slots(len);
+  int j = 0;
+  for (int s = 0; s < group_of_slot.size(); ++s) if (group_of_slot(s) == grp) slots(j++) = s;
+  return slots;
+}
+
+
+/**
+ * @brief Add the negative log density of one group's deviations to two accumulators.
+ *
+ * RCEATTLE_RE_IID: sd sigma. RCEATTLE_RE_RW: sd sigma on first differences (the first
+ * deviation has no term of its own; build_map() holds it at its start, 0 by default,
+ * so the base parameter carries the level). RCEATTLE_RE_AR1: stationary, MARGINAL sd
+ * sigma and correlation rho (the glmmTMB / Rogers QAR1 convention).
+ *
+ * @param structure RCEATTLE_RE_IID, RCEATTLE_RE_RW or RCEATTLE_RE_AR1.
+ * @param re The group's deviations, in time order.
+ * @param sigma The group's sd, natural scale (AR1: the marginal sd).
+ * @param rho The AR1 correlation in (-1, 1); read only under RCEATTLE_RE_AR1.
+ * @param nll,nll_unweighted Cells of jnll_comp and unweighted_jnll_comp to add to.
+ */
+template<class Type>
+void rceattle_re_group_nll(int structure, vector<Type> re, Type sigma, Type rho,
+                           Type& nll, Type& nll_unweighted)
+{
+  if (structure == RCEATTLE_RE_RW) {
+    for (int t = 1; t < re.size(); ++t) {
+      Type log_dens = dnorm(re(t) - re(t - 1), Type(0), sigma, true);
+      nll            -= log_dens;
+      nll_unweighted -= log_dens;
+    }
+  } else if (structure == RCEATTLE_RE_AR1) {
+    Type neg_log_dens = density::SCALE(density::AR1(rho), sigma)(re);   // a negative log density
+    nll            += neg_log_dens;
+    nll_unweighted += neg_log_dens;
+  } else {                                    // RCEATTLE_RE_IID
+    Type log_dens = sum(dnorm(re, Type(0), sigma, true));
+    nll            -= log_dens;
+    nll_unweighted -= log_dens;
   }
 }
 

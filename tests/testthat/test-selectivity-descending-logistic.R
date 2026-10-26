@@ -18,8 +18,8 @@ testthat::test_that("Sex-specific age-based descending logistic selectivity not 
   # Specify descending logistic selectivity
   inf = 13; alpha = 0.2
   ages <- 1:21
-  sel <- 1-1/(1+exp(-alpha*(ages-inf)))
-  sel2 <- 1-1/(1+exp(-alpha*(ages-inf-1)))
+  sel <- 1/(1+exp(alpha*(ages-inf)))
+  sel2 <- 1/(1+exp(alpha*(ages-inf-1)))
 
   # Set params to descending logistic
   mod0 <- suppressMessages( fit_mod(data_list = GOA2018SS, inits = NULL, estimateMode = 3, random_rec = FALSE, msmMode = 0, fit_control = fit_control(verbose = 0)) )
@@ -92,8 +92,8 @@ testthat::test_that("Sex-specific age-based time-varying descending logistic sel
 
   alpha = 0.5
   ages <- 1:21
-  sel <- apply(cbind(log_slp_dev, inf_dev), 1, function(x) 1 - 1/(1+exp(-alpha*exp(x[1]) * (ages - inf - x[2]))))
-  sel2 <- apply(cbind(log_slp_dev, inf_dev), 1, function(x) 1 - 1/(1+exp(-(alpha+1)*exp(x[1]) * (ages - inf - x[2]))))
+  sel <- apply(cbind(log_slp_dev, inf_dev), 1, function(x) 1/(1+exp(alpha*exp(x[1]) * (ages - inf - x[2]))))
+  sel2 <- apply(cbind(log_slp_dev, inf_dev), 1, function(x) 1/(1+exp((alpha+1)*exp(x[1]) * (ages - inf - x[2]))))
 
 
   # Set params to descending logistic

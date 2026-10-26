@@ -70,8 +70,8 @@ whitespace to find it. Ask before adding a dependency.
 **Write the simplest thing that works, and nothing for later.** No helper, wrapper, class,
 config layer, option flag or *new* registry this change does not need now — but registering in
 the registries that already exist (the `JnllRow` partners, `.JNLL_ROW_AXIS`,
-`.index_rows_natural_scale()`) is not optional, or the new family gets the wrong
-residual. A helper earns its place at two callers, or
+`.index_rows_natural_scale()`, `.index_fleets_covariance()`) is not optional, or
+the new family gets the wrong residual. A helper earns its place at two callers, or
 when it names a concept the reader needs. A guard that cannot fire is not
 safety: name the input that reaches it, or leave it out. If the structure of a change needs a
 paragraph to justify it, propose it before writing it.

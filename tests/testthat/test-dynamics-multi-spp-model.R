@@ -108,6 +108,31 @@ testthat::test_that("Rceattle and multi-species model dynamics match", {
   # Q
   testthat::expect_equal(as.numeric(sim$model_quantities$srv_q), as.numeric(ms_run1$quantities$index_q[c(1,3),1]))
 
+  # Survey index and catch biomass at the true parameters -- the ASSEMBLY of the
+  # pieces checked above, which the per-piece assertions do not cover: the month
+  # timing, the weight-at-age slot, the units and q. The index the model predicts
+  # is q times start-of-year survey-selected biomass, rebuilt here from the OM's
+  # own numbers-at-age, survey selectivity and weight-at-age. Written against
+  # TOTAL biomass instead, this assertion fails by 1.01 to 1.57 times.
+  q   <- sim$model_quantities$srv_q
+  sel <- sim$model_quantities$srv_sel
+  waa <- sim$model_quantities$WAA
+  sel_biom <- apply(sim$model_quantities$NAA, 3,
+                    function(n) rowSums(n * sel * waa))
+  index_rows <- ms_run1$data_list$index_data
+  testthat::expect_equal(nrow(index_rows), length(ms_run1$quantities$index_hat))
+  testthat::expect_equal(as.numeric(ms_run1$quantities$index_hat),
+                         (q * sel_biom)[cbind(index_rows$Species,
+                                              index_rows$Year)])
+  # catch_data also carries projection rows, which are skipped. Assert the row
+  # alignment first: `x[logical]` RECYCLES a shorter logical rather than
+  # erroring, so a length mismatch would arrive as a confusing diff instead.
+  catch_rows <- ms_run1$data_list$catch_data
+  testthat::expect_equal(nrow(catch_rows), length(ms_run1$quantities$catch_hat))
+  hindcast <- catch_rows$Year <= nyrs
+  testthat::expect_equal(as.numeric(ms_run1$quantities$catch_hat)[hindcast],
+                         sim$model_quantities$Catch[cbind(catch_rows$Species, catch_rows$Year)[hindcast, , drop = FALSE]])
+
   # Expected and observed diet
   testthat::expect_equal(as.numeric(ms_run1$data_list$diet_data$Stomach_proportion_by_weight), as.numeric(ms_run1$quantities$diet_hat[,2]))
 })
@@ -1370,4 +1395,38 @@ testthat::test_that("Mixed suitabilities2: MSVPA and lognormal", {
   # Suitability of prey (species 2) should be off
   testthat::expect_false(isTRUE(all.equal(as.numeric(ms_run1$quantities$suitability[2,,,,2]),
                                           as.numeric(sim$model_quantities$suitability[2,,,]))))
+})
+
+
+# ---------------------------------------------------------------------------
+# The OPERATING MODEL's own observation construction, which the assertions above
+# cannot see: `index_hat` is built from the parameters and a fixed q, so the
+# index OBSERVATIONS never enter it, and nothing failed when `SrvIdx` was built
+# from the wrong quantity. Before 5.64.1 it was drawn around TOTAL biomass while
+# Rceattle predicts q times survey-SELECTED biomass, which made the OM index run
+# 1.02 to 1.37 times `index_hat` at the true parameters -- so a `self_test()`
+# refit was fitting to a target the model could not reproduce.
+#
+# Drawn at sigma = 0 so the assertion is exact rather than distributional. That
+# pins WHICH quantity the observations are drawn around (against total biomass
+# this fails by up to 36.2%), but not the lognormal bias correction added with
+# it: at sigma = 0 the `-sigma^2/2` offset is identically 1. That offset matches
+# Rceattle's default `bias_adjust_obs = TRUE`, under which the likelihood centres
+# the draw at `log(pred) - sigma^2/2`; it is worth 0.125% at sigma 0.05 and 4.6%
+# at sigma 0.3, and 60 draws cannot separate it from noise, so it is stated here
+# rather than asserted.
+# ---------------------------------------------------------------------------
+testthat::test_that("the operating model draws its index around selected biomass", {
+  testthat::skip_on_cran()
+  sim0 <- make_msm_test_data(sigma_srv = 0, sigma_catch = 0)
+  mq   <- sim0$model_quantities
+
+  sel_biom <- apply(mq$NAA, 3, function(n) rowSums(n * mq$srv_sel * mq$WAA))
+  testthat::expect_equal(dim(mq$SrvIdx), dim(sel_biom))
+  testthat::expect_equal(unname(mq$SrvIdx), unname(mq$srv_q * sel_biom),
+                         tolerance = 0)
+  # Not vacuous: selected biomass is not total biomass on this fixture.
+  testthat::expect_gt(max(mq$Total_Biom / sel_biom), 1.01)
+  # Catch is drawn around the Baranov catch in weight, on the same convention.
+  testthat::expect_equal(unname(mq$ObsCatch), unname(mq$Catch), tolerance = 0)
 })

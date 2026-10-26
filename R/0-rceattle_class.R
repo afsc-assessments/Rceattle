@@ -329,8 +329,10 @@ logLik.Rceattle <- function(object, ...) {
 #'     natural-scale index fleet (`Index_distribution` `"MVN"`, `"MVNORM"`,
 #'     `"Normal"` or `"TruncatedNormal"`) holds an ABSOLUTE \eqn{\sigma} and is
 #'     standardized as \eqn{(o - \hat{o})/\sigma} instead. Two caveats there: a
-#'     covariance fleet gets its marginal residual, not the whitened one (use
-#'     `type = "osa"` for that), and `"TruncatedNormal"` is standardized on the
+#'     covariance fleet (`"MVN"`, `"MVNORM"`) takes \eqn{\sigma} from
+#'     `sqrt(diag(index_cov))`, since its likelihood never reads the reported
+#'     scalar sd, and so gets its marginal residual rather than the whitened one
+#'     (use `type = "osa"` for that); and `"TruncatedNormal"` is standardized on the
 #'     untruncated moments, so it is approximate where \eqn{\hat{o}/\sigma} is
 #'     small enough for truncation to shift the mean. For `comp` / `caal`,
 #'     \eqn{(p - \hat{p})/\sqrt{\hat{p}(1 - \hat{p})/N}} with input sample size
@@ -510,11 +512,9 @@ residuals.Rceattle <- function(object, type = "response", source = "all",
 
   # Observation bias-adjustment flag (default 1): the index/catch lognormal
   # likelihood fits to mean log(hat) - bias_adjust_obs * sigma^2/2, so the Pearson
-  # residual must subtract the same offset.
-  ba_obs <- d$bias_adjust_obs
-  if (is.null(ba_obs) && !is.null(object$obj)) ba_obs <- object$obj$env$data$bias_adjust_obs
-  if (is.null(ba_obs)) ba_obs <- 1
-  ba_obs <- as.numeric(ba_obs)[1]
+  # residual must subtract the same offset. Shared with the fit figures, which
+  # need the same offset to draw the likelihood's centre.
+  ba_obs <- .bias_adjust_obs(object)
 
   out <- list()
 
@@ -526,6 +526,9 @@ residuals.Rceattle <- function(object, type = "response", source = "all",
     if (type == "pearson") {
       sigma <- .observation_sd(q, "index")
       sigma <- if (!is.null(sigma)) as.numeric(sigma) else idx$Log_sd
+      # An MVN / MVNORM fleet scores index_cov and never reads this sd, so take
+      # its marginal sd from that matrix instead; NA where it cannot be read.
+      sigma <- .index_marginal_sd(d, sigma)
       # Standardize on the scale the fleet's own likelihood uses. The lognormal
       # form below is wrong for a natural-scale family by orders of magnitude,
       # not by a little: sigma there is ABSOLUTE, so -sigma^2/2 is a number the
@@ -852,7 +855,7 @@ residuals.Rceattle <- function(object, type = "response", source = "all",
 #' Each stomach holds an "other prey" balance that enters the density but not
 #' the residual frame, so the normalizing total is rebuilt from it. Proportions
 #' are renormalized before scaling by the stomach sample size
-#' (`ceattle.cpp`, section 13.2), so the count total is `N_s`. The predicted
+#' (`ceattle.cpp`, section 13.6), so the count total is `N_s`. The predicted
 #' other-prey bin is floored at 1e-5, within 1e-5 of the C++ `posfun()` it
 #' stands in for; `posfun()` decays towards zero once the prey proportions sum
 #' past one, where a flat floor holds. A difference at the scale of the offset itself,
@@ -867,7 +870,7 @@ residuals.Rceattle <- function(object, type = "response", source = "all",
   off <- .rce_comp_offset(d)
 
   # Each stomach is scored separately, on a contiguous run of stomach_id
-  # (ceattle.cpp, section 13.2). Without that column the predator/sex/age/year
+  # (ceattle.cpp, section 13.6). Without that column the predator/sex/age/year
   # key is one stomach per group, which is every bundled dataset.
   sid <- dd$stomach_id
   if (is.null(sid) || length(sid) != nrow(dd)) {

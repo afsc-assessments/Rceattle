@@ -16,7 +16,10 @@
 #   - pull_request        -- the per-PR Codecov coverage diff;
 #   - workflow_dispatch   -- on demand.
 # Feature-branch pushes are covered by their PR run (plus cancel-in-progress), so they
-# do not trigger it. Keep the status non-blocking so a slow run never gates a merge.
+# do not trigger it. A shard fails when any of its tests fails or errors, after its
+# coverage report is written, and the Codecov upload still runs. These shard
+# contexts are NOT among the six the "Require the guards before merging" ruleset
+# requires, so a red shard advises rather than blocks -- add them there to gate.
 on:
   push:
     branches: [main, dev]
@@ -110,6 +113,12 @@ jobs:
           extra-packages: any::covr, any::xml2
           needs: coverage
 
+      # Which machine produced these numbers -- this job pins fitted values.
+      # See tools/ci/machine-fingerprint.sh.
+      - name: Machine fingerprint
+        run: bash tools/ci/machine-fingerprint.sh
+        shell: bash
+
       # The script picks this shard's files, runs them under covr, and writes
       # cobertura.xml. It prints the whole shard plan up front, and writes a
       # per-file elapsed time to COV_TIMING_LOG as each file ends.
@@ -128,7 +137,9 @@ jobs:
           COV_TIMING_LOG: ${{ runner.temp }}/coverage-timing-shard-${{ matrix.shard }}.tsv
         run: Rscript tools/ci/coverage-shard.R
 
+      # !cancelled(): a shard with a failing test still uploads its coverage.
       - uses: codecov/codecov-action@v5
+        if: ${{ !cancelled() }}
         with:
           # Never fail the build on a coverage-upload error: the CODECOV_TOKEN
           # secret may not be configured (and is unavailable on fork PRs), and a

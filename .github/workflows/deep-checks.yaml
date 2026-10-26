@@ -3,10 +3,11 @@
 # 1. GOLDEN REFERENCE. tests/testthat/test-golden-regression.R is the committed
 #    backstop for "a numeric change needs golden equivalence" -- and it is
 #    guarded by BOTH skip_on_cran() and skip_on_covr(), so it fires in neither
-#    existing job: R-CMD-check sets NOT_CRAN=false deliberately (to keep the
-#    multi-OS matrix fast), and test-coverage runs under covr. The result is
-#    that the repo's own rule has no automated enforcement; it only runs when
-#    someone types /golden-check locally. This job is where it runs.
+#    other job: R-CMD-check sets NOT_CRAN=false deliberately (to keep the
+#    multi-OS matrix fast), and test-coverage runs under covr. Without this job
+#    the repo's own rule would run only when someone typed /golden-check
+#    locally. This job is where it runs: nightly, and since 5.64.0 on every PR
+#    that touches the model or the golden files (see the paths filter below).
 #
 # 2. ARRAY BOUNDS. The model is built with safebounds = FALSE, so an
 #    out-of-range access is a silent write into adjacent memory. 5.15.0 fixed
@@ -16,24 +17,30 @@
 #    rebuilds with bounds checking on so that class of fault is attributable
 #    rather than a mystery segfault.
 #
-# 3. THE skip_on_cran SUITE. 181 of the 255 test files carry skip_on_cran(),
+# 3. THE skip_on_cran SUITE. 195 of the 271 test files carry skip_on_cran(),
 #    which is every test that runs a real fit_mod() optimization. R-CMD-check
-#    sets NOT_CRAN=false, so it skips all of them. Note 94 of those carry the
+#    sets NOT_CRAN=false, so it skips all of them. Note 95 of those carry the
 #    call at FILE level, outside any test_that(): such a file produces a
 #    zero-row result, so it reports neither a pass nor a skip and disappears
-#    from the counts rather than showing up as skipped. test-coverage does run
-#    them, but tools/ci/coverage-shard.R passes stop_on_failure = FALSE and no
-#    later step reads the result, so a failure prints into a shard log and the
-#    job stays green. Between the two, a broken regression test failed nothing.
-#    This job is where those tests can go red.
+#    from the counts rather than showing up as skipped. test-coverage runs them
+#    on every PR, split across shards, and a shard fails when one of its tests
+#    does. This job runs the whole suite uninstrumented, serially, every night.
+#    NOTE: `schedule` fires on the DEFAULT branch, so on dev this job runs only
+#    when dispatched -- otherwise the per-PR coverage shards are the only thing
+#    that runs these tests. And it mostly stops at the 300-minute timeout (which reports as
+#    `cancelled`): of the eight scheduled runs to 2026-10-21, six did not
+#    complete, the last success being 10-14.
 #
 # All three are slow: golden is four phased fits with newtonsteps, a
 # bounds-checked build range-tests every array access, and the full NOT_CRAN
-# suite is ~160 minutes of fits. Hence nightly plus manual, not per-PR.
+# suite is ~160 minutes of fits. Hence golden runs only on PRs that touch the
+# model, and the other two run nightly plus manual.
 #
-# ALL jobs fail the run. None gates anything: this workflow runs nightly and
-# on dispatch, never on a PR, so a red run blocks no merge -- it is a signal to
-# read, and it has to be visible to be read. The bounds job was
+# ALL jobs fail the run. The golden job also runs on a pull request that touches
+# the model (src/, R/) or the golden files, so a PR that moves the likelihood is
+# red before it merges. The suite and the bounds-checked build run nightly and on
+# dispatch only, so a red run there is a signal to read, and it has to be
+# visible to be read. The bounds job was
 # `continue-on-error` while it could not run, which is exactly why its failure
 # went unnoticed from before 5.20.0 to 2026-08-27: the run reported success
 # throughout. A case that cannot run is now reported apart from a violation, so
@@ -41,6 +48,16 @@
 on:
   schedule:
     - cron: "0 5 * * *"   # nightly, 05:00 UTC
+  # Golden only (see the `if:` on suite; safebounds needs schedule or its input).
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - "src/**"
+      - "R/**"
+      - "data/**"
+      - "tests/testthat/test-golden-regression.R"
+      - "tests/testthat/fixtures/golden-reference.rds"
+      - ".github/workflows/deep-checks.yaml"
   workflow_dispatch:
     inputs:
       run_safebounds:
@@ -59,7 +76,8 @@ concurrency:
 jobs:
   golden:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    # The last 20 runs took 45 to 89 min, and a timeout reports as cancelled.
+    timeout-minutes: 120
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       # The whole point of this job. R-CMD-check sets this false; covr skips the
@@ -88,6 +106,14 @@ jobs:
           extra-packages: any::devtools, any::testthat, any::pkgload
           needs: check
 
+      # Which machine produced these numbers. Golden compares four objectives
+      # against literals and has gone red across platforms before: red on main
+      # for weeks over a summation order (NEWS.md, 5.45.1), and the 5.45.0 red
+      # was a gradient of 3.5e-4 on ubuntu against 2.5e-5 on macOS (TRAPS.md).
+      - name: Machine fingerprint
+        run: bash tools/ci/machine-fingerprint.sh
+        shell: bash
+
       - name: Golden reference (four pinned fits)
         run: |
           Rscript -e '
@@ -109,17 +135,18 @@ jobs:
             if (sum(df$passed) == 0)
               stop("golden regression ran no assertions -- it was skipped, ",
                    "which is the failure mode this job exists to prevent")
-            # And assert on the GATE by name: the file holds six other tests, so
+            # And assert on the GATE by name: the file holds five other tests, so
             # a whole-file count stays positive while the one test that pins the
-            # likelihood is skipped.
-            gate <- df[df$test == "the likelihood at the reference parameters is unchanged", ]
+            # likelihood and the derived quantities is skipped.
+            gate <- df[df$test == "the likelihood and derived quantities at the reference parameters are unchanged", ]
             if (nrow(gate) != 1 || sum(gate$passed) == 0)
               stop("the likelihood gate did not run -- it is the point of this job")
             if (sum(df$failed) > 0 || sum(df$error) > 0)
-              stop("golden regression failed: the likelihood at the reference parameters moved")'
+              stop("golden regression failed: the likelihood or a derived quantity at the reference parameters moved")'
         shell: bash
 
   suite:
+    if: ${{ github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
     # ~160 min measured under covr (tools/ci/coverage-costs.tsv, summed);
     # uninstrumented and serial is less, but leave room for a slow runner.

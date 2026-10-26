@@ -5,7 +5,7 @@
 # failure. So check the location separately from the spread.
 #
 # ceattle.cpp fits log(obs) ~ N(log(hat) - bias_adjust_obs*sigma^2/2, sigma) for
-# both the index (slot 0, lognormal family) and total catch (slot 1). The
+# both the index (section 13.1, lognormal family) and total catch (section 13.2). The
 # likelihood's expectation of log(obs) is therefore log(hat) - ba*sigma^2/2, and
 # E[obs] = hat*exp((1-ba)*sigma^2/2) -- equal to hat only when ba = 1. The
 # quantity to watch is the log offset against exp(-ba*sigma^2/2); it must not
