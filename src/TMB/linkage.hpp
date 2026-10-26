@@ -8,7 +8,7 @@
 // Example: build_M1(linkages = list(M1 = linkage_spec(~ temp))) makes two rows per
 // species, an (Intercept) held at 0 and a `temp` slope beta. rceattle_apply_M_linkages()
 // fills M_linkage_offset(sp, sex, age, yr) = beta * temp_yr, and ceattle.cpp section 6.1
-// reads M1_yr = exp(log M1 + M_offset_yr). The equations for every link and
+// reads M1_yr = exp(log M1 + M_linkage_offset). The equations for every link and
 // the row / slot / group terms are at ceattle.cpp section 2.3b.
 //
 // Process and parameter codes are in lockstep with R/0-linkage_encode.R
@@ -309,11 +309,11 @@ void rceattle_apply_q_linkages(
 
 
 /**
- * @brief Add selectivity offsets, by fleet, sex and year, to one of five tensors.
+ * @brief Add selectivity offsets, by fleet, sex and year, to one of five arrays.
  *
  * Offsets are per fleet; fleets sharing a `Selectivity_index` still share one
  * parameter block through the map. The param code (RCEATTLE_SEL_*, above) picks
- * the tensor: slopes `slp_offset`, inflections `inf_offset`, non-parametric
+ * the array: slopes `slp_offset`, inflections `inf_offset`, non-parametric
  * coefficients `coff_offset` (every bin), apical height `apical_offset`, and
  * DoubleNormalSS3 P1-P6 (SS3 pattern 24) `dn6_offset`.
  *
