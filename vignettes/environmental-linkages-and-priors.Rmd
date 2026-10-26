@@ -808,8 +808,9 @@ grammar: `linkage_spec(~ temp + (1 | Year))`.
 
 `linkages` on M is age-aware: by default a row's `age_bin` is `NA` and the
 offset broadcasts across every age. To pin an effect to one age slice, set
-`by = ~ species + age_bin` and supply `strata$age_bin`; `fit_mod()` supplies it
-automatically, so only a direct materialize call needs it.
+`by = ~ species + age_bin` and supply `strata$age_bin`, a bin index
+(age - minage + 1) rather than an age; `fit_mod()` supplies it automatically,
+so only a direct materialize call needs it.
 
 The `M1_indices` column-index argument for `M1_model = 4` / `5` adds the same
 log-scale environmental effect and is soft-deprecated. Prefer `linkages`: it
