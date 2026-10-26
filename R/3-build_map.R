@@ -1751,7 +1751,8 @@ build_map_debug <- function(map_list, debug) {
 #'   `data_list$linkage_table`). Rows whose `est_phase == 0` are fixed
 #'   at their initial values via `NA`; `(Intercept)` rows are also
 #'   fixed (their value stays at 0, the base parameter holds the
-#'   level). Everything else is estimated.  Phased estimation honoring
+#'   level), as is a selectivity coefficient on an `Off` fleet, which has no
+#'   data (an `Off` follower stays tied to its lead's coefficient). Everything else is estimated.  Phased estimation honoring
 #'   nonzero phase ordinals can layer on later via the `phase` argument
 #'   to [fit_control()].
 #'
@@ -1775,8 +1776,13 @@ build_map_linkages <- function(map_list, data_list) {
   # holds the density), so the fixed beta_linkage entry is pinned at 0. re_index
   # is filled only on those rows (.assign_re_registry()).
   is_re_row <- !is.na(tbl$re_index)
+  # A coefficient on an Off fleet has no data to inform it, so it is held at its
+  # starting value, as that fleet's own selectivity is; the loop below ties an
+  # Off follower back to its lead's coefficient where the lead has one.
+  off_coef <- tbl$process == "sel" &
+    .off_sel_fleet(as.integer(tbl$fleet), data_list$fleet_control, shared = TRUE)
   m <- map_list$beta_linkage
-  m[est_phase == 0L | is_intercept | is_re_row] <- NA
+  m[est_phase == 0L | is_intercept | is_re_row | off_coef] <- NA
 
   # Mirrored fleets share one block, so a follower's row takes the donor's map
   # level -- `beta_linkage` has no fleet dimension for

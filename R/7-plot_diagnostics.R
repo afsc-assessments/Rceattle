@@ -149,10 +149,9 @@
 #'
 #' The predicted line is the MEDIAN of the fitted observation distribution,
 #' `index_hat * exp(-bias_adjust_obs * sd^2 / 2)`, which is where the lognormal
-#' likelihood is centred and what the observation intervals bracket. It equals
-#' the reported `index_hat` where `bias_adjust_obs = FALSE`; figures from
-#' before 5.64.3 drew the mean. A natural-scale fleet has no such offset and is
-#' drawn unchanged.
+#' likelihood is centred, so about half the observations should fall below it.
+#' It equals the reported `index_hat` where `bias_adjust_obs = FALSE`. A
+#' natural-scale fleet has no such offset and is drawn unchanged.
 #'
 #' @param Rceattle A single [fit_mod()] object or a list of them (overlaid).
 #' @param file Optional file stem; if given the figure is written to
@@ -453,11 +452,6 @@ plot_catch <- function(Rceattle,
 #' survey saw more than the
 #' model predicted. The y scale stays free per fleet, since residual spread
 #' differs by fleet.
-#'
-#' Figures made before 5.9.0 are mirrored about zero relative to these, and
-#' those before 5.64.3 were unstandardized and unoffset -- `log(obs) - log(hat)`
-#' on a log-scale fleet, `obs - hat` on a natural-scale one -- despite the
-#' `residual_type = "pearson"` name; either needs redrawing.
 #'
 #' @inheritParams plot_index
 #' @param residual_type `"pearson"` (standardized index residuals) or `"osa"`.

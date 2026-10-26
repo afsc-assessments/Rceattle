@@ -79,8 +79,10 @@ intercept has no effect, since the starting value comes from the data, and a
 prior on the double-normal \code{right_floor} is unsupported. Fleets sharing a
 \code{Selectivity_index} estimate one block, so place the prior on the group's
 lead fleet (its first that is not \code{Off}): a prior on a follower would
-penalize the shared block once per sharing fleet. A prior on an \code{Off} fleet
-is dropped with a warning, its selectivity not being estimated.
+penalize the shared block once per sharing fleet. On an \code{Off} fleet a prior
+is dropped with a warning and the fleet's linkage coefficients are held at
+their starting values, since the fleet has no data; on an \code{Off} member of a
+shared block it moves to the block's lead instead.
 
 Like every selectivity linkage, a covariate acts in the hindcast years;
 projection years hold the last hindcast year's curve.

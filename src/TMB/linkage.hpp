@@ -8,7 +8,7 @@
 // Example: build_M1(linkages = list(M1 = linkage_spec(~ temp))) makes two rows per
 // species, an (Intercept) held at 0 and a `temp` slope beta. rceattle_apply_M_linkages()
 // fills M_linkage_offset(sp, sex, age, yr) = beta * temp_yr, and ceattle.cpp section 6.1
-// reads M1_yr = exp(log M1 + M_linkage_offset). The equations for every link and
+// reads M1_at_age = exp(log M1 + M_linkage_offset). The equations for every link and
 // the row / slot / group terms are at ceattle.cpp section 2.3b.
 //
 // Process and parameter codes are in lockstep with R/0-linkage_encode.R

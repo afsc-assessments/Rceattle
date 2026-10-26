@@ -104,7 +104,8 @@ builds only for `main`, so check a documentation change locally with
 Numbered as in `CLAUDE.md`'s "Hard rules", which states rule 1 more strictly for an agent — it
 must ask before an API change, where you need only the deprecation path below. In brief:
 
-1. Preserve the public API. Deprecate an argument; do not delete it. You may change one —
+1. Preserve the public API. Deprecate a function or argument; do not delete it unless the
+   maintainer directs it, and record that direction in `NEWS.md`. You may change one —
    rename it, or move a default — but it owes a deprecation path that keeps old fits working, a
    `NEWS.md` entry, and a sweep of the repositories in `inst/dev/SIBLING-REPOS.md`. Giving a
    switch a new meaning has no such path, so it is a breaking change: classify it as

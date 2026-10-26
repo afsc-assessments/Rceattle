@@ -14,8 +14,8 @@ structure, including a correct one. They do not displace the hard rules below, a
 and 9. Accuracy beats speed, every time. The rules and sections below cite them by number, as
 doctrine 1, 2 and 3.
 
-**1. Don't change an API or a workflow without asking.** Rule 1 forbids deleting one; this
-forbids changing one. An argument name or default, a switch code or its meaning, a schema column,
+**1. Don't change an API or a workflow without asking.** Rule 1 forbids deleting one unless
+Grant directs it; this forbids changing one. An argument name or default, a switch code or its meaning, a schema column,
 the names or shape of anything in `fit$`, a message an assessment script reads, how a figure
 looks: if a user's existing script would behave differently, stop and ask — even when the change
 is plainly an improvement, and even when you are already in the file for another reason. File the
@@ -86,8 +86,9 @@ how this package is written; very little over what it means.
 
 ## Hard rules
 
-1. **Preserve the public API. Deprecate, never delete** — and don't change one without asking
-   (doctrine 1). Rceattle ships and has users (`cran-comments.md`). Exported `build_*()`
+1. **Preserve the public API. Deprecate, don't delete**, unless Grant explicitly directs a
+   deletion, recorded in NEWS (5.66.0, `linkage_spec(re_group =)`); and don't change one
+   without asking (doctrine 1). Rceattle ships and has users (`cran-comments.md`). Exported `build_*()`
    arguments carry deprecation paths. Internal refactors are free as long as golden-reference
    equivalence holds.
 2. **A numeric change needs `/golden-check`.** Any edit that can move a fit must keep the four
@@ -107,8 +108,9 @@ how this package is written; very little over what it means.
    did live in `../Rceattle-dev/`.
    Correcting a figure in an already-released `NEWS.md` entry is not a new change and owes no
    bump (precedent: 389cd4a6). **"Breaking" means no back-compat path**: a
-   deprecation that keeps old fits working, or refusing a configuration that never fitted the
-   model it described, is a minor bump — see `inst/RELEASE-CHECKLIST.md` for the examples.
+   deprecation that keeps old fits working, refusing a configuration that never fitted the
+   model it described, or a directed deletion of something that never changed a fit, is a minor
+   bump — see `inst/RELEASE-CHECKLIST.md` for the examples.
 6. **Never hand-edit `man/*.Rd` or `NAMESPACE`.** Run `/document`. Check `git diff DESCRIPTION`
    **first** — if the roxygen version key moved, the `man/` churn is the version, not your change.
 7. **TMB source is inert until `pkgload::load_all(".")`.** Then test with

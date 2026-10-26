@@ -14,7 +14,11 @@ and clear release notes — not speed.
       deprecation message that keeps old fits working is a minor bump:
       `growth_re` was removed with a `switch_check()` message and a
       `fit_mod()` guard dropping retired blocks from `inits`, and shipped as
-      a minor. Refusing a configuration that never fitted the model it
+      a minor. Deleting an exported function or argument outright happens
+      only at the maintainer's direction, recorded in `NEWS.md`; it is minor
+      when what is deleted never changed a fit (5.66.0,
+      `linkage_spec(re_group =)`) and breaking otherwise. Refusing a
+      configuration that never fitted the model it
       described (inert, self-contradictory, double-counted, reading values
       not yet computed, penalizing years outside the hindcast) is also minor,
       though stored fits with it stop refitting; list each under
@@ -93,14 +97,16 @@ gh release create X.Y.Z --title "Rceattle X.Y.Z" --notes-file notes.md --latest
 
 ## 3b. Dispatch the deep checks
 
-`deep-checks` runs the golden regression and the bounds-checked build, and
-**nothing else does** — it is `skip_on_cran()` and `skip_on_covr()`, so it
-fires in neither `R-CMD-check` nor `test-coverage`. GitHub reads `schedule`
-and `workflow_dispatch` from the default branch only, so a release is the
-first moment it can run against the new code:
+`deep-checks` runs three jobs. `golden` also runs on a pull request into
+`main` or `dev` that touches the model or the golden files (the workflow's
+path filter); the full serial `NOT_CRAN` suite (`suite`) and the
+bounds-checked build (`safebounds`, whose `run_safebounds` input defaults to
+true) run only on a dispatch or the nightly schedule. The schedule fires on
+`main` only, but a dispatch runs against any ref, so dispatch it on `dev`
+before the release PR merges and on `main` after:
 
 ```bash
-gh workflow run deep-checks.yaml --ref main
+gh workflow run deep-checks.yaml --ref dev
 ```
 
 ## 4. Confirm reproducible install
