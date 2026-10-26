@@ -27,11 +27,12 @@ version throughout.
 
 * **The linkage model is now written down where a reader meets it.**
   `ceattle.cpp` section 2.3b gives the equation each link applies and defines
-  the row / slot / group terms the random-effect code uses; `linkage.hpp` opens
-  with a worked example; `vignette("environmental-linkages-and-priors")` gains
-  the equations under "How the pieces fit together", with the stratum each
-  applies to. Stale declaration comments are corrected. Comments and
-  documentation only; no number moves.
+  the row / slot / position / group terms the random-effect code uses;
+  `linkage.hpp` opens with a worked example;
+  `vignette("environmental-linkages-and-priors")` gains the equations under
+  "How the pieces fit together", with the stratum each applies to. Stale
+  declaration comments are corrected. Comments and documentation only; no
+  number moves.
 
 # Rceattle 5.65.0
 
