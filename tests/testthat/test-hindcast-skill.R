@@ -345,3 +345,41 @@ testthat::test_that("an analytical index sd comes from the peel, not the rebuild
   rows <- fit$data_list$index_data$Fleet_code == code
   testthat::expect_true(all(abs(sds[[1]][rows] - peel_sd) < 1e-12))
 })
+
+testthat::test_that("hindcast_skill scores only rows the likelihood fits", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("TMB")
+  # Rows on an Off fleet and NA observations are not fitted, so neither is a
+  # forecast to score.
+  d <- make_test_data(nyrs = 20, seed = 1)
+  d$fleet_control$Catchability[1] <- "Estimated"
+  off <- d$fleet_control[1, ]
+  off$Fleet_name <- "Survey_off"; off$Fleet_code <- 3L; off$Fleet_type <- "Off"
+  off$Selectivity_index <- 3L; off$Catchability_index <- 3L
+  d$fleet_control <- rbind(d$fleet_control, off)
+  i3 <- d$index_data[d$index_data$Fleet_code == 1, ]
+  i3$Fleet_code <- 3L; i3$Fleet_name <- "Survey_off"
+  d$index_data <- rbind(d$index_data, i3)
+  # Unobserved at endyr - 1 and endyr - 2: each peel's terminal year, so neither
+  # has a persistence baseline, and endyr - 1 is also held out from peel 2.
+  srv <- d$index_data$Fleet_code == 1
+  d$index_data$Observation[srv & d$index_data$Year %in% (d$endyr - 1:2)] <- NA
+  fit <- suppressWarnings(suppressMessages(Rceattle::fit_mod(
+    data_list = d, inits = NULL, file = NULL, estimateMode = 0,
+    random_rec = FALSE, msmMode = 0,
+    fit_control = Rceattle::fit_control(phase = FALSE, getsd = FALSE, verbose = 0))))
+  ws <- character(0)
+  hs <- withCallingHandlers(suppressMessages(
+    Rceattle::hindcast_skill(fit, peels = 2, reference = "observed",
+                             cores = 1, getsd = FALSE)),
+    warning = function(w) { ws <<- c(ws, conditionMessage(w)); invokeRestart("muffleWarning") })
+  by <- hs$by_year
+  testthat::expect_gt(nrow(by), 0)
+  # The unobserved terminal year is reported as a missing baseline.
+  testthat::expect_true(any(grepl("observation in the peel's terminal year", ws, fixed = TRUE)))
+  testthat::expect_identical(unique(by[["Object"]]), "index_fleet_1")
+  testthat::expect_false(any(by$year == d$endyr - 1))
+  testthat::expect_false(anyNA(by$reference))
+  testthat::expect_gt(sum(by$peel == 2), 0)
+  testthat::expect_true(all(is.na(by$naive[by$peel == 2])))
+})

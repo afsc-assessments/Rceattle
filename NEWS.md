@@ -23,7 +23,7 @@ mistaken for it: both numbers exist on both lines with different content, the
 divergence the comment at the top of this file describes.
 
 Unreleased, and deliberately carrying a DEVELOPMENT suffix rather than a release
-number: `DESCRIPTION` reads `5.66.1.9003`, the released line this branch now
+number: `DESCRIPTION` reads `5.66.1.9004`, the released line this branch now
 contains plus a suffix. A bare release number here would make an install from
 this branch report a version that exists on `main` or `dev` and holds different
 code -- the mislabelling `95153bbc` fixed when it first moved this branch to a
@@ -33,6 +33,16 @@ suffix stays until the DSEM work is given a release number of its own. The
 numbered on the 5.23.0 line.
 
 ## Behavior changes
+
+* **`hindcast_skill(reference = "observed")` scores only rows the likelihood
+  fits**: an observed year on a fleet that is not `Off`. Rows on an `Off` fleet
+  and years with an `NA` observation are never fitted, yet were scored as
+  forecasts; the persistence baseline at the peel's terminal year follows the
+  same rule. `$by_year` loses those rows, an `NA` terminal-year observation now
+  raises the "no survey observation in the peel's terminal year" warning
+  instead of leaving the baseline `NA` silently, and when only
+  `reference = "observed"` is asked for, a model with no fitted held-out row
+  stops with "No peel had forecast years to score".
 
 * **`hindcast_skill(reference = "observed")` scores the predicted median of a
   lognormal survey row.** MASE is a mean absolute error, which the median

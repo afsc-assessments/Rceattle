@@ -164,7 +164,9 @@ projection.
 That pattern holds for an ANNUAL series. Under \code{reference = "observed"} an
 irregular survey breaks it, because a fleet is scored at a horizon only where
 it has an observation both at the peel's terminal year and after it -- so
-\code{N} can rise with the horizon, and some horizons carry no rows at all.
+\code{N} can rise with the horizon, and some horizons carry no rows at all. Only
+rows the likelihood fits are scored, there and as the baseline: an observed
+year on a fleet that is not \code{Off}.
 On BS2017SS's acoustic pollock survey with \code{peels = c(2,3,5)}, only
 \verb{Forecast year} 2 and 4 are populated, with \code{N} 2 and 1.
 

@@ -63,7 +63,9 @@
 #' That pattern holds for an ANNUAL series. Under `reference = "observed"` an
 #' irregular survey breaks it, because a fleet is scored at a horizon only where
 #' it has an observation both at the peel's terminal year and after it -- so
-#' `N` can rise with the horizon, and some horizons carry no rows at all.
+#' `N` can rise with the horizon, and some horizons carry no rows at all. Only
+#' rows the likelihood fits are scored, there and as the baseline: an observed
+#' year on a fleet that is not `Off`.
 #' On BS2017SS's acoustic pollock survey with `peels = c(2,3,5)`, only
 #' `Forecast year` 2 and 4 are populated, with `N` 2 and 1.
 #'
@@ -319,6 +321,12 @@ hindcast_skill <- function(object = NULL, peels = 5,
       (suppressWarnings(as.integer(.esd)) %in% .rce_allowed_map("Estimate_index_sd")[["Analytical"]]) |
         (as.character(.esd) %in% "Analytical")]
 
+    # Score only rows the likelihood fits (ceattle.cpp 13.1): an observed year
+    # (data_check() refuses one <= 0) on a fleet that is not Off.
+    .type <- .canon_switch(.fc$Fleet_type, fleet_map)
+    .off <- .type[match(idx_full$Fleet_code, .fc$Fleet_code)] %in% "Off"
+    .scored <- !is.na(idx_full$Observation) & !.off
+
     for (m in peel_models) {
       ep <- m$data_list$endyr_peel
       if (is.null(ep) || ep >= endyr) next
@@ -370,7 +378,7 @@ hindcast_skill <- function(object = NULL, peels = 5,
       }
       ih <- .hat_as_median(ih, sd_i, .bias_adjust_obs(pred), !.index_rows_natural_scale(dl))
 
-      held <- which(idx_full$Year > ep & idx_full$Year <= endyr)
+      held <- which(idx_full$Year > ep & idx_full$Year <= endyr & .scored)
       for (flt in unique(idx_full$Fleet_code[held])) {
         rows <- held[idx_full$Fleet_code[held] == flt]
         if (!length(rows)) next
@@ -389,7 +397,7 @@ hindcast_skill <- function(object = NULL, peels = 5,
         # error too, and $by_year is where a caller goes to recompute; an NA
         # denominator already means "undefined" everywhere else here. The
         # skipped fleet-peel pairs are collected and reported once below.
-        at_ep <- which(idx_full$Fleet_code == flt & idx_full$Year == ep)
+        at_ep <- which(idx_full$Fleet_code == flt & idx_full$Year == ep & .scored)
         if (length(at_ep)) {
           naive <- mean(idx_full$Observation[at_ep])
         } else {
