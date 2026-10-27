@@ -23,7 +23,7 @@ mistaken for it: both numbers exist on both lines with different content, the
 divergence the comment at the top of this file describes.
 
 Unreleased, and deliberately carrying a DEVELOPMENT suffix rather than a release
-number: `DESCRIPTION` reads `5.66.1.9004`, the released line this branch now
+number: `DESCRIPTION` reads `5.66.1.9005`, the released line this branch now
 contains plus a suffix. A bare release number here would make an install from
 this branch report a version that exists on `main` or `dev` and holds different
 code -- the mislabelling `95153bbc` fixed when it first moved this branch to a
@@ -430,6 +430,28 @@ numbered on the 5.23.0 line.
   hand is what reaches them.
 
 ## Bug fixes
+
+* **`hindcast_skill(reference = "observed")` predicts held-out years from what
+  each peel knew.** The rebuild that predicts the held-out survey index started
+  from the full model and restored only weight, empirical selectivity and
+  ration, so it also took:
+  * post-peel `env_data`, which the peel had withheld. `Catchability =
+    "Environmental"` then forecast with the true future covariate: on a test
+    model whose survey follows temperature, a three-year-deep peel forecast
+    82.3 / 144.4 / 106.2 against observations of 82.3 / 144.4 / 106.2, and now
+    forecasts about 93 in each, at the retained years' mean temperature. A ration `Cindex` leaked
+    the same way under predation (`msmMode > 0`), and under `rescale = TRUE`
+    every covariate was handed to coefficients fitted on rescaled values.
+  * post-peel diet and the full suitability window, under predation with
+    diet-based suitability: on `BS2017MS` the rebuild's held-out biomass was up
+    to 2.1% off the peel's own.
+  * the full model's stock-recruit switch and penalty years
+    (`srr_mse_switchyr`, `srr_hat_endyr`), so under the Ianelli form
+    (`srr_fun = "mean"` with a curve) post-peel recruitment followed a rule the
+    peel never projected: up to 2.8% off on `BS2017SS`.
+
+  The rebuild now reproduces each peel's own held-out biomass exactly. Observed
+  MASE moves for such models; fits and `reference = "model"` are unchanged.
 
 * **`retrospective()` keeps a random-effect grouping column in `env_data`.** A
   peel blanks post-peel covariate values so it cannot read the future, but a

@@ -330,21 +330,21 @@ hindcast_skill <- function(object = NULL, peels = 5,
     for (m in peel_models) {
       ep <- m$data_list$endyr_peel
       if (is.null(ep) || ep >= endyr) next
-      # Take the parent's SHAPE -- the peel's own data_list implies a different
-      # parameter geometry and the rebuild fails the inits check -- but put the
-      # PEEL's fixed inputs back. The peel carried weight-at-age, empirical
-      # selectivity and ration forward from its last fitted year, and handing
-      # the prediction the parent's copies would give it the true held-out
-      # values for all three, which is the leak this is avoiding.
+      # The parent's shape (the peel's data_list fails the inits check) with the
+      # peel's inputs and windows, so the prediction knows only what the peel did.
       dl <- object$data_list
-      for (.nm in c("weight", "emp_sel", "ration_data")) {
+      for (.nm in c("weight", "emp_sel", "ration_data", "env_data", "diet_data")) {
         if (!is.null(m$data_list[[.nm]])) dl[[.nm]] <- m$data_list[[.nm]]
       }
       dl$index_data <- idx_full
       dl$endyr_peel <- ep
+      # The same clamps retrospective() gives the peel.
       pred <- try(suppressWarnings(suppressMessages(.refit_like(
         data_list = dl, inits = m$estimated_params, map = m$map,
-        estimateMode = 3, phase = FALSE, getsd = FALSE))), silent = TRUE)
+        estimateMode = 3, phase = FALSE, getsd = FALSE,
+        srr_mse_switchyr = min(dl$srr_mse_switchyr, ep),
+        srr_hat_endyr    = min(dl$srr_hat_endyr, ep),
+        suit_endyr       = pmin(dl$suit_endyr, ep)))), silent = TRUE)
       # Say WHY a peel could not be scored. Dropping it silently leaves the
       # caller with "No peel had forecast years to score", which points at the
       # peel horizon when the real cause is a failed rebuild.

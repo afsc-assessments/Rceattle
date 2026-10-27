@@ -383,3 +383,80 @@ testthat::test_that("hindcast_skill scores only rows the likelihood fits", {
   testthat::expect_gt(sum(by$peel == 2), 0)
   testthat::expect_true(all(is.na(by$naive[by$peel == 2])))
 })
+
+# Catchability = "Environmental": log q_y = q_mu + beta * temp_y. A peel is fitted
+# with post-peel temp blanked (mean-filled), so its forecast of a held-out year
+# must not move with that year's true temp. Through 5.66.1.9004 the forecasts
+# tracked it, 82 to 144 against observations of 82 to 144.
+testthat::test_that("the held-out prediction does not see post-peel covariates", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("TMB")
+  d <- make_test_data(nyrs = 20, seed = 1)
+  yrs <- d$styr:d$endyr
+  set.seed(3)
+  d$env_data <- data.frame(Year = yrs, temp = stats::rnorm(length(yrs)))
+  srv <- d$index_data$Fleet_code == 1
+  d$index_data$Observation[srv] <- 100 *
+    exp(0.3 * d$env_data$temp[match(d$index_data$Year[srv], yrs)])
+  d$fleet_control$Catchability[1] <- "Environmental"
+  d$fleet_control$Time_varying_q[1] <- 1
+  fit <- suppressWarnings(suppressMessages(Rceattle::fit_mod(
+    data_list = d, inits = NULL, file = NULL, estimateMode = 0,
+    random_rec = FALSE, msmMode = 0,
+    fit_control = Rceattle::fit_control(phase = FALSE, getsd = FALSE, verbose = 0))))
+  testthat::expect_gt(abs(fit$estimated_params$index_q_beta[1]), 0.1)   # temp matters
+  hs <- suppressWarnings(suppressMessages(
+    Rceattle::hindcast_skill(fit, peels = 3, reference = "observed",
+                             cores = 1, getsd = FALSE)))
+  by <- hs$by_year[hs$by_year$peel == 3, ]
+  testthat::expect_equal(nrow(by), 3L)
+  # At the peel's own covariate the forecasts differ only by population dynamics.
+  testthat::expect_lt(max(by$forecast) / min(by$forecast) - 1, 0.01)
+})
+
+# The observed score predicts held-out survey years from a rebuild of each peel,
+# so the rebuild must be the peel. Through 5.66.1.9004 it took the Ianelli
+# stock-recruit windows and (under predation) post-peel diet from the full
+# model: held-out biomass up to 2.8% and 2.1% off the peel's own.
+testthat::test_that("the held-out rebuild reproduces each peel's own projection", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("TMB")
+  fc <- Rceattle::fit_control(phase = FALSE, getsd = FALSE, verbose = 0)
+  srr <- suppressWarnings(suppressMessages(Rceattle::fit_mod(
+    data_list = Rceattle::BS2017SS, inits = NULL, file = NULL, estimateMode = 0,
+    random_rec = FALSE, msmMode = 0, fit_control = fc,
+    recFun = Rceattle::build_srr(srr_fun = "mean", srr_pred_fun = "BevertonHolt"))))
+  ss <- suppressWarnings(suppressMessages(Rceattle::fit_mod(
+    data_list = Rceattle::BS2017MS, inits = NULL, file = NULL, estimateMode = 0,
+    random_rec = FALSE, msmMode = 0, fit_control = fc)))
+  msm <- suppressWarnings(suppressMessages(Rceattle::fit_mod(
+    data_list = Rceattle::BS2017MS, inits = ss$estimated_params, file = NULL,
+    estimateMode = 0, random_rec = FALSE, msmMode = 1, niter = 3, fit_control = fc)))
+
+  rets <- lapply(list(srr, msm), function(fit) suppressWarnings(suppressMessages(
+    Rceattle::retrospective(fit, peels = 2, cores = 1, getsd = FALSE,
+                            forecast_rec = "model"))))
+  # Record every rebuild hindcast_skill() makes; the real one still runs.
+  rebuilds <- list()
+  real_refit <- Rceattle:::.refit_like
+  testthat::local_mocked_bindings(.refit_like = function(...) {
+    out <- real_refit(...)
+    rebuilds[[length(rebuilds) + 1L]] <<- out
+    out
+  }, .package = "Rceattle")
+  for (k in 1:2) {
+    fit <- list(srr, msm)[[k]]; r <- rets[[k]]
+    rebuilds <- list()
+    suppressWarnings(suppressMessages(
+      Rceattle::hindcast_skill(fit, retro = r, reference = "observed")))
+    peels <- r$Rceattle_list[-length(r$Rceattle_list)]
+    testthat::expect_length(rebuilds, length(peels))
+    for (p in rebuilds) {
+      ep <- p$data_list$endyr_peel
+      peel <- peels[[which(vapply(peels, function(m) m$data_list$endyr_peel, 0) == ep)]]
+      cols <- (ep + 1):fit$data_list$endyr - fit$data_list$styr + 1
+      testthat::expect_equal(p$quantities$biomass[, cols], peel$quantities$biomass[, cols],
+                             tolerance = 1e-10)
+    }
+  }
+})
