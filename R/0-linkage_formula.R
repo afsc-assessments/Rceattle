@@ -105,7 +105,7 @@ LINKAGE_STRUCTURES <- c(
 }
 
 
-#' env_data columns that enter a model as fixed-effect linkage terms
+#' env_data columns a linkage design reads: fixed-effect terms, optionally grouping
 #'
 #' @description
 #' `materialize_linkage()` refuses an NA in a fixed-effect linkage covariate,
@@ -114,19 +114,22 @@ LINKAGE_STRUCTURES <- c(
 #' peel -- therefore has to know which columns it must leave alone.
 #'
 #' Covariates that appear only inside a bar term (`(1 | Year)`, `ar1(1 | Year)`)
-#' are not fixed terms and are not returned: a grouping variable is a level
-#' label, and a state-space `observe` covariate is masked in the observation
-#' rather than read as a design column.
+#' are not fixed terms and are not returned unless `re_groups = TRUE`: a
+#' grouping variable is a level label, which an NA would drop from the
+#' random-effect design just as surely, and a state-space `observe` covariate is
+#' masked in the observation rather than read as a design column.
 #'
 #' @param data_list a data list carrying the per-process linkage specs
 #'   (`srr_linkages`, `M1_linkages`, `growth_linkages`, `q_linkages`,
 #'   `sel_linkages`, `comp_linkages`), as `fit_mod()` stores them.
+#' @param re_groups logical, default `FALSE`: also return each bar term's
+#'   grouping variable.
 #'
 #' @return A character vector of column names, possibly empty.
 #'
 #' @keywords internal
 #' @noRd
-.rce_linkage_fixed_covariates <- function(data_list) {
+.rce_linkage_fixed_covariates <- function(data_list, re_groups = FALSE) {
   groups <- c("srr_linkages", "M1_linkages", "growth_linkages",
               "q_linkages", "sel_linkages", "comp_linkages")
   specs <- list()
@@ -140,7 +143,10 @@ LINKAGE_STRUCTURES <- c(
   out <- unlist(lapply(specs, function(s) {
     p <- tryCatch(.parse_linkage_formula(s$formula), error = function(e) NULL)
     if (is.null(p)) return(character(0))
-    all.vars(p$fixed)
+    # A bar term `lhs | group` groups by its right-hand side, as
+    # .materialize_re_design() reads it.
+    c(all.vars(p$fixed),
+      if (re_groups) unlist(lapply(p$re_terms, function(bar) all.vars(bar[[3L]]))))
   }), use.names = FALSE)
   unique(out)
 }

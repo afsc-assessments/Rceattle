@@ -359,6 +359,18 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
             "fixed-effect environmental covariate is conditional on that ",
             "covariate being known.", call. = FALSE)
   }
+  # A random-effect grouping column is kept too (see the blanking below). A label
+  # derived from data -- a warm/cold regime -- tells a peel its forecast years' level.
+  .grp_all <- setdiff(intersect(.env_cols_all, .rce_linkage_fixed_covariates(
+    object$data_list, re_groups = TRUE)), .keep_all)
+  if (length(.grp_all) > 0 &&
+      any(object$data_list$env_data$Year > endyr - max(peel_seq))) {
+    warning("Random-effect grouping column(s) ", paste(.grp_all, collapse = ", "),
+            " label which deviation each year takes, so each peel keeps their ",
+            "post-peel values. If a label is derived from data (a warm/cold ",
+            "regime), each peel knows which level its forecast years are in.",
+            call. = FALSE)
+  }
 
   # An unrecorded `random_vars` means the peels cannot tell a random effect from
   # a fixed one, so .rce_peel_map() pins every deviation. A pinned deviation is
@@ -566,13 +578,17 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
     # A FIXED-EFFECT linkage covariate is exempt: materialize_linkage() rejects
     # an NA in one by design, because model.matrix() would silently drop the row
     # and misalign the whole design. Those columns keep their values and the
-    # peel is told which they are, once. Everything else -- a state-space
-    # `observe` covariate, a DSEM covariate, an env_index column read by
-    # Time_varying_q / Cindex / M1_indices -- is blanked, and the mean-fill in
-    # rearrange_data() replaces it with the retained years' mean.
+    # peel is told which they are, once. A random-effect grouping variable
+    # (`(1 | regime)`) is exempt for the same reason, and named in its own
+    # warning above: it is a level label like Year, not an observation.
+    # Everything else -- a state-space `observe` covariate, a DSEM covariate,
+    # an env_index column read by Time_varying_q / Cindex / M1_indices -- is
+    # blanked, and the mean-fill in rearrange_data() replaces it with the
+    # retained years' mean.
     .post_peel <- data_list$env_data$Year > endyr_peel
     .env_cols  <- setdiff(names(data_list$env_data), "Year")
-    .keep      <- intersect(.env_cols, .rce_linkage_fixed_covariates(data_list))
+    .keep      <- intersect(.env_cols,
+                         .rce_linkage_fixed_covariates(data_list, re_groups = TRUE))
     .blank     <- setdiff(.env_cols, .keep)
     if (any(.post_peel) && length(.blank) > 0) {
       data_list$env_data[.post_peel, .blank] <- NA_real_

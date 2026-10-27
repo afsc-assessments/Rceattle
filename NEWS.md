@@ -23,7 +23,7 @@ mistaken for it: both numbers exist on both lines with different content, the
 divergence the comment at the top of this file describes.
 
 Unreleased, and deliberately carrying a DEVELOPMENT suffix rather than a release
-number: `DESCRIPTION` reads `5.66.1.9002`, the released line this branch now
+number: `DESCRIPTION` reads `5.66.1.9003`, the released line this branch now
 contains plus a suffix. A bare release number here would make an install from
 this branch report a version that exists on `main` or `dev` and holds different
 code -- the mislabelling `95153bbc` fixed when it first moved this branch to a
@@ -420,6 +420,15 @@ numbered on the 5.23.0 line.
   hand is what reaches them.
 
 ## Bug fixes
+
+* **`retrospective()` keeps a random-effect grouping column in `env_data`.** A
+  peel blanks post-peel covariate values so it cannot read the future, but a
+  column a linkage groups by (`(1 | regime)`) is a level label, as `Year` is.
+  Blanked, `model.matrix()` dropped its rows from the random-effect design and
+  every peel stopped with "number of rows of matrices must match". It is now
+  kept, with a warning naming it once per call (a label derived from data, such
+  as a warm/cold regime, tells a peel which level its forecast years are in);
+  other covariates are still blanked.
 
 * **`quantity_dictionary()` describes `jnll_dsem` correctly.** It is the DSEM's
   whole negative log-likelihood -- the GMRF plus any covariate measurement
