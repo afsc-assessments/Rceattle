@@ -873,7 +873,7 @@ fit_mod <-
       # merge_dsem_params() refills them from the freshly built template, i.e.
       # the START values, discarding the warm start -- which matters wherever
       # the DSEM is PINNED rather than estimated (retrospective()'s forecast
-      # refit, estimateMode = 2).
+      # refit, whose supplied map holds every dsem_* block fixed).
       # .DSEM_PARAM_NAMES, not grep("^dsem_"), so this stays the exact
       # complement of the scrub below that removes these blocks when the fit has
       # no DSEM.

@@ -23,7 +23,7 @@ mistaken for it: both numbers exist on both lines with different content, the
 divergence the comment at the top of this file describes.
 
 Unreleased, and deliberately carrying a DEVELOPMENT suffix rather than a release
-number: `DESCRIPTION` reads `5.66.1.9005`, the released line this branch now
+number: `DESCRIPTION` reads `5.66.1.9006`, the released line this branch now
 contains plus a suffix. A bare release number here would make an install from
 this branch report a version that exists on `main` or `dev` and holds different
 code -- the mislabelling `95153bbc` fixed when it first moved this branch to a
@@ -33,6 +33,14 @@ suffix stays until the DSEM work is given a release number of its own. The
 numbered on the 5.23.0 line.
 
 ## Behavior changes
+
+* **`retrospective()` and `jitter()` refit a hindcast-only fit
+  (`estimateMode = 1`) as hindcast-only.** They refitted every mode below 3
+  at mode 0, so each peel or jitter of a mode-1 fit also built a projection,
+  which under `ConstantF` carried an unestimated `log_Flimit`. Only a
+  projection-only fit (mode 2) is now refitted at mode 0. On GOA pollock 2026
+  Mohn's rho, MASE and every peel's recruitment are unchanged; a peel's
+  `data_list$estimateMode` now matches its parent's.
 
 * **`hindcast_skill(reference = "observed")` scores only rows the likelihood
   fits**: an observed year on a fleet that is not `Off`. Rows on an `Off` fleet
