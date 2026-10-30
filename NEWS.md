@@ -12,6 +12,29 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.66.5
+
+## Bug fixes
+
+* **Under estimated growth, a fleet with selectivity at age now predicts its age
+  and length comps.** That means `Selectivity_dimension = "Age"`, the default, or
+  `Selectivity = "Fixed"`, which is always at age. Its comps were predicted from
+  selectivity-at-length, which such a fleet does not have, so the prediction was
+  all zero and no selectivity, growth or dynamics parameter could move the
+  composition likelihood; only a Dirichlet-multinomial weight could. With a
+  length-based survey carrying the CAAL data, no warning named the comps. They
+  now use catch-at-age from selectivity-at-age (selected numbers-at-age on a
+  survey), through the estimated age-length key for length comps, not
+  `age_trans_matrix`, which belongs to empirical growth. Timing is the fleet's
+  `Month`, as on a length-based fleet; a comp row's `Month` is not read under
+  estimated growth. On the test fixture the fishery's composition row was 1.182612
+  whatever its selectivity; it now starts at 1.343781, as the same data do under
+  empirical growth. **Fits with estimated growth and comps on such a fleet move.**
+  Other configurations evaluate bit-identically: GOA cod's objective, gradient and
+  comps at the starting values do not change. CAAL on such a fleet is still not
+  predicted; `data_check()` warns only when the fleet's `Selectivity_dimension` is
+  not `"Length"`, so a `Fixed` fleet labelled `"Length"` gets no warning.
+
 # Rceattle 5.66.1
 
 ## Bug fixes
