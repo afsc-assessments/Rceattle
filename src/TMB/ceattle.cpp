@@ -387,6 +387,7 @@ Type objective_function<Type>::operator() () {
   DATA_IVECTOR( diet_obsvec_idx );          // obsvec start position for each stomach's prey bins (incl. "other prey"); length n_stomach_obs (-1 = excluded)
   DATA_INTEGER( osa_mode );                 // 0 = normal fitting (default); 1 = OSA build (unweighted keep-gated comp/caal/diet densities); 2 = OSA build + conditional CDF terms for method = "cdf"
   DATA_INTEGER( adreport_sel );             // 0 = no selectivity standard errors (default); 1 = ADREPORT log_sel_at_age; set via fit_control(selectivity_se =)
+  DATA_INTEGER( adreport_catch );           // 0 = default; 1 = ADREPORT catch_hat; set only by the catch-conditioned band of a retrospective peel
   DATA_SCALAR( comp_offset );               // proportion offset added to comp/caal/diet obs & pred before the multinomial; set via rearrange_data()/fit_control()
 
   // -- 2.4.2c. Simulation switches (sim_mod(simulate = TRUE))
@@ -4749,6 +4750,9 @@ Type objective_function<Type>::operator() () {
   vector<Type>  log_index_hat = index_hat;  log_index_hat = log(index_hat.array());// Log predicted index
   REPORT( log_index_hat );
   ADREPORT( log_index_hat );
+  if(adreport_catch == 1){
+    ADREPORT( catch_hat ); // mt, or thousands of fish
+  }
 
   // -- 14.4b. Formula-linkage effect sizes: the estimated coefficients, the random-effect
   // deviations and the Rogers (2024) QAR1 effect size, so a user can read the *effect*

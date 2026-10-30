@@ -1059,6 +1059,10 @@ print.Rceattle_jitter <- function(x, tol = 0.01, ...) {
 #' sensitivity to theta once F adjusts to keep the catch, and the covariance is
 #' `j_cc Sigma t(j_cc)`, with Sigma the covariance of theta.
 #'
+#' Both Jacobians come from one reverse-mode pass per reported quantity, which
+#' is why predicted catch joins the ADREPORT set here (`adreport_catch`) and not
+#' in a fit, where it would add to `sdrep$value`.
+#'
 #' @param obj the rebuilt peel's TMB object, with the peeled F held fixed.
 #' @param sdrep its `TMB::sdreport()`, with the joint precision (inverse
 #'   covariance of fixed and random effects) when `obj` has random effects.
@@ -1087,6 +1091,7 @@ print.Rceattle_jitter <- function(x, tol = 0.01, ...) {
   lf[(cells[, 2] - 1) * nrow(lf_shape) + cells[, 1]] <-
     max(c(0L, lf), na.rm = TRUE) + seq_len(n_f)
   map$log_F <- factor(lf)
+  dat$adreport_catch <- 1   # double: MakeADFun() has already checked this data
   ad <- TMB::MakeADFun(dat, obj$env$parList(par = p), map = map, ADreport = TRUE,
                        DLL = obj$env$DLL, silent = TRUE)
 
@@ -1097,22 +1102,19 @@ print.Rceattle_jitter <- function(x, tol = 0.01, ...) {
                after = if (length(f_at)) max(f_at) else
                  match("log_F", names(ad$par)) - 1L)
   f_col <- which(names(pa) == "log_F")[length(f_at) + seq_len(n_f)]
-  if (!isTRUE(all.equal(unname(ad$fn(pa)), unname(sdrep$value)))) {
+  value <- ad$fn(pa)
+  is_catch <- names(value) == "catch_hat"
+  if (!isTRUE(all.equal(unname(value[!is_catch]), unname(sdrep$value)))) {
     stop("the catch-conditioned rebuild did not reproduce the peel's estimates")
   }
 
   # j_q: exact derivative of each reported quantity (row) by each parameter.
-  # j_c: the same for each peeled log predicted catch, by forward differences,
-  # since predicted catch is not among the quantities TMB differentiates here.
-  j_q <- ad$gr(pa)
-  log_catch <- function(x) log(ad$report(x)$catch_hat[rows])
-  base <- log_catch(pa)
-  j_c <- vapply(seq_along(pa), function(k) {
-    h <- 1e-5 * max(1, abs(pa[k]))
-    up <- pa; up[k] <- up[k] + h
-    (log_catch(up) - base) / h
-  }, numeric(length(rows)))
-  j_c <- matrix(j_c, nrow = length(rows))
+  # j_c: the same for each peeled log predicted catch; dividing by predicted
+  # catch turns its derivative into that of its log.
+  jac <- ad$gr(pa)
+  j_q <- jac[!is_catch, , drop = FALSE]
+  catch_at <- which(is_catch)[rows]
+  j_c <- jac[catch_at, , drop = FALSE] / value[catch_at]
 
   # Hold log catch fixed: dF = -(dC/dF)^-1 (dC/dtheta) dtheta, so j_cc is each
   # quantity's total derivative by theta. qr.solve() applies that inverse
@@ -1125,7 +1127,7 @@ print.Rceattle_jitter <- function(x, tol = 0.01, ...) {
   cov <- j_cc %*% sigma %*% t(j_cc)   # the delta method
 
   sdrep$sd <- sqrt(diag(cov))
-  if (!is.null(sdrep$cov)) sdrep$cov <- cov
+  sdrep$cov <- cov
   # The joint precision describes the model with F held fixed, not this band.
   sdrep$jointPrecision <- NULL
   sdrep

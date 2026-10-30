@@ -37,6 +37,15 @@ version throughout.
   `plot_timeseries()` and its wrappers now warn with that reason. `print()` now
   says such peels "have no usable standard errors".
 
+## Bug fixes
+
+* **A peel's catch-conditioned band no longer finite-differences the predicted
+  catch.** Its derivatives now come exactly from the template, through
+  `ADREPORT(catch_hat)` switched on only for this calculation (the internal
+  `adreport_catch` flag), so `sdrep$value` and fits are unchanged.
+  One peel's correction fell from 6.5 s to 0.6 s on BS2017SS and from 85 s to
+  4 s on BS2017MS. Bands agree with the finite-difference ones to 1e-5 (relative).
+
 # Rceattle 5.66.4
 
 ## Behavior changes

@@ -694,7 +694,10 @@ testthat::test_that("a peel reports standard errors for its own hindcast", {
     # The positive case for the pdHess arm of the usability check below: a
     # healthy rebuild must pass it, or a real band would be declined instead.
     testthat::expect_true(isTRUE(m$sdrep$pdHess))
+    # Predicted catch is ADREPORTed only inside the correction, not in what it returns.
+    testthat::expect_false("catch_hat" %in% names(m$sdrep$value))
   }
+  testthat::expect_false("catch_hat" %in% names(fit$sdrep$value))
 
   # The report model is built at estimateMode 3, which skips the projection
   # stage. If that changed the ADREPORT span, every plotter indexing by year

@@ -434,6 +434,7 @@ build_osa_data <- function(data_list, build_osa = FALSE) {
   # data list built before this option existed, or rebuilt by .osa_build_obj(),
   # still carries the field MakeADFun() requires.
   if (is.null(data_list$adreport_sel)) data_list$adreport_sel <- 0L
+  if (is.null(data_list$adreport_catch)) data_list$adreport_catch <- 0L
   data_list$comp_offset      <- comp_offset       # read by the TMB DATA_SCALAR
   data_list$bias_adjust_obs  <- bias_adjust_obs   # read by the TMB DATA_SCALAR
   data_list$bias_adjust_proc <- bias_adjust_proc  # read by the TMB DATA_SCALAR
