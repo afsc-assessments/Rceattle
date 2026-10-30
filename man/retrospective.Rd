@@ -31,8 +31,8 @@ addition to the terminal year}
 \code{parallel::detectCores() - 6}, capped at 2 under \verb{R CMD check} (which sets
 \verb{_R_CHECK_LIMIT_CORES_}). Set to 1 to force sequential execution.}
 
-\item{getsd}{whether each peel runs \code{TMB::sdreport}, which costs an
-extra model build per peel (see Details). Mohn's rho uses point estimates
+\item{getsd}{whether each peel runs \code{TMB::sdreport}, which costs
+extra model builds per peel (see Details). Mohn's rho uses point estimates
 only, so \code{FALSE} is faster with no effect on it. \code{NULL} (default)
 inherits the input model's setting (\code{TRUE} only if it holds an
 \code{sdrep}), and the returned peels hold standard errors only when it is
@@ -110,13 +110,23 @@ Each peel is fitted twice: a peeled hindcast, then a forecast refit
 estimating only the peeled years' F. The second holds every hindcast
 parameter fixed, so on its own it reports a standard error of zero across the
 hindcast. Under \code{getsd = TRUE} the peel is therefore rebuilt at those same
-parameters with the hindcast free in the map and reported from there; nothing
-is re-estimated, so no point estimate moves. Where that rebuild fails -- it
-throws, or comes back with a Hessian it could not factor, or with no finite
-standard error -- the peel keeps its point estimates and carries no \code{sdrep}
-at all, rather than the forecast refit's zero standard errors. The reason is
-named in one warning per call and carried on the peel; \code{print()} reports how
-many peels could not report standard errors.
+parameters with the hindcast parameters treated as estimated and reported
+from there; nothing is re-estimated, so no point estimate moves.
+
+A band in a fitted year is the peeled hindcast's own: the uncertainty of its
+parameters given the data through the peel's terminal year. A band in a
+peeled (forecast) year treats that year's catch as known and its F as
+inferred from it: as the hindcast parameters vary, F moves, to first order,
+to keep the predicted catch at the observed catch, and the delta method
+carries that into the band. The peeled years' recruitment deviations are
+fixed at the projected deviation, so the band leaves out recruitment
+variability there and is narrower than a forecast's prediction interval.
+
+Where that rebuild fails -- it errors, or its Hessian is not positive
+definite, or it reports no finite standard error -- the peel keeps its point estimates
+and carries no \code{sdrep} at all, rather than the forecast refit's zero
+standard errors. The reason is named in one warning per call and carried on
+the peel; \code{print()} reports how many peels could not report standard errors.
 }
 \examples{
 \donttest{

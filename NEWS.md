@@ -12,6 +12,34 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.66.3
+
+## Bug fixes
+
+* **A retrospective peel's uncertainty band is now computed at the peel's best
+  fit.** Standard errors are valid only where the objective's gradient is 0.
+  Under random effects (e.g. `random_rec = TRUE`), keeping the peeled years'
+  catch in the standard-error calculation with their F free moved that point off
+  the peel's estimates (the largest gradient, sigma_R's aside, was 0.15-4.19
+  across 10 peels of GOA pollock 2026), so a band could be off, or lost when its
+  Hessian was not positive definite. The calculation now holds the peeled F at
+  the values fitted to the observed catch and drops that catch from the
+  likelihood (F, and so the removals, are unchanged), then lets F move with the
+  hindcast parameters so the predicted catch stays at the observed catch. A band
+  in a peeled (forecast) year therefore treats the catch as known and F as
+  inferred from it, and leaves out recruitment variability in those years. On
+  GOA pollock 2026 forecast-year SSB bands are 0.81-1.03 times as wide as
+  before, fitted-year SSB bands 1.00-1.02 and fitted-year recruitment bands
+  0.68-1.06, and the largest gradient other than sigma_R's (`R_log_sd`) is
+  2.1e-4 to 3.5e-4 per peel. sigma_R's is 0.25-2.47 in magnitude, because the
+  peeled recruitment deviations, at 0 when the peel was fitted, are held at the
+  projected value here and still enter its penalty; on two of those peels that
+  term moved fitted-year SSB bands by under 0.1% and recruitment bands by under
+  1%. Without random effects (BS2017SS, a 3-year peel) fitted-year bands are
+  unchanged and forecast-year SSB bands narrow by up to 1.2%, the catch's own
+  observation error, which is no longer counted. No point estimate or Mohn's rho
+  changes.
+
 # Rceattle 5.66.2
 
 ## Bug fixes

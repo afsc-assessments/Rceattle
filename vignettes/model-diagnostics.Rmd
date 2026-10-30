@@ -649,7 +649,7 @@ A peel still estimates the years it dropped: they are its retrospective forecast
 | `endyr_full` | the unpeeled terminal year, where the retrospective forecast ends |
 | `projyr` | the end of the projection |
 
-`incl_proj = TRUE` plots the forecast and projection years. Take the forecast years as `endyr_peel + seq_len(endyr_full - endyr_peel)`, empty for the unpeeled model, where `(endyr_peel + 1):endyr_full` would count down instead.
+`incl_proj = TRUE` plots the forecast and projection years. Take the forecast years as `endyr_peel + seq_len(endyr_full - endyr_peel)`, empty for the unpeeled model, where `(endyr_peel + 1):endyr_full` would count down instead. Under `getsd = TRUE`, a band in a forecast year treats that year's catch as known and its F as inferred from it, so it carries the hindcast's uncertainty forward through the F needed to take that catch. It does not include recruitment variability in the forecast years, so it is narrower than a forecast's prediction interval.
 
 The `retrospective()` function returns a list with two elements:
 

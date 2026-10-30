@@ -16,8 +16,8 @@
 #'   predictors over the peel years.
 #' @param nyrs_forecast forecast years over which to calculate Mohn's rho, in
 #'   addition to the terminal year
-#' @param getsd whether each peel runs \code{TMB::sdreport}, which costs an
-#'   extra model build per peel (see Details). Mohn's rho uses point estimates
+#' @param getsd whether each peel runs \code{TMB::sdreport}, which costs
+#'   extra model builds per peel (see Details). Mohn's rho uses point estimates
 #'   only, so \code{FALSE} is faster with no effect on it. \code{NULL} (default)
 #'   inherits the input model's setting (\code{TRUE} only if it holds an
 #'   \code{sdrep}), and the returned peels hold standard errors only when it is
@@ -33,13 +33,23 @@
 #' estimating only the peeled years' F. The second holds every hindcast
 #' parameter fixed, so on its own it reports a standard error of zero across the
 #' hindcast. Under `getsd = TRUE` the peel is therefore rebuilt at those same
-#' parameters with the hindcast free in the map and reported from there; nothing
-#' is re-estimated, so no point estimate moves. Where that rebuild fails -- it
-#' throws, or comes back with a Hessian it could not factor, or with no finite
-#' standard error -- the peel keeps its point estimates and carries no `sdrep`
-#' at all, rather than the forecast refit's zero standard errors. The reason is
-#' named in one warning per call and carried on the peel; `print()` reports how
-#' many peels could not report standard errors.
+#' parameters with the hindcast parameters treated as estimated and reported
+#' from there; nothing is re-estimated, so no point estimate moves.
+#'
+#' A band in a fitted year is the peeled hindcast's own: the uncertainty of its
+#' parameters given the data through the peel's terminal year. A band in a
+#' peeled (forecast) year treats that year's catch as known and its F as
+#' inferred from it: as the hindcast parameters vary, F moves, to first order,
+#' to keep the predicted catch at the observed catch, and the delta method
+#' carries that into the band. The peeled years' recruitment deviations are
+#' fixed at the projected deviation, so the band leaves out recruitment
+#' variability there and is narrower than a forecast's prediction interval.
+#'
+#' Where that rebuild fails -- it errors, or its Hessian is not positive
+#' definite, or it reports no finite standard error -- the peel keeps its point estimates
+#' and carries no `sdrep` at all, rather than the forecast refit's zero
+#' standard errors. The reason is named in one warning per call and carried on
+#' the peel; `print()` reports how many peels could not report standard errors.
 #'
 #' @return a list of 1. a list of Rceattle models and 2. Mohn's rho per species.
 #'
@@ -433,26 +443,46 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
     # The refit above holds the hindcast fixed, so its sdreport gives every
     # hindcast quantity a standard error of zero. Report instead from the same
     # parameters with the hindcast free: estimateMode 3 builds without
-    # optimizing, so no point estimate moves.
+    # optimizing, so no point estimate moves. Standard errors are valid only at
+    # the likelihood's maximum, and under random effects keeping the peeled
+    # catch in the likelihood with its F free puts that maximum off the peel's
+    # estimates. So, with or without random effects, hold F at the values
+    # fitted to that catch, drop the catch, and let .rce_catch_conditioned_sd()
+    # move F with the hindcast parameters.
     if (isTRUE(getsd) && !is.null(newmod)) {
-      sd_map <- map_hindcast
-      # The peeled years' F was estimated too, so it belongs in the report.
-      sd_map$mapList$log_F[, (nyrs_peel + 1):nyrs] <-
-        object$map$mapList$log_F[, (nyrs_peel + 1):nyrs]
-      sd_map$mapFactor$log_F <- factor(sd_map$mapList$log_F)
-
       sd_try <- tryCatch({
         report_mod <- suppressWarnings(suppressMessages(
           .refit_like(
             data_list        = data_list,
             inits            = newmod$estimated_params,
-            map              = sd_map,
+            map              = map_hindcast,
             estimateMode     = 3,   # build only; do not re-estimate
             getsd            = FALSE,
             srr_mse_switchyr = min(data_list$srr_mse_switchyr, endyr_peel),
             srr_hat_endyr    = min(data_list$srr_hat_endyr, endyr_peel),
             suit_endyr       = pmin(data_list$suit_endyr, endyr_peel))))
-        list(sdrep = TMB::sdreport(report_mod$obj))
+        # Drop the peeled catch from the likelihood (a catch of 0 is read as
+        # missing); F, and so the removals, are unchanged.
+        obj <- report_mod$obj
+        dat <- obj$env$data
+        peeled <- dat$catch_ctl[, 3] > endyr_peel
+        # The rows the forecast refit fitted: fishery catch through endyr whose
+        # F that refit estimated (`map` is its map).
+        yr_i <- dat$catch_ctl[, 3] - styr + 1
+        f_free <- !is.na(map$mapList$log_F[cbind(dat$catch_ctl[, 1],
+                                                 pmin(pmax(yr_i, 1), nyrs))])
+        fitted_rows <- which(peeled & dat$catch_ctl[, 3] <= endyr &
+                               dat$flt_type[dat$catch_ctl[, 1]] == 1 &
+                               dat$catch_obs[, 1] > 0 & f_free)
+        obj$env$data$catch_obs[peeled, 1] <- 0
+        obj$retape()   # rebuild the model with the changed catch
+        # Under random effects also return the inverse covariance of fixed and
+        # random effects together, which the correction needs.
+        sdr <- TMB::sdreport(obj, getJointPrecision = length(obj$env$random) > 0)
+        if (isTRUE(sdr$pdHess) && length(fitted_rows)) {
+          sdr <- .rce_catch_conditioned_sd(obj, sdr, fitted_rows, data_list$styr)
+        }
+        list(sdrep = sdr)
       }, error = function(e) list(error = conditionMessage(e)))
 
       # A rebuild fails two ways and only one throws: TMB::sdreport() returns
@@ -993,4 +1023,92 @@ print.Rceattle_jitter <- function(x, tol = 0.01, ...) {
     }
   }
   invisible(x)
+}
+
+
+#' Catch-conditioned standard errors for a retrospective peel
+#'
+#' The rebuilt peel holds the peeled (forecast) years' F at the values fitted
+#' to their catch. A catch-conditioned band instead lets that F move with the
+#' hindcast parameters so the predicted catch stays at the observed catch, and
+#' the delta method carries that into each standard error. Catch is treated as
+#' known.
+#'
+#' With theta the hindcast's parameters (fixed and random effects), `j_q` holds
+#' each reported quantity's derivative with respect to theta and the peeled F,
+#' and `j_c` each peeled log predicted catch's. Holding catch fixed gives
+#' `j_cc = j_q[theta] - j_q[F] j_c[F]^-1 j_c[theta]`, each quantity's
+#' sensitivity to theta once F adjusts to keep the catch, and the covariance is
+#' `j_cc Sigma t(j_cc)`, with Sigma the covariance of theta.
+#'
+#' @param obj the rebuilt peel's TMB object, with the peeled F held fixed.
+#' @param sdrep its `TMB::sdreport()`, with the joint precision (inverse
+#'   covariance of fixed and random effects) when `obj` has random effects.
+#' @param rows rows of the catch table (`catch_obs`) for the peeled years that
+#'   had a catch to fit.
+#' @param styr first model year.
+#' @return `sdrep` with `sd` and `cov` replaced and `jointPrecision` dropped;
+#'   `par.fixed`, `cov.fixed` and `gradient.fixed` still describe the model
+#'   with the peeled F held fixed.
+#' @noRd
+.rce_catch_conditioned_sd <- function(obj, sdrep, rows, styr) {
+  dat <- obj$env$data
+  p <- obj$env$last.par.best   # the peel's estimates, fixed and random together
+  # log_F entry (fleet, model-year index) that each peeled catch row determines
+  cells <- unique(cbind(dat$catch_ctl[rows, 1], dat$catch_ctl[rows, 3] - styr + 1))
+  n_f <- nrow(cells)
+
+  # The same model with those F freed. Number them after the estimated F, so
+  # they sit just after log_F in the parameter vector. ADreport = TRUE:
+  # ad$fn() returns the quantities sdreport gives errors for (SSB, R, ...)
+  # and ad$gr() their exact derivatives by parameter.
+  map <- obj$env$map
+  # TMB keeps the full log_F array, held values included, as "shape".
+  lf_shape <- attr(obj$env$parameters$log_F, "shape")
+  lf <- as.integer(map$log_F)
+  lf[(cells[, 2] - 1) * nrow(lf_shape) + cells[, 1]] <-
+    max(c(0L, lf), na.rm = TRUE) + seq_len(n_f)
+  map$log_F <- factor(lf)
+  ad <- TMB::MakeADFun(dat, obj$env$parList(par = p), map = map, ADreport = TRUE,
+                       DLL = obj$env$DLL, silent = TRUE)
+
+  # pa: the peel's estimates in ad's order, the freed F after log_F;
+  # f_col: their positions.
+  f_at <- which(names(p) == "log_F")
+  pa <- append(p, setNames(lf_shape[cells], rep("log_F", n_f)),
+               after = if (length(f_at)) max(f_at) else
+                 match("log_F", names(ad$par)) - 1L)
+  f_col <- which(names(pa) == "log_F")[length(f_at) + seq_len(n_f)]
+  if (!isTRUE(all.equal(unname(ad$fn(pa)), unname(sdrep$value)))) {
+    stop("the catch-conditioned rebuild did not reproduce the peel's estimates")
+  }
+
+  # j_q: exact derivative of each reported quantity (row) by each parameter.
+  # j_c: the same for each peeled log predicted catch, by forward differences,
+  # since predicted catch is not among the quantities TMB differentiates here.
+  j_q <- ad$gr(pa)
+  log_catch <- function(x) log(ad$report(x)$catch_hat[rows])
+  base <- log_catch(pa)
+  j_c <- vapply(seq_along(pa), function(k) {
+    h <- 1e-5 * max(1, abs(pa[k]))
+    up <- pa; up[k] <- up[k] + h
+    (log_catch(up) - base) / h
+  }, numeric(length(rows)))
+  j_c <- matrix(j_c, nrow = length(rows))
+
+  # Hold log catch fixed: dF = -(dC/dF)^-1 (dC/dtheta) dtheta, so j_cc is each
+  # quantity's total derivative by theta. qr.solve() applies that inverse
+  # (least squares if catch rows outnumber freed F).
+  keep <- setdiff(seq_along(pa), f_col)
+  j_cc <- j_q[, keep, drop = FALSE] - j_q[, f_col, drop = FALSE] %*%
+    qr.solve(j_c[, f_col, drop = FALSE], j_c[, keep, drop = FALSE])
+  # Covariance of theta: fixed and random effects jointly, else the fixed.
+  sigma <- if (length(obj$env$random)) solve(sdrep$jointPrecision) else sdrep$cov.fixed
+  cov <- j_cc %*% sigma %*% t(j_cc)   # the delta method
+
+  sdrep$sd <- sqrt(diag(cov))
+  if (!is.null(sdrep$cov)) sdrep$cov <- cov
+  # The joint precision describes the model with F held fixed, not this band.
+  sdrep$jointPrecision <- NULL
+  sdrep
 }

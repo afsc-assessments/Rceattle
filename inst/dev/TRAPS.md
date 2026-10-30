@@ -775,9 +775,11 @@ peels that survive, so **two runs of the same model can report different rho** d
 names for exactly this reason.
 
 **And since 5.58.2 a KEPT peel can also have no `sdrep`, so `is.null(peel$sdrep)` no longer
-implies `getsd = FALSE`.** Under `getsd = TRUE` each peel's standard errors are rebuilt from a
-free-hindcast `estimateMode = 3` build, because the forecast refit's own `sdreport` reports
-exactly 0 across the span the peel is drawn over. Where that rebuild throws, cannot factor its
+implies `getsd = FALSE`.** Under `getsd = TRUE` each peel's standard errors are rebuilt from an
+`estimateMode = 3` build with the hindcast free, the peeled F held at its catch-fitted values and
+the peeled catch zeroed, then made catch-conditioned by `.rce_catch_conditioned_sd()` (5.66.3),
+because the forecast refit's own `sdreport` reports exactly 0 across the span the peel is drawn
+over. Where that rebuild throws, cannot factor its
 Hessian, or reports nothing finite, the peel keeps its point estimates and carries no `sdrep` at
 all — previously it carried the refit's zero-error object and drew a zero-width band as a measured
 one. Read `attr(peel, "sd_report_error")`, or `print()`'s count, to tell this apart from

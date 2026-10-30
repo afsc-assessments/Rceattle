@@ -733,6 +733,157 @@ testthat::test_that("a peel reports standard errors for its own hindcast", {
 })
 
 
+# A peel's report rebuilt outside retrospective(): the full fit's map with the
+# peeled years' deviations off, at the peel's estimates, built without
+# optimizing. With `hold_F` the peeled F is fixed at the peel's values and the
+# peeled catch zeroed, as retrospective()'s report does before its correction;
+# without, F is free and the peeled catch stays in the likelihood, as the report
+# before 5.66.3 did. `catch_sd` then sets that catch to its own prediction with
+# this sd, so as it shrinks the band converges to the catch-conditioned one.
+peel_reference_sdreport <- function(fit, peel, ep, hold_F, catch_sd = NULL) {
+  styr <- fit$data_list$styr
+  map <- fit$map
+  for (nm in c("rec_dev", "log_M1_dev", "index_q_dev", "log_sel_slp_dev",
+               "sel_inf_dev", "sel_coff_dev")) {
+    x <- map$mapList[[nm]]
+    x[slice.index(x, length(dim(x))) > ep - styr + 1] <- NA
+    map$mapList[[nm]] <- x
+    map$mapFactor[[nm]] <- factor(x)
+  }
+  dl <- peel$data_list
+  dl$endyr <- fit$data_list$endyr
+  if (hold_F) {
+    peeled <- slice.index(map$mapList$log_F, 2) > ep - styr + 1
+    map$mapList$log_F[peeled] <- NA
+    map$mapFactor$log_F <- factor(map$mapList$log_F)
+  }
+  ref <- suppressMessages(suppressWarnings(Rceattle:::.refit_like(
+    data_list = dl, inits = peel$estimated_params, map = map,
+    estimateMode = 3, getsd = FALSE,
+    srr_mse_switchyr = min(dl$srr_mse_switchyr, ep),
+    srr_hat_endyr = min(dl$srr_hat_endyr, ep),
+    suit_endyr = pmin(dl$suit_endyr, ep))))
+  obj <- ref$obj
+  peeled <- obj$env$data$catch_ctl[, 3] > ep
+  if (hold_F) {
+    # Zeroed in the TMB data, not data_list, which would also set that F to 0.
+    obj$env$data$catch_obs[peeled, 1] <- 0
+    obj$retape()
+  } else if (!is.null(catch_sd)) {
+    # The likelihood reads the observed log catch from obsvec, centred
+    # bias_adjust_obs * sd^2 / 2 below the prediction.
+    dat <- obj$env$data
+    pos <- dat$catch_obsvec_idx[peeled] + 1
+    hat <- obj$report()$catch_hat[peeled]
+    obj$env$data$obsvec[pos[pos > 0]] <- log(hat[pos > 0]) -
+      dat$bias_adjust_obs * catch_sd^2 / 2
+    obj$env$data$catch_obs[peeled, 2] <- catch_sd
+    obj$retape()
+  }
+  TMB::sdreport(obj)
+}
+
+# The rebuild used to keep the peeled years' catch in its likelihood with their
+# F free. Fitted exactly, that catch still entered the Laplace approximation
+# through the hindcast's random effects, so the report sat off the optimum (max
+# gradient 0.15-4.19 on parameters other than sigma_R across 10 peels of GOA
+# pollock 2026; 0.277 on this fixture's 2-year peel). Holding the peeled F and dropping that catch leaves one term: the
+# peel fixes its peeled recruitment deviations yet still scores them, at 0 in
+# the peeled hindcast and at the projected deviation in this report, so R_log_sd
+# alone keeps a gradient of -sum((dev / sigma_R)^2).
+testthat::test_that("a peel's sd rebuild is stationary but for R_log_sd under random recruitment", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("TMB")
+
+  data(BS2017SS, envir = environment())
+  d <- BS2017SS
+  d$projyr <- 2020
+  d$fleet_control$Proj_F_proportion <- rep(1, 7)
+
+  fit <- suppressMessages(suppressWarnings(fit_mod(
+    data_list = d, inits = NULL, file = NULL, estimateMode = 0,
+    random_rec = TRUE, msmMode = 0,
+    fit_control = fit_control(phase = FALSE, getsd = TRUE, verbose = 0))))
+  r <- suppressMessages(suppressWarnings(
+    retrospective(fit, peels = 2, cores = 1, getsd = TRUE)))
+
+  peel <- r$Rceattle_list[[paste0("Year_", fit$data_list$endyr - 2)]]
+  testthat::expect_false(is.null(peel$sdrep))
+  grad <- peel$sdrep$gradient.fixed
+  is_sigma_r <- names(peel$sdrep$par.fixed) == "R_log_sd"
+  testthat::expect_lt(max(abs(grad[!is_sigma_r])), 0.01)
+  testthat::expect_true(isTRUE(peel$sdrep$pdHess))
+
+  # The band is centred on the peel's own point estimates, peeled years too.
+  nspp <- fit$data_list$nspp
+  ny <- fit$data_list$endyr - fit$data_list$styr + 1
+  ssb_value <- matrix(peel$sdrep$value[names(peel$sdrep$value) == "ssb"],
+                      nrow = nspp)
+  testthat::expect_equal(unname(ssb_value[, seq_len(ny)]),
+                         unname(peel$quantities$ssb[, seq_len(ny)]))
+
+  # Against the held-F report the correction starts from: fitted-year bands do
+  # not depend on the peeled F, so they must be equal, which pins the joint
+  # covariance of fixed and random effects; a forecast year's band, which
+  # depends on that F, must be widened by the correction.
+  ep <- fit$data_list$endyr - 2
+  ref_sd <- peel_reference_sdreport(fit, peel, ep, hold_F = TRUE)
+  fitted_yrs <- seq_len(ep - fit$data_list$styr + 1)
+  forecast_yrs <- (ep - fit$data_list$styr + 2):ny
+  ssb_sd <- function(s) matrix(s$sd[names(s$value) == "ssb"], nrow = nspp)
+  testthat::expect_equal(ssb_sd(peel$sdrep)[, fitted_yrs],
+                         ssb_sd(ref_sd)[, fitted_yrs], tolerance = 1e-6)
+  testthat::expect_gt(max(ssb_sd(peel$sdrep)[, forecast_yrs] /
+                            ssb_sd(ref_sd)[, forecast_yrs]), 1.01)
+
+  # And by the right amount: the old joint report, with the peeled catch at its
+  # own prediction and a small sd, converges to the catch-conditioned band.
+  limit_sd <- peel_reference_sdreport(fit, peel, ep, hold_F = FALSE,
+                                      catch_sd = 0.01)
+  testthat::expect_equal(ssb_sd(peel$sdrep)[, forecast_yrs],
+                         ssb_sd(limit_sd)[, forecast_yrs], tolerance = 0.01)
+})
+
+# Without random effects the old report -- hindcast and peeled F free, peeled
+# catch in the likelihood -- sat at its optimum, its band the catch-conditioned
+# one plus the catch's observation error. The correction must reproduce it in
+# the fitted years, and in the forecast years fall short only by that error,
+# which it leaves out (catch known). Two peels, so a forecast year's SSB
+# depends on the peeled F: BS2017SS spawns on 1 January, before that year's
+# fishing.
+testthat::test_that("a peel's catch-conditioned band matches the old joint report without random effects", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("TMB")
+
+  data(BS2017SS, envir = environment())
+  d <- BS2017SS
+  d$projyr <- 2020
+  d$fleet_control$Proj_F_proportion <- rep(1, 7)
+  fit <- suppressMessages(suppressWarnings(fit_mod(
+    data_list = d, inits = NULL, file = NULL, estimateMode = 0,
+    random_rec = FALSE, msmMode = 0,
+    fit_control = fit_control(phase = FALSE, getsd = TRUE, verbose = 0))))
+  r <- suppressMessages(suppressWarnings(
+    retrospective(fit, peels = 2, cores = 1, getsd = TRUE)))
+
+  styr <- fit$data_list$styr; endyr <- fit$data_list$endyr; ep <- endyr - 2
+  peel <- r$Rceattle_list[[paste0("Year_", ep)]]
+  testthat::expect_false(is.null(peel$sdrep))
+
+  ref_sd <- peel_reference_sdreport(fit, peel, ep, hold_F = FALSE)
+
+  ssb_sd <- function(s) matrix(s$sd[names(s$value) == "ssb"],
+                              nrow = fit$data_list$nspp)
+  fitted_yrs <- seq_len(ep - styr + 1)
+  forecast_yrs <- (ep - styr + 2):(endyr - styr + 1)
+  testthat::expect_lt(max(abs(ref_sd$gradient.fixed)), 0.01)
+  testthat::expect_equal(ssb_sd(peel$sdrep)[, fitted_yrs],
+                         ssb_sd(ref_sd)[, fitted_yrs], tolerance = 1e-6)
+  ratio <- ssb_sd(peel$sdrep)[, forecast_yrs] / ssb_sd(ref_sd)[, forecast_yrs]
+  testthat::expect_true(all(ratio <= 1 + 1e-6))
+  testthat::expect_gt(min(ratio), 0.97)
+})
+
 # A peel whose standard-error rebuild fails used to fall back to the forecast
 # refit's own sdrep -- the object the rebuild exists to replace, whose hindcast
 # standard errors are all exactly 0 (the documented defect behind the test
@@ -839,7 +990,12 @@ testthat::test_that("a peel whose sd rebuild fails carries no sdrep, and says so
   # mocked rebuild, so the fitting refits get the real sdreport and the peel
   # still converges.
   real_sdreport <- TMB::sdreport
-  stub <- structure(list(), class = "rce_stub_obj")
+  # The rebuild zeroes the peeled catch in obj$env$data and retapes before
+  # calling sdreport, so the stub carries an empty catch table and a no-op retape.
+  stub <- structure(list(
+    env = list2env(list(data = list(catch_obs = matrix(numeric(0), 0, 2),
+                                    catch_ctl = matrix(integer(0), 0, 3)))),
+    retape = function(...) invisible(NULL)), class = "rce_stub_obj")
 
   run_bad_rebuild <- function(fake) {
     res <- NULL
