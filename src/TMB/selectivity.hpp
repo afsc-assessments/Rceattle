@@ -200,6 +200,8 @@ void calculate_selectivity(
   sel_at_length.setZero();
 
   // --- 1. FIXED SELECTIVITY (code 0) ---
+  matrix<int> last_emp_yr(n_flt, 2);    // Each fleet and sex's last hindcast year with an emp_sel row
+  last_emp_yr.setConstant(-1);
   for (int i = 0; i < emp_sel_obs.rows(); i++) {
     int flt    = emp_sel_ctl(i, 0) - 1;
     int sp     = emp_sel_ctl(i, 1) - 1;
@@ -210,8 +212,23 @@ void calculate_selectivity(
     int sex_first = (sex_in == 0) ? 0 : sex_in - 1;
     int sex_last  = (sex_in == 0 && nsex(sp) == 2) ? 1 : sex_first;
     for (int sex = sex_first; sex <= sex_last; sex++) {
+      if (yr > last_emp_yr(flt, sex)) last_emp_yr(flt, sex) = yr;
       for (int age = 0; age < nages(sp); age++) {
         if (!isNA(emp_sel_obs(i, age))) sel_at_age(flt, sex, age, yr) = emp_sel_obs(i, age);
+      }
+    }
+  }
+  // Fixed selectivity holds its last supplied year through the projection, as run_mse()
+  // does for new years and normalize_and_project_selectivity() for estimated selectivity.
+  for (int flt = 0; flt < n_flt; flt++) {
+    if (flt_sel_type(flt) != 0) continue;
+    int sp = flt_spp(flt);
+    for (int sex = 0; sex < nsex(sp); sex++) {
+      if (last_emp_yr(flt, sex) < 0) continue;
+      for (int yr = nyrs_hind; yr < nyrs; yr++) {
+        for (int age = 0; age < nages(sp); age++) {
+          sel_at_age(flt, sex, age, yr) = sel_at_age(flt, sex, age, last_emp_yr(flt, sex));
+        }
       }
     }
   }

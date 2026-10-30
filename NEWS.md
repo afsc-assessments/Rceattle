@@ -13,6 +13,23 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.66.7
+
+## Bug fixes
+
+* **A `Selectivity = "Fixed"` fleet now holds its last supplied selectivity through
+  the projection, as an estimated fleet does.** It was 0 in every projection year.
+  A `Fixed` fishery then had no exploitable biomass, so an MSE with one took no catch
+  (measured under `ConstantF` and `NPFMC`) and its reported `SBF` was wrong under
+  every rule tried. Its projected F was also too low under `HCR = "NPFMC"`: on a test
+  fixture 0.950 at most against an Ftarget of 1.284, with terminal SSB 20% too high.
+  Under `ConstantFSSB` with `DynamicHCR = TRUE` its objective moves as well (201.04 to
+  -6.08 on a test fixture). A `Fixed` survey predicted an index and comps of 0 there,
+  which a direct `sim_mod()` returned as observations; an MSE with one and
+  `simulate_data = TRUE` moves because those rows change later draws. Other rules' F,
+  hindcast estimates apart from that `ConstantFSSB` case, and models with no `Fixed`
+  fleet do not move. A hindcast year with no `emp_sel` row stays 0.
+
 # Rceattle 5.66.6
 
 ## Bug fixes
