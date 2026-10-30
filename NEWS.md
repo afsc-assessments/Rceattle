@@ -30,6 +30,10 @@ version throughout.
   hindcast estimates apart from that `ConstantFSSB` case, and models with no `Fixed`
   fleet do not move. A hindcast year with no `emp_sel` row stays 0.
 
+* `data_check()` now also warns about CAAL data on a `Fixed` fleet labelled
+  `Selectivity_dimension = "Length"`. Fixed selectivity is always at age, so those
+  data inform nothing, as on an age-dimensioned fleet.
+
 # Rceattle 5.66.6
 
 ## Bug fixes
@@ -50,8 +54,7 @@ version throughout.
   empirical growth. **Fits with estimated growth and comps on such a fleet move.**
   Other configurations evaluate bit-identically: GOA cod's objective, gradient and
   comps at the starting values do not change. CAAL on such a fleet is still not
-  predicted; `data_check()` warns only when the fleet's `Selectivity_dimension` is
-  not `"Length"`, so a `Fixed` fleet labelled `"Length"` gets no warning.
+  predicted, and `data_check()` warns about it.
 
 # Rceattle 5.66.2
 

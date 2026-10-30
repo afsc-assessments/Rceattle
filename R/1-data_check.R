@@ -1859,6 +1859,7 @@ data_check <- function(data_list) {
         bad_flt <- c(bad_flt, as.character(fc$Fleet_name[i[1]]))
       }
     }
+    .warn_caal_fixed_fleet(fc, unique(data_list$caal_data$Fleet_code[active]))
     # A warning rather than an error, unlike the empirical-growth rule above,
     # only because this is a released package and such a model currently fits.
     # It should become an error once existing configurations have been checked:
@@ -2623,6 +2624,22 @@ data_check <- function(data_list) {
   errors
 }
 
+
+# Fixed selectivity is at age whatever Selectivity_dimension says, so CAAL on a Fixed
+# fleet labelled "Length" is as unpredicted as on an age-dimensioned one.
+.warn_caal_fixed_fleet <- function(fc, caal_fleets) {
+  fixed <- fc$Fleet_code %in% caal_fleets & as.character(fc$Selectivity) == "Fixed" &
+    as.character(fc$Selectivity_dimension) == "Length"
+  if (any(fixed)) {
+    warning(paste0(
+      "CAAL data on fleet(s) ", paste(fc$Fleet_name[fixed], collapse = ", "),
+      " whose Selectivity is 'Fixed'. Fixed selectivity is always at age, so ",
+      "pred_CAAL is zero and these observations inform nothing, whatever ",
+      "Selectivity_dimension says. Estimate this fleet's selectivity at length, ",
+      "or drop its caal_data rows."), call. = FALSE)
+  }
+  invisible(NULL)
+}
 
 #' Refuse a bin-indexed length selectivity on a finer population grid
 #'
