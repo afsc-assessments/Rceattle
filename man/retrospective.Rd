@@ -54,7 +54,7 @@ scripts keep working. Supplying both is an error.}
 a list of 1. a list of Rceattle models and 2. Mohn's rho per species.
 
 A peel that did not converge is dropped, so \code{Rceattle_list} can be
-shorter than \code{peels + 1}, with a message. Entries are named for their
+shorter than \code{peels + 1}, with a warning. Entries are named for their
 own terminal year (\code{Year_2017}, ...), so index by name:
 \code{Rceattle_list[[3]]} is not necessarily the 3-year peel. With no peel
 left, rho is \code{NaN} and the function warns. Each peel reports its own
@@ -123,10 +123,12 @@ fixed at the projected deviation, so the band leaves out recruitment
 variability there and is narrower than a forecast's prediction interval.
 
 Where that rebuild fails -- it errors, or its Hessian is not positive
-definite, or it reports no finite standard error -- the peel keeps its point estimates
-and carries no \code{sdrep} at all, rather than the forecast refit's zero
-standard errors. The reason is named in one warning per call and carried on
-the peel; \code{print()} reports how many peels could not report standard errors.
+definite, or it reports no finite standard error -- the peel keeps its
+point estimates and carries no \code{sdrep} at all, rather than the forecast
+refit's zero standard errors. No warning is raised, since the point
+estimates and Mohn's rho are unaffected; the reason is in
+\code{attr(peel, "sd_report_error")} for each element of \code{Rceattle_list}, and
+\code{print()} counts such peels.
 }
 \examples{
 \donttest{

@@ -886,15 +886,16 @@ testthat::test_that("a peel's catch-conditioned band matches the old joint repor
 
 # A peel whose standard-error rebuild fails used to fall back to the forecast
 # refit's own sdrep -- the object the rebuild exists to replace, whose hindcast
-# standard errors are all exactly 0 (the documented defect behind the test
-# above, which asserts the complement: the REBUILT errors are > 0). The band was
-# then drawn as a certain quantity rather than an unmeasured one, and the
-# warning saying so was raised inside a .parallel_lapply() worker, where it is
-# discarded. The peel now carries no sdrep at all, which is the state
-# getsd = FALSE already leaves, and the warning is re-raised after dispatch.
-# A rebuild fails three ways -- it throws, cannot factor its Hessian, or reports
-# nothing finite -- and each is covered below.
-testthat::test_that("a peel whose sd rebuild fails carries no sdrep, and says so", {
+# standard errors are all exactly 0 (the documented defect behind "a peel
+# reports standard errors for its own hindcast", which asserts the complement:
+# the REBUILT errors are > 0). The band was
+# then drawn as a certain quantity rather than an unmeasured one. The peel now
+# carries no sdrep at all, which is the state getsd = FALSE already leaves, and
+# records why on attr(peel, "sd_report_error"). It raises no warning, because
+# the peel converged and Mohn's rho reads point estimates only. A rebuild fails
+# three ways -- it throws, cannot factor its Hessian, or reports nothing finite
+# -- and each is covered below.
+testthat::test_that("a peel whose sd rebuild fails carries no sdrep, and records why", {
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("TMB")
 
@@ -912,29 +913,43 @@ testthat::test_that("a peel whose sd rebuild fails carries no sdrep, and says so
   # estimateMode 3, so the two fitting refits are untouched and the peel still
   # converges -- which is the point: a missing band is not a failed peel.
   real_refit <- Rceattle:::.refit_like
-  r <- NULL
-  local({
-    testthat::local_mocked_bindings(
-      .refit_like = function(...) {
-        a <- list(...)
-        if (identical(a$estimateMode, 3)) stop("forced report-build failure")
-        do.call(real_refit, a)
-      }, .package = "Rceattle")
+  # Runs retrospective() with the report build forced to throw, collecting
+  # every warning rather than letting one fail the test.
+  run_throwing_rebuild <- function(peels, cores) {
+    res <- NULL
+    warns <- character()
+    local({
+      testthat::local_mocked_bindings(
+        .refit_like = function(...) {
+          a <- list(...)
+          if (identical(a$estimateMode, 3)) stop("forced report-build failure")
+          do.call(real_refit, a)
+        }, .package = "Rceattle")
+      withCallingHandlers(
+        res <<- suppressMessages(
+          retrospective(fit, peels = peels, cores = cores, getsd = TRUE)),
+        warning = function(w) {
+          warns <<- c(warns, conditionMessage(w))
+          invokeRestart("muffleWarning")
+        })
+    })
+    list(fit = res, warns = warns)
+  }
 
-    testthat::expect_warning(
-      r <<- suppressMessages(
-        retrospective(fit, peels = 1, cores = 1, getsd = TRUE)),
-      "could not report hindcast standard errors")
-  })
+  got <- run_throwing_rebuild(peels = 1, cores = 1)
+  r <- got$fit
+  testthat::expect_false(any(grepl("standard errors", got$warns)))
 
   full_endyr <- fit$data_list$endyr
   is_refit <- vapply(r$Rceattle_list,
                      function(x) x$data_list$endyr_peel < full_endyr, logical(1))
   testthat::expect_true(any(is_refit))
 
-  # Absent, not zero.
+  # Absent, not zero, and the reason is on the peel.
   for (m in r$Rceattle_list[is_refit]) {
     testthat::expect_null(m$sdrep)
+    testthat::expect_match(attr(m, "sd_report_error", exact = TRUE),
+                           "forced report-build failure")
   }
 
   # The unpeeled model is passed through untouched and keeps its own sdrep, so
@@ -955,34 +970,25 @@ testthat::test_that("a peel whose sd rebuild fails carries no sdrep, and says so
                            r_no$Rceattle_list[[nm]]$opt$objective)
   }
 
-  # The run above is sequential (`peels = 1`), where a warning() is never lost,
-  # so on its own it does not test the half of this that matters: the warning is
-  # raised inside a .parallel_lapply() worker, where it IS discarded. Two peels
-  # on two cores takes that path, and the warning must still arrive.
+  # The run above is sequential (`peels = 1`). Two peels on two cores run the
+  # rebuild inside .parallel_lapply() workers, and the reason must still come
+  # back on each peel.
   #
   # FORK only. A PSOCK worker runs `library(Rceattle)` into a pristine namespace,
-  # so the mock below does not reach it, the rebuild succeeds and nothing warns.
+  # so the mock does not reach it and the rebuild succeeds.
   testthat::skip_on_os("windows")
-  rp <- NULL
-  local({
-    testthat::local_mocked_bindings(
-      .refit_like = function(...) {
-        a <- list(...)
-        if (identical(a$estimateMode, 3)) stop("forced report-build failure")
-        do.call(real_refit, a)
-      }, .package = "Rceattle")
+  got_p <- run_throwing_rebuild(peels = 2, cores = 2)
+  rp <- got_p$fit
+  testthat::expect_false(any(grepl("standard errors", got_p$warns)))
 
-    testthat::expect_warning(
-      rp <<- suppressMessages(
-        retrospective(fit, peels = 2, cores = 2, getsd = TRUE)),
-      "could not report hindcast standard errors")
-  })
-
-  # And the peels it named are the ones carrying no band.
   refits_p <- vapply(rp$Rceattle_list,
                      function(x) x$data_list$endyr_peel < full_endyr, logical(1))
   testthat::expect_true(any(refits_p))
-  for (m in rp$Rceattle_list[refits_p]) testthat::expect_null(m$sdrep)
+  for (m in rp$Rceattle_list[refits_p]) {
+    testthat::expect_null(m$sdrep)
+    testthat::expect_match(attr(m, "sd_report_error", exact = TRUE),
+                           "forced report-build failure")
+  }
 
   # The two non-throwing failures. One stub per arm, each asserting its OWN
   # message: a single stub setting both conditions would stay green if either
@@ -1024,7 +1030,7 @@ testthat::test_that("a peel whose sd rebuild fails carries no sdrep, and says so
   }
 
   check_no_band <- function(got, pattern) {
-    testthat::expect_true(any(grepl(pattern, got$warns)))
+    testthat::expect_false(any(grepl("standard errors", got$warns)))
     refits_b <- vapply(got$fit$Rceattle_list,
                        function(x) x$data_list$endyr_peel < full_endyr,
                        logical(1))
@@ -1034,7 +1040,7 @@ testthat::test_that("a peel whose sd rebuild fails carries no sdrep, and says so
     testthat::expect_equal(sum(refits_b), 1L)
     for (m in got$fit$Rceattle_list[refits_b]) {
       testthat::expect_null(m$sdrep)          # absent, not an object of NaN
-      testthat::expect_false(is.null(attr(m, "sd_report_error", exact = TRUE)))
+      testthat::expect_match(attr(m, "sd_report_error", exact = TRUE), pattern)
     }
   }
 

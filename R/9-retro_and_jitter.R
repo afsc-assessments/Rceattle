@@ -46,15 +46,17 @@
 #' variability there and is narrower than a forecast's prediction interval.
 #'
 #' Where that rebuild fails -- it errors, or its Hessian is not positive
-#' definite, or it reports no finite standard error -- the peel keeps its point estimates
-#' and carries no `sdrep` at all, rather than the forecast refit's zero
-#' standard errors. The reason is named in one warning per call and carried on
-#' the peel; `print()` reports how many peels could not report standard errors.
+#' definite, or it reports no finite standard error -- the peel keeps its
+#' point estimates and carries no `sdrep` at all, rather than the forecast
+#' refit's zero standard errors. No warning is raised, since the point
+#' estimates and Mohn's rho are unaffected; the reason is in
+#' `attr(peel, "sd_report_error")` for each element of `Rceattle_list`, and
+#' `print()` counts such peels.
 #'
 #' @return a list of 1. a list of Rceattle models and 2. Mohn's rho per species.
 #'
 #'   A peel that did not converge is dropped, so \code{Rceattle_list} can be
-#'   shorter than \code{peels + 1}, with a message. Entries are named for their
+#'   shorter than \code{peels + 1}, with a warning. Entries are named for their
 #'   own terminal year (\code{Year_2017}, ...), so index by name:
 #'   \code{Rceattle_list[[3]]} is not necessarily the 3-year peel. With no peel
 #'   left, rho is \code{NaN} and the function warns. Each peel reports its own
@@ -510,8 +512,8 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
         newmod$sdrep <- NULL
         # Not recorded on .conv_hindcast$sd_present: .refit_converged() drops a
         # peel on `sd_requested && !sd_present`, which would move Mohn's rho.
-        # And a warning() dies in a .parallel_lapply() worker, so carry the
-        # reason out on the peel and re-raise it once after dispatch.
+        # No warning: a peel kept with this reason converged (it is dropped
+        # otherwise), so the reason rides on the peel.
         attr(newmod, "sd_report_error") <-
           paste0("peel ", i, " (through ", endyr_peel, "): ", sd_try[["error"]])
       }
@@ -574,18 +576,6 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
   # A warning, not a message: rho below is averaged over the peels that
   # survive, so a drop changes the number that gets reported.
   .report_dropped(peels - length(peel_results), peels, "peel", warn = TRUE)
-
-  # Raised here rather than in the worker that found it (see above). A missing
-  # band is not a dropped peel, so this is separate from the tally above: the
-  # peel is kept and its point estimates stand.
-  sd_errs <- unlist(lapply(
-    peel_results, function(m) attr(m, "sd_report_error", exact = TRUE)))
-  if (length(sd_errs)) {
-    warning(length(sd_errs), " peel(s) could not report hindcast standard ",
-            "errors, so they carry no `sdrep` and their uncertainty bands are ",
-            "NA: ", paste(sd_errs, collapse = "; "),
-            ". Point estimates and Mohn's rho are unaffected.", call. = FALSE)
-  }
 
   mod_list <- c(list(object), peel_results)
 
@@ -745,8 +735,8 @@ print.Rceattle_retro <- function(x, band = 0.2, ...) {
         "\n", sep = "")
   }
 
-  # A kept peel can still have no band. The call warned, but a saved object has
-  # only the attribute, so say it here too -- rho is unaffected either way.
+  # A kept peel can still have no band and the call does not warn, so say it
+  # here -- rho is unaffected either way.
   n_noband <- sum(vapply(
     x$Rceattle_list,
     function(m) !is.null(attr(m, "sd_report_error", exact = TRUE)),

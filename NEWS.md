@@ -12,6 +12,18 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.66.4
+
+## Behavior changes
+
+* **`retrospective()` no longer warns when a peel's standard errors cannot be
+  rebuilt.** Such a peel is kept only if it converged, and Mohn's rho reads
+  point estimates only, so the "peel(s) could not report hindcast standard
+  errors" warning is gone. The peel still has no standard errors (`sdrep` is
+  `NULL`) and its reason is on `attr(peel, "sd_report_error")`; `print()` still
+  counts such peels, and a plot with `add_ci = TRUE` still warns that its band
+  is missing. A peel that does not converge is still dropped with a warning.
+
 # Rceattle 5.66.3
 
 ## Bug fixes

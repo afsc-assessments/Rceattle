@@ -662,7 +662,7 @@ The `nyrs_forecast` argument (default 3) also evaluates rho for years projected 
 
 A peel that did not converge is dropped and a warning reports how many, so `Rceattle_list` can be shorter than `peels + 1`. Index it by name rather than position, with a peel missing, `Rceattle_list[[3]]` is not the 3-year peel. If no peel converges, Mohn's rho is `NaN` and the call warns.
 
-A separate warning means something different: under `getsd = TRUE` a peel whose standard errors could not be rebuilt is **kept**, with its point estimates intact and no `sdrep` at all, so its uncertainty band is absent rather than drawn at zero width. Mohn's rho reads point estimates only and is unaffected. `print()` reports how many peels that happened to, and each carries the reason in `attr(peel, "sd_report_error")`.
+Under `getsd = TRUE` (the default when the input model has standard errors), each peel's standard errors come from an extra report built after its two fits. If that one report fails, the peel is **kept**, unlike the failures above that drop a peel: its point estimates stand and it has no standard errors (`peel$sdrep` is `NULL`), so its band is absent rather than drawn at zero width. This raises no warning, because the peel converged and Mohn's rho reads point estimates only. `print()` says how many peels have no band, and `lapply(model_1_retro$Rceattle_list, attr, "sd_report_error")` gives the reason for each (`NULL` for peels that have a band). `plot_biomass(model_1_retro$Rceattle_list, add_ci = TRUE)` draws bands for the other peels and warns about this one.
 
 ## Jitter testing
 
