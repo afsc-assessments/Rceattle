@@ -331,7 +331,7 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
           data_list        = data_list,
           inits            = inits,
           map              = map,
-          estimateMode     = ifelse(data_list$estimateMode < 3, 0, data_list$estimateMode),
+          estimateMode     = ifelse(data_list$estimateMode == 2, 0, data_list$estimateMode), # A projection-only fit (2) refits the hindcast
           phase            = phase,  # see `phase` above: peels need phasing to move
           getsd            = getsd,
           srr_mse_switchyr = min(data_list$srr_mse_switchyr, endyr_peel),
@@ -418,7 +418,7 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
           data_list        = data_list,
           inits            = peeled_pars,
           map              = map,
-          estimateMode     = ifelse(data_list$estimateMode < 3, 0, data_list$estimateMode),
+          estimateMode     = ifelse(data_list$estimateMode == 2, 0, data_list$estimateMode),
           phase            = phase,  # see `phase` above: peels need phasing to move
           getsd            = getsd,
           srr_mse_switchyr = min(data_list$srr_mse_switchyr, endyr_peel),
@@ -893,7 +893,8 @@ jitter <- function(object = NULL, njitter = 50, sd = 0.2, phase = FALSE, seed = 
           .refit_like(
             data_list        = data_list,
             inits            = inits,
-            estimateMode     = ifelse(data_list$estimateMode < 3, 0, data_list$estimateMode),
+            # As in retrospective(): only a projection-only fit (2) refits at 0.
+            estimateMode     = ifelse(data_list$estimateMode == 2, 0, data_list$estimateMode),
             phase            = phase,
             getsd            = getsd,
             srr_mse_switchyr = min(data_list$srr_mse_switchyr, data_list$endyr),

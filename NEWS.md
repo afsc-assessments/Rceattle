@@ -1,10 +1,11 @@
 <!--
-Version-numbering note. Three gaps in this file are deliberate, not lost entries:
+Version-numbering note. Four gaps in this file are deliberate, not lost entries:
 
   * 4.14.0 was a real DESCRIPTION version whose entries were folded into 5.0.0.
   * 5.2.0-5.2.4 were likewise folded into 5.3.0.
   * main's 4.9.0 / 4.9.1 are the same recruitment changes this line has as
     5.5.0 / 5.5.1, applied to the two lines separately.
+  * 5.66.3 and 5.66.4 were numbers a branch held during review; it landed as 5.66.5.
 
 No tag existed above 4.8.0 while these were in flight, so nobody could have installed an
 intermediate. They were folded rather than renumbered because renumbering a section breaks
@@ -12,7 +13,7 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
-# Rceattle 5.66.5
+# Rceattle 5.66.6
 
 ## Bug fixes
 
@@ -34,6 +35,17 @@ version throughout.
   comps at the starting values do not change. CAAL on such a fleet is still not
   predicted; `data_check()` warns only when the fleet's `Selectivity_dimension` is
   not `"Length"`, so a `Fixed` fleet labelled `"Length"` gets no warning.
+
+# Rceattle 5.66.2
+
+## Bug fixes
+
+* **`retrospective()` and `jitter()` refit a hindcast-only fit
+  (`estimateMode = 1`) as hindcast-only.** They refitted every mode below 3
+  at mode 0, so each peel or jitter of a mode-1 fit also built a projection,
+  which under `ConstantF` carried an unestimated `log_Flimit`. Only a
+  projection-only fit (mode 2) is now refitted at mode 0. No estimate moves; a
+  peel's `data_list$estimateMode` now matches its parent's.
 
 # Rceattle 5.66.1
 
