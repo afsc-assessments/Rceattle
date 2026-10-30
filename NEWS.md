@@ -12,6 +12,17 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.66.2
+
+## Bug fixes
+
+* **`retrospective()` and `jitter()` refit a hindcast-only fit
+  (`estimateMode = 1`) as hindcast-only.** They refitted every mode below 3
+  at mode 0, so each peel or jitter of a mode-1 fit also built a projection,
+  which under `ConstantF` carried an unestimated `log_Flimit`. Only a
+  projection-only fit (mode 2) is now refitted at mode 0. No estimate moves; a
+  peel's `data_list$estimateMode` now matches its parent's.
+
 # Rceattle 5.66.1
 
 ## Bug fixes
