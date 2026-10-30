@@ -12,8 +12,9 @@
 \item{...}{Currently unused.}
 }
 \value{
-A numeric matrix, or \code{NULL} if \code{sdreport} was not run
-(i.e. the fit was produced with \code{getsd = FALSE}).
+A numeric matrix, or \code{NULL} if \code{sdreport} was not run (the fit was
+produced with \code{getsd = FALSE}) or is a retrospective peel whose standard
+errors are not usable (\code{attr(peel, "sd_report_error")}).
 }
 \description{
 Returns the fixed-effect covariance matrix produced by

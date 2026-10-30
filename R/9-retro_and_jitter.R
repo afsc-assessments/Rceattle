@@ -18,7 +18,8 @@
 #'   addition to the terminal year
 #' @param getsd whether each peel runs \code{TMB::sdreport}, which costs
 #'   extra model builds per peel (see Details). Mohn's rho uses point estimates
-#'   only, so \code{FALSE} is faster with no effect on it. \code{NULL} (default)
+#'   only, so \code{FALSE} is faster, though \code{TRUE} also drops a peel whose
+#'   hindcast Hessian is not positive definite. \code{NULL} (default)
 #'   inherits the input model's setting (\code{TRUE} only if it holds an
 #'   \code{sdrep}), and the returned peels hold standard errors only when it is
 #'   \code{TRUE}.
@@ -59,12 +60,14 @@
 #'
 #'   A peel whose hindcast did not converge is dropped, so
 #'   \code{Rceattle_list} can be shorter than \code{peels + 1}, with a warning.
-#'   A peel whose forecast refit alone did not converge is kept without a
-#'   warning: its hindcast and terminal-year rho stand, but F was not fitted to
-#'   the peeled catch, so it is left out of the \code{$mohns} rows with
-#'   \code{Forecast year} above 0, whose \code{N} shows it. Its forecast years
-#'   and their standard errors stay on the peel, so read them only after checking
-#'   \code{attr(peel, "forecast_error")}, the reason, which \code{print()} counts.
+#'   A peel whose forecast refit alone did not converge, or left a peeled F at a
+#'   bound, is kept without a warning: its hindcast and terminal-year rho stand,
+#'   but F was not fitted to the peeled catch, so it is left out of the
+#'   \code{$mohns} rows with \code{Forecast year} above 0, whose \code{N} shows
+#'   it. Its forecast years and their standard errors stay on the peel, so read
+#'   them only after checking \code{attr(peel, "forecast_error")}, the reason,
+#'   which \code{print()} counts; \code{plot_timeseries()} and its wrappers warn
+#'   when they draw those years.
 #'   Entries are named for their
 #'   own terminal year (\code{Year_2017}, ...), so index by name:
 #'   \code{Rceattle_list[[3]]} is not necessarily the 3-year peel. With no peel
@@ -129,7 +132,8 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
   }
 
   # Peels inherit the input model's sdreport setting unless overridden. Mohn's
-  # rho reads only point estimates, so getsd = FALSE is faster and rho-neutral.
+  # rho reads only point estimates, so getsd = FALSE is faster, but it also stops
+  # a non-positive-definite hindcast Hessian dropping a peel.
   if (is.null(getsd)) getsd <- !is.null(object$sdrep)
 
   ctl <- .rce_refit_control(fit_control, "retrospective")
@@ -449,14 +453,13 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
       )
     )
 
-    # Whether F fitted the peeled catch is the gradient's question: this Hessian
-    # covers F alone, so it cannot speak to the peel. The hindcast is held fixed
-    # here, so a failure leaves the terminal-year rho standing and raises no
-    # warning; Mohn's rho below leaves the peel out of the forecast years.
-    if (!.refit_converged(newmod, hessian = FALSE)) {
+    # At a bound F can miss the catch with a small gradient, so check both; this
+    # Hessian covers F alone, so it is not judged. The hindcast is held fixed, so
+    # this leaves the terminal-year rho standing and raises no warning.
+    if (!.refit_converged(newmod, hessian = FALSE) || length(.check_bounds(newmod))) {
       attr(newmod, "forecast_error") <-
         paste0("peel ", i, " (through ", endyr_peel, "): the forecast refit did ",
-               "not fit F to the peeled catch (max|gradient| > 1)")
+               "not fit F to the peeled catch (gradient check failed, or F at a bound)")
     }
 
     # * Standard errors for the peeled hindcast ----
@@ -469,7 +472,7 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
     # estimates. So, with or without random effects, hold F at the values
     # fitted to that catch, drop the catch, and let .rce_catch_conditioned_sd()
     # move F with the hindcast parameters.
-    if (isTRUE(getsd) && !is.null(newmod)) {
+    if (isTRUE(getsd)) {
       sd_try <- tryCatch({
         report_mod <- suppressWarnings(suppressMessages(
           .refit_like(
@@ -498,7 +501,10 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
         obj$retape()   # rebuild the model with the changed catch
         # Under random effects also return the inverse covariance of fixed and
         # random effects together, which the correction needs.
-        sdr <- TMB::sdreport(obj, getJointPrecision = length(obj$env$random) > 0)
+        # Quiet: an indefinite Hessian warns "NaNs produced", and the reason is
+        # recorded below.
+        sdr <- suppressWarnings(
+          TMB::sdreport(obj, getJointPrecision = length(obj$env$random) > 0))
         # On a failed correction the sdreport is still returned, flagged below.
         tryCatch({
           if (isTRUE(sdr$pdHess) && length(fitted_rows)) {
@@ -512,9 +518,7 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
       }, error = function(e) list(error = conditionMessage(e)))
 
       # A rebuild can fail without throwing: TMB::sdreport() returns pdHess = FALSE
-      # on a Hessian it cannot factor rather than erroring. That also means no
-      # usable band, so judge the returned object too, and name which condition
-      # fired -- they are different problems for the reader.
+      # on a Hessian it cannot factor. Name which condition fired for the reader.
       .sdr <- sd_try[["sdrep"]]
       if (is.null(sd_try[["error"]])) {
         if (isFALSE(.sdr[["pdHess"]])) {
@@ -524,10 +528,8 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
         }
       }
 
-      # A peel that cannot be reported is not a peel that failed: keep its point
-      # estimates and the sdreport TMB returned (none if the rebuild threw first).
-      # The reason stops plots and tables reading it, whose finite values are not
-      # valid standard errors under an indefinite Hessian.
+      # Keep the point estimates and what TMB returned (none if the rebuild threw
+      # first). The reason stops plots and tables reading it as standard errors.
       newmod$sdrep <- .sdr
       if (!is.null(sd_try[["error"]])) {
         attr(newmod, "sd_report_error") <-
@@ -760,7 +762,7 @@ print.Rceattle_retro <- function(x, band = 0.2, ...) {
     logical(1)))
   if (n_noband > 0L) {
     cat("  ", n_noband, " peel(s) have no usable standard errors",
-        " (the hindcast report failed to rebuild)\n", sep = "")
+        " (see attr(peel, \"sd_report_error\"))\n", sep = "")
   }
 
   n_noforecast <- sum(vapply(
@@ -769,7 +771,7 @@ print.Rceattle_retro <- function(x, band = 0.2, ...) {
     logical(1)))
   if (n_noforecast > 0L) {
     cat("  ", n_noforecast, " peel(s) left out of the forecast-year rows of $mohns",
-        " (the forecast refit did not converge)\n", sep = "")
+        " (see attr(peel, \"forecast_error\"))\n", sep = "")
   }
 
   if (nrow(term)) {
@@ -1080,8 +1082,8 @@ print.Rceattle_jitter <- function(x, tol = 0.01, ...) {
 
   # The same model with those F freed. Number them after the estimated F, so
   # they sit just after log_F in the parameter vector. ADreport = TRUE:
-  # ad$fn() returns the quantities sdreport gives errors for (SSB, R, ...)
-  # and ad$gr() their exact derivatives by parameter.
+  # ad$fn() returns the quantities sdreport gives errors for (SSB, R, ...) plus
+  # predicted catch, and ad$gr() their exact derivatives by parameter.
   map <- obj$env$map
   # TMB keeps the full log_F array, held values included, as "shape".
   lf_shape <- attr(obj$env$parameters$log_F, "shape")

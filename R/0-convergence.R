@@ -277,7 +277,8 @@
 #' @param max_grad Drop the run above this maximum absolute marginal gradient.
 #'   Defaults to 1, `.check_optimizer()`'s FAIL tier.
 #' @param hessian Also judge a requested `sdreport`; `FALSE` judges the gradient alone.
-#' @return `TRUE` to keep the run, `FALSE` to drop it.
+#' @return `TRUE` if the run converged, `FALSE` otherwise (the refit diagnostics
+#'   drop it).
 #' @noRd
 .refit_converged <- function(newmod, max_grad = 1, hessian = TRUE) {
   if (is.null(newmod)) return(FALSE)

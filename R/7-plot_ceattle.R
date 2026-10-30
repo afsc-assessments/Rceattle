@@ -157,6 +157,7 @@ plot_timeseries <- function(Rceattle,
   if(!is.null(maxyr)){
     years <- lapply(Rceattle, function(x) x$data_list$styr:min(c(maxyr, x$data_list$projyr)))
   }
+  .rce_warn_unfitted_forecast(Rceattle, years)
 
   max_endyr <- max(unlist(Endyrs), na.rm = TRUE)
   nyrs_vec <- sapply(years, length)

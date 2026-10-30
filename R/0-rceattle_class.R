@@ -169,12 +169,16 @@ print.summary.Rceattle <- function(x, n = 10, ...) {
           sep = "")
     }
     if (all(is.na(cf$std_error))) {
-      # Two reasons, and the user needs to know which: no sdreport at all, or one
-      # whose variances are unusable because the Hessian is not positive definite.
+      # Three reasons, and the user needs to know which: a peel whose rebuild failed,
+      # no sdreport at all, or one whose variances are unusable (Hessian not
+      # positive definite).
       # A print method must not stop, so an unreadable spec falls back to the
       # commoner reason.
       v <- tryCatch(stats::vcov(x$spec), error = function(e) NULL)
-      if (is.null(v)) {
+      peel_reason <- attr(x$spec, "sd_report_error", exact = TRUE)
+      if (!is.null(peel_reason)) {
+        cat("  standard errors are unavailable --", peel_reason, "\n")
+      } else if (is.null(v)) {
         cat("  standard errors are unavailable -- this fit has no sdreport",
             "(fit_control(getsd = FALSE))\n")
       } else {
@@ -271,8 +275,9 @@ coef.Rceattle <- function(object, ...) {
 #' @param object An object of class \code{"Rceattle"} returned by [fit_mod()].
 #' @param ... Currently unused.
 #'
-#' @return A numeric matrix, or `NULL` if `sdreport` was not run
-#'   (i.e. the fit was produced with `getsd = FALSE`).
+#' @return A numeric matrix, or `NULL` if `sdreport` was not run (the fit was
+#'   produced with `getsd = FALSE`) or is a retrospective peel whose standard
+#'   errors are not usable (`attr(peel, "sd_report_error")`).
 #' @export
 vcov.Rceattle <- function(object, ...) {
   sdr <- .rce_usable_sdrep(object)

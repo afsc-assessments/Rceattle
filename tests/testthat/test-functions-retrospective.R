@@ -696,6 +696,9 @@ testthat::test_that("a peel reports standard errors for its own hindcast", {
     testthat::expect_true(isTRUE(m$sdrep$pdHess))
     # Predicted catch is ADREPORTed only inside the correction, not in what it returns.
     testthat::expect_false("catch_hat" %in% names(m$sdrep$value))
+    # A healthy peel is flagged for neither reason.
+    testthat::expect_null(attr(m, "sd_report_error", exact = TRUE))
+    testthat::expect_null(attr(m, "forecast_error", exact = TRUE))
   }
   testthat::expect_false("catch_hat" %in% names(fit$sdrep$value))
 
@@ -1017,7 +1020,10 @@ testthat::test_that("a peel whose sd rebuild fails keeps its sdreport, and recor
         }, .package = "Rceattle")
       testthat::local_mocked_bindings(
         sdreport = function(obj, ...) {
-          if (inherits(obj, "rce_stub_obj")) return(fake)
+          if (inherits(obj, "rce_stub_obj")) {
+            warning("NaNs produced")   # what a negative variance raises
+            return(fake)
+          }
           real_sdreport(obj, ...)
         }, .package = "TMB")
       withCallingHandlers(
@@ -1032,7 +1038,7 @@ testthat::test_that("a peel whose sd rebuild fails keeps its sdreport, and recor
   }
 
   check_flagged <- function(got, fake, pattern) {
-    testthat::expect_false(any(grepl("standard errors", got$warns)))
+    testthat::expect_false(any(grepl("standard errors|NaNs produced", got$warns)))
     refits_b <- vapply(got$fit$Rceattle_list,
                        function(x) x$data_list$endyr_peel < full_endyr,
                        logical(1))
@@ -1158,6 +1164,37 @@ testthat::test_that("only a peel's hindcast non-convergence warns or drops it", 
     utils::capture.output(print(r)))))
   testthat::expect_false(any(grepl(
     "left out of the forecast-year rows", utils::capture.output(print(ok)))))
+
+  # A real failure, with no injection: at 20 times the pollock catch F reaches its
+  # upper bound and still misses the catch, with a gradient below the check's 1.
+  catch20 <- d
+  k <- which(catch20$catch_data$Fleet_code == 1 & catch20$catch_data$Year == endyr)
+  catch20$catch_data$Catch[k] <- catch20$catch_data$Catch[k] * 20
+  fit20 <- suppressMessages(suppressWarnings(fit_mod(
+    data_list = catch20, inits = NULL, file = NULL, estimateMode = 0,
+    random_rec = FALSE, msmMode = 0,
+    fit_control = fit_control(phase = FALSE, getsd = FALSE, verbose = 0))))
+  warns20 <- character()
+  r20 <- withCallingHandlers(
+    suppressMessages(retrospective(fit20, peels = 1, cores = 1, getsd = FALSE)),
+    warning = function(w) {
+      warns20 <<- c(warns20, conditionMessage(w))
+      invokeRestart("muffleWarning")
+    })
+  testthat::expect_length(warns20, 0)
+  p20 <- r20$Rceattle_list[[paste0("Year_", endyr - 1)]]
+  testthat::expect_lt(p20$.conv_hindcast$max_gradient, 1)
+  testthat::expect_match(attr(p20, "forecast_error", exact = TRUE), "F at a bound")
+  testthat::expect_equal(rows(r20, 1)$N, 0)
+  testthat::expect_equal(rows(r20, 0)$N, 1)
+  # The plot warns only when it draws those years, however it comes to.
+  testthat::expect_warning(plot_ssb(r20$Rceattle_list, incl_proj = TRUE),
+                           "not fitted to catch")
+  testthat::expect_warning(plot_ssb(r20$Rceattle_list, maxyr = endyr),
+                           "not fitted to catch")
+  testthat::expect_no_warning(plot_ssb(r20$Rceattle_list))
+  testthat::expect_no_warning(
+    plot_ssb(r20$Rceattle_list, incl_proj = TRUE, maxyr = endyr - 1))
 
   # Hindcast failed: dropped, with the warning.
   got_h <- run("hindcast", getsd = FALSE)

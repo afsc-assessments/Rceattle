@@ -137,6 +137,8 @@ testthat::test_that("a peel whose sd rebuild failed draws no band and says why",
   tab <- as.data.frame(fit)
   testthat::expect_true(all(is.na(tab$se)))
   testthat::expect_null(stats::vcov(fit))
+  testthat::expect_true(any(grepl("peel 1 \\(through 2015\\)",
+                                  utils::capture.output(print(summary(fit))))))
 })
 
 testthat::test_that("the standard errors read are the ones the block actually holds", {

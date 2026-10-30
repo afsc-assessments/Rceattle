@@ -17,25 +17,30 @@ version throughout.
 ## Behavior changes
 
 * **`retrospective()` warns about, and drops, a peel only when its hindcast did
-  not converge.** A peel whose forecast refit alone did not converge, including
-  one whose F-only Hessian was not positive definite, used to be dropped with a
-  warning. It is now kept with no warning: that refit holds the hindcast fixed,
-  so the hindcast and the terminal-year rho stand. Because F was not fitted to
-  the peeled catch, the peel is left out of the `$mohns` rows with
+  not converge.** A peel whose forecast refit alone did not converge used to be
+  dropped with a warning. It is now kept with no warning: that refit holds the
+  hindcast fixed, so the hindcast and the terminal-year rho stand. Because F was
+  not fitted to the peeled catch, the peel is left out of the `$mohns` rows with
   `Forecast year` above 0, whose `N` shows it. The reason is on
-  `attr(peel, "forecast_error")` and `print()` counts such peels. An F-only
-  Hessian that is not positive definite no longer drops a peel or sets this.
-  Retrospectives where this happens return more peels, and their terminal-year
-  rho changes because it averages over those peels too. A dropped hindcast also
-  no longer runs its forecast refit.
+  `attr(peel, "forecast_error")`, `print()` counts such peels, and
+  `plot_timeseries()` and its wrappers warn when they draw those forecast years.
+  One such F removes the peel from every forecast-year row, including years that
+  fitted. A dropped hindcast also no longer runs its forecast refit.
+* **Which forecast refits count as failed has changed.** A peeled F left at a
+  bound now counts, because F can miss the catch there with a small gradient (at
+  20 times a BS2017SS catch, max gradient 0.16 and predicted catch 36% low, with
+  F_spp rho above 100,000 in `$mohns`); those forecast-year rows lose that peel.
+  An F-only Hessian that is not positive definite no longer counts, so under
+  `getsd = TRUE` that peel is kept and enters the terminal-year and forecast-year
+  rows. Where peels return, rho changes because it averages over them too.
 * **A retrospective peel keeps its `sdreport`.** Where the standard-error rebuild
   fails, `peel$sdrep` now holds what `TMB::sdreport()` returned rather than
   `NULL`, which remains only if the rebuild errored first.
   `attr(peel, "sd_report_error")` still gives the reason, which now also covers a
   failed catch-conditioned correction. Those numbers are not usable standard
   errors, so plots, `as.data.frame()` and `vcov()` still read none of them, and
-  `plot_timeseries()` and its wrappers now warn with that reason. `print()` now
-  says such peels "have no usable standard errors".
+  `plot_timeseries()` and its wrappers now warn with that reason, and `summary()`
+  gives it. `print()` now says such peels "have no usable standard errors".
 
 ## Bug fixes
 

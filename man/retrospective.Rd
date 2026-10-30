@@ -33,7 +33,8 @@ addition to the terminal year}
 
 \item{getsd}{whether each peel runs \code{TMB::sdreport}, which costs
 extra model builds per peel (see Details). Mohn's rho uses point estimates
-only, so \code{FALSE} is faster with no effect on it. \code{NULL} (default)
+only, so \code{FALSE} is faster, though \code{TRUE} also drops a peel whose
+hindcast Hessian is not positive definite. \code{NULL} (default)
 inherits the input model's setting (\code{TRUE} only if it holds an
 \code{sdrep}), and the returned peels hold standard errors only when it is
 \code{TRUE}.}
@@ -55,12 +56,14 @@ a list of 1. a list of Rceattle models and 2. Mohn's rho per species.
 
 A peel whose hindcast did not converge is dropped, so
 \code{Rceattle_list} can be shorter than \code{peels + 1}, with a warning.
-A peel whose forecast refit alone did not converge is kept without a
-warning: its hindcast and terminal-year rho stand, but F was not fitted to
-the peeled catch, so it is left out of the \code{$mohns} rows with
-\code{Forecast year} above 0, whose \code{N} shows it. Its forecast years
-and their standard errors stay on the peel, so read them only after checking
-\code{attr(peel, "forecast_error")}, the reason, which \code{print()} counts.
+A peel whose forecast refit alone did not converge, or left a peeled F at a
+bound, is kept without a warning: its hindcast and terminal-year rho stand,
+but F was not fitted to the peeled catch, so it is left out of the
+\code{$mohns} rows with \code{Forecast year} above 0, whose \code{N} shows
+it. Its forecast years and their standard errors stay on the peel, so read
+them only after checking \code{attr(peel, "forecast_error")}, the reason,
+which \code{print()} counts; \code{plot_timeseries()} and its wrappers warn
+when they draw those years.
 Entries are named for their
 own terminal year (\code{Year_2017}, ...), so index by name:
 \code{Rceattle_list[[3]]} is not necessarily the 3-year peel. With no peel

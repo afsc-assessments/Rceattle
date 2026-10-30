@@ -766,8 +766,8 @@ because their OSA densities are written to `jnll_comp` only; under `osa_mode == 
 random-effect row's CDF term is too.
 
 **`retrospective(getsd = TRUE)` can return fewer peels than `getsd = FALSE`, so Mohn's rho
-differs.** `.refit_converged()` drops a peel on a non-positive-definite Hessian, and that check
-can only run when an `sdreport` was asked for (`R/0-convergence.R:231`, deliberate). A peel that
+differs.** `.refit_converged()` drops a peel on a non-positive-definite hindcast Hessian, and that
+check can only run when an `sdreport` was asked for (`R/0-convergence.R`, deliberate). A peel that
 converges on gradient but has a singular Hessian is therefore kept without standard errors and
 dropped with them. On `make_test_data()` every peel is lost this way. Rho is computed over the
 peels that survive, so **two runs of the same model can report different rho** depending only on
@@ -787,10 +787,13 @@ are not standard errors, so `.rce_usable_sdrep()` gives plots, `as.data.frame()`
 nothing to read. Read the attribute, or `print()`'s count, to tell this apart from `getsd = FALSE`.
 
 **A kept peel's `.conv_hindcast` and `$convergence` are its forecast refit's, and only that refit's
-gradient is judged.** Its F-only Hessian says nothing about the peel, so `.refit_converged(newmod,
-hessian = FALSE)` sets `attr(peel, "forecast_error")`, and that attribute, not a re-read of the
-convergence record, is what keeps the peel out of the forecast-year rows of `$mohns`. The hindcast's
-verdict decided whether the peel exists and is not on the object.
+gradient and bounds are judged.** Its F-only Hessian says nothing about the peel. The gradient alone
+is not enough: at 20 times a BS2017SS catch `log_F` sits on its upper bound of 10, predicted catch
+is 36% low and the max gradient is 0.16, and that peel reported F_spp rho above 100,000 until
+`.check_bounds()` joined the test. Either sets `attr(peel, "forecast_error")`, and that attribute,
+not a re-read of the convergence record, keeps the peel out of the forecast-year rows of `$mohns`.
+A miss away from a bound still passes. The hindcast's verdict decided whether the peel exists and is
+not on the object.
 
 **~~`fit_mod(d, config = cfg)` replaces `d$model_config`, linkages and all.~~ Fixed in
 5.36.0** (`65259384`): `R/6-fit_mod.R:333-363` overlays only the fields the config's `"set"`
