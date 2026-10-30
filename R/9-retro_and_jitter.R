@@ -331,9 +331,7 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
           data_list        = data_list,
           inits            = inits,
           map              = map,
-          # A projection-only fit (2) refits the hindcast; a hindcast-only fit (1)
-          # stays so, since every peeled year lies inside the hindcast.
-          estimateMode     = ifelse(data_list$estimateMode == 2, 0, data_list$estimateMode),
+          estimateMode     = ifelse(data_list$estimateMode == 2, 0, data_list$estimateMode), # A projection-only fit (2) refits the hindcast
           phase            = phase,  # see `phase` above: peels need phasing to move
           getsd            = getsd,
           srr_mse_switchyr = min(data_list$srr_mse_switchyr, endyr_peel),
