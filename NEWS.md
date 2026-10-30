@@ -34,6 +34,10 @@ version throughout.
   `Selectivity_dimension = "Length"`. Fixed selectivity is always at age, so those
   data inform nothing, as on an age-dimensioned fleet.
 
+* `data_check()` now warns when a `Fixed` fishery has no `emp_sel` row for `endyr`.
+  Its selectivity is 0 in that year, which reference points read, so on a test
+  fixture `catch_hat` was 0 against 10 observed and Ftarget and Flimit stuck at 1.
+
 # Rceattle 5.66.6
 
 ## Bug fixes

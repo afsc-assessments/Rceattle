@@ -89,3 +89,25 @@ testthat::test_that("a Fixed fleet holds its last supplied year, not its last hi
   testthat::expect_equal(sum(q$sel_at_age[1, 1, , ny]), 0)
   testthat::expect_equal(as.numeric(q$sel_at_age[1, 1, , ny + 1]), sel)
 })
+
+testthat::test_that("data_check() warns when a Fixed fishery has no row for endyr", {
+  testthat::skip_if_not_installed("TMB")
+  warns <- function(d) {
+    d$HCR <- 0
+    x <- suppressMessages(suppressWarnings(Rceattle::switch_check(Rceattle::clean_data(d))))
+    w <- character(0)
+    withCallingHandlers(suppressMessages(data_check(x)), warning = function(e) {
+      w <<- c(w, conditionMessage(e))
+      invokeRestart("muffleWarning")
+    })
+    any(grepl("no emp_sel row for endyr", w))
+  }
+  d <- make_test_data(nyrs = 8, nages = 5, seed = 1)
+  sel <- c(0.1, 0.4, 0.8, 1, 1)
+
+  testthat::expect_true(warns(.fixed_sel(d, 2, sel, years = d$styr:(d$endyr - 1))))
+  testthat::expect_false(warns(.fixed_sel(d, 2, sel, years = d$styr:d$endyr)))
+  testthat::expect_false(warns(.fixed_sel(d, 2, sel)))
+  # A survey with this shape loses only that year's index, as BS2017SS's EIT does.
+  testthat::expect_false(warns(.fixed_sel(d, 1, sel, years = d$styr:(d$endyr - 1))))
+})

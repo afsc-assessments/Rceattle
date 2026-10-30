@@ -1125,6 +1125,7 @@ data_check <- function(data_list) {
     # emp_sel presence required when any fleet has Selectivity = "Fixed"
     # (declarative requirement table).
     errors <- c(errors, .rce_check_presence(data_list, "emp_sel"))
+    .warn_fixed_fishery_endyr(data_list)
 
     # Estimated selectivity needs comp or CAAL data with Year > 0 to be
     # identifiable; otherwise the selectivity parameters are unconstrained and
@@ -2624,6 +2625,24 @@ data_check <- function(data_list) {
   errors
 }
 
+
+# Reference points read the terminal hindcast year's selectivity, and a Fixed fleet has
+# none where emp_sel has no row, so a Fixed fishery there has no catch or reference points.
+.warn_fixed_fishery_endyr <- function(data_list) {
+  fc <- data_list$fleet_control
+  fishery <- .canon_switch(fc$Fleet_type, .rce_allowed_map("Fleet_type")) == "Fishery"
+  fixed <- as.character(fc$Selectivity) == "Fixed"
+  covered <- data_list$emp_sel$Fleet_code[data_list$emp_sel$Year %in% c(0, data_list$endyr)]
+  bad <- fishery & fixed & !fc$Fleet_code %in% covered
+  if (any(bad)) {
+    warning(paste0(
+      "Fixed-selectivity fishery fleet(s) ", paste(fc$Fleet_name[bad], collapse = ", "),
+      " have no emp_sel row for endyr (", data_list$endyr, "), so their selectivity is 0 ",
+      "in that year and reference points read it. Add a row for endyr, or use Year = 0 ",
+      "to apply one curve to every year."), call. = FALSE)
+  }
+  invisible(NULL)
+}
 
 # Fixed selectivity is at age whatever Selectivity_dimension says, so CAAL on a Fixed
 # fleet labelled "Length" is as unpredicted as on an age-dimensioned one.
