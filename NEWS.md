@@ -17,8 +17,8 @@ version throughout.
 
 ## Bug fixes
 
-* **A `Selectivity = "Fixed"` fleet now holds its last supplied selectivity through
-  the projection, as an estimated fleet does.** It was 0 in every projection year.
+* **A `Selectivity = "Fixed"` fleet now holds the last hindcast year it supplied
+  through the projection, as an estimated fleet does.** It was 0 in every projection year.
   A `Fixed` fishery then had no exploitable biomass, so an MSE with one took no catch
   (measured under `ConstantF` and `NPFMC`) and its reported `SBF` was wrong under
   every rule tried. Its projected F was also too low under `HCR = "NPFMC"`: on a test
@@ -26,7 +26,7 @@ version throughout.
   Under `ConstantFSSB` with `DynamicHCR = TRUE` its objective moves as well (201.04 to
   -6.08 on a test fixture). A `Fixed` survey predicted an index and comps of 0 there,
   which a direct `sim_mod()` returned as observations; an MSE with one and
-  `simulate_data = TRUE` moves because those rows change later draws. Other rules' F,
+  `simulate_data = TRUE` can move. Other rules' F,
   hindcast estimates apart from that `ConstantFSSB` case, and models with no `Fixed`
   fleet do not move. A hindcast year with no `emp_sel` row stays 0.
 
@@ -34,9 +34,10 @@ version throughout.
   `Selectivity_dimension = "Length"`. Fixed selectivity is always at age, so those
   data inform nothing, as on an age-dimensioned fleet.
 
-* `data_check()` now warns when a `Fixed` fishery has no `emp_sel` row for `endyr`.
-  Its selectivity is 0 in that year, which reference points read, so on a test
-  fixture `catch_hat` was 0 against 10 observed and Ftarget and Flimit stuck at 1.
+* `data_check()` now warns when a `Fixed` fishery has no `emp_sel` row for `endyr`
+  for any sex. Its selectivity is 0 in that year, which reference points and projected
+  F read: on a test fixture `catch_hat` was 0 against 10 observed, Ftarget and Flimit
+  stuck at 1, and the objective was `Inf`. That year still predicts no catch.
 
 # Rceattle 5.66.6
 

@@ -108,6 +108,43 @@ testthat::test_that("data_check() warns when a Fixed fishery has no row for endy
   testthat::expect_true(warns(.fixed_sel(d, 2, sel, years = d$styr:(d$endyr - 1))))
   testthat::expect_false(warns(.fixed_sel(d, 2, sel, years = d$styr:d$endyr)))
   testthat::expect_false(warns(.fixed_sel(d, 2, sel)))
-  # A survey with this shape loses only that year's index, as BS2017SS's EIT does.
+  # A survey with this shape predicts nothing that year; BS2017SS's EIT has no data there.
   testthat::expect_false(warns(.fixed_sel(d, 1, sel, years = d$styr:(d$endyr - 1))))
+})
+
+testthat::test_that("the endyr warning keys on sex, and a blank Selectivity still gets its own error", {
+  testthat::skip_if_not_installed("TMB")
+  d <- Rceattle::GOAatf
+  flt <- which(as.character(d$fleet_control$Fleet_type) %in% c("1", "Fishery"))[1]
+  d$fleet_control$Selectivity[flt] <- "Fixed"
+  d$comp_data <- d$comp_data[d$comp_data$Fleet_code != flt, ]
+  row <- function(sex, year) {
+    cbind(data.frame(Fleet_name = as.character(d$fleet_control$Fleet_name[flt]), Fleet_code = flt,
+                     Species = 1L, Sex = sex, Year = year),
+          as.data.frame(matrix(1, 1, d$nages[1], dimnames = list(NULL, paste0("Comp_", seq_len(d$nages[1]))))))
+  }
+  w <- function(es) {
+    x <- d
+    x$emp_sel <- es
+    got <- character(0)
+    withCallingHandlers(.warn_fixed_fishery_endyr(x), warning = function(e) {
+      got <<- c(got, conditionMessage(e))
+      invokeRestart("muffleWarning")
+    })
+    length(got) > 0
+  }
+  testthat::expect_true(w(row(1L, d$endyr)))
+  testthat::expect_false(w(rbind(row(1L, d$endyr), row(2L, d$endyr))))
+  testthat::expect_false(w(row(0L, d$endyr)))
+
+  # An unset Selectivity must reach switch_check()'s message, not an `if (NA)`.
+  blank <- make_test_data(nyrs = 8, nages = 5, seed = 1, growth = "vonBertalanffy")
+  blank$fleet_control$Selectivity[2] <- NA
+  blank$fleet_control$Selectivity_dimension <- "Length"
+  testthat::expect_error(
+    suppressWarnings(suppressMessages(Rceattle::fit_mod(
+      blank, file = NULL, estimateMode = "DebugBuild", msmMode = 0,
+      growthFun = Rceattle::build_growth(fun = "vonBertalanffy"),
+      fit_control = Rceattle::fit_control(getsd = FALSE, verbose = 0)))),
+    "Invalid 'Selectivity'")
 })

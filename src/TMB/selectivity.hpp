@@ -218,7 +218,7 @@ void calculate_selectivity(
       }
     }
   }
-  // Fixed selectivity holds its last supplied year through the projection, as run_mse()
+  // Fixed selectivity holds its last supplied hindcast year through the projection, as run_mse()
   // does for new years and normalize_and_project_selectivity() for estimated selectivity.
   for (int flt = 0; flt < n_flt; flt++) {
     if (flt_sel_type(flt) != 0) continue;
