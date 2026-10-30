@@ -46,17 +46,26 @@
 #' variability there and is narrower than a forecast's prediction interval.
 #'
 #' Where that rebuild fails -- it errors, or its Hessian is not positive
-#' definite, or it reports no finite standard error -- the peel keeps its
-#' point estimates and carries no `sdrep` at all, rather than the forecast
-#' refit's zero standard errors. No warning is raised, since the point
-#' estimates and Mohn's rho are unaffected; the reason is in
-#' `attr(peel, "sd_report_error")` for each element of `Rceattle_list`, and
-#' `print()` counts such peels.
+#' definite, or it reports no finite standard error -- the peel keeps its point
+#' estimates and the reason is in `attr(peel, "sd_report_error")`; `print()`
+#' counts such peels. `peel$sdrep` still holds what `TMB::sdreport()` returned
+#' (`NULL` if the rebuild errored before that). Under an indefinite Hessian its
+#' numbers are not valid standard errors, and after a failed correction its
+#' forecast years leave out F's response to the hindcast, so plots,
+#' `as.data.frame()` and `vcov()` read none of it. No warning is raised, since
+#' the point estimates and Mohn's rho are unaffected.
 #'
 #' @return a list of 1. a list of Rceattle models and 2. Mohn's rho per species.
 #'
-#'   A peel that did not converge is dropped, so \code{Rceattle_list} can be
-#'   shorter than \code{peels + 1}, with a warning. Entries are named for their
+#'   A peel whose hindcast did not converge is dropped, so
+#'   \code{Rceattle_list} can be shorter than \code{peels + 1}, with a warning.
+#'   A peel whose forecast refit alone did not converge is kept without a
+#'   warning: its hindcast and terminal-year rho stand, but F was not fitted to
+#'   the peeled catch, so it is left out of the \code{$mohns} rows with
+#'   \code{Forecast year} above 0, whose \code{N} shows it. Its forecast years
+#'   and their standard errors stay on the peel, so read them only after checking
+#'   \code{attr(peel, "forecast_error")}, the reason, which \code{print()} counts.
+#'   Entries are named for their
 #'   own terminal year (\code{Year_2017}, ...), so index by name:
 #'   \code{Rceattle_list[[3]]} is not necessarily the 3-year peel. With no peel
 #'   left, rho is \code{NaN} and the function warns. Each peel reports its own
@@ -75,7 +84,7 @@
 #'       retrospective forecast ends.}
 #'     \item{\code{projyr}}{the end of the harvest-control-rule projection.}
 #'   }
-#'   A peel whose standard errors could not be rebuilt carries
+#'   A peel whose standard errors are not usable carries
 #'   \code{attr(peel, "sd_report_error")}, a one-line reason naming the peel and
 #'   its terminal year; it is absent on every other peel.
 #'
@@ -359,8 +368,9 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
     # years' log_F) leaves only a handful of F parameters free -- so its gradient
     # says nothing about whether the hindcast converged. Mohn's rho reads the
     # hindcast quantities, which come from these parameters, so a peel that
-    # diverged here has to be dropped even when the F refit lands cleanly.
-    hindcast_converged <- .refit_converged(newmod)
+    # diverged here has to be dropped even when the F refit lands cleanly, and
+    # the F refit would only start from those diverged parameters.
+    if (!.refit_converged(newmod)) return(NULL)
 
     # Forecast ----
     peeled_pars <- newmod$estimated_params
@@ -441,6 +451,16 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
       )
     )
 
+    # Whether F fitted the peeled catch is the gradient's question: this Hessian
+    # covers F alone, so it cannot speak to the peel. The hindcast is held fixed
+    # here, so a failure leaves the terminal-year rho standing and raises no
+    # warning; Mohn's rho below leaves the peel out of the forecast years.
+    if (!.refit_converged(newmod, hessian = FALSE)) {
+      attr(newmod, "forecast_error") <-
+        paste0("peel ", i, " (through ", endyr_peel, "): the forecast refit did ",
+               "not fit F to the peeled catch (max|gradient| > 1)")
+    }
+
     # * Standard errors for the peeled hindcast ----
     # The refit above holds the hindcast fixed, so its sdreport gives every
     # hindcast quantity a standard error of zero. Report instead from the same
@@ -481,39 +501,37 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
         # Under random effects also return the inverse covariance of fixed and
         # random effects together, which the correction needs.
         sdr <- TMB::sdreport(obj, getJointPrecision = length(obj$env$random) > 0)
-        if (isTRUE(sdr$pdHess) && length(fitted_rows)) {
-          sdr <- .rce_catch_conditioned_sd(obj, sdr, fitted_rows, data_list$styr)
-        }
-        list(sdrep = sdr)
+        # On a failed correction the sdreport is still returned, flagged below.
+        tryCatch({
+          if (isTRUE(sdr$pdHess) && length(fitted_rows)) {
+            sdr <- .rce_catch_conditioned_sd(obj, sdr, fitted_rows, data_list$styr)
+          }
+          list(sdrep = sdr)
+        }, error = function(e) list(
+          sdrep = sdr,
+          error = paste("the catch-conditioned correction failed:",
+                        conditionMessage(e))))
       }, error = function(e) list(error = conditionMessage(e)))
 
-      # A rebuild fails two ways and only one throws: TMB::sdreport() returns
-      # pdHess = FALSE on a Hessian it cannot factor rather than erroring. Both
-      # mean no usable band, so judge the returned object too, and name which
-      # condition fired -- they are different problems for the reader.
+      # A rebuild can fail without throwing: TMB::sdreport() returns pdHess = FALSE
+      # on a Hessian it cannot factor rather than erroring. That also means no
+      # usable band, so judge the returned object too, and name which condition
+      # fired -- they are different problems for the reader.
+      .sdr <- sd_try[["sdrep"]]
       if (is.null(sd_try[["error"]])) {
-        .sdr <- sd_try[["sdrep"]]
         if (isFALSE(.sdr[["pdHess"]])) {
-          sd_try <- list(
-            error = "the rebuilt hindcast Hessian is not positive definite")
+          sd_try[["error"]] <- "the rebuilt hindcast Hessian is not positive definite"
         } else if (!any(is.finite(.sdr[["sd"]]))) {
-          sd_try <- list(
-            error = "the rebuilt hindcast reported no finite standard error")
+          sd_try[["error"]] <- "the rebuilt hindcast reported no finite standard error"
         }
       }
 
-      if (is.null(sd_try[["error"]])) {
-        newmod$sdrep <- sd_try[["sdrep"]]
-      } else {
-        # A peel that cannot be reported is not a peel that failed: keep its
-        # point estimates and leave the band absent, the state getsd = FALSE
-        # leaves. The refit's own sdrep is what this block replaces -- a
-        # standard error of 0 across the whole span the peel is drawn over.
-        newmod$sdrep <- NULL
-        # Not recorded on .conv_hindcast$sd_present: .refit_converged() drops a
-        # peel on `sd_requested && !sd_present`, which would move Mohn's rho.
-        # No warning: a peel kept with this reason converged (it is dropped
-        # otherwise), so the reason rides on the peel.
+      # A peel that cannot be reported is not a peel that failed: keep its point
+      # estimates and the sdreport TMB returned (none if the rebuild threw first).
+      # The reason stops plots and tables reading it, whose finite values are not
+      # valid standard errors under an indefinite Hessian.
+      newmod$sdrep <- .sdr
+      if (!is.null(sd_try[["error"]])) {
         attr(newmod, "sd_report_error") <-
           paste0("peel ", i, " (through ", endyr_peel, "): ", sd_try[["error"]])
       }
@@ -532,12 +550,7 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
     # ?retrospective). Mohn's rho reads `endyr_peel`, not this.
     newmod$data_list$endyr <- endyr_peel
 
-    # Return model only if BOTH refits converged, else NULL (dropped
-    # post-dispatch)
-    if (hindcast_converged && .refit_converged(newmod)) {
-      return(newmod)
-    }
-    return(NULL)
+    newmod
   } # End run_one_peel closure
 
 
@@ -571,7 +584,7 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
     peel_results <- lapply(1:peels, run_one_peel)
   }
 
-  # Drop non-converged peels and prepend the original model
+  # Drop peels whose hindcast did not converge and prepend the original model
   peel_results <- peel_results[!vapply(peel_results, is.null, logical(1))]
   # A warning, not a message: rho below is averaged over the peels that
   # survive, so a drop changes the number that gets reported.
@@ -602,6 +615,9 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
     endyr_peel <- mod_list[[i + 1]]$data_list$endyr_peel
     nyrs_peel <- mod_list[[i + 1]]$data_list$endyr_peel - styr + 1
     ind <- 1
+    # F not fitted to the peeled catch: its forecast years are not a forecast of
+    # that catch, while its terminal year comes from the hindcast.
+    forecast_fitted <- is.null(attr(mod_list[[i + 1]], "forecast_error", exact = TRUE))
 
     # * Loop output ----
     for (j in 1:length(objects)) {
@@ -614,16 +630,19 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
         # If data exist for forecast (save)
         if(endyr_peel + yr <= endyr){
 
-          # * Get full and peeled models ----
-          base <- term_quantities[, nyrs_peel + yr]
-          peel <- retro_quantities[, nyrs_peel + yr]
-          rel_error <- ((peel - base)/base)
-
-          # * Save and sum relative error ----
           mohns[ind, 1] <- objects[j]         # Object
           mohns[ind, 2] <- yr                 # Year
-          mohns[ind, 3] <- mohns[ind, 3] + 1  # N
-          mohns[ind, 4:(data_list$nspp + 3) ] <- mohns[ind, 4:(data_list$nspp + 3)] + rel_error # Relative error
+
+          if (yr == 0 || forecast_fitted) {
+            # * Get full and peeled models ----
+            base <- term_quantities[, nyrs_peel + yr]
+            peel <- retro_quantities[, nyrs_peel + yr]
+            rel_error <- ((peel - base)/base)
+
+            # * Save and sum relative error ----
+            mohns[ind, 3] <- mohns[ind, 3] + 1  # N
+            mohns[ind, 4:(data_list$nspp + 3) ] <- mohns[ind, 4:(data_list$nspp + 3)] + rel_error # Relative error
+          }
         }
         ind = ind+1
       }
@@ -742,8 +761,17 @@ print.Rceattle_retro <- function(x, band = 0.2, ...) {
     function(m) !is.null(attr(m, "sd_report_error", exact = TRUE)),
     logical(1)))
   if (n_noband > 0L) {
-    cat("  ", n_noband, " peel(s) carry no standard errors",
+    cat("  ", n_noband, " peel(s) have no usable standard errors",
         " (the hindcast report failed to rebuild)\n", sep = "")
+  }
+
+  n_noforecast <- sum(vapply(
+    x$Rceattle_list,
+    function(m) !is.null(attr(m, "forecast_error", exact = TRUE)),
+    logical(1)))
+  if (n_noforecast > 0L) {
+    cat("  ", n_noforecast, " peel(s) left out of the forecast-year rows of $mohns",
+        " (the forecast refit did not converge)\n", sep = "")
   }
 
   if (nrow(term)) {

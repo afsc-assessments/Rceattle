@@ -12,6 +12,31 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.66.5
+
+## Behavior changes
+
+* **`retrospective()` warns about, and drops, a peel only when its hindcast did
+  not converge.** A peel whose forecast refit alone did not converge, including
+  one whose F-only Hessian was not positive definite, used to be dropped with a
+  warning. It is now kept with no warning: that refit holds the hindcast fixed,
+  so the hindcast and the terminal-year rho stand. Because F was not fitted to
+  the peeled catch, the peel is left out of the `$mohns` rows with
+  `Forecast year` above 0, whose `N` shows it. The reason is on
+  `attr(peel, "forecast_error")` and `print()` counts such peels. An F-only
+  Hessian that is not positive definite no longer drops a peel or sets this.
+  Retrospectives where this happens return more peels, and their terminal-year
+  rho changes because it averages over those peels too. A dropped hindcast also
+  no longer runs its forecast refit.
+* **A retrospective peel keeps its `sdreport`.** Where the standard-error rebuild
+  fails, `peel$sdrep` now holds what `TMB::sdreport()` returned rather than
+  `NULL`, which remains only if the rebuild errored first.
+  `attr(peel, "sd_report_error")` still gives the reason, which now also covers a
+  failed catch-conditioned correction. Those numbers are not usable standard
+  errors, so plots, `as.data.frame()` and `vcov()` still read none of them, and
+  `plot_timeseries()` and its wrappers now warn with that reason. `print()` now
+  says such peels "have no usable standard errors".
+
 # Rceattle 5.66.4
 
 ## Behavior changes

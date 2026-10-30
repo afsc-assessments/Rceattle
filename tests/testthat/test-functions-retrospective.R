@@ -192,11 +192,10 @@ testthat::test_that("retrospective survives dropped peels (regression)", {
   endyr <- fit$data_list$endyr
 
   # Key the stub off the model's OWN terminal year, not a call counter: the gate
-  # is called twice per peel but `hindcast_converged && .refit_converged(newmod)`
-  # short-circuits, so a peel that fails the first check never makes the second
-  # and any count-based scheme silently drifts out of step.
+  # is called twice per peel but a peel that fails the first check returns before
+  # the second, so any count-based scheme silently drifts out of step.
   keep_only <- function(keep_endyrs) {
-    function(newmod, max_grad = 1) {
+    function(newmod, max_grad = 1, hessian = TRUE) {
       isTRUE(newmod$data_list$endyr_peel %in% keep_endyrs)
     }
   }
@@ -840,8 +839,8 @@ testthat::test_that("a peel's sd rebuild is stationary but for R_log_sd under ra
   # own prediction and a small sd, converges to the catch-conditioned band.
   limit_sd <- peel_reference_sdreport(fit, peel, ep, hold_F = FALSE,
                                       catch_sd = 0.01)
-  testthat::expect_equal(ssb_sd(peel$sdrep)[, forecast_yrs],
-                         ssb_sd(limit_sd)[, forecast_yrs], tolerance = 0.01)
+  testthat::expect_lt(max(abs(ssb_sd(peel$sdrep)[, forecast_yrs] /
+                               ssb_sd(limit_sd)[, forecast_yrs] - 1)), 0.01)
 })
 
 # Without random effects the old report -- hindcast and peeled F free, peeled
@@ -890,12 +889,12 @@ testthat::test_that("a peel's catch-conditioned band matches the old joint repor
 # reports standard errors for its own hindcast", which asserts the complement:
 # the REBUILT errors are > 0). The band was
 # then drawn as a certain quantity rather than an unmeasured one. The peel now
-# carries no sdrep at all, which is the state getsd = FALSE already leaves, and
-# records why on attr(peel, "sd_report_error"). It raises no warning, because
-# the peel converged and Mohn's rho reads point estimates only. A rebuild fails
-# three ways -- it throws, cannot factor its Hessian, or reports nothing finite
-# -- and each is covered below.
-testthat::test_that("a peel whose sd rebuild fails carries no sdrep, and records why", {
+# keeps what TMB::sdreport() returned, or no sdrep if it threw, and records why
+# on attr(peel, "sd_report_error"), which is what stops plots drawing it. It
+# raises no warning, because the peel converged and Mohn's rho reads point
+# estimates only. A rebuild fails four ways -- it throws, cannot factor its
+# Hessian, reports nothing finite, or its correction throws -- each covered below.
+testthat::test_that("a peel whose sd rebuild fails keeps its sdreport, and records why", {
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("TMB")
 
@@ -1029,7 +1028,7 @@ testthat::test_that("a peel whose sd rebuild fails carries no sdrep, and records
     list(fit = res, warns = warns)
   }
 
-  check_no_band <- function(got, pattern) {
+  check_flagged <- function(got, fake, pattern) {
     testthat::expect_false(any(grepl("standard errors", got$warns)))
     refits_b <- vapply(got$fit$Rceattle_list,
                        function(x) x$data_list$endyr_peel < full_endyr,
@@ -1039,22 +1038,130 @@ testthat::test_that("a peel whose sd rebuild fails carries no sdrep, and records
     # number of peels Mohn's rho averages over.
     testthat::expect_equal(sum(refits_b), 1L)
     for (m in got$fit$Rceattle_list[refits_b]) {
-      testthat::expect_null(m$sdrep)          # absent, not an object of NaN
+      testthat::expect_identical(m$sdrep, fake)   # returned as TMB gave it
       testthat::expect_match(attr(m, "sd_report_error", exact = TRUE), pattern)
     }
   }
 
   # Arm 1: an unfactorable Hessian, but the report itself is finite.
-  check_no_band(
-    run_bad_rebuild(structure(list(pdHess = FALSE, sd = 1, value = c(ssb = 0)),
-                              class = "sdreport")),
-    "not positive definite")
+  fake_indef <- structure(list(pdHess = FALSE, sd = 1, value = c(ssb = 0)),
+                          class = "sdreport")
+  check_flagged(run_bad_rebuild(fake_indef), fake_indef, "not positive definite")
 
   # Arm 2: a factorable Hessian that still reports nothing finite.
-  check_no_band(
-    run_bad_rebuild(structure(list(pdHess = TRUE, sd = NA_real_,
-                                   value = c(ssb = 0)), class = "sdreport")),
-    "no finite standard error")
+  fake_nan <- structure(list(pdHess = TRUE, sd = NA_real_, value = c(ssb = 0)),
+                        class = "sdreport")
+  check_flagged(run_bad_rebuild(fake_nan), fake_nan, "no finite standard error")
+
+  # Arm 3: a real sdreport whose correction throws, so forecast-year bands are
+  # left at the held-F report and the reason says so.
+  local({
+    testthat::local_mocked_bindings(
+      .rce_catch_conditioned_sd = function(...) stop("forced correction failure"),
+      .package = "Rceattle")
+    r_c <- suppressMessages(suppressWarnings(
+      retrospective(fit, peels = 1, cores = 1, getsd = TRUE)))
+    m <- r_c$Rceattle_list[[paste0("Year_", full_endyr - 1)]]
+    testthat::expect_true(isTRUE(m$sdrep$pdHess))
+    testthat::expect_match(attr(m, "sd_report_error", exact = TRUE),
+                           "catch-conditioned correction failed: forced correction failure")
+  })
+})
+
+# Only a hindcast's non-convergence warns. A forecast refit fits the peeled F to
+# catch with the hindcast held fixed, so its failure leaves the terminal-year rho
+# standing but its forecast years are not a forecast of that catch: the peel stays,
+# silently, and leaves the forecast-year rows of $mohns, which would otherwise
+# average in an F that never fitted the catch. Its Hessian covers F alone, so that
+# alone neither drops the peel nor takes it out of those rows.
+testthat::test_that("only a peel's hindcast non-convergence warns or drops it", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("TMB")
+
+  data(BS2017SS, envir = environment())
+  d <- BS2017SS
+  d$projyr <- 2020
+  d$fleet_control$Proj_F_proportion <- rep(1, 7)
+  fit <- suppressMessages(suppressWarnings(fit_mod(
+    data_list = d, inits = NULL, file = NULL, estimateMode = 0,
+    random_rec = FALSE, msmMode = 0,
+    fit_control = fit_control(phase = FALSE, getsd = FALSE, verbose = 0))))
+  endyr <- fit$data_list$endyr
+  ep <- endyr - 2
+
+  # Mark one refit of the 2-year peel as unconverged. Its catch tells them apart:
+  # the hindcast refit has peeled catch at 0, the forecast refit has it back. The
+  # 1-year peel's forecast refit gets only an indefinite Hessian.
+  real_refit <- Rceattle:::.refit_like
+  run <- function(fail, getsd) {
+    warns <- character()
+    res <- NULL
+    local({
+      testthat::local_mocked_bindings(
+        .refit_like = function(...) {
+          a <- list(...)
+          m <- do.call(real_refit, a)
+          if (identical(a[["estimateMode"]], 3)) return(m)
+          cd <- a$data_list$catch_data
+          is_forecast <- any(cd$Catch[cd$Year > a$data_list$endyr_peel] > 0)
+          if (identical(a$data_list$endyr_peel, ep) &&
+              identical(fail, if (is_forecast) "forecast" else "hindcast")) {
+            m$.conv_hindcast$max_gradient <- 5
+          } else if (is_forecast && identical(fail, "forecast")) {
+            m$.conv_hindcast$pdHess <- FALSE
+          }
+          m
+        }, .package = "Rceattle")
+      withCallingHandlers(
+        res <<- suppressMessages(
+          retrospective(fit, peels = 2, cores = 1, getsd = getsd)),
+        warning = function(w) {
+          warns <<- c(warns, conditionMessage(w))
+          invokeRestart("muffleWarning")
+        })
+    })
+    list(fit = res, warns = warns)
+  }
+  rows <- function(r, yr) r$mohns[r$mohns$Object == "ssb" &
+                                    r$mohns[["Forecast year"]] == yr, ]
+
+  ok <- run("none", getsd = FALSE)$fit
+
+  # Forecast refit failed: kept, no warning, out of the forecast-year rows only.
+  got <- run("forecast", getsd = TRUE)
+  testthat::expect_false(any(grepl("dropped|converge", got$warns)))
+  testthat::expect_true(paste0("Year_", ep) %in% names(got$fit$Rceattle_list))
+  r <- got$fit
+  testthat::expect_match(
+    attr(r$Rceattle_list[[paste0("Year_", ep)]], "forecast_error", exact = TRUE),
+    "did not fit F to the peeled catch")
+  testthat::expect_null(
+    attr(r$Rceattle_list[[paste0("Year_", endyr - 1)]], "forecast_error", exact = TRUE))
+
+  testthat::expect_equal(rows(r, 0)$N, 2)
+  sp <- fit$data_list$spnames
+  testthat::expect_equal(rows(r, 0)[, sp], rows(ok, 0)[, sp], tolerance = 1e-6)
+  # Year 1 is the 1-year peel's alone; year 2 only the failed peel reached.
+  testthat::expect_equal(rows(r, 1)$N, 1)
+  one <- ok$Rceattle_list[[paste0("Year_", endyr - 1)]]$quantities$ssb
+  col <- endyr - fit$data_list$styr + 1
+  testthat::expect_equal(
+    unlist(rows(r, 1)[, sp], use.names = FALSE),
+    as.numeric(one[, col] / fit$quantities$ssb[, col] - 1), tolerance = 1e-6)
+  testthat::expect_equal(rows(r, 2)$N, 0)
+  testthat::expect_true(all(is.nan(unlist(rows(r, 2)[, sp]))))
+  testthat::expect_true(any(grepl(
+    "1 peel\\(s\\) left out of the forecast-year rows",
+    utils::capture.output(print(r)))))
+  testthat::expect_false(any(grepl(
+    "left out of the forecast-year rows", utils::capture.output(print(ok)))))
+
+  # Hindcast failed: dropped, with the warning.
+  got_h <- run("hindcast", getsd = FALSE)
+  testthat::expect_true(any(grepl("1 of 2 peel dropped", got_h$warns)))
+  testthat::expect_null(
+    attr(got_h$fit$Rceattle_list[[paste0("Year_", endyr - 1)]], "forecast_error", exact = TRUE))
+  testthat::expect_false(paste0("Year_", ep) %in% names(got_h$fit$Rceattle_list))
 })
 
 

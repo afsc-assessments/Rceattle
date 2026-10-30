@@ -246,8 +246,8 @@
 #'
 #' This judges the model it is handed, so a caller that re-fits more than once
 #' has to call it more than once: [retrospective()] runs a second, F-only refit
-#' whose gradient says nothing about whether the peeled hindcast converged, and
-#' gates on both.
+#' whose gradient says nothing about whether the peeled hindcast converged. It
+#' drops a peel on the hindcast's verdict and records the F refit's on the peel.
 #'
 #' The threshold is [convergence_diagnostics()]'s own `max_gradient` FAIL tier
 #' and compares the same way (`>`, not `>=`), so the two cannot disagree at the
@@ -276,9 +276,10 @@
 #' @param newmod A fitted `Rceattle`, or `NULL`.
 #' @param max_grad Drop the run above this maximum absolute marginal gradient.
 #'   Defaults to 1, `.check_optimizer()`'s FAIL tier.
+#' @param hessian Also judge a requested `sdreport`; `FALSE` judges the gradient alone.
 #' @return `TRUE` to keep the run, `FALSE` to drop it.
 #' @noRd
-.refit_converged <- function(newmod, max_grad = 1) {
+.refit_converged <- function(newmod, max_grad = 1, hessian = TRUE) {
   if (is.null(newmod)) return(FALSE)
 
   ch <- newmod[[".conv_hindcast"]]
@@ -307,7 +308,7 @@
   # TMB::sdreport() directly -- which does NOT error on a singular Hessian, it
   # returns an object with pdHess = FALSE. Testing only for a missing SD would
   # keep on the fallback path exactly what it drops on the TMBhelper path.
-  if (isTRUE(ch[["sd_requested"]]) &&
+  if (hessian && isTRUE(ch[["sd_requested"]]) &&
       (!isTRUE(ch[["sd_present"]]) || isFALSE(ch[["pdHess"]]))) {
     return(FALSE)
   }

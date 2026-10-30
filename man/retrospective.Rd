@@ -53,8 +53,15 @@ scripts keep working. Supplying both is an error.}
 \value{
 a list of 1. a list of Rceattle models and 2. Mohn's rho per species.
 
-A peel that did not converge is dropped, so \code{Rceattle_list} can be
-shorter than \code{peels + 1}, with a warning. Entries are named for their
+A peel whose hindcast did not converge is dropped, so
+\code{Rceattle_list} can be shorter than \code{peels + 1}, with a warning.
+A peel whose forecast refit alone did not converge is kept without a
+warning: its hindcast and terminal-year rho stand, but F was not fitted to
+the peeled catch, so it is left out of the \code{$mohns} rows with
+\code{Forecast year} above 0, whose \code{N} shows it. Its forecast years
+and their standard errors stay on the peel, so read them only after checking
+\code{attr(peel, "forecast_error")}, the reason, which \code{print()} counts.
+Entries are named for their
 own terminal year (\code{Year_2017}, ...), so index by name:
 \code{Rceattle_list[[3]]} is not necessarily the 3-year peel. With no peel
 left, rho is \code{NaN} and the function warns. Each peel reports its own
@@ -73,7 +80,7 @@ was fit through. Equal to each other.}
 retrospective forecast ends.}
 \item{\code{projyr}}{the end of the harvest-control-rule projection.}
 }
-A peel whose standard errors could not be rebuilt carries
+A peel whose standard errors are not usable carries
 \code{attr(peel, "sd_report_error")}, a one-line reason naming the peel and
 its terminal year; it is absent on every other peel.
 
@@ -123,12 +130,14 @@ fixed at the projected deviation, so the band leaves out recruitment
 variability there and is narrower than a forecast's prediction interval.
 
 Where that rebuild fails -- it errors, or its Hessian is not positive
-definite, or it reports no finite standard error -- the peel keeps its
-point estimates and carries no \code{sdrep} at all, rather than the forecast
-refit's zero standard errors. No warning is raised, since the point
-estimates and Mohn's rho are unaffected; the reason is in
-\code{attr(peel, "sd_report_error")} for each element of \code{Rceattle_list}, and
-\code{print()} counts such peels.
+definite, or it reports no finite standard error -- the peel keeps its point
+estimates and the reason is in \code{attr(peel, "sd_report_error")}; \code{print()}
+counts such peels. \code{peel$sdrep} still holds what \code{TMB::sdreport()} returned
+(\code{NULL} if the rebuild errored before that). Under an indefinite Hessian its
+numbers are not valid standard errors, and after a failed correction its
+forecast years leave out F's response to the hindcast, so plots,
+\code{as.data.frame()} and \code{vcov()} read none of it. No warning is raised, since
+the point estimates and Mohn's rho are unaffected.
 }
 \examples{
 \donttest{

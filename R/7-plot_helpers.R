@@ -873,7 +873,7 @@
 #' @keywords internal
 #' @noRd
 .rce_series_sd <- function(model, name, n_need, n_total = n_need) {
-  sdrep <- model$sdrep
+  sdrep <- .rce_usable_sdrep(model)
   if (is.null(sdrep) || is.null(sdrep$value)) return(NULL)
   rows <- which(names(sdrep$value) == name)
   if (length(rows) != n_total || n_need > n_total) return(NULL)
@@ -886,6 +886,22 @@
     out[((seq_along(out) - 1) %% nspp + 1) %in% fixed] <- NA
   }
   out[seq_len(n_need)]
+}
+
+
+#' The sdreport to read standard errors from
+#'
+#' A retrospective peel whose standard-error rebuild failed keeps what
+#' `TMB::sdreport()` returned, but under an indefinite Hessian its finite values
+#' are not valid standard errors, so it gives no band, table entry or `vcov()`.
+#'
+#' @param model One fitted `Rceattle` object.
+#' @return `model$sdrep`, or `NULL` where `attr(model, "sd_report_error")` is set.
+#' @keywords internal
+#' @noRd
+.rce_usable_sdrep <- function(model) {
+  if (!is.null(attr(model, "sd_report_error", exact = TRUE))) return(NULL)
+  model$sdrep
 }
 
 
@@ -1009,7 +1025,7 @@ NULL
 #' @keywords internal
 #' @noRd
 .rce_sel_se <- function(model) {
-  sdrep <- model$sdrep
+  sdrep <- .rce_usable_sdrep(model)
   idx   <- model$quantities$log_sel_at_age_index
   if (is.null(sdrep) || is.null(sdrep$value) || is.null(idx)) return(NULL)
   k <- names(sdrep$value) == "log_sel_at_age"

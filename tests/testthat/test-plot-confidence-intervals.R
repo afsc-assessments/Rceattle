@@ -125,6 +125,20 @@ testthat::test_that("a fit without sdreport warns once and draws no interval", {
   testthat::expect_true(all(is.na(p$data$lower95)))
 })
 
+testthat::test_that("a peel whose sd rebuild failed draws no band and says why", {
+  fit <- fit_with_sd()
+  testthat::skip_if(is.null(fit$sdrep), "fit carries no sdreport")
+  attr(fit, "sd_report_error") <- "peel 1 (through 2015): indefinite Hessian"
+
+  testthat::expect_warning(p <- Rceattle::plot_ssb(fit, add_ci = TRUE),
+                           "peel 1 \\(through 2015\\): indefinite Hessian")
+  testthat::expect_true(all(is.na(p$data$lower95)))
+  testthat::expect_null(Rceattle:::.rce_sel_se(fit))
+  tab <- as.data.frame(fit)
+  testthat::expect_true(all(is.na(tab$se)))
+  testthat::expect_null(stats::vcov(fit))
+})
+
 testthat::test_that("the standard errors read are the ones the block actually holds", {
   # The series are flattened column-major over the whole modelled period, so a
   # hindcast plot takes a leading slice. Taking that slice without checking the

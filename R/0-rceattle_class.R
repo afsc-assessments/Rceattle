@@ -275,7 +275,7 @@ coef.Rceattle <- function(object, ...) {
 #'   (i.e. the fit was produced with `getsd = FALSE`).
 #' @export
 vcov.Rceattle <- function(object, ...) {
-  sdr <- object$sdrep
+  sdr <- .rce_usable_sdrep(object)
   if (is.null(sdr) || is.null(sdr$cov.fixed)) return(NULL)
   sdr$cov.fixed
 }
@@ -1273,7 +1273,7 @@ as.data.frame.Rceattle <- function(x,
   # sdreport vectors are stored in the same column-major order TMB used to
   # stamp the matrix/array, so reshaping `sd` against the report's dim
   # lines up cell-for-cell. A fit run with getsd=FALSE has no $sdrep.
-  sdrep <- x$sdrep
+  sdrep <- .rce_usable_sdrep(x)
   sd_lookup <- function(name, dims) {
     if (is.null(sdrep) || is.null(sdrep$value)) return(NULL)
     idx <- which(names(sdrep$value) == name)
