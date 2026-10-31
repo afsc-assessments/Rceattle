@@ -38,8 +38,10 @@
 #' from there; nothing is re-estimated, so no point estimate moves.
 #'
 #' A band in a fitted year is the peeled hindcast's own: the uncertainty of its
-#' parameters given the data through the peel's terminal year. A band in a
-#' peeled (forecast) year treats that year's catch as known and its F as
+#' parameters given the data through the peel's terminal year. The exception is
+#' a depletion that divides by last-projection-year biomass (`HCR = 0` under
+#' `msmMode > 0`), which reads the peeled F, so its fitted-year bands move too.
+#' A band in a peeled (forecast) year treats that year's catch as known and its F as
 #' inferred from it: as the hindcast parameters vary, F moves, to first order,
 #' to keep the predicted catch at the observed catch, and the delta method
 #' carries that into the band. The peeled years' recruitment deviations are
@@ -739,7 +741,12 @@ print.Rceattle_retro <- function(x, band = 0.2, ...) {
   n_kept <- length(x$Rceattle_list) - 1L          # the unpeeled model
   n_asked <- x$peels_requested
   n_dropped <- if (is.null(n_asked)) 0L else max(0L, n_asked - n_kept)
-  if (n_dropped > 0L) sev <- c(sev, "NOTE")
+  # A peel out of the forecast rows also changes reported numbers, so it is as visible.
+  n_noforecast <- sum(vapply(
+    x$Rceattle_list,
+    function(m) !is.null(attr(m, "forecast_error", exact = TRUE)),
+    logical(1)))
+  if (n_dropped > 0L || n_noforecast > 0L) sev <- c(sev, "NOTE")
 
   .rce_diag_header(
     "retrospective", .rce_worst(sev),
@@ -765,10 +772,6 @@ print.Rceattle_retro <- function(x, band = 0.2, ...) {
         " (see attr(peel, \"sd_report_error\"))\n", sep = "")
   }
 
-  n_noforecast <- sum(vapply(
-    x$Rceattle_list,
-    function(m) !is.null(attr(m, "forecast_error", exact = TRUE)),
-    logical(1)))
   if (n_noforecast > 0L) {
     cat("  ", n_noforecast, " peel(s) left out of the forecast-year rows of $mohns",
         " (see attr(peel, \"forecast_error\"))\n", sep = "")
@@ -1098,7 +1101,7 @@ print.Rceattle_jitter <- function(x, tol = 0.01, ...) {
   # pa: the peel's estimates in ad's order, the freed F after log_F;
   # f_col: their positions.
   f_at <- which(names(p) == "log_F")
-  pa <- append(p, setNames(lf_shape[cells], rep("log_F", n_f)),
+  pa <- append(p, stats::setNames(lf_shape[cells], rep("log_F", n_f)),
                after = if (length(f_at)) max(f_at) else
                  match("log_F", names(ad$par)) - 1L)
   f_col <- which(names(pa) == "log_F")[length(f_at) + seq_len(n_f)]

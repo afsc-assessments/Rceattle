@@ -699,6 +699,8 @@ testthat::test_that("a peel reports standard errors for its own hindcast", {
     # A healthy peel is flagged for neither reason.
     testthat::expect_null(attr(m, "sd_report_error", exact = TRUE))
     testthat::expect_null(attr(m, "forecast_error", exact = TRUE))
+    testthat::expect_true(any(grepl("forecast refit \\(F only\\)",
+                                    utils::capture.output(print(summary(m))))))
   }
   testthat::expect_false("catch_hat" %in% names(fit$sdrep$value))
 
@@ -1164,6 +1166,9 @@ testthat::test_that("only a peel's hindcast non-convergence warns or drops it", 
     utils::capture.output(print(r)))))
   testthat::expect_false(any(grepl(
     "left out of the forecast-year rows", utils::capture.output(print(ok)))))
+  # The header says so too. A wide band leaves no rho to raise a WARN over it.
+  testthat::expect_match(utils::capture.output(print(r, band = 1e6))[1], "status: NOTE")
+  testthat::expect_match(utils::capture.output(print(ok, band = 1e6))[1], "status: OK")
 
   # A real failure, with no injection: at 20 times the pollock catch F reaches its
   # upper bound and still misses the catch, with a gradient below the check's 1.

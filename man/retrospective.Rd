@@ -124,8 +124,10 @@ parameters with the hindcast parameters treated as estimated and reported
 from there; nothing is re-estimated, so no point estimate moves.
 
 A band in a fitted year is the peeled hindcast's own: the uncertainty of its
-parameters given the data through the peel's terminal year. A band in a
-peeled (forecast) year treats that year's catch as known and its F as
+parameters given the data through the peel's terminal year. The exception is
+a depletion that divides by last-projection-year biomass (\code{HCR = 0} under
+\code{msmMode > 0}), which reads the peeled F, so its fitted-year bands move too.
+A band in a peeled (forecast) year treats that year's catch as known and its F as
 inferred from it: as the hindcast parameters vary, F moves, to first order,
 to keep the predicted catch at the observed catch, and the delta method
 carries that into the band. The peeled years' recruitment deviations are

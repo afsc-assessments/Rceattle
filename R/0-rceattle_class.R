@@ -169,9 +169,9 @@ print.summary.Rceattle <- function(x, n = 10, ...) {
           sep = "")
     }
     if (all(is.na(cf$std_error))) {
-      # Three reasons, and the user needs to know which: a peel whose rebuild failed,
-      # no sdreport at all, or one whose variances are unusable (Hessian not
-      # positive definite).
+      # The user needs to know which reason: a peel whose rebuild failed, no
+      # sdreport at all, a peel's F-only estimates beside its hindcast's covariance,
+      # or variances that are unusable (Hessian not positive definite).
       # A print method must not stop, so an unreadable spec falls back to the
       # commoner reason.
       v <- tryCatch(stats::vcov(x$spec), error = function(e) NULL)
@@ -181,6 +181,10 @@ print.summary.Rceattle <- function(x, n = 10, ...) {
       } else if (is.null(v)) {
         cat("  standard errors are unavailable -- this fit has no sdreport",
             "(fit_control(getsd = FALSE))\n")
+      } else if (isTRUE(x$spec[["data_list"]][["endyr_full"]] >
+                        x$spec[["data_list"]][["endyr_peel"]])) {
+        cat("  these estimates are the retrospective peel's forecast refit (F only);",
+            "the hindcast's standard errors are in peel$sdrep\n")
       } else {
         cat("  standard errors are unavailable -- no variance in the sdreport is",
             "usable; see convergence_diagnostics() 'pdHess'\n")

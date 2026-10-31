@@ -23,7 +23,7 @@ version throughout.
   hindcast fixed, so the hindcast and the terminal-year rho stand. Because F was
   not fitted to the peeled catch, the peel is left out of the `$mohns` rows with
   `Forecast year` above 0, whose `N` shows it. The reason is on
-  `attr(peel, "forecast_error")`, `print()` counts such peels, and
+  `attr(peel, "forecast_error")`, `print()` counts such peels under a NOTE, and
   `plot_timeseries()` and its wrappers warn when they draw those forecast years.
   One such F removes the peel from every forecast-year row, including years that
   fitted. A dropped hindcast also no longer runs its forecast refit.
@@ -41,7 +41,9 @@ version throughout.
   failed catch-conditioned correction. Those numbers are not usable standard
   errors, so plots, `as.data.frame()` and `vcov()` still read none of them, and
   `plot_timeseries()` and its wrappers now warn with that reason, and `summary()`
-  gives it. `print()` now says such peels "have no usable standard errors". The
+  gives it. For a healthy peel, `summary()` now says its estimates are the forecast
+  refit's rather than that no variance is usable.
+  `print()` now says such peels "have no usable standard errors". The
   "peel(s) could not report hindcast standard errors" warning is gone, since Mohn's
   rho reads point estimates only.
 
@@ -58,7 +60,9 @@ version throughout.
   likelihood (F, and so the removals, are unchanged), then lets F move with the
   hindcast parameters so the predicted catch stays at the observed catch. A band
   in a peeled (forecast) year therefore treats the catch as known and F as
-  inferred from it, and leaves out recruitment variability in those years. On
+  inferred from it, and leaves out recruitment variability in those years. Fitted
+  years keep their bands, except a depletion that divides by last-projection-year
+  biomass (`HCR = 0` under `msmMode > 0`): up to 24% on BS2017MS. On
   GOA pollock 2026 forecast-year SSB bands are 0.81-1.03 times as wide as
   before, fitted-year SSB bands 1.00-1.02 and fitted-year recruitment bands
   0.68-1.06, and the largest gradient other than sigma_R's (`R_log_sd`) is
