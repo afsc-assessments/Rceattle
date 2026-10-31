@@ -5,13 +5,82 @@ Version-numbering note. Four gaps in this file are deliberate, not lost entries:
   * 5.2.0-5.2.4 were likewise folded into 5.3.0.
   * main's 4.9.0 / 4.9.1 are the same recruitment changes this line has as
     5.5.0 / 5.5.1, applied to the two lines separately.
-  * 5.66.3 and 5.66.4 were numbers a branch held during review; it landed as 5.66.5.
+  * 5.66.3 to 5.66.5 were numbers a branch held during review; it landed as 5.66.8.
 
 No tag existed above 4.8.0 while these were in flight, so nobody could have installed an
 intermediate. They were folded rather than renumbered because renumbering a section breaks
 every (x.y.z) cross-reference pointing at it, and the entries below cite each other by
 version throughout.
 -->
+
+# Rceattle 5.66.8
+
+## Behavior changes
+
+* **`retrospective()` warns about, and drops, a peel only when its hindcast did
+  not converge.** A peel whose forecast refit alone did not converge used to be
+  dropped with a warning. It is now kept with no warning: that refit holds the
+  hindcast fixed, so the hindcast and the terminal-year rho stand. Because F was
+  not fitted to the peeled catch, the peel is left out of the `$mohns` rows with
+  `Forecast year` above 0, whose `N` shows it. The reason is on
+  `attr(peel, "forecast_error")`, `print()` counts such peels under a NOTE, and
+  `plot_timeseries()` and its wrappers warn when they draw those forecast years.
+  One such F removes the peel from every forecast-year row, including years that
+  fitted. A dropped hindcast also no longer runs its forecast refit.
+* **Which forecast refits count as failed has changed.** A peeled F left at a
+  bound now counts, because F can miss the catch there with a small gradient (at
+  20 times a BS2017SS catch, max gradient 0.16 and predicted catch 36% low, with
+  F_spp rho above 100,000 in `$mohns`); those forecast-year rows lose that peel.
+  An F-only Hessian that is not positive definite no longer counts, so under
+  `getsd = TRUE` that peel is kept and enters the terminal-year and forecast-year
+  rows. Where peels return, rho changes because it averages over them too.
+* **A retrospective peel keeps its `sdreport`.** Where the standard-error rebuild
+  fails, `peel$sdrep` now holds what `TMB::sdreport()` returned rather than
+  `NULL`, which remains only if the rebuild errored first.
+  `attr(peel, "sd_report_error")` still gives the reason, which now also covers a
+  failed catch-conditioned correction. Those numbers are not usable standard
+  errors, so plots, `as.data.frame()` and `vcov()` still read none of them, and
+  `plot_timeseries()` and its wrappers now warn with that reason, and `summary()`
+  gives it. For a healthy peel, `summary()` now says its estimates are the forecast
+  refit's rather than that no variance is usable.
+  `print()` now says such peels "have no usable standard errors". The
+  "peel(s) could not report hindcast standard errors" warning is gone, since Mohn's
+  rho reads point estimates only.
+
+## Bug fixes
+
+* **A retrospective peel's uncertainty band is now computed at the peel's best
+  fit.** Standard errors are valid only where the objective's gradient is 0.
+  Under random effects (e.g. `random_rec = TRUE`), keeping the peeled years'
+  catch in the standard-error calculation with their F free moved that point off
+  the peel's estimates (the largest gradient, sigma_R's aside, was 0.15-4.19
+  across 10 peels of GOA pollock 2026), so a band could be off, or lost when its
+  Hessian was not positive definite. The calculation now holds the peeled F at
+  the values fitted to the observed catch and drops that catch from the
+  likelihood (F, and so the removals, are unchanged), then lets F move with the
+  hindcast parameters so the predicted catch stays at the observed catch. A band
+  in a peeled (forecast) year therefore treats the catch as known and F as
+  inferred from it, and leaves out recruitment variability in those years. Fitted
+  years keep their bands, except a depletion that divides by last-projection-year
+  biomass (`HCR = 0` under `msmMode > 0`): up to 24% on BS2017MS. On
+  GOA pollock 2026 forecast-year SSB bands are 0.81-1.03 times as wide as
+  before, fitted-year SSB bands 1.00-1.02 and fitted-year recruitment bands
+  0.68-1.06, and the largest gradient other than sigma_R's (`R_log_sd`) is
+  2.1e-4 to 3.5e-4 per peel. sigma_R's is 0.25-2.47 in magnitude, because the
+  peeled recruitment deviations, at 0 when the peel was fitted, are held at the
+  projected value here and still enter its penalty; on two of those peels that
+  term moved fitted-year SSB bands by under 0.1% and recruitment bands by under
+  1%. Without random effects (BS2017SS, a 3-year peel) fitted-year bands are
+  unchanged and forecast-year SSB bands narrow by up to 1.2%, the catch's own
+  observation error, which is no longer counted. No point estimate or Mohn's rho
+  changes.
+
+* **A peel's catch-conditioned band no longer finite-differences the predicted
+  catch.** Its derivatives now come exactly from the template, through
+  `ADREPORT(catch_hat)` switched on only for this calculation (the internal
+  `adreport_catch` flag), so `sdrep$value` and fits are unchanged.
+  One peel's correction fell from 6.5 s to 0.6 s on BS2017SS and from 85 s to
+  4 s on BS2017MS. Bands agree with the finite-difference ones to 1e-5 (relative).
 
 # Rceattle 5.66.7
 

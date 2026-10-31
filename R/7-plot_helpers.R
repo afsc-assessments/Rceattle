@@ -873,7 +873,7 @@
 #' @keywords internal
 #' @noRd
 .rce_series_sd <- function(model, name, n_need, n_total = n_need) {
-  sdrep <- model$sdrep
+  sdrep <- .rce_usable_sdrep(model)
   if (is.null(sdrep) || is.null(sdrep$value)) return(NULL)
   rows <- which(names(sdrep$value) == name)
   if (length(rows) != n_total || n_need > n_total) return(NULL)
@@ -886,6 +886,45 @@
     out[((seq_along(out) - 1) %% nspp + 1) %in% fixed] <- NA
   }
   out[seq_len(n_need)]
+}
+
+
+#' Warn when a plot draws forecast years whose F did not fit the catch
+#'
+#' A retrospective peel with `attr(peel, "forecast_error")` keeps those years, and
+#' drawn they would read as a real forecast.
+#'
+#' @param models A list of `Rceattle` fits.
+#' @param years The years being drawn for each model.
+#' @return `invisible(NULL)`, called for the warning.
+#' @keywords internal
+#' @noRd
+.rce_warn_unfitted_forecast <- function(models, years) {
+  drawn <- vapply(seq_along(models), function(i) {
+    max(years[[i]]) > models[[i]]$data_list$endyr
+  }, logical(1))
+  unfit <- unlist(lapply(models[drawn], attr, "forecast_error", exact = TRUE))
+  if (length(unfit)) {
+    warning("Drawing forecast years that were not fitted to catch: ",
+            paste(unfit, collapse = "; "), ".", call. = FALSE)
+  }
+  invisible(NULL)
+}
+
+
+#' The sdreport to read standard errors from
+#'
+#' A retrospective peel whose standard-error rebuild failed keeps what
+#' `TMB::sdreport()` returned, but under an indefinite Hessian its finite values
+#' are not valid standard errors, so it gives no band, table entry or `vcov()`.
+#'
+#' @param model One fitted `Rceattle` object.
+#' @return `model$sdrep`, or `NULL` where `attr(model, "sd_report_error")` is set.
+#' @keywords internal
+#' @noRd
+.rce_usable_sdrep <- function(model) {
+  if (!is.null(attr(model, "sd_report_error", exact = TRUE))) return(NULL)
+  model$sdrep
 }
 
 
@@ -1009,7 +1048,7 @@ NULL
 #' @keywords internal
 #' @noRd
 .rce_sel_se <- function(model) {
-  sdrep <- model$sdrep
+  sdrep <- .rce_usable_sdrep(model)
   idx   <- model$quantities$log_sel_at_age_index
   if (is.null(sdrep) || is.null(sdrep$value) || is.null(idx)) return(NULL)
   k <- names(sdrep$value) == "log_sel_at_age"
