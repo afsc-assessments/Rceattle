@@ -1125,6 +1125,7 @@ data_check <- function(data_list) {
     # emp_sel presence required when any fleet has Selectivity = "Fixed"
     # (declarative requirement table).
     errors <- c(errors, .rce_check_presence(data_list, "emp_sel"))
+    .warn_fixed_fishery_endyr(data_list)
 
     # Estimated selectivity needs comp or CAAL data with Year > 0 to be
     # identifiable; otherwise the selectivity parameters are unconstrained and
@@ -1859,6 +1860,7 @@ data_check <- function(data_list) {
         bad_flt <- c(bad_flt, as.character(fc$Fleet_name[i[1]]))
       }
     }
+    .warn_caal_fixed_fleet(fc, unique(data_list$caal_data$Fleet_code[active]))
     # A warning rather than an error, unlike the empirical-growth rule above,
     # only because this is a released package and such a model currently fits.
     # It should become an error once existing configurations have been checked:
@@ -2623,6 +2625,44 @@ data_check <- function(data_list) {
   errors
 }
 
+
+# Reference points and projected F read the terminal hindcast year's selectivity, and a
+# Fixed fleet has none for a sex with no emp_sel row in that year.
+.warn_fixed_fishery_endyr <- function(data_list) {
+  fc <- data_list$fleet_control
+  es <- data_list$emp_sel
+  in_endyr <- es$Year %in% c(0, data_list$endyr)
+  fishery <- .canon_switch(fc$Fleet_type, .rce_allowed_map("Fleet_type")) == "Fishery"
+  candidates <- which(fishery & .rce_is_fixed_sel(fc$Selectivity))
+  bad <- vapply(candidates, function(i) {
+    sexes <- es$Sex[in_endyr & es$Fleet_code == fc$Fleet_code[i]]
+    !(0 %in% sexes || all(seq_len(data_list$nsex[fc$Species[i]]) %in% sexes))
+  }, logical(1))
+  if (any(bad)) {
+    warning(paste0(
+      "Fixed-selectivity fishery fleet(s) ", paste(fc$Fleet_name[candidates[bad]], collapse = ", "),
+      " have no emp_sel row for endyr (", data_list$endyr, ") for at least one sex, so ",
+      "selectivity is 0 in that year, and reference points and projected F read it. Add ",
+      "a row for endyr, or use Year = 0 to apply one curve to every year."), call. = FALSE)
+  }
+  invisible(NULL)
+}
+
+# Fixed selectivity is at age whatever Selectivity_dimension says, so CAAL on a Fixed
+# fleet labelled "Length" is as unpredicted as on an age-dimensioned one.
+.warn_caal_fixed_fleet <- function(fc, caal_fleets) {
+  fixed <- fc$Fleet_code %in% caal_fleets & .rce_is_fixed_sel(fc$Selectivity) &
+    as.character(fc$Selectivity_dimension) %in% "Length"
+  if (any(fixed)) {
+    warning(paste0(
+      "CAAL data on fleet(s) ", paste(fc$Fleet_name[fixed], collapse = ", "),
+      " whose Selectivity is 'Fixed'. Fixed selectivity is always at age, so ",
+      "pred_CAAL is zero and these observations inform nothing, whatever ",
+      "Selectivity_dimension says. Estimate this fleet's selectivity at length, ",
+      "or drop its caal_data rows."), call. = FALSE)
+  }
+  invisible(NULL)
+}
 
 #' Refuse a bin-indexed length selectivity on a finer population grid
 #'
