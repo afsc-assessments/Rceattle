@@ -720,6 +720,7 @@ Type objective_function<Type>::operator() () {
   matrix<Type>  comp_hat = comp_obs; comp_hat.setZero();                            // Estimated comp
   matrix<Type>  caal_hat = caal_obs; caal_hat.setZero();                            // Estimated CAAL
   array<Type>   pred_CAAL(n_flt, max_sex, max_age, max_nlengths, nyrs); pred_CAAL.setZero(); // Predicted CAAL for each fleet
+  array<Type>   comp_pred(max_sex, max_age, max_nlengths); comp_pred.setZero();      // Predicted fleet numbers by age and length for one comp row
 
   // -- 4.9. Ration components
   array<Type>   consumption_at_age( nspp, max_sex, max_age, nyrs ); consumption_at_age.setZero(); // Annual ration at age (kg/yr)
@@ -2846,6 +2847,24 @@ Type objective_function<Type>::operator() () {
               }
               break;
             }
+            // Comps read this, not pred_CAAL, which CAAL reads and stays length-based. A fleet with
+            // selectivity at age (Fixed is always at age) has no sel(L), so sel(a) weights P(L|age).
+            comp_pred(sex, age, ln) = pred_CAAL(flt, sex, age, ln, yr);
+            if(flt_sel_dim(flt) != 1 || flt_sel_type(flt) == 0){
+              Type p_ln = 0.0;
+              for(int lp = pop_bin_lo(sp, ln); lp <= pop_bin_hi(sp, ln); lp++){
+                p_ln += growth_matrix(wtind, sex, age, lp, yr);
+              }
+              switch(flt_type(flt)){
+              case 1: // - Fishery
+                comp_pred(sex, age, ln) = p_ln * (F_flt_age(flt, sex, age, yr) / Z_at_age(sp, sex, age, yr) * (1 - exp(-Z_at_age(sp, sex, age, yr))) * N_at_age(sp, sex, age, yr));
+                break;
+
+              case 2: // - Survey
+                comp_pred(sex, age, ln) = p_ln * (N_at_age(sp, sex, age, yr) * sel_at_age(flt, sex, age, yr) * index_q(flt, yr_ind) * exp( - Type(mo/12.0) * Z_at_age(sp, sex, age, yr)));
+                break;
+              }
+            }
           }
         }
       }
@@ -2860,18 +2879,18 @@ Type objective_function<Type>::operator() () {
             switch(flt_sex){
             case 0: // Sexes combined or 1 sex assessment
               for(sex = 0; sex < nsex(sp); sex ++){
-                age_hat(comp_ind, age ) += pred_CAAL(flt, sex, age, ln, yr);
+                age_hat(comp_ind, age ) += comp_pred(sex, age, ln);
               }
               break;
 
             case 1: case 2: // Sex-specific composition data
               sex = flt_sex - 1;
-              age_hat(comp_ind, age ) += pred_CAAL(flt, sex, age, ln, yr);
+              age_hat(comp_ind, age ) += comp_pred(sex, age, ln);
               break;
 
             case 3: // Joint composition data
               for(sex = 0; sex < nsex(sp); sex ++){
-                age_hat(comp_ind, age + nages(sp) * sex ) += pred_CAAL(flt, sex, age, ln, yr);
+                age_hat(comp_ind, age + nages(sp) * sex ) += comp_pred(sex, age, ln);
               }
               break;
             }
@@ -2884,18 +2903,18 @@ Type objective_function<Type>::operator() () {
             switch(flt_sex){
             case 0: // Sexes combined or 1 sex assessment
               for(sex = 0; sex < nsex(sp); sex ++){
-                comp_hat(comp_ind, ln ) += pred_CAAL(flt, sex, age, ln, yr);
+                comp_hat(comp_ind, ln ) += comp_pred(sex, age, ln);
               }
               break;
 
             case 1: case 2: // Sex-specific composition data
               sex = flt_sex - 1;
-              comp_hat(comp_ind, ln ) += pred_CAAL(flt, sex, age, ln, yr);
+              comp_hat(comp_ind, ln ) += comp_pred(sex, age, ln);
               break;
 
             case 3: // Joint composition data
               for(sex = 0; sex < nsex(sp); sex ++){
-                comp_hat(comp_ind, ln + nlengths(sp) * sex ) += pred_CAAL(flt, sex, age, ln, yr) ;
+                comp_hat(comp_ind, ln + nlengths(sp) * sex ) += comp_pred(sex, age, ln) ;
               }
               break;
             }

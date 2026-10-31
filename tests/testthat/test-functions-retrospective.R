@@ -743,7 +743,7 @@ testthat::test_that("a peel reports standard errors for its own hindcast", {
 # optimizing. With `hold_F` the peeled F is fixed at the peel's values and the
 # peeled catch zeroed, as retrospective()'s report does before its correction;
 # without, F is free and the peeled catch stays in the likelihood, as the report
-# before 5.66.3 did. `catch_sd` then sets that catch to its own prediction with
+# before 5.66.8 did. `catch_sd` then sets that catch to its own prediction with
 # this sd, so as it shrinks the band converges to the catch-conditioned one.
 peel_reference_sdreport <- function(fit, peel, ep, hold_F, catch_sd = NULL) {
   styr <- fit$data_list$styr

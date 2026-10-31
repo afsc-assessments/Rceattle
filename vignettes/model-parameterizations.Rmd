@@ -188,6 +188,7 @@ correlations, not weights, and keep those columns. The `Hake` form (5) reads no
 
 ### Fixed selectivity
 Input: `Selectivity = 0 or "Fixed"`, with selectivity-at-age supplied in `emp_sel`.
+The last hindcast year supplied for a fleet and sex is held through the projection.
 
 ### Non-parametric (Type 1)
 Input: `Selectivity = 2 or "NonParametric"`, `N_sel_bins = 6`, `Sel_curve_pen1 = 12.5`, `Sel_curve_pen2 = 200`, and `Bin_first_selected = 1`. See **Selectivity penalty weights** above for the `Sel_curve_pen` slots and the standard-deviation columns that set them.

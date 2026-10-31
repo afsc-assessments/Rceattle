@@ -1,10 +1,11 @@
 <!--
-Version-numbering note. Three gaps in this file are deliberate, not lost entries:
+Version-numbering note. Four gaps in this file are deliberate, not lost entries:
 
   * 4.14.0 was a real DESCRIPTION version whose entries were folded into 5.0.0.
   * 5.2.0-5.2.4 were likewise folded into 5.3.0.
   * main's 4.9.0 / 4.9.1 are the same recruitment changes this line has as
     5.5.0 / 5.5.1, applied to the two lines separately.
+  * 5.66.3 to 5.66.5 were numbers a branch held during review; it landed as 5.66.8.
 
 No tag existed above 4.8.0 while these were in flight, so nobody could have installed an
 intermediate. They were folded rather than renumbered because renumbering a section breaks
@@ -12,7 +13,7 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
-# Rceattle 5.66.5
+# Rceattle 5.66.8
 
 ## Behavior changes
 
@@ -40,30 +41,9 @@ version throughout.
   failed catch-conditioned correction. Those numbers are not usable standard
   errors, so plots, `as.data.frame()` and `vcov()` still read none of them, and
   `plot_timeseries()` and its wrappers now warn with that reason, and `summary()`
-  gives it. `print()` now says such peels "have no usable standard errors".
-
-## Bug fixes
-
-* **A peel's catch-conditioned band no longer finite-differences the predicted
-  catch.** Its derivatives now come exactly from the template, through
-  `ADREPORT(catch_hat)` switched on only for this calculation (the internal
-  `adreport_catch` flag), so `sdrep$value` and fits are unchanged.
-  One peel's correction fell from 6.5 s to 0.6 s on BS2017SS and from 85 s to
-  4 s on BS2017MS. Bands agree with the finite-difference ones to 1e-5 (relative).
-
-# Rceattle 5.66.4
-
-## Behavior changes
-
-* **`retrospective()` no longer warns when a peel's standard errors cannot be
-  rebuilt.** Such a peel is kept only if it converged, and Mohn's rho reads
-  point estimates only, so the "peel(s) could not report hindcast standard
-  errors" warning is gone. The peel still has no standard errors (`sdrep` is
-  `NULL`) and its reason is on `attr(peel, "sd_report_error")`; `print()` still
-  counts such peels, and a plot with `add_ci = TRUE` still warns that its band
-  is missing. A peel that does not converge is still dropped with a warning.
-
-# Rceattle 5.66.3
+  gives it. `print()` now says such peels "have no usable standard errors". The
+  "peel(s) could not report hindcast standard errors" warning is gone, since Mohn's
+  rho reads point estimates only.
 
 ## Bug fixes
 
@@ -90,6 +70,61 @@ version throughout.
   unchanged and forecast-year SSB bands narrow by up to 1.2%, the catch's own
   observation error, which is no longer counted. No point estimate or Mohn's rho
   changes.
+
+* **A peel's catch-conditioned band no longer finite-differences the predicted
+  catch.** Its derivatives now come exactly from the template, through
+  `ADREPORT(catch_hat)` switched on only for this calculation (the internal
+  `adreport_catch` flag), so `sdrep$value` and fits are unchanged.
+  One peel's correction fell from 6.5 s to 0.6 s on BS2017SS and from 85 s to
+  4 s on BS2017MS. Bands agree with the finite-difference ones to 1e-5 (relative).
+
+# Rceattle 5.66.7
+
+## Bug fixes
+
+* **A `Selectivity = "Fixed"` fleet now holds the last hindcast year it supplied
+  through the projection, as an estimated fleet does.** It was 0 in every projection year.
+  A `Fixed` fishery then had no exploitable biomass, so an MSE with one took no catch
+  (measured under `ConstantF` and `NPFMC`) and its reported `SBF` was wrong under
+  every rule tried. Its projected F was also too low under `HCR = "NPFMC"`: on a test
+  fixture 0.950 at most against an Ftarget of 1.284, with terminal SSB 20% too high.
+  Under `ConstantFSSB` with `DynamicHCR = TRUE` its objective moves as well (201.04 to
+  -6.08 on a test fixture). A `Fixed` survey predicted an index and comps of 0 there,
+  which a direct `sim_mod()` returned as observations; an MSE with one and
+  `simulate_data = TRUE` can move. Other rules' F,
+  hindcast estimates apart from that `ConstantFSSB` case, and models with no `Fixed`
+  fleet do not move. A hindcast year with no `emp_sel` row stays 0.
+
+* `data_check()` now also warns about CAAL data on a `Fixed` fleet labelled
+  `Selectivity_dimension = "Length"`. Fixed selectivity is always at age, so those
+  data inform nothing, as on an age-dimensioned fleet.
+
+* `data_check()` now warns when a `Fixed` fishery has no `emp_sel` row for `endyr`
+  for any sex. Its selectivity is 0 in that year, which reference points and projected
+  F read: on a test fixture `catch_hat` was 0 against 10 observed, Ftarget and Flimit
+  stuck at 1, and the objective was `Inf`. That year still predicts no catch.
+
+# Rceattle 5.66.6
+
+## Bug fixes
+
+* **Under estimated growth, a fleet with selectivity at age now predicts its age
+  and length comps.** That means `Selectivity_dimension = "Age"`, the default, or
+  `Selectivity = "Fixed"`, which is always at age. Its comps were predicted from
+  selectivity-at-length, which such a fleet does not have, so the prediction was
+  all zero and no selectivity, growth or dynamics parameter could move the
+  composition likelihood; only a Dirichlet-multinomial weight could. With a
+  length-based survey carrying the CAAL data, no warning named the comps. They
+  now use catch-at-age from selectivity-at-age (selected numbers-at-age on a
+  survey), through the estimated age-length key for length comps, not
+  `age_trans_matrix`, which belongs to empirical growth. Timing is the fleet's
+  `Month`, as on a length-based fleet; a comp row's `Month` is not read under
+  estimated growth. On the test fixture the fishery's composition row was 1.182612
+  whatever its selectivity; it now starts at 1.343781, as the same data do under
+  empirical growth. **Fits with estimated growth and comps on such a fleet move.**
+  Other configurations evaluate bit-identically: GOA cod's objective, gradient and
+  comps at the starting values do not change. CAAL on such a fleet is still not
+  predicted, and `data_check()` warns about it.
 
 # Rceattle 5.66.2
 
