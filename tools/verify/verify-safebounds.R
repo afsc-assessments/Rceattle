@@ -277,6 +277,24 @@ run_case("finer population length grid (pop_lengths)", {
   stopifnot(length(fine) > d$nlengths[1])
 })
 
+# Age selectivity under estimated growth on the same finer grid: comps read the
+# fleet's growth_matrix slot by population bin and write comp_pred by data bin.
+run_case("age-selectivity fleets under estimated growth", {
+  set.seed(11)
+  d <- sb_env$make_msm_test_data()$data_list
+  edges <- sort(unique(d$caal_data$Length[d$caal_data$Species == 1]))
+  fine  <- sort(unique(c(edges, seq(min(edges), max(edges), by = 1))))
+  f <- suppressWarnings(suppressMessages(fit_mod(
+    data_list = d, inits = NULL, file = NULL, estimateMode = 3, msmMode = 0,
+    random_rec = FALSE,
+    growthFun = build_growth(fun = "vonBertalanffy", pop_lengths = fine),
+    fit_control = fit_control(phase = FALSE, getsd = FALSE, verbose = 0))))
+  stopifnot(is.finite(f$obj$fn(f$obj$par)))
+  # The premise: comps are live on an age fleet, or this case checks nothing.
+  stopifnot(all(d$fleet_control$Selectivity_dimension != "Length"),
+            sum(f$quantities$comp_hat) > 0)
+})
+
 # A second ageing-error matrix for species 1, so n_ae exceeds nspp and a fleet
 # reads age_error on an index that is NOT its species number.
 run_case("second ageing-error matrix (n_ae > nspp)", {

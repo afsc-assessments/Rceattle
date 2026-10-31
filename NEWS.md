@@ -1,16 +1,40 @@
 <!--
-Version-numbering note. Three gaps in this file are deliberate, not lost entries:
+Version-numbering note. Four gaps in this file are deliberate, not lost entries:
 
   * 4.14.0 was a real DESCRIPTION version whose entries were folded into 5.0.0.
   * 5.2.0-5.2.4 were likewise folded into 5.3.0.
   * main's 4.9.0 / 4.9.1 are the same recruitment changes this line has as
     5.5.0 / 5.5.1, applied to the two lines separately.
+  * 5.66.3 and 5.66.4 were numbers a branch held during review; it landed as 5.66.5.
 
 No tag existed above 4.8.0 while these were in flight, so nobody could have installed an
 intermediate. They were folded rather than renumbered because renumbering a section breaks
 every (x.y.z) cross-reference pointing at it, and the entries below cite each other by
 version throughout.
 -->
+
+# Rceattle 5.66.6
+
+## Bug fixes
+
+* **Under estimated growth, a fleet with selectivity at age now predicts its age
+  and length comps.** That means `Selectivity_dimension = "Age"`, the default, or
+  `Selectivity = "Fixed"`, which is always at age. Its comps were predicted from
+  selectivity-at-length, which such a fleet does not have, so the prediction was
+  all zero and no selectivity, growth or dynamics parameter could move the
+  composition likelihood; only a Dirichlet-multinomial weight could. With a
+  length-based survey carrying the CAAL data, no warning named the comps. They
+  now use catch-at-age from selectivity-at-age (selected numbers-at-age on a
+  survey), through the estimated age-length key for length comps, not
+  `age_trans_matrix`, which belongs to empirical growth. Timing is the fleet's
+  `Month`, as on a length-based fleet; a comp row's `Month` is not read under
+  estimated growth. On the test fixture the fishery's composition row was 1.182612
+  whatever its selectivity; it now starts at 1.343781, as the same data do under
+  empirical growth. **Fits with estimated growth and comps on such a fleet move.**
+  Other configurations evaluate bit-identically: GOA cod's objective, gradient and
+  comps at the starting values do not change. CAAL on such a fleet is still not
+  predicted; `data_check()` warns only when the fleet's `Selectivity_dimension` is
+  not `"Length"`, so a `Fixed` fleet labelled `"Length"` gets no warning.
 
 # Rceattle 5.66.2
 

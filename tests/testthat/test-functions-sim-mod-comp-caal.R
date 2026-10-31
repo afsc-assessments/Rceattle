@@ -22,8 +22,10 @@ testthat::test_that("CAAL is drawn from its own predicted composition", {
   d$fleet_control$Selectivity_dimension[d$fleet_control$Fleet_code == 1] <- "Length"
   d$caal_data$Sample_size <- 100
 
+  # At the starting values, not a fit: these flat data leave growth free to collapse
+  # P(L|age) onto one length bin, and a draw needs a prediction in every row.
   fit <- suppressMessages(suppressWarnings(Rceattle::fit_mod(
-    d, file = NULL, estimateMode = 1, msmMode = 0, random_rec = FALSE,
+    d, file = NULL, estimateMode = "DebugBuild", msmMode = 0, random_rec = FALSE,
     growthFun = Rceattle::build_growth(fun = "vonBertalanffy"),
     fit_control = Rceattle::fit_control(getsd = FALSE, verbose = 0,
                                         phase = FALSE))))
