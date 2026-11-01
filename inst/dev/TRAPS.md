@@ -480,7 +480,8 @@ through all of them before reaching the build order. Found in the SS3-bridged GO
 work, on two `end_logit`s that SS3 estimated and Rceattle held; stated here as the behaviour of a
 staged caller rather than as a property of that model, because once such a caller rebuilds its map
 the instance goes away and the trap does not. Note this is a different code path from the
-group-level sentinel patch, which keys on `Selectivity_index` rather than on the cell's value.
+group-level sentinel patch, which keys on `Selectivity_index` rather than on the cell's value. A cell frozen this way
+in an EM's stored map also counts as a hold in `run_mse()`, which keeps it at every assessment.
 
 **A linkage parameter has THREE registries, and the rule-12 pair is only two of them.**
 `LINKAGE_PARAM_CODES` (`R/0-linkage_encode.R`) must match `linkage.hpp`, which is rule 12 — but

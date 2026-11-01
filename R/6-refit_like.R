@@ -57,6 +57,7 @@
 #'   `srr_hat_endyr` to a peel or assessment year, or pin them to the pristine OM.
 #' @param suit_styr,suit_endyr Suitability window; default to the source's,
 #'   clamped to a peel year or pinned to the pristine OM by some callers.
+#' @param map_holds Cells from `.map_holds()` to hold on the map `fit_mod()` builds.
 #' @param projection_uncertainty Whether the refit reports standard errors with
 #'   the hindcast parameters on. Defaults to the source's, held on
 #'   `data_list`; under an HCR a refit without it reports zero for the whole
@@ -68,6 +69,7 @@
                         inits,
                         estimateMode,
                         map              = NULL,
+                        map_holds        = NULL,
                         HCR              = NULL,
                         phase            = FALSE,
                         getsd            = FALSE,
@@ -107,7 +109,10 @@
 
   # These inits hold the fitted (or, in profile(), the grid) value, so fit_mod() must not
   # put a linkage-fixed intercept back to its init.
-  if (is.list(inits)) attr(inits, "rceattle_refit") <- TRUE
+  if (is.list(inits)) {
+    attr(inits, "rceattle_refit") <- TRUE
+    attr(inits, "rceattle_map_holds") <- map_holds
+  }
 
   fit_mod(
     data_list    = dl,

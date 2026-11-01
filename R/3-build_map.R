@@ -1983,3 +1983,46 @@ map_linkage_adjuster <- function(map_list, data_list) {
 
   map_list
 }
+
+
+#' Cells a fit's map holds that build_map() would estimate
+#'
+#' These are the parameters the author mapped off by hand. A fit's arrays only grow
+#' in their last dimension as `endyr` advances, so a cell's position still names it.
+#'
+#' @param fit A fitted Rceattle object.
+#' @return Named list of cell positions by parameter block; empty when nothing is held.
+#' @noRd
+.map_holds <- function(fit) {
+  d <- fit[["data_list"]]
+  stored_map <- fit[["map"]]
+  # A projection-only fit's stored map is all NA, so it says nothing about the hindcast;
+  # an EM stored by run_mse() has had its map removed.
+  if (is.null(stored_map) || d[["estimateMode"]] %in% c(2, 4)) return(list())
+  fresh <- suppressWarnings(suppressMessages(build_map(
+    data_list  = d,
+    params     = fit[["estimated_params"]],
+    debug      = FALSE,
+    random_rec = d[["random_rec"]],
+    random_sel = isTRUE(as.logical(d[["random_sel"]])))))
+  blocks <- intersect(names(stored_map[["mapFactor"]]), names(fresh[["mapFactor"]]))
+  holds <- lapply(blocks, function(b) {
+    stored <- stored_map[["mapFactor"]][[b]]
+    built  <- fresh[["mapFactor"]][[b]]
+    if (length(stored) != length(built)) return(integer(0))
+    which(is.na(stored) & !is.na(built))
+  })
+  names(holds) <- blocks
+  holds[lengths(holds) > 0L]
+}
+
+
+#' Hold the cells from .map_holds() on a freshly built map
+#' @noRd
+.apply_map_holds <- function(map, holds) {
+  for (b in names(holds)) {
+    map$mapList[[b]][holds[[b]]] <- NA
+    map$mapFactor[[b]] <- factor(map$mapList[[b]])
+  }
+  map
+}

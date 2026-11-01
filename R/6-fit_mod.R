@@ -813,6 +813,7 @@ fit_mod <-
           seen <<- c(seen, msg)
         }
       )
+      map <- .apply_map_holds(map, attr(inits, "rceattle_map_holds"))
     } else if (isTRUE(data_list$srr_pred_fun > 1) && !is.null(map$mapList$rec_pars)) {
       # A supplied map is used as given; one from a mean-recruitment fit pins
       # alpha and beta while the curve still shapes recruitment.

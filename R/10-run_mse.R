@@ -330,6 +330,12 @@
 #'   projection year, or the uncovered years read 0 and that species contributes
 #'   nothing, with a warning naming it.
 #'
+#'   Each assessment builds a new map as `endyr` advances. Parameters that `em`'s
+#'   map holds and [build_map()] would estimate are held there too, at `em`'s values.
+#'   Years added after `em`'s `endyr` follow [build_map()], even on a block held for
+#'   every earlier year. Levels a map fuses, cells it frees beyond [build_map()], and
+#'   any hold on an `em` fitted with `estimateMode = 2` are not carried forward.
+#'
 #' @param om CEATTLE model object exported from \code{Rceattle}
 #' @param em CEATTLE model object exported from \code{Rceattle}
 #' @param nsim Number of simulations to run (default 10)
@@ -493,6 +499,13 @@ run_mse <- function(om, em, nsim = 10, start_sim = 1, assessment_period = 1, sam
     om$data_list$estimateMode <- estimate_mode_base
   }
 
+  # Parameters the EM's map holds stay held at every re-assessment.
+  em_holds <- .map_holds(em)
+  if (length(em_holds)) {
+    message("run_mse(): holding ", sum(lengths(em_holds)), " parameter(s) that the EM's map fixes, in: ",
+            paste(names(em_holds), collapse = ", "))
+  }
+
   # - Years for simulations
   hind_yrs <- (em$data_list$styr) : em$data_list$endyr
   hind_nyrs <- length(hind_yrs)
@@ -597,6 +610,7 @@ run_mse <- function(om, em, nsim = 10, start_sim = 1, assessment_period = 1, sam
       data_list    = em$data_list,
       inits        = em$estimated_params,
       estimateMode = ifelse(em$data_list$estimateMode < 3, 0, em$data_list$estimateMode),
+      map_holds    = em_holds,
       loopnum      = loopnum)
 
     # Update avg F given model fit to regenerated data
@@ -1098,6 +1112,7 @@ run_mse <- function(om, em, nsim = 10, start_sim = 1, assessment_period = 1, sam
               data_list        = em_use$data_list,
               inits            = em_use$estimated_params,
               estimateMode     = ifelse(em_use$data_list$estimateMode < 3, 0, em_use$data_list$estimateMode),
+              map_holds        = em_holds,
               loopnum          = loopnum,
               srr_mse_switchyr = em_use$data_list$endyr)
           )

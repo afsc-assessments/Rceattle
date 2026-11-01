@@ -115,6 +115,12 @@ catch. Fixed numbers-at-age (\code{estDynamics > 0}) are an input rather than a
 forecast, so they are NOT held forward: supply \code{NByageFixed} rows for every
 projection year, or the uncovered years read 0 and that species contributes
 nothing, with a warning naming it.
+
+Each assessment builds a new map as \code{endyr} advances. Parameters that \code{em}'s
+map holds and \code{\link[=build_map]{build_map()}} would estimate are held there too, at \code{em}'s values.
+Years added after \code{em}'s \code{endyr} follow \code{\link[=build_map]{build_map()}}, even on a block held for
+every earlier year. Levels a map fuses, cells it frees beyond \code{\link[=build_map]{build_map()}}, and
+any hold on an \code{em} fitted with \code{estimateMode = 2} are not carried forward.
 }
 \details{
 Designing a schedule, comparing monitoring scenarios, and what the common
