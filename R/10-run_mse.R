@@ -330,12 +330,6 @@
 #'   projection year, or the uncovered years read 0 and that species contributes
 #'   nothing, with a warning naming it.
 #'
-#'   Each assessment builds a new map as `endyr` advances. Parameters that `em`'s
-#'   map holds and [build_map()] would estimate are held there too, at `em`'s values.
-#'   Years added after `em`'s `endyr` follow [build_map()], even on a block held for
-#'   every earlier year. Levels a map fuses, cells it frees beyond [build_map()], and
-#'   any hold on an `em` fitted with `estimateMode = 2` are not carried forward.
-#'
 #' @param om CEATTLE model object exported from \code{Rceattle}
 #' @param em CEATTLE model object exported from \code{Rceattle}
 #' @param nsim Number of simulations to run (default 10)
@@ -405,6 +399,19 @@
 #' That is what a workbook looks like when `endyr` has fallen behind the catch
 #' series, and it is worth resolving first, because conditioning on those years
 #' is a different question from projecting over them.
+#'
+#' Each assessment rebuilds the map as `endyr` advances. A parameter that `em`'s map
+#' fixes and [build_map()] would estimate stays fixed at `em`'s value, and `run_mse()`
+#' reports how many. In years after `em`'s `endyr`, a yearly deviation fixed for every
+#' earlier year can still be estimated, under its usual penalty; a year joining a time
+#' block fixed for every earlier year stays fixed at that block's value. A new year's
+#' block comes from the OM's index rows on a survey and the EM's catch rows on a fishery.
+#' A block fixed on only one of the fleets sharing it stays estimated on the others and
+#' in its new years. Nothing else in a hand-edited map carries forward: shared values, and
+#' parameters freed where [build_map()] would fix them, return to the [build_map()]
+#' default. Nothing carries over from an `em` fitted with `estimateMode = "Projection"`,
+#' even under a supplied map, or from a re-assessment stored by `run_mse()`, which has
+#' no map.
 #'
 #' @return A list of operating models (differing by simulated recruitment, per
 #'   \code{nsim}) and estimation models fit to each (differing by terminal year).
@@ -499,11 +506,16 @@ run_mse <- function(om, em, nsim = 10, start_sim = 1, assessment_period = 1, sam
     om$data_list$estimateMode <- estimate_mode_base
   }
 
-  # Parameters the EM's map holds stay held at every re-assessment.
+  # The stored map's year dimensions no longer fit once endyr moves, so each assessment
+  # rebuilds the map and re-applies what the EM's map fixes.
   em_holds <- .map_holds(em)
   if (length(em_holds)) {
-    message("run_mse(): holding ", sum(lengths(em_holds)), " parameter(s) that the EM's map fixes, in: ",
-            paste(names(em_holds), collapse = ", "))
+    message("run_mse(): parameters fixed in the EM's map stay fixed at every assessment. ",
+            "Values fixed, by parameter: ",
+            paste0(names(em_holds), " (", lengths(em_holds), ")", collapse = ", "),
+            ". Yearly parameters can still be estimated in years after the EM's endyr, except ",
+            "in a fixed time block. ",
+            "To estimate one, free it in the EM's map and refit the EM.")
   }
 
   # - Years for simulations

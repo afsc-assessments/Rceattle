@@ -115,12 +115,6 @@ catch. Fixed numbers-at-age (\code{estDynamics > 0}) are an input rather than a
 forecast, so they are NOT held forward: supply \code{NByageFixed} rows for every
 projection year, or the uncovered years read 0 and that species contributes
 nothing, with a warning naming it.
-
-Each assessment builds a new map as \code{endyr} advances. Parameters that \code{em}'s
-map holds and \code{\link[=build_map]{build_map()}} would estimate are held there too, at \code{em}'s values.
-Years added after \code{em}'s \code{endyr} follow \code{\link[=build_map]{build_map()}}, even on a block held for
-every earlier year. Levels a map fuses, cells it frees beyond \code{\link[=build_map]{build_map()}}, and
-any hold on an \code{em} fitted with \code{estimateMode = 2} are not carried forward.
 }
 \details{
 Designing a schedule, comparing monitoring scenarios, and what the common
@@ -139,6 +133,19 @@ and the likelihood never scored them, since it fits only \code{Year <= endyr}.
 That is what a workbook looks like when \code{endyr} has fallen behind the catch
 series, and it is worth resolving first, because conditioning on those years
 is a different question from projecting over them.
+
+Each assessment rebuilds the map as \code{endyr} advances. A parameter that \code{em}'s map
+fixes and \code{\link[=build_map]{build_map()}} would estimate stays fixed at \code{em}'s value, and \code{run_mse()}
+reports how many. In years after \code{em}'s \code{endyr}, a yearly deviation fixed for every
+earlier year can still be estimated, under its usual penalty; a year joining a time
+block fixed for every earlier year stays fixed at that block's value. A new year's
+block comes from the OM's index rows on a survey and the EM's catch rows on a fishery.
+A block fixed on only one of the fleets sharing it stays estimated on the others and
+in its new years. Nothing else in a hand-edited map carries forward: shared values, and
+parameters freed where \code{\link[=build_map]{build_map()}} would fix them, return to the \code{\link[=build_map]{build_map()}}
+default. Nothing carries over from an \code{em} fitted with \code{estimateMode = "Projection"},
+even under a supplied map, or from a re-assessment stored by \code{run_mse()}, which has
+no map.
 }
 \examples{
 \dontrun{

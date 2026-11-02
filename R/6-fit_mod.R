@@ -813,7 +813,10 @@ fit_mod <-
           seen <<- c(seen, msg)
         }
       )
-      map <- .apply_map_holds(map, attr(inits, "rceattle_map_holds"))
+      # An MSE re-assessment keeps what the EM's map fixes (.refit_like() sets this attribute).
+      held <- .apply_map_holds(map, start_par, attr(inits, "rceattle_map_holds"))
+      map <- held[["map"]]
+      start_par <- held[["params"]]
     } else if (isTRUE(data_list$srr_pred_fun > 1) && !is.null(map$mapList$rec_pars)) {
       # A supplied map is used as given; one from a mean-recruitment fit pins
       # alpha and beta while the curve still shapes recruitment.

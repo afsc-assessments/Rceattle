@@ -17,17 +17,16 @@ version throughout.
 
 ## Bug fixes
 
-* **`run_mse()` now keeps parameters held in the EM's map at every assessment.** Each
-  refit built a new map, which released whatever the author had mapped off, so the EM
-  estimated those parameters from then on. On a `BS2017SS` test, a catchability held at
-  -8.258635 moved to -8.306753 at the first assessment, and that assessment's terminal
-  SSB moved 1.1% (3,987,696 to 4,030,637 t). A held cell is now re-applied to each new map, and
-  `run_mse()` reports how many are held. Only an EM whose map holds a parameter
-  `build_map()` would estimate moves: `verify-mse-repro.R` is unchanged, and neither hake
-  EM holds any. Years added after the EM's `endyr` follow `build_map()`,
-  even on a block held for every earlier year. Levels a map fuses, cells it frees beyond
-  `build_map()`, and any hold on an EM fitted with `estimateMode = 2` are not carried
-  forward.
+* **`run_mse()` now keeps parameters fixed in the EM's map at every assessment.** Each
+  refit built a new map, which released whatever the author had fixed, so the EM estimated
+  those parameters from then on. On a `BS2017SS` test, a log catchability (`index_log_q`)
+  fixed at -8.258635 moved to -8.306753 at the first assessment, and that assessment's
+  terminal SSB moved 1.1% (3,987,696 to 4,030,637 t). A parameter fixed in the EM's map now
+  stays fixed in each new map, and `run_mse()` reports how many, by parameter. Results
+  change only for an EM whose map fixes a parameter `build_map()` would estimate:
+  `verify-mse-repro.R` is unchanged, and neither hake EM fixes any. `?run_mse` gives the
+  rules for years after the EM's `endyr`, time blocks, and what in a hand-edited map does
+  not carry forward.
 
 # Rceattle 5.66.7
 
