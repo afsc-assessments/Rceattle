@@ -16,13 +16,9 @@
 #'   predictors over the peel years.
 #' @param nyrs_forecast forecast years over which to calculate Mohn's rho, in
 #'   addition to the terminal year
-#' @param getsd whether each peel runs \code{TMB::sdreport}, which costs
-#'   extra model builds per peel (see Details). Mohn's rho uses point estimates
-#'   only, so \code{FALSE} is faster, though \code{TRUE} also drops a peel whose
-#'   hindcast Hessian is not positive definite. \code{NULL} (default)
-#'   inherits the input model's setting (\code{TRUE} only if it holds an
-#'   \code{sdrep}), and the returned peels hold standard errors only when it is
-#'   \code{TRUE}.
+#' @param getsd whether each peel reports standard errors through `TMB::sdreport`,
+#'   at the cost of extra model builds (see Details); `NULL` (default) inherits the
+#'   input model's setting (`TRUE` only if it holds an `sdrep`).
 #' @param phase whether each peel is refitted in phases, default \code{TRUE}. A
 #'   peel restarts from the unpeeled fit's starting values with a year removed,
 #'   so without phasing the parameters barely move, the peels sit on top of the
@@ -53,25 +49,26 @@
 #' estimates and the reason is in `attr(peel, "sd_report_error")`; `print()`
 #' counts such peels. `peel$sdrep` still holds what `TMB::sdreport()` returned
 #' (`NULL` if the rebuild errored before that). Under an indefinite Hessian its
-#' numbers are not valid standard errors, and after a failed correction its
-#' forecast years leave out F's response to the hindcast, so plots,
+#' numbers are not valid standard errors, and if moving F with the hindcast parameters
+#' fails, its forecast years leave out F's response, so plots,
 #' `as.data.frame()` and `vcov()` read none of it. No warning is raised, since
 #' the point estimates and Mohn's rho are unaffected.
 #'
+#' Mohn's rho reads point estimates, so `getsd = FALSE` is faster, but `TRUE` also drops
+#' a peel whose hindcast Hessian is not positive definite, so the two can average over
+#' different peels.
+#'
 #' @return a list of 1. a list of Rceattle models and 2. Mohn's rho per species.
 #'
-#'   A peel whose hindcast did not converge is dropped, so
-#'   \code{Rceattle_list} can be shorter than \code{peels + 1}, with a warning.
-#'   A peel whose forecast refit alone did not converge, or left a peeled F at a
-#'   bound, is kept without a warning: its hindcast and terminal-year rho stand,
-#'   but F was not fitted to the peeled catch, so it is left out of the
-#'   \code{$mohns} rows with \code{Forecast year} above 0, whose \code{N} shows
-#'   it. Its forecast years and their standard errors stay on the peel, so read
-#'   them only after checking \code{attr(peel, "forecast_error")}, the reason,
-#'   which \code{print()} counts; \code{plot_timeseries()} and its wrappers warn
-#'   when they draw those years.
-#'   Entries are named for their
-#'   own terminal year (\code{Year_2017}, ...), so index by name:
+#'   A peel whose hindcast did not converge is dropped, with a warning, so
+#'   \code{Rceattle_list} can be shorter than \code{peels + 1}. A peel whose forecast
+#'   refit did not fit F to the peeled catch (gradient check, or a peeled F at a bound)
+#'   is kept without a warning: its terminal-year Mohn's rho stands, but it is left out
+#'   of the \code{$mohns} rows with \code{Forecast year} above 0 (\code{N} counts the
+#'   peels used). Check \code{attr(peel, "forecast_error")} before reading its forecast
+#'   years or their standard errors; \code{print()} counts such peels, and
+#'   \code{plot_timeseries()} and its wrappers warn when they draw those years.
+#'   Entries are named for their own terminal year (\code{Year_2017}, ...), so index by name:
 #'   \code{Rceattle_list[[3]]} is not necessarily the 3-year peel. With no peel
 #'   left, rho is \code{NaN} and the function warns. Each peel reports its own
 #'   terminal year as \code{data_list$endyr}, so plots draw it only as far as it
@@ -455,9 +452,8 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
       )
     )
 
-    # At a bound F can miss the catch with a small gradient, so check both; this
-    # Hessian covers F alone, so it is not judged. The hindcast is held fixed, so
-    # this leaves the terminal-year rho standing and raises no warning.
+    # Judge gradient and bounds: at a bound F can miss the catch with a small gradient.
+    # Not the Hessian (F alone). The hindcast is fixed, so terminal-year rho stands.
     if (!.refit_converged(newmod, hessian = FALSE) || length(.check_bounds(newmod))) {
       attr(newmod, "forecast_error") <-
         paste0("peel ", i, " (through ", endyr_peel, "): the forecast refit did ",
@@ -465,15 +461,11 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
     }
 
     # * Standard errors for the peeled hindcast ----
-    # The refit above holds the hindcast fixed, so its sdreport gives every
-    # hindcast quantity a standard error of zero. Report instead from the same
-    # parameters with the hindcast free: estimateMode 3 builds without
-    # optimizing, so no point estimate moves. Standard errors are valid only at
-    # the likelihood's maximum, and under random effects keeping the peeled
-    # catch in the likelihood with its F free puts that maximum off the peel's
-    # estimates. So, with or without random effects, hold F at the values
-    # fitted to that catch, drop the catch, and let .rce_catch_conditioned_sd()
-    # move F with the hindcast parameters.
+    # The forecast refit holds the hindcast fixed, so its standard errors are 0 there:
+    # report from a build (estimateMode 3, no optimizing) with the hindcast free.
+    # The hindcast was fitted without the peeled catch, so with or without random
+    # effects drop that catch and hold its F to stay at that optimum;
+    # .rce_catch_conditioned_sd() then moves F with the hindcast parameters.
     if (isTRUE(getsd)) {
       sd_try <- tryCatch({
         report_mod <- suppressWarnings(suppressMessages(
@@ -1060,7 +1052,9 @@ print.Rceattle_jitter <- function(x, tol = 0.01, ...) {
 #' and `j_c` each peeled log predicted catch's. Holding catch fixed gives
 #' `j_cc = j_q[theta] - j_q[F] j_c[F]^-1 j_c[theta]`, each quantity's
 #' sensitivity to theta once F adjusts to keep the catch, and the covariance is
-#' `j_cc Sigma t(j_cc)`, with Sigma the covariance of theta.
+#' `j_cc cov_theta t(j_cc)`, with cov_theta the covariance of theta. For example, a
+#' hindcast parameter that implies a smaller stock needs a higher F to take the same
+#' catch, which lowers forecast-year SSB further; the band carries that.
 #'
 #' Both Jacobians come from one reverse-mode pass per reported quantity, which
 #' is why predicted catch joins the ADREPORT set here (`adreport_catch`) and not
@@ -1119,18 +1113,17 @@ print.Rceattle_jitter <- function(x, tol = 0.01, ...) {
   catch_at <- which(is_catch)[rows]
   j_c <- jac[catch_at, , drop = FALSE] / value[catch_at]
 
-  # Hold log catch fixed: dF = -(dC/dF)^-1 (dC/dtheta) dtheta, so j_cc is each
-  # quantity's total derivative by theta. qr.solve() applies that inverse
-  # (least squares if catch rows outnumber freed F).
+  # qr.solve() applies j_c[F]^-1 from the formula above (least squares when a fleet
+  # has several catch rows in a year).
   keep <- setdiff(seq_along(pa), f_col)
   j_cc <- j_q[, keep, drop = FALSE] - j_q[, f_col, drop = FALSE] %*%
     qr.solve(j_c[, f_col, drop = FALSE], j_c[, keep, drop = FALSE])
   # Covariance of theta: fixed and random effects jointly, else the fixed.
-  sigma <- if (length(obj$env$random)) solve(sdrep$jointPrecision) else sdrep$cov.fixed
-  cov <- j_cc %*% sigma %*% t(j_cc)   # the delta method
+  cov_theta <- if (length(obj$env$random)) solve(sdrep$jointPrecision) else sdrep$cov.fixed
+  cov_q <- j_cc %*% cov_theta %*% t(j_cc)   # the delta method
 
-  sdrep$sd <- sqrt(diag(cov))
-  sdrep$cov <- cov
+  sdrep$sd <- sqrt(diag(cov_q))
+  sdrep$cov <- cov_q
   # The joint precision describes the model with F held fixed, not this band.
   sdrep$jointPrecision <- NULL
   sdrep

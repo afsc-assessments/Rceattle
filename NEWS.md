@@ -46,6 +46,14 @@ version throughout.
   `print()` now says such peels "have no usable standard errors". The
   "peel(s) could not report hindcast standard errors" warning is gone, since Mohn's
   rho reads point estimates only.
+* **A peel's `sdrep$par.fixed`, `cov.fixed` and `vcov(peel)` no longer include the peeled
+  `log_F`,** which the report now holds fixed; `sd` and `cov` still carry F's response. On
+  `BS2017SS` the peel through 2015 goes from 304 parameters to 298, and through 2016 from 307
+  to 304.
+* **A fit saved before this version must be refitted for `sim_mod()` and `self_test()`.**
+  The template reads a new internal data item (`adreport_catch`), so both stop on such a fit,
+  `sim_mod()` with a message to refit, and `fit$obj$retape()` errors. `retrospective()`,
+  `jitter()`, `osa_residuals()`, `process_residuals()` and `run_mse()` still run on it.
 
 ## Bug fixes
 
@@ -60,27 +68,17 @@ version throughout.
   likelihood (F, and so the removals, are unchanged), then lets F move with the
   hindcast parameters so the predicted catch stays at the observed catch. A band
   in a peeled (forecast) year therefore treats the catch as known and F as
-  inferred from it, and leaves out recruitment variability in those years. Fitted
-  years keep their bands, except a depletion that divides by last-projection-year
-  biomass (`HCR = 0` under `msmMode > 0`): up to 24% on BS2017MS. On
-  GOA pollock 2026 forecast-year SSB bands are 0.81-1.03 times as wide as
-  before, fitted-year SSB bands 1.00-1.02 and fitted-year recruitment bands
-  0.68-1.06, and the largest gradient other than sigma_R's (`R_log_sd`) is
-  2.1e-4 to 3.5e-4 per peel. sigma_R's is 0.25-2.47 in magnitude, because the
-  peeled recruitment deviations, at 0 when the peel was fitted, are held at the
-  projected value here and still enter its penalty; on two of those peels that
-  term moved fitted-year SSB bands by under 0.1% and recruitment bands by under
-  1%. Without random effects (BS2017SS, a 3-year peel) fitted-year bands are
-  unchanged and forecast-year SSB bands narrow by up to 1.2%, the catch's own
-  observation error, which is no longer counted. No point estimate or Mohn's rho
-  changes.
-
-* **A peel's catch-conditioned band no longer finite-differences the predicted
-  catch.** Its derivatives now come exactly from the template, through
-  `ADREPORT(catch_hat)` switched on only for this calculation (the internal
-  `adreport_catch` flag), so `sdrep$value` and fits are unchanged.
-  One peel's correction fell from 6.5 s to 0.6 s on BS2017SS and from 85 s to
-  4 s on BS2017MS. Bands agree with the finite-difference ones to 1e-5 (relative).
+  inferred from it, and leaves out recruitment variability in those years. Without
+  random effects (BS2017SS, a 3-year peel) fitted-year bands are unchanged and
+  forecast-year SSB bands narrow by up to 1.2%, the catch's own observation error,
+  which is no longer counted; the exception is a depletion that divides by
+  last-projection-year biomass (`HCR = 0` under `msmMode > 0`), up to 1.5% on
+  BS2017MS. Under random effects fitted-year bands move too: on GOA pollock 2026
+  they are 1.00-1.02 times as wide as before for SSB, 0.82-1.02 for biomass and 0.68-1.06
+  for recruitment; forecast-year bands are 0.81-1.04 for SSB and 0.77-1.04 for biomass;
+  biomass depletion reaches 0.84 in fitted years and 0.72 in forecast years. No point estimate or Mohn's rho changes. The calculation uses an
+  internal `adreport_catch` flag, so `sdrep$value` and fits are unchanged; it adds
+  about 0.6 s per peel on BS2017SS and 4 s on BS2017MS.
 
 # Rceattle 5.66.7
 

@@ -786,6 +786,12 @@ is what stops a band:** under an indefinite Hessian `sdreport()` mixes NaN with 
 are not standard errors, so `.rce_usable_sdrep()` gives plots, `as.data.frame()` and `vcov()`
 nothing to read. Read the attribute, or `print()`'s count, to tell this apart from `getsd = FALSE`.
 
+**That report keeps a sigma_R gradient by construction.** On GOA pollock 2026 (10 peels) the largest
+gradient is 1.89e-4 to 3.68e-4 on everything but `R_log_sd`, which sits at 0.25-2.47 in magnitude: the
+peeled recruitment deviations, at 0 when the peel was fitted, are held at the projected value here and
+still enter its penalty. Against each peel's own hindcast report that term moves fitted-year SSB bands
+by at most 0.056% and recruitment bands by at most 0.65%.
+
 **A kept peel's `.conv_hindcast` and `$convergence` are its forecast refit's, and only that refit's
 gradient and bounds are judged.** Its F-only Hessian says nothing about the peel. The gradient alone
 is not enough: at 20 times a BS2017SS catch `log_F` sits on its upper bound of 10, predicted catch

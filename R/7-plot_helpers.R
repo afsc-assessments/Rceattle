@@ -905,7 +905,8 @@
   }, logical(1))
   unfit <- unlist(lapply(models[drawn], attr, "forecast_error", exact = TRUE))
   if (length(unfit)) {
-    warning("Drawing forecast years that were not fitted to catch: ",
+    warning("Drawing forecast years that were not fitted to catch, so they are not a ",
+            "forecast of it; leave them out with incl_proj = FALSE or a smaller maxyr: ",
             paste(unfit, collapse = "; "), ".", call. = FALSE)
   }
   invisible(NULL)

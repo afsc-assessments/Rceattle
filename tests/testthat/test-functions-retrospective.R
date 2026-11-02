@@ -794,7 +794,8 @@ peel_reference_sdreport <- function(fit, peel, ep, hold_F, catch_sd = NULL) {
 # F free. Fitted exactly, that catch still entered the Laplace approximation
 # through the hindcast's random effects, so the report sat off the optimum (max
 # gradient 0.15-4.19 on parameters other than sigma_R across 10 peels of GOA
-# pollock 2026; 0.277 on this fixture's 2-year peel). Holding the peeled F and dropping that catch leaves one term: the
+# pollock 2026; 0.277 on this fixture's 2-year peel). Holding the peeled F and
+# dropping that catch leaves one term: the
 # peel fixes its peeled recruitment deviations yet still scores them, at 0 in
 # the peeled hindcast and at the projected deviation in this report, so R_log_sd
 # alone keeps a gradient of -sum((dev / sigma_R)^2).
@@ -895,8 +896,8 @@ testthat::test_that("a peel's catch-conditioned band matches the old joint repor
 # refit's own sdrep -- the object the rebuild exists to replace, whose hindcast
 # standard errors are all exactly 0 (the documented defect behind "a peel
 # reports standard errors for its own hindcast", which asserts the complement:
-# the REBUILT errors are > 0). The band was
-# then drawn as a certain quantity rather than an unmeasured one. The peel now
+# the REBUILT errors are > 0). The band was then drawn as a certain quantity
+# rather than an unmeasured one. The peel now
 # keeps what TMB::sdreport() returned, or no sdrep if it threw, and records why
 # on attr(peel, "sd_report_error"), which is what stops plots drawing it. It
 # raises no warning, because the peel converged and Mohn's rho reads point
@@ -1079,12 +1080,8 @@ testthat::test_that("a peel whose sd rebuild fails keeps its sdreport, and recor
   })
 })
 
-# Only a hindcast's non-convergence warns. A forecast refit fits the peeled F to
-# catch with the hindcast held fixed, so its failure leaves the terminal-year rho
-# standing but its forecast years are not a forecast of that catch: the peel stays,
-# silently, and leaves the forecast-year rows of $mohns, which would otherwise
-# average in an F that never fitted the catch. Its Hessian covers F alone, so that
-# alone neither drops the peel nor takes it out of those rows.
+# A forecast refit's failure leaves the terminal-year rho standing, so the peel
+# stays, silently, and leaves only the forecast-year rows of $mohns.
 testthat::test_that("only a peel's hindcast non-convergence warns or drops it", {
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("TMB")
@@ -1166,7 +1163,7 @@ testthat::test_that("only a peel's hindcast non-convergence warns or drops it", 
     utils::capture.output(print(r)))))
   testthat::expect_false(any(grepl(
     "left out of the forecast-year rows", utils::capture.output(print(ok)))))
-  # The header says so too. A wide band leaves no rho to raise a WARN over it.
+  # `band = 1e6` puts every rho inside the band, so the status comes from the peel alone.
   testthat::expect_match(utils::capture.output(print(r, band = 1e6))[1], "status: NOTE")
   testthat::expect_match(utils::capture.output(print(ok, band = 1e6))[1], "status: OK")
 
