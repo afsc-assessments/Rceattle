@@ -747,6 +747,12 @@ print.Rceattle_retro <- function(x, band = 0.2, ...) {
 #'
 #' @description Refits the Rceattle model from starting values perturbed by N(0, sd) around the model's initial (pre-fit) parameters, to check convergence robustness.
 #'
+#' @details Each start refits under the fit's own map, so a parameter fixed there keeps
+#' its value and is not estimated. The objectives compare with the fit's, unless it was
+#' fitted with \code{fit_mod(bounds = )}, because a refit rebuilds the bounds. A
+#' projection-only fit (\code{estimateMode = "Projection"}) refits under a rebuilt map,
+#' and its starts are not perturbed unless it was fitted under a supplied map.
+#'
 #' @note Attaching Rceattle masks \code{\link[base]{jitter}}, because that
 #'   function is not generic and this name is exported, so the mask cannot be
 #'   removed by making this an S3 method. It is harmless for the spellings base
@@ -869,13 +875,15 @@ jitter <- function(object = NULL, njitter = 50, sd = 0.2, phase = FALSE, seed = 
 
     # * Adjust initial values ----
     inits <- object$initial_params
-    mapList <- object$map$mapList
+    mapFactor <- object$map$mapFactor
     data_list <- object$data_list
 
+    # Perturb only what the map estimates, read from mapFactor because that is what TMB
+    # fixes; a fixed cell keeps its starting value.
     for(j in 1:length(inits)){
       par <- names(inits)[j]
       inits[[j]] <- replace(inits[[j]],
-                            values = ifelse(is.na(as.numeric(mapList[[par]])),
+                            values = ifelse(is.na(as.numeric(mapFactor[[par]])),
                                             as.numeric(inits[[j]]),
                                             as.numeric(inits[[j]]) + stats::rnorm(length(as.numeric(inits[[j]])), 0, sd))
       )
@@ -889,10 +897,11 @@ jitter <- function(object = NULL, njitter = 50, sd = 0.2, phase = FALSE, seed = 
     newmod <- .refit_with_timeout(
       suppressMessages(
         suppressWarnings(
-          # Refit from the jittered starting values (map rebuilt from scratch).
+          # Refit from the jittered starting values, under the fit's own map.
           .refit_like(
             data_list        = data_list,
             inits            = inits,
+            map              = .refit_map(object),
             # As in retrospective(): only a projection-only fit (2) refits at 0.
             estimateMode     = ifelse(data_list$estimateMode == 2, 0, data_list$estimateMode),
             phase            = phase,

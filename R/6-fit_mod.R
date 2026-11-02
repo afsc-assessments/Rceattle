@@ -798,8 +798,8 @@ fit_mod <-
       # selectivity form ignores, a Laplace request the map cannot honour. Each
       # changes what is estimated, so it has to be seen. De-duplicated because
       # build_map() raises the selectivity ones once per fleet and per sex, and
-      # .refit_like() re-enters fit_mod() once per retrospective peel, jitter
-      # and MSE simulation -- unfiltered, one real warning becomes hundreds of
+      # .refit_like() re-enters fit_mod() at each assessment of each MSE
+      # simulation -- unfiltered, one real warning becomes hundreds of
       # identical lines and stops being read.
       seen <- character(0)
       map <- withCallingHandlers(
