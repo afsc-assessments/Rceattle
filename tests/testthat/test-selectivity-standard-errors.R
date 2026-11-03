@@ -127,6 +127,12 @@ testthat::test_that("selectivity_se defaults to off and survives a data list wit
   d$adreport_sel <- 1L
   testthat::expect_identical(
     build_osa_data(d, build_osa = FALSE)$adreport_sel, 1L)
+
+  # adreport_catch is the same kind of DATA_INTEGER, off unless a peel's
+  # correction sets it.
+  d$adreport_catch <- NULL
+  testthat::expect_identical(
+    build_osa_data(d, build_osa = FALSE)$adreport_catch, 0L)
 })
 
 

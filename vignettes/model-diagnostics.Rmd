@@ -649,7 +649,7 @@ A peel still estimates the years it dropped: they are its retrospective forecast
 | `endyr_full` | the unpeeled terminal year, where the retrospective forecast ends |
 | `projyr` | the end of the projection |
 
-`incl_proj = TRUE` plots the forecast and projection years. Take the forecast years as `endyr_peel + seq_len(endyr_full - endyr_peel)`, empty for the unpeeled model, where `(endyr_peel + 1):endyr_full` would count down instead.
+`incl_proj = TRUE` plots the forecast and projection years. Take the forecast years as `endyr_peel + seq_len(endyr_full - endyr_peel)`, empty for the unpeeled model, where `(endyr_peel + 1):endyr_full` would count down instead. Under `getsd = TRUE`, a band in a forecast year treats that year's catch as known and its F as inferred from it, so it carries the hindcast's uncertainty forward through the F needed to take that catch. It does not include recruitment variability in the forecast years, so it is narrower than a forecast's prediction interval.
 
 The `retrospective()` function returns a list with two elements:
 
@@ -660,9 +660,11 @@ The `retrospective()` function returns a list with two elements:
 
 The `nyrs_forecast` argument (default 3) also evaluates rho for years projected beyond each terminal peel, so a single call quantifies forecast skill alongside retrospective bias.
 
-A peel that did not converge is dropped and a warning reports how many, so `Rceattle_list` can be shorter than `peels + 1`. Index it by name rather than position, with a peel missing, `Rceattle_list[[3]]` is not the 3-year peel. If no peel converges, Mohn's rho is `NaN` and the call warns.
+A peel whose hindcast did not converge is dropped and a warning reports how many, so `Rceattle_list` can be shorter than `peels + 1`. Index it by name rather than position, with a peel missing, `Rceattle_list[[3]]` is not the 3-year peel. If no peel converges, Mohn's rho is `NaN` and the call warns.
 
-A separate warning means something different: under `getsd = TRUE` a peel whose standard errors could not be rebuilt is **kept**, with its point estimates intact and no `sdrep` at all, so its uncertainty band is absent rather than drawn at zero width. Mohn's rho reads point estimates only and is unaffected. `print()` reports how many peels that happened to, and each carries the reason in `attr(peel, "sd_report_error")`.
+A peel whose forecast refit alone did not converge, or left a peeled F at a bound, is kept, with no warning. That refit estimates only the peeled years' F with the hindcast held fixed, so the hindcast and the terminal-year rho stand. F was not fitted to the peeled catch, though, so the peel is left out of the `$mohns` rows with `Forecast year` above 0: their `N` is smaller, `print()` says how many peels this affects, and `attr(peel, "forecast_error")` gives the reason. `plot_biomass()` and the other `plot_timeseries()` wrappers still draw that peel's forecast years under `incl_proj = TRUE` or a later `maxyr`, and warn when they do; `plot_catch()` and the other plotters draw them without a warning.
+
+Under `getsd = TRUE` (the default when the input model has standard errors), each peel's standard errors come from an extra report built after its two fits. If that one report fails, the peel is **kept**, unlike a hindcast that does not converge: its point estimates stand and `peel$sdrep` holds what `TMB::sdreport()` returned (`NULL` if the report errored before that). With a Hessian that is not positive definite those numbers are not valid standard errors, so `plot_biomass()`, `as.data.frame()` and `vcov()` read none of them. This raises no warning, because Mohn's rho reads point estimates only. `print()` says how many peels have no usable standard errors, and `lapply(model_1_retro$Rceattle_list, attr, "sd_report_error")` gives the reason for each (`NULL` for peels that have a band). `plot_biomass(model_1_retro$Rceattle_list, add_ci = TRUE)` draws bands for the other peels and warns about this one with that reason.
 
 ## Jitter testing
 

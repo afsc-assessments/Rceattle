@@ -80,7 +80,9 @@ testthat::test_that("`se` matches the template's ADREPORT calls", {
                                            collapse = ", ")))
 
   # ...and every ADREPORT'd quantity that the dictionary covers must say so.
-  covered <- intersect(adrep, d$quantity)
+  # catch_hat is ADREPORTed only inside a retrospective peel's band calculation
+  # (adreport_catch), so no fit's sdrep ever holds it.
+  covered <- setdiff(intersect(adrep, d$quantity), "catch_hat")
   testthat::expect_true(all(d$se[match(covered, d$quantity)]),
                         info = paste("ADREPORT'd but se = FALSE:",
                                      paste(covered[!d$se[match(covered, d$quantity)]],
