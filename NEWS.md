@@ -13,6 +13,18 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.66.11
+
+## Behavior changes
+
+* **`retrospective()`'s warning about a stored map no longer blames the map code alone.** It
+  said a difference from `build_map()` meant the fit was saved before a change to how maps
+  are built. A map the author edited, or supplied to `fit_mod()` (for example one built
+  before its starting values were set), differs too. The warning now reads "The stored map
+  differs from `build_map()` in: ... Peels use the stored map. If you did not edit or supply
+  the map yourself, this fit predates a change to how maps are built; refit it to use the
+  current map." It fires in the same cases as before, and no number changes.
+
 # Rceattle 5.66.10
 
 ## Bug fixes
