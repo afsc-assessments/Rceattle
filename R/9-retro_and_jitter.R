@@ -179,8 +179,8 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
   #
   # Say when the two disagree rather than change which map a peel uses. The
   # comparison is rebuilt from the ORIGINAL data and parameters, not the peel's,
-  # so a difference means the map-building code has changed since this fit was
-  # saved, not that the peel has fewer years.
+  # so a difference means the author edited or supplied the map, or the map-building
+  # code has changed since this fit was saved, not that the peel has fewer years.
   #
   # Hoisted above `run_one_peel`: the condition reads only the input model, and
   # a warning() raised inside a .parallel_lapply() worker is discarded (see
@@ -201,14 +201,11 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
       as.integer(.fresh$mapList[[nm]])), logical(1))]
   }, error = function(e) NULL)
   if (length(.map_drift)) {
-    warning("This fit's stored map differs from one built now, in: ",
-            paste(.map_drift, collapse = ", "),
-            ". Each peel's hindcast is fitted with the STORED map, so it ",
-            "reproduces the original parameterisation, while the ",
-            "forecast-catch refit rebuilds it -- Mohn's rho is therefore ",
-            "computed on the model as first fitted, not as the current code ",
-            "would build it. Refit the base model to use the current map.",
-            call. = FALSE)
+    warning("The stored map differs from `build_map()` in: ",
+            paste0("`", .map_drift, "`", collapse = ", "),
+            ". Peels use the stored map. If you did not edit or supply the map ",
+            "yourself, this fit predates a change to how maps are built; refit it ",
+            "to use the current map.", call. = FALSE)
   }
 
   # Per-peel closure ----
