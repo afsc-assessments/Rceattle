@@ -668,7 +668,7 @@ Under `getsd = TRUE` (the default when the input model has standard errors), eac
 
 ## Jitter testing
 
-Jitter testing re-fits the model from many randomly perturbed starting values and checks whether the optimizer keeps returning the same minimum negative log-likelihood (NLL). A spread of NLL values across jitters points to multiple local minima, so the results should be treated with caution.
+Jitter testing re-fits the model from many randomly perturbed starting values and checks whether the optimizer keeps returning the same minimum negative log-likelihood (NLL). A spread of NLL values across jitters points to multiple local minima, so the results should be treated with caution. Each start re-fits under the fit's own map (which parameters are estimated and which are fixed), so a parameter you fixed keeps its value and is not estimated, and the NLL values compare with the fit's.
 
 ```{r}
 jitters <- jitter(model_1, njitter = 10, phase = TRUE)  # default njitter = 50
@@ -693,7 +693,7 @@ A run is dropped when its maximum absolute gradient exceeds 1 (the same threshol
 
 ## Self-test (simulation–estimation)
 
-`self_test()` simulates `nsim` datasets from a fitted model (holding its estimated parameters fixed) and re-fits the model to each. If the refit estimates cluster around the values used to simulate them, the model is at least self-consistent: it can recover its own estimates from data it generated. Persistent bias or a wide spread in a quantity means the data are not informative about it.
+`self_test()` simulates `nsim` datasets from a fitted model (holding its estimated parameters fixed) and re-fits the model to each. If the refit estimates cluster around the values used to simulate them, the model is at least self-consistent: it can recover its own estimates from data it generated. Persistent bias or a wide spread in a quantity means the data are not informative about it. Each simulation re-fits under the fit's own map, so a parameter you fixed keeps its value and is not estimated.
 
 ```{r}
 sims <- self_test(model_1, nsim = 10)            # default nsim = 50

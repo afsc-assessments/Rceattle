@@ -13,6 +13,26 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.66.10
+
+## Bug fixes
+
+* **`jitter()` and `self_test()` now refit under the fit's own map.** Both built a new map,
+  which released anything the author had fixed, so they tested a different model from the
+  one fitted. On a `BS2017SS` test with a log catchability (`index_log_q`) fixed at
+  -8.258635 and an objective of 10241.5762, `jitter()` moved it to -8.308635, returned the
+  objective of the model with it free (10241.0304) and still printed `status: OK`;
+  `self_test()` moved it to -8.235536 and estimated 310 parameters rather than 309. Results
+  change only for a fit whose stored map differs from `build_map()`: a parameter fixed,
+  shared or freed by hand, a map built before its starting values were set, or a fit saved
+  before a later change to how maps are built. Such a saved fit now refits under the map it
+  was fitted with, as a `retrospective()` peel's hindcast does, but without that function's
+  warning. An OM returned by `run_mse()` also differs: its map leaves only the new years'
+  fishing mortality free. A projection-only fit still refits under a rebuilt map, so nothing
+  fixed in it carries over, and unless fitted under a supplied map `jitter()` perturbs none
+  of its starts. `self_test()` now warns where `process` redrew a deviation the fit's map
+  fixes, which the refit cannot recover.
+
 # Rceattle 5.66.9
 
 ## Bug fixes
