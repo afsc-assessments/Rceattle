@@ -13,6 +13,21 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.66.14
+
+## Behavior changes
+
+* **Under `initMode = "FreeParams"` the initial numbers at age now start at the unfished
+  equilibrium.** That mode estimates log numbers at age directly, and its start of 0 was
+  1 (thousand fish) at every age. `build_params()` now starts them at the equilibrium of
+  the R0 start (log R0 = 9 unless a linkage `init` sets it) and M1, with a plus group.
+  On a two-sex species both sexes start on female (sex-1) M1. Under a single-species
+  stock-recruit curve the template takes initial recruitment from alpha and beta instead,
+  so those species keep the start of 0. Only starts `build_params()` builds change
+  (`fit_mod()` with `inits = NULL`); refits from a stored fit start where they did. Fit
+  without `inits`, the FreeParams versions of BS2017SS and GOA2018SS take 2.5 s rather
+  than 3.8 s and 29-34 s rather than 42-50 s, and end at objectives 0.004 and 1.19 lower.
+
 # Rceattle 5.66.11
 
 ## Behavior changes
