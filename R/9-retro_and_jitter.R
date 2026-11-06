@@ -44,15 +44,14 @@
 #' fixed at the projected deviation, so the band leaves out recruitment
 #' variability there and is narrower than a forecast's prediction interval.
 #'
-#' Where that rebuild fails -- it errors, or its Hessian is not positive
-#' definite, or it reports no finite standard error -- the peel keeps its point
-#' estimates and the reason is in `attr(peel, "sd_report_error")`; `print()`
-#' counts such peels. `peel$sdrep` still holds what `TMB::sdreport()` returned
-#' (`NULL` if the rebuild errored before that). Under an indefinite Hessian its
-#' numbers are not valid standard errors, and if moving F with the hindcast parameters
-#' fails, its forecast years leave out F's response, so plots,
-#' `as.data.frame()` and `vcov()` read none of it. No warning is raised, since
-#' the point estimates and Mohn's rho are unaffected.
+#' Where that rebuild fails -- it errors, its Hessian is not positive definite, it
+#' reports no finite standard error, or moving F with the hindcast parameters fails
+#' (its forecast years would then leave out F's response) -- the peel keeps its point
+#' estimates, `peel$sdrep` keeps what `TMB::sdreport()` returned (`NULL` if the rebuild
+#' errored first; under an indefinite Hessian its numbers are not valid standard errors),
+#' and `attr(peel, "sd_report_error")` gives the reason, so plots, `as.data.frame()` and
+#' `vcov()` read none of it. `print()` counts such peels; no warning is raised, since the
+#' point estimates and Mohn's rho are unaffected.
 #'
 #' Mohn's rho reads point estimates, so `getsd = FALSE` is faster, but `TRUE` also drops
 #' a peel whose hindcast Hessian is not positive definite, so the two can average over
@@ -352,7 +351,7 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
           data_list        = data_list,
           inits            = inits,
           map              = map,
-          estimateMode     = ifelse(data_list$estimateMode == 2, 0, data_list$estimateMode), # A projection-only fit (2) refits the hindcast
+          estimateMode     = ifelse(data_list$estimateMode == 2, 0, data_list$estimateMode), # Projection-only (2) is refitted at mode 0
           phase            = phase,  # see `phase` above: peels need phasing to move
           getsd            = getsd,
           srr_mse_switchyr = min(data_list$srr_mse_switchyr, endyr_peel),
@@ -475,8 +474,6 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
             srr_mse_switchyr = min(data_list$srr_mse_switchyr, endyr_peel),
             srr_hat_endyr    = min(data_list$srr_hat_endyr, endyr_peel),
             suit_endyr       = pmin(data_list$suit_endyr, endyr_peel))))
-        # Drop the peeled catch from the likelihood (a catch of 0 is read as
-        # missing); F, and so the removals, are unchanged.
         obj <- report_mod$obj
         dat <- obj$env$data
         peeled <- dat$catch_ctl[, 3] > endyr_peel
@@ -488,15 +485,13 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
         fitted_rows <- which(peeled & dat$catch_ctl[, 3] <= endyr &
                                dat$flt_type[dat$catch_ctl[, 1]] == 1 &
                                dat$catch_obs[, 1] > 0 & f_free)
+        # A catch of 0 is read as missing; F, and so the removals, are unchanged.
         obj$env$data$catch_obs[peeled, 1] <- 0
         obj$retape()   # rebuild the model with the changed catch
-        # Under random effects also return the inverse covariance of fixed and
-        # random effects together, which the correction needs.
-        # Quiet: an indefinite Hessian warns "NaNs produced", and the reason is
-        # recorded below.
+        # The correction needs the joint precision under random effects. Quiet: an
+        # indefinite Hessian warns "NaNs produced", and the reason is recorded below.
         sdr <- suppressWarnings(
           TMB::sdreport(obj, getJointPrecision = length(obj$env$random) > 0))
-        # On a failed correction the sdreport is still returned, flagged below.
         tryCatch({
           if (isTRUE(sdr$pdHess) && length(fitted_rows)) {
             sdr <- .rce_catch_conditioned_sd(obj, sdr, fitted_rows, data_list$styr)
@@ -1112,9 +1107,7 @@ print.Rceattle_jitter <- function(x, tol = 0.01, ...) {
     stop("the catch-conditioned rebuild did not reproduce the peel's estimates")
   }
 
-  # j_q: exact derivative of each reported quantity (row) by each parameter.
-  # j_c: the same for each peeled log predicted catch; dividing by predicted
-  # catch turns its derivative into that of its log.
+  # Dividing by predicted catch turns its derivative into that of its log (j_c).
   jac <- ad$gr(pa)
   j_q <- jac[!is_catch, , drop = FALSE]
   catch_at <- which(is_catch)[rows]

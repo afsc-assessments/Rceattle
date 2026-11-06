@@ -127,15 +127,14 @@ carries that into the band. The peeled years' recruitment deviations are
 fixed at the projected deviation, so the band leaves out recruitment
 variability there and is narrower than a forecast's prediction interval.
 
-Where that rebuild fails -- it errors, or its Hessian is not positive
-definite, or it reports no finite standard error -- the peel keeps its point
-estimates and the reason is in \code{attr(peel, "sd_report_error")}; \code{print()}
-counts such peels. \code{peel$sdrep} still holds what \code{TMB::sdreport()} returned
-(\code{NULL} if the rebuild errored before that). Under an indefinite Hessian its
-numbers are not valid standard errors, and if moving F with the hindcast parameters
-fails, its forecast years leave out F's response, so plots,
-\code{as.data.frame()} and \code{vcov()} read none of it. No warning is raised, since
-the point estimates and Mohn's rho are unaffected.
+Where that rebuild fails -- it errors, its Hessian is not positive definite, it
+reports no finite standard error, or moving F with the hindcast parameters fails
+(its forecast years would then leave out F's response) -- the peel keeps its point
+estimates, \code{peel$sdrep} keeps what \code{TMB::sdreport()} returned (\code{NULL} if the rebuild
+errored first; under an indefinite Hessian its numbers are not valid standard errors),
+and \code{attr(peel, "sd_report_error")} gives the reason, so plots, \code{as.data.frame()} and
+\code{vcov()} read none of it. \code{print()} counts such peels; no warning is raised, since the
+point estimates and Mohn's rho are unaffected.
 
 Mohn's rho reads point estimates, so \code{getsd = FALSE} is faster, but \code{TRUE} also drops
 a peel whose hindcast Hessian is not positive definite, so the two can average over

@@ -17,9 +17,10 @@
 # This harness rebuilds with bounds checking ON and drives the model over the
 # configurations most likely to trip it: ragged composition data (a model whose
 # length bins and age bins differ, in both directions), joint-sex rows, tail
-# accumulation, and the fleet set the crashing test fits. A violation surfaces
-# as an R error naming the object, which is the whole point -- attributable
-# instead of a mystery segfault.
+# accumulation, and the fleet set the crashing test fits. A violation prints
+# TMB's Eigen message (the condition that failed) and aborts R at the faulting
+# case, the one after the last printed: no summary, and the finalizer below that
+# restores the unchecked build does not run.
 #
 # Slow by construction: every array access is range-tested, and the model does
 # millions per objective evaluation. Minutes, not seconds.
@@ -260,7 +261,7 @@ for (h in c("helpers.R", "helpers-make-msm-data.R")) {
 # A population grid four times finer than the data bins, so every population
 # array is wider than the data array beside it and a stray index lands inside
 # the object rather than past it -- silent, and exactly what bounds checking
-# turns into an attributable error.
+# turns into an attributable abort.
 run_case("finer population length grid (pop_lengths)", {
   set.seed(11)
   d <- sb_env$make_msm_test_data()$data_list

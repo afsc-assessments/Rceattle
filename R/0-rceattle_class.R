@@ -169,11 +169,8 @@ print.summary.Rceattle <- function(x, n = 10, ...) {
           sep = "")
     }
     if (all(is.na(cf$std_error))) {
-      # The user needs to know which reason: a peel whose rebuild failed, no
-      # sdreport at all, a peel's F-only estimates beside its hindcast's covariance,
-      # or variances that are unusable (Hessian not positive definite).
-      # A print method must not stop, so an unreadable spec falls back to the
-      # commoner reason.
+      # Name the reason. A print method must not stop, so an unreadable spec
+      # falls back to the commoner reason.
       v <- tryCatch(stats::vcov(x$spec), error = function(e) NULL)
       peel_reason <- attr(x$spec, "sd_report_error", exact = TRUE)
       if (!is.null(peel_reason)) {

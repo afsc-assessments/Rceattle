@@ -29,8 +29,9 @@
 #'   below).
 #' @param inits Starting parameters (an `estimated_params`-shaped list).
 #' @param estimateMode [fit_mod()] estimate mode for this refit. Required and
-#'   passed explicitly by every caller (retro/jitter refit at 0, profile at 1,
-#'   the MSE OM rebuild at 3, the input-F EM at 2, ...), so it has no default.
+#'   passed explicitly by every caller (retro/jitter at the fit's own mode, a
+#'   projection-only fit at 0; profile at 1; the MSE OM rebuild at 3, the input-F
+#'   EM at 2, ...), so it has no default.
 #' @param map Parameter map, or `NULL` to let [fit_mod()] build it, which releases anything
 #'   fixed by hand; a caller that must keep the fitted model passes the stored map.
 #'
