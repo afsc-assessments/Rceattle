@@ -2545,7 +2545,8 @@ Type objective_function<Type>::operator() () {
   for(index_ind = 0; index_ind < index_ctl.rows(); index_ind++){
     index = index_ctl(index_ind, 0) - 1;            // Survey index
     flt_yr = index_ctl(index_ind, 2);               // Data year
-    if((flt_yr <= 0) || (flt_yr - styr >= nyrs_hind)) continue;   // hindcast years
+    // Only hindcast years with an observation, as 13.1 fits; a missing (NA) year fails the > 0 test
+    if((flt_yr <= 0) || (flt_yr - styr >= nyrs_hind) || !(index_obs(index_ind, 0) > 0)) continue;
 
     if(index_ll_type(index) == 3){      // Normal: sd is absolute, input by year or estimated
       Type sd2 = (est_sigma_index(index) == 0) ? square(index_obs(index_ind, 1)) : exp(2.0 * index_log_sd(index));
@@ -2578,7 +2579,8 @@ Type objective_function<Type>::operator() () {
   for(index_ind = 0; index_ind < index_ctl.rows(); index_ind++){
     index = index_ctl(index_ind, 0) - 1;
     flt_yr = index_ctl(index_ind, 2);
-    if((flt_yr <= 0) || (flt_yr - styr >= nyrs_hind) || (est_sigma_index(index) != 2)) continue;
+    if((flt_yr <= 0) || (flt_yr - styr >= nyrs_hind) || !(index_obs(index_ind, 0) > 0) ||
+       (est_sigma_index(index) != 2)) continue;
     index_q_resid_ss(index) += square(log(index_obs(index_ind, 0) / index_hat(index_ind)) - index_q_analytical(index));
   }
 
@@ -2636,7 +2638,7 @@ Type objective_function<Type>::operator() () {
     flt_yr = index_ctl(index_ind, 2);
     if(flt_yr > 0){
       flt_yr = flt_yr - styr;
-      if(flt_yr < nyrs_hind){
+      if((flt_yr < nyrs_hind) && (index_obs(index_ind, 0) > 0)){   // a missing (NA) year compares false
         index_obs_sum(index) += index_obs(index_ind, 0);
         index_hat_sum(index) += index_hat(index_ind);
       }

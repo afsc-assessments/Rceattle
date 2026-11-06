@@ -75,6 +75,11 @@ version throughout.
   that of a fit that estimates q. The MVN/MVNORM q is not forced positive: with a strongly
   correlated covariance it can go negative at parameter values far from the best fit.
 
+* **A missing (NA) index year no longer makes analytical q, `"AnalyticalArith"` q or the
+  objective NA.** Both now use only the years the likelihood fits. `"AnalyticalArith"` is
+  otherwise unchanged: it remains the AMAK arithmetic-mean estimator, not the maximum
+  likelihood q.
+
 # Rceattle 5.66.11
 
 ## Behavior changes

@@ -9,7 +9,7 @@
 #
 # The check needs no fit: at the starting values, the analytical-q objective
 # must equal the minimum over log q (and log sd) of the same model with those
-# estimated.
+# estimated. The missing year checks that q uses only fitted rows.
 
 .aq_build <- function(q, sd_form, bias = TRUE, family = "Lognormal") {
   d <- make_test_data(nyrs = 12)
@@ -25,6 +25,10 @@
     sds <- seq(10, 30, length.out = 12)
     rho <- matrix(0.3, 12, 12); diag(rho) <- 1
     d$index_cov <- list(Survey = diag(sds) %*% rho %*% diag(sds))
+  } else {
+    # A year without a survey. Not on MVN, whose R-side covariance alignment
+    # does not yet accept one (Rceattle-dev CLEANUP_BACKLOG.md).
+    d$index_data$Observation[5] <- NA
   }
   d$fleet_control$Catchability_init[1] <- 0.8
   d$fleet_control$Catchability[1] <- q
@@ -88,7 +92,7 @@ test_that("MVN and MVNORM analytical q reach the likelihood's optimum", {
   .aq_expect_mle("Fixed", TRUE, "MVNORM")
 })
 
-test_that("analytical q uses only the hindcast rows of its own fleet (fishery CPUE, fleet 2)", {
+test_that("analytical q uses only the fitted rows of its own fleet (fishery CPUE, fleet 2)", {
   testthat::skip_if_not_installed("TMB")
   # The survey's q is fixed; the analytical fleet is the fishery, whose index
   # also carries projection and negative-year rows with extreme values.
@@ -98,6 +102,7 @@ test_that("analytical q uses only the hindcast rows of its own fleet (fishery CP
     fi$Fleet_name <- "Fishery"; fi$Fleet_code <- 2
     fi$Observation <- 30 * exp(c(-0.35, 0.05, -0.15, 0.25, -0.1, 0.2, 0, -0.3,
                                  0.4, 0.1, -0.2, 0.3))
+    fi$Observation[7] <- NA
     fi$Log_sd <- seq(0.1, 0.5, length.out = 12)
     ex <- fi[1:4, ]
     ex$Year <- c(13, 14, -3, -4); ex$Observation <- c(1e4, 1e-3, 5e3, 2e-3)
@@ -130,4 +135,15 @@ test_that("analytical q is refused on a TruncatedNormal index, unless the fleet 
   d$fleet_control$Fleet_type[1] <- "Off"
   testthat::expect_no_error(suppressWarnings(Rceattle:::.check_analytical_q_family(d)))
   testthat::expect_length(Rceattle:::.check_analytical_q_family(d), 0)
+})
+
+test_that("AnalyticalArith skips a missing year", {
+  testthat::skip_if_not_installed("TMB")
+  o <- .aq_build("AnalyticalArith", "Fixed")
+  r <- o$report(o$par)
+  obs <- o$env$data$index_obs[, 1]
+  fitted <- which(obs > 0 & o$env$data$index_ctl[, 1] == 1)
+  testthat::expect_true(is.finite(o$fn(o$par)))
+  # q = sum(obs) / sum(pred) over the observed years, so the scaled sums agree.
+  testthat::expect_equal(sum(r$index_hat[fitted]), sum(obs[fitted]), tolerance = 1e-12)
 })
