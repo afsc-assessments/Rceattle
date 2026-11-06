@@ -99,7 +99,7 @@ test_that("the R objects and C++ symbols the recipe relies on exist, and are nam
 
   # Workbook columns the article names resolve in the schema.
   cols <- c("Selectivity", "Selectivity_index", "Time_varying_sel",
-            "Bin_first_selected", "Sel_norm_bin")
+            "Sel_norm_bin")
   testthat::expect_equal(setdiff(cols, tok), character(0))
   testthat::expect_true(all(cols %in% names(get(".rce_column_schema", ns)())))
 

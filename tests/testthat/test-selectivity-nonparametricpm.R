@@ -26,7 +26,7 @@ testthat::test_that("NonParametricPM construction matches NonParametric", {
   setup <- function(dat, sel){
     dat$fleet_control$Selectivity[rows_use]                <- sel
     dat$fleet_control$N_sel_bins[rows_use]                 <- n_sel_bins
-    dat$fleet_control$Bin_first_selected[rows_use]         <- 1
+    dat$fleet_control$Age_first_selected[rows_use]         <- 1
     dat$fleet_control$Sel_curve_pen1[rows_use]             <- 5
     dat$fleet_control$Sel_curve_pen2[rows_use]             <- 10
     dat$fleet_control$Sel_curve_pen3[rows_use]             <- 0
@@ -66,7 +66,7 @@ testthat::test_that("NonParametricPM penalty matches the ADMB form (time-invaria
 
   GOA2018SS$fleet_control$Selectivity[rows_use]               <- "NonParametricPM"
   GOA2018SS$fleet_control$N_sel_bins[rows_use]                <- n_sel_bins
-  GOA2018SS$fleet_control$Bin_first_selected[rows_use]        <- 1
+  GOA2018SS$fleet_control$Age_first_selected[rows_use]        <- 1
   GOA2018SS$fleet_control$Sel_curve_pen1[rows_use]            <- 5    # decreasing weight
   GOA2018SS$fleet_control$Sel_curve_pen2[rows_use]            <- 10   # curvature weight
   GOA2018SS$fleet_control$Sel_curve_pen3[rows_use]            <- 0

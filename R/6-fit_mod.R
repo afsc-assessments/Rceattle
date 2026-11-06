@@ -601,6 +601,8 @@ fit_mod <-
     # -- that would print it three times per fit. Reports only; changes nothing.
     if (isTRUE(quiet_data_check)) suppressMessages(.rce_flag_dm_weight_scale(data_list))
     else .rce_flag_dm_weight_scale(data_list)
+    if (isTRUE(quiet_data_check)) suppressMessages(.rce_flag_bin_first_selected(data_list))
+    else .rce_flag_bin_first_selected(data_list)
 
     # Check for data error. `quiet_data_check` drops the WARNINGS only -- errors
     # still stop the fit. The diagnostic refits set it: they re-validate a
@@ -1302,18 +1304,17 @@ fit_mod <-
     # proj_F_prop, log_Ftarget, log_M1 and the stock-recruit alpha / beta.
     # retrospective() and jitter() reuse this as their refit starting values.
     # Taken before TMBphase() replaces start_par with a fitted state.
-    # Non-parametric coefficients below Bin_first_selected are mapped off but enter
-    # the curve's centring unscored, so hold them at 0 whatever `inits` carries.
+    # Non-parametric coefficients below the first selected bin are mapped off but
+    # enter the curve's centring unscored, so hold them at 0 whatever `inits` carries.
     .np_forms <- c("NonParametric", "NonParametricPM", "NonParametricIntegrable")
-    if (!is.null(data_list$fleet_control$Bin_first_selected)) {
-      for (.f in which(as.character(data_list$fleet_control$Selectivity) %in% .np_forms)) {
-        .bfs <- suppressWarnings(as.integer(data_list$fleet_control$Bin_first_selected[.f]))
-        if (is.na(.bfs) || .bfs <= 1L) next
-        .flt  <- data_list$fleet_control$Fleet_code[.f]   # arrays are indexed by Fleet_code
-        .below <- seq_len(.bfs - 1L)
-        if (!is.null(start_par$sel_coff))     start_par$sel_coff[.flt, , .below]     <- 0
-        if (!is.null(start_par$sel_coff_dev)) start_par$sel_coff_dev[.flt, , .below, ] <- 0
-      }
+    .first_bin <- .rce_first_selected(data_list)$bin
+    for (.f in which(as.character(data_list$fleet_control$Selectivity) %in% .np_forms)) {
+      .bfs <- suppressWarnings(as.integer(.first_bin[.f]))
+      if (is.na(.bfs) || .bfs <= 1L) next
+      .flt  <- data_list$fleet_control$Fleet_code[.f]   # arrays are indexed by Fleet_code
+      .below <- seq_len(.bfs - 1L)
+      if (!is.null(start_par$sel_coff))     start_par$sel_coff[.flt, , .below]     <- 0
+      if (!is.null(start_par$sel_coff_dev)) start_par$sel_coff_dev[.flt, , .below, ] <- 0
     }
 
     mod_objects$initial_params <- start_par

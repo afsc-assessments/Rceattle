@@ -329,6 +329,7 @@ Type objective_function<Type>::operator() () {
   DATA_IVECTOR(flt_varying_sel);          // Whether time-varying selectivity is estimated
   DATA_IVECTOR(flt_spp);                  // Fleet species
   DATA_IVECTOR(bin_first_selected);       // First selected age/length BIN, 0-based (selectivity below it = 0)
+  DATA_IVECTOR(age_first_selected);       // Length-based fleet: first selected AGE index, 0-based; younger ages leave the fleet's age-length key. 0 elsewhere.
   DATA_IVECTOR(sel_norm_bin1);            // Normalization BIN, 0-based, or a control flag when negative (-999 = do not normalize, -99 = normalize by the maximum); rearrange_data() converts, so NA never arrives. LogisticPM (type 11): lower bin of the selectivity-penalty range.
   DATA_IVECTOR(sel_norm_bin2);            // Upper normalization BIN, same encoding as sel_norm_bin1. LogisticPM (type 11): upper bin of the selectivity-penalty range.
   DATA_IVECTOR(sel_norm_scope);           // Whether normalization pools its reference across sexes: 0 = WithinSex (each sex divided by its own reference; both reach 1), 1 = AcrossSexes (one pooled reference; the lower sex stays below 1). Orthogonal to sel_norm_bin1/2, which say WHERE the reference is taken.
@@ -1114,6 +1115,23 @@ Type objective_function<Type>::operator() () {
   rceattle_apply_sel_linkages(   // identity link, into the natural-scale arrays
     sel_slp_off_nat, sel_inf_off_nat, sel_coff_off_nat, sel_apical_off_nat, sel_dn6_off_nat,
     RCEATTLE_LINK_IDENTITY, linkage_table, n_flt, max_sex, max_bin, nyrs);
+
+  // A length-based fleet selects no fish younger than Age_first_selected, whatever
+  // their length (an SS3 age-range mask, age pattern 11), so those ages leave the fleet's own
+  // age-length key, the one its selectivity-at-age, comps and CAAL read. A Fixed
+  // curve is used as given.
+  for(flt = 0; flt < n_flt; flt++){
+    if(flt_sel_dim(flt) != 1 || flt_sel_type(flt) == 0) continue;
+    sp = flt_spp(flt);
+    int wt_idx_mask = nspp * 2 + flt;
+    for(sex = 0; sex < nsex(sp); sex++){
+      for(age = 0; age < age_first_selected(flt) && age < nages(sp); age++){
+        for(int lp = 0; lp < nlengths_pop(sp); lp++){
+          for(yr = 0; yr < nyrs; yr++) growth_matrix(wt_idx_mask, sex, age, lp, yr) = 0;
+        }
+      }
+    }
+  }
 
   // "sel_at_age" and "sel_at_length" modified via pass-by-reference
   // when "sel_at_length" is used, it is converted to "sel_at_age" using the growth matrix
@@ -4689,8 +4707,8 @@ Type objective_function<Type>::operator() () {
   // max2(), exact above the floor. log_sel_at_age_index carries each row's fleet, sex,
   // absolute age and calendar year, since which cells are reported depends on the model.
   if(adreport_sel == 1){
-    // First bin and bin count per fleet. data_check() bounds Bin_first_selected
-    // by nages, but a 0 in the workbook still arrives here as -1, and the model
+    // First bin and bin count per fleet. data_check() bounds the first selected
+    // bin by nages, but a 0 in the workbook still arrives here as -1, and the model
     // builds safebounds = FALSE, so both ends are clamped before indexing.
     vector<int> sel_first_bin(n_flt); sel_first_bin.setZero();
     vector<int> sel_rep_bins(n_flt);  sel_rep_bins.setZero();

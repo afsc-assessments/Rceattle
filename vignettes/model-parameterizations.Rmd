@@ -128,14 +128,15 @@ $\bar{N}$ is also what a fishery's age composition is built on, so a fleet's ind
 
 
 ## Selectivity parameterizations
-Selectivity is controlled by `Selectivity_index`, `Selectivity`, `N_sel_bins`, `Time_varying_sel`, `Time_varying_sel_sd` and `Bin_first_selected` on the `fleet_control` sheet:
+Selectivity is controlled by `Selectivity_index`, `Selectivity`, `N_sel_bins`, `Time_varying_sel`, `Time_varying_sel_sd`, `Age_first_selected` and `Bin_first_selected` on the `fleet_control` sheet:
 
 * `Selectivity_index`:	Fleets given the same value share one selectivity parameter block.
 * `Selectivity`:	Selectivity parameterization for the fleet: 0 or `"Fixed"` = empirical selectivity provided in `emp_sel`; 1 or `"Logistic"`; 2 or `"NonParametric"` sensu Ianelli et al 2018; 3 or `"DoubleLogistic"`; 4 or `"DescendingLogistic"`; 5 or `"Hake"`, non-parametric sensu Taylor et al 2014; 6 or `"2DAR1"` for bin by year; 7 or `"3DAR1"` sensu Cheng et al (2024); 8 or `"DoubleNormal"`, a four-parameter double normal (peak, ascending and descending widths, and a right-tail floor); this is the Stock Synthesis pattern 24 shape without its initial-selectivity and plateau-width parameters; 9 or `"NonParametricPM"`, Ianelli non-parametric with the ADMB AMAK (`"pm"`) penalty; 11 or `"LogisticPM"`, the AMAK logistic with a free age-1 selectivity; 13 or `"NonParametricIntegrable"`, the Ianelli base curve whose deviations have a proper density and so integrate under `random_sel` (`Time_varying_sel` picks the structure: `"Off"`, `"IID"` or `"RandomWalk"`). There is no 10, 12 or 14; the integer codes are frozen, because renumbering one would silently reinterpret every saved config and every fitted `.rds` that holds it. Whether a form is age- or length-based is set by `Selectivity_dimension`, not by the code.
 * `N_sel_bins`:	Number of age or length bins (per `Selectivity_dimension`) estimated for the non-parametric and AR1 forms; not read by the others. It is a count of bins, not an age: estimating up to age 6 means `N_sel_bins = 6` when `minage = 1` and 7 when `minage = 0`.
 * `Time_varying_sel`:	Whether time-varying selectivity is estimated, for the logistic, double-logistic, descending-logistic and non-parametric forms. 0 or `"Off"` = no; 1 or `"IID"` = penalized deviates given `Time_varying_sel_sd`, or random effects with that sd estimated under `fit_mod(random_sel = TRUE)`; 3 or `"Block"` = time blocks with no penalty; 4 or `"RandomWalk"` = random walk following Dorn; 5 or `"RandomWalkAscending"` = random walk on the ascending portion of the double logistic only. Value 2 (`"AR1"`) was **removed in 5.16.0**: it was never an AR1, and an autocorrelated deviation is now a selectivity linkage, `linkage_spec(~ ar1(1 | Year))`. The switch as a whole is soft-deprecated in favour of that grammar.
 * `Time_varying_sel_sd`:	The sd of the time-varying selectivity deviates. Under `fit_mod(random_sel = FALSE)` it is fixed at this value, per fleet. Under `random_sel = TRUE` the deviates are integrated out and the sd is *estimated*, so this is only a starting value, and fleets sharing a `Selectivity_index` share one estimated sd started at the geometric mean of theirs. The 2DAR1 and 3DAR1 forms read it under every `Time_varying_sel`, as the conditional sd of their deviation field, so they always need a positive value. `Time_varying_q_sd` is the catchability equivalent, under `random_q`.
-* `Bin_first_selected`:	First age/length bin with non-zero selectivity; the curve is 0 below it. A 1-based bin ordinal on the fleet's `Selectivity_dimension`.
+* `Age_first_selected`:	First age selected, an absolute age. On an age-based fleet the curve is 0 below it; on a length-based fleet younger ages are removed from the fleet's age-length key, so it catches no fish below this age at any length (a Stock Synthesis age-range mask: age pattern 11 up to the plus group, or pattern 10 when the first age is 1).
+* `Bin_first_selected`:	First length bin selected on a length-based fleet, a 1-based bin ordinal; the curve is 0 below it. On an age-based fleet it is the deprecated spelling of `Age_first_selected`, read as age `minage + Bin_first_selected - 1`.
 
 ### Selectivity penalty weights
 
@@ -191,7 +192,7 @@ Input: `Selectivity = 0 or "Fixed"`, with selectivity-at-age supplied in `emp_se
 The last hindcast year supplied for a fleet and sex is held through the projection.
 
 ### Non-parametric (Type 1)
-Input: `Selectivity = 2 or "NonParametric"`, `N_sel_bins = 6`, `Sel_curve_pen1 = 12.5`, `Sel_curve_pen2 = 200`, and `Bin_first_selected = 1`. See **Selectivity penalty weights** above for the `Sel_curve_pen` slots and the standard-deviation columns that set them.
+Input: `Selectivity = 2 or "NonParametric"`, `N_sel_bins = 6`, `Sel_curve_pen1 = 12.5`, `Sel_curve_pen2 = 200`, and `Age_first_selected = 1`. See **Selectivity penalty weights** above for the `Sel_curve_pen` slots and the standard-deviation columns that set them.
 
 Equation:
 $$sel_{f_i sa}=e^{\phi_{f_isa}}$$
@@ -257,7 +258,7 @@ where
 $$ sel^{`}_{f_i sa} = \sum_{i=A_{min}}^a p_{f_i sa}$$
 Selectivity is 0 for $a < A_{min}$, and $p_{f_i sa} = 0$ above `minage + N_sel_bins`, so selectivity is constant beyond the last estimated bin. `minage`, set in the data, is the youngest age modeled.
 
-Input: `Selectivity = 5 or "Hake"`, `N_sel_bins = 6`, `Time_varying_sel = NA`, `Time_varying_sel_sd = NA`, and `Bin_first_selected = `$A_{min}$
+Input: `Selectivity = 5 or "Hake"`, `N_sel_bins = 6`, `Time_varying_sel = NA`, `Time_varying_sel_sd = NA`, and `Age_first_selected = `$A_{min}$
 
 ### Time-varying non-parametric (Type 2 for hake)
 As above, but deviations on $p_a$ carry annual changes in selectivity, given a fixed or estimated standard deviation ($\sigma^{\phi}_{f_i}$):

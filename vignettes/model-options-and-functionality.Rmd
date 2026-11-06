@@ -255,11 +255,10 @@ well and the reference is mean selectivity over that range instead.
 
 A numeric `Sel_norm_bin` is read on the fleet's own `Selectivity_dimension`: an
 absolute **age** for an age-based fleet (`6` means age 6, not the sixth bin) or
-a 1-based **length-bin ordinal** for a length-based one. `Bin_first_selected`
-beside it uses the opposite convention and is always a bin ordinal. Below
-`Bin_first_selected` the curve is zeroed, so a reference taken there would divide
-by nothing; such a value is read as `"Max"`, which is what a negative has always
-meant. Legacy numbers still work: blank is `"Off"`, and `0`, `-1` or `-999` are
+a 1-based **length-bin ordinal** for a length-based one, the same conventions
+as `Age_first_selected` and `Bin_first_selected`. Below the first selected bin
+the curve is zeroed, so a reference taken there would divide by nothing; such a
+value is read as `"Max"`, which is what a negative has always meant. Legacy numbers still work: blank is `"Off"`, and `0`, `-1` or `-999` are
 `"Max"`.
 
 ### Sharing a selectivity between fleets
@@ -272,7 +271,7 @@ with different selectivities:
 
 | Column | If it differs within the group |
 |---|---|
-| `Selectivity`, `Selectivity_dimension`, `Bin_first_selected`, `N_sel_bins`, `Sel_norm_bin`, `Sel_norm_bin_upper`, `Sel_norm_scope`, `Sel_cap_bin` | The fleets get **different curves**: mirroring fails |
+| `Selectivity`, `Selectivity_dimension`, `Age_first_selected`, `Bin_first_selected`, `N_sel_bins`, `Sel_norm_bin`, `Sel_norm_bin_upper`, `Sel_norm_scope`, `Sel_cap_bin` | The fleets get **different curves**: mirroring fails |
 | `Time_varying_sel` | Resolved to the lead fleet's setting |
 | `Sel_start_year` | Resolved to the group's earliest year |
 | `Time_varying_sel_sd` | Honoured per fleet while it is **fixed**. Under `random_sel = TRUE` the group estimates one deviation sd, and TMB averages the initial values of parameters mapped together, this one on the log scale, so the group starts at the *geometric* mean of its estimated members' values and no fleet keeps its own. `build_map()` warns |

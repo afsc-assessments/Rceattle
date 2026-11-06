@@ -323,7 +323,7 @@ write_template <- function(file = "Rceattle_data_template.xlsx",
   d$fleet_control$Selectivity_index     <- 1:2
   d$fleet_control$Selectivity           <- "Logistic"
   d$fleet_control$Selectivity_dimension <- "Age"
-  d$fleet_control$Bin_first_selected    <- 1L
+  d$fleet_control$Age_first_selected    <- as.integer(minage)
   d$fleet_control$Comp_distribution     <- "Multinomial"
   d$fleet_control$Comp_weights          <- 1
   d$fleet_control$CAAL_distribution     <- 0L
@@ -523,9 +523,19 @@ read_data <- function(file = "Rceattle_data.xlsx") {
   # identically from one source (no hand-maintained cascade to drift). Legacy
   # names accepted: Estimate_survey_sd, Survey_sd_prior/Index_sd_prior, Nselages,
   # Sel_sd_prior, Time_varying_{q,sel}_sd_prior, Q_prior, Catch_sd_prior,
-  # Estimate_q, Age_first_selected, Age_max_selected(_upper).
+  # Estimate_q, Age_max_selected(_upper).
   data_list$fleet_control <-
     .rce_upgrade_fleet_control_aliases(data_list$fleet_control)
+
+  # A workbook with 'Age_first_selected' but no 'Bin_first_selected' column
+  # predates the 4.0.1 rename, so its column is the bin ordinal and is read as one.
+  fc_names <- names(data_list$fleet_control)
+  if ("Age_first_selected" %in% fc_names && !"Bin_first_selected" %in% fc_names) {
+    names(data_list$fleet_control)[fc_names == "Age_first_selected"] <- "Bin_first_selected"
+    message("'Age_first_selected' without a 'Bin_first_selected' column is the ",
+            "pre-4.0.1 name of 'Bin_first_selected', and is read as that. Add a ",
+            "'Bin_first_selected' column to read it as an absolute age.")
+  }
 
   # Default a missing `Month` column.
   if(is.null(data_list$fleet_control$Month)){
