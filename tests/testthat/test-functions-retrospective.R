@@ -698,7 +698,7 @@ testthat::test_that("a peel reports standard errors for its own hindcast", {
     testthat::expect_false("catch_hat" %in% names(m$sdrep$value))
     # A healthy peel is flagged for neither reason.
     testthat::expect_null(attr(m, "sd_report_error", exact = TRUE))
-    testthat::expect_null(attr(m, "forecast_error", exact = TRUE))
+    testthat::expect_null(attr(m, "forecast_refit_error", exact = TRUE))
     testthat::expect_true(any(grepl("forecast refit \\(F only\\)",
                                     utils::capture.output(print(summary(m))))))
   }
@@ -1141,10 +1141,10 @@ testthat::test_that("only a peel's hindcast non-convergence warns or drops it", 
   testthat::expect_true(paste0("Year_", ep) %in% names(got$fit$Rceattle_list))
   r <- got$fit
   testthat::expect_match(
-    attr(r$Rceattle_list[[paste0("Year_", ep)]], "forecast_error", exact = TRUE),
+    attr(r$Rceattle_list[[paste0("Year_", ep)]], "forecast_refit_error", exact = TRUE),
     "did not fit F to the peeled catch")
-  testthat::expect_null(
-    attr(r$Rceattle_list[[paste0("Year_", endyr - 1)]], "forecast_error", exact = TRUE))
+  testthat::expect_null(attr(r$Rceattle_list[[paste0("Year_", endyr - 1)]],
+                             "forecast_refit_error", exact = TRUE))
 
   testthat::expect_equal(rows(r, 0)$N, 2)
   sp <- fit$data_list$spnames
@@ -1186,7 +1186,7 @@ testthat::test_that("only a peel's hindcast non-convergence warns or drops it", 
   testthat::expect_length(warns20, 0)
   p20 <- r20$Rceattle_list[[paste0("Year_", endyr - 1)]]
   testthat::expect_lt(p20$.conv_hindcast$max_gradient, 1)
-  testthat::expect_match(attr(p20, "forecast_error", exact = TRUE), "F at a bound")
+  testthat::expect_match(attr(p20, "forecast_refit_error", exact = TRUE), "F at a bound")
   testthat::expect_equal(rows(r20, 1)$N, 0)
   testthat::expect_equal(rows(r20, 0)$N, 1)
   # The plot warns only when it draws those years, however it comes to.
@@ -1201,8 +1201,8 @@ testthat::test_that("only a peel's hindcast non-convergence warns or drops it", 
   # Hindcast failed: dropped, with the warning.
   got_h <- run("hindcast", getsd = FALSE)
   testthat::expect_true(any(grepl("1 of 2 peel dropped", got_h$warns)))
-  testthat::expect_null(
-    attr(got_h$fit$Rceattle_list[[paste0("Year_", endyr - 1)]], "forecast_error", exact = TRUE))
+  testthat::expect_null(attr(got_h$fit$Rceattle_list[[paste0("Year_", endyr - 1)]],
+                             "forecast_refit_error", exact = TRUE))
   testthat::expect_false(paste0("Year_", ep) %in% names(got_h$fit$Rceattle_list))
 })
 

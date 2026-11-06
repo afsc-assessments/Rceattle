@@ -13,6 +13,14 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.67.1
+
+## Behavior changes
+
+* **`attr(peel, "forecast_error")` is renamed `forecast_refit_error`.** It gives the
+  reason a retrospective peel's forecast refit did not fit F to the peeled catch, not a
+  measure of forecast skill. It was added in 5.66.8, which was never tagged.
+
 # Rceattle 5.67.0
 
 ## Breaking changes
@@ -194,7 +202,7 @@ version throughout.
   hindcast fixed, so the hindcast and the terminal-year rho stand. Because F was
   not fitted to the peeled catch, the peel is left out of the `$mohns` rows with
   `Forecast year` above 0, whose `N` shows it. The reason is on
-  `attr(peel, "forecast_error")`, `print()` counts such peels under a NOTE, and
+  `attr(peel, "forecast_refit_error")`, `print()` counts such peels under a NOTE, and
   `plot_timeseries()` and its wrappers warn when they draw those forecast years.
   One such F removes the peel from every forecast-year row, including years that
   fitted. A dropped hindcast also no longer runs its forecast refit.

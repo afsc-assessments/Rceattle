@@ -65,8 +65,8 @@
 #'   refit did not fit F to the peeled catch (gradient check, or a peeled F at a bound)
 #'   is kept without a warning: its terminal-year Mohn's rho stands, but it is left out
 #'   of the \code{$mohns} rows with \code{Forecast year} above 0 (\code{N} counts the
-#'   peels used). Check \code{attr(peel, "forecast_error")} before reading its forecast
-#'   years or their standard errors; \code{print()} counts such peels, and
+#'   peels used). Check \code{attr(peel, "forecast_refit_error")} before reading its
+#'   forecast years or their standard errors; \code{print()} counts such peels, and
 #'   \code{plot_timeseries()} and its wrappers warn when they draw those years.
 #'   Entries are named for their own terminal year (\code{Year_2017}, ...), so index by name:
 #'   \code{Rceattle_list[[3]]} is not necessarily the 3-year peel. With no peel
@@ -452,7 +452,7 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
     # Judge gradient and bounds: at a bound F can miss the catch with a small gradient.
     # Not the Hessian (F alone). The hindcast is fixed, so terminal-year rho stands.
     if (!.refit_converged(newmod, hessian = FALSE) || length(.check_bounds(newmod))) {
-      attr(newmod, "forecast_error") <-
+      attr(newmod, "forecast_refit_error") <-
         paste0("peel ", i, " (through ", endyr_peel, "): the forecast refit did ",
                "not fit F to the peeled catch (gradient check failed, or F at a bound)")
     }
@@ -608,7 +608,8 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
     ind <- 1
     # F not fitted to the peeled catch: its forecast years are not a forecast of
     # that catch, while its terminal year comes from the hindcast.
-    forecast_fitted <- is.null(attr(mod_list[[i + 1]], "forecast_error", exact = TRUE))
+    forecast_fitted <- is.null(
+      attr(mod_list[[i + 1]], "forecast_refit_error", exact = TRUE))
 
     # * Loop output ----
     for (j in 1:length(objects)) {
@@ -733,7 +734,7 @@ print.Rceattle_retro <- function(x, band = 0.2, ...) {
   # A peel out of the forecast rows also changes reported numbers, so it is as visible.
   n_noforecast <- sum(vapply(
     x$Rceattle_list,
-    function(m) !is.null(attr(m, "forecast_error", exact = TRUE)),
+    function(m) !is.null(attr(m, "forecast_refit_error", exact = TRUE)),
     logical(1)))
   if (n_dropped > 0L || n_noforecast > 0L) sev <- c(sev, "NOTE")
 
@@ -763,7 +764,7 @@ print.Rceattle_retro <- function(x, band = 0.2, ...) {
 
   if (n_noforecast > 0L) {
     cat("  ", n_noforecast, " peel(s) left out of the forecast-year rows of $mohns",
-        " (see attr(peel, \"forecast_error\"))\n", sep = "")
+        " (see attr(peel, \"forecast_refit_error\"))\n", sep = "")
   }
 
   if (nrow(term)) {

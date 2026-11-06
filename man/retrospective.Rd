@@ -55,8 +55,8 @@ A peel whose hindcast did not converge is dropped, with a warning, so
 refit did not fit F to the peeled catch (gradient check, or a peeled F at a bound)
 is kept without a warning: its terminal-year Mohn's rho stands, but it is left out
 of the \code{$mohns} rows with \code{Forecast year} above 0 (\code{N} counts the
-peels used). Check \code{attr(peel, "forecast_error")} before reading its forecast
-years or their standard errors; \code{print()} counts such peels, and
+peels used). Check \code{attr(peel, "forecast_refit_error")} before reading its
+forecast years or their standard errors; \code{print()} counts such peels, and
 \code{plot_timeseries()} and its wrappers warn when they draw those years.
 Entries are named for their own terminal year (\code{Year_2017}, ...), so index by name:
 \code{Rceattle_list[[3]]} is not necessarily the 3-year peel. With no peel
