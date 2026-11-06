@@ -1252,7 +1252,7 @@ intermittent, not an image change. Everything from 2026-09-16 to 2026-09-20 pass
 gives a huge gradient and a failed `sdreport` — not a fault. The model is built
 `safebounds = FALSE`, so an out-of-range access is a silent write into adjacent memory; that is
 precisely what the 5.15.0 `age_hat` overflow was. Build with `RCEATTLE_SAFEBOUNDS=true` to turn
-that into an R error naming the object, and run `tools/verify/verify-safebounds.R`. That harness
+that into an abort naming the failed condition; run `tools/verify/verify-safebounds.R`. That harness
 carries a **positive control** — it deletes the artifacts, rebuilds, and asserts
 `-DTMB_SAFEBOUNDS` is in the compile line — because `pkgload` only recompiles when sources
 change, so setting the flag alone guarantees nothing and a clean result against a stale
