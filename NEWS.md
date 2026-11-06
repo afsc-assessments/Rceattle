@@ -13,6 +13,23 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.66.13
+
+## Performance
+
+* **Fits with `Comp_distribution = "Multinomial"` compositions, or multinomial
+  conditional age-at-length, run about 40% faster with random effects and 20% faster
+  without.** Such compositions were scored in the conditional-binomial form that
+  one-step-ahead residuals need, about eight times the computation per age or length bin
+  of the plain multinomial. Fitting now uses the plain multinomial; `osa_residuals()`
+  still builds the conditional-binomial form. The two are the same density: the four
+  reference models in the test suite, which all use `"Multinomial"`, reproduce their
+  objectives to 1e-11 (relative) with SSB, biomass and recruitment unchanged. The default
+  `"MultinomialAFSC"` is unchanged. On the NOAA model-comparison base case (one species,
+  12 ages, 30 years) a fit with random recruitment took 5.3 s rather than 8.6 s. Fits
+  with `comp_offset = 0`, such as the WHAM bridges, keep the conditional-binomial form,
+  which scores an empty bin predicted at exactly 0, so they are unchanged.
+
 # Rceattle 5.66.12
 
 ## Bug fixes
