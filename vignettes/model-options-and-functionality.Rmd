@@ -426,7 +426,7 @@ residuals and plot intervals are computed.
 | `1` | `"MVN"` | natural | The AMAK/`ebswp` `DoCovBTS = 1` bare quadratic form `0.5 · r' Σ⁻¹ r` on the residual `obs − q·pred`. Drops the normalizing constant, so the reported value matches ADMB. Needs `index_cov`. |
 | `2` | `"MVNORM"` | natural | The full multivariate-normal negative log-density. Identical fit to `"MVN"` (the extra term is constant), but properly normalized. Needs `index_cov`. |
 | `3` | `"Normal"` | natural | Normal on `obs − q·pred`, with `Log_sd` read as an **absolute** natural-scale sd, not a CV. No lognormal bias correction. |
-| `4` | `"TruncatedNormal"` | natural | The same normal, left-truncated at zero. An index cannot be negative, so this is the only natural-scale family whose simulator and likelihood are the same distribution. **Prefer it over `"Normal"`** unless you need an exact ADMB comparison. It refuses `Catchability = "Analytical"`. |
+| `4` | `"TruncatedNormal"` | natural | The same normal, left-truncated at zero. An index cannot be negative, so this is the only natural-scale family whose simulator and likelihood are the same distribution. **Prefer it over `"Normal"`** unless you need an exact ADMB comparison. `data_check()` refuses it with `Catchability = "Analytical"`. |
 
 The `MVN` families read their Σ from `index_cov`, a VAST-derived covariance for
 instance, and pair with the AMAK arithmetic-mean q (`"AnalyticalArith"`).
