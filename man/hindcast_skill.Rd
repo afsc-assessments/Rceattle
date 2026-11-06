@@ -93,7 +93,8 @@ then \code{mase}, \code{mae_forecast}, \code{mae_naive}, \code{N} -- how many pe
 averaged at that horizon -- and \code{peels_used}, which ones. A peel that
 could not be scored at a horizon (an NA in its forecast years, or a
 species with \code{estDynamics > 0}, whose numbers-at-age are input and so
-was never forecast) is left out of both rather than nulling the row.}
+was never forecast) is left out of both rather than nulling the row,
+as is every horizon of a peel with \code{attr(peel, "forecast_error")}.}
 \item{\code{by_year}}{the underlying series, in the same vocabulary:
 \code{Object}, \verb{Forecast year}, \code{species}, \code{peel}, \code{year}, \code{forecast},
 \code{reference}, \code{naive}. \code{year} is the calendar year; \verb{Forecast year} is

@@ -153,7 +153,8 @@
 #'       averaged at that horizon -- and `peels_used`, which ones. A peel that
 #'       could not be scored at a horizon (an NA in its forecast years, or a
 #'       species with `estDynamics > 0`, whose numbers-at-age are input and so
-#'       was never forecast) is left out of both rather than nulling the row.}
+#'       was never forecast) is left out of both rather than nulling the row,
+#'       as is every horizon of a peel with `attr(peel, "forecast_error")`.}
 #'     \item{`by_year`}{the underlying series, in the same vocabulary:
 #'       `Object`, `Forecast year`, `species`, `peel`, `year`, `forecast`,
 #'       `reference`, `naive`. `year` is the calendar year; `Forecast year` is
@@ -330,6 +331,8 @@ hindcast_skill <- function(object = NULL, peels = 5,
     for (m in peel_models) {
       ep <- m$data_list$endyr_peel
       if (is.null(ep) || ep >= endyr) next
+      # F not fitted to the peeled catch, so its held-out predictions are not a forecast.
+      if (!is.null(attr(m, "forecast_error", exact = TRUE))) next
       # The parent's shape (the peel's data_list fails the inits check) with the
       # peel's inputs and windows, so the prediction knows only what the peel did.
       dl <- object$data_list
@@ -480,8 +483,10 @@ hindcast_skill <- function(object = NULL, peels = 5,
   out <- list()
   for (m in peel_models) {
     ep <- m$data_list$endyr_peel
-    # A peel with no forecast years (endyr_peel == endyr) scores nothing.
+    # A peel with no forecast years (endyr_peel == endyr) scores nothing, nor
+    # one whose F was not fitted to the peeled catch (only forecast years score).
     if (is.null(ep) || ep >= endyr) next
+    if (!is.null(attr(m, "forecast_error", exact = TRUE))) next
     fyrs <- (ep + 1):endyr
     cols <- fyrs - styr + 1L
     last <- ep - styr + 1L

@@ -100,3 +100,53 @@ NULL
     lapply(items, fun)
   })
 }
+
+
+#' The map a diagnostic refits under when `endyr` does not change
+#'
+#' The stored map is the model that was fitted, so parameters the author fixed or made
+#' share one value stay that way. Where `endyr` moves it no longer fits: use `.map_holds()`.
+#' A projection-only fit (mode 2) refits its hindcast at mode 0, so its map is rebuilt.
+#'
+#' @param object A fitted Rceattle object.
+#' @return The map, or `NULL` for `fit_mod()` to build one.
+#' @noRd
+.refit_map <- function(object) {
+  if (object[["data_list"]][["estimateMode"]] == 2) return(NULL)
+  object[["map"]]
+}
+
+
+#' Warn where a self-test redrew a deviation the fit's map fixes
+#'
+#' The refit holds such a cell at its source value, so it cannot recover what generated
+#' the data. Read from what the draw wrote, which is the same for every replicate. Linkage
+#' deviates share one mask across the integrated and penalized slots.
+#'
+#' @param object The fitted Rceattle object.
+#' @param truths List of each replicate's `process_sim`, `NULL` where nothing was drawn.
+#' @noRd
+.warn_redrawn_holds <- function(object, truths) {
+  truth <- Find(Negate(is.null), truths)
+  if (is.null(truth)) return(invisible(NULL))
+  # A saved fit too old for build_map() cannot say what it fixes; a warning check must not
+  # cost the finished replicates.
+  holds <- tryCatch(.map_holds(object), error = function(e) list())
+  drawn_mask <- function(nm) {
+    if (!nm %in% c("beta_linkage_re", "beta_linkage_re_pen")) {
+      return(truth[[paste0(nm, "_drawn")]])
+    }
+    integrated <- .re_slot_routing(object[["data_list"]][["linkage_table"]])[["integrate"]]
+    in_this_vector <- if (nm == "beta_linkage_re") integrated else !integrated
+    truth[["beta_linkage_re_drawn"]][in_this_vector]
+  }
+  was_redrawn <- function(nm) any(drawn_mask(nm)[holds[[nm]]])
+  redrawn <- Filter(was_redrawn, names(holds))
+  if (length(redrawn)) {
+    warning("self_test() redrew deviations the fit's map fixes, in: ",
+            paste(redrawn, collapse = ", "), ". The refit keeps them fixed at the fit's values, so ",
+            "it cannot recover what generated the data. Free them in the map, or leave that ",
+            "process out of `process`.", call. = FALSE)
+  }
+  invisible(NULL)
+}
