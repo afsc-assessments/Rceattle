@@ -13,6 +13,16 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.66.12
+
+## Bug fixes
+
+* **`fit_mod()` no longer says a predator's `Diet_comp_weights` starts at e when the weight is
+  never read.** A model with `Diet_distribution` set to Dirichlet-multinomial and a weight of
+  1 printed it on every fit, including single-species fits and fits with no diet data. It
+  now fires only for a predator with diet data and `suitMode > 0`, the predators whose
+  stomach likelihood is evaluated. The message text is unchanged, and no number changes.
+
 # Rceattle 5.66.11
 
 ## Behavior changes
