@@ -28,6 +28,33 @@ version throughout.
   without `inits`, the FreeParams versions of BS2017SS and GOA2018SS take 2.5 s rather
   than 3.8 s and 29-34 s rather than 42-50 s, and end at objectives 0.004 and 1.19 lower.
 
+# Rceattle 5.66.13
+
+## Performance
+
+* **Fits with `Comp_distribution = "Multinomial"` compositions, or multinomial
+  conditional age-at-length, run about 40% faster with random effects and 20% faster
+  without.** Such compositions were scored in the conditional-binomial form that
+  one-step-ahead residuals need, about eight times the computation per age or length bin
+  of the plain multinomial. Fitting now uses the plain multinomial; `osa_residuals()`
+  still builds the conditional-binomial form. The two are the same density: the four
+  reference models in the test suite, which all use `"Multinomial"`, reproduce their
+  objectives to 1e-11 (relative) with SSB, biomass and recruitment unchanged. The default
+  `"MultinomialAFSC"` is unchanged. On the NOAA model-comparison base case (one species,
+  12 ages, 30 years) a fit with random recruitment took 5.3 s rather than 8.6 s. Fits
+  with `comp_offset = 0`, such as the WHAM bridges, keep the conditional-binomial form,
+  which scores an empty bin predicted at exactly 0, so they are unchanged.
+
+# Rceattle 5.66.12
+
+## Bug fixes
+
+* **`fit_mod()` no longer says a predator's `Diet_comp_weights` starts at e when the weight is
+  never read.** A model with `Diet_distribution` set to Dirichlet-multinomial and a weight of
+  1 printed it on every fit, including single-species fits and fits with no diet data. It
+  now fires only for a predator with diet data and `suitMode > 0`, the predators whose
+  stomach likelihood is evaluated. The message text is unchanged, and no number changes.
+
 # Rceattle 5.66.11
 
 ## Behavior changes
