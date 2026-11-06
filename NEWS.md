@@ -13,6 +13,21 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.66.15
+
+## Bug fixes
+
+* **Length-based suitability reads each species' own length-at-age.** Under `suitMode`
+  1, 3 and 5 (`GammaLength`, `LognormalLength`, `NormalLength`), every predator or prey
+  species after the first used the wrong length-at-age in the predator:prey size ratio;
+  with two species, the second used the first species' spawning-time lengths. **No fit on
+  a current release moves:** `data_check()` has refused all three modes since 4.6.0, so a
+  fit reaches this code only if `data_check()` is bypassed. Fits made with 4.3.0 to 4.4.1
+  under `suitMode = 5`, with two or more species and estimated growth, are affected. On
+  the two-species test fixture (asymptotic lengths 90 and 50 cm), suitability changed by
+  up to 0.38 on its 0-1 scale and the objective by 0.4% to 5%. Weight-based (2, 4, 6) and
+  empirical (0) suitability are unchanged to the last digit.
+
 # Rceattle 5.66.14
 
 ## Behavior changes

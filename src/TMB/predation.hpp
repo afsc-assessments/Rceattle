@@ -108,15 +108,14 @@ void calculate_parametric_suitability(array<Type> &suitability,
                   suit_other(rsp, r_sex, r_age, yr) = vulnerability_other(rsp);
                   Type size_ratio = 0.0;
 
-                  // Modes 1-4 use the log size ratio, 5 and 6 the raw ratio. A ratio of
-                  // 0 or less leaves suitability at 0: on modes 1-4 that is prey at
-                  // least as large as the predator.
+                  // Row 2 * species (wt_idx_*) holds population length (cm) and weight. Modes 1-4
+                  // take the log size ratio, 5-6 the raw one; a ratio <= 0 leaves suitability 0.
                   if(smode == 1 || smode == 3) {
-                    size_ratio = log(length_hat(rsp, r_sex, r_age, yr) / length_hat(ksp, k_sex, k_age, yr));
+                    size_ratio = log(length_hat(wt_idx_rsp, r_sex, r_age, yr) / length_hat(wt_idx_ksp, k_sex, k_age, yr));
                   } else if (smode == 2 || smode == 4) {
                     size_ratio = log(weight_hat(wt_idx_rsp, r_sex, r_age, yr) / weight_hat(wt_idx_ksp, k_sex, k_age, yr));
                   } else if (smode == 5) {
-                    size_ratio = length_hat(rsp, r_sex, r_age, yr) / length_hat(ksp, k_sex, k_age, yr);
+                    size_ratio = length_hat(wt_idx_rsp, r_sex, r_age, yr) / length_hat(wt_idx_ksp, k_sex, k_age, yr);
                   } else if (smode == 6) {
                     size_ratio = weight_hat(wt_idx_rsp, r_sex, r_age, yr) / weight_hat(wt_idx_ksp, k_sex, k_age, yr);
                   }
