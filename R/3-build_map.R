@@ -1363,7 +1363,7 @@ build_map_catchability <- function(map_list, data_list, nyrs_hind, random_q = FA
       # linkage with ar1(1 | Year) and `observe`.
 
 
-      # "Analytical" (geometric) and "AnalyticalArith" (arithmetic) both SOLVE q
+      # "Analytical" (closed-form MLE) and "AnalyticalArith" (arithmetic) both SOLVE q
       # from the data rather than estimating it, so index_log_q is unused and
       # must be mapped out -- otherwise it is a free parameter that never enters
       # the objective, leaving a flat direction that makes the Hessian singular.

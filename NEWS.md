@@ -13,6 +13,68 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.67.0
+
+## Breaking changes
+
+* **`data_check()` refuses `Catchability = "Analytical"` on a `TruncatedNormal` index.**
+  Such a model fitted before, with a q that was not its maximum likelihood q, and the
+  truncated normal has no closed-form q: its truncation term, log Phi(q * pred / sd), with
+  pred the predicted index before q, depends on q. To refit, set `Catchability =
+  "Estimated"` for that fleet; the fit moves to the estimated q. An `Off` fleet is exempt.
+  Refusing it, rather than solving q iteratively, was the maintainer's decision, and makes
+  this a minor release.
+
+## Bug fixes
+
+* **`Catchability = "Analytical"` is now the maximum likelihood q on every index family it
+  accepts.** Fits that move are those with an `"Analytical"` index on the Normal or
+  MVN/MVNORM families, or on the lognormal family at the default `bias_adjust_obs = TRUE`;
+  under `bias_adjust_obs = FALSE` a lognormal q is unchanged. Before, every family took the
+  geometric mean of observed over predicted index (Walters and Ludwig 1994), weighted by
+  1/sd^2 when the sd is input by year. That is the maximum likelihood q only for a
+  lognormal index under `bias_adjust_obs = FALSE`; elsewhere q was biased and the objective
+  stayed above its minimum.
+  * **Lognormal.** The likelihood centers log(obs) at log(q * pred) - b * sd^2 / 2
+    (b = `bias_adjust_obs`), so under the default q was low by exp(sd^2 / 2), sd^2 being
+    the harmonic mean of the yearly variances when the sd is input by year. When
+    `Estimate_index_sd = "Analytical"` too, the variance is now that of the log residuals
+    about their mean, which makes q and sd joint maximum likelihood estimates.
+  * **Normal**: now weighted least squares, sum(obs * pred / sd^2) / sum(pred^2 / sd^2).
+    **MVN and MVNORM**: now generalized least squares over the fleet's covariance. These
+    change whatever `bias_adjust_obs` is. On a 12-year test fixture, at its starting
+    values, the old q was 51% high under Normal with the sd input by year (objective 53.8
+    above its minimum over q), 42% high with the sd estimated (2.6 above the minimum over q
+    and sd), and 88% high under MVN and MVNORM (68.2).
+
+  Among the fits measured:
+  * The Pacific hake MSEs. `MSE_yr2024.R`: in the seven fits recorded in
+    `inst/dev/SIBLING-REPOS.md`, `Hake_survey` q rises 6.03% (1.21996 to 1.29355 in the
+    three single-species fits), each objective falls by 0.2197, and hake terminal SSB moves
+    by at most 0.0019%.
+    `04-mse.R`: q rises 5.33% (1.14824 to 1.20941 in the single-species fits), each of the
+    four recorded objectives falls by 0.1687, and hake terminal SSB moves by at most
+    0.0024%.
+  * The bundled `GeorgesBank3spp`: its three fitted surveys' q rise 0.50-0.67%, the
+    single-species objective falls by 0.125 (3345.3728 to 3345.2478), and SSB moves by less
+    than 2e-6 relative.
+  * The model-comparison EM in Rceattle-models (`om_to_rceattle.R`, survey CV 0.2): on
+    5.66.1, with fixed effects, the estimated-q objective was 0.147 below the analytical-q
+    one, with q 1.98% higher. Analytical q should now reach that optimum (not rerun).
+  * GOA2018SS with every survey switched to `"Analytical"` and time-varying q off: the
+    objective falls by 1.029 (13064.2326 to 13063.2033), the same optimum as with q
+    estimated, and q rises by up to 10.7%.
+
+  No golden model, and no sibling-repository workbook or script, uses analytical q on a
+  non-lognormal family. EBS pollock and the SS3 bridges do not move: their fits set
+  `bias_adjust_obs = FALSE` or estimate q.
+
+  With random effects (for example `random_rec = TRUE`), analytical q is re-solved for the
+  current random-effect values at each step. It is then not the q that maximizes the
+  likelihood with the random effects integrated out, so do not compare its objective with
+  that of a fit that estimates q. The MVN/MVNORM q is not forced positive: with a strongly
+  correlated covariance it can go negative at parameter values far from the best fit.
+
 # Rceattle 5.66.11
 
 ## Behavior changes
