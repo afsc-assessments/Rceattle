@@ -80,6 +80,63 @@ version throughout.
   otherwise unchanged: it remains the AMAK arithmetic-mean estimator, not the maximum
   likelihood q.
 
+# Rceattle 5.66.15
+
+## Bug fixes
+
+* **Length-based suitability reads each species' own length-at-age.** Under `suitMode`
+  1, 3 and 5 (`GammaLength`, `LognormalLength`, `NormalLength`), every predator or prey
+  species after the first used the wrong length-at-age in the predator:prey size ratio;
+  with two species, the second used the first species' spawning-time lengths. **No fit on
+  a current release moves:** `data_check()` has refused all three modes since 4.6.0, so a
+  fit reaches this code only if `data_check()` is bypassed. Fits made with 4.3.0 to 4.4.1
+  under `suitMode = 5`, with two or more species and estimated growth, are affected. On
+  the two-species test fixture (asymptotic lengths 90 and 50 cm), suitability changed by
+  up to 0.38 on its 0-1 scale and the objective by 0.4% to 5%. Weight-based (2, 4, 6) and
+  empirical (0) suitability are unchanged to the last digit.
+
+# Rceattle 5.66.14
+
+## Behavior changes
+
+* **Under `initMode = "FreeParams"` the initial numbers at age now start at the unfished
+  equilibrium.** That mode estimates log numbers at age directly, and its start of 0 was
+  1 (thousand fish) at every age. `build_params()` now starts them at the equilibrium of
+  the R0 start (log R0 = 9 unless a linkage `init` sets it) and M1, with a plus group.
+  On a two-sex species both sexes start on female (sex-1) M1. Under a single-species
+  stock-recruit curve the template takes initial recruitment from alpha and beta instead,
+  so those species keep the start of 0. Only starts `build_params()` builds change
+  (`fit_mod()` with `inits = NULL`); refits from a stored fit start where they did. Fit
+  without `inits`, the FreeParams versions of BS2017SS and GOA2018SS take 2.5 s rather
+  than 3.8 s and 29-34 s rather than 42-50 s, and end at objectives 0.004 and 1.19 lower.
+
+# Rceattle 5.66.13
+
+## Performance
+
+* **Fits with `Comp_distribution = "Multinomial"` compositions, or multinomial
+  conditional age-at-length, run about 40% faster with random effects and 20% faster
+  without.** Such compositions were scored in the conditional-binomial form that
+  one-step-ahead residuals need, about eight times the computation per age or length bin
+  of the plain multinomial. Fitting now uses the plain multinomial; `osa_residuals()`
+  still builds the conditional-binomial form. The two are the same density: the four
+  reference models in the test suite, which all use `"Multinomial"`, reproduce their
+  objectives to 1e-11 (relative) with SSB, biomass and recruitment unchanged. The default
+  `"MultinomialAFSC"` is unchanged. On the NOAA model-comparison base case (one species,
+  12 ages, 30 years) a fit with random recruitment took 5.3 s rather than 8.6 s. Fits
+  with `comp_offset = 0`, such as the WHAM bridges, keep the conditional-binomial form,
+  which scores an empty bin predicted at exactly 0, so they are unchanged.
+
+# Rceattle 5.66.12
+
+## Bug fixes
+
+* **`fit_mod()` no longer says a predator's `Diet_comp_weights` starts at e when the weight is
+  never read.** A model with `Diet_distribution` set to Dirichlet-multinomial and a weight of
+  1 printed it on every fit, including single-species fits and fits with no diet data. It
+  now fires only for a predator with diet data and `suitMode > 0`, the predators whose
+  stomach likelihood is evaluated. The message text is unchanged, and no number changes.
+
 # Rceattle 5.66.11
 
 ## Behavior changes

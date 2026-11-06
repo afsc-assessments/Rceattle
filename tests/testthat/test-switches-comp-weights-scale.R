@@ -23,6 +23,15 @@ fc_with <- function(dist, wt, dist_col = "Comp_distribution", wt_col = "Comp_wei
 
 flag <- function(d) Rceattle:::.rce_flag_dm_weight_scale(d)
 
+# Two predators, both with diet rows and an estimated suitability, so the
+# stomach likelihood reads both weights.
+diet_with <- function(dist, wt, preds = 1:2, suitMode = c(2, 2)) {
+  list(Diet_distribution = dist, Diet_comp_weights = wt,
+       spnames = c("Pollock", "Cod"), suitMode = suitMode,
+       diet_data = data.frame(Pred = preds, Prey = rep(1L, length(preds)),
+                              Year = rep(0L, length(preds))))
+}
+
 test_that("a Dirichlet-multinomial fleet left at the template weight is reported", {
   expect_message(flag(fc_with(c("DirichletMultinomial", "Multinomial"), c(1, 1))),
                  "starting weight of e")
@@ -57,8 +66,7 @@ test_that("CAAL and diet weights carry the same overload, and are reported the s
                  "CAAL_distribution", "CAAL_weights")),
     "'CAAL_weights' is 1")
   expect_message(
-    flag(list(Diet_distribution = c(1, 0), Diet_comp_weights = c(1, 1),
-                   spnames = c("Pollock", "Cod"))),
+    flag(diet_with(c(1, 0), c(1, 1))),
     "'Diet_comp_weights' is 1")
 })
 
@@ -68,7 +76,7 @@ test_that("the report is inert -- it changes no value", {
   for (d in list(fc_with(c("DirichletMultinomial", "Multinomial"), c(1, 1)),
                  fc_with(c("Multinomial", "Multinomial"), c(1, 1)),
                  fc_with(c("DirichletMultinomial", "Multinomial"), c(0, 1)),
-                 list(Diet_distribution = c(1, 0), Diet_comp_weights = c(1, 1)))) {
+                 diet_with(c(1, 0), c(1, 1)))) {
     expect_identical(suppressMessages(flag(d)), d)
   }
 })
@@ -87,6 +95,17 @@ test_that("fleets whose weight is never read are not reported", {
   # a row that is carried but not fitted.
   expect_silent(flag(fc_with(c("DirichletMultinomial", "Multinomial"), c(1, 1),
                              data_years = c(-2000, 2000))))
+})
+
+test_that("predators whose diet weight is never read are not reported", {
+  # A predator with no diet rows, or with empirical suitability (suitMode = 0),
+  # has no stomach likelihood, so it is not told its weight starts at e.
+  expect_silent(flag(diet_with(c(1, 1), c(1, 1), preds = integer(0))))   # no diet rows
+  expect_silent(flag(diet_with(c(1, 1), c(1, 1), suitMode = c(0, 0))))   # empirical suitability
+  # Only the predator the likelihood reads is named.
+  m <- paste(capture_messages(flag(diet_with(c(1, 1), c(1, 1), preds = 2L))), collapse = " ")
+  expect_match(m, "Cod")
+  expect_false(grepl("Pollock", m))
 })
 
 test_that("a ragged diet pair is left for data_check() to report", {

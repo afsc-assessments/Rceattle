@@ -55,7 +55,7 @@ Codes (also accept the string aliases listed):
 
 | Value | Alias | Description |
 |:---:|---|---|
-| `0` | `"FreeParams"` | Initial N-at-age estimated as free parameters |
+| `0` | `"FreeParams"` | Initial N-at-age estimated as free parameters, started at the unfished equilibrium of R0 and female M1 (at 0 under a single-species stock-recruit curve) |
 | `1` | `"Equilibrium"` | Unfished equilibrium, no init devs, F<sub>init</sub> = 0 |
 | `2` (default) | `"NonEquilibrium"` | Unfished equilibrium with initial deviations |
 | `3` | `"FishedNonEquilibrium"` | Fished non-equilibrium with init devs; F<sub>init</sub> is added to M inside geometric series |

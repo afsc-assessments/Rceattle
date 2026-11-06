@@ -1898,8 +1898,9 @@ convert_switches <- function(data_list) {
 #' twenty times per `retrospective()`.
 #'
 #' Only an exact 1 is reported, the model value. Any other number was typed
-#' deliberately and needs no comment. Off fleets and fleets holding no data for
-#' the composition in question are skipped: their weight is never read.
+#' deliberately and needs no comment. Off fleets, fleets holding no data for
+#' the composition in question, and predators with no diet data or with
+#' `suitMode = 0` are skipped: their weight is never read.
 #'
 #' @param data_list a data list, after `switch_check()` has resolved the
 #'   distribution columns.
@@ -1944,7 +1945,12 @@ convert_switches <- function(data_list) {
   # Length-guarded: this runs before data_check(), and recycling a ragged pair
   # here would raise a warning ahead of the check that names the real problem.
   if (!is.null(dw) && !is.null(dd) && length(dw) == length(dd)) {
-    hit <- which(is_dm(dd) & !is.na(dw) & dw == 1)
+    # The stomach likelihood reads a predator's weight only when it has diet rows
+    # and an estimated suitability (suitMode > 0), whatever msmMode is.
+    preds <- unique(as.integer(data_list[["diet_data"]][["Pred"]]))
+    suit  <- as.integer(data_list[["suitMode"]])
+    read  <- seq_along(dw) %in% preds & !is.na(suit) & suit > 0
+    hit <- which(read & is_dm(dd) & !is.na(dw) & dw == 1)
     if (length(hit)) {
       who <- if (!is.null(data_list$spnames)) data_list$spnames[hit] else hit
       message("'Diet_comp_weights' is 1 for Dirichlet-multinomial predator(s) ",
