@@ -57,7 +57,8 @@ void fold_comp_tails(vector<Type>& obs, vector<Type>& hat, int& n_comp,
  * Likelihood types:
  *  - -1 AFSC/AMAK multinomial pseudo-likelihood, log L = sum N (o + c) log((p + c) / (o + c)).
  *       Not a density, so OSA residualizes it as a multinomial.
- *  -  0 Multinomial, via the conditional-binomial form in comp_osa.hpp.
+ *  -  0 Multinomial. OSA builds, and fits at comp_offset = 0, score it as conditional
+ *       binomials (comp_osa.hpp), which sum to the same density.
  *  -  1 Dirichlet-multinomial with concentration N * p * theta (Thorson et al. 2017).
  *
  * The data weight multiplies the multinomial log-likelihood (types -1 and 0); the
@@ -110,9 +111,12 @@ void comp_row_nll(int ll_type, int osa_mode,
       break;
 
     case 0: {
+      // The plain multinomial, about an eighth of the conditional-binomial tape. At
+      // comp_offset = 0 a bin can be exactly 0, so keep the conditional form there.
+      int decompose = (asDouble(offset) == 0.0) ? 1 : 0;
       data_indicator<vector<Type>, Type> keep_ones(obs_n, true);
-      nll -= weight * dmultinom_osa(obs_n, hat_p, keep_ones, 1, 1);
-      unweighted_nll -= dmultinom_osa(obs_n, hat_p, keep_ones, 1, 1);
+      nll -= weight * dmultinom_osa(obs_n, hat_p, keep_ones, decompose, 1);
+      unweighted_nll -= dmultinom_osa(obs_n, hat_p, keep_ones, decompose, 1);
       break;
     }
 

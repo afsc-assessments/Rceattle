@@ -532,6 +532,18 @@ build_params <- function(data_list) {
   param_list$log_M1 <- .rce_fill_M1_padding(param_list$log_M1, data_list)
   .rce_stop_if_nonfinite_M1(param_list$log_M1, "build_params()")
 
+  # FreeParams init_dev is log numbers at age: start it at the unfished equilibrium of R0
+  # and sex-1 M1. A single-species curve sets R_init from alpha and beta, so it keeps 0.
+  free_n <- .canon_switch(data_list[["initMode"]], initMode_map) == "FreeParams"
+  curve_r <- data_list[["srr_fun"]] > 1 && data_list[["msmMode"]] == 0
+  for (sp in seq_len(data_list[["nspp"]])[free_n && !curve_r]) {
+    A <- data_list[["nages"]][sp]
+    M <- exp(param_list[["log_M1"]][sp, 1, seq_len(A)])
+    log_n <- param_list[["rec_pars"]][sp, 1] - c(0, cumsum(M[-A]))  # ages minage..
+    log_n[A] <- log_n[A] - log(1 - exp(-M[A]))                       # plus group
+    param_list[["init_dev"]][sp, seq_len(A - 1)] <- log_n[-1]        # ages minage + 1..
+  }
+
   param_list
 }
 
