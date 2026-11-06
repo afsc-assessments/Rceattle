@@ -798,8 +798,9 @@ by at most 0.056% and recruitment bands by at most 0.65%.
 gradient and bounds are judged.** Its F-only Hessian says nothing about the peel. The gradient alone
 is not enough: at 20 times a BS2017SS catch `log_F` sits on its upper bound of 10, predicted catch
 is 36% low and the max gradient is 0.16, and that peel reported F_spp rho above 100,000 until
-`.check_bounds()` joined the test. Either sets `attr(peel, "forecast_error")`, and that attribute,
-not a re-read of the convergence record, keeps the peel out of the forecast-year rows of `$mohns`.
+`.check_bounds()` joined the test. Either sets `attr(peel, "forecast_refit_error")`, and that
+attribute, not a re-read of the convergence record, keeps the peel out of the forecast-year rows of
+`$mohns`.
 A miss away from a bound still passes. The hindcast's verdict decided whether the peel exists and is
 not on the object.
 
@@ -1251,7 +1252,7 @@ intermittent, not an image change. Everything from 2026-09-16 to 2026-09-20 pass
 gives a huge gradient and a failed `sdreport` — not a fault. The model is built
 `safebounds = FALSE`, so an out-of-range access is a silent write into adjacent memory; that is
 precisely what the 5.15.0 `age_hat` overflow was. Build with `RCEATTLE_SAFEBOUNDS=true` to turn
-that into an R error naming the object, and run `tools/verify/verify-safebounds.R`. That harness
+that into an abort naming the failed condition; run `tools/verify/verify-safebounds.R`. That harness
 carries a **positive control** — it deletes the artifacts, rebuilds, and asserts
 `-DTMB_SAFEBOUNDS` is in the compile line — because `pkgload` only recompiles when sources
 change, so setting the flag alone guarantees nothing and a clean result against a stale

@@ -511,14 +511,14 @@ initMode_map <- c(
 )
 
 # Predator-prey suitability mode (per predator species)
-# 1 and 3 are blocked in data_check() until growth-model validation is added
+# data_check() refuses 1, 3 and 5 (length-based) until growth-model validation is added
 suitMode_map <- c(
   "Empirical"       = 0,
   "GammaLength"     = 1,   # NOT YET AVAILABLE
   "GammaWeight"     = 2,
   "LognormalLength" = 3,   # NOT YET AVAILABLE
   "LognormalWeight" = 4,
-  "NormalLength"    = 5,
+  "NormalLength"    = 5,   # NOT YET AVAILABLE
   "NormalWeight"    = 6
 )
 

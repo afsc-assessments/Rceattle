@@ -7,76 +7,81 @@ Version-numbering note. Four gaps in this file are deliberate, not lost entries:
     5.5.0 / 5.5.1, applied to the two lines separately.
   * 5.66.3 to 5.66.5 were numbers a branch held during review; it landed as 5.66.8.
 
-No tag existed above 4.8.0 while these were in flight, so nobody could have installed an
-intermediate. They were folded rather than renumbered because renumbering a section breaks
-every (x.y.z) cross-reference pointing at it, and the entries below cite each other by
-version throughout.
+No tag existed above 4.8.0 while the first three were in flight, and the fourth's numbers
+never reached dev, so nobody could have installed an intermediate. They were folded rather
+than renumbered because renumbering a section breaks every (x.y.z) cross-reference pointing
+at it, and the entries below cite each other by version throughout.
+
+5.66.8 was also the number #300 (`run_mse()` keeps the EM's fixed parameters) held in
+review. It landed as 5.66.9, so a version check written for that fix needs 5.66.9.
 -->
+
+# Rceattle 5.67.1
+
+## Behavior changes
+
+* **`attr(peel, "forecast_error")` is renamed `forecast_refit_error`.** It gives the
+  reason a retrospective peel's forecast refit did not fit F to the peeled catch, not a
+  measure of forecast skill. It was added in 5.66.8, which was never tagged.
 
 # Rceattle 5.67.0
 
 ## Breaking changes
 
 * **`data_check()` refuses `Catchability = "Analytical"` on a `TruncatedNormal` index.**
-  Such a model fitted before, with a q that was not its maximum likelihood q, and the
-  truncated normal has no closed-form q: its truncation term, log Phi(q * pred / sd), with
-  pred the predicted index before q, depends on q. To refit, set `Catchability =
-  "Estimated"` for that fleet; the fit moves to the estimated q. An `Off` fleet is exempt.
-  Refusing it, rather than solving q iteratively, was the maintainer's decision, and makes
-  this a minor release.
+  Its truncation term, log Phi(q * pred / sd) with pred the index before q, depends on q,
+  so q has no closed form and the q such a fit used was not its maximum likelihood q. To
+  refit, set `Catchability = "Estimated"` for that fleet; the fit moves to the estimated q.
+  An `Off` fleet is exempt.
 
 ## Bug fixes
 
 * **`Catchability = "Analytical"` is now the maximum likelihood q on every index family it
-  accepts.** Fits that move are those with an `"Analytical"` index on the Normal or
-  MVN/MVNORM families, or on the lognormal family at the default `bias_adjust_obs = TRUE`;
-  under `bias_adjust_obs = FALSE` a lognormal q is unchanged. Before, every family took the
-  geometric mean of observed over predicted index (Walters and Ludwig 1994), weighted by
-  1/sd^2 when the sd is input by year. That is the maximum likelihood q only for a
-  lognormal index under `bias_adjust_obs = FALSE`; elsewhere q was biased and the objective
-  stayed above its minimum.
-  * **Lognormal.** The likelihood centers log(obs) at log(q * pred) - b * sd^2 / 2
-    (b = `bias_adjust_obs`), so under the default q was low by exp(sd^2 / 2), sd^2 being
-    the harmonic mean of the yearly variances when the sd is input by year. When
-    `Estimate_index_sd = "Analytical"` too, the variance is now that of the log residuals
-    about their mean, which makes q and sd joint maximum likelihood estimates.
-  * **Normal**: now weighted least squares, sum(obs * pred / sd^2) / sum(pred^2 / sd^2).
-    **MVN and MVNORM**: now generalized least squares over the fleet's covariance. These
-    change whatever `bias_adjust_obs` is. On a 12-year test fixture, at its starting
-    values, the old q was 51% high under Normal with the sd input by year (objective 53.8
-    above its minimum over q), 42% high with the sd estimated (2.6 above the minimum over q
-    and sd), and 88% high under MVN and MVNORM (68.2).
+  accepts.** It was the geometric mean of observed over predicted index (Walters and Ludwig
+  1994), weighted by 1/sd^2 when the sd is input by year. That is the maximum likelihood q
+  only for a `Lognormal` index under `bias_adjust_obs = FALSE`, whose fits do not move;
+  every other `"Analytical"` fit does.
+  * **`Lognormal`**, at the default `bias_adjust_obs = TRUE`: the likelihood centres
+    log(obs) at log(q * pred) - sd^2 / 2, so q was low by a factor of exp(sd^2 / 2), sd^2
+    being the harmonic mean of the yearly variances when the sd is input by year. With
+    `Estimate_index_sd = "Analytical"` too, q and sd are now joint maximum likelihood
+    estimates.
+  * **`Normal`** is now weighted least squares, sum(obs * pred / sd^2) / sum(pred^2 /
+    sd^2), and **`MVN`/`MVNORM`** generalized least squares over the fleet's covariance,
+    regardless of `bias_adjust_obs`. On a 12-year test fixture with no missing year, at
+    its starting values, the old q was 42-88% high.
 
-  Among the fits measured:
-  * The Pacific hake MSEs. `MSE_yr2024.R`: in the seven fits recorded in
-    `inst/dev/SIBLING-REPOS.md`, `Hake_survey` q rises 6.03% (1.21996 to 1.29355 in the
-    three single-species fits), each objective falls by 0.2197, and hake terminal SSB moves
-    by at most 0.0019%.
-    `04-mse.R`: q rises 5.33% (1.14824 to 1.20941 in the single-species fits), each of the
-    four recorded objectives falls by 0.1687, and hake terminal SSB moves by at most
-    0.0024%.
+  Measured:
+  * Pacific hake MSEs (Rceattle-models): in `MSE_yr2024.R`, `Hake_survey` q rises 6.03%
+    (1.21996 to 1.29355 in the single-species fits) and each of the seven recorded
+    objectives falls by 0.2197; in `04-mse.R`, q rises 5.33% (1.14824 to 1.20941) and each
+    of the four falls by 0.1687. Hake terminal SSB moves by at most 0.0019% and 0.0024%
+    respectively.
   * The bundled `GeorgesBank3spp`: its three fitted surveys' q rise 0.50-0.67%, the
-    single-species objective falls by 0.125 (3345.3728 to 3345.2478), and SSB moves by less
-    than 2e-6 relative.
+    single-species objective falls by 0.125 (3345.3728 to 3345.2478), and SSB moves by
+    less than 0.0002%.
+  * GOA2018SS with every survey `"Analytical"` and time-varying q off: q rises by up to
+    10.7% and the objective falls by 1.029 (13064.2326 to 13063.2033), the same optimum as
+    with q estimated.
   * The model-comparison EM in Rceattle-models (`om_to_rceattle.R`, survey CV 0.2): on
-    5.66.1, with fixed effects, the estimated-q objective was 0.147 below the analytical-q
-    one, with q 1.98% higher. Analytical q should now reach that optimum (not rerun).
-  * GOA2018SS with every survey switched to `"Analytical"` and time-varying q off: the
-    objective falls by 1.029 (13064.2326 to 13063.2033), the same optimum as with q
-    estimated, and q rises by up to 10.7%.
+    5.66.1, with fixed effects, estimated q was 1.98% above analytical q (objective 0.147
+    lower), the factor exp(sd^2 / 2) with sd^2 = log(1 + 0.2^2) that this fix adds. Not
+    rerun on 5.67.0.
 
-  No golden model, and no sibling-repository workbook or script, uses analytical q on a
-  non-lognormal family. EBS pollock and the SS3 bridges do not move: their fits set
-  `bias_adjust_obs = FALSE` or estimate q.
+  No reference model in the test suite, and no sibling-repository workbook or script, uses
+  analytical q on a non-lognormal family. EBS pollock and the SS3 bridges do not move:
+  their estimation fits set `bias_adjust_obs = FALSE` or estimate q, and the EBS pollock
+  forward pass (`02-bridge.R`) compares only numbers, SSB and catch, which q does not
+  enter.
 
-  With random effects (for example `random_rec = TRUE`), analytical q is re-solved for the
-  current random-effect values at each step. It is then not the q that maximizes the
-  likelihood with the random effects integrated out, so do not compare its objective with
-  that of a fit that estimates q. The MVN/MVNORM q is not forced positive: with a strongly
-  correlated covariance it can go negative at parameter values far from the best fit.
+  Under random effects analytical q is solved at the current random effects, not with them
+  integrated out, so do not compare its objective with that of a fit that estimates q. An
+  `MVN`/`MVNORM` q is not forced positive: with a strongly correlated covariance it can go
+  negative far from the best fit.
 
 * **A missing (NA) index year no longer makes analytical q, `"AnalyticalArith"` q or the
-  objective NA.** Both now use only the years the likelihood fits. `"AnalyticalArith"` is
+  objective NA.** Both now skip that year, as the likelihood does; an `MVN` or `MVNORM`
+  index with a missing year still stops before fitting. `"AnalyticalArith"` is
   otherwise unchanged: it remains the AMAK arithmetic-mean estimator, not the maximum
   likelihood q.
 
@@ -86,46 +91,45 @@ version throughout.
 
 * **Length-based suitability reads each species' own length-at-age.** Under `suitMode`
   1, 3 and 5 (`GammaLength`, `LognormalLength`, `NormalLength`), every predator or prey
-  species after the first used the wrong length-at-age in the predator:prey size ratio;
-  with two species, the second used the first species' spawning-time lengths. **No fit on
-  a current release moves:** `data_check()` has refused all three modes since 4.6.0, so a
-  fit reaches this code only if `data_check()` is bypassed. Fits made with 4.3.0 to 4.4.1
-  under `suitMode = 5`, with two or more species and estimated growth, are affected. On
-  the two-species test fixture (asymptotic lengths 90 and 50 cm), suitability changed by
-  up to 0.38 on its 0-1 scale and the objective by 0.4% to 5%. Weight-based (2, 4, 6) and
-  empirical (0) suitability are unchanged to the last digit.
+  species after the first used another species' lengths in the predator:prey size ratio.
+  **No fit on a current release moves:** `data_check()` has refused these modes since
+  4.6.0. Fits made under `suitMode = 5`, with two or more species and estimated growth,
+  from the January 2026 introduction of length-based suitability until the 4.6.0 tag are
+  affected: the tagged 4.3.0 to 4.4.1, and development builds from 3.3.1.0000 through
+  4.5.0. On a two-species test fixture the `suitMode = 5` objective moved by 0.8%.
+  Weight-based (2, 4, 6) and empirical (0) suitability are unchanged to the last digit.
 
 # Rceattle 5.66.14
 
 ## Behavior changes
 
 * **Under `initMode = "FreeParams"` the initial numbers at age now start at the unfished
-  equilibrium.** That mode estimates log numbers at age directly, and its start of 0 was
-  1 (thousand fish) at every age. `build_params()` now starts them at the equilibrium of
-  the R0 start (log R0 = 9 unless a linkage `init` sets it) and M1, with a plus group.
-  On a two-sex species both sexes start on female (sex-1) M1. Under a single-species
-  stock-recruit curve the template takes initial recruitment from alpha and beta instead,
-  so those species keep the start of 0. Only starts `build_params()` builds change
-  (`fit_mod()` with `inits = NULL`); refits from a stored fit start where they did. Fit
-  without `inits`, the FreeParams versions of BS2017SS and GOA2018SS take 2.5 s rather
-  than 3.8 s and 29-34 s rather than 42-50 s, and end at objectives 0.004 and 1.19 lower.
+  equilibrium** of the R0 start (log R0 = 9 unless a linkage `init` sets it) and M1, with a
+  plus group, rather than at 1 (thousand fish) at every age; a two-sex species starts both
+  sexes on female M1. Species under a single-species stock-recruit curve keep the old start
+  (log numbers 0), since the template takes their initial recruitment from alpha and beta.
+  Only `fit_mod()` with `inits = NULL` changes; a refit started from a stored fit does not.
+  Measured on 5.66.11, before 5.66.13's faster multinomial: without `inits`, the FreeParams
+  version of GOA2018SS fits in 29-34 s rather than 42-50 s and reaches an objective 1.19
+  lower (reproduced on 5.67.0), and that of BS2017SS reaches the same optimum, to the
+  optimizer's tolerance, in 2.5 s rather than 3.8 s.
 
 # Rceattle 5.66.13
 
 ## Performance
 
 * **Fits with `Comp_distribution = "Multinomial"` compositions, or multinomial
-  conditional age-at-length, run about 40% faster with random effects and 20% faster
-  without.** Such compositions were scored in the conditional-binomial form that
-  one-step-ahead residuals need, about eight times the computation per age or length bin
-  of the plain multinomial. Fitting now uses the plain multinomial; `osa_residuals()`
-  still builds the conditional-binomial form. The two are the same density: the four
-  reference models in the test suite, which all use `"Multinomial"`, reproduce their
-  objectives to 1e-11 (relative) with SSB, biomass and recruitment unchanged. The default
-  `"MultinomialAFSC"` is unchanged. On the NOAA model-comparison base case (one species,
-  12 ages, 30 years) a fit with random recruitment took 5.3 s rather than 8.6 s. Fits
-  with `comp_offset = 0`, such as the WHAM bridges, keep the conditional-binomial form,
-  which scores an empty bin predicted at exactly 0, so they are unchanged.
+  conditional age-at-length, take about 40% less time with random effects and 20% less
+  without.** Fitting now scores the plain multinomial rather than the conditional-binomial
+  form `osa_residuals()` needs, about eight times the computation per bin. They are the
+  same density: at the same parameters the four reference models in the test suite, all
+  multinomial, reproduce their objectives to 1e-11 (relative) and their SSB, biomass and
+  recruitment. Re-optimized, a fit can stop at a slightly different point within the
+  optimizer's tolerance: in the refit and MSE reproduction digests (BS2017SS, BS2017MS,
+  GOA2018SS) SSB moved by at most 3e-5 and recruitment by 1e-4, relative. On the NOAA
+  model-comparison base case a fit with random recruitment took 5.3 s rather than 8.6 s.
+  The default `"MultinomialAFSC"`, and fits with `comp_offset = 0` such as the WHAM
+  bridges, are unchanged.
 
 # Rceattle 5.66.12
 
@@ -154,150 +158,141 @@ version throughout.
 ## Bug fixes
 
 * **`jitter()` and `self_test()` now refit under the fit's own map.** Both built a new map,
-  which released anything the author had fixed, so they tested a different model from the
-  one fitted. On a `BS2017SS` test with a log catchability (`index_log_q`) fixed at
-  -8.258635 and an objective of 10241.5762, `jitter()` moved it to -8.308635, returned the
-  objective of the model with it free (10241.0304) and still printed `status: OK`;
-  `self_test()` moved it to -8.235536 and estimated 310 parameters rather than 309. Results
-  change only for a fit whose stored map differs from `build_map()`: a parameter fixed,
-  shared or freed by hand, a map built before its starting values were set, or a fit saved
-  before a later change to how maps are built. Such a saved fit now refits under the map it
-  was fitted with, as a `retrospective()` peel's hindcast does, but without that function's
-  warning. An OM returned by `run_mse()` also differs: its map leaves only the new years'
-  fishing mortality free. A projection-only fit still refits under a rebuilt map, so nothing
-  fixed in it carries over, and unless fitted under a supplied map `jitter()` perturbs none
-  of its starts. `self_test()` now warns where `process` redrew a deviation the fit's map
-  fixes, which the refit cannot recover.
+  which freed anything the author had fixed, so they tested a different model: on
+  `BS2017SS` with `index_log_q` fixed, `jitter()` returned the objective of the model with
+  it free (10241.0304 against 10241.5762) and still printed `status: OK`. Results change
+  only for a fit whose stored map differs from `build_map()`: a parameter fixed, shared or
+  freed by hand, a map built before its starting values were set, a fit saved before a
+  change to how maps are built, or an OM from `run_mse()`. Such a fit refits under its
+  stored map, without `retrospective()`'s warning. On the GOA multispecies 2026 model,
+  `jitter()` and `self_test()` now keep cod's fixed values, so the reason
+  `03_diagnostics.R` gives for not self-testing it no longer holds. A projection-only fit
+  (`estimateMode = 2`) still refits under a rebuilt map, so nothing fixed in it carries
+  over, and `jitter()` perturbs its starts only if it was fitted under a supplied map.
+  `self_test()` now warns where `process` redrew a deviation the map fixes, which the
+  refit cannot recover.
 
 # Rceattle 5.66.9
 
 ## Bug fixes
 
 * **`run_mse()` now keeps parameters fixed in the EM's map at every assessment.** Each
-  refit built a new map, which released whatever the author had fixed, so the EM estimated
-  those parameters from then on. On a `BS2017SS` test, a log catchability (`index_log_q`)
-  fixed at -8.258635 moved to -8.306753 at the first assessment, and that assessment's
-  terminal SSB moved 1.1% (3,987,696 to 4,030,637 t). A parameter fixed in the EM's map now
-  stays fixed in each new map, and `run_mse()` reports how many, by parameter. Results
-  change only for an EM whose map fixes a parameter `build_map()` would estimate:
-  `verify-mse-repro.R` is unchanged, and neither hake EM fixes any. `?run_mse` gives the
-  rules for years after the EM's `endyr`, time blocks, and what in a hand-edited map does
-  not carry forward.
+  refit built a new map, which freed whatever the author had fixed: on a `BS2017SS` test a
+  fixed `index_log_q` moved at the first assessment, and that assessment's terminal SSB by
+  1.1% (3,987,696 to 4,030,637 mt). `run_mse()` now reports how many it holds, by
+  parameter. Results change only for an EM whose map fixes a parameter `build_map()` would
+  estimate. Neither Pacific hake EM fixes any. The GOA multispecies 2026 cod MSE
+  (`05c_mse_stock_2026.R`) does: its EM fixes 34 parameters (`beta_linkage` 31, `sel_dn6`
+  3), and with this fix 4 of 4 replicates complete where 1 of 2 failed. `?run_mse` gives
+  the rules for years after the EM's `endyr`, time blocks, and what in a hand-edited map
+  does not carry forward.
 
 # Rceattle 5.66.8
 
 ## Behavior changes
 
-* **`retrospective()` warns about, and drops, a peel only when its hindcast did
-  not converge.** A peel whose forecast refit alone did not converge used to be
-  dropped with a warning. It is now kept with no warning: that refit holds the
-  hindcast fixed, so the hindcast and the terminal-year rho stand. Because F was
-  not fitted to the peeled catch, the peel is left out of the `$mohns` rows with
-  `Forecast year` above 0, whose `N` shows it. The reason is on
-  `attr(peel, "forecast_error")`, `print()` counts such peels under a NOTE, and
-  `plot_timeseries()` and its wrappers warn when they draw those forecast years.
-  One such F removes the peel from every forecast-year row, including years that
-  fitted. A dropped hindcast also no longer runs its forecast refit.
-* **Which forecast refits count as failed has changed.** A peeled F left at a
-  bound now counts, because F can miss the catch there with a small gradient (at
-  20 times a BS2017SS catch, max gradient 0.16 and predicted catch 36% low, with
-  F_spp rho above 100,000 in `$mohns`); those forecast-year rows lose that peel.
-  An F-only Hessian that is not positive definite no longer counts, so under
-  `getsd = TRUE` that peel is kept and enters the terminal-year and forecast-year
-  rows. Where peels return, rho changes because it averages over them too.
-* **A retrospective peel keeps its `sdreport`.** Where the standard-error rebuild
-  fails, `peel$sdrep` now holds what `TMB::sdreport()` returned rather than
-  `NULL`, which remains only if the rebuild errored first.
-  `attr(peel, "sd_report_error")` still gives the reason, which now also covers a
-  failed catch-conditioned correction. Those numbers are not usable standard
-  errors, so plots, `as.data.frame()` and `vcov()` still read none of them, and
-  `plot_timeseries()` and its wrappers now warn with that reason, and `summary()`
-  gives it. For a healthy peel, `summary()` now says its estimates are the forecast
-  refit's rather than that no variance is usable.
-  `print()` now says such peels "have no usable standard errors". The
-  "peel(s) could not report hindcast standard errors" warning is gone, since Mohn's
-  rho reads point estimates only.
+* **A fit saved before this version must be refitted before anything re-evaluates its TMB
+  object.** The template reads a new internal data item (`adreport_catch`) that a stored
+  `fit$obj` lacks. `sim_mod(simulate = TRUE)`, and so `self_test()` at its default, stop
+  with a message to refit; `model_average(uncertainty = TRUE)`, `process_residuals()` on a
+  fit saved without standard errors (`getsd = FALSE`), and direct calls such as
+  `fit$obj$report()` or `fit$obj$retape()` stop with an error that does not say to refit.
+  `sim_mod()` at its default `simulate = FALSE`, `retrospective()`, `jitter()`,
+  `osa_residuals()` and `run_mse()` still run on it.
+* **`retrospective()` drops a peel, with a warning, only when its hindcast did not
+  converge.** A peel whose forecast refit alone failed is now kept, with no warning: that
+  refit holds the hindcast fixed, so the hindcast and the terminal-year rho stand. F was
+  not fitted to the peeled catch, though, so the peel is left out of every `$mohns` row
+  with `Forecast year` above 0 (their `N` counts only the peels used), even for years whose
+  F did fit. `attr(peel, "forecast_refit_error")` gives the reason, `print()` counts such
+  peels under a NOTE, and `plot_timeseries()` and its wrappers warn when they draw those
+  forecast years. A peel whose hindcast is dropped no longer runs its forecast refit.
+* **Which forecast refits count as failed has changed.** A peeled F left at a bound now
+  counts, because F can miss the catch there with a small gradient (at 20 times a BS2017SS
+  catch, predicted catch 36% low and F_spp rho above 100,000). An F-only Hessian that is
+  not positive definite no longer counts, so under `getsd = TRUE` that peel is kept and
+  enters the terminal-year and forecast-year rows. Where the peels kept change, so does
+  rho.
+* **A retrospective peel keeps its `sdreport`.** Where the standard-error rebuild fails,
+  `peel$sdrep` holds what `TMB::sdreport()` returned (still `NULL` if the rebuild errored
+  first), and `attr(peel, "sd_report_error")` gives the reason, now including a failed
+  catch-conditioned correction. Plots, `as.data.frame()` and `vcov()` still read none of
+  it; `plot_timeseries()` and its wrappers warn with the reason, `summary()` gives it, and
+  `print()` says such peels "have no usable standard errors". For a peel with usable
+  standard errors, `summary()` now says its estimates come from the forecast refit. The
+  "peel(s) could not report hindcast standard errors" warning is gone.
 * **A peel's `sdrep$par.fixed`, `cov.fixed` and `vcov(peel)` no longer include the peeled
   `log_F`,** which the report now holds fixed; `sd` and `cov` still carry F's response. On
   `BS2017SS` the peel through 2015 goes from 304 parameters to 298, and through 2016 from 307
   to 304.
-* **A fit saved before this version must be refitted for `sim_mod()` and `self_test()`.**
-  The template reads a new internal data item (`adreport_catch`), so both stop on such a fit,
-  `sim_mod()` with a message to refit, and `fit$obj$retape()` errors. `retrospective()`,
-  `jitter()`, `osa_residuals()`, `process_residuals()` and `run_mse()` still run on it.
 
 ## Bug fixes
 
-* **A retrospective peel's uncertainty band is now computed at the peel's best
-  fit.** Standard errors are valid only where the objective's gradient is 0.
-  Under random effects (e.g. `random_rec = TRUE`), keeping the peeled years'
-  catch in the standard-error calculation with their F free moved that point off
-  the peel's estimates (the largest gradient, sigma_R's aside, was 0.15-4.19
-  across 10 peels of GOA pollock 2026), so a band could be off, or lost when its
-  Hessian was not positive definite. The calculation now holds the peeled F at
-  the values fitted to the observed catch and drops that catch from the
-  likelihood (F, and so the removals, are unchanged), then lets F move with the
-  hindcast parameters so the predicted catch stays at the observed catch. A band
-  in a peeled (forecast) year therefore treats the catch as known and F as
-  inferred from it, and leaves out recruitment variability in those years. Without
-  random effects (BS2017SS, a 3-year peel) fitted-year bands are unchanged and
-  forecast-year SSB bands narrow by up to 1.2%, the catch's own observation error,
-  which is no longer counted; the exception is a depletion that divides by
-  last-projection-year biomass (`HCR = 0` under `msmMode > 0`), up to 1.5% on
-  BS2017MS. Under random effects fitted-year bands move too: on GOA pollock 2026
-  they are 1.00-1.02 times as wide as before for SSB, 0.82-1.02 for biomass and 0.68-1.06
-  for recruitment; forecast-year bands are 0.81-1.04 for SSB and 0.77-1.04 for biomass;
-  biomass depletion reaches 0.84 in fitted years and 0.72 in forecast years. No point estimate or Mohn's rho changes. The calculation uses an
-  internal `adreport_catch` flag, so `sdrep$value` and fits are unchanged; it adds
-  about 0.6 s per peel on BS2017SS and 4 s on BS2017MS.
+* **A retrospective peel's uncertainty band is now computed at the peel's best fit.**
+  Standard errors are valid only where the objective's gradient is 0. Under random
+  effects, keeping the peeled years' catch in the calculation with F free moved that point
+  off the peel's estimates (largest gradient 0.15-4.19, sigma_R's aside, across 10 peels of
+  GOA pollock 2026), so a band could be off, or lost to a Hessian that was not positive
+  definite. The calculation now holds peeled F at its fitted values, drops that catch from
+  the likelihood, and lets F follow the hindcast parameters so predicted catch stays at the
+  observed catch: a forecast-year band treats catch as known and leaves out recruitment
+  variability. Under random recruitment sigma_R's gradient is still not 0 there (0.25-2.47
+  on GOA pollock 2026): the peel was fitted with its peeled recruitment deviations at 0,
+  and the report holds them at the projected value while still scoring them. Against each
+  peel's own hindcast report, that moves fitted-year SSB bands by at most 0.056% and
+  recruitment bands by at most 0.65%.
+
+  This correction changes no point estimate, Mohn's rho or `sdrep$value`. Without random
+  effects (BS2017SS) fitted-year bands are unchanged, except a depletion that divides by
+  last-projection-year biomass (`HCR = 0` under `msmMode > 0`; up to 1.5% on BS2017MS),
+  and forecast-year SSB bands narrow by up to 1.2%. With them, on GOA pollock 2026,
+  fitted-year bands are 1.00-1.02 times as wide as before for SSB, 0.82-1.02 for biomass
+  and 0.68-1.06 for recruitment, and forecast-year bands 0.81-1.04 for SSB and 0.77-1.04
+  for biomass; for biomass depletion the ratio falls to 0.84 in fitted years and 0.72 in
+  forecast years. Each peel takes about 0.6 s longer on BS2017SS and 4 s on BS2017MS.
 
 # Rceattle 5.66.7
 
 ## Bug fixes
 
-* **A `Selectivity = "Fixed"` fleet now holds the last hindcast year it supplied
-  through the projection, as an estimated fleet does.** It was 0 in every projection year.
-  A `Fixed` fishery then had no exploitable biomass, so an MSE with one took no catch
-  (measured under `ConstantF` and `NPFMC`) and its reported `SBF` was wrong under
-  every rule tried. Its projected F was also too low under `HCR = "NPFMC"`: on a test
-  fixture 0.950 at most against an Ftarget of 1.284, with terminal SSB 20% too high.
-  Under `ConstantFSSB` with `DynamicHCR = TRUE` its objective moves as well (201.04 to
-  -6.08 on a test fixture). A `Fixed` survey predicted an index and comps of 0 there,
-  which a direct `sim_mod()` returned as observations; an MSE with one and
-  `simulate_data = TRUE` can move. Other rules' F,
-  hindcast estimates apart from that `ConstantFSSB` case, and models with no `Fixed`
-  fleet do not move. A hindcast year with no `emp_sel` row stays 0.
+* **A `Selectivity = "Fixed"` fleet now holds the last hindcast year it supplied through
+  the projection, as an estimated fleet does,** rather than 0. A `Fixed` fishery then had
+  no exploitable biomass, so an MSE with one took no catch and its reported `SBF` (female
+  spawning biomass at Ftarget) was wrong under every harvest control rule tried; under
+  `HCR = "NPFMC"` its projected F was also too low (0.950 at most against an Ftarget of
+  1.284 on a test fixture, terminal SSB 20% high). Under `ConstantFSSB` with
+  `DynamicHCR = TRUE` its objective moves too. A `Fixed` survey predicted an index and
+  comps of 0 in projection years, which `sim_mod()` returned as observations, so an MSE
+  with one and `simulate_data = TRUE` can move. Nothing else moves: projected F under
+  other harvest control rules, hindcast estimates (except under `ConstantFSSB` with
+  `DynamicHCR = TRUE`), and any model without a `Fixed` fleet. A hindcast year with no
+  `emp_sel` row stays 0.
 
 * `data_check()` now also warns about CAAL data on a `Fixed` fleet labelled
   `Selectivity_dimension = "Length"`. Fixed selectivity is always at age, so those
   data inform nothing, as on an age-dimensioned fleet.
 
 * `data_check()` now warns when a `Fixed` fishery has no `emp_sel` row for `endyr`
-  for any sex. Its selectivity is 0 in that year, which reference points and projected
-  F read: on a test fixture `catch_hat` was 0 against 10 observed, Ftarget and Flimit
-  stuck at 1, and the objective was `Inf`. That year still predicts no catch.
+  for at least one sex. Its selectivity is 0 in that year, which reference points and
+  projected F read: on a test fixture `catch_hat` was 0 against 10 observed, Ftarget and
+  Flimit stuck at 1, and the objective was `Inf`. That year still predicts no catch.
 
 # Rceattle 5.66.6
 
 ## Bug fixes
 
-* **Under estimated growth, a fleet with selectivity at age now predicts its age
-  and length comps.** That means `Selectivity_dimension = "Age"`, the default, or
-  `Selectivity = "Fixed"`, which is always at age. Its comps were predicted from
-  selectivity-at-length, which such a fleet does not have, so the prediction was
-  all zero and no selectivity, growth or dynamics parameter could move the
-  composition likelihood; only a Dirichlet-multinomial weight could. With a
-  length-based survey carrying the CAAL data, no warning named the comps. They
-  now use catch-at-age from selectivity-at-age (selected numbers-at-age on a
-  survey), through the estimated age-length key for length comps, not
-  `age_trans_matrix`, which belongs to empirical growth. Timing is the fleet's
-  `Month`, as on a length-based fleet; a comp row's `Month` is not read under
-  estimated growth. On the test fixture the fishery's composition row was 1.182612
-  whatever its selectivity; it now starts at 1.343781, as the same data do under
-  empirical growth. **Fits with estimated growth and comps on such a fleet move.**
-  Other configurations evaluate bit-identically: GOA cod's objective, gradient and
-  comps at the starting values do not change. CAAL on such a fleet is still not
-  predicted, and `data_check()` warns about it.
+* **Under estimated growth, a fleet with selectivity at age now predicts its age and length
+  comps.** That means `Selectivity_dimension = "Age"`, the default, or `Selectivity =
+  "Fixed"`, which is always at age. Its comps were predicted from selectivity-at-length,
+  which such a fleet does not have, so they were all zero and no selectivity, growth or
+  dynamics parameter could move their likelihood. They now use catch-at-age from
+  selectivity-at-age (selected numbers-at-age on a survey), through the estimated
+  age-length key for length comps (not `age_trans_matrix`, which only empirical growth
+  reads), timed at the fleet's `Month`; a comp row's `Month` is not read under estimated
+  growth. **Fits with estimated growth and comps on such a fleet move.** Other
+  configurations evaluate bit-identically: GOA cod's objective, gradient and comps at the
+  starting values do not change. CAAL on such a fleet is still not predicted, and
+  `data_check()` warns about it.
 
 # Rceattle 5.66.2
 

@@ -693,7 +693,7 @@ Type objective_function<Type>::operator() () {
   vector<Type>  index_analytical_sd(n_flt); index_analytical_sd.setZero();          // Concentrated (analytical) index sd used when Estimate_index_sd = 2; a log-scale sd, not a log
   vector<Type>  index_q_analytical(n_flt); index_q_analytical.setZero();            // Analytical catchability (not an sd) used when Catchability = 3; "AnalyticalArith" (7) has its own block at 8.2b
   matrix<Type>  index_q(n_flt, nyrs_hind); index_q.setZero();                       // Estimated survey catchability //FIXME: extend out to full time-series
-  vector<Type>  index_n_obs(n_flt); index_n_obs.setZero();                          // Observations per survey time series
+  vector<Type>  index_n_obs(n_flt); index_n_obs.setZero();                          // Per-fleet denominator: sum of weights in 8.2, observation count in 8.4
 
   // -- 4.8. Composition data
   // age_hat / age_obs_hat are indexed by AGE whatever dimension the fleet's composition
@@ -2540,8 +2540,11 @@ Type objective_function<Type>::operator() () {
   //   Normal     q = sum(obs * pred / sd^2) / sum(pred^2 / sd^2)
   //   MVN/MVNORM q = (pred' Sigma^-1 obs) / (pred' Sigma^-1 pred), generalized least squares
   // data_check() refuses TruncatedNormal, whose truncation term leaves q no closed form.
-  index_n_obs.setZero();                // denominator: sum of weights (Normal: sum pred^2 / sd^2)
-  index_q_analytical.setZero();         // numerator: weighted sum of log(obs / pred) (Normal: obs * pred / sd^2)
+  // Numerator: weighted sum of log(obs / pred) plus the bias term, which an analytical sd
+  // adds after the mean, below (Normal: sum obs * pred / sd^2).
+  // Denominator: sum of weights (Normal: sum pred^2 / sd^2).
+  index_n_obs.setZero();
+  index_q_analytical.setZero();
   for(index_ind = 0; index_ind < index_ctl.rows(); index_ind++){
     index = index_ctl(index_ind, 0) - 1;            // Survey index
     flt_yr = index_ctl(index_ind, 2);               // Data year
@@ -2676,8 +2679,8 @@ Type objective_function<Type>::operator() () {
 
 
   // --8.4. Calculate analytical sigma following Walters and Ludwig 1994
-  // The positive-observation guard matches the catch estimator below; it is
-  // belt-and-braces, data_check() having already refused a non-positive index.
+  // Only hindcast years with an observation; a missing (NA) year fails the > 0 test,
+  // as in 8.2 and the catch estimator.
   index_n_obs.setZero();
   index_analytical_sd.setZero();
   for(index_ind = 0; index_ind < index_ctl.rows(); index_ind++){
@@ -2917,7 +2920,7 @@ Type objective_function<Type>::operator() () {
         }
       }
 
-      // Assign CAAL to marginal age or length composition
+      // Sum predicted catch at age and length into the marginal age or length composition
       for(age = 0; age < nages(sp); age++) {
         for(ln = 0; ln < nlengths(sp); ln++) {
 

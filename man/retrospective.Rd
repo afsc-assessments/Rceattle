@@ -55,8 +55,8 @@ A peel whose hindcast did not converge is dropped, with a warning, so
 refit did not fit F to the peeled catch (gradient check, or a peeled F at a bound)
 is kept without a warning: its terminal-year Mohn's rho stands, but it is left out
 of the \code{$mohns} rows with \code{Forecast year} above 0 (\code{N} counts the
-peels used). Check \code{attr(peel, "forecast_error")} before reading its forecast
-years or their standard errors; \code{print()} counts such peels, and
+peels used). Check \code{attr(peel, "forecast_refit_error")} before reading its
+forecast years or their standard errors; \code{print()} counts such peels, and
 \code{plot_timeseries()} and its wrappers warn when they draw those years.
 Entries are named for their own terminal year (\code{Year_2017}, ...), so index by name:
 \code{Rceattle_list[[3]]} is not necessarily the 3-year peel. With no peel
@@ -127,15 +127,14 @@ carries that into the band. The peeled years' recruitment deviations are
 fixed at the projected deviation, so the band leaves out recruitment
 variability there and is narrower than a forecast's prediction interval.
 
-Where that rebuild fails -- it errors, or its Hessian is not positive
-definite, or it reports no finite standard error -- the peel keeps its point
-estimates and the reason is in \code{attr(peel, "sd_report_error")}; \code{print()}
-counts such peels. \code{peel$sdrep} still holds what \code{TMB::sdreport()} returned
-(\code{NULL} if the rebuild errored before that). Under an indefinite Hessian its
-numbers are not valid standard errors, and if moving F with the hindcast parameters
-fails, its forecast years leave out F's response, so plots,
-\code{as.data.frame()} and \code{vcov()} read none of it. No warning is raised, since
-the point estimates and Mohn's rho are unaffected.
+Where that rebuild fails -- it errors, its Hessian is not positive definite, it
+reports no finite standard error, or moving F with the hindcast parameters fails
+(its forecast years would then leave out F's response) -- the peel keeps its point
+estimates, \code{peel$sdrep} keeps what \code{TMB::sdreport()} returned (\code{NULL} if the rebuild
+errored first; under an indefinite Hessian its numbers are not valid standard errors),
+and \code{attr(peel, "sd_report_error")} gives the reason, so plots, \code{as.data.frame()} and
+\code{vcov()} read none of it. \code{print()} counts such peels; no warning is raised, since the
+point estimates and Mohn's rho are unaffected.
 
 Mohn's rho reads point estimates, so \code{getsd = FALSE} is faster, but \code{TRUE} also drops
 a peel whose hindcast Hessian is not positive definite, so the two can average over

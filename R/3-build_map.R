@@ -2037,12 +2037,9 @@ map_linkage_adjuster <- function(map_list, data_list) {
     # n_cells is the array's size in the EM, so cells past it are the years added since.
     old_cells <- seq_len(attr(cells, "n_cells"))
     new_cells <- setdiff(seq_along(level), old_cells)
-    # A block stays estimated while any earlier cell in it is free; otherwise its new
-    # years join the fixed cells.
     still_free <- level[setdiff(old_cells, cells)]
     fixed_blocks <- setdiff(level[cells], c(NA, still_free))
     joined <- new_cells[level[new_cells] %in% fixed_blocks]
-    # A joining year takes the value of its block's first fixed cell.
     first_fixed <- cells[match(level[joined], level[cells])]
     params[[nm]][joined] <- params[[nm]][first_fixed]
     map[["mapList"]][[nm]][c(cells, joined)] <- NA
