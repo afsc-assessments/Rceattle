@@ -122,8 +122,11 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   conditional age-at-length, take about 40% less time with random effects and 20% less
   without.** Fitting now scores the plain multinomial rather than the conditional-binomial
   form `osa_residuals()` needs, about eight times the computation per bin. They are the
-  same density: the four reference models in the test suite, all multinomial, reproduce
-  their objectives to 1e-11 (relative) and their SSB, biomass and recruitment. On the NOAA
+  same density: at the same parameters the four reference models in the test suite, all
+  multinomial, reproduce their objectives to 1e-11 (relative) and their SSB, biomass and
+  recruitment. Re-optimized, a fit can stop at a slightly different point within the
+  optimizer's tolerance: in the refit and MSE reproduction digests (BS2017SS, BS2017MS,
+  GOA2018SS) SSB moved by at most 3e-5 and recruitment by 1e-4, relative. On the NOAA
   model-comparison base case a fit with random recruitment took 5.3 s rather than 8.6 s.
   The default `"MultinomialAFSC"`, and fits with `comp_offset = 0` such as the WHAM
   bridges, are unchanged.
