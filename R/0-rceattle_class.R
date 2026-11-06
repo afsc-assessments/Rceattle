@@ -264,11 +264,13 @@ summary.Rceattle <- function(object, ...) {
   coefs$Estimate[fixed_path] <- as.numeric(model[, "start"])[fixed_path]
 
   # Std_Error / z_value / p_value are always present, NA when no sdreport was
-  # run. Making them conditional changes the column count between fits, and the
-  # consumer scripts rbind() several models' tables together.
+  # run or a peel's is not usable (`sd_report_error`). Making them conditional
+  # changes the column count between fits, and the consumer scripts rbind()
+  # several models' tables together.
   coefs$Std_Error <- NA_real_
-  if (!is.null(object$sdrep)) {
-    SE <- as.list(object$sdrep, report = FALSE, what = "Std. Error")
+  sdrep <- .rce_usable_sdrep(object)
+  if (!is.null(sdrep)) {
+    SE <- as.list(sdrep, report = FALSE, what = "Std. Error")
     if (!is.null(SE$dsem_beta_z))
       coefs$Std_Error <- c(NA, SE$dsem_beta_z)[par_idx + 1]
   }
@@ -301,9 +303,10 @@ summary.Rceattle <- function(object, ...) {
   spnames <- if (!is.null(d$spnames)) d$spnames else as.character(seq_len(nspp))
 
   # Prefer the ADREPORTed R_sd (carries an SE), then quantities, then a report().
+  # A peel's flagged sdrep (`sd_report_error`) is not read.
   rsd <- rep(NA_real_, nspp)
   se  <- rep(NA_real_, nspp)
-  sdr <- object$sdrep
+  sdr <- .rce_usable_sdrep(object)
   if (!is.null(sdr) && !is.null(sdr$value)) {
     i <- which(names(sdr$value) == "R_sd")
     if (length(i) == nspp) {
@@ -555,14 +558,22 @@ print.summary.Rceattle <- function(x, n = 10, ...) {
           sep = "")
     }
     if (all(is.na(cf$std_error))) {
-      # Two reasons, and the user needs to know which: no sdreport at all, or one
-      # whose variances are unusable because the Hessian is not positive definite.
+      # The user needs to know which reason: a peel whose rebuild failed, no
+      # sdreport at all, a peel's F-only estimates beside its hindcast's covariance,
+      # or variances that are unusable (Hessian not positive definite).
       # A print method must not stop, so an unreadable spec falls back to the
       # commoner reason.
       v <- tryCatch(stats::vcov(x$spec), error = function(e) NULL)
-      if (is.null(v)) {
+      peel_reason <- attr(x$spec, "sd_report_error", exact = TRUE)
+      if (!is.null(peel_reason)) {
+        cat("  standard errors are unavailable --", peel_reason, "\n")
+      } else if (is.null(v)) {
         cat("  standard errors are unavailable -- this fit has no sdreport",
             "(fit_control(getsd = FALSE))\n")
+      } else if (isTRUE(x$spec[["data_list"]][["endyr_full"]] >
+                        x$spec[["data_list"]][["endyr_peel"]])) {
+        cat("  these estimates are the retrospective peel's forecast refit (F only);",
+            "the hindcast's standard errors are in peel$sdrep\n")
       } else {
         cat("  standard errors are unavailable -- no variance in the sdreport is",
             "usable; see convergence_diagnostics() 'pdHess'\n")
@@ -670,11 +681,12 @@ coef.Rceattle <- function(object, ...) {
 #' @param object An object of class \code{"Rceattle"} returned by [fit_mod()].
 #' @param ... Currently unused.
 #'
-#' @return A numeric matrix, or `NULL` if `sdreport` was not run
-#'   (i.e. the fit was produced with `getsd = FALSE`).
+#' @return A numeric matrix, or `NULL` if `sdreport` was not run (the fit was
+#'   produced with `getsd = FALSE`) or is a retrospective peel whose standard
+#'   errors are not usable (`attr(peel, "sd_report_error")`).
 #' @export
 vcov.Rceattle <- function(object, ...) {
-  sdr <- object$sdrep
+  sdr <- .rce_usable_sdrep(object)
   if (is.null(sdr) || is.null(sdr$cov.fixed)) return(NULL)
   sdr$cov.fixed
 }
@@ -1672,7 +1684,7 @@ as.data.frame.Rceattle <- function(x,
   # sdreport vectors are stored in the same column-major order TMB used to
   # stamp the matrix/array, so reshaping `sd` against the report's dim
   # lines up cell-for-cell. A fit run with getsd=FALSE has no $sdrep.
-  sdrep <- x$sdrep
+  sdrep <- .rce_usable_sdrep(x)
   sd_lookup <- function(name, dims) {
     if (is.null(sdrep) || is.null(sdrep$value)) return(NULL)
     idx <- which(names(sdrep$value) == name)
