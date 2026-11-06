@@ -240,7 +240,7 @@ simData$fleet_control <- data.frame(
   #   5 / "RandomWalkAscending" = random walk on ascending portion of double logistic
   Time_varying_sel          = 0,
   Time_varying_sel_sd = 1,
-  Bin_first_selected        = 1,     # first bin selected; selectivity is 0 below it
+  Age_first_selected        = 1,     # first age selected (absolute age); 0 below it
   Sel_norm_bin             = "Off", # "Max", "Off", or a bin to normalize at
   Sel_norm_bin_upper       = "Off", # "Off", or the top of a bin range
   # Two-sex models only: whether the normalization reference is pooled over the

@@ -13,6 +13,37 @@ every (x.y.z) cross-reference pointing at it, and the entries below cite each ot
 version throughout.
 -->
 
+# Rceattle 5.68.0
+
+## New features
+
+* **`Age_first_selected` is now its own `fleet_control` column: the first age a fleet
+  selects, an absolute age.** On an age-based fleet selectivity is 0 below it. On a
+  length-based fleet, younger ages are removed from that fleet's age-length key, so it catches
+  no fish below that age at any length, as a Stock Synthesis age-range mask (age pattern 11
+  up to the plus group; pattern 10 when the first age is 1) does; before, a length-based fleet
+  could exclude only length bins. `Bin_first_selected` remains the first selected length
+  bin there. A blank leaves the fleet selected from `minage`; a `"Fixed"` fleet's curve is
+  used as given, as it was.
+
+## Deprecations
+
+* **`Bin_first_selected` on an age-based fleet is deprecated; use `Age_first_selected`.**
+  It is read as age `minage + Bin_first_selected - 1`, so no fit changes, and `fit_mod()`
+  says so once per fit. Setting both on one age-based fleet to different ages is refused,
+  so a script that assigns `Bin_first_selected` to data already carrying a different
+  `Age_first_selected` stops instead of choosing one. The bundled datasets that set a first
+  selected age now carry it as `Age_first_selected` (same values), so
+  `GOA2018SS$fleet_control$Bin_first_selected <- 1` is refused there (two of its fleets start
+  at age 3); assign `Age_first_selected`. `write_template()` writes it too.
+* `Age_first_selected` was the pre-4.0.1 name of `Bin_first_selected`, so `read_data()`
+  still reads a workbook that has it without a `Bin_first_selected` column the old way, with
+  a message. A workbook carrying both columns, refused before, now reads both. A workbook
+  written by 5.68.0 carries both, so earlier versions refuse it.
+* `data_check()`'s warning for fleets sharing a `Selectivity_index` compares the first
+  selected age as resolved, and names `Age_first_selected` for an age-based group where it
+  named `Bin_first_selected`.
+
 # Rceattle 5.66.12
 
 ## Bug fixes

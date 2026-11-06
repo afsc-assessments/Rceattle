@@ -106,8 +106,8 @@ parameters with one value per block. `ceattle.cpp` scores those deviates in
 `JNLL_SEL_DEV` because `8` is in its type lists; the form has no penalty of its
 own. `.PAR_SEL_SLOTS` relabels the slots, `.SEL_LINKAGE_WIRED_FORMS` admits the
 form with the parameter names `peak`, `right_floor`, `sigma_asc` and
-`sigma_desc`, and the shared normalizer zeroes the curve below
-`Bin_first_selected`, normalizes at `Sel_norm_bin` if set, and holds the last
+`sigma_desc`, and the shared normalizer zeroes the curve below the first
+selected bin, normalizes at `Sel_norm_bin` if set, and holds the last
 hindcast year into the projection.
 
 ## Worked example: switching the fishery to `DoubleNormal`

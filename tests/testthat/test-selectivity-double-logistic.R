@@ -13,7 +13,7 @@ testthat::test_that("Sex-specific age-based double logistic selectivity not norm
   GOA2018SS$fleet_control$Selectivity[rows_use] <- "DoubleLogistic"
   GOA2018SS$fleet_control$Time_varying_sel <- 0
   GOA2018SS$fleet_control$Selectivity_index <- 1:nrow(GOA2018SS$fleet_control)
-  GOA2018SS$fleet_control$Bin_first_selected <- 1
+  GOA2018SS$fleet_control$Age_first_selected <- 1
   GOA2018SS$fleet_control$Sel_norm_bin <- NA
 
   # Specify double logistic selectivity
@@ -81,7 +81,7 @@ testthat::test_that("Sex-specific age-based time-varying double logistic selecti
   GOA2018SS$fleet_control$Selectivity_index <- 1:nrow(GOA2018SS$fleet_control)
   GOA2018SS$fleet_control$Time_varying_sel <- 1
   GOA2018SS$fleet_control$Time_varying_sel_sd <- 1
-  GOA2018SS$fleet_control$Bin_first_selected <- 1
+  GOA2018SS$fleet_control$Age_first_selected <- 1
   GOA2018SS$fleet_control$Sel_norm_bin <- NA # Do not normalize
   GOA2018SS$catch_data$Catch <- 1e6 # If catch is zero, sel devs are turned off
 
@@ -173,7 +173,7 @@ testthat::test_that("Sex-specific age-based time-varying double logistic selecti
   GOA2018SS$fleet_control$Selectivity_index <- 1:nrow(GOA2018SS$fleet_control)
   GOA2018SS$fleet_control$Time_varying_sel <- 1
   GOA2018SS$fleet_control$Time_varying_sel_sd <- 1
-  GOA2018SS$fleet_control$Bin_first_selected <- 1
+  GOA2018SS$fleet_control$Age_first_selected <- 1
   GOA2018SS$fleet_control$Sel_norm_bin <- NA # Do not normalize
   GOA2018SS$catch_data$Catch <- 1e6 # If catch is zero, sel devs are turned off
 
@@ -211,7 +211,7 @@ testthat::test_that("Time-varying double logistic selectivity likelihood", {
   GOA2018SS$fleet_control$Time_varying_sel <- 1
   GOA2018SS$fleet_control$Time_varying_sel_sd <- 1 # Note that inf does 4*sd prior, should adapt to scale-invariant sd
   #FIXME: move to scale invariant setup
-  GOA2018SS$fleet_control$Bin_first_selected <- 1
+  GOA2018SS$fleet_control$Age_first_selected <- 1
   GOA2018SS$fleet_control$Sel_norm_bin <- NA # Do not normalize
   GOA2018SS$catch_data$Catch <- 1e6 # If catch is zero, sel devs are turned off
 

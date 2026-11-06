@@ -29,7 +29,7 @@
 #' Rows cover estimated, age-based lead fleets only, starting at each fleet's
 #' first selected bin. Four kinds of cell are a structural zero (a `Fixed`
 #' fleet's empirical curve, a length-based fleet's growth-matrix projection, a
-#' bin below `Bin_first_selected`, and array padding), and one `log(0) = -Inf`
+#' bin below the first selected one, and array padding), and one `log(0) = -Inf`
 #' on the tape turns *every* quantity in the `sdreport` to `NaN`, biomass and
 #' SSB included. All four are identified from the data, so the reported set
 #' never depends on a parameter value, and a value that underflows to zero is

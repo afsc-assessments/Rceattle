@@ -92,7 +92,7 @@ testthat::test_that("a right_floor (log-link) linkage on a double-normal fits an
   d$fleet_control$Selectivity        <- "DoubleNormal"
   d$fleet_control$Time_varying_sel   <- 0
   d$fleet_control$Selectivity_index  <- seq_len(nrow(d$fleet_control))
-  d$fleet_control$Bin_first_selected <- 1
+  d$fleet_control$Age_first_selected <- 1
   flt <- rows_use[1]
   yrs <- d$styr:d$projyr
   d$env_data <- data.frame(Year = yrs, temp = as.numeric(scale(seq_along(yrs))))

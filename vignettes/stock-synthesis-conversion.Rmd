@@ -20,7 +20,6 @@ Rceattle needs is somewhere in the SS data, weight-at-age, or control file.
 > columns and sheet names changed in 4.0.1 (`Pyrs` → `ration_data`,
 > `UobsWtAge` → `diet_data`, `fsh_biom` → `catch_data`,
 > `srv_biom` → `index_data`, `Nselages` → `N_sel_bins`,
-> `Age_first_selected` → `Bin_first_selected`,
 > `Age_max_selected` / `_upper` → `Sel_norm_bin` / `Sel_norm_bin_upper`);
 > the names used below are current. The `meta_data` sheet in the Rceattle
 > Excel template is the authoritative column reference.
@@ -104,7 +103,7 @@ Comp options, on `fleet_control` unless the row says otherwise:
 | `_N_lbins` (26) | `nlengths` (on `control` sheet) | Number of length bins |
 | Sex aggregation | `Sex` column on `comp_data` | Hake is single-sex |
 | Comp likelihood | `Comp_distribution` | `0` = multinomial, `1` = Dirichlet-multinomial. (`-1` = legacy AFSC convention.) |
-| Selectivity bin range | `Sel_norm_bin`, `Sel_norm_bin_upper`, `Bin_first_selected` | First selected bin and the bin(s) at which selectivity is normalized to 1 |
+| Selectivity bin range | `Sel_norm_bin`, `Sel_norm_bin_upper`, `Age_first_selected`, `Bin_first_selected` | First selected age (or length bin) and the bin(s) at which selectivity is normalized to 1. SS3 age pattern 10 or 11 on a length-selected fleet is `Age_first_selected` |
 
 `comp_data`:
 

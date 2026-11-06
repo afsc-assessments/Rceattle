@@ -17,7 +17,7 @@ testthat::test_that("Test age-based non-parametric selectivity bin-first selecte
   GOA2018SS$fleet_control$Sel_curve_pen1 <- 5
   GOA2018SS$fleet_control$Sel_curve_pen2 <- 10
   GOA2018SS$fleet_control$Sel_norm_bin <- NA
-  GOA2018SS$fleet_control$Bin_first_selected <- 3
+  GOA2018SS$fleet_control$Age_first_selected <- 3
   GOA2018SS$fleet_control$Time_varying_sel <- 0
   GOA2018SS$fleet_control$Time_varying_sel_sd <- 1
 
@@ -63,7 +63,7 @@ testthat::test_that("Time-varying double logistic selectivity bin first selected
   GOA2018SS$fleet_control$Time_varying_sel <- 1
   GOA2018SS$fleet_control$Time_varying_sel_sd <- 1 # Note that inf does 4*sd prior, should adapt to scale-invariant sd
   #FIXME: move to scale invariant setup
-  GOA2018SS$fleet_control$Bin_first_selected <- 4
+  GOA2018SS$fleet_control$Age_first_selected <- 4
   GOA2018SS$fleet_control$Sel_norm_bin <- NA # Do not normalize
   GOA2018SS$catch_data$Catch <- 1e6 # If catch is zero, sel devs are turned off
 
@@ -116,4 +116,140 @@ testthat::test_that("Time-varying double logistic selectivity bin first selected
   # Check selectivity is 0 for bins 1-2
   output <- c(ss_run$quantities$sel_at_age[,1,1:3,])
   testthat::expect_equal(output, rep(0, length(output)))
+})
+
+
+# Age_first_selected is an absolute age, and on an age-based fleet
+# Bin_first_selected is its deprecated spelling, read as age minage + bin - 1.
+# minage = 3 here, because at minage = 1 the two readings coincide (rule 11).
+.afs_bins <- function(d) {
+  suppressMessages(rearrange_data(switch_check(d)))$bin_first_selected
+}
+
+testthat::test_that("an age-based fleet reads Bin_first_selected as the age it names", {
+  d <- make_test_data(nyrs = 6, nprojyrs = 2, nages = 6, minage = 3)
+  d$fleet_control$Age_first_selected <- c(5, NA)
+  testthat::expect_identical(.afs_bins(d), c(2L, 0L))       # age 5 is bin 3
+
+  old <- d
+  old$fleet_control$Age_first_selected <- NULL
+  old$fleet_control$Bin_first_selected <- c(3, NA)
+  testthat::expect_identical(.afs_bins(old), c(2L, 0L))
+
+  both <- old
+  both$fleet_control$Age_first_selected <- c(5, NA)          # the same age, twice
+  testthat::expect_identical(.afs_bins(both), c(2L, 0L))
+  both$fleet_control$Bin_first_selected <- c(5, NA)          # age 7, not age 5
+  testthat::expect_error(.afs_bins(both), "deprecated spelling of 'Age_first_selected'",
+                         fixed = TRUE)
+
+  bad <- d
+  bad$fleet_control$Age_first_selected <- c(2, NA)           # below minage
+  testthat::expect_error(suppressMessages(data_check(switch_check(bad))),
+                         "Age_first_selected (2) must be an age in 3:8", fixed = TRUE)
+  bad$fleet_control$Age_first_selected <- c(4.5, NA)
+  testthat::expect_error(suppressMessages(data_check(switch_check(bad))),
+                         "Age_first_selected (4.5) must be a whole age", fixed = TRUE)
+})
+
+
+testthat::test_that("the old spelling is reported once per fit", {
+  d <- make_test_data(nyrs = 6, nprojyrs = 2, nages = 5)
+  d$fleet_control$Age_first_selected <- NULL
+  d$fleet_control$Bin_first_selected <- 1
+  msgs <- character(0)
+  withCallingHandlers(
+    suppressWarnings(fit_mod(data_list = d, estimateMode = 3, msmMode = 0,
+                             fit_control = fit_control(verbose = 0))),
+    message = function(cnd) {
+      msgs <<- c(msgs, conditionMessage(cnd))
+      invokeRestart("muffleMessage")
+    })
+  testthat::expect_equal(sum(grepl("'Bin_first_selected' on an age-based fleet is deprecated",
+                                   msgs, fixed = TRUE)), 1)
+})
+
+
+testthat::test_that("Age_first_selected round-trips through write_data() and read_data()", {
+  d <- GOA2018SS
+  f <- tempfile(fileext = ".xlsx")
+  on.exit(unlink(f))
+  suppressMessages(write_data(d, f))
+  rt <- suppressMessages(read_data(f))
+  testthat::expect_identical(as.numeric(rt$fleet_control$Age_first_selected),
+                             as.numeric(d$fleet_control$Age_first_selected))
+  testthat::expect_true(any(!is.na(d$fleet_control$Age_first_selected)))
+})
+
+
+# A length-based fleet selects no fish younger than Age_first_selected at any
+# length (a Stock Synthesis age-range mask, age pattern 11): those ages leave the
+# fleet's own age-length key, and nothing else moves.
+testthat::test_that("on a length-based fleet, younger ages leave the fleet's age-length key", {
+  set.seed(11)
+  d   <- make_msm_test_data()$data_list
+  flt <- which(d$fleet_control$Species == 1 & d$fleet_control$Fleet_type == 1)[1]
+  d$fleet_control$Selectivity_dimension[flt] <- "Length"
+  d$fleet_control$Selectivity[flt]           <- "Logistic"
+  d$fleet_control$Time_varying_sel[flt]      <- "Off"
+  sp  <- d$fleet_control$Species[flt]
+  na  <- d$nages[sp]
+  fit <- function(d) suppressWarnings(suppressMessages(fit_mod(
+    data_list = d, estimateMode = 3, msmMode = 0, random_rec = FALSE,
+    growthFun = build_growth(fun = "vonBertalanffy"),
+    fit_control = fit_control(phase = FALSE, verbose = 0, getsd = FALSE))))
+
+  base <- fit(d)
+  # A floor at minage is the model without one.
+  d0 <- d
+  d0$fleet_control$Age_first_selected <- d$minage[d$fleet_control$Species]
+  testthat::expect_identical(fit(d0)$quantities$jnll_comp, base$quantities$jnll_comp)
+
+  d3 <- d
+  d3$fleet_control$Age_first_selected[flt] <- d$minage[sp] + 2
+  m3 <- fit(d3)
+  testthat::expect_identical(m3$data_list$fleet_control$Bin_first_selected,
+                             d$fleet_control$Bin_first_selected)
+
+  wt <- 2 * d$nspp + flt   # growth_matrix: two slots per species, then one per fleet
+  gm <- m3$quantities$growth_matrix
+  g0 <- base$quantities$growth_matrix
+  testthat::expect_true(all(gm[wt, , 1:2, , ] == 0))
+  testthat::expect_gt(sum(g0[wt, , 1:2, , ]), 0)           # they were in the key
+  testthat::expect_equal(gm[wt, , 3:na, , ], g0[wt, , 3:na, , ])
+  testthat::expect_equal(gm[-wt, , , , ], g0[-wt, , , , ])
+
+  s3 <- m3$quantities$sel_at_age
+  s0 <- base$quantities$sel_at_age
+  testthat::expect_true(all(s3[flt, , 1:2, ] == 0))
+  testthat::expect_gt(min(s0[flt, 1, 1:2, 1]), 0)
+  testthat::expect_equal(s3[flt, , 3:na, ], s0[flt, , 3:na, ])
+  testthat::expect_equal(s3[-flt, , , ], s0[-flt, , , ])
+})
+
+
+# Before 4.0.1 'Bin_first_selected' was called 'Age_first_selected', and 167
+# sibling-repository workbooks still carry only that header. Read as the new
+# column, a script's later `fc$Bin_first_selected[2] <- 2` made a fresh column
+# that R recycled down the rows: SSB 435,170 against 439,165 on GOA2018SS.
+testthat::test_that("a workbook from before the rename reads its column as Bin_first_selected", {
+  testthat::skip_if_not_installed("writexl")
+  d <- make_test_data(nyrs = 6, nprojyrs = 2, nages = 5, minage = 2)
+  d$fleet_control$Age_first_selected <- NULL
+  d$fleet_control$Bin_first_selected <- c(2, NA)
+  f <- withr::local_tempfile(fileext = ".xlsx")
+  suppressMessages(write_data(d, f))
+  sheets <- readxl::excel_sheets(f)
+  wb <- stats::setNames(
+    lapply(sheets, function(s) as.data.frame(readxl::read_xlsx(f, sheet = s))), sheets)
+  fc <- wb[["fleet_control"]]
+  fc[["Age_first_selected"]] <- NULL
+  names(fc)[names(fc) == "Bin_first_selected"] <- "Age_first_selected"
+  wb[["fleet_control"]] <- fc
+  f_old <- withr::local_tempfile(fileext = ".xlsx")
+  writexl::write_xlsx(wb, f_old)
+
+  testthat::expect_message(old <- read_data(f_old), "pre-4.0.1 name", fixed = TRUE)
+  testthat::expect_false("Age_first_selected" %in% names(old$fleet_control))
+  testthat::expect_identical(.afs_bins(old), c(1L, 0L))      # bin 2, age 3
 })

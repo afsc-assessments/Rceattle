@@ -43,7 +43,7 @@ testthat::test_that("Age-based double-normal: static dome shape recovers correct
   GOA2018SS$fleet_control$Selectivity <- "DoubleNormal"
   GOA2018SS$fleet_control$Time_varying_sel   <- 0
   GOA2018SS$fleet_control$Selectivity_index  <- seq_len(nrow(GOA2018SS$fleet_control))
-  GOA2018SS$fleet_control$Bin_first_selected <- 1
+  GOA2018SS$fleet_control$Age_first_selected <- 1
   GOA2018SS$fleet_control$Sel_norm_bin      <- NA  # max-normalise
 
   peak        <- 8
@@ -105,7 +105,7 @@ testthat::test_that("Age-based double-normal: logit_floor=+10 produces near-logi
   GOA2018SS$fleet_control$Selectivity <- "DoubleNormal"
   GOA2018SS$fleet_control$Time_varying_sel   <- 0
   GOA2018SS$fleet_control$Selectivity_index  <- seq_len(nrow(GOA2018SS$fleet_control))
-  GOA2018SS$fleet_control$Bin_first_selected <- 1
+  GOA2018SS$fleet_control$Age_first_selected <- 1
   GOA2018SS$fleet_control$Sel_norm_bin      <- NA
 
   peak        <- 8
@@ -228,7 +228,7 @@ testthat::test_that("IID time-varying double-normal: map has correct number of d
   simData$fleet_control$Time_varying_sel         <- "IID"
   simData$fleet_control$Time_varying_sel_sd <- 1
   simData$fleet_control$Selectivity_index        <- seq_len(nrow(simData$fleet_control))
-  simData$fleet_control$Bin_first_selected       <- 1
+  simData$fleet_control$Age_first_selected       <- 1
   simData$fleet_control$Sel_norm_bin            <- NA
   simData$catch_data$Catch <- 1e6  # non-zero catch keeps sel devs on
 
@@ -282,7 +282,7 @@ testthat::test_that("IID time-varying double-normal: penalty likelihood matches 
   simData$fleet_control$Time_varying_sel         <- "IID"
   simData$fleet_control$Time_varying_sel_sd <- 1
   simData$fleet_control$Selectivity_index        <- seq_len(nrow(simData$fleet_control))
-  simData$fleet_control$Bin_first_selected       <- 1
+  simData$fleet_control$Age_first_selected       <- 1
   simData$fleet_control$Sel_norm_bin            <- NA
   simData$catch_data$Catch <- 1e6
 
@@ -361,7 +361,7 @@ testthat::test_that("Block time-varying double-normal: map assigns correct block
   simData$fleet_control$Selectivity              <- "DoubleNormal"
   simData$fleet_control$Time_varying_sel         <- "Block"
   simData$fleet_control$Selectivity_index        <- seq_len(nrow(simData$fleet_control))
-  simData$fleet_control$Bin_first_selected       <- 1
+  simData$fleet_control$Age_first_selected       <- 1
   simData$fleet_control$Sel_norm_bin            <- NA
 
   # Assign 2 blocks: years 1..half in block 1, rest in block 2
