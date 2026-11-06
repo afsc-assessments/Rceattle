@@ -38,7 +38,7 @@
 // Reads an R list() of matrices into a vector<matrix<Type>>: the per-fleet
 // survey-index covariance matrices Sigma supplied when Index_loglike is
 // "MVN"/"MVNORM" (the AMAK/ebswp DoCovBTS covariance survey likelihood; sections
-// 8.2b and 13.1). Other fleets pass a 1x1 inert dummy, so the list is always
+// 8.2 and 13.1). Other fleets pass a 1x1 inert dummy, so the list is always
 // length n_flt and indexes by fleet code.
 template<class Type>
 struct LOM_t : vector<matrix<Type> > {
@@ -2532,42 +2532,90 @@ Type objective_function<Type>::operator() () {
   }
 
 
-  // -- 8.2. Analytical survey q following Walters and Ludwig 1994
-  index_n_obs.setZero();
-  index_q_analytical.setZero();
+  // -- 8.2. Analytical survey q (lognormal form: Walters and Ludwig 1994)
+  // The q that maximizes the fleet's index likelihood (13.1) given the other parameters and any
+  // random effects, pred being the index before q:
+  //   Lognormal  log q = precision-weighted mean of log(obs / pred) + b * sd^2 / 2, b = bias_adjust_obs
+  //              (sd^2 the harmonic mean of the yearly variances when input by year)
+  //   Normal     q = sum(obs * pred / sd^2) / sum(pred^2 / sd^2)
+  //   MVN/MVNORM q = (pred' Sigma^-1 obs) / (pred' Sigma^-1 pred), generalized least squares
+  // data_check() refuses TruncatedNormal, whose truncation term leaves q no closed form.
+  index_n_obs.setZero();                // denominator: sum of weights (Normal: sum pred^2 / sd^2)
+  index_q_analytical.setZero();         // numerator: weighted sum of log(obs / pred) (Normal: obs * pred / sd^2)
   for(index_ind = 0; index_ind < index_ctl.rows(); index_ind++){
-
-
-
     index = index_ctl(index_ind, 0) - 1;            // Survey index
-    sp = index_ctl(index_ind, 1) - 1;             // Species
-    flt_yr = index_ctl(index_ind, 2);             // Data year
+    flt_yr = index_ctl(index_ind, 2);               // Data year
+    // Only hindcast years with an observation, as 13.1 fits; a missing (NA) year fails the > 0 test
+    if((flt_yr <= 0) || (flt_yr - styr >= nyrs_hind) || !(index_obs(index_ind, 0) > 0)) continue;
 
-    if(flt_yr > 0){
-      flt_yr = flt_yr - styr;
+    if(index_ll_type(index) == 3){      // Normal: sd is absolute, input by year or estimated
+      Type sd2 = (est_sigma_index(index) == 0) ? square(index_obs(index_ind, 1)) : exp(2.0 * index_log_sd(index));
+      index_n_obs(index) += square(index_hat(index_ind)) / sd2;
+      index_q_analytical(index) += index_obs(index_ind, 0) * index_hat(index_ind) / sd2;
+      continue;
+    }
 
-
-      mo = index_n(index_ind, 0);                    // Month
-      if(flt_yr < nyrs_hind){
-
-        // If etimated standard deviation or analytical sigma (non-time-varying)
-        if(est_sigma_index(index) > 0) {
-          index_n_obs(index) += 1;
-          index_q_analytical(index) += log(index_obs(index_ind, 0) / index_hat(index_ind));
-        }
-
-        // If time-varying sigma
-        if(est_sigma_index(index) == 0 ) {
-          index_n_obs(index) += 1 / square(index_obs(index_ind, 1));
-          index_q_analytical(index) += log(index_obs(index_ind, 0) / index_hat(index_ind)) / square(index_obs(index_ind, 1));
-        }
-      }
+    Type log_ratio = log(index_obs(index_ind, 0) / index_hat(index_ind));
+    Type b = (index_ll_type(index) == 0) ? bias_adjust_obs : Type(0.0);
+    switch(est_sigma_index(index)){
+    case 0:   // sd input by year: weight each year by 1 / sd^2
+      index_n_obs(index) += 1 / square(index_obs(index_ind, 1));
+      index_q_analytical(index) += log_ratio / square(index_obs(index_ind, 1)) + b / 2.0;
+      break;
+    case 1:   // estimated sd
+      index_n_obs(index) += 1;
+      index_q_analytical(index) += log_ratio + b * exp(2.0 * index_log_sd(index)) / 2.0;
+      break;
+    case 2:   // analytical sd: its bias term needs the mean, so is added below
+      index_n_obs(index) += 1;
+      index_q_analytical(index) += log_ratio;
+      break;
     }
   }
+  index_q_analytical = index_q_analytical / index_n_obs;
 
-  // Take average
+  // Analytical sd: variance of the log residuals about their mean, so 8.4 returns the joint MLE
+  vector<Type> index_q_resid_ss(n_flt); index_q_resid_ss.setZero();
+  for(index_ind = 0; index_ind < index_ctl.rows(); index_ind++){
+    index = index_ctl(index_ind, 0) - 1;
+    flt_yr = index_ctl(index_ind, 2);
+    if((flt_yr <= 0) || (flt_yr - styr >= nyrs_hind) || !(index_obs(index_ind, 0) > 0) ||
+       (est_sigma_index(index) != 2)) continue;
+    index_q_resid_ss(index) += square(log(index_obs(index_ind, 0) / index_hat(index_ind)) - index_q_analytical(index));
+  }
+
   for(index = 0 ; index < n_flt; index ++){
-    index_q_analytical(index) = exp(index_q_analytical(index) / index_n_obs(index));
+    if((est_sigma_index(index) == 2) && (index_ll_type(index) == 0)){
+      index_q_analytical(index) += bias_adjust_obs * index_q_resid_ss(index) / index_n_obs(index) / 2.0;
+    }
+    if(index_ll_type(index) != 3) index_q_analytical(index) = exp(index_q_analytical(index));
+
+    // MVN / MVNORM: the fitted rows in index_obs order, which is the row order of Sigma (13.1)
+    if((est_index_q(index) == 3) && (flt_type(index) > 0) &&
+       ((index_ll_type(index) == 1) || (index_ll_type(index) == 2))){
+      int n_mvn = 0;
+      for(index_ind = 0; index_ind < index_ctl.rows(); index_ind++){
+        flt_yr = index_ctl(index_ind, 2);
+        if(((index_ctl(index_ind, 0) - 1) == index) && (flt_yr > 0) && (flt_yr <= endyr) &&
+           (index_obs(index_ind, 0) > 0)) n_mvn++;
+      }
+      if(n_mvn > 0){
+        matrix<Type> mvn_obs(n_mvn, 1), mvn_pred(n_mvn, 1);
+        int k = 0;
+        for(index_ind = 0; index_ind < index_ctl.rows(); index_ind++){
+          flt_yr = index_ctl(index_ind, 2);
+          if(((index_ctl(index_ind, 0) - 1) == index) && (flt_yr > 0) && (flt_yr <= endyr) &&
+             (index_obs(index_ind, 0) > 0)){
+            mvn_obs(k, 0) = index_obs(index_ind, 0);
+            mvn_pred(k, 0) = index_hat(index_ind);
+            k++;
+          }
+        }
+        Eigen::LLT<Eigen::Matrix<Type, Eigen::Dynamic, Eigen::Dynamic> > llt(index_cov_mat(index));
+        matrix<Type> w = llt.solve(mvn_pred);                        // Sigma^-1 pred
+        index_q_analytical(index) = (w.transpose() * mvn_obs)(0, 0) / (w.transpose() * mvn_pred)(0, 0);
+      }
+    }
 
     // Set index_q to analytical if used
     if(est_index_q(index) == 3){
@@ -2590,7 +2638,7 @@ Type objective_function<Type>::operator() () {
     flt_yr = index_ctl(index_ind, 2);
     if(flt_yr > 0){
       flt_yr = flt_yr - styr;
-      if(flt_yr < nyrs_hind){
+      if((flt_yr < nyrs_hind) && (index_obs(index_ind, 0) > 0)){   // a missing (NA) year compares false
         index_obs_sum(index) += index_obs(index_ind, 0);
         index_hat_sum(index) += index_hat(index_ind);
       }

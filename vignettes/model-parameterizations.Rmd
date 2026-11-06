@@ -273,7 +273,7 @@ $$\phi_{f_i sy} \sim N(0,\hat\sigma^{\phi}_{f_i}) $$
 Catchability is controlled by the following `fleet_control` columns:
 
 * `Catchability_index`	Fleets given the same value share one catchability parameter.
-* `Catchability`	Text or integer switch specifying catchability. 0 or "Fixed" = fixed at `Catchability_init`; 1 or "Estimated" = a single free parameter; 2 or "Estimated-with-prior" = a single free parameter with a prior; 3 or "Analytical" = analytical q from Walters and Ludwig 1994; 4 or "PowerEquation" = power equation, **declared but not yet implemented**; 5 or "Environmental" = linear equation log(q_y) = q_mu + beta * index_y; 6 or "AR1" = REMOVED in 5.12.0 (it never estimated the deviates, so q was constant) -- express the Rogers et al. form as a q linkage with `ar1(1 | Year)` and `observe =`; 7 or "AnalyticalArith" = arithmetic-mean analytical q, the AMAK/ebswp form, paired with the MVN survey likelihood.
+* `Catchability`	Text or integer switch specifying catchability. 0 or "Fixed" = fixed at `Catchability_init`; 1 or "Estimated" = a single free parameter; 2 or "Estimated-with-prior" = a single free parameter with a prior; 3 or "Analytical" = q solved in closed form as the maximum likelihood q for the fleet's `Index_distribution` (refused under TruncatedNormal); 4 or "PowerEquation" = power equation, **declared but not yet implemented**; 5 or "Environmental" = linear equation log(q_y) = q_mu + beta * index_y; 6 or "AR1" = REMOVED in 5.12.0 (it never estimated the deviates, so q was constant) -- express the Rogers et al. form as a q linkage with `ar1(1 | Year)` and `observe =`; 7 or "AnalyticalArith" = arithmetic-mean analytical q, the AMAK/ebswp form, paired with the MVN survey likelihood.
 * `Catchability_init`	Starting or fixed value for catchability
 * `Catchability_prior_sd`	Log-scale SD of the q prior: dnorm(log_q, log(Catchability_init) - bias_adjust_proc * sd^2/2, sd)
 * `Time_varying_q`	Whether a time-varying q is estimated. 0 = no; 1 = penalized deviate; 2 = AR1 (REMOVED in 5.16.0; `data_check()` errors); 3 = time blocks with no penalty; 4 = random walk from the mean following Dorn 2018 (dnorm(q_y - q_y-1, 0, sigma)). Under `Catchability = 5` it instead holds the `env_data` index for log(q_y) = q_mu + beta * index_y.
@@ -294,15 +294,27 @@ $$ log(\hat{q}_{f_i}) \sim N\left(log(Q\ prior) - b \cdot Q\ sd\ prior^2/2,\ Q\ 
 
 `Q prior` (`Catchability_init`) is the prior mean of $q$ under `fit_control(bias_adjust_proc = TRUE)`, the default, and its median otherwise; `Q sd prior` is on the log scale.
 
-`Catchability = 3` $\hat{q}_{f_i}$ is derived analytically following Walters and Ludwig (1994): Walters, C. and Ludwig, D. (1994) 'Calculation of Bayes posterior probability distributions for key population parameters', *Canadian Journal of Fisheries and Aquatic Sciences*, 51(3), pp. 713-722, doi:10.1139/f94-071.
-* CPUE in weight, time-invariant survey SD:
-$$\hat{q}_{f_i} = \exp\left( \sum_y log \left[ \frac{CPUE:B_{{f_i},y}}  {\sum_s\sum_a \left( N_{isa,y} e^{-(Month_{{f_i},y}/12) Z_{isa,y}} W_{{f_i}sa,y} S_{{f_i}isa,y} \right)} \right]/n \right)$$
-* CPUE in numbers, time-invariant survey SD:
-$$\hat{q}_{f_i} = \exp\left( \sum_y log \left[ \frac{CPUE:I_{{f_i},y}}  {\sum_s\sum_a \left( N_{isa,y} e^{-(Month_{{f_i},y}/12) Z_{isa,y}} S_{{f_i}isa,y} \right)} \right]/n \right)$$
-* CPUE in weight, time-varying survey SD:
-$$\hat{q}_{f_i} = \exp\left( \sum_y \left( log \left[ \frac{CPUE:B_{{f_i},y}}  {\sum_s\sum_a N_{isa,y} e^{-(Month_{{f_i},y}/12) Z_{isa,y}} W_{{f_i}sa,y} S_{{f_i}isa,y}} \right]/\sigma^{2}_{f_iy} \right)/ \sum_y{\frac{1}{\sigma^{2}_{f_iy}}} \right)$$
-* CPUE in numbers, time-varying survey SD:
-$$\hat{q}_{f_i} = \exp\left( \sum_y \left( log \left[ \frac{CPUE:I_{{f_i},y}}  {\sum_s\sum_a N_{isa,y} e^{-(Month_{{f_i},y}/12) Z_{isa,y}} S_{{f_i}isa,y}} \right]/\sigma^{2}_{f_iy} \right)/ \sum_y{\frac{1}{\sigma^{2}_{f_iy}}} \right)$$
+`Catchability = 3` $\hat{q}_{f_i}$ is the closed-form maximum likelihood estimate under the fleet's index likelihood (`Index_distribution`). Write $\tilde{I}_{f_i,y}$ for the predicted index above with $q = 1$ (it uses $\tilde{N}$, so survey timing and the fishery year-average are already handled), $I_{f_i,y}$ for the observed index, and sum over the $n$ hindcast years with an observation.
+
+Under the lognormal likelihood $\hat{q}$ is the geometric mean of Walters and Ludwig (1994), adjusted for the bias correction. With $d_y = log(I_{f_i,y} / \tilde{I}_{f_i,y})$ and $b$ = `bias_adjust_obs` (the lognormal log-scale mean carries $-b\sigma^2/2$):
+
+* time-invariant index SD (estimated or analytical):
+$$log(\hat{q}_{f_i}) = \frac{1}{n}\sum_y d_y + b\,\sigma^{2}_{f_i}/2$$
+* index SD input by year:
+$$log(\hat{q}_{f_i}) = \sum_y \frac{d_y}{\sigma^{2}_{f_iy}} \Big/ \sum_y \frac{1}{\sigma^{2}_{f_iy}} + b\,\bar{\sigma}^{2}_{f_i}/2, \qquad \bar{\sigma}^{2}_{f_i} = n \Big/ \sum_y \frac{1}{\sigma^{2}_{f_iy}}$$
+  the harmonic mean of the yearly variances.
+
+With `Estimate_index_sd = 2` the variance is $\sigma^{2}_{f_i} = \frac{1}{n}\sum_y (d_y - \bar{d})^2$, $\bar{d}$ the mean of $d_y$, so $\hat{q}$ and $\sigma$ are their joint maximum likelihood estimate.
+
+Walters, C. and Ludwig, D. (1994) 'Calculation of Bayes posterior probability distributions for key population parameters', *Canadian Journal of Fisheries and Aquatic Sciences*, 51(3), pp. 713-722, doi:10.1139/f94-071.
+
+Under the Normal likelihood, with the absolute SD $\sigma_{f_iy}$ input by year or estimated, $\hat{q}$ is the weighted least-squares estimate:
+$$\hat{q}_{f_i} = \sum_y \frac{I_{f_i,y}\,\tilde{I}_{f_i,y}}{\sigma^{2}_{f_iy}} \Big/ \sum_y \frac{\tilde{I}^{2}_{f_i,y}}{\sigma^{2}_{f_iy}}$$
+Under MVN and MVNORM, with the fleet's covariance $\Sigma_{f_i}$ over the same years, it is the generalized least-squares estimate:
+$$\hat{q}_{f_i} = \frac{\tilde{I}_{f_i}' \Sigma_{f_i}^{-1} I_{f_i}}{\tilde{I}_{f_i}' \Sigma_{f_i}^{-1} \tilde{I}_{f_i}}$$
+A TruncatedNormal likelihood has no closed-form $q$, because its truncation term depends on $q$, so `data_check()` refuses `Catchability = 3` there.
+
+Each estimate is solved for the current values of the other parameters, random effects included. With random effects it is therefore not the $q$ that maximizes the likelihood with them integrated out, and its objective should not be compared with that of a fit that estimates $q$. The MVN/MVNORM estimate is not forced positive: with a strongly correlated $\Sigma$ it can go negative at parameter values far from the best fit.
 
 ### Time-varying catchability formulations
 Under `Catchability = 2` the prior above still applies to mean catchability.

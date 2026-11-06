@@ -1498,6 +1498,7 @@ data_check <- function(data_list) {
         "Estimate_index_sd = 'Fixed'."), call. = FALSE)
     }
   }
+  errors <- c(errors, .check_analytical_q_family(data_list))
 
   # An analytical sd is concentrated out of the likelihood, so it is defined
   # only where there are fitted residuals to concentrate. A fleet that carries
@@ -2740,4 +2741,28 @@ data_check <- function(data_list) {
     }
   }
   errors
+}
+
+#' Refuse analytical catchability on an index family with no closed-form q
+#'
+#' `Catchability = "Analytical"` solves the q that maximizes the index likelihood in
+#' closed form. A truncated normal has no closed-form q: its truncation term,
+#' log Phi(q * pred / sd), depends on q. An Off fleet is exempt, as its index is never fitted.
+#'
+#' @param data_list Rceattle data list.
+#' @keywords internal
+#' @noRd
+.check_analytical_q_family <- function(data_list) {
+  fc <- data_list$fleet_control
+  # Absent on a raw list given straight to data_check(), before switch_check() fills it.
+  if (!all(c("Catchability", "Index_distribution") %in% colnames(fc))) return(character(0))
+  bad <- which(fc[["Catchability"]] %in% c("Analytical", 3, "3") &
+               fc[["Index_distribution"]] %in% c("TruncatedNormal", 4, "4") &
+               !(fc[["Fleet_type"]] %in% c("Off", 0, "0")))
+  if (!length(bad)) return(character(0))
+  paste0("Fleet(s) ", paste(fc[["Fleet_name"]][bad], collapse = ", "),
+         " combine Catchability = 'Analytical' with Index_distribution = ",
+         "'TruncatedNormal'. Analytical q is the closed-form maximum likelihood q, and ",
+         "the truncated normal has no closed-form q: its truncation term depends on q. ",
+         "Set Catchability = 'Estimated' for these fleets.")
 }
