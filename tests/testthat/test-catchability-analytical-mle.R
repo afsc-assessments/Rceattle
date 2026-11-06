@@ -1,7 +1,7 @@
 # Catchability = "Analytical" must be the q that maximizes the index likelihood
 # the model evaluates, on every family it accepts (formulas in
 # vignette("model-parameterizations")); TruncatedNormal has no closed-form q and
-# is refused. Up to 5.66.11 every family took the geometric mean of obs / pred:
+# is refused. Before 5.67.0 every family took the geometric mean of obs / pred:
 # on this fixture (complete series) the lognormal objective sat 0.065 (sd by
 # year) to 0.24 (sd estimated or analytical) above its minimum over q, with q
 # 2-8% low, and q was 51% high under Normal and 88% under MVN. No golden model

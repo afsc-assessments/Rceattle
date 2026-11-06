@@ -893,16 +893,13 @@ testthat::test_that("a peel's catch-conditioned band matches the old joint repor
 })
 
 # A peel whose standard-error rebuild fails used to fall back to the forecast
-# refit's own sdrep -- the object the rebuild exists to replace, whose hindcast
-# standard errors are all exactly 0 (the documented defect behind "a peel
-# reports standard errors for its own hindcast", which asserts the complement:
-# the REBUILT errors are > 0). The band was then drawn as a certain quantity
-# rather than an unmeasured one. The peel now
-# keeps what TMB::sdreport() returned, or no sdrep if it threw, and records why
-# on attr(peel, "sd_report_error"), which is what stops plots drawing it. It
-# raises no warning, because the peel converged and Mohn's rho reads point
-# estimates only. A rebuild fails four ways -- it throws, cannot factor its
-# Hessian, reports nothing finite, or its correction throws -- each covered below.
+# refit's own sdrep, whose hindcast standard errors are all exactly 0, so the band
+# was drawn as a certain quantity rather than an unmeasured one. The peel now keeps
+# what TMB::sdreport() returned (no sdrep if it threw) and records why on
+# attr(peel, "sd_report_error"), which stops plots drawing it; it raises no warning,
+# since the peel converged and Mohn's rho reads point estimates only. A rebuild
+# fails four ways -- it throws, cannot factor its Hessian, reports nothing finite,
+# or its correction throws -- each covered below.
 testthat::test_that("a peel whose sd rebuild fails keeps its sdreport, and records why", {
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("TMB")
@@ -925,21 +922,15 @@ testthat::test_that("a peel whose sd rebuild fails keeps its sdreport, and recor
   # every warning rather than letting one fail the test.
   run_throwing_rebuild <- function(peels, cores) {
     res <- NULL
-    warns <- character()
-    local({
+    warns <- local({
       testthat::local_mocked_bindings(
         .refit_like = function(...) {
           a <- list(...)
           if (identical(a$estimateMode, 3)) stop("forced report-build failure")
           do.call(real_refit, a)
         }, .package = "Rceattle")
-      withCallingHandlers(
-        res <<- suppressMessages(
-          retrospective(fit, peels = peels, cores = cores, getsd = TRUE)),
-        warning = function(w) {
-          warns <<- c(warns, conditionMessage(w))
-          invokeRestart("muffleWarning")
-        })
+      collect_warnings(res <<- suppressMessages(
+        retrospective(fit, peels = peels, cores = cores, getsd = TRUE)))
     })
     list(fit = res, warns = warns)
   }
@@ -1013,8 +1004,7 @@ testthat::test_that("a peel whose sd rebuild fails keeps its sdreport, and recor
 
   run_bad_rebuild <- function(fake) {
     res <- NULL
-    warns <- character()
-    local({
+    warns <- local({
       testthat::local_mocked_bindings(
         .refit_like = function(...) {
           a <- list(...)
@@ -1029,13 +1019,8 @@ testthat::test_that("a peel whose sd rebuild fails keeps its sdreport, and recor
           }
           real_sdreport(obj, ...)
         }, .package = "TMB")
-      withCallingHandlers(
-        res <<- suppressMessages(
-          retrospective(fit, peels = 1, cores = 1, getsd = TRUE)),
-        warning = function(w) {
-          warns <<- c(warns, conditionMessage(w))
-          invokeRestart("muffleWarning")
-        })
+      collect_warnings(res <<- suppressMessages(
+        retrospective(fit, peels = 1, cores = 1, getsd = TRUE)))
     })
     list(fit = res, warns = warns)
   }
@@ -1102,9 +1087,8 @@ testthat::test_that("only a peel's hindcast non-convergence warns or drops it", 
   # 1-year peel's forecast refit gets only an indefinite Hessian.
   real_refit <- Rceattle:::.refit_like
   run <- function(fail, getsd) {
-    warns <- character()
     res <- NULL
-    local({
+    warns <- local({
       testthat::local_mocked_bindings(
         .refit_like = function(...) {
           a <- list(...)
@@ -1120,13 +1104,8 @@ testthat::test_that("only a peel's hindcast non-convergence warns or drops it", 
           }
           m
         }, .package = "Rceattle")
-      withCallingHandlers(
-        res <<- suppressMessages(
-          retrospective(fit, peels = 2, cores = 1, getsd = getsd)),
-        warning = function(w) {
-          warns <<- c(warns, conditionMessage(w))
-          invokeRestart("muffleWarning")
-        })
+      collect_warnings(res <<- suppressMessages(
+        retrospective(fit, peels = 2, cores = 1, getsd = getsd)))
     })
     list(fit = res, warns = warns)
   }
@@ -1176,14 +1155,8 @@ testthat::test_that("only a peel's hindcast non-convergence warns or drops it", 
     data_list = catch20, inits = NULL, file = NULL, estimateMode = 0,
     random_rec = FALSE, msmMode = 0,
     fit_control = fit_control(phase = FALSE, getsd = FALSE, verbose = 0))))
-  warns20 <- character()
-  r20 <- withCallingHandlers(
-    suppressMessages(retrospective(fit20, peels = 1, cores = 1, getsd = FALSE)),
-    warning = function(w) {
-      warns20 <<- c(warns20, conditionMessage(w))
-      invokeRestart("muffleWarning")
-    })
-  testthat::expect_length(warns20, 0)
+  testthat::expect_length(collect_warnings(
+    r20 <- suppressMessages(retrospective(fit20, peels = 1, cores = 1, getsd = FALSE))), 0)
   p20 <- r20$Rceattle_list[[paste0("Year_", endyr - 1)]]
   testthat::expect_lt(p20$.conv_hindcast$max_gradient, 1)
   testthat::expect_match(attr(p20, "forecast_refit_error", exact = TRUE), "F at a bound")

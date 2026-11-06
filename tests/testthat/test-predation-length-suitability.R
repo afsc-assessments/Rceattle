@@ -4,7 +4,7 @@
 # Before 5.66.15 the template read row `sp`, so the second species of two took
 # the first species' spawning-time lengths. On this fixture at its true growth
 # that put suitability off by up to 0.38 (absolute, on its 0-1 scale) and moved the
-# objective by 0.4% to 5%. data_check() refuses these modes, so it is replaced by a
+# objective by 0.8% to 5.3%. data_check() refuses these modes, so it is replaced by a
 # stub to let the fit reach the C++.
 
 .length_suit_fit <- function(suitMode) {
