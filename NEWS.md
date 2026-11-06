@@ -18,18 +18,15 @@ version throughout.
 ## Bug fixes
 
 * **Length-based suitability reads each species' own length-at-age.** Under `suitMode`
-  1, 3 and 5 (`GammaLength`, `LognormalLength`, `NormalLength`) the predator:prey size
-  ratio read row `sp` of `length_hat`. That array's rows run as `weight_hat`'s do (each
-  species' population length, then its spawning-time length, then one row per fleet), so
-  only the first species was right: with two species, the second took the first species'
-  spawning-time lengths. On the two-species `make_msm_test_data()` test fixture, evaluated
-  at its true growth (asymptotic lengths 90 and 50 cm) and the default starting values
-  with `msmMode = 1`, suitability moved by up to 0.38 and the objective by 0.4% to 5%.
-  **No fit on a current release moves:** `data_check()` refuses all three modes (5 since
-  4.6.0, 1 and 3 for longer), so the template is reached only by bypassing it. Releases
-  4.3.0 to 4.4.1 accepted `suitMode = 5`, so a fit there with two or more species and
-  estimated growth read the wrong lengths. Weight-based (2, 4, 6) and empirical (0)
-  suitability are bit-identical.
+  1, 3 and 5 (`GammaLength`, `LognormalLength`, `NormalLength`), every predator or prey
+  species after the first used the wrong length-at-age in the predator:prey size ratio;
+  with two species, the second used the first species' spawning-time lengths. **No fit on
+  a current release moves:** `data_check()` has refused all three modes since 4.6.0, so a
+  fit reaches this code only if `data_check()` is bypassed. Fits made with 4.3.0 to 4.4.1
+  under `suitMode = 5`, with two or more species and estimated growth, are affected. On
+  the two-species test fixture (asymptotic lengths 90 and 50 cm), suitability changed by
+  up to 0.38 on its 0-1 scale and the objective by 0.4% to 5%. Weight-based (2, 4, 6) and
+  empirical (0) suitability are unchanged to the last digit.
 
 # Rceattle 5.66.11
 
