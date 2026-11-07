@@ -150,8 +150,8 @@ prof <- profile(ss_run, param = "M1", slots = list(c(1, 1, 1)),
 comps <- profile_components(prof)
 head(comps)
 #>   slot_1 fit component unit  axis series     value
-#> 1   0.20   1     Total <NA> model  Total 28.479709
-#> 2   0.25   2     Total <NA> model  Total 23.399627
+#> 1   0.20   1     Total <NA> model  Total 28.479708
+#> 2   0.25   2     Total <NA> model  Total 23.399626
 #> 3   0.30   3     Total <NA> model  Total 18.451669
 #> 4   0.35   4     Total <NA> model  Total 13.636791
 #> 5   0.40   5     Total <NA> model  Total  8.955937
