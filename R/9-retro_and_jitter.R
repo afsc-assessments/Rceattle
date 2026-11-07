@@ -35,8 +35,9 @@
 #'
 #' A band in a fitted year is the peeled hindcast's own: the uncertainty of its
 #' parameters given the data through the peel's terminal year. The exception is
-#' a depletion that divides by last-projection-year biomass (`HCR = 0` under
-#' `msmMode > 0`), which reads the peeled F, so its fitted-year bands move too.
+#' a depletion that divides by last-projection-year biomass (`HCR = "NoFishing"`
+#' under `msmMode > 0` and `DynamicHCR = FALSE`), which reads the peeled F, so its
+#' fitted-year bands move too.
 #' A band in a peeled (forecast) year treats that year's catch as known and its F as
 #' inferred from it: as the hindcast parameters vary, F moves, to first order,
 #' to keep the predicted catch at the observed catch, and the delta method
@@ -786,9 +787,9 @@ print.Rceattle_retro <- function(x, band = 0.2, ...) {
 #' @description Refits the Rceattle model from starting values perturbed by N(0, sd) around the model's initial (pre-fit) parameters, to check convergence robustness.
 #'
 #' @details Each start refits under the fit's own map, so a parameter fixed there keeps
-#' its value and is not estimated. The objectives compare with the fit's, unless it was
-#' fitted with \code{fit_mod(bounds = )}, because a refit rebuilds the bounds. A
-#' projection-only fit (\code{estimateMode = "Projection"}) refits under a rebuilt map,
+#' its value and is not estimated. The objectives do not compare with the fit's if it
+#' used \code{fit_mod(bounds = )} (a refit rebuilds the bounds) or is projection-only
+#' (\code{estimateMode = "Projection"}). A projection-only fit refits under a rebuilt map,
 #' and its starts are not perturbed unless it was fitted under a supplied map.
 #'
 #' @note Attaching Rceattle masks \code{\link[base]{jitter}}, because that
