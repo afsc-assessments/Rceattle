@@ -16,6 +16,37 @@ at it, and the entries below cite each other by version throughout.
 review. It landed as 5.66.9, so a version check written for that fix needs 5.66.9.
 -->
 
+# Rceattle 5.67.2
+
+## Behavior changes
+
+* **Four `data_check()` messages are reworded.** Each fires in the same cases as before,
+  and no fit moves.
+  * The error for CAAL data under empirical growth says CAAL is predicted only under
+    parametric growth, in place of the C++ reason.
+  * The warning for CAAL data on a fleet with selectivity at age no longer names
+    `pred_CAAL`. Its remedy now asks for a `Selectivity` other than `"Fixed"`, which is
+    always at age, and says to give the fleet's selectivity bin columns as length bins.
+  * The two warnings added in 5.66.7, for CAAL data on a `Fixed` fleet and for a `Fixed`
+    fishery with no `emp_sel` row for `endyr`, are reworded to match. The `endyr` one
+    says Ftarget and Flimit read the zero only for the female or only sex; projected F
+    reads it for every sex.
+  * The three CAAL messages say to exclude those rows from the fit (`Sample_size = 0` or
+    `Year < 0`) rather than drop them: under parametric growth, `data_check()` refuses a
+    model with no CAAL rows.
+
+## Documentation
+
+* Corrections from the 5.67.1 release review:
+  * The 5.66.2 entry no longer says no estimate moves, and 5.66.6 covers any parametric
+    growth, estimated or fixed; four vignettes (diagnostics, HCRs and MSEs, model
+    options, parameterizations) are corrected to match the entries below.
+  * `?jitter`: a projection-only fit's jitter objectives do not compare with the fit's.
+  * `?self_test`: its warning about a redrawn deviation that the map fixes covers only
+    one `build_map()` would estimate.
+  * `?retrospective`: the depletion that divides by last-projection-year biomass needs
+    `DynamicHCR = FALSE` as well.
+
 # Rceattle 5.67.1
 
 ## Behavior changes
@@ -277,9 +308,10 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   data inform nothing, as on an age-dimensioned fleet.
 
 * `data_check()` now warns when a `Fixed` fishery has no `emp_sel` row for `endyr`
-  for at least one sex. Its selectivity is 0 in that year, which Ftarget, Flimit and
-  projected F read: on a test fixture predicted catch was 0 against 10 observed, Ftarget
-  and Flimit stuck at 1, and the objective was `Inf`. That year still predicts no catch.
+  for at least one sex. That sex's selectivity is 0 in that year, which projected F
+  reads, as do Ftarget and Flimit for the female or only sex: on a test fixture predicted
+  catch was 0 against 10 observed, Ftarget and Flimit stuck at 1, and the objective was
+  `Inf`. That year still predicts no catch.
 
 # Rceattle 5.66.6
 
