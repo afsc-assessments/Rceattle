@@ -31,12 +31,9 @@ addition to the terminal year}
 \code{parallel::detectCores() - 6}, capped at 2 under \verb{R CMD check} (which sets
 \verb{_R_CHECK_LIMIT_CORES_}). Set to 1 to force sequential execution.}
 
-\item{getsd}{whether each peel runs \code{TMB::sdreport}, which costs an
-extra model build per peel (see Details). Mohn's rho uses point estimates
-only, so \code{FALSE} is faster with no effect on it. \code{NULL} (default)
-inherits the input model's setting (\code{TRUE} only if it holds an
-\code{sdrep}), and the returned peels hold standard errors only when it is
-\code{TRUE}.}
+\item{getsd}{whether each peel reports standard errors through \code{TMB::sdreport},
+at the cost of extra model builds (see Details); \code{NULL} (default) inherits the
+input model's setting (\code{TRUE} only if it holds an \code{sdrep}).}
 
 \item{phase}{whether each peel is refitted in phases, default \code{TRUE}. A
 peel restarts from the unpeeled fit's starting values with a year removed,
@@ -53,9 +50,15 @@ scripts keep working. Supplying both is an error.}
 \value{
 a list of 1. a list of Rceattle models and 2. Mohn's rho per species.
 
-A peel that did not converge is dropped, so \code{Rceattle_list} can be
-shorter than \code{peels + 1}, with a message. Entries are named for their
-own terminal year (\code{Year_2017}, ...), so index by name:
+A peel whose hindcast did not converge is dropped, with a warning, so
+\code{Rceattle_list} can be shorter than \code{peels + 1}. A peel whose forecast
+refit did not fit F to the peeled catch (gradient check, or a peeled F at a bound)
+is kept without a warning: its terminal-year Mohn's rho stands, but it is left out
+of the \code{$mohns} rows with \code{Forecast year} above 0 (\code{N} counts the
+peels used). Check \code{attr(peel, "forecast_refit_error")} before reading its
+forecast years or their standard errors; \code{print()} counts such peels, and
+\code{plot_timeseries()} and its wrappers warn when they draw those years.
+Entries are named for their own terminal year (\code{Year_2017}, ...), so index by name:
 \code{Rceattle_list[[3]]} is not necessarily the 3-year peel. With no peel
 left, rho is \code{NaN} and the function warns. Each peel reports its own
 terminal year as \code{data_list$endyr}, so plots draw it only as far as it
@@ -73,7 +76,7 @@ was fit through. Equal to each other.}
 retrospective forecast ends.}
 \item{\code{projyr}}{the end of the harvest-control-rule projection.}
 }
-A peel whose standard errors could not be rebuilt carries
+A peel whose standard errors are not usable carries
 \code{attr(peel, "sd_report_error")}, a one-line reason naming the peel and
 its terminal year; it is absent on every other peel.
 
@@ -110,13 +113,33 @@ Each peel is fitted twice: a peeled hindcast, then a forecast refit
 estimating only the peeled years' F. The second holds every hindcast
 parameter fixed, so on its own it reports a standard error of zero across the
 hindcast. Under \code{getsd = TRUE} the peel is therefore rebuilt at those same
-parameters with the hindcast free in the map and reported from there; nothing
-is re-estimated, so no point estimate moves. Where that rebuild fails -- it
-throws, or comes back with a Hessian it could not factor, or with no finite
-standard error -- the peel keeps its point estimates and carries no \code{sdrep}
-at all, rather than the forecast refit's zero standard errors. The reason is
-named in one warning per call and carried on the peel; \code{print()} reports how
-many peels could not report standard errors.
+parameters with the hindcast parameters treated as estimated and reported
+from there; nothing is re-estimated, so no point estimate moves.
+
+A band in a fitted year is the peeled hindcast's own: the uncertainty of its
+parameters given the data through the peel's terminal year. The exception is
+a depletion that divides by last-projection-year biomass (\code{HCR = "NoFishing"}
+under \code{msmMode > 0} and \code{DynamicHCR = FALSE}), which reads the peeled F, so its
+fitted-year bands move too.
+A band in a peeled (forecast) year treats that year's catch as known and its F as
+inferred from it: as the hindcast parameters vary, F moves, to first order,
+to keep the predicted catch at the observed catch, and the delta method
+carries that into the band. The peeled years' recruitment deviations are
+fixed at the projected deviation, so the band leaves out recruitment
+variability there and is narrower than a forecast's prediction interval.
+
+Where that rebuild fails -- it errors, its Hessian is not positive definite, it
+reports no finite standard error, or moving F with the hindcast parameters fails
+(its forecast years would then leave out F's response) -- the peel keeps its point
+estimates, \code{peel$sdrep} keeps what \code{TMB::sdreport()} returned (\code{NULL} if the rebuild
+errored first; under an indefinite Hessian its numbers are not valid standard errors),
+and \code{attr(peel, "sd_report_error")} gives the reason, so plots, \code{as.data.frame()} and
+\code{vcov()} read none of it. \code{print()} counts such peels; no warning is raised, since the
+point estimates and Mohn's rho are unaffected.
+
+Mohn's rho reads point estimates, so \code{getsd = FALSE} is faster, but \code{TRUE} also drops
+a peel whose hindcast Hessian is not positive definite, so the two can average over
+different peels.
 }
 \examples{
 \donttest{

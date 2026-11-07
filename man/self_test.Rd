@@ -109,6 +109,13 @@ operating-model parameters. Pass \code{process} to redraw a process as well as
 the observations.
 }
 \details{
+Each simulation refits under the fit's own map, so a parameter fixed there keeps its
+value and is not estimated. A projection-only fit
+(\code{estimateMode = "Projection"}) refits under a rebuilt map. \code{self_test()}
+warns if \code{process} redraws a deviation that the fit's map fixes and
+\code{build_map()} would estimate: the refit holds it at the fit's value, so cannot
+recover the draw.
+
 \strong{What \code{start} costs.} \code{"initial"} uses
 \code{initial_params}, so the estimator travels the same distance to the
 optimum on simulated data as it did on the real data. \code{"estimated"}

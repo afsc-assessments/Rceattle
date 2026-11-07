@@ -65,10 +65,9 @@ testthat::test_that("Composition likelihoods match (Multinomial and Dirichlet-Mu
     # Expected proportions from TMB
     hat_prop <- mod_mn$quantities$comp_hat[i, 1:n_ages]
 
-    # C++ adds the comp_offset (default 1e-5) to obs and pred, then the OSA
-    # conditional-binomial multinomial (dmultinom_osa) normalizes the predicted
-    # proportions to sum to 1 (matching WHAM). Reproduce that: offset both, then
-    # normalize the predicted proportions before the log term.
+    # C++ adds the comp_offset (default 1e-5) to obs and pred, then dmultinom_osa()
+    # normalizes the predicted proportions to sum to 1 (matching WHAM). Reproduce
+    # that: offset both, then normalize the predicted proportions before the log term.
     obs_prop_offset <- obs_prop + 0.00001
     hat_prop_offset <- hat_prop + 0.00001
     hat_prop_offset <- hat_prop_offset / sum(hat_prop_offset)
@@ -232,3 +231,32 @@ testthat::test_that("Integer to text DM comp_loglike", {
 
 
 
+
+
+testthat::test_that("A multinomial bin with no fish and no predicted fish scores 0, not NaN", {
+  # With comp_offset = 0 (a WHAM-style multinomial) and no ageing error, ages
+  # below Bin_first_selected have a predicted proportion of exactly 0. A bin
+  # observed empty there must add nothing, as 0 * log(0) would otherwise be NaN.
+  d <- make_test_data()
+  d$fleet_control$Bin_first_selected[2] <- 3          # fishery selects ages 3+
+  fsh <- d$comp_data$Fleet_code == 2
+  d$comp_data[fsh, paste0("Comp_", 1:5)] <- c(0, 0, 1, 1, 1) / 3
+  d$comp_data$Sample_size[fsh] <- 50
+
+  fit <- Rceattle::fit_mod(data_list = d, estimateMode = 3,
+                           fit_control = fit_control(comp_offset = 0, phase = FALSE,
+                                                     verbose = 0))
+  row <- which(fsh)
+  hat <- fit$quantities$comp_hat[row, 1:5]
+  testthat::expect_equal(hat[1:2], c(0, 0))            # the case is reached
+
+  nll <- fit$quantities$jnll_comp[3, 2]
+  testthat::expect_true(is.finite(nll))
+  testthat::expect_true(is.finite(fit$obj$fn(fit$obj$par)))
+
+  # The multinomial over the bins that hold fish.
+  x <- c(0, 0, 1, 1, 1) / 3 * 50
+  p <- hat / sum(hat)
+  ll <- lgamma(sum(x) + 1) - sum(lgamma(x + 1)) + sum((x * log(p))[x > 0])
+  testthat::expect_equal(nll, -ll, tolerance = 1e-8)
+})

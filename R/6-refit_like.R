@@ -29,9 +29,11 @@
 #'   below).
 #' @param inits Starting parameters (an `estimated_params`-shaped list).
 #' @param estimateMode [fit_mod()] estimate mode for this refit. Required and
-#'   passed explicitly by every caller (retro/jitter refit at 0, profile at 1,
-#'   the MSE OM rebuild at 3, the input-F EM at 2, ...), so it has no default.
-#' @param map Parameter map, or `NULL` to let [fit_mod()] build it.
+#'   passed explicitly by every caller (retro/jitter at the fit's own mode, a
+#'   projection-only fit at 0; profile at 1; the MSE OM rebuild at 3, the input-F
+#'   EM at 2, ...), so it has no default.
+#' @param map Parameter map, or `NULL` to let [fit_mod()] build it, which releases anything
+#'   fixed by hand; a caller that must keep the fitted model passes the stored map.
 #'
 #'   There is deliberately no `bounds` counterpart. Bounds are always rebuilt
 #'   from the source `data_list`, which reproduces them exactly for every bound
@@ -41,6 +43,8 @@
 #'   safe: [run_mse()] grows `log_F` and re-dimensions the selectivity deviation
 #'   blocks at every assessment, so the source fit's bounds no longer line up
 #'   with the parameters they would be indexed against.
+#' @param map_holds Cells from `.map_holds()` to keep fixed on the map `fit_mod()` builds,
+#'   for a caller whose `endyr` moves.
 #' @param HCR A pre-built [build_hcr()] object to use instead of reconstructing
 #'   one from `data_list` (used for [run_mse()]'s input-F EM refit, whose HCR is
 #'   a freshly computed average F rather than the stored rule).
@@ -68,6 +72,7 @@
                         inits,
                         estimateMode,
                         map              = NULL,
+                        map_holds        = NULL,
                         HCR              = NULL,
                         phase            = FALSE,
                         getsd            = FALSE,
@@ -107,7 +112,12 @@
 
   # These inits hold the fitted (or, in profile(), the grid) value, so fit_mod() must not
   # put a linkage-fixed intercept back to its init.
-  if (is.list(inits)) attr(inits, "rceattle_refit") <- TRUE
+  if (is.list(inits)) {
+    attr(inits, "rceattle_refit") <- TRUE
+    # fit_mod() has no argument for held parameters, so they travel on inits like the flag
+    # above; it applies them only to a map it builds itself.
+    attr(inits, "rceattle_map_holds") <- map_holds
+  }
 
   fit_mod(
     data_list    = dl,
