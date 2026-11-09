@@ -844,7 +844,7 @@ testthat::test_that("a peel's sd rebuild is stationary but for R_log_sd under ra
   testthat::expect_gt(max(ssb_sd(peel$sdrep)[, forecast_yrs] /
                             ssb_sd(ref_sd)[, forecast_yrs]), 1.01)
 
-  # And by the right amount: the old joint report, with the peeled catch at its
+  # And by the right amount: the joint report with F free, the peeled catch at its
   # own prediction and a small sd, converges to the catch-conditioned band.
   limit_sd <- peel_reference_sdreport(fit, peel, ep, hold_F = FALSE,
                                       catch_sd = 0.01)
@@ -852,14 +852,14 @@ testthat::test_that("a peel's sd rebuild is stationary but for R_log_sd under ra
                                ssb_sd(limit_sd)[, forecast_yrs] - 1)), 0.01)
 })
 
-# Without random effects the old report -- hindcast and peeled F free, peeled
-# catch in the likelihood -- sat at its optimum, its band the catch-conditioned
+# Without random effects the joint report with F free -- hindcast and peeled F free,
+# peeled catch in the likelihood -- sits at its optimum, its band the catch-conditioned
 # one plus the catch's observation error. The correction must reproduce it in
 # the fitted years, and in the forecast years fall short only by that error,
 # which it leaves out (catch known). Two peels, so a forecast year's SSB
 # depends on the peeled F: BS2017SS spawns on 1 January, before that year's
 # fishing.
-testthat::test_that("a peel's catch-conditioned band matches the old joint report without random effects", {
+testthat::test_that("a peel's catch-conditioned band matches the joint report with F free, without random effects", {
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("TMB")
 

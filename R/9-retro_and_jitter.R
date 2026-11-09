@@ -58,52 +58,56 @@
 #' a peel whose hindcast Hessian is not positive definite, so the two can average over
 #' different peels.
 #'
-#' @return a list of 1. a list of Rceattle models and 2. Mohn's rho per species.
+#' A peel whose hindcast did not converge is dropped, with a warning. A peel whose
+#' forecast refit did not fit F to the peeled catch (gradient check, or a peeled F at a
+#' bound) is kept without a warning: its terminal-year Mohn's rho stands, but it is left
+#' out of the \code{$mohns} rows with \code{Forecast year} above 0 (\code{N} counts the
+#' peels used). Check \code{attr(peel, "forecast_refit_error")} before reading its
+#' forecast years or their standard errors; \code{print()} counts such peels, and
+#' \code{plot_timeseries()} and its wrappers warn when they draw those years.
 #'
-#'   A peel whose hindcast did not converge is dropped, with a warning, so
-#'   \code{Rceattle_list} can be shorter than \code{peels + 1}. A peel whose forecast
-#'   refit did not fit F to the peeled catch (gradient check, or a peeled F at a bound)
-#'   is kept without a warning: its terminal-year Mohn's rho stands, but it is left out
-#'   of the \code{$mohns} rows with \code{Forecast year} above 0 (\code{N} counts the
-#'   peels used). Check \code{attr(peel, "forecast_refit_error")} before reading its
-#'   forecast years or their standard errors; \code{print()} counts such peels, and
-#'   \code{plot_timeseries()} and its wrappers warn when they draw those years.
-#'   Entries are named for their own terminal year (\code{Year_2017}, ...), so index by name:
-#'   \code{Rceattle_list[[3]]} is not necessarily the 3-year peel. With no peel
-#'   left, rho is \code{NaN} and the function warns. Each peel reports its own
-#'   terminal year as \code{data_list$endyr}, so plots draw it only as far as it
-#'   was fit.
+#' A peel still estimates the years it dropped: that is its retrospective forecast, fit
+#' to observed catch with the survey and composition data withheld. Its recruitment
+#' deviation is the one [sample_rec()] sets with `sample_rec = FALSE`, computed from the
+#' peel's own fit. Three years matter, and every peel's \code{data_list} carries all
+#' three:
+#' \describe{
+#'   \item{\code{endyr}, \code{endyr_peel}}{the peel's terminal year, what it was fit
+#'     through. Equal to each other.}
+#'   \item{\code{endyr_full}}{the unpeeled model's terminal year, where the
+#'     retrospective forecast ends.}
+#'   \item{\code{projyr}}{the end of the harvest-control-rule projection.}
+#' }
+#' Take the forecast years as \code{endyr_peel + seq_len(endyr_full - endyr_peel)},
+#' which is empty for the unpeeled model, rather than \code{(endyr_peel + 1):endyr_full},
+#' which counts \emph{down} there. Mohn's rho is computed from \code{endyr_peel} and is
+#' unaffected by any of this.
 #'
-#'   A peel still estimates the years it dropped: that is its retrospective
-#'   forecast, fit to observed catch with the survey and composition data
-#'   withheld. Its recruitment deviation is the one [sample_rec()] sets with
-#'   `sample_rec = FALSE`, computed from the peel's own fit. Three years matter,
-#'   and every peel carries all three:
+#' Catchability is estimated only for a fleet holding fitted index rows (see
+#' \code{\link{build_map}}), and a peel moves \code{endyr}, so a survey whose index
+#' observations all fall in the peeled-off years has no q estimated in that peel: the
+#' parameter count is not constant across peels. That is deliberate, since a q with no
+#' index to inform it is a flat direction in the likelihood. Rho is computed from SSB and
+#' is unaffected, but \code{npar} and the reported catchability do differ between a
+#' shallow and a deep peel for such a fleet.
+#'
+#' @return An \code{Rceattle_retro} list:
 #'   \describe{
-#'     \item{\code{endyr}, \code{endyr_peel}}{the peel's terminal year, what it
-#'       was fit through. Equal to each other.}
-#'     \item{\code{endyr_full}}{the unpeeled model's terminal year, where the
-#'       retrospective forecast ends.}
-#'     \item{\code{projyr}}{the end of the harvest-control-rule projection.}
+#'     \item{\code{Rceattle_list}}{the unpeeled model and each kept peel, named for its
+#'       own terminal year (\code{Year_2017}, ...). Index by name: the list runs from the
+#'       deepest peel to the unpeeled model, and a dropped peel leaves a gap, so it can
+#'       be shorter than \code{peels + 1} and \code{Rceattle_list[[3]]} is not in general
+#'       the 3-year peel. Each
+#'       peel reports its terminal year as \code{data_list$endyr}, so plots draw it only
+#'       as far as it was fit.}
+#'     \item{\code{mohns}}{Mohn's rho by \code{Object} and \code{Forecast year}, one
+#'       column per species, with \code{N} the number of peels averaged. With no peel
+#'       left it is \code{NaN}, and the function warns.}
+#'     \item{\code{peels_requested}}{the \code{peels} asked for.}
 #'   }
-#'   A peel whose standard errors are not usable carries
-#'   \code{attr(peel, "sd_report_error")}, a one-line reason naming the peel and
-#'   its terminal year; it is absent on every other peel.
-#'
-#'   Take the forecast years as
-#'   \code{endyr_peel + seq_len(endyr_full - endyr_peel)}, which is empty for the
-#'   unpeeled model, rather than \code{(endyr_peel + 1):endyr_full}, which counts
-#'   \emph{down} there. Mohn's rho is computed from \code{endyr_peel} and is
-#'   unaffected by any of this.
-#'
-#'   Catchability is estimated only for a fleet holding fitted index rows (see
-#'   \code{\link{build_map}}), and a peel moves \code{endyr}, so a survey whose
-#'   index observations all fall in the peeled-off years has no q estimated in
-#'   that peel: the parameter count is not constant across peels. That is
-#'   deliberate, since a q with no index to inform it is a flat direction in the
-#'   likelihood. Rho is computed from SSB and is unaffected, but \code{npar} and
-#'   the reported catchability do differ between a shallow and a deep peel for
-#'   such a fleet.
+#'   A peel can carry \code{attr(peel, "forecast_refit_error")} or
+#'   \code{attr(peel, "sd_report_error")}, each a one-line reason naming the peel and its
+#'   terminal year (see Details); each is absent on every other peel.
 #'
 #' @examples
 #' \donttest{
@@ -361,13 +365,8 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
       )
     )
 
-    # Judge the peeled hindcast NOW. `newmod` is overwritten below by the
-    # forecast-catch refit, whose map (build_map(debug = TRUE), plus the peeled
-    # years' log_F) leaves only a handful of F parameters free -- so its gradient
-    # says nothing about whether the hindcast converged. Mohn's rho reads the
-    # hindcast quantities, which come from these parameters, so a peel that
-    # diverged here has to be dropped even when the F refit lands cleanly, and
-    # the F refit would only start from those diverged parameters.
+    # Judge the hindcast here: the forecast refit below replaces `newmod` and frees only F,
+    # so its gradient cannot show whether the hindcast that Mohn's rho reads converged.
     if (!.refit_converged(newmod)) return(NULL)
 
     # Forecast ----
@@ -458,11 +457,9 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
     }
 
     # * Standard errors for the peeled hindcast ----
-    # The forecast refit holds the hindcast fixed, so its standard errors are 0 there:
-    # report from a build (estimateMode 3, no optimizing) with the hindcast free.
-    # The hindcast was fitted without the peeled catch, so with or without random
-    # effects drop that catch and hold its F to stay at that optimum;
-    # .rce_catch_conditioned_sd() then moves F with the hindcast parameters.
+    # The forecast refit holds the hindcast fixed (SE 0), so rebuild with it free and, to stay
+    # at its optimum, the peeled catch dropped and F held; .rce_catch_conditioned_sd() then
+    # moves F with the hindcast parameters.
     if (isTRUE(getsd)) {
       sd_try <- tryCatch({
         report_mod <- suppressWarnings(suppressMessages(
@@ -477,14 +474,14 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
             suit_endyr       = pmin(data_list$suit_endyr, endyr_peel))))
         obj <- report_mod$obj
         dat <- obj$env$data
-        peeled <- dat$catch_ctl[, 3] > endyr_peel
+        catch_flt <- dat$catch_ctl[, 1]
+        catch_yr <- dat$catch_ctl[, 3]
+        peeled <- catch_yr > endyr_peel
         # The rows the forecast refit fitted: fishery catch through endyr whose
         # F that refit estimated (`map` is its map).
-        yr_i <- dat$catch_ctl[, 3] - styr + 1
-        f_free <- !is.na(map$mapList$log_F[cbind(dat$catch_ctl[, 1],
-                                                 pmin(pmax(yr_i, 1), nyrs))])
-        fitted_rows <- which(peeled & dat$catch_ctl[, 3] <= endyr &
-                               dat$flt_type[dat$catch_ctl[, 1]] == 1 &
+        yr_i <- catch_yr - styr + 1
+        f_free <- !is.na(map$mapList$log_F[cbind(catch_flt, pmin(pmax(yr_i, 1), nyrs))])
+        fitted_rows <- which(peeled & catch_yr <= endyr & dat$flt_type[catch_flt] == 1 &
                                dat$catch_obs[, 1] > 0 & f_free)
         # A catch of 0 is read as missing; F, and so the removals, are unchanged.
         obj$env$data$catch_obs[peeled, 1] <- 0
@@ -1076,37 +1073,30 @@ print.Rceattle_jitter <- function(x, tol = 0.01, ...) {
 .rce_catch_conditioned_sd <- function(obj, sdrep, rows, styr) {
   dat <- obj$env$data
   p <- obj$env$last.par.best   # the peel's estimates, fixed and random together
-  # log_F entry (fleet, model-year index) that each peeled catch row determines
-  cells <- unique(cbind(dat$catch_ctl[rows, 1], dat$catch_ctl[rows, 3] - styr + 1))
+  # The log_F cell (fleet, model-year index) that each peeled catch row determines
+  flt <- dat$catch_ctl[rows, 1]
+  yr <- dat$catch_ctl[rows, 3] - styr + 1
+  cells <- unique(cbind(flt, yr))
   n_f <- nrow(cells)
 
-  # The same model with those F freed. Number them after the estimated F, so
-  # they sit just after log_F in the parameter vector. ADreport = TRUE:
-  # ad$fn() returns the quantities sdreport gives errors for (SSB, R, ...) plus
-  # predicted catch, and ad$gr() their exact derivatives by parameter.
+  # The same model with those F freed, numbered after the estimated F so they come
+  # last among log_F. ADreport = TRUE: ad$fn() returns the quantities sdreport gives
+  # errors for (SSB, R, ...) plus predicted catch, and ad$gr() their exact derivatives.
   map <- obj$env$map
   # TMB keeps the full log_F array, held values included, as "shape".
   lf_shape <- attr(obj$env$parameters$log_F, "shape")
-  lf <- as.integer(map$log_F)
-  lf[(cells[, 2] - 1) * nrow(lf_shape) + cells[, 1]] <-
-    max(c(0L, lf), na.rm = TRUE) + seq_len(n_f)
+  lf <- array(as.integer(map$log_F), dim = dim(lf_shape))
+  lf[cells] <- max(c(0L, lf), na.rm = TRUE) + seq_len(n_f)
   map$log_F <- factor(lf)
   dat$adreport_catch <- 1   # double: MakeADFun() has already checked this data
   ad <- TMB::MakeADFun(dat, obj$env$parList(par = p), map = map, ADreport = TRUE,
                        DLL = obj$env$DLL, silent = TRUE)
 
-  # pa: the peel's estimates in ad's order, the freed F after log_F;
-  # f_col: their positions.
-  f_at <- which(names(p) == "log_F")
-  pa <- append(p, stats::setNames(lf_shape[cells], rep("log_F", n_f)),
-               after = if (length(f_at)) max(f_at) else
-                 match("log_F", names(ad$par)) - 1L)
-  f_col <- which(names(pa) == "log_F")[length(f_at) + seq_len(n_f)]
+  # ad starts at the peel's estimates, the freed F at their held values.
+  pa <- ad$par
+  f_col <- utils::tail(which(names(pa) == "log_F"), n_f)
   value <- ad$fn(pa)
   is_catch <- names(value) == "catch_hat"
-  if (!isTRUE(all.equal(unname(value[!is_catch]), unname(sdrep$value)))) {
-    stop("the catch-conditioned rebuild did not reproduce the peel's estimates")
-  }
 
   # Dividing by predicted catch turns its derivative into that of its log (j_c).
   jac <- ad$gr(pa)

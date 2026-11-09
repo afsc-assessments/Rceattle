@@ -2534,15 +2534,9 @@ Type objective_function<Type>::operator() () {
 
   // -- 8.2. Analytical survey q (lognormal form: Walters and Ludwig 1994)
   // The q that maximizes the fleet's index likelihood (13.1) given the other parameters and any
-  // random effects, pred being the index before q:
-  //   Lognormal  log q = precision-weighted mean of log(obs / pred) + b * sd^2 / 2, b = bias_adjust_obs
-  //              (sd^2 the harmonic mean of the yearly variances when input by year)
-  //   Normal     q = sum(obs * pred / sd^2) / sum(pred^2 / sd^2)
-  //   MVN/MVNORM q = (pred' Sigma^-1 obs) / (pred' Sigma^-1 pred), generalized least squares
-  // data_check() refuses TruncatedNormal, whose truncation term leaves q no closed form.
-  // Numerator: weighted sum of log(obs / pred) plus the bias term, which an analytical sd
-  // adds after the mean, below (Normal: sum obs * pred / sd^2).
-  // Denominator: sum of weights (Normal: sum pred^2 / sd^2).
+  // random effects; vignette("model-parameterizations") gives it for each Index_distribution.
+  // index_q_analytical sums the numerator and index_n_obs the denominator (Lognormal, Normal);
+  // MVN/MVNORM solve with Sigma below. data_check() refuses TruncatedNormal (no closed form).
   index_n_obs.setZero();
   index_q_analytical.setZero();
   for(index_ind = 0; index_ind < index_ctl.rows(); index_ind++){
@@ -2920,7 +2914,7 @@ Type objective_function<Type>::operator() () {
         }
       }
 
-      // Sum predicted catch at age and length into the marginal age or length composition
+      // Sum predicted numbers at age and length into the marginal age or length composition
       for(age = 0; age < nages(sp); age++) {
         for(ln = 0; ln < nlengths(sp); ln++) {
 

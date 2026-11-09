@@ -31,7 +31,7 @@
 #' \item{catch_data}{Total catch in weight (mt) or numbers (thousands of fish) data}
 #' \item{comp_data}{Survey/fishery age or length composition data. Note if sex is 3, put female composition data then male composition data (similar to SS).}
 #' \item{emp_sel}{Empirical/fixed selectivity for surveys and fisheries (leave empty if not used)}
-#' \item{age_trans_matrix}{Age transition matrix (e.g. growth trajectory) used to convert age to length for length comp data. The model reads it only under empirical growth (growth_model = 0), estimated growth using its own age-length key, but the sheet is still required. Can have multiple matrices for a species specified by Age_transition_index.}
+#' \item{age_trans_matrix}{Age transition matrix (e.g. growth trajectory) used to convert age to length for length comp data. The model reads it only under empirical growth (growth_model = 0), parametric growth (growth_model > 0) using its own age-length key, but the sheet is still required. Can have multiple matrices for a species specified by Age_transition_index.}
 #' \item{age_error}{Ageing error matrices, one row per true age. One per species by default; give several and select them per fleet with the 'Ageing_error_index' column of both this table and \code{fleet_control}.}
 #' \item{weight}{Weight-at-age (weight) to use for calculation of derived quantities (SSB, Consumption/Ration, Suitability, Total Catch, Survey Biomass, etc). Can have multiple weight-at-age data-sets for each species, but must be full for all years of the hindcast.}
 #' \item{maturity}{Maturity-at-age for each species}
