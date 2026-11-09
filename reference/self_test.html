@@ -13,7 +13,7 @@ the observations."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.66.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.67.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -59,7 +59,7 @@ the observations."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Self-test simulation analysis</h1>
-      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.66.1/R/9-self_test.R" class="external-link"><code>R/9-self_test.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.67.3/R/9-self_test.R" class="external-link"><code>R/9-self_test.R</code></a></small>
       <div class="d-none name"><code>self_test.Rd</code></div>
     </div>
 
@@ -201,7 +201,13 @@ data.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p><strong>What <code>start</code> costs.</strong> <code>"initial"</code> uses
+    <p>Each simulation refits under the fit's own map, so a parameter fixed there keeps its
+value and is not estimated. A projection-only fit
+(<code>estimateMode = "Projection"</code>) refits under a rebuilt map. <code>self_test()</code>
+warns if <code>process</code> redraws a deviation that the fit's map fixes and
+<code><a href="build_map.html">build_map()</a></code> would estimate: the refit holds it at the fit's value, so cannot
+recover the draw.</p>
+<p><strong>What <code>start</code> costs.</strong> <code>"initial"</code> uses
 <code>initial_params</code>, so the estimator travels the same distance to the
 optimum on simulated data as it did on the real data. <code>"estimated"</code>
 starts from the generating values instead – the fixed effects, and under

@@ -21,7 +21,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.66.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.67.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -82,7 +82,7 @@
 Adams</h4>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.66.1/vignettes/hcrs-and-mses.Rmd" class="external-link"><code>vignettes/hcrs-and-mses.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.67.3/vignettes/hcrs-and-mses.Rmd" class="external-link"><code>vignettes/hcrs-and-mses.Rmd</code></a></small>
       <div class="d-none name"><code>hcrs-and-mses.Rmd</code></div>
     </div>
 
@@ -168,6 +168,10 @@ samples data on the schedule you specify, re-fits the EM every
 <code>assessment_period</code> years, and applies the EM’s HCR back to
 the OM. <code>nsim</code> sets the number of stochastic
 trajectories.</p>
+<p>Parameters you fixed in the EM’s map that Rceattle would otherwise
+estimate stay fixed at each re-fit, and <code><a href="../reference/run_mse.html">run_mse()</a></code> reports
+how many; see <code><a href="../reference/run_mse.html">?run_mse</a></code> for years after the EM’s
+<code>endyr</code> and what does not carry forward.</p>
 <div class="section level4">
 <h4 id="check-endyr-before-you-start">Check <code>endyr</code> before you start<a class="anchor" aria-label="anchor" href="#check-endyr-before-you-start"></a>
 </h4>

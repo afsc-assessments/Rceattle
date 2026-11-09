@@ -21,7 +21,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.66.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.67.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -79,9 +79,9 @@
 
       <h1>6. Building a data object in R</h1>
             
-            <h4 data-toc-skip class="date">2026-11-07</h4>
+            <h4 data-toc-skip class="date">2026-11-09</h4>
       
-      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.66.1/vignettes/data-without-excel.Rmd" class="external-link"><code>vignettes/data-without-excel.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.67.3/vignettes/data-without-excel.Rmd" class="external-link"><code>vignettes/data-without-excel.Rmd</code></a></small>
       <div class="d-none name"><code>data-without-excel.Rmd</code></div>
     </div>
 
@@ -323,7 +323,7 @@ modeled. Multiple fleets can target the same species.</p>
 <span><span class="co">#   "Fixed"                (0), Q fixed at Catchability_init; not estimated</span></span>
 <span><span class="co">#   "Estimated"            (1), freely estimated on log scale</span></span>
 <span><span class="co">#   "Estimated-with-prior" (2), estimated with a lognormal prior (Catchability_init, Catchability_prior_sd)</span></span>
-<span><span class="co">#   "Analytical"           (3), Walters &amp; Ludwig (1994) analytical Q</span></span>
+<span><span class="co">#   "Analytical"           (3), closed-form maximum likelihood Q (Walters &amp; Ludwig 1994 when lognormal)</span></span>
 <span><span class="co">#   "PowerEquation"        (4), NOT YET IMPLEMENTED; data_check() refuses it</span></span>
 <span><span class="co">#   "AnalyticalArith"      (7), arithmetic-mean analytical Q</span></span>
 <span><span class="co">#   "Environmental"        (5), mu_q + X * beta, where X is a covariate in env_data</span></span>

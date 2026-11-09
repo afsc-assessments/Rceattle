@@ -9,7 +9,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.66.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.67.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -55,7 +55,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Data inputs for single species CEATTLE of the Bering Sea from 1979 to 2017</h1>
-      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.66.1/R/data.R" class="external-link"><code>R/data.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.67.3/R/data.R" class="external-link"><code>R/data.R</code></a></small>
       <div class="d-none name"><code>BS2017SS.Rd</code></div>
     </div>
 
@@ -143,7 +143,7 @@ numbers-at-age (thousands) times weight-at-age (kg)</p></dd>
 <dd><p>Empirical/fixed selectivity for surveys and fisheries (leave empty if not used)</p></dd>
 
 <dt>age_trans_matrix</dt>
-<dd><p>Age transition matrix (e.g. growth trajectory) used to convert age to length for length comp data. Can have multiple matrices for a species specified by Age_transition_index.</p></dd>
+<dd><p>Age transition matrix (e.g. growth trajectory) used to convert age to length for length comp data. The model reads it only under empirical growth (growth_model = 0), parametric growth (growth_model &gt; 0) using its own age-length key, but the sheet is still required. Can have multiple matrices for a species specified by Age_transition_index.</p></dd>
 
 <dt>age_error</dt>
 <dd><p>Ageing error matrices, one row per true age. One per species by default; give several and select them per fleet with the 'Ageing_error_index' column of both this table and <code>fleet_control</code>.</p></dd>
@@ -316,7 +316,7 @@ NA.</p></dd>
 <dd><p>Index used to give fleets the same catchability (otherwise, same as Fleet_code). Fleets sharing a value share one q parameter, so the group holds only one answer to whether q is estimated: the group's first non-Off fleet decides for all of them, regardless of fleet type. Give a fleet its own value when it should be estimated independently. "Analytical" and "AnalyticalArith" are the exception, they solve q from each fleet's own index observations, so a group containing one does <em>not</em> share a catchability. <code><a href="data_check.html">data_check()</a></code> reports that case, a Fixed lead that leaves fleets on different inits, and a <code>Catchability</code> or <code>Time_varying_q</code> that differs within a group. See <code><a href="../articles/model-options-and-functionality.html">vignette("model-options-and-functionality")</a></code>.</p></dd>
 
 <dt>Catchability</dt>
-<dd><p>Estimate catchability? 0 or "Fixed" = fixed at prior; 1 or "Estimated" = estimate a single parameter; 2 or "Estimated-with-prior" = estimate a single parameter with a prior; 3 or "Analytical" = geometric-mean analytical q (Walters and Ludwig 1994); 4 = power equation (not yet implemented); 5 or "Environmental" = linear equation log(q_y) = q_mu + beta * index_y; 6 or "AR1" = removed, and <code><a href="data_check.html">data_check()</a></code> errors on it, the deviates were never estimated, so q came back constant; express the Rogers et al. (2024) form as a q linkage with ar1(1 | Year) and <code>observe</code>, passed to <code>fit_mod(qFun = )</code>; 7 or "AnalyticalArith" = arithmetic-mean analytical q = mean(obs)/mean(pred), the AMAK/ebswp form used with the MVN survey likelihood.</p></dd>
+<dd><p>Estimate catchability? 0 or "Fixed" = fixed at prior; 1 or "Estimated" = estimate a single parameter; 2 or "Estimated-with-prior" = estimate a single parameter with a prior; 3 or "Analytical" = q solved in closed form as the maximum likelihood q for the fleet's Index_distribution, given the other parameters (lognormal: the bias-corrected geometric mean of Walters and Ludwig 1994, Normal and MVN/MVNORM: least squares); refused under TruncatedNormal; 4 = power equation (not yet implemented); 5 or "Environmental" = linear equation log(q_y) = q_mu + beta * index_y; 6 or "AR1" = removed, and <code><a href="data_check.html">data_check()</a></code> errors on it, the deviates were never estimated, so q came back constant; express the Rogers et al. (2024) form as a q linkage with ar1(1 | Year) and <code>observe</code>, passed to <code>fit_mod(qFun = )</code>; 7 or "AnalyticalArith" = arithmetic-mean analytical q = mean(obs)/mean(pred), the AMAK/ebswp form used with the MVN survey likelihood.</p></dd>
 
 <dt>Catchability_init</dt>
 <dd><p>Starting value (or fixed value) for catchability. When Catchability = "Estimated-with-prior" this also centers the q prior.</p></dd>
@@ -343,7 +343,7 @@ NA.</p></dd>
 <dd><p>Starting/fixed value for the catch observation SD, used when Estimate_catch_sd = "Estimated".</p></dd>
 
 <dt>Index_distribution</dt>
-<dd><p>Survey/index biomass observation likelihood family. 0 or "Lognormal" (default) = independent lognormal on the log observation. 1 or "MVN" and 2 or "MVNORM" = multivariate normal on the natural-scale residual (obs - q*pred), with a user-supplied covariance in <code>index_cov</code> (e.g. a VAST-derived Sigma); "MVN" reports the bare quadratic form matching AMAK/ebswp and ADMB, "MVNORM" the properly normalized density, and the two give an identical fit. Pair either with Catchability = "AnalyticalArith". 3 or "Normal" = independent normal on the same residual, with an ABSOLUTE sd from Log_sd, not a log-scale CV; reproduces AMAK avo_like/cpue_like term for term. 4 or "TruncatedNormal" = that normal left-truncated at zero. Prefer it to "Normal" unless an exact ADMB comparison is needed: an index cannot be negative, so it is the only natural-scale family whose likelihood and simulator are the same distribution. See <code><a href="../articles/model-options-and-functionality.html">vignette("model-options-and-functionality")</a></code>.</p></dd>
+<dd><p>Survey/index biomass observation likelihood family. 0 or "Lognormal" (default) = independent lognormal on the log observation. 1 or "MVN" and 2 or "MVNORM" = multivariate normal on the natural-scale residual (obs - q*pred), with a user-supplied covariance in <code>index_cov</code> (e.g. a VAST-derived Sigma); "MVN" reports the bare quadratic form matching AMAK/ebswp and ADMB, "MVNORM" the properly normalized density, and the two give an identical fit. Pair either with Catchability = "AnalyticalArith". 3 or "Normal" = independent normal on the same residual, with an ABSOLUTE sd from Log_sd, not a log-scale CV; reproduces AMAK avo_like/cpue_like term for term. 4 or "TruncatedNormal" = that normal left-truncated at zero. Prefer it to "Normal" unless an exact ADMB comparison is needed: an index cannot be negative, so it is the only natural-scale family whose likelihood and simulator are the same distribution. It refuses Catchability = "Analytical". See <code><a href="../articles/model-options-and-functionality.html">vignette("model-options-and-functionality")</a></code>.</p></dd>
 
 <dt>Comp_distribution</dt>
 <dd><p>Age/length composition data distribution. Accepts integer codes or readable strings: -1 or "MultinomialAFSC" (default) = AFSC multinomial; 0 or "Multinomial" = full multinomial; 1 or "DirichletMultinomial".</p></dd>

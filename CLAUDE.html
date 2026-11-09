@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.66.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.67.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -53,7 +53,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>CLAUDE.md — Rceattle</h1>
-      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.66.1/CLAUDE.md" class="external-link"><code>CLAUDE.md</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.67.3/CLAUDE.md" class="external-link"><code>CLAUDE.md</code></a></small>
     </div>
 
 <div id="claudemd--rceattle" class="section level1">
@@ -297,7 +297,7 @@
 <li>
 <strong><code>condition_number</code> reads the correlation matrix since 5.26.0</strong>; <code>covariance_condition_number</code> is the old value.</li>
 <li>
-<strong><code>getsd = FALSE</code> leaves <code>sdrep</code> NULL</strong> (no <code><a href="https://rdrr.io/r/stats/vcov.html" class="external-link">vcov()</a></code>, NA bands); the refit diagnostics read the bias-adjust flags and <code>projection_uncertainty</code> off <code>data_list</code>. <strong>The converse does not hold</strong>: since 5.58.2 a retrospective peel whose standard-error rebuild failed is KEPT with no <code>sdrep</code>, so read <code>attr(peel, "sd_report_error")</code> rather than inferring <code>getsd</code>.</li>
+<strong><code>getsd = FALSE</code> leaves <code>sdrep</code> NULL</strong> (no <code><a href="https://rdrr.io/r/stats/vcov.html" class="external-link">vcov()</a></code>, NA bands); the refit diagnostics read the bias-adjust flags and <code>projection_uncertainty</code> off <code>data_list</code>. <strong>The converse does not hold</strong>: since 5.58.2 a retrospective peel whose standard-error rebuild failed is KEPT, with whatever <code>sdreport()</code> returned (<code>NULL</code> only if the rebuild threw first, 5.66.8), so read <code>attr(peel, "sd_report_error")</code> rather than inferring <code>getsd</code> or a usable band from <code>sdrep</code>.</li>
 <li>
 <strong><code><a href="reference/run_mse.html">run_mse()</a></code> pins the OM’s stock-recruit and suitability windows to the pristine <code>om$</code></strong> (<code>verify-mse-hindcast-invariant.R</code>).</li>
 <li>

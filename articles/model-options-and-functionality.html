@@ -21,7 +21,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.66.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.67.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -82,7 +82,7 @@
 Adams</h4>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.66.1/vignettes/model-options-and-functionality.Rmd" class="external-link"><code>vignettes/model-options-and-functionality.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.67.3/vignettes/model-options-and-functionality.Rmd" class="external-link"><code>vignettes/model-options-and-functionality.Rmd</code></a></small>
       <div class="d-none name"><code>model-options-and-functionality.Rmd</code></div>
     </div>
 
@@ -220,7 +220,9 @@ these until they are validated against the current parameter set</td>
 <tr class="odd">
 <td align="center"><code>0</code></td>
 <td><code>"FreeParams"</code></td>
-<td>Initial N-at-age estimated as free parameters</td>
+<td>Initial N-at-age estimated as free parameters, started at the
+unfished equilibrium of R0 and female M1 (at log numbers 0, i.e. 1
+thousand fish per age, under a single-species stock-recruit curve)</td>
 </tr>
 <tr class="even">
 <td align="center"><code>1</code></td>
@@ -1060,7 +1062,9 @@ parameterizations</a>.</p>
 <tr class="even">
 <td align="center"><code>3</code></td>
 <td><code>"Analytical"</code></td>
-<td>Closed-form analytical q (concentrated likelihood)</td>
+<td>The closed-form maximum likelihood q for the fleet’s
+<code>Index_distribution</code> (concentrated likelihood). Refused under
+<code>TruncatedNormal</code>, which has no closed-form q</td>
 </tr>
 <tr class="odd">
 <td align="center"><code>4</code></td>
@@ -1156,8 +1160,9 @@ bias correction.</td>
 <td>The same normal, left-truncated at zero. An index cannot be
 negative, so this is the only natural-scale family whose simulator and
 likelihood are the same distribution. <strong>Prefer it over
-<code>"Normal"</code></strong> unless you need an exact ADMB
-comparison.</td>
+<code>"Normal"</code></strong> unless you need an exact ADMB comparison.
+<code><a href="../reference/data_check.html">data_check()</a></code> refuses it with
+<code>Catchability = "Analytical"</code>.</td>
 </tr>
 </tbody>
 </table>

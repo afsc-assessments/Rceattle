@@ -27,7 +27,7 @@ projection assumptions and the observed catch.
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.66.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.67.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -73,7 +73,7 @@ projection assumptions and the observed catch.
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Retrospective peels</h1>
-      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.66.1/R/9-retro_and_jitter.R" class="external-link"><code>R/9-retro_and_jitter.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.67.3/R/9-retro_and_jitter.R" class="external-link"><code>R/9-retro_and_jitter.R</code></a></small>
       <div class="d-none name"><code>retrospective.Rd</code></div>
     </div>
 
@@ -132,12 +132,9 @@ addition to the terminal year</p></dd>
 
 
 <dt id="arg-getsd">getsd<a class="anchor" aria-label="anchor" href="#arg-getsd"></a></dt>
-<dd><p>whether each peel runs <code><a href="https://rdrr.io/pkg/TMB/man/sdreport.html" class="external-link">TMB::sdreport</a></code>, which costs an
-extra model build per peel (see Details). Mohn's rho uses point estimates
-only, so <code>FALSE</code> is faster with no effect on it. <code>NULL</code> (default)
-inherits the input model's setting (<code>TRUE</code> only if it holds an
-<code>sdrep</code>), and the returned peels hold standard errors only when it is
-<code>TRUE</code>.</p></dd>
+<dd><p>whether each peel reports standard errors through <code><a href="https://rdrr.io/pkg/TMB/man/sdreport.html" class="external-link">TMB::sdreport</a></code>,
+at the cost of extra model builds (see Details); <code>NULL</code> (default) inherits the
+input model's setting (<code>TRUE</code> only if it holds an <code>sdrep</code>).</p></dd>
 
 
 <dt id="arg-phase">phase<a class="anchor" aria-label="anchor" href="#arg-phase"></a></dt>
@@ -160,21 +157,72 @@ scripts keep working. Supplying both is an error.</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>a list of 1. a list of Rceattle models and 2. Mohn's rho per species.</p>
-<p>A peel that did not converge is dropped, so <code>Rceattle_list</code> can be
-shorter than <code>peels + 1</code>, with a message. Entries are named for their
-own terminal year (<code>Year_2017</code>, ...), so index by name:
-<code>Rceattle_list[[3]]</code> is not necessarily the 3-year peel. With no peel
-left, rho is <code>NaN</code> and the function warns. Each peel reports its own
-terminal year as <code>data_list$endyr</code>, so plots draw it only as far as it
-was fit.</p>
-<p>A peel still estimates the years it dropped: that is its retrospective
-forecast, fit to observed catch with the survey and composition data
-withheld. Its recruitment deviation is the one <code><a href="sample_rec.html">sample_rec()</a></code> sets with
-<code>sample_rec = FALSE</code>, computed from the peel's own fit. Three years matter,
-and every peel carries all three:</p><dl><dt><code>endyr</code>, <code>endyr_peel</code></dt>
-<dd><p>the peel's terminal year, what it
-was fit through. Equal to each other.</p></dd>
+    <p>An <code>Rceattle_retro</code> list:</p><dl><dt><code>Rceattle_list</code></dt>
+<dd><p>the unpeeled model and each kept peel, named for its
+own terminal year (<code>Year_2017</code>, ...). Index by name: the list runs from the
+deepest peel to the unpeeled model, and a dropped peel leaves a gap, so it can
+be shorter than <code>peels + 1</code> and <code>Rceattle_list[[3]]</code> is not in general
+the 3-year peel. Each
+peel reports its terminal year as <code>data_list$endyr</code>, so plots draw it only
+as far as it was fit.</p></dd>
+
+<dt><code>mohns</code></dt>
+<dd><p>Mohn's rho by <code>Object</code> and <code>Forecast year</code>, one
+column per species, with <code>N</code> the number of peels averaged. With no peel
+left it is <code>NaN</code>, and the function warns.</p></dd>
+
+<dt><code>peels_requested</code></dt>
+<dd><p>the <code>peels</code> asked for.</p></dd>
+
+
+</dl><p>A peel can carry <code>attr(peel, "forecast_refit_error")</code> or
+<code>attr(peel, "sd_report_error")</code>, each a one-line reason naming the peel and its
+terminal year (see Details); each is absent on every other peel.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>Each peel is fitted twice: a peeled hindcast, then a forecast refit
+estimating only the peeled years' F. The second holds every hindcast
+parameter fixed, so on its own it reports a standard error of zero across the
+hindcast. Under <code>getsd = TRUE</code> the peel is therefore rebuilt at those same
+parameters with the hindcast parameters treated as estimated and reported
+from there; nothing is re-estimated, so no point estimate moves.</p>
+<p>A band in a fitted year is the peeled hindcast's own: the uncertainty of its
+parameters given the data through the peel's terminal year. The exception is
+a depletion that divides by last-projection-year biomass (<code>HCR = "NoFishing"</code>
+under <code>msmMode &gt; 0</code> and <code>DynamicHCR = FALSE</code>), which reads the peeled F, so its
+fitted-year bands move too.
+A band in a peeled (forecast) year treats that year's catch as known and its F as
+inferred from it: as the hindcast parameters vary, F moves, to first order,
+to keep the predicted catch at the observed catch, and the delta method
+carries that into the band. The peeled years' recruitment deviations are
+fixed at the projected deviation, so the band leaves out recruitment
+variability there and is narrower than a forecast's prediction interval.</p>
+<p>Where that rebuild fails – it errors, its Hessian is not positive definite, it
+reports no finite standard error, or moving F with the hindcast parameters fails
+(its forecast years would then leave out F's response) – the peel keeps its point
+estimates, <code>peel$sdrep</code> keeps what <code><a href="https://rdrr.io/pkg/TMB/man/sdreport.html" class="external-link">TMB::sdreport()</a></code> returned (<code>NULL</code> if the rebuild
+errored first; under an indefinite Hessian its numbers are not valid standard errors),
+and <code>attr(peel, "sd_report_error")</code> gives the reason, so plots, <code><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">as.data.frame()</a></code> and
+<code><a href="https://rdrr.io/r/stats/vcov.html" class="external-link">vcov()</a></code> read none of it. <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> counts such peels; no warning is raised, since the
+point estimates and Mohn's rho are unaffected.</p>
+<p>Mohn's rho reads point estimates, so <code>getsd = FALSE</code> is faster, but <code>TRUE</code> also drops
+a peel whose hindcast Hessian is not positive definite, so the two can average over
+different peels.</p>
+<p>A peel whose hindcast did not converge is dropped, with a warning. A peel whose
+forecast refit did not fit F to the peeled catch (gradient check, or a peeled F at a
+bound) is kept without a warning: its terminal-year Mohn's rho stands, but it is left
+out of the <code>$mohns</code> rows with <code>Forecast year</code> above 0 (<code>N</code> counts the
+peels used). Check <code>attr(peel, "forecast_refit_error")</code> before reading its
+forecast years or their standard errors; <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> counts such peels, and
+<code><a href="plot_timeseries.html">plot_timeseries()</a></code> and its wrappers warn when they draw those years.</p>
+<p>A peel still estimates the years it dropped: that is its retrospective forecast, fit
+to observed catch with the survey and composition data withheld. Its recruitment
+deviation is the one <code><a href="sample_rec.html">sample_rec()</a></code> sets with <code>sample_rec = FALSE</code>, computed from the
+peel's own fit. Three years matter, and every peel's <code>data_list</code> carries all
+three:</p><dl><dt><code>endyr</code>, <code>endyr_peel</code></dt>
+<dd><p>the peel's terminal year, what it was fit
+through. Equal to each other.</p></dd>
 
 <dt><code>endyr_full</code></dt>
 <dd><p>the unpeeled model's terminal year, where the
@@ -184,36 +232,17 @@ retrospective forecast ends.</p></dd>
 <dd><p>the end of the harvest-control-rule projection.</p></dd>
 
 
-</dl><p>A peel whose standard errors could not be rebuilt carries
-<code>attr(peel, "sd_report_error")</code>, a one-line reason naming the peel and
-its terminal year; it is absent on every other peel.</p>
-<p>Take the forecast years as
-<code>endyr_peel + seq_len(endyr_full - endyr_peel)</code>, which is empty for the
-unpeeled model, rather than <code>(endyr_peel + 1):endyr_full</code>, which counts
-<em>down</em> there. Mohn's rho is computed from <code>endyr_peel</code> and is
+</dl><p>Take the forecast years as <code>endyr_peel + seq_len(endyr_full - endyr_peel)</code>,
+which is empty for the unpeeled model, rather than <code>(endyr_peel + 1):endyr_full</code>,
+which counts <em>down</em> there. Mohn's rho is computed from <code>endyr_peel</code> and is
 unaffected by any of this.</p>
 <p>Catchability is estimated only for a fleet holding fitted index rows (see
-<code><a href="build_map.html">build_map</a></code>), and a peel moves <code>endyr</code>, so a survey whose
-index observations all fall in the peeled-off years has no q estimated in
-that peel: the parameter count is not constant across peels. That is
-deliberate, since a q with no index to inform it is a flat direction in the
-likelihood. Rho is computed from SSB and is unaffected, but <code>npar</code> and
-the reported catchability do differ between a shallow and a deep peel for
-such a fleet.</p>
-    </div>
-    <div class="section level2">
-    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>Each peel is fitted twice: a peeled hindcast, then a forecast refit
-estimating only the peeled years' F. The second holds every hindcast
-parameter fixed, so on its own it reports a standard error of zero across the
-hindcast. Under <code>getsd = TRUE</code> the peel is therefore rebuilt at those same
-parameters with the hindcast free in the map and reported from there; nothing
-is re-estimated, so no point estimate moves. Where that rebuild fails – it
-throws, or comes back with a Hessian it could not factor, or with no finite
-standard error – the peel keeps its point estimates and carries no <code>sdrep</code>
-at all, rather than the forecast refit's zero standard errors. The reason is
-named in one warning per call and carried on the peel; <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> reports how
-many peels could not report standard errors.</p>
+<code><a href="build_map.html">build_map</a></code>), and a peel moves <code>endyr</code>, so a survey whose index
+observations all fall in the peeled-off years has no q estimated in that peel: the
+parameter count is not constant across peels. That is deliberate, since a q with no
+index to inform it is a flat direction in the likelihood. Rho is computed from SSB and
+is unaffected, but <code>npar</code> and the reported catchability do differ between a
+shallow and a deep peel for such a fleet.</p>
     </div>
 
     <div class="section level2">

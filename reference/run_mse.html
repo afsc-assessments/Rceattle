@@ -23,7 +23,7 @@ nothing, with a warning naming it."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.66.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.67.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -69,7 +69,7 @@ nothing, with a warning naming it."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Run a management strategy evaluation</h1>
-      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.66.1/R/10-run_mse.R" class="external-link"><code>R/10-run_mse.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.67.3/R/10-run_mse.R" class="external-link"><code>R/10-run_mse.R</code></a></small>
       <div class="d-none name"><code>run_mse.Rd</code></div>
     </div>
 
@@ -251,6 +251,18 @@ and the likelihood never scored them, since it fits only <code>Year &lt;= endyr<
 That is what a workbook looks like when <code>endyr</code> has fallen behind the catch
 series, and it is worth resolving first, because conditioning on those years
 is a different question from projecting over them.</p>
+<p>Each assessment rebuilds the map as <code>endyr</code> advances. A parameter that <code>em</code>'s map
+fixes and <code><a href="build_map.html">build_map()</a></code> would estimate stays fixed at <code>em</code>'s value, and <code>run_mse()</code>
+reports how many. In years after <code>em</code>'s <code>endyr</code>, a yearly deviation fixed for every
+earlier year can still be estimated, under its usual penalty; a year joining a time
+block fixed for every earlier year stays fixed at that block's value. A new year's
+block comes from the OM's index rows on a survey and the EM's catch rows on a fishery.
+A block fixed on only one of the fleets sharing it stays estimated on the others and
+in its new years. Nothing else in a hand-edited map carries forward: shared values, and
+parameters freed where <code><a href="build_map.html">build_map()</a></code> would fix them, return to the <code><a href="build_map.html">build_map()</a></code>
+default. Nothing carries over from an <code>em</code> fitted with <code>estimateMode = "Projection"</code>,
+even under a supplied map, or from a re-assessment stored by <code>run_mse()</code>, which has
+no map.</p>
     </div>
 
     <div class="section level2">

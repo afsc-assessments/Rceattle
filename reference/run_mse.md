@@ -179,6 +179,25 @@ fallen behind the catch series, and it is worth resolving first, because
 conditioning on those years is a different question from projecting over
 them.
 
+Each assessment rebuilds the map as `endyr` advances. A parameter that
+`em`'s map fixes and
+[`build_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md)
+would estimate stays fixed at `em`'s value, and `run_mse()` reports how
+many. In years after `em`'s `endyr`, a yearly deviation fixed for every
+earlier year can still be estimated, under its usual penalty; a year
+joining a time block fixed for every earlier year stays fixed at that
+block's value. A new year's block comes from the OM's index rows on a
+survey and the EM's catch rows on a fishery. A block fixed on only one
+of the fleets sharing it stays estimated on the others and in its new
+years. Nothing else in a hand-edited map carries forward: shared values,
+and parameters freed where
+[`build_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md)
+would fix them, return to the
+[`build_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md)
+default. Nothing carries over from an `em` fitted with
+`estimateMode = "Projection"`, even under a supplied map, or from a
+re-assessment stored by `run_mse()`, which has no map.
+
 ## Examples
 
 ``` r

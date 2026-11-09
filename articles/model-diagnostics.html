@@ -21,7 +21,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.66.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.67.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -79,9 +79,9 @@
 
       <h1>3. Model diagnostics</h1>
             
-            <h4 data-toc-skip class="date">2026-11-07</h4>
+            <h4 data-toc-skip class="date">2026-11-09</h4>
       
-      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.66.1/vignettes/model-diagnostics.Rmd" class="external-link"><code>vignettes/model-diagnostics.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.67.3/vignettes/model-diagnostics.Rmd" class="external-link"><code>vignettes/model-diagnostics.Rmd</code></a></small>
       <div class="d-none name"><code>model-diagnostics.Rmd</code></div>
     </div>
 
@@ -931,7 +931,12 @@ ends</td>
 years. Take the forecast years as
 <code>endyr_peel + seq_len(endyr_full - endyr_peel)</code>, empty for
 the unpeeled model, where <code>(endyr_peel + 1):endyr_full</code> would
-count down instead.</p>
+count down instead. Under <code>getsd = TRUE</code>, a band in a
+forecast year treats that year’s catch as known and its F as inferred
+from it, so it carries the hindcast’s uncertainty forward through the F
+needed to take that catch. It does not include recruitment variability
+in the forecast years, so it is narrower than a forecast’s prediction
+interval.</p>
 <p>The <code><a href="../reference/retrospective.html">retrospective()</a></code> function returns a list with two
 elements:</p>
 <table class="table">
@@ -952,31 +957,54 @@ named for its own terminal year (<code>Year_2013</code>, …,
 </tr>
 <tr class="even">
 <td><code>mohns</code></td>
-<td>Data frame with columns <code>Object</code> (quantity,
-e.g. <code>"Biomass"</code>, <code>"SSB"</code>),
-<code>Forecast year</code> (0 = terminal year bias; 1+ = forecast
-skill), <code>N</code> (number of peels), and one column per species
-with mean relative error (Mohn’s rho)</td>
+<td>Data frame with columns <code>Object</code> (quantity:
+<code>"biomass"</code>, <code>"ssb"</code>, <code>"R"</code>,
+<code>"F_spp"</code>), <code>Forecast year</code> (0 = terminal year
+bias; 1+ = forecast skill), <code>N</code> (peels used in that row), and
+one column per species with mean relative error (Mohn’s rho)</td>
 </tr>
 </tbody>
 </table>
 <p>The <code>nyrs_forecast</code> argument (default 3) also evaluates
 rho for years projected beyond each terminal peel, so a single call
 quantifies forecast skill alongside retrospective bias.</p>
-<p>A peel that did not converge is dropped and a warning reports how
-many, so <code>Rceattle_list</code> can be shorter than
+<p>A peel whose hindcast did not converge is dropped and a warning
+reports how many, so <code>Rceattle_list</code> can be shorter than
 <code>peels + 1</code>. Index it by name rather than position, with a
 peel missing, <code>Rceattle_list[[3]]</code> is not the 3-year peel. If
 no peel converges, Mohn’s rho is <code>NaN</code> and the call
 warns.</p>
-<p>A separate warning means something different: under
-<code>getsd = TRUE</code> a peel whose standard errors could not be
-rebuilt is <strong>kept</strong>, with its point estimates intact and no
-<code>sdrep</code> at all, so its uncertainty band is absent rather than
-drawn at zero width. Mohn’s rho reads point estimates only and is
-unaffected. <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> reports how many peels that happened
-to, and each carries the reason in
-<code>attr(peel, "sd_report_error")</code>.</p>
+<p>A peel whose forecast refit alone did not converge, or left a peeled
+F at a bound, is kept, with no warning. That refit estimates only the
+peeled years’ F with the hindcast held fixed, so its hindcast is valid
+and it counts in terminal-year Mohn’s rho. F was not fitted to the
+peeled catch, though, so the peel is left out of the <code>$mohns</code>
+rows with <code>Forecast year</code> above 0: their <code>N</code> is
+smaller, <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> says how many peels this affects, and
+<code>attr(peel, "forecast_refit_error")</code> gives the reason.
+<code><a href="../reference/plot_biomass.html">plot_biomass()</a></code> and the other <code><a href="../reference/plot_timeseries.html">plot_timeseries()</a></code>
+wrappers still draw that peel’s forecast years under
+<code>incl_proj = TRUE</code> or a later <code>maxyr</code>, and warn
+when they do; <code><a href="../reference/plot_catch.html">plot_catch()</a></code> and the other plotters draw them
+without a warning.</p>
+<p>Under <code>getsd = TRUE</code> (the default when the input model has
+standard errors), each peel’s standard errors are calculated separately
+after its two fits. If that calculation fails, the peel is
+<strong>kept</strong>, unlike a hindcast that does not converge: its
+point estimates stand and <code>peel$sdrep</code> holds what
+<code><a href="https://rdrr.io/pkg/TMB/man/sdreport.html" class="external-link">TMB::sdreport()</a></code> returned (<code>NULL</code> if the
+calculation errored before that). With a Hessian that is not positive
+definite those numbers are not valid standard errors, so
+<code><a href="../reference/plot_biomass.html">plot_biomass()</a></code>, <code><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">as.data.frame()</a></code> and
+<code><a href="https://rdrr.io/r/stats/vcov.html" class="external-link">vcov()</a></code> read none of them. This raises no warning, because
+Mohn’s rho reads point estimates only. <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> says how
+many peels have no usable standard errors, and
+<code>lapply(model_1_retro$Rceattle_list, attr, "sd_report_error")</code>
+gives the reason for each (<code>NULL</code> for peels that have a
+band).
+<code>plot_biomass(model_1_retro$Rceattle_list, add_ci = TRUE)</code>
+draws bands for the other peels and warns about this one with that
+reason.</p>
 </div>
 <div class="section level2">
 <h2 id="jitter-testing">Jitter testing<a class="anchor" aria-label="anchor" href="#jitter-testing"></a>
@@ -985,7 +1013,14 @@ to, and each carries the reason in
 starting values and checks whether the optimizer keeps returning the
 same minimum negative log-likelihood (NLL). A spread of NLL values
 across jitters points to multiple local minima, so the results should be
-treated with caution.</p>
+treated with caution. Each start re-fits under the fit’s own map (which
+parameters are estimated and which are fixed), so a parameter you fixed
+keeps its value and is not estimated, and the NLL values compare with
+the fit’s unless it used <code>fit_mod(bounds = )</code>. A
+projection-only fit (<code>estimateMode = "Projection"</code>) re-fits
+under the default map from <code><a href="../reference/build_map.html">build_map()</a></code>, so nothing fixed in
+its map carries over and its NLL values do not compare; see
+<code><a href="../reference/jitter.html">?jitter</a></code>.</p>
 <div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">jitters</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/jitter.html">jitter</a></span><span class="op">(</span><span class="va">model_1</span>, njitter <span class="op">=</span> <span class="fl">10</span>, phase <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>  <span class="co"># default njitter = 50</span></span>
 <span></span>
@@ -1024,7 +1059,9 @@ fitted model (holding its estimated parameters fixed) and re-fits the
 model to each. If the refit estimates cluster around the values used to
 simulate them, the model is at least self-consistent: it can recover its
 own estimates from data it generated. Persistent bias or a wide spread
-in a quantity means the data are not informative about it.</p>
+in a quantity means the data are not informative about it. Each
+simulation re-fits under the fit’s own map, so a parameter you fixed
+keeps its value and is not estimated.</p>
 <div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">sims</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/self_test.html">self_test</a></span><span class="op">(</span><span class="va">model_1</span>, nsim <span class="op">=</span> <span class="fl">10</span><span class="op">)</span>            <span class="co"># default nsim = 50</span></span>
 <span></span>
@@ -1087,7 +1124,9 @@ inverse CDF. Draw and likelihood then agree exactly and no draw is ever
 rejected. <code>"Normal"</code> is kept untruncated because it
 reproduces the AMAK <code>avo_like</code> / <code>cpue_like</code> term
 for term, which is what an ADMB bridge compares against; use it there
-and <code>"TruncatedNormal"</code> elsewhere.
+and <code>"TruncatedNormal"</code> elsewhere (<code><a href="../reference/data_check.html">data_check()</a></code>
+refuses <code>"TruncatedNormal"</code> with
+<code>Catchability = "Analytical"</code>).
 <code>MVN</code>/<code>MVNORM</code> have no such option: a multivariate
 normal truncated to the positive orthant has no closed-form sampler, so
 rejection is the only route and the gap stays. Either way the underlying
@@ -1134,7 +1173,9 @@ wherever they are written as a random linkage (see
 <code><a href="../articles/environmental-linkages-and-priors.html">vignette("environmental-linkages-and-priors")</a></code>). A process
 the model gives no distribution to (asking for M when
 <code>M1_re = 0</code>, say) is left alone and reported in a warning
-rather than silently returned unchanged.</p>
+rather than silently returned unchanged. Redrawing a deviation the fit’s
+map fixes also warns, because the refit holds it fixed and cannot
+recover the draw.</p>
 <p>Recruitment has one such case worth knowing about. Under
 <code>srr_fun = 0</code> with <code>srr_pred_fun &gt; 0</code> (the
 AMAK/Ianelli configuration, where recruitment is estimated annually and

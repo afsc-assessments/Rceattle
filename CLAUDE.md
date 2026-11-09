@@ -610,9 +610,10 @@ One line each; the fuller text and the measured numbers are in
   [`vcov()`](https://rdrr.io/r/stats/vcov.html), NA bands); the refit
   diagnostics read the bias-adjust flags and `projection_uncertainty`
   off `data_list`. **The converse does not hold**: since 5.58.2 a
-  retrospective peel whose standard-error rebuild failed is KEPT with no
-  `sdrep`, so read `attr(peel, "sd_report_error")` rather than inferring
-  `getsd`.
+  retrospective peel whose standard-error rebuild failed is KEPT, with
+  whatever `sdreport()` returned (`NULL` only if the rebuild threw
+  first, 5.66.8), so read `attr(peel, "sd_report_error")` rather than
+  inferring `getsd` or a usable band from `sdrep`.
 - **[`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
   pins the OM’s stock-recruit and suitability windows to the pristine
   `om$`** (`verify-mse-hindcast-invariant.R`).

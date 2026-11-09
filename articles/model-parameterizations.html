@@ -21,7 +21,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.66.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.67.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -80,7 +80,7 @@
       <h1>8. Model parameterizations</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.66.1/vignettes/model-parameterizations.Rmd" class="external-link"><code>vignettes/model-parameterizations.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.67.3/vignettes/model-parameterizations.Rmd" class="external-link"><code>vignettes/model-parameterizations.Rmd</code></a></small>
       <div class="d-none name"><code>model-parameterizations.Rmd</code></div>
     </div>
 
@@ -423,7 +423,8 @@ structure: <code>"Off"</code>, <code>"IID"</code> or
 are frozen, because renumbering one would silently reinterpret every
 saved config and every fitted <code>.rds</code> that holds it. Whether a
 form is age- or length-based is set by
-<code>Selectivity_dimension</code>, not by the code.</li>
+<code>Selectivity_dimension</code>, not by the code, except that
+<code>"Fixed"</code> is always at age.</li>
 <li>
 <code>N_sel_bins</code>: Number of age or length bins (per
 <code>Selectivity_dimension</code>) estimated for the non-parametric and
@@ -576,7 +577,8 @@ logit-scale correlations, not weights, and keep those columns. The
 <h4 id="fixed-selectivity">Fixed selectivity<a class="anchor" aria-label="anchor" href="#fixed-selectivity"></a>
 </h4>
 <p>Input: <code>Selectivity = 0 or "Fixed"</code>, with
-selectivity-at-age supplied in <code>emp_sel</code>.</p>
+selectivity-at-age supplied in <code>emp_sel</code>. The last hindcast
+year supplied for a fleet and sex is held through the projection.</p>
 </div>
 <div class="section level4">
 <h4 id="non-parametric-type-1">Non-parametric (Type 1)<a class="anchor" aria-label="anchor" href="#non-parametric-type-1"></a>
@@ -728,13 +730,15 @@ one catchability parameter.</li>
 <code>Catchability</code> Text or integer switch specifying
 catchability. 0 or “Fixed” = fixed at <code>Catchability_init</code>; 1
 or “Estimated” = a single free parameter; 2 or “Estimated-with-prior” =
-a single free parameter with a prior; 3 or “Analytical” = analytical q
-from Walters and Ludwig 1994; 4 or “PowerEquation” = power equation,
-<strong>declared but not yet implemented</strong>; 5 or “Environmental”
-= linear equation log(q_y) = q_mu + beta * index_y; 6 or “AR1” = REMOVED
-in 5.12.0 (it never estimated the deviates, so q was constant) – express
-the Rogers et al. form as a q linkage with <code>ar1(1 | Year)</code>
-and <code>observe =</code>; 7 or “AnalyticalArith” = arithmetic-mean
+a single free parameter with a prior; 3 or “Analytical” = q solved in
+closed form as the maximum likelihood q for the fleet’s
+<code>Index_distribution</code> (refused under TruncatedNormal); 4 or
+“PowerEquation” = power equation, <strong>declared but not yet
+implemented</strong>; 5 or “Environmental” = linear equation log(q_y) =
+q_mu + beta * index_y; 6 or “AR1” = REMOVED in 5.12.0 (it never
+estimated the deviates, so q was constant) – express the Rogers et
+al. form as a q linkage with <code>ar1(1 | Year)</code> and
+<code>observe =</code>; 7 or “AnalyticalArith” = arithmetic-mean
 analytical q, the AMAK/ebswp form, paired with the MVN survey
 likelihood.</li>
 <li>
@@ -780,18 +784,75 @@ and its median otherwise; <code>Q sd prior</code> is on the log
 scale.</p>
 <p><code>Catchability = 3</code>
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mover><mi>q</mi><mo accent="true">̂</mo></mover><msub><mi>f</mi><mi>i</mi></msub></msub><annotation encoding="application/x-tex">\hat{q}_{f_i}</annotation></semantics></math>
-is derived analytically following Walters and Ludwig (1994): Walters, C.
-and Ludwig, D. (1994) ‘Calculation of Bayes posterior probability
-distributions for key population parameters’, <em>Canadian Journal of
-Fisheries and Aquatic Sciences</em>, 51(3), pp. 713-722, <a href="doi:10.1139/f94-071" class="uri">doi:10.1139/f94-071</a>. * CPUE
-in weight, time-invariant survey SD:
-<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mi>q</mi><mo accent="true">̂</mo></mover><msub><mi>f</mi><mi>i</mi></msub></msub><mo>=</mo><mrow><mi mathvariant="normal">exp</mi><mo>⁡</mo></mrow><mrow><mo stretchy="true" form="prefix">(</mo><munder><mo>∑</mo><mi>y</mi></munder><mi>l</mi><mi>o</mi><mi>g</mi><mrow><mo stretchy="true" form="prefix">[</mo><mfrac><mrow><mi>C</mi><mi>P</mi><mi>U</mi><mi>E</mi><mo>:</mo><msub><mi>B</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mo>,</mo><mi>y</mi></mrow></msub></mrow><mrow><munder><mo>∑</mo><mi>s</mi></munder><munder><mo>∑</mo><mi>a</mi></munder><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>N</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><msup><mi>e</mi><mrow><mi>−</mi><mo stretchy="false" form="prefix">(</mo><mi>M</mi><mi>o</mi><mi>n</mi><mi>t</mi><msub><mi>h</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mo>,</mo><mi>y</mi></mrow></msub><mi>/</mi><mn>12</mn><mo stretchy="false" form="postfix">)</mo><msub><mi>Z</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub></mrow></msup><msub><mi>W</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><msub><mi>S</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mfrac><mo stretchy="true" form="postfix">]</mo></mrow><mi>/</mi><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\hat{q}_{f_i} = \exp\left( \sum_y log \left[ \frac{CPUE:B_{{f_i},y}}  {\sum_s\sum_a \left( N_{isa,y} e^{-(Month_{{f_i},y}/12) Z_{isa,y}} W_{{f_i}sa,y} S_{{f_i}isa,y} \right)} \right]/n \right)</annotation></semantics></math>
-* CPUE in numbers, time-invariant survey SD:
-<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mi>q</mi><mo accent="true">̂</mo></mover><msub><mi>f</mi><mi>i</mi></msub></msub><mo>=</mo><mrow><mi mathvariant="normal">exp</mi><mo>⁡</mo></mrow><mrow><mo stretchy="true" form="prefix">(</mo><munder><mo>∑</mo><mi>y</mi></munder><mi>l</mi><mi>o</mi><mi>g</mi><mrow><mo stretchy="true" form="prefix">[</mo><mfrac><mrow><mi>C</mi><mi>P</mi><mi>U</mi><mi>E</mi><mo>:</mo><msub><mi>I</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mo>,</mo><mi>y</mi></mrow></msub></mrow><mrow><munder><mo>∑</mo><mi>s</mi></munder><munder><mo>∑</mo><mi>a</mi></munder><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>N</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><msup><mi>e</mi><mrow><mi>−</mi><mo stretchy="false" form="prefix">(</mo><mi>M</mi><mi>o</mi><mi>n</mi><mi>t</mi><msub><mi>h</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mo>,</mo><mi>y</mi></mrow></msub><mi>/</mi><mn>12</mn><mo stretchy="false" form="postfix">)</mo><msub><mi>Z</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub></mrow></msup><msub><mi>S</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mfrac><mo stretchy="true" form="postfix">]</mo></mrow><mi>/</mi><mi>n</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\hat{q}_{f_i} = \exp\left( \sum_y log \left[ \frac{CPUE:I_{{f_i},y}}  {\sum_s\sum_a \left( N_{isa,y} e^{-(Month_{{f_i},y}/12) Z_{isa,y}} S_{{f_i}isa,y} \right)} \right]/n \right)</annotation></semantics></math>
-* CPUE in weight, time-varying survey SD:
-<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mi>q</mi><mo accent="true">̂</mo></mover><msub><mi>f</mi><mi>i</mi></msub></msub><mo>=</mo><mrow><mi mathvariant="normal">exp</mi><mo>⁡</mo></mrow><mrow><mo stretchy="true" form="prefix">(</mo><munder><mo>∑</mo><mi>y</mi></munder><mrow><mo stretchy="true" form="prefix">(</mo><mi>l</mi><mi>o</mi><mi>g</mi><mrow><mo stretchy="true" form="prefix">[</mo><mfrac><mrow><mi>C</mi><mi>P</mi><mi>U</mi><mi>E</mi><mo>:</mo><msub><mi>B</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mo>,</mo><mi>y</mi></mrow></msub></mrow><mrow><munder><mo>∑</mo><mi>s</mi></munder><munder><mo>∑</mo><mi>a</mi></munder><msub><mi>N</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><msup><mi>e</mi><mrow><mi>−</mi><mo stretchy="false" form="prefix">(</mo><mi>M</mi><mi>o</mi><mi>n</mi><mi>t</mi><msub><mi>h</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mo>,</mo><mi>y</mi></mrow></msub><mi>/</mi><mn>12</mn><mo stretchy="false" form="postfix">)</mo><msub><mi>Z</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub></mrow></msup><msub><mi>W</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><msub><mi>S</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub></mrow></mfrac><mo stretchy="true" form="postfix">]</mo></mrow><mi>/</mi><msubsup><mi>σ</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>y</mi></mrow><mn>2</mn></msubsup><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><munder><mo>∑</mo><mi>y</mi></munder><mfrac><mn>1</mn><msubsup><mi>σ</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>y</mi></mrow><mn>2</mn></msubsup></mfrac><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\hat{q}_{f_i} = \exp\left( \sum_y \left( log \left[ \frac{CPUE:B_{{f_i},y}}  {\sum_s\sum_a N_{isa,y} e^{-(Month_{{f_i},y}/12) Z_{isa,y}} W_{{f_i}sa,y} S_{{f_i}isa,y}} \right]/\sigma^{2}_{f_iy} \right)/ \sum_y{\frac{1}{\sigma^{2}_{f_iy}}} \right)</annotation></semantics></math>
-* CPUE in numbers, time-varying survey SD:
-<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mi>q</mi><mo accent="true">̂</mo></mover><msub><mi>f</mi><mi>i</mi></msub></msub><mo>=</mo><mrow><mi mathvariant="normal">exp</mi><mo>⁡</mo></mrow><mrow><mo stretchy="true" form="prefix">(</mo><munder><mo>∑</mo><mi>y</mi></munder><mrow><mo stretchy="true" form="prefix">(</mo><mi>l</mi><mi>o</mi><mi>g</mi><mrow><mo stretchy="true" form="prefix">[</mo><mfrac><mrow><mi>C</mi><mi>P</mi><mi>U</mi><mi>E</mi><mo>:</mo><msub><mi>I</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mo>,</mo><mi>y</mi></mrow></msub></mrow><mrow><munder><mo>∑</mo><mi>s</mi></munder><munder><mo>∑</mo><mi>a</mi></munder><msub><mi>N</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><msup><mi>e</mi><mrow><mi>−</mi><mo stretchy="false" form="prefix">(</mo><mi>M</mi><mi>o</mi><mi>n</mi><mi>t</mi><msub><mi>h</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mo>,</mo><mi>y</mi></mrow></msub><mi>/</mi><mn>12</mn><mo stretchy="false" form="postfix">)</mo><msub><mi>Z</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub></mrow></msup><msub><mi>S</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub></mrow></mfrac><mo stretchy="true" form="postfix">]</mo></mrow><mi>/</mi><msubsup><mi>σ</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>y</mi></mrow><mn>2</mn></msubsup><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><munder><mo>∑</mo><mi>y</mi></munder><mfrac><mn>1</mn><msubsup><mi>σ</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>y</mi></mrow><mn>2</mn></msubsup></mfrac><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\hat{q}_{f_i} = \exp\left( \sum_y \left( log \left[ \frac{CPUE:I_{{f_i},y}}  {\sum_s\sum_a N_{isa,y} e^{-(Month_{{f_i},y}/12) Z_{isa,y}} S_{{f_i}isa,y}} \right]/\sigma^{2}_{f_iy} \right)/ \sum_y{\frac{1}{\sigma^{2}_{f_iy}}} \right)</annotation></semantics></math></p>
+is the closed-form maximum likelihood estimate under the fleet’s index
+likelihood (<code>Index_distribution</code>). Write
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mover><mi>I</mi><mo accent="true">̃</mo></mover><mrow><msub><mi>f</mi><mi>i</mi></msub><mo>,</mo><mi>y</mi></mrow></msub><annotation encoding="application/x-tex">\tilde{I}_{f_i,y}</annotation></semantics></math>
+for the predicted index above with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>q</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">q = 1</annotation></semantics></math>
+(it uses
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>N</mi><mo accent="true">̃</mo></mover><annotation encoding="application/x-tex">\tilde{N}</annotation></semantics></math>,
+so survey timing and the fishery year-average are already handled),
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>I</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mo>,</mo><mi>y</mi></mrow></msub><annotation encoding="application/x-tex">I_{f_i,y}</annotation></semantics></math>
+for the observed index, and sum over the
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>n</mi><annotation encoding="application/x-tex">n</annotation></semantics></math>
+hindcast years with an observation.</p>
+<p>Under the lognormal likelihood
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>q</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat{q}</annotation></semantics></math>
+is the geometric mean of Walters and Ludwig (1994), adjusted for the
+bias correction. With
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>d</mi><mi>y</mi></msub><mo>=</mo><mi>l</mi><mi>o</mi><mi>g</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>I</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mo>,</mo><mi>y</mi></mrow></msub><mi>/</mi><msub><mover><mi>I</mi><mo accent="true">̃</mo></mover><mrow><msub><mi>f</mi><mi>i</mi></msub><mo>,</mo><mi>y</mi></mrow></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">d_y = log(I_{f_i,y} / \tilde{I}_{f_i,y})</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>b</mi><annotation encoding="application/x-tex">b</annotation></semantics></math>
+= <code>bias_adjust_obs</code> (the lognormal log-scale mean carries
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><mi>b</mi><msup><mi>σ</mi><mn>2</mn></msup><mi>/</mi><mn>2</mn></mrow><annotation encoding="application/x-tex">-b\sigma^2/2</annotation></semantics></math>):</p>
+<ul>
+<li>time-invariant index SD (estimated or analytical):
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>l</mi><mi>o</mi><mi>g</mi><mo stretchy="false" form="prefix">(</mo><msub><mover><mi>q</mi><mo accent="true">̂</mo></mover><msub><mi>f</mi><mi>i</mi></msub></msub><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mfrac><mn>1</mn><mi>n</mi></mfrac><munder><mo>∑</mo><mi>y</mi></munder><msub><mi>d</mi><mi>y</mi></msub><mo>+</mo><mi>b</mi><mspace width="0.167em"></mspace><msubsup><mi>σ</mi><msub><mi>f</mi><mi>i</mi></msub><mn>2</mn></msubsup><mi>/</mi><mn>2</mn></mrow><annotation encoding="application/x-tex">log(\hat{q}_{f_i}) = \frac{1}{n}\sum_y d_y + b\,\sigma^{2}_{f_i}/2</annotation></semantics></math>
+</li>
+<li>index SD input by year:
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>l</mi><mi>o</mi><mi>g</mi><mo stretchy="false" form="prefix">(</mo><msub><mover><mi>q</mi><mo accent="true">̂</mo></mover><msub><mi>f</mi><mi>i</mi></msub></msub><mo stretchy="false" form="postfix">)</mo><mo>=</mo><munder><mo>∑</mo><mi>y</mi></munder><mfrac><msub><mi>d</mi><mi>y</mi></msub><msubsup><mi>σ</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>y</mi></mrow><mn>2</mn></msubsup></mfrac><mi minsize="180%" maxsize="180%" stretchy="true">/</mi><munder><mo>∑</mo><mi>y</mi></munder><mfrac><mn>1</mn><msubsup><mi>σ</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>y</mi></mrow><mn>2</mn></msubsup></mfrac><mo>+</mo><mi>b</mi><mspace width="0.167em"></mspace><msubsup><mover><mi>σ</mi><mo accent="true">‾</mo></mover><msub><mi>f</mi><mi>i</mi></msub><mn>2</mn></msubsup><mi>/</mi><mn>2</mn><mo>,</mo><mspace width="2.0em"></mspace><msubsup><mover><mi>σ</mi><mo accent="true">‾</mo></mover><msub><mi>f</mi><mi>i</mi></msub><mn>2</mn></msubsup><mo>=</mo><mi>n</mi><mi minsize="180%" maxsize="180%" stretchy="true">/</mi><munder><mo>∑</mo><mi>y</mi></munder><mfrac><mn>1</mn><msubsup><mi>σ</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>y</mi></mrow><mn>2</mn></msubsup></mfrac></mrow><annotation encoding="application/x-tex">log(\hat{q}_{f_i}) = \sum_y \frac{d_y}{\sigma^{2}_{f_iy}} \Big/ \sum_y \frac{1}{\sigma^{2}_{f_iy}} + b\,\bar{\sigma}^{2}_{f_i}/2, \qquad \bar{\sigma}^{2}_{f_i} = n \Big/ \sum_y \frac{1}{\sigma^{2}_{f_iy}}</annotation></semantics></math>
+the harmonic mean of the yearly variances.</li>
+</ul>
+<p>With <code>Estimate_index_sd = 2</code> the variance is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>σ</mi><msub><mi>f</mi><mi>i</mi></msub><mn>2</mn></msubsup><mo>=</mo><mfrac><mn>1</mn><mi>n</mi></mfrac><msub><mo>∑</mo><mi>y</mi></msub><mo stretchy="false" form="prefix">(</mo><msub><mi>d</mi><mi>y</mi></msub><mo>−</mo><mover><mi>d</mi><mo accent="true">‾</mo></mover><msup><mo stretchy="false" form="postfix">)</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\sigma^{2}_{f_i} = \frac{1}{n}\sum_y (d_y - \bar{d})^2</annotation></semantics></math>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>d</mi><mo accent="true">‾</mo></mover><annotation encoding="application/x-tex">\bar{d}</annotation></semantics></math>
+the mean of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>d</mi><mi>y</mi></msub><annotation encoding="application/x-tex">d_y</annotation></semantics></math>,
+so
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>q</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat{q}</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>σ</mi><annotation encoding="application/x-tex">\sigma</annotation></semantics></math>
+are their joint maximum likelihood estimate.</p>
+<p>Walters, C. and Ludwig, D. (1994) ‘Calculation of Bayes posterior
+probability distributions for key population parameters’, <em>Canadian
+Journal of Fisheries and Aquatic Sciences</em>, 51(3), pp. 713-722, <a href="doi:10.1139/f94-071" class="uri">doi:10.1139/f94-071</a>.</p>
+<p>Under the Normal likelihood, with the absolute SD
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>σ</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>y</mi></mrow></msub><annotation encoding="application/x-tex">\sigma_{f_iy}</annotation></semantics></math>
+input by year or estimated,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>q</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat{q}</annotation></semantics></math>
+is the weighted least-squares estimate:
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mi>q</mi><mo accent="true">̂</mo></mover><msub><mi>f</mi><mi>i</mi></msub></msub><mo>=</mo><munder><mo>∑</mo><mi>y</mi></munder><mfrac><mrow><msub><mi>I</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mo>,</mo><mi>y</mi></mrow></msub><mspace width="0.167em"></mspace><msub><mover><mi>I</mi><mo accent="true">̃</mo></mover><mrow><msub><mi>f</mi><mi>i</mi></msub><mo>,</mo><mi>y</mi></mrow></msub></mrow><msubsup><mi>σ</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>y</mi></mrow><mn>2</mn></msubsup></mfrac><mi minsize="180%" maxsize="180%" stretchy="true">/</mi><munder><mo>∑</mo><mi>y</mi></munder><mfrac><msubsup><mover><mi>I</mi><mo accent="true">̃</mo></mover><mrow><msub><mi>f</mi><mi>i</mi></msub><mo>,</mo><mi>y</mi></mrow><mn>2</mn></msubsup><msubsup><mi>σ</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>y</mi></mrow><mn>2</mn></msubsup></mfrac></mrow><annotation encoding="application/x-tex">\hat{q}_{f_i} = \sum_y \frac{I_{f_i,y}\,\tilde{I}_{f_i,y}}{\sigma^{2}_{f_iy}} \Big/ \sum_y \frac{\tilde{I}^{2}_{f_i,y}}{\sigma^{2}_{f_iy}}</annotation></semantics></math>
+Under MVN and MVNORM, with the fleet’s covariance
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi mathvariant="normal">Σ</mi><msub><mi>f</mi><mi>i</mi></msub></msub><annotation encoding="application/x-tex">\Sigma_{f_i}</annotation></semantics></math>
+over the same years, it is the generalized least-squares estimate:
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mi>q</mi><mo accent="true">̂</mo></mover><msub><mi>f</mi><mi>i</mi></msub></msub><mo>=</mo><mfrac><mrow><msubsup><mover><mi>I</mi><mo accent="true">̃</mo></mover><msub><mi>f</mi><mi>i</mi></msub><mo>′</mo></msubsup><msubsup><mi mathvariant="normal">Σ</mi><msub><mi>f</mi><mi>i</mi></msub><mrow><mi>−</mi><mn>1</mn></mrow></msubsup><msub><mi>I</mi><msub><mi>f</mi><mi>i</mi></msub></msub></mrow><mrow><msubsup><mover><mi>I</mi><mo accent="true">̃</mo></mover><msub><mi>f</mi><mi>i</mi></msub><mo>′</mo></msubsup><msubsup><mi mathvariant="normal">Σ</mi><msub><mi>f</mi><mi>i</mi></msub><mrow><mi>−</mi><mn>1</mn></mrow></msubsup><msub><mover><mi>I</mi><mo accent="true">̃</mo></mover><msub><mi>f</mi><mi>i</mi></msub></msub></mrow></mfrac></mrow><annotation encoding="application/x-tex">\hat{q}_{f_i} = \frac{\tilde{I}_{f_i}' \Sigma_{f_i}^{-1} I_{f_i}}{\tilde{I}_{f_i}' \Sigma_{f_i}^{-1} \tilde{I}_{f_i}}</annotation></semantics></math>
+A TruncatedNormal likelihood has no closed-form
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>q</mi><annotation encoding="application/x-tex">q</annotation></semantics></math>,
+because its truncation term depends on
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>q</mi><annotation encoding="application/x-tex">q</annotation></semantics></math>,
+so <code><a href="../reference/data_check.html">data_check()</a></code> refuses <code>Catchability = 3</code>
+there.</p>
+<p>Each estimate is solved for the current values of the other
+parameters, random effects included. With random effects it is therefore
+not the
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>q</mi><annotation encoding="application/x-tex">q</annotation></semantics></math>
+that maximizes the likelihood with them integrated out, and its
+objective should not be compared with that of a fit that estimates
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>q</mi><annotation encoding="application/x-tex">q</annotation></semantics></math>.
+The MVN/MVNORM estimate is not forced positive: with a strongly
+correlated
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi mathvariant="normal">Σ</mi><annotation encoding="application/x-tex">\Sigma</annotation></semantics></math>
+it can go negative at parameter values far from the best fit.</p>
 </div>
 <div class="section level4">
 <h4 id="time-varying-catchability-formulations">Time-varying catchability formulations<a class="anchor" aria-label="anchor" href="#time-varying-catchability-formulations"></a>

@@ -87,6 +87,13 @@ you specify, re-fits the EM every `assessment_period` years, and applies
 the EM’s HCR back to the OM. `nsim` sets the number of stochastic
 trajectories.
 
+Parameters you fixed in the EM’s map that Rceattle would otherwise
+estimate stay fixed at each re-fit, and
+[`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
+reports how many; see
+[`?run_mse`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
+for years after the EM’s `endyr` and what does not carry forward.
+
 #### Check `endyr` before you start
 
 The OM and the EM must share a terminal year and a projection horizon;

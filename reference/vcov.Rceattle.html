@@ -11,7 +11,7 @@ use object$sdrep for the full report."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.66.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.67.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -57,7 +57,7 @@ use object$sdrep for the full report."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Variance-covariance matrix for an Rceattle fit</h1>
-      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.66.1/R/0-rceattle_class.R" class="external-link"><code>R/0-rceattle_class.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.67.3/R/0-rceattle_class.R" class="external-link"><code>R/0-rceattle_class.R</code></a></small>
       <div class="d-none name"><code>vcov.Rceattle.Rd</code></div>
     </div>
 
@@ -87,8 +87,9 @@ use <code>object$sdrep</code> for the full report.</p>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A numeric matrix, or <code>NULL</code> if <code>sdreport</code> was not run
-(i.e. the fit was produced with <code>getsd = FALSE</code>).</p>
+    <p>A numeric matrix, or <code>NULL</code> if <code>sdreport</code> was not run (the fit was
+produced with <code>getsd = FALSE</code>) or is a retrospective peel whose standard
+errors are not usable (<code>attr(peel, "sd_report_error")</code>).</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

@@ -25,5 +25,6 @@ vcov(object, ...)
 
 ## Value
 
-A numeric matrix, or `NULL` if `sdreport` was not run (i.e. the fit was
-produced with `getsd = FALSE`).
+A numeric matrix, or `NULL` if `sdreport` was not run (the fit was
+produced with `getsd = FALSE`) or is a retrospective peel whose standard
+errors are not usable (`attr(peel, "sd_report_error")`).

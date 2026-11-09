@@ -147,6 +147,15 @@ fitted deviations are no longer what generated the data.
 
 ## Details
 
+Each simulation refits under the fit's own map, so a parameter fixed
+there keeps its value and is not estimated. A projection-only fit
+(`estimateMode = "Projection"`) refits under a rebuilt map.
+`self_test()` warns if `process` redraws a deviation that the fit's map
+fixes and
+[`build_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md)
+would estimate: the refit holds it at the fit's value, so cannot recover
+the draw.
+
 **What `start` costs.** `"initial"` uses `initial_params`, so the
 estimator travels the same distance to the optimum on simulated data as
 it did on the real data. `"estimated"` starts from the generating values

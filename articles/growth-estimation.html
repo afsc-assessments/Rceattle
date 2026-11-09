@@ -21,7 +21,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.66.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.67.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -80,7 +80,7 @@
       <h1>Growth estimation with linkages and priors</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.66.1/vignettes/growth-estimation.Rmd" class="external-link"><code>vignettes/growth-estimation.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.67.3/vignettes/growth-estimation.Rmd" class="external-link"><code>vignettes/growth-estimation.Rmd</code></a></small>
       <div class="d-none name"><code>growth-estimation.Rmd</code></div>
     </div>
 
@@ -112,6 +112,11 @@ plus the stock assessment inputs needed to estimate growth.</p>
 <span><span class="co"># Use logistic selectivity for all fleets in this example.</span></span>
 <span><span class="va">whamGrowthData</span><span class="op">$</span><span class="va">fleet_control</span><span class="op">$</span><span class="va">Selectivity</span> <span class="op">&lt;-</span> <span class="st">"Logistic"</span></span>
 <span><span class="va">whamGrowthData</span><span class="op">$</span><span class="va">fleet_control</span><span class="op">$</span><span class="va">Selectivity_dimension</span> <span class="op">&lt;-</span> <span class="st">"Length"</span></span></code></pre></div>
+<p>CAAL data need a length-based fleet, because they are predicted from
+selectivity-at-length. A fleet with selectivity at age, including any
+<code>Selectivity = "Fixed"</code> fleet, can still fit age and length
+comps here, predicted from selectivity-at-age through the estimated
+age-length key, but its CAAL data inform nothing.</p>
 </div>
 <div class="section level2">
 <h2 id="build-a-growth-model-with-linkages">Build a growth model with linkages<a class="anchor" aria-label="anchor" href="#build-a-growth-model-with-linkages"></a>

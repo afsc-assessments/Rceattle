@@ -105,6 +105,15 @@ reported in a message, so both can be shorter than `njitter`, and that
 count is itself the result, since the whole point is what fraction of
 random starts reach the same optimum.
 
+## Details
+
+Each start refits under the fit's own map, so a parameter fixed there
+keeps its value and is not estimated. The objectives do not compare with
+the fit's if it used `fit_mod(bounds = )` (a refit rebuilds the bounds)
+or is projection-only (`estimateMode = "Projection"`). A projection-only
+fit refits under a rebuilt map, and its starts are not perturbed unless
+it was fitted under a supplied map.
+
 ## Note
 
 Attaching Rceattle masks [`jitter`](https://rdrr.io/r/base/jitter.html),

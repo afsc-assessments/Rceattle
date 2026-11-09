@@ -755,7 +755,11 @@ harvest control rule takes over after it, so each peel has three years:
 `incl_proj = TRUE` plots the forecast and projection years. Take the
 forecast years as `endyr_peel + seq_len(endyr_full - endyr_peel)`, empty
 for the unpeeled model, where `(endyr_peel + 1):endyr_full` would count
-down instead.
+down instead. Under `getsd = TRUE`, a band in a forecast year treats
+that year’s catch as known and its F as inferred from it, so it carries
+the hindcast’s uncertainty forward through the F needed to take that
+catch. It does not include recruitment variability in the forecast
+years, so it is narrower than a forecast’s prediction interval.
 
 The
 [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md)
@@ -764,25 +768,52 @@ function returns a list with two elements:
 | Element | Description |
 |----|----|
 | `Rceattle_list` | List of fitted models, ordered from most-peeled to full run, each named for its own terminal year (`Year_2013`, …, `Year_2017`) |
-| `mohns` | Data frame with columns `Object` (quantity, e.g. `"Biomass"`, `"SSB"`), `Forecast year` (0 = terminal year bias; 1+ = forecast skill), `N` (number of peels), and one column per species with mean relative error (Mohn’s rho) |
+| `mohns` | Data frame with columns `Object` (quantity: `"biomass"`, `"ssb"`, `"R"`, `"F_spp"`), `Forecast year` (0 = terminal year bias; 1+ = forecast skill), `N` (peels used in that row), and one column per species with mean relative error (Mohn’s rho) |
 
 The `nyrs_forecast` argument (default 3) also evaluates rho for years
 projected beyond each terminal peel, so a single call quantifies
 forecast skill alongside retrospective bias.
 
-A peel that did not converge is dropped and a warning reports how many,
-so `Rceattle_list` can be shorter than `peels + 1`. Index it by name
-rather than position, with a peel missing, `Rceattle_list[[3]]` is not
-the 3-year peel. If no peel converges, Mohn’s rho is `NaN` and the call
-warns.
+A peel whose hindcast did not converge is dropped and a warning reports
+how many, so `Rceattle_list` can be shorter than `peels + 1`. Index it
+by name rather than position, with a peel missing, `Rceattle_list[[3]]`
+is not the 3-year peel. If no peel converges, Mohn’s rho is `NaN` and
+the call warns.
 
-A separate warning means something different: under `getsd = TRUE` a
-peel whose standard errors could not be rebuilt is **kept**, with its
-point estimates intact and no `sdrep` at all, so its uncertainty band is
-absent rather than drawn at zero width. Mohn’s rho reads point estimates
-only and is unaffected. [`print()`](https://rdrr.io/r/base/print.html)
-reports how many peels that happened to, and each carries the reason in
-`attr(peel, "sd_report_error")`.
+A peel whose forecast refit alone did not converge, or left a peeled F
+at a bound, is kept, with no warning. That refit estimates only the
+peeled years’ F with the hindcast held fixed, so its hindcast is valid
+and it counts in terminal-year Mohn’s rho. F was not fitted to the
+peeled catch, though, so the peel is left out of the `$mohns` rows with
+`Forecast year` above 0: their `N` is smaller,
+[`print()`](https://rdrr.io/r/base/print.html) says how many peels this
+affects, and `attr(peel, "forecast_refit_error")` gives the reason.
+[`plot_biomass()`](https://afsc-assessments.github.io/Rceattle/reference/plot_biomass.md)
+and the other
+[`plot_timeseries()`](https://afsc-assessments.github.io/Rceattle/reference/plot_timeseries.md)
+wrappers still draw that peel’s forecast years under `incl_proj = TRUE`
+or a later `maxyr`, and warn when they do;
+[`plot_catch()`](https://afsc-assessments.github.io/Rceattle/reference/plot_catch.md)
+and the other plotters draw them without a warning.
+
+Under `getsd = TRUE` (the default when the input model has standard
+errors), each peel’s standard errors are calculated separately after its
+two fits. If that calculation fails, the peel is **kept**, unlike a
+hindcast that does not converge: its point estimates stand and
+`peel$sdrep` holds what
+[`TMB::sdreport()`](https://rdrr.io/pkg/TMB/man/sdreport.html) returned
+(`NULL` if the calculation errored before that). With a Hessian that is
+not positive definite those numbers are not valid standard errors, so
+[`plot_biomass()`](https://afsc-assessments.github.io/Rceattle/reference/plot_biomass.md),
+[`as.data.frame()`](https://rdrr.io/r/base/as.data.frame.html) and
+[`vcov()`](https://rdrr.io/r/stats/vcov.html) read none of them. This
+raises no warning, because Mohn’s rho reads point estimates only.
+[`print()`](https://rdrr.io/r/base/print.html) says how many peels have
+no usable standard errors, and
+`lapply(model_1_retro$Rceattle_list, attr, "sd_report_error")` gives the
+reason for each (`NULL` for peels that have a band).
+`plot_biomass(model_1_retro$Rceattle_list, add_ci = TRUE)` draws bands
+for the other peels and warns about this one with that reason.
 
 ## Jitter testing
 
@@ -790,7 +821,15 @@ Jitter testing re-fits the model from many randomly perturbed starting
 values and checks whether the optimizer keeps returning the same minimum
 negative log-likelihood (NLL). A spread of NLL values across jitters
 points to multiple local minima, so the results should be treated with
-caution.
+caution. Each start re-fits under the fit’s own map (which parameters
+are estimated and which are fixed), so a parameter you fixed keeps its
+value and is not estimated, and the NLL values compare with the fit’s
+unless it used `fit_mod(bounds = )`. A projection-only fit
+(`estimateMode = "Projection"`) re-fits under the default map from
+[`build_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md),
+so nothing fixed in its map carries over and its NLL values do not
+compare; see
+[`?jitter`](https://afsc-assessments.github.io/Rceattle/reference/jitter.md).
 
 ``` r
 
@@ -836,7 +875,8 @@ parameters fixed) and re-fits the model to each. If the refit estimates
 cluster around the values used to simulate them, the model is at least
 self-consistent: it can recover its own estimates from data it
 generated. Persistent bias or a wide spread in a quantity means the data
-are not informative about it.
+are not informative about it. Each simulation re-fits under the fit’s
+own map, so a parameter you fixed keeps its value and is not estimated.
 
 ``` r
 
@@ -907,12 +947,14 @@ actually occupy, and draws from it by inverse CDF. Draw and likelihood
 then agree exactly and no draw is ever rejected. `"Normal"` is kept
 untruncated because it reproduces the AMAK `avo_like` / `cpue_like` term
 for term, which is what an ADMB bridge compares against; use it there
-and `"TruncatedNormal"` elsewhere. `MVN`/`MVNORM` have no such option: a
-multivariate normal truncated to the positive orthant has no closed-form
-sampler, so rejection is the only route and the gap stays. Either way
-the underlying issue is the same, an absolute sd that large relative to
-the index means the natural-scale normal was a poor observation model to
-begin with.
+and `"TruncatedNormal"` elsewhere
+([`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
+refuses `"TruncatedNormal"` with `Catchability = "Analytical"`).
+`MVN`/`MVNORM` have no such option: a multivariate normal truncated to
+the positive orthant has no closed-form sampler, so rejection is the
+only route and the gap stays. Either way the underlying issue is the
+same, an absolute sd that large relative to the index means the
+natural-scale normal was a poor observation model to begin with.
 
 `"TruncatedNormal"` OSA residuals need one thing said about them. The
 truncation constant is a function of the prediction, not of the
@@ -958,7 +1000,9 @@ random linkage (see
 [`vignette("environmental-linkages-and-priors")`](https://afsc-assessments.github.io/Rceattle/articles/environmental-linkages-and-priors.md)).
 A process the model gives no distribution to (asking for M when
 `M1_re = 0`, say) is left alone and reported in a warning rather than
-silently returned unchanged.
+silently returned unchanged. Redrawing a deviation the fit’s map fixes
+also warns, because the refit holds it fixed and cannot recover the
+draw.
 
 Recruitment has one such case worth knowing about. Under `srr_fun = 0`
 with `srr_pred_fun > 0` (the AMAK/Ianelli configuration, where
