@@ -127,21 +127,23 @@ NULL
 #' @param truths List of each replicate's `process_sim`, `NULL` where nothing was drawn.
 #' @noRd
 .warn_redrawn_holds <- function(object, truths) {
-  truth <- Find(Negate(is.null), truths)
-  if (is.null(truth)) return(invisible(NULL))
+  drawn_reps <- truths[!vapply(truths, is.null, logical(1))]
+  if (!length(drawn_reps)) return(invisible(NULL))
+  truth <- drawn_reps[[1]]
   # A saved fit too old for build_map() cannot say what it fixes; a warning check must not
   # cost the finished replicates.
   holds <- tryCatch(.map_holds(object), error = function(e) list())
-  drawn_mask <- function(nm) {
-    if (!nm %in% c("beta_linkage_re", "beta_linkage_re_pen")) {
-      return(truth[[paste0(nm, "_drawn")]])
+  redrawn <- character(0)
+  for (nm in names(holds)) {
+    if (nm %in% c("beta_linkage_re", "beta_linkage_re_pen")) {
+      integrated <- .re_slot_routing(object[["data_list"]][["linkage_table"]])[["integrate"]]
+      in_this_vector <- if (nm == "beta_linkage_re") integrated else !integrated
+      drawn <- truth[["beta_linkage_re_drawn"]][in_this_vector]
+    } else {
+      drawn <- truth[[paste0(nm, "_drawn")]]
     }
-    integrated <- .re_slot_routing(object[["data_list"]][["linkage_table"]])[["integrate"]]
-    in_this_vector <- if (nm == "beta_linkage_re") integrated else !integrated
-    truth[["beta_linkage_re_drawn"]][in_this_vector]
+    if (isTRUE(any(drawn[holds[[nm]]]))) redrawn <- c(redrawn, nm)
   }
-  was_redrawn <- function(nm) any(drawn_mask(nm)[holds[[nm]]])
-  redrawn <- Filter(was_redrawn, names(holds))
   if (length(redrawn)) {
     warning("self_test() redrew deviations the fit's map fixes, in: ",
             paste(redrawn, collapse = ", "), ". The refit keeps them fixed at the fit's values, so ",
