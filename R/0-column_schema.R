@@ -575,7 +575,7 @@
   c("comp_data",       "Survey/fishery age or length composition data. Note if sex is 3, put female composition data then male composition data (similar to SS)."),
   c("caal_data",       "Survey/fishery CAAL data. Note if sex is 3, put female CAAL data then male CAAL data (similar to SS)."),
   c("emp_sel",         "Empirical/fixed selectivity for surveys and fisheries (leave empty if not used)"),
-  c("age_trans_matrix","Age transition matrix (e.g. growth trajectory) used to convert age to length for length comp data. The model reads it only under empirical growth (growth_model = 0), estimated growth using its own age-length key, but the sheet is still required. \r\nCan have multiple matrices for a species specified by Age_transition_index."),
+  c("age_trans_matrix","Age transition matrix (e.g. growth trajectory) used to convert age to length for length comp data. The model reads it only under empirical growth (growth_model = 0), parametric growth (growth_model > 0) using its own age-length key, but the sheet is still required. \r\nCan have multiple matrices for a species specified by Age_transition_index."),
   c("age_error",       "Aging error matrices. One per species by default; give several and select them per fleet with 'Ageing_error_index' in both this table and 'fleet_control'."),
   c("weight",          "Time-invariant or -varying empirical weight-at-age for calculation of derived quantities (SSB, Consumption/Ration, Suitability, Total Catch, Survey Biomass, etc). \r\nCan have multiple weight-at-age data-sets for each species."),
   c("maturity",        "Maturity-at-age for each species"),
