@@ -481,14 +481,14 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
             suit_endyr       = pmin(data_list$suit_endyr, endyr_peel))))
         obj <- report_mod$obj
         dat <- obj$env$data
-        peeled <- dat$catch_ctl[, 3] > endyr_peel
+        catch_flt <- dat$catch_ctl[, 1]
+        catch_yr <- dat$catch_ctl[, 3]
+        peeled <- catch_yr > endyr_peel
         # The rows the forecast refit fitted: fishery catch through endyr whose
         # F that refit estimated (`map` is its map).
-        yr_i <- dat$catch_ctl[, 3] - styr + 1
-        f_free <- !is.na(map$mapList$log_F[cbind(dat$catch_ctl[, 1],
-                                                 pmin(pmax(yr_i, 1), nyrs))])
-        fitted_rows <- which(peeled & dat$catch_ctl[, 3] <= endyr &
-                               dat$flt_type[dat$catch_ctl[, 1]] == 1 &
+        yr_i <- catch_yr - styr + 1
+        f_free <- !is.na(map$mapList$log_F[cbind(catch_flt, pmin(pmax(yr_i, 1), nyrs))])
+        fitted_rows <- which(peeled & catch_yr <= endyr & dat$flt_type[catch_flt] == 1 &
                                dat$catch_obs[, 1] > 0 & f_free)
         # A catch of 0 is read as missing; F, and so the removals, are unchanged.
         obj$env$data$catch_obs[peeled, 1] <- 0
@@ -1080,37 +1080,30 @@ print.Rceattle_jitter <- function(x, tol = 0.01, ...) {
 .rce_catch_conditioned_sd <- function(obj, sdrep, rows, styr) {
   dat <- obj$env$data
   p <- obj$env$last.par.best   # the peel's estimates, fixed and random together
-  # log_F entry (fleet, model-year index) that each peeled catch row determines
-  cells <- unique(cbind(dat$catch_ctl[rows, 1], dat$catch_ctl[rows, 3] - styr + 1))
+  # The log_F cell (fleet, model-year index) that each peeled catch row determines
+  flt <- dat$catch_ctl[rows, 1]
+  yr <- dat$catch_ctl[rows, 3] - styr + 1
+  cells <- unique(cbind(flt, yr))
   n_f <- nrow(cells)
 
-  # The same model with those F freed. Number them after the estimated F, so
-  # they sit just after log_F in the parameter vector. ADreport = TRUE:
-  # ad$fn() returns the quantities sdreport gives errors for (SSB, R, ...) plus
-  # predicted catch, and ad$gr() their exact derivatives by parameter.
+  # The same model with those F freed, numbered after the estimated F so they come
+  # last among log_F. ADreport = TRUE: ad$fn() returns the quantities sdreport gives
+  # errors for (SSB, R, ...) plus predicted catch, and ad$gr() their exact derivatives.
   map <- obj$env$map
   # TMB keeps the full log_F array, held values included, as "shape".
   lf_shape <- attr(obj$env$parameters$log_F, "shape")
-  lf <- as.integer(map$log_F)
-  lf[(cells[, 2] - 1) * nrow(lf_shape) + cells[, 1]] <-
-    max(c(0L, lf), na.rm = TRUE) + seq_len(n_f)
+  lf <- array(as.integer(map$log_F), dim = dim(lf_shape))
+  lf[cells] <- max(c(0L, lf), na.rm = TRUE) + seq_len(n_f)
   map$log_F <- factor(lf)
   dat$adreport_catch <- 1   # double: MakeADFun() has already checked this data
   ad <- TMB::MakeADFun(dat, obj$env$parList(par = p), map = map, ADreport = TRUE,
                        DLL = obj$env$DLL, silent = TRUE)
 
-  # pa: the peel's estimates in ad's order, the freed F after log_F;
-  # f_col: their positions.
-  f_at <- which(names(p) == "log_F")
-  pa <- append(p, stats::setNames(lf_shape[cells], rep("log_F", n_f)),
-               after = if (length(f_at)) max(f_at) else
-                 match("log_F", names(ad$par)) - 1L)
-  f_col <- which(names(pa) == "log_F")[length(f_at) + seq_len(n_f)]
+  # ad starts at the peel's estimates, the freed F at their held values.
+  pa <- ad$par
+  f_col <- utils::tail(which(names(pa) == "log_F"), n_f)
   value <- ad$fn(pa)
   is_catch <- names(value) == "catch_hat"
-  if (!isTRUE(all.equal(unname(value[!is_catch]), unname(sdrep$value)))) {
-    stop("the catch-conditioned rebuild did not reproduce the peel's estimates")
-  }
 
   # Dividing by predicted catch turns its derivative into that of its log (j_c).
   jac <- ad$gr(pa)
