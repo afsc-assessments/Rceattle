@@ -23,6 +23,9 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
 * The `age_trans_matrix` description, in `?BS2017SS` and the workbook's `meta_data`
   sheet, says any parametric growth (`growth_model > 0`), estimated or fixed, uses its
   own age-length key, not only estimated growth.
+* `?retrospective`: Value lists what is returned (`Rceattle_list`, `mohns`,
+  `peels_requested`); which peels are kept, the years each carries, and the catchability
+  note move to Details.
 
 # Rceattle 5.67.2
 

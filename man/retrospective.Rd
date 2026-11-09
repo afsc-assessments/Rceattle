@@ -48,52 +48,23 @@ deliberately.}
 scripts keep working. Supplying both is an error.}
 }
 \value{
-a list of 1. a list of Rceattle models and 2. Mohn's rho per species.
-
-A peel whose hindcast did not converge is dropped, with a warning, so
-\code{Rceattle_list} can be shorter than \code{peels + 1}. A peel whose forecast
-refit did not fit F to the peeled catch (gradient check, or a peeled F at a bound)
-is kept without a warning: its terminal-year Mohn's rho stands, but it is left out
-of the \code{$mohns} rows with \code{Forecast year} above 0 (\code{N} counts the
-peels used). Check \code{attr(peel, "forecast_refit_error")} before reading its
-forecast years or their standard errors; \code{print()} counts such peels, and
-\code{plot_timeseries()} and its wrappers warn when they draw those years.
-Entries are named for their own terminal year (\code{Year_2017}, ...), so index by name:
-\code{Rceattle_list[[3]]} is not necessarily the 3-year peel. With no peel
-left, rho is \code{NaN} and the function warns. Each peel reports its own
-terminal year as \code{data_list$endyr}, so plots draw it only as far as it
-was fit.
-
-A peel still estimates the years it dropped: that is its retrospective
-forecast, fit to observed catch with the survey and composition data
-withheld. Its recruitment deviation is the one \code{\link[=sample_rec]{sample_rec()}} sets with
-\code{sample_rec = FALSE}, computed from the peel's own fit. Three years matter,
-and every peel carries all three:
+An \code{Rceattle_retro} list:
 \describe{
-\item{\code{endyr}, \code{endyr_peel}}{the peel's terminal year, what it
-was fit through. Equal to each other.}
-\item{\code{endyr_full}}{the unpeeled model's terminal year, where the
-retrospective forecast ends.}
-\item{\code{projyr}}{the end of the harvest-control-rule projection.}
+\item{\code{Rceattle_list}}{the unpeeled model and each kept peel, named for its
+own terminal year (\code{Year_2017}, ...). Index by name: the list runs from the
+deepest peel to the unpeeled model, and a dropped peel leaves a gap, so it can
+be shorter than \code{peels + 1} and \code{Rceattle_list[[3]]} is not in general
+the 3-year peel. Each
+peel reports its terminal year as \code{data_list$endyr}, so plots draw it only
+as far as it was fit.}
+\item{\code{mohns}}{Mohn's rho by \code{Object} and \code{Forecast year}, one
+column per species, with \code{N} the number of peels averaged. With no peel
+left it is \code{NaN}, and the function warns.}
+\item{\code{peels_requested}}{the \code{peels} asked for.}
 }
-A peel whose standard errors are not usable carries
-\code{attr(peel, "sd_report_error")}, a one-line reason naming the peel and
-its terminal year; it is absent on every other peel.
-
-Take the forecast years as
-\code{endyr_peel + seq_len(endyr_full - endyr_peel)}, which is empty for the
-unpeeled model, rather than \code{(endyr_peel + 1):endyr_full}, which counts
-\emph{down} there. Mohn's rho is computed from \code{endyr_peel} and is
-unaffected by any of this.
-
-Catchability is estimated only for a fleet holding fitted index rows (see
-\code{\link{build_map}}), and a peel moves \code{endyr}, so a survey whose
-index observations all fall in the peeled-off years has no q estimated in
-that peel: the parameter count is not constant across peels. That is
-deliberate, since a q with no index to inform it is a flat direction in the
-likelihood. Rho is computed from SSB and is unaffected, but \code{npar} and
-the reported catchability do differ between a shallow and a deep peel for
-such a fleet.
+A peel can carry \code{attr(peel, "forecast_refit_error")} or
+\code{attr(peel, "sd_report_error")}, each a one-line reason naming the peel and its
+terminal year (see Details); each is absent on every other peel.
 }
 \description{
 Calculate Mohn's rho and run retrospective peels for an Rceattle
@@ -140,6 +111,39 @@ point estimates and Mohn's rho are unaffected.
 Mohn's rho reads point estimates, so \code{getsd = FALSE} is faster, but \code{TRUE} also drops
 a peel whose hindcast Hessian is not positive definite, so the two can average over
 different peels.
+
+A peel whose hindcast did not converge is dropped, with a warning. A peel whose
+forecast refit did not fit F to the peeled catch (gradient check, or a peeled F at a
+bound) is kept without a warning: its terminal-year Mohn's rho stands, but it is left
+out of the \code{$mohns} rows with \code{Forecast year} above 0 (\code{N} counts the
+peels used). Check \code{attr(peel, "forecast_refit_error")} before reading its
+forecast years or their standard errors; \code{print()} counts such peels, and
+\code{plot_timeseries()} and its wrappers warn when they draw those years.
+
+A peel still estimates the years it dropped: that is its retrospective forecast, fit
+to observed catch with the survey and composition data withheld. Its recruitment
+deviation is the one \code{\link[=sample_rec]{sample_rec()}} sets with \code{sample_rec = FALSE}, computed from the
+peel's own fit. Three years matter, and every peel's \code{data_list} carries all
+three:
+\describe{
+\item{\code{endyr}, \code{endyr_peel}}{the peel's terminal year, what it was fit
+through. Equal to each other.}
+\item{\code{endyr_full}}{the unpeeled model's terminal year, where the
+retrospective forecast ends.}
+\item{\code{projyr}}{the end of the harvest-control-rule projection.}
+}
+Take the forecast years as \code{endyr_peel + seq_len(endyr_full - endyr_peel)},
+which is empty for the unpeeled model, rather than \code{(endyr_peel + 1):endyr_full},
+which counts \emph{down} there. Mohn's rho is computed from \code{endyr_peel} and is
+unaffected by any of this.
+
+Catchability is estimated only for a fleet holding fitted index rows (see
+\code{\link{build_map}}), and a peel moves \code{endyr}, so a survey whose index
+observations all fall in the peeled-off years has no q estimated in that peel: the
+parameter count is not constant across peels. That is deliberate, since a q with no
+index to inform it is a flat direction in the likelihood. Rho is computed from SSB and
+is unaffected, but \code{npar} and the reported catchability do differ between a
+shallow and a deep peel for such a fleet.
 }
 \examples{
 \donttest{
