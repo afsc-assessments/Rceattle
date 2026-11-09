@@ -2614,22 +2614,27 @@ data_check <- function(data_list) {
 }
 
 
-# Ftarget, Flimit and projected F read the terminal hindcast year's selectivity, and a
-# Fixed fleet has none for a sex with no emp_sel row in that year.
+#' Warn where a Fixed fishery has no selectivity for a sex in endyr
+#'
+#' Ftarget, Flimit and projected F read the terminal hindcast year's selectivity, and a
+#' Fixed fleet has none for a sex with no emp_sel row in that year.
+#'
+#' @param data_list Rceattle data list.
+#' @noRd
 .warn_fixed_fishery_endyr <- function(data_list) {
-  fc <- data_list$fleet_control
-  es <- data_list$emp_sel
-  in_endyr <- es$Year %in% c(0, data_list$endyr)
-  fishery <- .canon_switch(fc$Fleet_type, .rce_allowed_map("Fleet_type")) == "Fishery"
-  candidates <- which(fishery & .rce_is_fixed_sel(fc$Selectivity))
+  fc <- data_list[["fleet_control"]]
+  es <- data_list[["emp_sel"]]
+  in_endyr <- es[["Year"]] %in% c(0, data_list[["endyr"]])
+  fishery <- .canon_switch(fc[["Fleet_type"]], .rce_allowed_map("Fleet_type")) == "Fishery"
+  candidates <- which(fishery & .rce_is_fixed_sel(fc[["Selectivity"]]))
   bad <- vapply(candidates, function(i) {
-    sexes <- es$Sex[in_endyr & es$Fleet_code == fc$Fleet_code[i]]
-    !(0 %in% sexes || all(seq_len(data_list$nsex[fc$Species[i]]) %in% sexes))
+    sexes <- es[["Sex"]][in_endyr & es[["Fleet_code"]] == fc[["Fleet_code"]][i]]
+    !(0 %in% sexes || all(seq_len(data_list[["nsex"]][fc[["Species"]][i]]) %in% sexes))
   }, logical(1))
   if (any(bad)) {
     warning(paste0(
-      "Fishery fleet(s) ", paste(fc$Fleet_name[candidates[bad]], collapse = ", "),
-      ", whose Selectivity is 'Fixed', have no emp_sel row for endyr (", data_list$endyr,
+      "Fishery fleet(s) ", paste(fc[["Fleet_name"]][candidates[bad]], collapse = ", "),
+      ", whose Selectivity is 'Fixed', have no emp_sel row for endyr (", data_list[["endyr"]],
       ") for at least one sex, so that sex's selectivity is 0 in that year: the fleet ",
       "takes none of that sex there, and projected F reads the zero (as do Ftarget and ",
       "Flimit when it is the female or only sex). ",
@@ -2640,14 +2645,20 @@ data_check <- function(data_list) {
   invisible(NULL)
 }
 
-# Fixed selectivity is at age whatever Selectivity_dimension says, so CAAL on a Fixed
-# fleet labelled "Length" is as unpredicted as on an age-dimensioned one.
+#' Warn about CAAL data on a Fixed fleet labelled Length
+#'
+#' Fixed selectivity is at age whatever Selectivity_dimension says, so CAAL on a Fixed
+#' fleet labelled "Length" is as unpredicted as on an age-dimensioned one.
+#'
+#' @param fc The fleet_control table.
+#' @param caal_fleets Fleet codes with CAAL rows the fit uses.
+#' @noRd
 .warn_caal_fixed_fleet <- function(fc, caal_fleets) {
-  fixed <- fc$Fleet_code %in% caal_fleets & .rce_is_fixed_sel(fc$Selectivity) &
-    as.character(fc$Selectivity_dimension) %in% "Length"
+  fixed <- fc[["Fleet_code"]] %in% caal_fleets & .rce_is_fixed_sel(fc[["Selectivity"]]) &
+    as.character(fc[["Selectivity_dimension"]]) %in% "Length"
   if (any(fixed)) {
     warning(paste0(
-      "CAAL data on fleet(s) ", paste(fc$Fleet_name[fixed], collapse = ", "),
+      "CAAL data on fleet(s) ", paste(fc[["Fleet_name"]][fixed], collapse = ", "),
       " whose Selectivity is 'Fixed'. Fixed selectivity is always at age, whatever ",
       "Selectivity_dimension says, so the predicted CAAL is zero and these observations ",
       "inform nothing. Give these fleets a Selectivity other than 'Fixed', or exclude ",
@@ -2744,12 +2755,13 @@ data_check <- function(data_list) {
 #' @keywords internal
 #' @noRd
 .check_analytical_q_family <- function(data_list) {
-  fc <- data_list$fleet_control
+  fc <- data_list[["fleet_control"]]
   # Absent on a raw list given straight to data_check(), before switch_check() fills it.
   if (!all(c("Catchability", "Index_distribution") %in% colnames(fc))) return(character(0))
-  bad <- which(fc[["Catchability"]] %in% c("Analytical", 3) &
-               fc[["Index_distribution"]] %in% c("TruncatedNormal", 4) &
-               !(fc[["Fleet_type"]] %in% c("Off", 0)))
+  canon <- function(col) .canon_switch(fc[[col]], .rce_allowed_map(col))
+  bad <- which(canon("Catchability") == "Analytical" &
+               canon("Index_distribution") == "TruncatedNormal" &
+               canon("Fleet_type") != "Off")
   if (!length(bad)) return(character(0))
   paste0("Fleet(s) ", paste(fc[["Fleet_name"]][bad], collapse = ", "),
          " combine Catchability = 'Analytical' with Index_distribution = ",
