@@ -55,7 +55,7 @@ Codes (also accept the string aliases listed):
 
 | Value | Alias | Description |
 |:---:|---|---|
-| `0` | `"FreeParams"` | Initial N-at-age estimated as free parameters |
+| `0` | `"FreeParams"` | Initial N-at-age estimated as free parameters, started at the unfished equilibrium of R0 and female M1 (at log numbers 0, i.e. 1 thousand fish per age, under a single-species stock-recruit curve) |
 | `1` | `"Equilibrium"` | Unfished equilibrium, no init devs, F<sub>init</sub> = 0 |
 | `2` (default) | `"NonEquilibrium"` | Unfished equilibrium with initial deviations |
 | `3` | `"FishedNonEquilibrium"` | Fished non-equilibrium with init devs; F<sub>init</sub> is added to M inside geometric series |
@@ -409,7 +409,7 @@ Set the `Catchability` column of `fleet_control`:
 | `0` | `"Fixed"` | q supplied directly |
 | `1` | `"Estimated"` | q estimated as a free parameter |
 | `2` | `"Estimated-with-prior"` | Estimated with a lognormal prior on q: mean `Catchability_init` (median when `bias_adjust_proc = FALSE`), log-scale SD `Catchability_prior_sd` |
-| `3` | `"Analytical"` | Closed-form analytical q (concentrated likelihood) |
+| `3` | `"Analytical"` | The closed-form maximum likelihood q for the fleet's `Index_distribution` (concentrated likelihood). Refused under `TruncatedNormal`, which has no closed-form q |
 | `4` | `"PowerEquation"` | Power-function catchability (q · B<sup>α</sup>). **Not implemented**: `data_check()` rejects it. |
 | `5` | `"Environmental"` | q linked to an environmental index. **Deprecated in 4.9.0** (recorded in the 5.8.1 notes), express it as a covariate linkage instead: `build_catchability(linkages = list(q = linkage_spec(~ temp, by = ~ fleet)))`. The series is named by `Time_varying_q`, not `Catchability_index`. |
 | `6` | `"AR1"` | **Removed in 5.12.0**: `data_check()` errors on it. It never worked: the log-q deviates were gated on `Time_varying_q`, which under this form holds an `env_data` column index rather than a mode, so q came back constant. Express the Rogers et al. (2024) form as a q linkage instead, see below. |
@@ -426,7 +426,7 @@ residuals and plot intervals are computed.
 | `1` | `"MVN"` | natural | The AMAK/`ebswp` `DoCovBTS = 1` bare quadratic form `0.5 · r' Σ⁻¹ r` on the residual `obs − q·pred`. Drops the normalizing constant, so the reported value matches ADMB. Needs `index_cov`. |
 | `2` | `"MVNORM"` | natural | The full multivariate-normal negative log-density. Identical fit to `"MVN"` (the extra term is constant), but properly normalized. Needs `index_cov`. |
 | `3` | `"Normal"` | natural | Normal on `obs − q·pred`, with `Log_sd` read as an **absolute** natural-scale sd, not a CV. No lognormal bias correction. |
-| `4` | `"TruncatedNormal"` | natural | The same normal, left-truncated at zero. An index cannot be negative, so this is the only natural-scale family whose simulator and likelihood are the same distribution. **Prefer it over `"Normal"`** unless you need an exact ADMB comparison. |
+| `4` | `"TruncatedNormal"` | natural | The same normal, left-truncated at zero. An index cannot be negative, so this is the only natural-scale family whose simulator and likelihood are the same distribution. **Prefer it over `"Normal"`** unless you need an exact ADMB comparison. `data_check()` refuses it with `Catchability = "Analytical"`. |
 
 The `MVN` families read their Σ from `index_cov`, a VAST-derived covariance for
 instance, and pair with the AMAK arithmetic-mean q (`"AnalyticalArith"`).

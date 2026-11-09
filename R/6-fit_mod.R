@@ -798,8 +798,8 @@ fit_mod <-
       # selectivity form ignores, a Laplace request the map cannot honour. Each
       # changes what is estimated, so it has to be seen. De-duplicated because
       # build_map() raises the selectivity ones once per fleet and per sex, and
-      # .refit_like() re-enters fit_mod() once per retrospective peel, jitter
-      # and MSE simulation -- unfiltered, one real warning becomes hundreds of
+      # .refit_like() re-enters fit_mod() at each assessment of each MSE
+      # simulation -- unfiltered, one real warning becomes hundreds of
       # identical lines and stops being read.
       seen <- character(0)
       map <- withCallingHandlers(
@@ -813,6 +813,10 @@ fit_mod <-
           seen <<- c(seen, msg)
         }
       )
+      # An MSE re-assessment keeps what the EM's map fixes (.refit_like() sets this attribute).
+      held <- .apply_map_holds(map, start_par, attr(inits, "rceattle_map_holds"))
+      map <- held[["map"]]
+      start_par <- held[["params"]]
     } else if (isTRUE(data_list$srr_pred_fun > 1) && !is.null(map$mapList$rec_pars)) {
       # A supplied map is used as given; one from a mean-recruitment fit pins
       # alpha and beta while the curve still shapes recruitment.

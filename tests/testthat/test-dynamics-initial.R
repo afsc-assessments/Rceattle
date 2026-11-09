@@ -39,7 +39,10 @@ testthat::test_that("Free parameter initMode", {
                            estimateMode = 3)
 
   natage1 <- mod$quantities$N_at_age[1,1,,1]
-  testthat::expect_equal(as.numeric(natage1), c(exp(9), rep(1, nages-1)))
+  # Ages after recruitment start at the unfished equilibrium of R0's start (log 9) and M1.
+  M <- as.numeric(exp(mod$estimated_params$log_M1[1, 1, 1:nages]))
+  eq <- exp(9 - c(0, cumsum(M[-nages]))); eq[nages] <- eq[nages] / (1 - exp(-M[nages]))
+  testthat::expect_equal(as.numeric(natage1), eq)
 
   testthat::expect_equal(c(mod$map$mapList$init_dev), c(as.numeric(1:(nages-1)), NA))
   testthat::expect_equal(as.numeric(mod$map$mapList$log_Finit), as.numeric(rep(NA, length(mod$map$mapList$log_Finit))))
@@ -50,7 +53,7 @@ testthat::test_that("Free parameter initMode", {
                            estimateMode = 3)
 
   natage1 <- mod$quantities$N_at_age[1,1,,1]
-  testthat::expect_equal(as.numeric(natage1), c(exp(9), rep(1, nages-1)))
+  testthat::expect_equal(as.numeric(natage1), eq)
 
   testthat::expect_equal(c(mod$map$mapList$init_dev), c(as.numeric(1:(nages-1)), NA))
   testthat::expect_equal(as.numeric(mod$map$mapList$log_Finit), as.numeric(rep(NA, length(mod$map$mapList$log_Finit))))

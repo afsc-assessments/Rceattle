@@ -82,6 +82,8 @@ em <- Rceattle::fit_mod(
 
 `run_mse()` runs the closed loop: it projects the OM, samples data on the schedule you specify, re-fits the EM every `assessment_period` years, and applies the EM's HCR back to the OM. `nsim` sets the number of stochastic trajectories.
 
+Parameters you fixed in the EM's map that Rceattle would otherwise estimate stay fixed at each re-fit, and `run_mse()` reports how many; see `?run_mse` for years after the EM's `endyr` and what does not carry forward.
+
 ### Check `endyr` before you start
 
 The OM and the EM must share a terminal year and a projection horizon; the MSE fills catch by row position across both models, so mismatched years are refused rather than run.

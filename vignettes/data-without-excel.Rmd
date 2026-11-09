@@ -200,7 +200,7 @@ Each row defines one fleet (fishery or survey) and controls how it is modeled. M
 #   "Fixed"                (0), Q fixed at Catchability_init; not estimated
 #   "Estimated"            (1), freely estimated on log scale
 #   "Estimated-with-prior" (2), estimated with a lognormal prior (Catchability_init, Catchability_prior_sd)
-#   "Analytical"           (3), Walters & Ludwig (1994) analytical Q
+#   "Analytical"           (3), closed-form maximum likelihood Q (Walters & Ludwig 1994 when lognormal)
 #   "PowerEquation"        (4), NOT YET IMPLEMENTED; data_check() refuses it
 #   "AnalyticalArith"      (7), arithmetic-mean analytical Q
 #   "Environmental"        (5), mu_q + X * beta, where X is a covariate in env_data

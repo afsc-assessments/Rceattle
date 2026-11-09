@@ -133,6 +133,19 @@ and the likelihood never scored them, since it fits only \code{Year <= endyr}.
 That is what a workbook looks like when \code{endyr} has fallen behind the catch
 series, and it is worth resolving first, because conditioning on those years
 is a different question from projecting over them.
+
+Each assessment rebuilds the map as \code{endyr} advances. A parameter that \code{em}'s map
+fixes and \code{\link[=build_map]{build_map()}} would estimate stays fixed at \code{em}'s value, and \code{run_mse()}
+reports how many. In years after \code{em}'s \code{endyr}, a yearly deviation fixed for every
+earlier year can still be estimated, under its usual penalty; a year joining a time
+block fixed for every earlier year stays fixed at that block's value. A new year's
+block comes from the OM's index rows on a survey and the EM's catch rows on a fishery.
+A block fixed on only one of the fleets sharing it stays estimated on the others and
+in its new years. Nothing else in a hand-edited map carries forward: shared values, and
+parameters freed where \code{\link[=build_map]{build_map()}} would fix them, return to the \code{\link[=build_map]{build_map()}}
+default. Nothing carries over from an \code{em} fitted with \code{estimateMode = "Projection"},
+even under a supplied map, or from a re-assessment stored by \code{run_mse()}, which has
+no map.
 }
 \examples{
 \dontrun{

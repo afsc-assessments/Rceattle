@@ -72,6 +72,13 @@ is what fraction of random starts reach the same optimum.
 \description{
 Refits the Rceattle model from starting values perturbed by N(0, sd) around the model's initial (pre-fit) parameters, to check convergence robustness.
 }
+\details{
+Each start refits under the fit's own map, so a parameter fixed there keeps
+its value and is not estimated. The objectives do not compare with the fit's if it
+used \code{fit_mod(bounds = )} (a refit rebuilds the bounds) or is projection-only
+(\code{estimateMode = "Projection"}). A projection-only fit refits under a rebuilt map,
+and its starts are not perturbed unless it was fitted under a supplied map.
+}
 \note{
 Attaching Rceattle masks \code{\link[base]{jitter}}, because that
 function is not generic and this name is exported, so the mask cannot be
