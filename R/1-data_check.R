@@ -1946,7 +1946,7 @@ data_check <- function(data_list) {
     }
     for(sp in 1:data_list$nspp){
       sp_lengths <- unique(data_list$caal_data$Length[data_list$caal_data$Species == sp])
-      if(length(sp_lengths) != data_list$nlengths[sp]){
+      if(length(sp_lengths) > 0 && length(sp_lengths) != data_list$nlengths[sp]){
         errors <- c(errors, paste0("Species ", sp, " has ", length(sp_lengths),
                                    " unique lengths in caal_data, but nlengths[", sp, "] = ",
                                    data_list$nlengths[sp]))
