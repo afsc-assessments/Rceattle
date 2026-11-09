@@ -365,13 +365,8 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
       )
     )
 
-    # Judge the peeled hindcast NOW. `newmod` is overwritten below by the
-    # forecast-catch refit, whose map (build_map(debug = TRUE), plus the peeled
-    # years' log_F) leaves only a handful of F parameters free -- so its gradient
-    # says nothing about whether the hindcast converged. Mohn's rho reads the
-    # hindcast quantities, which come from these parameters, so a peel that
-    # diverged here has to be dropped even when the F refit lands cleanly, and
-    # the F refit would only start from those diverged parameters.
+    # Judge the hindcast here: the forecast refit below replaces `newmod` and frees only F,
+    # so its gradient cannot show whether the hindcast that Mohn's rho reads converged.
     if (!.refit_converged(newmod)) return(NULL)
 
     # Forecast ----
@@ -462,11 +457,9 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
     }
 
     # * Standard errors for the peeled hindcast ----
-    # The forecast refit holds the hindcast fixed, so its standard errors are 0 there:
-    # report from a build (estimateMode 3, no optimizing) with the hindcast free.
-    # The hindcast was fitted without the peeled catch, so with or without random
-    # effects drop that catch and hold its F to stay at that optimum;
-    # .rce_catch_conditioned_sd() then moves F with the hindcast parameters.
+    # The forecast refit holds the hindcast fixed (SE 0), so rebuild with it free and, to stay
+    # at its optimum, the peeled catch dropped and F held; .rce_catch_conditioned_sd() then
+    # moves F with the hindcast parameters.
     if (isTRUE(getsd)) {
       sd_try <- tryCatch({
         report_mod <- suppressWarnings(suppressMessages(
