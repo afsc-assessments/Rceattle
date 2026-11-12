@@ -1,7 +1,7 @@
 # Smoke tests for the plotting / output functions (R/7-plot_*.R), the single
 # largest untested module. These don't check pixels -- they fit a small model
-# once and assert every exported plotter runs without error, and that plot()
-# draws to the device. Output goes to a throwaway PDF, never the repo.
+# once and assert the plotters run without error, and that plot() draws every
+# `what` to the device. Output goes to a throwaway PDF, never the repo.
 # (Requested in discussion #75 by Cole-Monnahan-NOAA.)
 testthat::skip_on_cran()
 
@@ -59,7 +59,8 @@ testthat::test_that("single-species plotters run on a fitted model", {
 
   # plot() must put a page on the device, not only run without error: the
   # plotters return a ggplot that draws only when printed.
-  for (w in c("biomass", "ssb", "recruitment", "selectivity", "data")) {
+  for (w in c("biomass", "ssb", "recruitment", "depletion", "ssb_depletion",
+              "index", "catch", "selectivity", "mortality", "data")) {
     with_null_device({
       grDevices::dev.control("enable")
       plot(ss, what = w)
