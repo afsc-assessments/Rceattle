@@ -16,6 +16,14 @@ at it, and the entries below cite each other by version throughout.
 review. It landed as 5.66.9, so a version check written for that fix needs 5.66.9.
 -->
 
+# Rceattle 5.67.4
+
+## Bug fixes
+
+* **`plot(fit, what = ...)` draws again.** The dispatcher discarded the ggplot
+  its plotter returned, so nothing appeared at the console. It now prints the
+  plot; the return value is still `invisible(NULL)`.
+
 # Rceattle 5.67.3
 
 ## Documentation
