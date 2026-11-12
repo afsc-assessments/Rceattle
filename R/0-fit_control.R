@@ -70,7 +70,8 @@
 #' @param loopnum Integer. Times to restart optimization; `3` sometimes reaches
 #'   a lower final gradient than `1`. Default `5`.
 #' @param newtonsteps Integer. Extra unconstrained Newton steps after
-#'   optimization, an alternative to `loopnum`. Default `0`.
+#'   optimization, an alternative to `loopnum`; a singular Hessian ends them,
+#'   with a warning. Default `0`.
 #' @param phase `TRUE`/`FALSE`, or a list of parameter names with their phases.
 #'   Default `FALSE`.
 #' @param TMBfilename Optional path (without `.cpp`) to an alternate TMB

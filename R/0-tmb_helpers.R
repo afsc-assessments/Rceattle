@@ -19,7 +19,7 @@
                      quiet = TRUE) {
 
   if (requireNamespace("TMBhelper", quietly = TRUE)) {
-    return(.normalize_fit_tmb(
+    run <- function(steps) .normalize_fit_tmb(
       TMBhelper::fit_tmb(
         obj                 = obj,
         fn                  = obj$fn,
@@ -28,7 +28,7 @@
         lower               = lower,
         upper               = upper,
         loopnum             = loopnum,
-        newtonsteps         = newtonsteps,
+        newtonsteps         = steps,
         getsd               = getsd,
         control             = control,
         bias.correct        = bias.correct,
@@ -37,7 +37,22 @@
         getReportCovariance = getReportCovariance,
         quiet               = quiet
       )
-    ))
+    )
+    # TMBhelper's Newton steps solve(H, g) without a guard, so a singular Hessian
+    # (a direction the data do not inform) would lose the fit: refit without them.
+    return(tryCatch(run(newtonsteps), error = function(e) {
+      cl <- conditionCall(e)
+      from_solve <- is.call(cl) && identical(cl[[1]], quote(solve.default))
+      if (!(isTRUE(newtonsteps > 0) && from_solve)) stop(e)
+      warning(sprintf(paste0(
+        "newtonsteps = %s met a singular Hessian, so the fit was redone without ",
+        "Newton steps (the same fit as newtonsteps = 0). A parameter the data do ",
+        "not inform is the usual cause."), newtonsteps), call. = FALSE)
+      # Reset TMB's best point so the inner optimizer starts as a fresh fit would.
+      obj$env$last.par.best <- obj$env$par
+      obj$env$value.best <- Inf
+      run(0)
+    }))
   }
 
   # Fallback: plain nlminb + sdreport
@@ -69,7 +84,12 @@
                     error = function(e) NULL)
       if (is.null(h)) break
       step <- tryCatch(solve(h, as.numeric(g)), error = function(e) NULL)
-      if (is.null(step)) break
+      if (is.null(step)) {
+        warning(sprintf(paste0(
+          "newtonsteps = %s stopped at a singular Hessian after %d step(s); ",
+          "see fit$convergence."), newtonsteps, i - 1L), call. = FALSE)
+        break
+      }
       par <- par - step
     }
     best$par <- par
