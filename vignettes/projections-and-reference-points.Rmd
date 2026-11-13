@@ -154,7 +154,7 @@ plot_catch(Rceattle = mod_list, model_names = mod_names, incl_proj = TRUE)
 
 ## Random recruitment effects
 
-Setting `random_rec = TRUE` treats log-recruitment deviations as random effects, marginalized via the Laplace approximation, rather than as penalized fixed effects. This propagates recruitment process uncertainty into the projections.
+Setting `random_rec = TRUE` treats log-recruitment deviations as random effects, marginalized via the Laplace approximation, rather than as penalized fixed effects, and estimates their standard deviation (`R_log_sd`), which is otherwise fixed. Projection-year deviations are not estimated under either setting, so `random_rec` adds no recruitment variability to the projections.
 
 ```{r}
 ss_re <- fit_mod(

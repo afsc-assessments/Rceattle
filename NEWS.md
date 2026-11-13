@@ -16,6 +16,16 @@ at it, and the entries below cite each other by version throughout.
 review. It landed as 5.66.9, so a version check written for that fix needs 5.66.9.
 -->
 
+# Rceattle 5.67.7
+
+## Documentation
+
+* `vignette("projections-and-reference-points")` no longer says that
+  `random_rec = TRUE` carries recruitment process uncertainty into the
+  projections. Projection-year deviations are mapped off under either setting.
+  On `BS2017SS` projected to 2060, as in the vignette, the projected log-SSB
+  standard errors of a fixed- and a random-effects fit differ by less than 6%.
+
 # Rceattle 5.67.4
 
 ## Bug fixes
