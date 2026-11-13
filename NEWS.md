@@ -25,6 +25,20 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   printed, and the dispatcher discarded it. It now prints the plot and still
   returns `invisible(NULL)`.
 
+# Rceattle 5.67.4
+
+## Bug fixes
+
+* **`fit_control(newtonsteps > 0)` no longer fails the fit when the Hessian is singular.**
+  With TMBhelper installed, its Newton steps solve the Hessian without a guard, so a
+  direction the data do not inform stopped `fit_mod()` with a "singular" error and no
+  fit. The fit is now redone without Newton steps, giving the same fit as
+  `newtonsteps = 0`, with a warning; with `getsd = TRUE`, `fit$convergence` then reports
+  the singular Hessian (`sdreport_failed`). Without TMBhelper, the steps already stopped
+  there and now warn too. Fits whose Newton steps succeed are unchanged, bit for bit. In
+  the NOAA model comparison at `newtonsteps = 3`, a state-space replicate that returned
+  no fit now returns one.
+
 # Rceattle 5.67.3
 
 ## Documentation
