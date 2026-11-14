@@ -743,7 +743,7 @@ See `?build_hcr` for more details.
 | Function | Purpose |
 |---|---|
 | `fit_mod(estimateMode = 2, HCR = build_hcr(...))` | Forward projection under a fixed HCR |
-| `sample_rec()` | Bootstrap historical recruitment deviations (with optional `rec_trend`) into the projection |
+| `sample_rec()` | Bootstrap historical recruitment deviations (with optional `rec_trend`) into the projection; projected recruitment reads them only under `build_srr(proj_mean_rec = FALSE)` |
 | `remove_F()` | Refit a model with F = 0 from `styr` (default: the year after `endyr`); `run_mse()` uses it for the no-fishing run behind the collapse metrics |
 | `run_mse()` | Closed-loop MSE: refit EM on the `assessment_period` schedule (a period, or the years themselves), sample new data at `sampling_period` |
 | `load_mse()` | Reload per-simulation `.rds` files written when `dir =` is supplied |

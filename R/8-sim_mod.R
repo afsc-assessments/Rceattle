@@ -1124,6 +1124,12 @@ sim_mod <- function(object = NULL, simulate = FALSE, process = FALSE, Rceattle =
 #' @param update_model Update model dynamics. Default = TRUE
 #' @param rec_trend Linear increase or decrease in mean recruitment from \code{endyr} to \code{projyr}. This is the terminal multiplier \code{mean rec * (1 + (rec_trend/projection years) * 1:projection years)}. Can be of length 1 or of length nspp. If length 1, all species get the same trend.
 #'
+#' @details Projected recruitment uses the sampled deviations only if the model
+#'   was fitted with `build_srr(proj_mean_rec = FALSE)`; under the default it is
+#'   mean recruitment over the hindcast, and `update_model = TRUE` warns. In
+#'   [run_mse()] each projection year becomes an operating-model hindcast year,
+#'   where the deviations apply either way.
+#'
 #' @returns Rceattle model
 #' @export
 #'
@@ -1134,6 +1140,17 @@ sample_rec <- function(object = NULL, sample_rec = TRUE, update_model = TRUE, re
 
   if (!inherits(object, "Rceattle")) {
     stop("`object` must be a fitted Rceattle model (from fit_mod()).", call. = FALSE)
+  }
+
+  # proj_mean_rec projects R at avg_R; rec_dev reaches only dynamic B0/BF.
+  # run_mse() passes update_model = FALSE: its projection years become hindcast.
+  if (update_model &&
+      isTRUE(as.logical(object$data_list[["proj_mean_rec"]]))) {
+    warning("proj_mean_rec = TRUE projects recruitment at avg_R (mean hindcast ",
+            "recruitment), so the deviations sample_rec() writes do not drive ",
+            "it. To apply them, refit with ",
+            "recFun = build_srr(proj_mean_rec = FALSE) and pass that fit.",
+            call. = FALSE)
   }
 
   # Years for simulations
@@ -1198,10 +1215,10 @@ sample_rec <- function(object = NULL, sample_rec = TRUE, update_model = TRUE, re
     object <-
       suppressWarnings(
         suppressMessages(
-          # Rebuild so the resampled projection recruitment propagates into the
-          # reported dynamics. .refit_like() carries the source model's whole
-          # specification across the refit -- HCR, stock-recruit, M, growth, and
-          # the catchability / selectivity / composition linkages.
+          # Rebuild so the resampled deviations reach the reported dynamics.
+          # .refit_like() carries the source model's whole specification across
+          # the refit -- HCR, stock-recruit, M, growth, and the catchability /
+          # selectivity / composition linkages.
           .refit_like(
             data_list    = object$data_list,
             inits        = object$estimated_params,
