@@ -231,7 +231,9 @@ plot.Rceattle <- function(x, what = "biomass", ...) {
     c("biomass", "ssb", "recruitment", "depletion", "ssb_depletion",
       "index", "catch", "selectivity", "mortality", "data")
   )
-  switch(
+  # The plotters return a ggplot that draws only when printed, and a value
+  # computed inside a function is never auto-printed, so print it here.
+  p <- switch(
     what,
     biomass      = plot_biomass(x, ...),
     ssb          = plot_ssb(x, ...),
@@ -248,6 +250,10 @@ plot.Rceattle <- function(x, what = "biomass", ...) {
     mortality    = plot_mortality(x, ...),
     data         = plot_data(x, ...)
   )
+  # plot_selectivity() returns a list of ggplots for a model mixing age- and
+  # length-based fleets; plot_data() returns NULL when no data match.
+  if (inherits(p, "ggplot")) p <- list(p)
+  for (g in p) print(g)
   invisible(NULL)
 }
 
