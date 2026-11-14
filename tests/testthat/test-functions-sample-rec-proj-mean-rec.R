@@ -19,8 +19,10 @@ testthat::test_that("sample_rec() warns only when its refit ignores the deviatio
   # Default: warns, and projected recruitment does not move.
   m_mean <- build(TRUE)
   testthat::expect_warning(
-    s_mean <- Rceattle::sample_rec(m_mean, rec_trend = -0.5), "do not drive it")
-  testthat::expect_equal(s_mean$quantities$R[, proj], m_mean$quantities$R[, proj])
+    s_mean <- Rceattle::sample_rec(m_mean, rec_trend = -0.5),
+    "do not drive it")
+  testthat::expect_equal(s_mean$quantities$R[, proj],
+                         m_mean$quantities$R[, proj])
 
   # run_mse()'s call writes the deviations without warning.
   testthat::expect_no_warning(

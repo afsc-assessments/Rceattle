@@ -96,7 +96,7 @@ plot_catch(ms_run_proj, incl_proj = TRUE)
 
 ### Manual recruitment deviations
 
-Projection recruitment deviations live in the parameter list, so you can overwrite them directly before projecting. Projected recruitment reads them only under `build_srr(proj_mean_rec = FALSE)`; the default projects mean historical recruitment whatever the deviations. Under that switch a deviation of 0 projects R0, the mean-recruitment parameter, which on `BS2017MS` is 26–37% below mean historical recruitment, so this scenario projects lower recruitment than `ms_run` even before the draws. `estimateMode = 3` evaluates the model without re-estimating anything.
+Projection recruitment deviations live in the parameter list, so you can overwrite them directly before projecting. Projected recruitment uses them only under `build_srr(proj_mean_rec = FALSE)`; the default projects mean recruitment over the hindcast (`avg_R`) whatever the deviations. Under that switch a deviation of 0 projects R0, the estimated log-scale recruitment level, which on `BS2017MS` is 26–37% below `avg_R`, so this scenario projects lower recruitment than `ms_run` even with zero deviations. `estimateMode = 3` evaluates the model without re-estimating anything.
 
 ```{r}
 nyrs      <- BS2017MS$endyr - BS2017MS$styr + 1
@@ -126,7 +126,7 @@ ms_run_proj2 <- fit_mod(
 
 ### Stochastic recruitment via `sample_rec()`
 
-`sample_rec()` bootstraps historical recruitment deviations into the projection period and refits with the model's own `build_srr()` settings, so it starts from `ms_run_proj2`. The optional `rec_trend` argument adds a linear trend: `rec_trend = -0.5` imposes a 50% decline in mean recruitment by the end of the projection.
+`sample_rec()` replaces the projection deviations with ones resampled from the hindcast and re-runs the model, without re-estimating, under the model's own `build_srr()` settings. It therefore starts from `ms_run_proj2`, which was fitted with `proj_mean_rec = FALSE`. The optional `rec_trend` argument adds a linear trend: `rec_trend = -0.5` imposes a 50% decline in mean recruitment by the end of the projection.
 
 ```{r}
 ms_run_proj3 <- sample_rec(
@@ -138,6 +138,8 @@ ms_run_proj3 <- sample_rec(
 ```
 
 ## Comparing projection scenarios
+
+Only "Constant F" fishes. "No fishing" and "Constant F" project `avg_R`, while the two recruitment scenarios project from R0 (see above), so compare their shapes rather than their level against "No fishing".
 
 ```{r}
 mod_list  <- list(ms_run, ms_run_proj, ms_run_proj2, ms_run_proj3)

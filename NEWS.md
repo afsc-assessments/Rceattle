@@ -22,12 +22,13 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
 
 * **`sample_rec(update_model = TRUE)` warns when the model projects mean
   recruitment.** Under the `build_srr()` default `proj_mean_rec = TRUE`,
-  projected recruitment is `avg_R`, the mean of the hindcast recruitments, and
-  never reads the projection deviations, so the refit came back with its
-  projection unchanged: on `BS2017MS` projected recruitment and SSB moved by
-  exactly 0. `run_mse()` calls it with `update_model = FALSE` and does not
-  warn: its projection years become operating-model hindcast years, where the
-  deviations apply. No sibling-repo script calls `sample_rec()`.
+  projected recruitment is `avg_R` (mean hindcast recruitment) and ignores the
+  projection deviations, so `sample_rec()` left it unchanged: by exactly 0 on
+  `BS2017MS`. The deviations reach only the dynamic B0 series, which a
+  `DynamicHCR` reads. What `sample_rec()` returns is unchanged; it only warns.
+  `run_mse()` calls it with `update_model = FALSE` and does not warn: its
+  projection years become operating-model hindcast years, where the deviations
+  apply. No sibling-repo script calls `sample_rec()`.
 
 ## Documentation
 
