@@ -30,3 +30,10 @@ Rceattle model
 \description{
 Sample historical recruitment deviations into the projection
 }
+\details{
+Projected recruitment reads these deviations only in a model fitted
+with \code{build_srr(proj_mean_rec = FALSE)}. Under the default it is mean
+recruitment over the hindcast whatever the deviations, and
+\code{update_model = TRUE} warns. \code{\link[=run_mse]{run_mse()}} moves projection years into the
+operating model's hindcast, where the deviations always apply.
+}

@@ -96,7 +96,7 @@ plot_catch(ms_run_proj, incl_proj = TRUE)
 
 ### Manual recruitment deviations
 
-Projection recruitment deviations live in the parameter list, so you can overwrite them directly before projecting. `estimateMode = 3` evaluates the model without re-estimating anything, so only the updated deviations change the projection.
+Projection recruitment deviations live in the parameter list, so you can overwrite them directly before projecting. Projected recruitment reads them only under `build_srr(proj_mean_rec = FALSE)`; the default projects mean historical recruitment whatever the deviations. Under that switch a deviation of 0 projects R0, the mean-recruitment parameter, which on `BS2017MS` is 26–37% below mean historical recruitment, so this scenario projects lower recruitment than `ms_run` even before the draws. `estimateMode = 3` evaluates the model without re-estimating anything.
 
 ```{r}
 nyrs      <- BS2017MS$endyr - BS2017MS$styr + 1
@@ -115,6 +115,7 @@ ms_run_proj2 <- fit_mod(
   inits        = ms_run$estimated_params,
   file         = NULL,
   estimateMode = 3,   # Evaluate only, do not re-estimate
+  recFun       = build_srr(proj_mean_rec = FALSE),  # Project from rec_dev
   niter        = 5,
   random_rec   = FALSE,
   msmMode      = 1,
@@ -125,11 +126,11 @@ ms_run_proj2 <- fit_mod(
 
 ### Stochastic recruitment via `sample_rec()`
 
-`sample_rec()` bootstraps historical recruitment deviations into the projection period. The optional `rec_trend` argument adds a linear trend: `rec_trend = -0.5` imposes a 50% decline in mean recruitment by the end of the projection.
+`sample_rec()` bootstraps historical recruitment deviations into the projection period and refits with the model's own `build_srr()` settings, so it starts from `ms_run_proj2`. The optional `rec_trend` argument adds a linear trend: `rec_trend = -0.5` imposes a 50% decline in mean recruitment by the end of the projection.
 
 ```{r}
 ms_run_proj3 <- sample_rec(
-  Rceattle     = ms_run,
+  object       = ms_run_proj2,  # Fitted with proj_mean_rec = FALSE
   sample_rec   = TRUE,
   update_model = TRUE,
   rec_trend    = -0.5   # 50% decline in mean recruitment

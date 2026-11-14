@@ -16,6 +16,28 @@ at it, and the entries below cite each other by version throughout.
 review. It landed as 5.66.9, so a version check written for that fix needs 5.66.9.
 -->
 
+# Rceattle 5.67.8
+
+## Bug fixes
+
+* **`sample_rec(update_model = TRUE)` warns when the model projects mean
+  recruitment.** Under the `build_srr()` default `proj_mean_rec = TRUE`,
+  projected recruitment is `avg_R`, the mean of the hindcast recruitments, and
+  never reads the projection deviations, so the refit came back with its
+  projection unchanged: on `BS2017MS` projected recruitment and SSB moved by
+  exactly 0. `run_mse()` calls it with `update_model = FALSE` and does not
+  warn: its projection years become operating-model hindcast years, where the
+  deviations apply. No sibling-repo script calls `sample_rec()`.
+
+## Documentation
+
+* `vignette("projections-and-reference-points")`: the manual-deviation and
+  `sample_rec()` examples now fit with `build_srr(proj_mean_rec = FALSE)`, so
+  their "Stochastic recruitment" and "Declining recruitment" scenarios differ
+  from "No fishing"; before, they plotted on top of it. `?sample_rec` and
+  `vignette("model-options-and-functionality")` say the deviations apply only
+  under that switch.
+
 # Rceattle 5.67.5
 
 ## Bug fixes
