@@ -139,8 +139,8 @@ model_average <- function(object = NULL, weights = NULL, uncertainty = FALSE, nb
     # Loop across models
     for(i in 1:length(object)){
 
-      # - Sample parameters from asymptotic normal distribution, whose covariance
-      #   is the inverse joint precision with random effects, cov.fixed without.
+      # - Sample parameters from their asymptotic normal distribution. cov.fixed
+      #   is a covariance as it stands; the joint precision must be inverted.
       # - Models with random effects
       if(sum(length_ran) > 0){
         mle <- object[[i]]$obj$env$last.par.best # Includes fixed and random

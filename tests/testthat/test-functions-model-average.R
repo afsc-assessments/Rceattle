@@ -4,9 +4,9 @@ testthat::skip_on_cran()
 
 # A fit averaged with itself must reproduce its own standard errors, since
 # model_average() draws each fit's parameters from its asymptotic covariance.
-# Until 5.67.6 it drew from the precision matrix without random effects (log
-# SSB SE 1,320-4,380 times the fit's here) and fixed the first parameter's
-# variance at 100 with them (up to 383 times).
+# Before 5.67.6 it drew from the precision matrix without random effects (log
+# SSB SE 1,320-4,380 times the fit's here) and, with them, set the first
+# parameter's variance to 100 (pollock's log SSB SE up to 383 times).
 testthat::test_that("model_average() of a fit with itself reproduces its standard errors", {
   testthat::skip_if_not_installed("TMB")
 
@@ -25,12 +25,15 @@ testthat::test_that("model_average() of a fit with itself reproduces its standar
     set.seed(1)
     avg <- model_average(list(fit, fit), uncertainty = TRUE, nboot = 400)
 
-    # log_ssb is reported species-fastest, so the hindcast is the first
-    # nspp * nyrs_hind rows.
-    ny <- fit$data_list$endyr - fit$data_list$styr + 1
-    rows <- which(names(fit$sdrep$value) == "log_ssb")[seq_len(fit$data_list$nspp * ny)]
+    # log_ssb lists every species for year 1, then year 2, ..., so the
+    # hindcast is its first nspp * nyrs_hind entries.
+    nyrs_hind <- fit$data_list$endyr - fit$data_list$styr + 1
+    rows <- which(names(fit$sdrep$value) == "log_ssb")
+    rows <- rows[seq_len(fit$data_list$nspp * nyrs_hind)]
     ratio <- avg$sdrep$sd[rows] / fit$sdrep$sd[rows]
 
+    # 400 draws, and SSB's curvature in the parameters, let single years stray
+    # from the delta-method SE (up to about 1.5 times); the median should not.
     label <- paste0("random_rec = ", re)
     testthat::expect_true(all(is.finite(ratio)), label = label)
     testthat::expect_true(all(ratio > 0.5 & ratio < 2), label = label)
