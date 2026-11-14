@@ -139,19 +139,19 @@ model_average <- function(object = NULL, weights = NULL, uncertainty = FALSE, nb
     # Loop across models
     for(i in 1:length(object)){
 
-      # - Sample parameters from asymptotic normal distribution
+      # - Sample parameters from asymptotic normal distribution, whose covariance
+      #   is the inverse joint precision with random effects, cov.fixed without.
       # - Models with random effects
       if(sum(length_ran) > 0){
         mle <- object[[i]]$obj$env$last.par.best # Includes fixed and random
         vcov <- solve(object[[i]]$sdrep$jointPrecision) # names(mle) == rownames(vcov)
-        vcov[1,1] <- 100
       }
 
 
       # - Fixed effects models
       if(sum(length_ran) == 0){
         mle <- object[[i]]$obj$env$last.par.best # Includes fixed
-        vcov <- solve(object[[i]]$sdrep$cov.fixed) # names(mle) == rownames(vcov)
+        vcov <- object[[i]]$sdrep$cov.fixed # names(mle) == rownames(vcov)
       }
       samples <- MASS::mvrnorm(draws[i], mu = mle, Sigma = vcov)
 
