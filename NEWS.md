@@ -35,6 +35,15 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   and `GOAceattle`'s `R/Figures.R` build such averages; `GOAceattle` plots the
   draws in `asymptotic_samples` directly.
 
+# Rceattle 5.67.5
+
+## Bug fixes
+
+* **`plot(fit, what = ...)` draws the figure.** It had drawn nothing since the
+  plotters moved to ggplot2: each returns a ggplot, which draws only when
+  printed, and the dispatcher discarded it. It now prints the plot and still
+  returns `invisible(NULL)`.
+
 # Rceattle 5.67.4
 
 ## Bug fixes
