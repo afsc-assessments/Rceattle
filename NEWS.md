@@ -16,6 +16,25 @@ at it, and the entries below cite each other by version throughout.
 review. It landed as 5.66.9, so a version check written for that fix needs 5.66.9.
 -->
 
+# Rceattle 5.67.6
+
+## Bug fixes
+
+* **`model_average(uncertainty = TRUE)` draws each model's parameters from its
+  asymptotic covariance.** Point estimates are unchanged, but every average
+  with `uncertainty = TRUE` gets new `$sdrep$sd` and `$asymptotic_samples`, and
+  so new intervals under `add_ci = TRUE` and in `as.data.frame()`. Without
+  random effects it drew from the precision matrix (the inverse covariance);
+  with them it set the first parameter's variance to 100 (on `BS2017SS`,
+  pollock's log mean recruitment). A fit averaged with itself should reproduce
+  its own standard errors. On `BS2017SS` the averaged hindcast log-SSB standard
+  error was 1,430 to 4,300 times the fit's own without random effects, and 185
+  to 401 times for pollock with `random_rec = TRUE` (cod and arrowtooth were
+  unaffected); it is now 0.95 to 1.37 times (median 1.02). Sibling scripts that
+  build such averages: `Rceattle-models` GOA CEATTLE `GOA_18`, `GOA_20` and
+  `GOA_21`, and `GOAceattle`'s `R/Figures.R`, which also plots
+  `asymptotic_samples` directly.
+
 # Rceattle 5.67.5
 
 ## Bug fixes
