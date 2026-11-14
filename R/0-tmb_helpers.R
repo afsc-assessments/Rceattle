@@ -18,26 +18,55 @@
                      getJointPrecision = FALSE, getReportCovariance = FALSE,
                      quiet = TRUE) {
 
+  # fit_mod() reads its estimates at last.par.best, the lowest objective TMB has
+  # evaluated. A Newton step that raised the objective is not that point.
+  best_fixed <- function() {
+    p <- obj$env$last.par.best
+    if (length(obj$env$random)) p[-obj$env$random] else p
+  }
+
   if (requireNamespace("TMBhelper", quietly = TRUE)) {
-    run <- function(steps) .normalize_fit_tmb(
+    fit <- function(start, lo, hi, steps, sd, ctl, loops,
+                    elapsed = as.difftime(0, units = "secs")) .normalize_fit_tmb(
       TMBhelper::fit_tmb(
         obj                 = obj,
         fn                  = obj$fn,
         gr                  = obj$gr,
-        startpar            = obj$par,
-        lower               = lower,
-        upper               = upper,
-        loopnum             = loopnum,
+        startpar            = start,
+        lower               = lo,
+        upper               = hi,
+        loopnum             = loops,
         newtonsteps         = steps,
-        getsd               = getsd,
-        control             = control,
+        getsd               = sd,
+        control             = ctl,
         bias.correct        = bias.correct,
         bias.correct.control = list(sd = getsd),
         getJointPrecision   = getJointPrecision,
         getReportCovariance = getReportCovariance,
-        quiet               = quiet
+        quiet               = quiet,
+        start_time_elapsed  = elapsed
       )
     )
+    run <- function(steps) {
+      if (!isTRUE(steps > 0)) {
+        return(fit(obj$par, lower, upper, steps = 0, sd = getsd, ctl = control,
+                   loops = loopnum))
+      }
+      opt <- fit(obj$par, lower, upper, steps = steps, sd = FALSE, ctl = control,
+                 loops = loopnum)
+      # TMBhelper reports the last Newton step even when it raised the objective.
+      # Re-evaluate at the estimates: iter.max = 0 does not move, and no bounds,
+      # because nlminb clamps a start to them.
+      ctl <- control
+      ctl[["iter.max"]] <- 0
+      at_best <- fit(best_fixed(), -Inf, Inf, steps = 0, sd = getsd, ctl = ctl,
+                     loops = 1, elapsed = opt[["time_for_run"]])
+      keep <- c("iterations", "evaluations", "time_for_MLE")
+      at_best[keep] <- opt[keep]
+      cols <- c("starting_value", "Lower", "Upper")
+      at_best[["diagnostics"]][cols] <- opt[["diagnostics"]][cols]
+      at_best
+    }
     # TMBhelper's Newton steps solve(H, g) without a guard, so a singular Hessian
     # (a direction the data do not inform) would lose the fit: refit without them.
     return(tryCatch(run(newtonsteps), error = function(e) {
@@ -91,9 +120,10 @@
         break
       }
       par <- par - step
+      obj$fn(par)  # as TMBhelper does, so TMB keeps the step if it is the lowest
     }
-    best$par <- par
-    best$objective <- obj$fn(par)
+    best$par <- best_fixed()
+    best$objective <- obj$fn(best$par)
   }
 
   best$diagnostics <- data.frame(

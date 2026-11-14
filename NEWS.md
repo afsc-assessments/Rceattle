@@ -16,6 +16,27 @@ at it, and the entries below cite each other by version throughout.
 review. It landed as 5.66.9, so a version check written for that fix needs 5.66.9.
 -->
 
+# Rceattle 5.67.9
+
+## Bug fixes
+
+* **With `newtonsteps > 0`, the hindcast's reported gradient, objective and standard
+  errors describe the estimates.** `fit_mod()` takes its estimates from the lowest
+  objective TMB evaluated, but TMBhelper keeps every Newton step, even one that
+  raises the objective, and reported `fit$opt`, `fit$sdrep` and the convergence
+  report's gradient at the last one. They are now evaluated at the estimates. With
+  TMBhelper the estimates do not move: estimates and SSB are unchanged bit for bit
+  on 44 NOAA model-comparison fits and on `BS2017SS`, where standard errors moved by
+  at most 6.1e-8 relative. One comparison fit, stopped at `rel.tol = 1e-4`, had
+  reported a gradient of 9.2e-5 for estimates whose gradient is 0.131;
+  `max_gradient` now warns there. In 19 others the last step was no lower, within
+  1.4e-12, and the gradient at the estimates, up to 2.7e-6, had been reported as
+  ~1e-11 (`BS2017SS`: 2.3e-8). Convergence warning (8) no longer reads a step that
+  raised the objective as a discontinuous likelihood. Without TMBhelper, the
+  objective is now evaluated at every Newton step, as TMBhelper does, so the
+  estimates are the lowest step rather than the lower of `nlminb`'s point and the
+  last step.
+
 # Rceattle 5.67.5
 
 ## Bug fixes

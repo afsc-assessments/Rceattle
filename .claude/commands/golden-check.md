@@ -51,7 +51,7 @@ Wrap everything in one `export PATH=/usr/bin:$PATH && NOT_CRAN=true Rscript -e '
    rather than at a stationary point, leaving the GOA fits ~1e-3 in gradient. The
    reference then moves under changes that cannot alter the model -- adding a
    constant to the objective once shifted `goa_ss` by 52.9 units. Polishing pins a
-   true optimum (gradients ~1e-11), so the comparison means something. It does not
+   true optimum (max gradient 2.3e-8 on `BS2017SS`), so the comparison means something. It does not
    remove that 52.9: `goa_ss` has a second local minimum that far above the reference,
    and a one-ULP gradient change can select it (`inst/dev/TRAPS.md`, "Coverage gaps in
    the golden check").

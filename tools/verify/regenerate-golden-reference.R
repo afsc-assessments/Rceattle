@@ -77,14 +77,23 @@ goa_ms <- lower("goa_ms", goa(goa_ss$estimated_params, TRUE, 1, 3),
 
 fits <- list(ss = ss, ms = ms, goa_ss = goa_ss, goa_ms = goa_ms)
 
-# The parameters are taken at `opt$par`, the Newton-POLISHED point, and not from
-# `fit$estimated_params`. Those are two different points: `newtonsteps` moves
-# `opt$par` and `opt$objective` only, while `estimated_params` and `quantities`
-# stay at TMB's `last.par.best`. On goa_ss they differ by 2.3e-08 in parameter
-# space, which is 9.1e-12 in objective and -- the part that matters here -- a
-# gradient of 3.2e-06 rather than 1.3e-11. Pinning the pair from one point makes
-# the check reproduce exactly and leaves the gradient gate its full margin.
-polished <- function(f) f$obj$env$parList(x = f$opt$par,
+# The parameters are pinned at a Newton-POLISHED point, not at
+# `fit$estimated_params` (TMB's `last.par.best`, which `opt$par` reports). TMB
+# keeps a step only if its objective is strictly lower, so a last step that ties
+# within rounding leaves the estimates short of it: on goa_ss 2.3e-08 away in
+# parameter space and 9.1e-12 in objective, but a gradient of 3.2e-06 rather than
+# 1.3e-11. Pinning the pair from one point makes the check reproduce exactly and
+# leaves the gradient gate its full margin.
+polish <- function(f, steps = 3) {
+  p <- f$opt$par
+  for (i in seq_len(steps)) {
+    p <- p - solve(stats::optimHess(p, f$obj$fn, f$obj$gr),
+                   as.numeric(f$obj$gr(p)))
+  }
+  p
+}
+for (m in names(fits)) fits[[m]]$polished_par <- polish(fits[[m]])
+polished <- function(f) f$obj$env$parList(x = f$polished_par,
                                           par = f$obj$env$last.par.best)
 
 # The quantities that set catch advice, evaluated at the polished parameters by
@@ -115,10 +124,10 @@ derived_at <- function(m, params) {
 obj_at <- numeric(0)
 for (m in names(fits)) {
   f <- fits[[m]]
-  g <- max(abs(f$obj$gr(f$opt$par)))
+  g <- max(abs(f$obj$gr(f$polished_par)))
   if (!is.finite(g) || g > 1e-8)
     stop(sprintf("%s is not a stationary point: max|gradient| = %.3g", m, g))
-  obj_at[m] <- as.numeric(f$obj$fn(f$opt$par))
+  obj_at[m] <- as.numeric(f$obj$fn(f$polished_par))
   message(sprintf("%-7s objective %.10f  max|gradient| %.3g", m, obj_at[m], g))
 }
 
