@@ -50,7 +50,7 @@ name: source-guards
 
 on:
   pull_request:
-    branches: [main, master, dev]
+    branches: [main, master, dev, dev-RTMB]
   push:
     branches: [dev]
   workflow_dispatch:

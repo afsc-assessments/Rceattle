@@ -24,7 +24,7 @@ on:
   push:
     branches: [main, dev]
   pull_request:
-    branches: [master, main, dev]
+    branches: [master, main, dev, dev-RTMB]
   workflow_dispatch:
 
 name: test-coverage

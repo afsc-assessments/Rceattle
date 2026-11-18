@@ -1,12 +1,12 @@
 # Standard r-lib R-CMD-check workflow for an R package that links to TMB.
-# Runs on push / PR to master, main, and the dev integration branch, and on a
-# weekly schedule (so silent upstream breakage in CRAN dependencies surfaces
-# even on quiet weeks).
+# Runs on push / PR to master, main, and the dev integration branch, on PRs into
+# dev-RTMB (the RTMB port branch), and on a weekly schedule (so silent upstream
+# breakage in CRAN dependencies surfaces even on quiet weeks).
 on:
   push:
     branches: [master, main, dev]
   pull_request:
-    branches: [master, main, dev]
+    branches: [master, main, dev, dev-RTMB]
   schedule:
     - cron: "0 6 * * 1"  # Mondays 06:00 UTC
   workflow_dispatch:
