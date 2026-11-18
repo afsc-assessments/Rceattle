@@ -21,6 +21,12 @@ Each script prints a pass/fail digest and leaves its numbers on stdout.
 | `verify-mse-schedule.R` | An explicit vector of assessment years reproduces the equivalent period, a year-indexed `catch_mult` moves only the years it names, and two schedules stay on common random numbers. |
 | `verify-mse-repro.R` | Full-MSE reproduction digest, single- and multispecies. |
 
+**RTMB port — does the R model reproduce the C++ template?**
+
+| Script | Proves |
+|---|---|
+| `verify-rtmb-oracle.R` | The RTMB objective matches the C++ to 1e-12 along a full nlminb path, at perturbed and all-free points, in its REPORTs and ADREPORTs, Jacobian and Hessian; five planted defects are caught; speed against the C++. Takes an optional `-ffp-contract=off` C++ build and `installed=<lib>`. |
+
 **Simulation — is the draw the distribution the likelihood assumes?**
 
 | Script | Proves |

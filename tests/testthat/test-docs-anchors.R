@@ -230,6 +230,8 @@ test_that("the README pins the version in DESCRIPTION", {
   readme <- paste(readLines(file.path(root, "README.md"), warn = FALSE),
                   collapse = "\n")
   ver <- as.character(read.dcf(file.path(root, "DESCRIPTION"), "Version")[1, 1])
+  # A development version (X.Y.Z.9NNN, a long-lived branch) has no tag; it pins X.Y.Z.
+  ver <- sub("\\.9[0-9]{3}$", "", ver)
 
   pins <- regmatches(readme,
                      gregexpr("Rceattle@[0-9]+\\.[0-9]+\\.[0-9]+", readme))[[1]]

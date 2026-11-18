@@ -16,6 +16,21 @@ at it, and the entries below cite each other by version throughout.
 review. It landed as 5.66.9, so a version check written for that fix needs 5.66.9.
 -->
 
+# Rceattle 5.67.5.9101 (dev-RTMB)
+
+## Internal
+
+* **Stage 1 of the RTMB port: the single-species core.** `R/6-rtmb_*.R` write the
+  CEATTLE objective in RTMB for the configuration `BS2017SS` fits at `msmMode = 0`:
+  Fixed, Logistic and NonParametric selectivity, mean recruitment with a
+  non-equilibrium start, the SPR and dynamic reference points, lognormal index and
+  catch, and multinomial age and length compositions. It is not called by
+  `fit_mod()`, and it refuses any other configuration by name. Against the C++
+  template (`tools/verify/verify-rtmb-oracle.R`), at 909 points on BS2017SS and
+  perturbations of it, it matches the objective to 1e-12 relative, the gradient,
+  Hessian and ADREPORT Jacobian to 1e-12 of their scale, and every REPORT and
+  ADREPORT to 1e-12 relative elementwise. RTMB (>= 1.9) is now imported.
+
 # Rceattle 5.67.5
 
 ## Bug fixes

@@ -23,7 +23,7 @@ It consolidates and updates the developer notes on the
 
 | Path | Contents |
 |---|---|
-| `R/` | The R side, 67 files. The number prefix tracks pipeline order for the `1-` to `6-` chain; everything under `0-` is shared machinery. Every file is listed in [Every file in `R/`, and what it does](#every-file-in-r-and-what-it-does). |
+| `R/` | The R side, 71 files. The number prefix tracks pipeline order for the `1-` to `6-` chain; everything under `0-` is shared machinery. Every file is listed in [Every file in `R/`, and what it does](#every-file-in-r-and-what-it-does). |
 | `src/TMB/` | The C++ TMB template `ceattle.cpp` and its included `.hpp` modules. |
 | `tests/testthat/` | Unit and regression tests, grouped by area. |
 | `inst/extdata/` | Excel templates, including `meta_data_names.xlsx` (the authoritative column/switch reference). |
@@ -44,7 +44,7 @@ of helpers that build the TMB inputs, optimize, and label the output.
 
 The question most people arrive with. Find the row, start at the file, and read
 its row in [Every file in `R/`](#every-file-in-r-and-what-it-does), which covers
-all 67. Where a row names a vignette, read that first — these rows are
+all 71. Where a row names a vignette, read that first — these rows are
 orientation, and a recipe is the job.
 
 | I want to … | Start at | Then usually also |
@@ -94,7 +94,7 @@ programmatically and see exactly what a given model needs, see
 
 ## Every file in `R/`, and what it does
 
-All 67, one row each, grouped by what they are *for* rather than by their number
+All 71, one row each, grouped by what they are *for* rather than by their number
 prefix — the prefix tracks pipeline order only for the `1-` to `6-` chain, and
 the 31 files under `0-` are shared machinery that the chain draws on. The nine
 files a fit passes through are repeated here so this table is complete on its
@@ -222,6 +222,16 @@ documented once, in `?"rceattle-plot-args"`.
 | `7-plot_data.R` | Timeline of which data enter which likelihood. |
 | `7-plot_stock_recruit.R` | The stock–recruit curve with the fitted points. |
 | `7-plot_sel_vs_mat.R` | Selectivity against maturity, for one species. |
+
+**RTMB port (in progress)** — the model rewritten in RTMB, checked against the C++ by
+the RTMB oracle harness in `tools/verify/`; not used by any fit yet.
+
+| File | What it holds |
+|---|---|
+| `6-rtmb_ceattle.R` | The objective and its `MakeADFun()` wrapper, section by section against `ceattle.cpp`. Not yet called by `fit_mod()`. |
+| `6-rtmb_data.R` | One-time data preparation, off the AD tape, and the guard that refuses a configuration not yet ported. |
+| `6-rtmb_selectivity.R` | Selectivity-at-age; mirrors `selectivity.hpp` for the forms ported so far. |
+| `6-rtmb_helpers.R` | `posfun`, `max2`, log-mean-exp, per-recruit and the concentrated sd in their C++ evaluation order, plus the taped 0/1 indicator. |
 
 **Package infrastructure.**
 
