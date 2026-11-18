@@ -1454,6 +1454,59 @@ to match ADMB AMAK's "pm" parameterizations, penalties included, and
 The literature citations through `src/TMB/` are the specification for those blocks, not
 historical notes; `CLAUDE.md` says so under Comments.
 
+## Porting to RTMB
+
+Each of these was reproduced on RTMB 1.9 (R 4.5), with RTMB not attached as in package
+code, while porting the single-species core (`R/6-rtmb_*.R`). Most fail loudly; the ones
+that do not are marked.
+
+**Package code finds base R before RTMB's tape-time overloads.** While taping, RTMB
+attaches overloads of `[<-`, `c` and `diag<-` near the end of the search path, and a
+package namespace reaches base first, compiled or not. So `c(1, <advector>)` and a write
+of an AD value into a numeric array drop the AD class ("Invalid argument to 'advector'
+(lost class attribute?)"). A function in the global environment does reach the overloads,
+which is why a test written there passes. Declare `"[<-" <- RTMB::ADoverload("[<-")` and
+`c <- RTMB::ADoverload("c")` in each function that writes or combines on the tape; a
+top-level helper does not inherit its caller's.
+
+**RTMB's `matrix()`, `colSums()`, `rowSums()`, `apply()`, `sapply()` and `diag()` replace
+base's only when RTMB is attached or they are imported**, and this package imports nothing
+from RTMB. Base `matrix()` on an AD vector returns a plain complex matrix, and base
+`colSums()` stops with "'x' must be numeric", so write `RTMB::matrix()` and
+`RTMB::colSums()`.
+
+**Between operands of equal length, arithmetic takes `dim()` from the first.**
+`rep(v, each = n) * M` comes back without dimensions, where base R keeps them, and the
+next `x[, j]` fails; a shorter, recycled operand does take the longer one's. Put the
+array first, or wrap the result in `RTMB::matrix()`.
+
+**Silent: a plain `if` on an AD value under `TapeConfig(comparison = "tape")` tapes
+without error and takes one branch whatever the value** (the `TRUE` branch, taped at
+x = 0.5 or 1e-9 alike), while `report()`, which runs plain R, takes the right one: a floor
+written as `if (x < eps)` returned -2e-6 on the tape at x = 0.5, where the report gave 0.5. Keep the objective at the default `"forbid"`,
+where such an `if` errors at `MakeADFun()`, and switch to `"tape"` only inside the one
+helper that builds a 0/1 indicator. Restoring the setting around `MakeADFun()` instead
+breaks every later `retape()` and `sdreport()`, which re-run the R function. `ifelse()`
+on an AD test errors under both settings.
+
+**Silent: masking a non-finite branch by multiplication.** With an AD 0/1 indicator,
+`m * log(x - 1)` at a masked cell gives a NaN objective with a finite gradient; with a data
+mask the tape is finite (TMBad drops the constant-zero product) while `report()` gives NaN.
+An overflow does the same: a `posfun` penalty written `m * (x - eps)^2` is NaN once x
+passes about 1e154, where the C++ gives 0. Compute only on valid cells, or apply the
+indicator to the argument (`d <- (x - eps) * m; d * d`).
+
+**Silent: a scatter with duplicate indices keeps only the last write**, as R does, and
+the tape matches R, where a C++ `+=` loop sums: from x = (1, 2, 3),
+`x[c(1, 1, 2)] <- x[c(1, 1, 2)] + c(10, 20, 30)` gives (21, 32, 3), where `+=` gives
+(31, 32, 3). Use a sparse group-sum.
+
+**`rowSums()`/`colSums()` with `dims > 1` error on AD arrays**; reshape to a matrix first.
+**REPORT and ADREPORT names come from the expression text**: `REPORT(p$a)` is named
+`"p$a"`, so report a variable carrying the C++ name. **At an unchanged point `fn` is
+cached and `gr` reuses its forward sweep**, in TMB and RTMB alike (about 20× and 2×
+faster), so time them alternating between two points.
+
 ## CLAUDE.md's traps in full
 
 `CLAUDE.md` carries each of these as one line. This is the fuller text it held until 2026-09-14,

@@ -6,7 +6,7 @@ argument-hint: "[optional: a harness name, to run just that one]"
 `/golden-check` fits four models and diffs the result. It does **not** reach the diagnostic refit
 paths, the simulation draws, or any figure. `tools/verify/` holds the harnesses that do.
 
-**They are not all the same shape.** Three are before/after digests you run twice; ten are
+**They are not all the same shape.** Three are before/after digests you run twice; eleven are
 self-contained checks you run once. Running a self-contained check on two commits and comparing
 the two "PASS" lines verifies nothing — that is the failure mode this section exists to prevent.
 
@@ -44,6 +44,12 @@ numbers -- it takes NO path, so running it twice and diffing the PASS lines comp
 `verify-sim-linkage-re.R` · `verify-sim-local-optimum.R` · `verify-sim-process-error.R` ·
 `verify-sim-recovery.R` · `verify-sim-recovery-process.R`
 
+`verify-rtmb-oracle.R` (the RTMB port against the C++) is self-contained too, but takes two
+optional arguments that are not an `.rds`: a reference C++ build compiled without fused
+multiply-adds, and `installed=<lib>` to load a byte-compiled install. Build the reference by
+copying `src/TMB/*.hpp` and `ceattle.cpp` (renamed `ceattle_nofma.cpp`) into a scratch folder,
+then `Rscript -e 'TMB::compile("ceattle_nofma.cpp", PKG_CXXFLAGS = "-ffp-contract=off", framework = "TMBad", safebounds = FALSE)'`.
+
 ```
 export PATH=/usr/bin:$PATH && NOT_CRAN=true Rscript tools/verify/<harness>.R
 ```
@@ -63,6 +69,7 @@ warning; `verify-osa-cdf.R` falls back to its default instead, which is quieter 
 | `run_mse()`, the OM/EM loop, projection horizons | `verify-mse-hindcast-invariant.R` + `verify-mse-schedule.R` (once), `verify-mse-repro.R` (digest) |
 | a `SIMULATE{}` block, `sim_mod()`, `simulate.Rceattle()` | the `verify-sim-*.R` set (once each) |
 | a `plot_*()` function | **none of these** — see below |
+| `R/6-rtmb_*.R`, or C++ on a path the RTMB port covers | `verify-rtmb-oracle.R` (once), with a no-FMA C++ build |
 
 ## What nothing here covers
 
