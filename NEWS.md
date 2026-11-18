@@ -16,6 +16,24 @@ at it, and the entries below cite each other by version throughout.
 review. It landed as 5.66.9, so a version check written for that fix needs 5.66.9.
 -->
 
+# Rceattle 5.67.11
+
+## Bug fixes
+
+* **Under multispecies predation (`msmMode > 0`), NaN available food, or a NaN prey
+  term in empirical suitability (`suitMode = 0`), now reaches M2 instead of silently
+  dropping that predator or prey age.** TMB evaluates these four tests once, when it
+  records the model, so an age dropped on NaN was missing from every later evaluation
+  of the objective, while the reported quantities still included it. Zero and negative
+  values are handled as before. BS2017MS (`msmMode = 1`, `niter = 3`) recorded with
+  pollock `init_dev` at -720, inside its lower bound of -1000, lost 25 predator ages: its
+  objective was 7,372,253 there rather than NaN, and 1,564,196.9 rather than 1,784,463.7
+  back at the default start. A fit started there reported an objective of 13,464.0 while
+  its own quantities gave 88,409.3; it now stops with nlminb's "NA/NaN gradient
+  evaluation" error. Only a model recorded where these values are NaN, for example from
+  `inits`, a later phase or a refit, is affected; any other model is unchanged, bit for
+  bit.
+
 # Rceattle 5.67.10
 
 ## Performance

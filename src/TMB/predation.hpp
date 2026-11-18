@@ -224,7 +224,9 @@ void calculate_msvpa_suitability(array<Type> &stom_div_bio,
 
               Type prey_denom = prey_wt * prey_N;
 
-              if (prey_denom > Type(0.0)) {
+              // TMB evaluates this test once, when it records the tape. NaN passes it, so
+              // it reaches suitability rather than dropping this prey age from the fit.
+              if (!(prey_denom <= Type(0.0))) {
                 Type inv_prey_denom = Type(1.0) / prey_denom;
 
                 for(int r_sex = 0; r_sex < nsex(rsp); r_sex++) {
@@ -369,7 +371,7 @@ void calculate_msvpa_predation(array<Type> &avail_food,
                                const vector<Type> &other_food) {
 
   // Re-entered on every multispecies iteration (niter), so all outputs are zeroed: the pair
-  // outputs and other_diet_prop_hat are written only where available food is positive.
+  // outputs and other_diet_prop_hat are written only where available food is > 0 or NaN.
   avail_food.setZero();
   avail_food_dB0.setZero();
   avail_food_dBF.setZero();
@@ -470,7 +472,9 @@ void calculate_msvpa_predation(array<Type> &avail_food,
 
       Type avail_r = avail_food(rsp, r_sex, r_age, yr);
 
-      if(avail_r > Type(0.0)) {
+      // TMB evaluates these tests once, when it records the tape. NaN available food passes
+      // them, so it reaches M2 rather than dropping this predator age.
+      if(!(avail_r <= Type(0.0))) {
         // avgN (thousands of fish) x ration (kg/predator/yr) is mt consumed, over
         // available food in mt.
         Type inv_avail = Type(1.0) / avail_r;
@@ -479,13 +483,13 @@ void calculate_msvpa_predation(array<Type> &avail_food,
 
         Type pred_mort_scalar_dB0 = Type(0.0);
         Type avail_r_dB0 = avail_food_dB0(rsp, r_sex, r_age, yr);
-        if(avail_r_dB0 > Type(0.0)) {
+        if(!(avail_r_dB0 <= Type(0.0))) {
           pred_mort_scalar_dB0 = (avgN_at_age_dB0(rsp, r_sex, r_age, yr) * pred_rat) / avail_r_dB0;
         }
 
         Type pred_mort_scalar_dBF = Type(0.0);
         Type avail_r_dBF = avail_food_dBF(rsp, r_sex, r_age, yr);
-        if(avail_r_dBF > Type(0.0)) {
+        if(!(avail_r_dBF <= Type(0.0))) {
           pred_mort_scalar_dBF = (avgN_at_age_dBF(rsp, r_sex, r_age, yr) * pred_rat) / avail_r_dBF;
         }
 
