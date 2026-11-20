@@ -599,7 +599,7 @@ these stay as they are:
 * `srr_fun`'s valid set is non-contiguous: 0/2/4 are live, 1/3/5 are errors.
 * `sel_map` skips 10, 12 and 14.
 * `initMode` 1 (`Equilibrium`) and 5 (`OffsetEquilibrium`) differ by one term.
-* `msmMode` accepts 3–9, then `data_check()` rejects them.
+* `msmMode` 3–9 are not implemented: `fit_mod()` rejects them (`msmMode_map` holds 0–2).
 
 *Overloaded columns.* `Time_varying_q` is a mode code for most fleets but a
 1-based `env_data` column index (possibly comma-separated, `"1,3"`) when
