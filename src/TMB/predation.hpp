@@ -224,7 +224,7 @@ void calculate_msvpa_suitability(array<Type> &stom_div_bio,
 
               Type prey_denom = prey_wt * prey_N;
 
-              // TMB evaluates this test once, when it records the tape. NaN passes it, so
+              // The tape fixes this branch when TMB records it. NaN passes the test, so
               // it reaches suitability rather than dropping this prey age from the fit.
               if (!(prey_denom <= Type(0.0))) {
                 Type inv_prey_denom = Type(1.0) / prey_denom;
@@ -472,7 +472,7 @@ void calculate_msvpa_predation(array<Type> &avail_food,
 
       Type avail_r = avail_food(rsp, r_sex, r_age, yr);
 
-      // TMB evaluates these tests once, when it records the tape. NaN available food passes
+      // The tape fixes these branches when TMB records it. NaN available food passes
       // them, so it reaches M2 rather than dropping this predator age.
       if(!(avail_r <= Type(0.0))) {
         // avgN (thousands of fish) x ration (kg/predator/yr) is mt consumed, over
