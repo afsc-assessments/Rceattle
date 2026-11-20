@@ -417,6 +417,7 @@ section holds the fuller text as of 2026-09-14).
 - **`getsd = FALSE` leaves `sdrep` NULL** (no `vcov()`, NA bands); the refit diagnostics read the bias-adjust flags and `projection_uncertainty` off `data_list`. **The converse does not hold**: since 5.58.2 a retrospective peel whose standard-error rebuild failed is KEPT, with whatever `sdreport()` returned (`NULL` only if the rebuild threw first, 5.66.8), so read `attr(peel, "sd_report_error")` rather than inferring `getsd` or a usable band from `sdrep`.
 - **`run_mse()` pins the OM's stock-recruit and suitability windows to the pristine `om$`** (`verify-mse-hindcast-invariant.R`).
 - **Every error is drawn in a `SIMULATE{}` block beside its density**; a new likelihood family owes a draw (`verify-sim-*.R`).
+- **A C++ `if` on a parameter-dependent value is decided once, at taping**, and `report()` re-decides it: `x > 0` drops NaN for the whole fit (write `!(x <= 0)`), and an exact 0 at taping is dropped either way.
 - **An MSE draw is per observation row**, so changing the OM horizon or row count changes every later draw (`TODO-mse-horizon.md`).
 - **The guards are not themselves guarded**: golden runs only in `deep-checks`; keep `NOT_CRAN=false` a step-level `env:`.
 - **A green R-CMD-check can be reporting your mistake**: `error-on: '"error"'` passes NOTEs and WARNINGs alike. The baseline is four runners `Status: OK` plus `macos-latest` at 1 WARNING, so read the `Status:` line against that, not the tick.

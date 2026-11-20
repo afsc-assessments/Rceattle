@@ -16,6 +16,129 @@ at it, and the entries below cite each other by version throughout.
 review. It landed as 5.66.9, so a version check written for that fix needs 5.66.9.
 -->
 
+# Rceattle 5.67.11.9101 (dev-RTMB)
+
+## Internal
+
+* Brings dev 5.67.6 to 5.67.11 into the RTMB port branch; their entries follow. The
+  RTMB model's code is unchanged, and its stage-1 gate
+  (`tools/verify/verify-rtmb-oracle.R`) passes against the merged C++ as before.
+
+# Rceattle 5.67.11
+
+## Bug fixes
+
+* **Under multispecies predation (`msmMode > 0`), NaN available food, or a NaN prey
+  term in empirical suitability (`suitMode = 0`), now reaches M2 instead of silently
+  dropping that predator or prey age.** TMB evaluates these four tests once, when it
+  records the model, so an age dropped on NaN was missing from every later evaluation
+  of the objective, while the reported quantities still included it. Zero and negative
+  values are handled as before. BS2017MS (`msmMode = 1`, `niter = 3`) recorded with
+  pollock `init_dev` at -720, inside its lower bound of -1000, lost 25 predator ages: its
+  objective was 7,372,253 there rather than NaN, and 1,564,196.9 rather than 1,784,463.7
+  back at the default start. A fit started there reported an objective of 13,464.0 while
+  its own quantities gave 88,409.3; it now stops with nlminb's "NA/NaN gradient
+  evaluation" error. Only a model recorded where these values are NaN, for example from
+  `inits`, a later phase or a refit, is affected; any other model is unchanged, bit for
+  bit.
+
+# Rceattle 5.67.10
+
+## Performance
+
+* **Multispecies models build faster.** The predation calculation now makes 5 array
+  calls per predator-prey pair and year rather than 14, by keeping its sums in local
+  variables and reading prey numbers and weights once per prey. Each such call allocates
+  memory when TMB records the model and when it reports quantities, though not when it
+  evaluates the objective. So building a multispecies model, which every `fit_mod()` call
+  repeats (including each refit inside `retrospective()`, `jitter()`, `profile()` and
+  `run_mse()`), takes about a third less time (29-37%), and reporting its quantities
+  about half as long. With `msmMode = 1`, BS2017MS builds in 1.0 s rather than 1.65 s
+  and GOA2018SS in 1.9 s rather than 2.6 s. Long fits gain least, because evaluating the
+  objective and gradient takes as long as before: with `getsd = FALSE`, a BS2017MS fit
+  (`niter = 5`) takes 4.3 s rather than 5.2 s, and a GOA2018SS fit 25.8 s rather than
+  26.7 s. No fit moves: the objective and gradient are identical, bit for bit, to the
+  previous version at every point of the optimizer paths checked, as is every reported
+  quantity at the parameter values checked, and the Pacific hake MSE's seven reference
+  fits reproduce its objectives to every printed digit.
+
+# Rceattle 5.67.9
+
+## Bug fixes
+
+* **With `newtonsteps > 0`, the hindcast's reported gradient, objective and standard
+  errors describe the estimates.** `fit_mod()` takes its estimates from the lowest
+  objective TMB evaluated, but TMBhelper keeps every Newton step, even one that
+  raises the objective, and reported `fit$opt`, `fit$sdrep` and the convergence
+  report's gradient at the last one. They are now evaluated at the estimates. With
+  TMBhelper the estimates do not move: estimates and SSB are unchanged bit for bit
+  on 44 NOAA model-comparison fits and on `BS2017SS`, and standard errors moved by
+  at most 6.1e-8 relative across them (1.5e-10 on `BS2017SS`). One comparison fit, stopped at `rel.tol = 1e-4`, had
+  reported a gradient of 9.2e-5 for estimates whose gradient is 0.131;
+  `max_gradient` now warns there. In 19 others the last step was no lower, within
+  1.4e-12, and the gradient at the estimates, up to 2.7e-6, had been reported as
+  ~1e-11 (`BS2017SS`: 2.3e-8, reported as 2.0e-11). Convergence warning (8) no longer reads a step that
+  raised the objective as a discontinuous likelihood. Without TMBhelper, the
+  objective is now evaluated at every Newton step, as TMBhelper does, so the
+  estimates are the lowest step rather than the lower of `nlminb`'s point and the
+  last step. On `BS2017SS` that moves parameters by up to 1.35e-10 and SSB by
+  3.3e-11 relative, to exactly the TMBhelper path's estimates.
+
+# Rceattle 5.67.8
+
+## Bug fixes
+
+* **`sample_rec(update_model = TRUE)` warns when the model projects mean
+  recruitment.** Under the `build_srr()` default `proj_mean_rec = TRUE`,
+  projected recruitment is `avg_R` (mean hindcast recruitment) and ignores the
+  projection deviations, so `sample_rec()` left it unchanged: by exactly 0 on
+  `BS2017MS`. The deviations reach only the dynamic B0 series, which a
+  `DynamicHCR` reads. What `sample_rec()` returns is unchanged; it only warns.
+  `run_mse()` calls it with `update_model = FALSE` and does not warn: its
+  projection years become operating-model hindcast years, where the deviations
+  apply. None of the repos registered in `inst/dev/SIBLING-REPOS.md` calls
+  `sample_rec()`. The unregistered `Climate_MSE_projections` calls it four times
+  with the defaults, and those calls now warn.
+
+## Documentation
+
+* `vignette("projections-and-reference-points")`: the manual-deviation and
+  `sample_rec()` examples now fit with `build_srr(proj_mean_rec = FALSE)`, so
+  their "Stochastic recruitment" and "Declining recruitment" scenarios differ
+  from "No fishing"; before, they plotted on top of it. `?sample_rec` and
+  `vignette("model-options-and-functionality")` say the deviations apply only
+  under that switch.
+
+# Rceattle 5.67.7
+
+## Documentation
+
+* `vignette("projections-and-reference-points")` no longer says that
+  `random_rec = TRUE` carries recruitment process uncertainty into the
+  projections. Projection-year deviations are not estimated under either
+  setting; no results change. On `BS2017SS` projected to 2060, as in the
+  vignette, the projected log-SSB standard errors of a fixed- and a
+  random-effects fit differ by less than 6%.
+
+# Rceattle 5.67.6
+
+## Bug fixes
+
+* **`model_average(uncertainty = TRUE)` draws each model's parameters from its
+  asymptotic covariance.** Point estimates are unchanged, but every average
+  with `uncertainty = TRUE` gets new `$sdrep$sd` and `$asymptotic_samples`, and
+  so new intervals under `add_ci = TRUE` and in `as.data.frame()`. Without
+  random effects it drew from the precision matrix (the inverse covariance);
+  with them it set the first parameter's variance to 100 (on `BS2017SS`,
+  pollock's log mean recruitment). A fit averaged with itself should reproduce
+  its own standard errors. On `BS2017SS` the averaged hindcast log-SSB standard
+  error was 1,430 to 4,300 times the fit's own without random effects, and 185
+  to 401 times for pollock with `random_rec = TRUE` (cod and arrowtooth were
+  unaffected); it is now 0.95 to 1.37 times (median 1.02). Sibling scripts that
+  build such averages: `Rceattle-models` GOA CEATTLE `GOA_18`, `GOA_20` and
+  `GOA_21`, and `GOAceattle`'s `R/Figures.R`, which also plots
+  `asymptotic_samples` directly.
+
 # Rceattle 5.67.5.9101 (dev-RTMB)
 
 ## Internal
