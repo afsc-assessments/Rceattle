@@ -50,8 +50,9 @@ Wrap everything in one `export PATH=/usr/bin:$PATH && NOT_CRAN=true Rscript -e '
    objective-*relative* tolerance, i.e. wherever that tolerance happens to bite
    rather than at a stationary point, leaving the GOA fits ~1e-3 in gradient. The
    reference then moves under changes that cannot alter the model -- adding a
-   constant to the objective once shifted `goa_ss` by 52.9 units. Polishing pins a
-   true optimum (max gradient 2.3e-8 on `BS2017SS`), so the comparison means something. It does not
+   constant to the objective once shifted `goa_ss` by 52.9 units. Polishing brings the
+   estimates to a stationary point (max gradient 2.3e-8 on `BS2017SS`, 3.7e-6 on `goa_ss`;
+   the reference script polishes further, to about 1e-11), so the comparison means something. It does not
    remove that 52.9: `goa_ss` has a second local minimum that far above the reference,
    and a one-ULP gradient change can select it (`inst/dev/TRAPS.md`, "Coverage gaps in
    the golden check").

@@ -80,9 +80,9 @@ fits <- list(ss = ss, ms = ms, goa_ss = goa_ss, goa_ms = goa_ms)
 # The parameters are pinned at a Newton-POLISHED point, not at
 # `fit$estimated_params` (TMB's `last.par.best`, which `opt$par` reports). TMB
 # keeps a step only if its objective is strictly lower, so a last step that ties
-# within rounding leaves the estimates short of it: on goa_ss 2.3e-08 away in
-# parameter space and 9.1e-12 in objective, but a gradient of 3.2e-06 rather than
-# 1.3e-11. Pinning the pair from one point makes the check reproduce exactly and
+# within rounding leaves the estimates short of it: on goa_ss 2.7e-08 away in
+# parameter space with an objective no lower, but a gradient of 3.7e-06 rather than
+# 3.1e-11. Pinning the pair from one point makes the check reproduce exactly and
 # leaves the gradient gate its full margin.
 polish <- function(f, steps = 3) {
   p <- f$opt$par
