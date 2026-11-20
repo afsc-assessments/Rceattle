@@ -69,7 +69,7 @@ Consumption is either an environmentally driven bioenergetics model or direct in
 * `CB`	$\beta^{\delta}_p$, the slope of that function
 * `Qc`, `Tco`, `Tcm`, `Tcl`, `CK1`, `CK4`	Parameters $Q^c_p$, $T^{co}_p$, $T^{cm}_p$, $T^{cl}_p$, $CK1_p$ and $CK4_p$ of the temperature scaling function; which are read depends on `Ceq`, per the algorithms below
 
-`ration_data` holds the relative foraging rate $RFR_{pbj,y}$; ration can be tuned through `fday` and `Pvalue`. The weight-at-age used in the consumption equations is set by `pop_wt_index`.
+Under `Ceq` 1-3, `ration_data` holds the relative foraging rate $RFR_{pbj,y}$; ration can be tuned through `fday` and `Pvalue`. The weight-at-age used in the consumption equations is set by `pop_wt_index`.
 
 ### Bioenergetics based ration
 `Ceq %in% 1:3`
@@ -102,8 +102,8 @@ $$L_2 = e^{G_2 (T^{cl}_p - T_y)}$$
 $$G_2 = \frac{1}{T^{cl}_p-T^{cm}_p}*\log\left( \frac{0.98*(1-CK4_p)}{CK4_p*0.02}\right)$$
 
 ### Input ration-at-age
-`Ceq = 4` reads consumption-at-sex/age directly from `ration_data` as $RFR_{pbj,y}$. Set `CA = 1`, `fday = 1` and `CB = 0`.
-$$\delta_{pbj,y} = RFR_{pbj,y}* W_{pbj,y} $$
+`Ceq = 4` reads annual ration at sex/age directly from `ration_data` (kg per predator per year), scaled by `Pvalue`; `CA`, `CB` and `fday` are not read.
+$$\delta_{pbj,y} = \varphi_p * RFR_{pbj,y}$$
 
 
 # Fishery and survey observation model

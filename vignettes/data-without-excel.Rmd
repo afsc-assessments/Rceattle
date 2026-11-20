@@ -519,7 +519,7 @@ See "Consumption" in `vignette("model-parameterizations")` for each parameter.
 #   1 = Exponential (Stewart et al. 1983)
 #   2 = Warm-water temperature dependence (Kitchell et al. 1977)
 #   3 = Cool/cold-water temperature dependence (Thornton & Lessem 1979)
-#   4 = bypass bioenergetics; use ration_data directly (set CA = 1, fday = 1, CB = 0)
+#   4 = bypass bioenergetics; ration_data is annual ration per predator (kg)
 simData$Ceq    <- rep(4,  nspp)
 
 simData$Cindex <- rep(1,  nspp)   # which env_data covariate column drives it, counting from 1
