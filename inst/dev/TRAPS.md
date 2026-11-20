@@ -918,6 +918,19 @@ repo's tooling and were wrong. The constants are platform-independent (verified 
 and macOS/arm64 to 16 digits), but on a new machine capture the baseline **before** the change
 you want to test — a failure you cannot attribute is worse than no check.
 
+**A C++ `if` on a parameter-dependent value is decided once, when TMB records the tape.** Every
+later `fn`/`gr` keeps that branch, while `report()` re-decides it, so a tape recorded where the
+test came out differently fits a different model from the one reported. `x > 0` is false for
+NaN and drops the term; until 5.67.11 the available-food and prey-term tests in `predation.hpp`
+did that. BS2017MS (`msmMode = 1`, `niter = 3`) recorded at pollock `init_dev = -720` (inside its
+-1000 bound) returned 7,372,253 there rather than NaN, and 1,564,196.9 rather than 1,784,463.7
+back at the default start. **`!(x <= 0)` only stops NaN being dropped: an exact 0 at recording
+still drops the term from every later evaluation.** At `init_dev = -800` those prey numbers
+underflow to 0, and the tape returns 1,784,686.178 at the default start, on 5.67.11 too. Only a
+taped branch (`CondExpGt`, with the denominator guarded) re-decides on replay. On the tape, NaN
+times a constant-zero suitability is also 0 (TMBad folds it), so `report()` can show NaN where
+`fn` does not.
+
 ## The refit path, and the eight callers
 
 **Eight entry points re-invoke `fit_mod()` through `.refit_like()`** (`R/6-refit_like.R`), which
