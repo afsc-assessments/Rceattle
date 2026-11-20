@@ -96,7 +96,7 @@ plot_catch(ms_run_proj, incl_proj = TRUE)
 
 ### Manual recruitment deviations
 
-Projection recruitment deviations live in the parameter list, so you can overwrite them directly before projecting. Projected recruitment uses them only under `build_srr(proj_mean_rec = FALSE)`; the default projects mean recruitment over the hindcast (`avg_R`) whatever the deviations. Under that switch a deviation of 0 projects R0, the estimated log-scale recruitment level, which on `BS2017MS` is 26–37% below `avg_R`, so this scenario projects lower recruitment than `ms_run` even with zero deviations. `estimateMode = 3` evaluates the model without re-estimating anything.
+Projection recruitment deviations live in the parameter list, so you can overwrite them directly before projecting. Projected recruitment uses them only under `build_srr(proj_mean_rec = FALSE)`; the default projects mean recruitment over the hindcast (`avg_R`) whatever the deviations. Under that switch a deviation of 0 projects R0, which on `BS2017MS` is 26–37% below `avg_R` (`avg_R` is R0 times the hindcast mean of exp(deviation)). So this scenario projects lower recruitment than `ms_run` even with zero deviations. `estimateMode = 3` evaluates the model without re-estimating anything.
 
 ```{r}
 nyrs      <- BS2017MS$endyr - BS2017MS$styr + 1
@@ -139,7 +139,7 @@ ms_run_proj3 <- sample_rec(
 
 ## Comparing projection scenarios
 
-Only "Constant F" fishes. "No fishing" and "Constant F" project `avg_R`, while the two recruitment scenarios project from R0 (see above), so compare their shapes rather than their level against "No fishing".
+Only "Constant F" fishes. "No fishing" and "Constant F" project `avg_R`. "Stochastic recruitment" draws its deviations around R0 (see above), so compare its shape rather than its level against "No fishing". "Declining recruitment" resamples the hindcast deviations, which average back to `avg_R`, so it starts near "No fishing".
 
 ```{r}
 mod_list  <- list(ms_run, ms_run_proj, ms_run_proj2, ms_run_proj3)

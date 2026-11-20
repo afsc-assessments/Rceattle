@@ -28,7 +28,9 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   `DynamicHCR` reads. What `sample_rec()` returns is unchanged; it only warns.
   `run_mse()` calls it with `update_model = FALSE` and does not warn: its
   projection years become operating-model hindcast years, where the deviations
-  apply. No sibling-repo script calls `sample_rec()`.
+  apply. None of the repos registered in `inst/dev/SIBLING-REPOS.md` calls
+  `sample_rec()`. The unregistered `Climate_MSE_projections` calls it four times
+  with the defaults, and those calls now warn.
 
 ## Documentation
 

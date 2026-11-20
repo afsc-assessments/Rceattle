@@ -1148,8 +1148,8 @@ sample_rec <- function(object = NULL, sample_rec = TRUE, update_model = TRUE, re
       isTRUE(as.logical(object$data_list[["proj_mean_rec"]]))) {
     warning("proj_mean_rec = TRUE projects recruitment at avg_R (mean hindcast ",
             "recruitment), so the deviations sample_rec() writes do not drive ",
-            "it. To apply them, refit with ",
-            "recFun = build_srr(proj_mean_rec = FALSE) and pass that fit.",
+            "it. To apply them, add proj_mean_rec = FALSE to the model's ",
+            "build_srr() call, refit, and pass that fit.",
             call. = FALSE)
   }
 
