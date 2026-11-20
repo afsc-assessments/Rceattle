@@ -30,11 +30,11 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   about half as long. With `msmMode = 1`, BS2017MS builds in 1.0 s rather than 1.65 s
   and GOA2018SS in 1.9 s rather than 2.6 s. Long fits gain least, because evaluating the
   objective and gradient takes as long as before: with `getsd = FALSE`, a BS2017MS fit
-  takes 4.3 s rather than 5.2 s, and a GOA2018SS fit 25.8 s rather than 26.7 s. No fit
-  moves: the objective and gradient are identical, bit for bit, to 5.67.5 at every point
-  of the optimizer paths checked, as is every reported quantity at the parameter values
-  checked, and the Pacific hake MSE's seven reference fits reproduce 5.67.5's objectives
-  to every printed digit.
+  (`niter = 5`) takes 4.3 s rather than 5.2 s, and a GOA2018SS fit 25.8 s rather than
+  26.7 s. No fit moves: the objective and gradient are identical, bit for bit, to the
+  previous version at every point of the optimizer paths checked, as is every reported
+  quantity at the parameter values checked, and the Pacific hake MSE's seven reference
+  fits reproduce its objectives to every printed digit.
 
 # Rceattle 5.67.5
 
