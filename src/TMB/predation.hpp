@@ -409,7 +409,7 @@ void calculate_msvpa_predation(array<Type> &avail_food,
   vector<Type> M2(ncell), M2_dB0(ncell), M2_dBF(ncell), eaten_as_prey(ncell);
 
   // Pass 1 loops prey outside predators and pass 2 the reverse, as two separate loops over
-  // years: the other orders tried change the gradient's last bits, which can move a fit.
+  // years: any other order changes the gradient's last bits, which can move a fit.
 
   // 1. Available food: suitability-weighted prey biomass (mt), then "other food" (mt),
   // prey outside the model, added once per predator age and year.

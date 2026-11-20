@@ -64,8 +64,9 @@ than a median. A value between 0 and 1 scales the shift.}
 Default \code{TRUE}.}
 
 \item{rel_tol}{Numeric tolerance for flagging a discontinuous likelihood,
-comparing \code{nlminb}'s objective with a fresh evaluation of the object it
-came from. Default \code{1}.}
+comparing \code{nlminb}'s objective with a fresh evaluation at the estimates
+(under \code{newtonsteps > 0} the reported objective is that evaluation, so
+nothing is flagged). Default \code{1}.}
 
 \item{loopnum}{Integer. Times to restart optimization; \code{3} sometimes reaches
 a lower final gradient than \code{1}. Default \code{5}.}
