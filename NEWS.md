@@ -16,6 +16,26 @@ at it, and the entries below cite each other by version throughout.
 review. It landed as 5.66.9, so a version check written for that fix needs 5.66.9.
 -->
 
+# Rceattle 5.67.10
+
+## Performance
+
+* **Multispecies models build faster.** The predation calculation now makes 5 array
+  calls per predator-prey pair and year rather than 14, by keeping its sums in local
+  variables and reading prey numbers and weights once per prey. Each such call allocates
+  memory when TMB records the model and when it reports quantities, though not when it
+  evaluates the objective. So building a multispecies model, which every `fit_mod()` call
+  repeats (including each refit inside `retrospective()`, `jitter()`, `profile()` and
+  `run_mse()`), takes about a third less time (29-37%), and reporting its quantities
+  about half as long. With `msmMode = 1`, BS2017MS builds in 1.0 s rather than 1.65 s
+  and GOA2018SS in 1.9 s rather than 2.6 s. Long fits gain least, because evaluating the
+  objective and gradient takes as long as before: with `getsd = FALSE`, a BS2017MS fit
+  (`niter = 5`) takes 4.3 s rather than 5.2 s, and a GOA2018SS fit 25.8 s rather than
+  26.7 s. No fit moves: the objective and gradient are identical, bit for bit, to the
+  previous version at every point of the optimizer paths checked, as is every reported
+  quantity at the parameter values checked, and the Pacific hake MSE's seven reference
+  fits reproduce its objectives to every printed digit.
+
 # Rceattle 5.67.9
 
 ## Bug fixes

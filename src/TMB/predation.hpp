@@ -314,8 +314,7 @@ void calculate_msvpa_suitability(array<Type> &stom_div_bio,
  * (Type III) the prey term is squared, so the denominator is not a biomass there. M2
  * divides each predator's consumption (avgN x ration) by that denominator, so a LARGER
  * available-food denominator gives LESS predation mortality. The dB0 (F = 0) and dBF
- * (F = Ftarget) arrays repeat the calculation for the dynamic reference points. Prey
- * biomass and the predator scalars are each computed once outside the deepest loop.
+ * (F = Ftarget) arrays repeat the calculation for the dynamic reference points.
  *
  * @param avail_food          Available food (mt) [nspp, max_sex, max_age, nyrs], updated.
  * @param avail_food_dB0      Available food at F=0, updated.
@@ -369,8 +368,8 @@ void calculate_msvpa_predation(array<Type> &avail_food,
                                array<Type> &ration,
                                const vector<Type> &other_food) {
 
-  // Predation is re-entered on every multispecies iteration (niter). M2, available food
-  // and B_eaten_as_prey accumulate with +=; the rest are written only where avail > 0.
+  // Re-entered on every multispecies iteration (niter), so all outputs are zeroed: the pair
+  // outputs and other_diet_prop_hat are written only where available food is positive.
   avail_food.setZero();
   avail_food_dB0.setZero();
   avail_food_dBF.setZero();
@@ -383,116 +382,143 @@ void calculate_msvpa_predation(array<Type> &avail_food,
   diet_prop_hat.setZero();
   other_diet_prop_hat.setZero();
 
-  // 1. Available food: suitability-weighted prey biomass (mt), then "other food".
+  // Predators and prey are the same (species, sex, age) cells, listed species, then sex,
+  // then age: the order every sum below adds in.
+  int ncell = 0;
+  for(int sp = 0; sp < nspp; sp++) ncell += nsex(sp) * nages(sp);
+  vector<int> cell_sp(ncell), cell_sex(ncell), cell_age(ncell), cell_sp_sex(ncell);
+  int cell = 0;
+  for(int sp = 0; sp < nspp; sp++) {
+    for(int sex = 0; sex < nsex(sp); sex++) {
+      for(int age = 0; age < nages(sp); age++) {
+        cell_sp(cell) = sp;
+        cell_sex(cell) = sex;
+        cell_age(cell) = age;
+        cell_sp_sex(cell) = sp + (nspp * sex);  // indexes suitability and the pair outputs
+        cell++;
+      }
+    }
+  }
+
+  // Sums are kept in locals and prey quantities copied out once a year, so the pair loops
+  // make few array(i, j, ...) calls: each one allocates an index vector.
+  vector<Type> avail(ncell), avail_dB0(ncell), avail_dBF(ncell);
+  vector<Type> prey_N_cell(ncell), prey_wt_cell(ncell);   // thousands of fish, kg
+  vector<Type> M2(ncell), M2_dB0(ncell), M2_dBF(ncell), eaten_as_prey(ncell);
+
+  // Pass 1 loops prey outside predators and pass 2 the reverse, as two separate loops over
+  // years: any other order changes the gradient's last bits, which can move a fit.
+
+  // 1. Available food: suitability-weighted prey biomass (mt), then "other food" (mt),
+  // prey outside the model, added once per predator age and year.
   for(int yr = 0; yr < nyrs; yr++) {
-    for(int ksp = 0; ksp < nspp; ksp++) {
-      int wt_idx_ksp = 2 * ksp;
-      for(int k_sex = 0; k_sex < nsex(ksp); k_sex++) {
-        int k_idx = ksp + (nspp * k_sex);
-        for(int k_age = 0; k_age < nages(ksp); k_age++) {
+    avail.setZero();
+    avail_dB0.setZero();
+    avail_dBF.setZero();
+    for(int k_cell = 0; k_cell < ncell; k_cell++) {
+      int ksp = cell_sp(k_cell), k_sex = cell_sex(k_cell), k_age = cell_age(k_cell);
+      int k_idx = cell_sp_sex(k_cell);
 
-          // msmMode 2 (Type III) squares the prey numbers; "other food" is never squared.
-          Type prey_N = avgN_at_age(ksp, k_sex, k_age, yr);
-          Type prey_N_adj = (msmMode == 1) ? prey_N : (prey_N * prey_N);
+      // msmMode 2 (Type III) squares the prey numbers; "other food" is never squared.
+      Type prey_N = avgN_at_age(ksp, k_sex, k_age, yr);
+      Type prey_N_adj = (msmMode == 1) ? prey_N : (prey_N * prey_N);
 
-          Type prey_N_dB0 = avgN_at_age_dB0(ksp, k_sex, k_age, yr);
-          Type prey_N_adj_dB0 = (msmMode == 1) ? prey_N_dB0 : (prey_N_dB0 * prey_N_dB0);
+      Type prey_N_dB0 = avgN_at_age_dB0(ksp, k_sex, k_age, yr);
+      Type prey_N_adj_dB0 = (msmMode == 1) ? prey_N_dB0 : (prey_N_dB0 * prey_N_dB0);
 
-          Type prey_N_dBF = avgN_at_age_dBF(ksp, k_sex, k_age, yr);
-          Type prey_N_adj_dBF = (msmMode == 1) ? prey_N_dBF : (prey_N_dBF * prey_N_dBF);
+      Type prey_N_dBF = avgN_at_age_dBF(ksp, k_sex, k_age, yr);
+      Type prey_N_adj_dBF = (msmMode == 1) ? prey_N_dBF : (prey_N_dBF * prey_N_dBF);
 
-          Type prey_wt = weight_hat(wt_idx_ksp, k_sex, k_age, yr);
+      Type prey_wt = weight_hat(2 * ksp, k_sex, k_age, yr);
 
-          Type bio_avail     = prey_N_adj * prey_wt;
-          Type bio_avail_dB0 = prey_N_adj_dB0 * prey_wt; // dynamic B0, F = 0
-          Type bio_avail_dBF = prey_N_adj_dBF * prey_wt; // dynamic BF, F = Ftarget
+      Type bio_avail     = prey_N_adj * prey_wt;
+      Type bio_avail_dB0 = prey_N_adj_dB0 * prey_wt; // dynamic B0, F = 0
+      Type bio_avail_dBF = prey_N_adj_dBF * prey_wt; // dynamic BF, F = Ftarget
 
-          for(int rsp = 0; rsp < nspp; rsp++) {
-            for(int r_sex = 0; r_sex < nsex(rsp); r_sex++) {
-              int r_idx = rsp + (nspp * r_sex);
-              for(int r_age = 0; r_age < nages(rsp); r_age++) {
-                Type suit = suitability(r_idx, k_idx, r_age, k_age, yr);
-                avail_food(rsp, r_sex, r_age, yr)     += suit * bio_avail;
-                avail_food_dB0(rsp, r_sex, r_age, yr) += suit * bio_avail_dB0;
-                avail_food_dBF(rsp, r_sex, r_age, yr) += suit * bio_avail_dBF;
-              }
-            }
-          }
-        }
+      for(int r_cell = 0; r_cell < ncell; r_cell++) {
+        Type suit = suitability(cell_sp_sex(r_cell), k_idx, cell_age(r_cell), k_age, yr);
+        avail(r_cell)     += suit * bio_avail;
+        avail_dB0(r_cell) += suit * bio_avail_dB0;
+        avail_dBF(r_cell) += suit * bio_avail_dBF;
       }
     }
 
-    // "Other food" (mt) is prey outside the model, added once per predator age and year.
-    for(int rsp = 0; rsp < nspp; rsp++) {
-      for(int r_sex = 0; r_sex < nsex(rsp); r_sex++) {
-        for(int r_age = 0; r_age < nages(rsp); r_age++) {
-          Type other_f = other_food(rsp) * suit_other(rsp, r_sex, r_age, yr);
-          avail_food(rsp, r_sex, r_age, yr)     += other_f;
-          avail_food_dB0(rsp, r_sex, r_age, yr) += other_f;
-          avail_food_dBF(rsp, r_sex, r_age, yr) += other_f;
-        }
-      }
+    for(int r_cell = 0; r_cell < ncell; r_cell++) {
+      int rsp = cell_sp(r_cell), r_sex = cell_sex(r_cell), r_age = cell_age(r_cell);
+      Type other_f = other_food(rsp) * suit_other(rsp, r_sex, r_age, yr);
+      avail_food(rsp, r_sex, r_age, yr)     = avail(r_cell) + other_f;
+      avail_food_dB0(rsp, r_sex, r_age, yr) = avail_dB0(r_cell) + other_f;
+      avail_food_dBF(rsp, r_sex, r_age, yr) = avail_dBF(r_cell) + other_f;
     }
   }
 
   // 2. Predation mortality (M2) and the prey biomass eaten.
   for(int yr = 0; yr < nyrs; yr++) {
-    for(int rsp = 0; rsp < nspp; rsp++) {
-      for(int r_sex = 0; r_sex < nsex(rsp); r_sex++) {
-        int r_idx = rsp + (nspp * r_sex);
-        for(int r_age = 0; r_age < nages(rsp); r_age++) {
+    for(int k_cell = 0; k_cell < ncell; k_cell++) {
+      int ksp = cell_sp(k_cell), k_sex = cell_sex(k_cell), k_age = cell_age(k_cell);
+      prey_N_cell(k_cell)  = avgN_at_age(ksp, k_sex, k_age, yr);
+      prey_wt_cell(k_cell) = weight_hat(2 * ksp, k_sex, k_age, yr);
+    }
 
-          Type avail = avail_food(rsp, r_sex, r_age, yr);
+    M2.setZero();
+    M2_dB0.setZero();
+    M2_dBF.setZero();
+    eaten_as_prey.setZero();
+    for(int r_cell = 0; r_cell < ncell; r_cell++) {
+      int rsp = cell_sp(r_cell), r_sex = cell_sex(r_cell), r_age = cell_age(r_cell);
+      int r_idx = cell_sp_sex(r_cell);
 
-          if(avail > Type(0.0)) {
-            // avgN (thousands of fish) x ration (kg/predator/yr) is mt consumed, over
-            // available food in mt.
-            Type inv_avail = Type(1.0) / avail;
-            Type pred_rat = ration(rsp, r_sex, r_age, yr);
-            Type pred_mort_scalar = avgN_at_age(rsp, r_sex, r_age, yr) * pred_rat * inv_avail;
+      Type avail_r = avail_food(rsp, r_sex, r_age, yr);
 
-            Type pred_mort_scalar_dB0 = Type(0.0);
-            Type avail_dB0 = avail_food_dB0(rsp, r_sex, r_age, yr);
-            if(avail_dB0 > Type(0.0)) {
-              pred_mort_scalar_dB0 = (avgN_at_age_dB0(rsp, r_sex, r_age, yr) * pred_rat) / avail_dB0;
-            }
+      if(avail_r > Type(0.0)) {
+        // avgN (thousands of fish) x ration (kg/predator/yr) is mt consumed, over
+        // available food in mt.
+        Type inv_avail = Type(1.0) / avail_r;
+        Type pred_rat = ration(rsp, r_sex, r_age, yr);
+        Type pred_mort_scalar = avgN_at_age(rsp, r_sex, r_age, yr) * pred_rat * inv_avail;
 
-            Type pred_mort_scalar_dBF = Type(0.0);
-            Type avail_dBF = avail_food_dBF(rsp, r_sex, r_age, yr);
-            if(avail_dBF > Type(0.0)) {
-              pred_mort_scalar_dBF = (avgN_at_age_dBF(rsp, r_sex, r_age, yr) * pred_rat) / avail_dBF;
-            }
+        Type pred_mort_scalar_dB0 = Type(0.0);
+        Type avail_r_dB0 = avail_food_dB0(rsp, r_sex, r_age, yr);
+        if(avail_r_dB0 > Type(0.0)) {
+          pred_mort_scalar_dB0 = (avgN_at_age_dB0(rsp, r_sex, r_age, yr) * pred_rat) / avail_r_dB0;
+        }
 
-            other_diet_prop_hat(rsp, r_sex, r_age, yr) = other_food(rsp) * suit_other(rsp, r_sex, r_age, yr) * inv_avail;
+        Type pred_mort_scalar_dBF = Type(0.0);
+        Type avail_r_dBF = avail_food_dBF(rsp, r_sex, r_age, yr);
+        if(avail_r_dBF > Type(0.0)) {
+          pred_mort_scalar_dBF = (avgN_at_age_dBF(rsp, r_sex, r_age, yr) * pred_rat) / avail_r_dBF;
+        }
 
-            for(int ksp = 0; ksp < nspp; ksp++) {
-              int wt_idx_ksp = 2 * ksp;
-              for(int k_sex = 0; k_sex < nsex(ksp); k_sex++) {
-                int k_idx = ksp + (nspp * k_sex);
-                for(int k_age = 0; k_age < nages(ksp); k_age++) {
+        other_diet_prop_hat(rsp, r_sex, r_age, yr) = other_food(rsp) * suit_other(rsp, r_sex, r_age, yr) * inv_avail;
 
-                  Type prey_N = avgN_at_age(ksp, k_sex, k_age, yr);
-                  Type prey_wt = weight_hat(wt_idx_ksp, k_sex, k_age, yr);
-                  Type suit = suitability(r_idx, k_idx, r_age, k_age, yr);
+        for(int k_cell = 0; k_cell < ncell; k_cell++) {
+          int k_idx = cell_sp_sex(k_cell), k_age = cell_age(k_cell);
+          Type suit = suitability(r_idx, k_idx, r_age, k_age, yr);
 
-                  Type M2_frac = pred_mort_scalar * suit;
-                  M2_at_age(ksp, k_sex, k_age, yr) += M2_frac;
-                  M2_prop(r_idx, k_idx, r_age, k_age, yr) = M2_frac;
+          Type M2_frac = pred_mort_scalar * suit;
+          M2(k_cell) += M2_frac;
+          M2_prop(r_idx, k_idx, r_age, k_age, yr) = M2_frac;
 
-                  Type eaten = prey_N * prey_wt * M2_frac;
-                  B_eaten(r_idx, k_idx, r_age, k_age, yr) = eaten;
-                  B_eaten_as_prey(ksp, k_sex, k_age, yr) += eaten;
+          // N x weight stays per pair: computed once per prey, it can change the gradient's
+          // last bits where diet_prop_hat reaches the diet likelihood (suitMode > 0).
+          Type eaten = prey_N_cell(k_cell) * prey_wt_cell(k_cell) * M2_frac;
+          B_eaten(r_idx, k_idx, r_age, k_age, yr) = eaten;
+          eaten_as_prey(k_cell) += eaten;
 
-                  diet_prop_hat(r_idx, k_idx, r_age, k_age, yr) = prey_N * prey_wt * suit * inv_avail;
+          diet_prop_hat(r_idx, k_idx, r_age, k_age, yr) = prey_N_cell(k_cell) * prey_wt_cell(k_cell) * suit * inv_avail;
 
-                  M2_at_age_dB0(ksp, k_sex, k_age, yr) += pred_mort_scalar_dB0 * suit;
-                  M2_at_age_dBF(ksp, k_sex, k_age, yr) += pred_mort_scalar_dBF * suit;
-                }
-              }
-            }
-          }
+          M2_dB0(k_cell) += pred_mort_scalar_dB0 * suit;
+          M2_dBF(k_cell) += pred_mort_scalar_dBF * suit;
         }
       }
+    }
+
+    for(int k_cell = 0; k_cell < ncell; k_cell++) {
+      int ksp = cell_sp(k_cell), k_sex = cell_sex(k_cell), k_age = cell_age(k_cell);
+      M2_at_age(ksp, k_sex, k_age, yr)       = M2(k_cell);
+      M2_at_age_dB0(ksp, k_sex, k_age, yr)   = M2_dB0(k_cell);
+      M2_at_age_dBF(ksp, k_sex, k_age, yr)   = M2_dBF(k_cell);
+      B_eaten_as_prey(ksp, k_sex, k_age, yr) = eaten_as_prey(k_cell);
     }
   }
 }
