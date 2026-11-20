@@ -16,6 +16,25 @@ at it, and the entries below cite each other by version throughout.
 review. It landed as 5.66.9, so a version check written for that fix needs 5.66.9.
 -->
 
+# Rceattle 5.67.12
+
+## Documentation
+
+* **The vignettes are shorter**: prose words 43,024 to 37,246 (-13.4%) across
+  all thirteen, and 18-28% in the main user vignettes. Change history,
+  provenance a user does not act on, and repeated explanations are cut; every
+  switch row, equation, citation and passage a help page points to is kept.
+  Code chunks are unchanged except the corrections below.
+
+* **About 90 wrong statements corrected**, each checked against the source.
+  The ones that change what a user does: `vignette("hcrs-and-mses")` gave
+  `sampling_period` in the wrong fleet order for `NorthernRockfish2022` (fleet 1
+  is the bottom-trawl survey), so its "Triennial bottom-trawl survey" run
+  thinned the fishery instead; `vignette("environmental-linkages-and-priors")`
+  said `env_data` rows after `projyr` are kept (they are dropped) and its q
+  examples named fisheries with no q; `vignette("introduction")` pointed to
+  `model_1$fleet_control`, which is `NULL`.
+
 # Rceattle 5.67.11
 
 ## Bug fixes

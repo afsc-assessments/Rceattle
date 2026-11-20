@@ -9,6 +9,8 @@ vignette: >
 
 # In progress!
 
+This vignette gives the equations behind CEATTLE's population dynamics, predation, consumption and observation models, and the inputs that select each selectivity and catchability form.
+
 ```{r, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
@@ -16,7 +18,7 @@ knitr::opts_chunk$set(
 )
 ```
 # Population dynamics
-CEATTLE is an age-structured model that follows cohorts of a species $i$, age $a$, and sex $s$ through time $y$. Annual recruitment and the initial age structure are estimated, either as random effects with the recruitment variance estimated, or as penalized deviates with it fixed. Because the initial age structure is estimated assuming the population was already depleted before the first model year, the mean recruitment parameter $\bar{R}_{i}$ is biased low: projected recruitment should instead resemble the hindcast recruitment deviations, and biomass reference points should use the mean of annual recruitment. Populations are 1- or 2-sex via `nsex`, with the sex ratio at birth $\rho_{i1}$ taken from the first age of `sex_ratio`. Natural mortality is partitioned into predation mortality (M2) and residual mortality from all other causes (M1), which is either input on the `M1_base` sheet or estimated with `M1Fun = build_M1(M1_model = ...)` in `fit_mod()`. Setting `msmMode = 0` turns predation off (below).
+CEATTLE is an age-structured model following cohorts of species $i$, age $a$ and sex $s$ through time $y$. Annual recruitment and the initial age structure are estimated as random effects (recruitment variance estimated) or as penalized deviates (variance fixed). Because the initial age structure is estimated assuming the population was already depleted before the first model year, the mean recruitment parameter $\bar{R}_{i}$ is biased low: projected recruitment should resemble the hindcast recruitment deviations, and biomass reference points should use mean annual recruitment. `nsex` sets 1- or 2-sex populations; the sex ratio at birth $\rho_{i1}$ is the first age of `sex_ratio`. Natural mortality is split into predation mortality (M2) and residual mortality from all other causes (M1); M1 is input on the `M1_base` sheet or estimated with `M1Fun = build_M1(M1_model = ...)` in `fit_mod()`.
 
 $$N_{is1,y} = R_{isy} = \bar{R}_{i }e^{\tau_{i,y}}*\rho_{i1}$$
 $$N_{isa,1} = \left \{ \begin{array}{} \bar{R}_ie^{ \left( -j M1_{isa} \right)}*\rho_{i1} \\ \frac{\bar{R}_ie^{ \left( -\sum^{a-1} M1_{isa} \right)}} {\left(1 - e^{\left( -\sum^{a-1} M1_{is A_i} \right)} \right)} *\rho_{i1} \end{array} \right.$$
@@ -27,13 +29,13 @@ $$SSB_{isa,y} = B_{isa,y} \rho_{ia}$$
 $$Z_{isa,y} = M1_{isa} + M2_{isa,y} + F_{isa,y}$$
 
 # Predation sub-model
-`suitMode` sets predator-prey preference (suitability, that is predator selectivity) and `msmMode` the functional response. The predation model is parameterized from the proportion by weight of prey-at-age in a predator-at-age's diet (`diet_data`) and from ration/consumption (below).
+`suitMode` sets predator-prey preference (suitability, that is predator selectivity) and `msmMode` the functional response.
 
 ## Suitability
-Suitability represents a predator's prey and size preference, together with factors such as spatial overlap between predator and prey distributions.
+Suitability is a predator's prey and size preference, together with factors such as predator-prey spatial overlap.
 
 ### MSVPA Type 2 based suitability
-Suitability is derived empirically from the mean proportion by weight of prey-at-age in the stomachs of predators-at-age, $\bar{U}_{pbjisa}$ (`diet_data`). Magnusson (1995) derives the suitability coefficients.
+Suitability is derived empirically, following Magnusson (1995), from the mean proportion by weight of prey-at-age in the stomachs of predators-at-age, $\bar{U}_{pbjisa}$ (`diet_data`).
 `suitMode = 0`
 Predator-prey suitability for predators of species $p$, sex $b$, age $j$, and prey of species $i$, sex $s$ and age $a$
 $$\hat{S}_{pbjisa} = \frac{1}{n_y} \sum_y \left( \frac{ \frac{\bar{U}_{pbjisa}} {B_{isa,y}} } {\sum_{isa} \left( \frac{\bar{U}_{pbjisa}} {B_{isa,y}} \right) + \frac{1 + \sum_{isa} \bar{U}_{pbjisa}} {B_p^{other}} } \right)$$
@@ -41,18 +43,18 @@ $$\hat{S}_{pbjisa} = \frac{1}{n_y} \sum_y \left( \frac{ \frac{\bar{U}_{pbjisa}} 
 ## Predation mortality
 
 ### Single-species mode
-Multiple independent single-species age-structured models: all mortality is fishing plus input or estimated natural mortality ($M = M1$).
+Independent single-species models: mortality is fishing plus input or estimated natural mortality ($M = M1$).
 `msmMode = 0`
 $$M2_{isa,y} = 0$$
 
 ### MSVPA Type 2 based predation mortality
 `msmMode = 1`
-An MSVPA-based formulation following previous MSCAA models (Curti et al., 2013; Holsman et al., 2016; Tsehaye et al., 2014). Predation mortality is built from suitability coefficients $\hat{S}_{pbjisa}$ (estimated or empirical), input annual ration/consumption (below), mean annual prey biomass whether estimated or input, and the input biomass of other prey available to predator $p$ ($B_p^{other}$). Predation and biomass are interdependent, so predation mortality and the age-structured dynamics are iterated to convergence; three to five iterations suffice. Fits are generally insensitive to $B_p^{other}$ over a range of values, which has historically been derived from ecosystem-wide biomass estimates. For predators of species $p$, sex $b$, age $j$ and prey of species $i$, sex $s$, age $a$
+An MSVPA-based formulation following previous MSCAA models (Curti et al., 2013; Holsman et al., 2016; Tsehaye et al., 2014), built from suitability coefficients $\hat{S}_{pbjisa}$ (estimated or empirical), input annual ration/consumption (below), mean annual prey biomass (estimated or input), and the input biomass of other prey available to predator $p$, $B_p^{other}$. Predation and biomass are interdependent, so predation mortality and the age-structured dynamics are iterated a fixed number of times (`niter`, no convergence test); three to five iterations suffice. Fits are generally insensitive to $B_p^{other}$ over a range of values; it has historically been derived from ecosystem-wide biomass estimates. For predators of species $p$, sex $b$, age $j$ and prey of species $i$, sex $s$, age $a$
 $$M2_{isa,y} = \sum_{pbj} \left( \frac{N_{pbj,y} \delta_{pbj,y} {S}_{pbjisa}} {\sum_{isa} \left({S}_{pbjisa} B_{isa,y} \right) + B_p^{other} \left(1 - \sum_{isa} \left({S}_{pbjisa} \right) \right)} \right)$$
 
 ### MSVPA Type 3 based predation mortality
 `msmMode = 2`
-A Type III functional response variant of the MSVPA predation model. The available-food denominator replaces prey biomass $B_{isa,y} = N_{isa,y} W_{isa,y}$ with $N^2_{isa,y} W_{isa,y}$, creating a sigmoidal (accelerating-then-saturating) relationship between prey density and predation rate. This gives low-density prey a refuge from predation and can stabilize multi-species dynamics at low stock sizes.
+A Type III functional response: the available-food denominator replaces prey biomass $B_{isa,y} = N_{isa,y} W_{isa,y}$ with $N^2_{isa,y} W_{isa,y}$, so predation rate is sigmoidal (accelerating, then saturating) in prey density. Low-density prey get a refuge from predation, which can stabilize multi-species dynamics at low stock sizes.
 $$M2_{isa,y} = \sum_{pbj} \left( \frac{N_{pbj,y} \delta_{pbj,y} {S}_{pbjisa}} {\sum_{i'a's'} \left({S}_{pbji'a's'} N^2_{i'a's',y} W_{i'a's',y} \right) + B_p^{other} \left(1 - \sum_{i'a's'} \hat{S}_{pbji'a's'} \right)} \right)$$
 
 
@@ -67,14 +69,14 @@ Consumption is either an environmentally driven bioenergetics model or direct in
 * `CB`	$\beta^{\delta}_p$, the slope of that function
 * `Qc`, `Tco`, `Tcm`, `Tcl`, `CK1`, `CK4`	Parameters $Q^c_p$, $T^{co}_p$, $T^{cm}_p$, $T^{cl}_p$, $CK1_p$ and $CK4_p$ of the temperature scaling function; which are read depends on `Ceq`, per the algorithms below
 
-`ration_data` holds the relative foraging rate $RFR_{pbj,y}$; it, and so ration, can be tuned through `fday` and `Pvalue`. The weight-at-age used in the consumption equations is set by `pop_wt_index`.
+`ration_data` holds the relative foraging rate $RFR_{pbj,y}$; ration can be tuned through `fday` and `Pvalue`. The weight-at-age used in the consumption equations is set by `pop_wt_index`.
 
 ### Bioenergetics based ration
 `Ceq %in% 1:3`
-Individual specific ration ($\delta_{pbj,y}$ $(kg~kg^{-1}~yr^{-1})$) of predator $p$ of sex $b$ and age $j$ in year $y$:
+Annual ration ($\delta_{pbj,y}$, kg per predator per year) of predator $p$ of sex $b$ and age $j$ in year $y$:
 $$\delta_{pbj,y} = RFR_{pbj,y}*Fday_p *\alpha^{\delta}_p W_{pbj,y}^{\left(1+\beta^{\delta}_p\right)} *f\left(T_y \right)_p$$
 
-where $W$ is weight-at-age in **grams** (the model stores it in kg and multiplies by 1000 here) and $\delta$ comes back in kg per predator per year, so $\alpha^{\delta}_p$ is the coefficient for a gram-scale weight.
+where $W$ is weight-at-age in **grams** (stored in kg and multiplied by 1000 here), so $\alpha^{\delta}_p$ is the coefficient for a gram-scale weight.
 Ration can be tuned by adjusting `Pvalue` ($\varphi_p$) to help convergence:
 $$\delta_{pbj,y} = \varphi_p * \delta_{pbj,y}$$
 
@@ -105,45 +107,45 @@ $$\delta_{pbj,y} = RFR_{pbj,y}* W_{pbj,y} $$
 
 
 # Fishery and survey observation model
-CEATTLE is fit to time series of fishery catch, survey biomass, and length- or age-composition data. Log-catch and log-index observations are normally distributed; age and length compositions are multinomial, with their sample sizes input. There is no separate sex-ratio likelihood component: sex-ratio information enters through joint (`comp_data$Sex = 3`) composition data, whose female and male cells are normalized together. The log-scale index SD is input, estimated as a free parameter, or derived analytically following Walters and Ludwig (1994), per `Estimate_index_sd`. Selectivity and catchability are estimated or input separately for each fishery and survey.
+CEATTLE is fit to time series of fishery catch, survey biomass, and length- or age-composition data. Log-catch and (by default) log-index observations are normally distributed; age and length compositions are multinomial or Dirichlet-multinomial, with their sample sizes input. There is no separate sex-ratio likelihood component: sex-ratio information enters through joint (`comp_data$Sex = 3`) composition data, whose female and male cells are normalized together. The log-scale index SD is input, estimated as a free parameter, or derived analytically following Walters and Ludwig (1994), per `Estimate_index_sd`. Selectivity and catchability are estimated or input separately for each fishery and survey.
 
-Catch is estimated in the model following the Baranov catch equation:
+Predicted catch follows the Baranov catch equation:
 $$\hat{C}_{isa,y} = \frac{F_{isa,y}} {Z_{isa,y}} \left( 1 - e^{-Z_{isa,y}} \right) N_{isa,y}$$
-$$\hat{C}_{i,y} = \sum_s\sum_a^{A_i} \frac{F_isa,y} {Z_{isa,y}} \left( 1 - e^{-Z_{isa,y}} \right) N_{isa,y} W_{isa,y}$$
-$$F_{isa,y} = \bar{F}_{f_i}e^{\epsilon_{{f_i},y} s_{{f_i}sa}}$$
+$$\hat{C}_{i,y} = \sum_s\sum_a^{A_i} \frac{F_{isa,y}} {Z_{isa,y}} \left( 1 - e^{-Z_{isa,y}} \right) N_{isa,y} W_{isa,y}$$
+$$F_{isa,y} = \bar{F}_{f_i}e^{\epsilon_{{f_i},y}} s_{{f_i}sa}$$
 An index is predicted from catchability $q_{f_iy}$ and selectivity $S_{f_isa,y}$, in biomass $\hat{I:B}_{{f_i},y}$ (mt) or in numbers $\hat{I:N}_{{f_i},y}$ (thousands of fish), per `Observation_units`:
 
 $$\hat{I:B}_{{f_i},y} = \sum_s\sum_a \left( \tilde{N}_{isa,y}\, W_{{f_i}sa,y}\, S_{{f_i}sa,y}\, q_{{f_i}y} \right)$$
 $$\hat{I:N}_{{f_i},y} = \sum_s\sum_a \left( \tilde{N}_{isa,y}\, S_{{f_i}sa,y}\, q_{{f_i}y} \right)$$
 
-What differs between the two fleet types is the numbers the index sees, $\tilde{N}_{isa,y}$. A **survey** index is a snapshot: the survey is on the grounds at one point in the year, $Month_{{f_i},y}$, and sees the numbers that have survived to it. That month is read from the `index_data` row, not from the fleet, so a fleet whose survey timing has moved carries a different value per year.
+The two fleet types differ in the numbers the index sees, $\tilde{N}_{isa,y}$. A **survey** index is a snapshot of the numbers that have survived to the survey month, $Month_{{f_i},y}$. That month is read from each `index_data` row, not from the fleet, so survey timing can differ by year.
 
 $$\tilde{N}_{isa,y} = N_{isa,y}\, e^{-(Month_{{f_i},y}/12) Z_{isa,y}} \qquad \text{(Fleet\_type = Survey)}$$
 
-A **fishery** index is CPUE, which accumulates over the whole year alongside the catch rather than at an instant. Baranov gives $\hat{C}_{isa,y} = F_{isa,y} \bar{N}_{isa,y}$, and effort cancels the $F$ (since $F_{isa,y} = q^{E}_{f_i} E_{f_i,y} s_{{f_i}sa}$), leaving the same year-average numbers the catch equation uses:
+A **fishery** index is CPUE, accumulated over the year with the catch. Baranov gives $\hat{C}_{isa,y} = F_{isa,y} \bar{N}_{isa,y}$, and effort cancels the $F$ (since $F_{isa,y} = q^{E}_{f_i} E_{f_i,y} s_{{f_i}sa}$), leaving the year-average numbers the catch equation uses:
 
 $$\tilde{N}_{isa,y} = \bar{N}_{isa,y} = N_{isa,y}\, \frac{1 - e^{-Z_{isa,y}}}{Z_{isa,y}} \qquad \text{(Fleet\_type = Fishery)}$$
 
-$\bar{N}$ is also what a fishery's age composition is built on, so a fleet's index, catch and comps are consistent by construction, and $Month_{{f_i},y}$ is not read for a fishery's index rows. The model keys this on `Fleet_type`; there is no column to set. The distinction moves trend as well as scale, so a constant $q$ cannot absorb it: at `Month = 6`, $e^{-Z/2}$ approximates $\bar{N}/N$ to within 1% at $Z = 0.5$ but is 9.6% low at $Z = 1.5$. Stock Synthesis splits the same way on its per-fleet survey timing (`SS_expval.tpl`: $timing \ge 0 \rightarrow e^{-Z \cdot timing}$; $timing < 0$, required of every fishing fleet $\rightarrow (1 - e^{-Z})/Z$). See `vignette("model-options-and-functionality")` for the seasonal-fishery case and the measured trend errors.
+A fishery's age composition is also built on $\bar{N}$, so its index, catch and comps are consistent, and $Month_{{f_i},y}$ is not read for a fishery's index rows. This is keyed on `Fleet_type`; there is no column to set. The distinction moves trend as well as scale, so a constant $q$ cannot absorb it: at `Month = 6`, $e^{-Z/2}$ is 1.0% below $\bar{N}/N$ at $Z = 0.5$ but 8.8% below at $Z = 1.5$. Stock Synthesis splits the same way on its per-fleet survey timing (`SS_expval.tpl`: $timing \ge 0 \rightarrow e^{-Z \cdot timing}$; $timing < 0$, required of every fishing fleet $\rightarrow (1 - e^{-Z})/Z$). See `vignette("model-options-and-functionality")` for the seasonal-fishery case and the measured trend errors.
 
 
 ## Selectivity parameterizations
 Selectivity is controlled by `Selectivity_index`, `Selectivity`, `N_sel_bins`, `Time_varying_sel`, `Time_varying_sel_sd` and `Bin_first_selected` on the `fleet_control` sheet:
 
 * `Selectivity_index`:	Fleets given the same value share one selectivity parameter block.
-* `Selectivity`:	Selectivity parameterization for the fleet: 0 or `"Fixed"` = empirical selectivity provided in `emp_sel`; 1 or `"Logistic"`; 2 or `"NonParametric"` sensu Ianelli et al 2018; 3 or `"DoubleLogistic"`; 4 or `"DescendingLogistic"`; 5 or `"Hake"`, non-parametric sensu Taylor et al 2014; 6 or `"2DAR1"` for bin by year; 7 or `"3DAR1"` sensu Cheng et al (2024); 8 or `"DoubleNormal"`, a four-parameter double normal (peak, ascending and descending widths, and a right-tail floor); this is the Stock Synthesis pattern 24 shape without its initial-selectivity and plateau-width parameters; 9 or `"NonParametricPM"`, Ianelli non-parametric with the ADMB AMAK (`"pm"`) penalty; 11 or `"LogisticPM"`, the AMAK logistic with a free age-1 selectivity; 13 or `"NonParametricIntegrable"`, the Ianelli base curve whose deviations have a proper density and so integrate under `random_sel` (`Time_varying_sel` picks the structure: `"Off"`, `"IID"` or `"RandomWalk"`). There is no 10, 12 or 14; the integer codes are frozen, because renumbering one would silently reinterpret every saved config and every fitted `.rds` that holds it. Whether a form is age- or length-based is set by `Selectivity_dimension`, not by the code, except that `"Fixed"` is always at age.
+* `Selectivity`:	Selectivity parameterization for the fleet: 0 or `"Fixed"` = empirical selectivity provided in `emp_sel`; 1 or `"Logistic"`; 2 or `"NonParametric"` sensu Ianelli et al 2018; 3 or `"DoubleLogistic"`; 4 or `"DescendingLogistic"`; 5 or `"Hake"`, non-parametric sensu Taylor et al 2014; 6 or `"2DAR1"` for bin by year; 7 or `"3DAR1"` sensu Cheng et al (2024); 8 or `"DoubleNormal"`, a four-parameter double normal (peak, ascending and descending widths, and a right-tail floor): the Stock Synthesis pattern 24 shape without its initial-selectivity and plateau-width parameters; 9 or `"NonParametricPM"`, Ianelli non-parametric with the ADMB AMAK (`"pm"`) penalty; 11 or `"LogisticPM"`, the AMAK logistic with a free age-1 selectivity; 13 or `"NonParametricIntegrable"`, the Ianelli base curve whose deviations have a proper density and so integrate under `random_sel` (`Time_varying_sel` picks the structure: `"Off"`, `"IID"` or `"RandomWalk"`); 15 or `"DoubleNormalSS3"`, the six-parameter Stock Synthesis pattern 24 double normal. There is no 10, 12 or 14. Whether a form is age- or length-based is set by `Selectivity_dimension`, not by the code, except that `"Fixed"` is always at age.
 * `N_sel_bins`:	Number of age or length bins (per `Selectivity_dimension`) estimated for the non-parametric and AR1 forms; not read by the others. It is a count of bins, not an age: estimating up to age 6 means `N_sel_bins = 6` when `minage = 1` and 7 when `minage = 0`.
-* `Time_varying_sel`:	Whether time-varying selectivity is estimated, for the logistic, double-logistic, descending-logistic and non-parametric forms. 0 or `"Off"` = no; 1 or `"IID"` = penalized deviates given `Time_varying_sel_sd`, or random effects with that sd estimated under `fit_mod(random_sel = TRUE)`; 3 or `"Block"` = time blocks with no penalty; 4 or `"RandomWalk"` = random walk following Dorn; 5 or `"RandomWalkAscending"` = random walk on the ascending portion of the double logistic only. Value 2 (`"AR1"`) was **removed in 5.16.0**: it was never an AR1, and an autocorrelated deviation is now a selectivity linkage, `linkage_spec(~ ar1(1 | Year))`. The switch as a whole is soft-deprecated in favour of that grammar.
-* `Time_varying_sel_sd`:	The sd of the time-varying selectivity deviates. Under `fit_mod(random_sel = FALSE)` it is fixed at this value, per fleet. Under `random_sel = TRUE` the deviates are integrated out and the sd is *estimated*, so this is only a starting value, and fleets sharing a `Selectivity_index` share one estimated sd started at the geometric mean of theirs. The 2DAR1 and 3DAR1 forms read it under every `Time_varying_sel`, as the conditional sd of their deviation field, so they always need a positive value. `Time_varying_q_sd` is the catchability equivalent, under `random_q`.
+* `Time_varying_sel`:	Whether time-varying selectivity is estimated, for the logistic, double-logistic, descending-logistic and non-parametric forms. 0 or `"Off"` = no; 1 or `"IID"` = penalized deviates given `Time_varying_sel_sd`, or random effects with that sd estimated under `fit_mod(random_sel = TRUE)`; 3 or `"Block"` = time blocks with no penalty; 4 or `"RandomWalk"` = random walk following Dorn; 5 or `"RandomWalkAscending"` = random walk on the ascending portion of the double logistic only. Value 2 (`"AR1"`) is refused by `data_check()`; an autocorrelated deviation is a selectivity linkage, `linkage_spec(~ ar1(1 | Year))`. The switch as a whole is soft-deprecated in favour of that grammar.
+* `Time_varying_sel_sd`:	The sd of the time-varying selectivity deviates. Under `fit_mod(random_sel = FALSE)` it is fixed at this value, per fleet. Under `random_sel = TRUE` the deviates are integrated out and the sd is *estimated* from this starting value; fleets sharing a `Selectivity_index` share one estimated sd started at the geometric mean of theirs. The 2DAR1 and 3DAR1 forms read it under every `Time_varying_sel`, as the conditional sd of their deviation field, so they always need a positive value.
 * `Bin_first_selected`:	First age/length bin with non-zero selectivity; the curve is 0 below it. A 1-based bin ordinal on the fleet's `Selectivity_dimension`.
 
 ### Selectivity penalty weights
 
-`Sel_curve_pen1/2/3` are penalty *weights*. Each penalty is a Gaussian
-sum-of-squares ($\text{weight}\cdot x^2 = x^2 / (2\sigma^2)$), so you may instead
-supply a **standard deviation** and let `switch_check()` convert it with
-$\text{weight} = 1/(2\sigma^2)$. Supplying an SD sets the matching
-`Sel_curve_pen` column; a `Sel_curve_pen` you set directly is never overwritten.
+`Sel_curve_pen1/2/3` are penalty *weights* on a Gaussian sum-of-squares
+($\text{weight}\cdot x^2 = x^2 / (2\sigma^2)$), so you may instead supply a
+**standard deviation**, which sets the matching `Sel_curve_pen` column to
+$\text{weight} = 1/(2\sigma^2)$. A `Sel_curve_pen` you set directly is never
+overwritten.
 
 Which form reads which slot, and what it charges:
 
@@ -157,20 +159,20 @@ Which form reads which slot, and what it charges:
 the *realized* curve, accumulated over sexes and years (form 2 under `"IID"` or
 `"RandomWalk"`, form 9 from `Sel_start_year` under `"RandomWalk"`; 9 refuses
 `"IID"`). Form 13 charges them once per sex on the *base* coefficients. The same
-weight therefore bites harder on a time-varying 2 or 9 -- retune rather than
+weight therefore bites harder on a time-varying 2 or 9; retune rather than
 copy one across forms.
 
-Three points that decide whether a value you set does anything:
+Whether a value you set has any effect depends on:
 
 - **The direction.** `Sel_shape_dir = "Increasing"` is implemented only by
-  `NonParametricPM` (9) under `Sel_shape_mode = "Directional"`, where the
-  template switches the one-sided penalty from the decreasing side to the
-  increasing one. Everywhere else -- including 9 under `"Smooth"`, which is
-  two-sided -- the weight is applied as written, so `"Increasing"` is refused
-  rather than silently negating it.
+  `NonParametricPM` (9) under `Sel_shape_mode = "Directional"`, where it moves
+  the one-sided penalty from the decreasing side to the increasing one.
+  Everywhere else, including 9 under `"Smooth"` (two-sided), the weight is
+  applied as written, so `"Increasing"` is refused rather than silently
+  negating it.
 - **The sign.** A weight multiplies a squared deviation, so a negative one
   *rewards* that deviation. `data_check()` refuses a negative `Sel_curve_pen`
-  wherever the template reads it as a weight -- which leaves four cases it does
+  wherever the template reads it as a weight, which leaves four cases it does
   not refuse: the directional case above, a `Fleet_type = "Off"` fleet (charged
   no selectivity penalty at all), a fleet that follows another's
   `Selectivity_index` *and* shares its selectivity form (the group's penalty is
@@ -225,7 +227,7 @@ $$sel_{f_i sa}=1/(1+e^{-Slp1_{f_i} (a-Inf1_{f_i} ) } )(1-1/(1+e^{-Slp2_{f_i} (a-
 ### Time-varying double logistic 1	(ascending and descending time-varying parameters)
 $$sel_{f_i sa}=1/(1+e^{-(Slp1_{f_i}+e^{\phi_{f_i sy}^{slp1} } ) (a-(Inf1_{f_i}+\phi_{f_i sy}^{Inf1} ) ) } )(1-1/(1+e^{-(Slp2_{f_i}+e^{\phi_{f_i sy}^{slp2} } ) (a-(Inf2_{f_i}+\phi_{f_i sy}^{Inf2} ) ) } ))$$
 
-The four deviate structures -- `Time_varying_sel` 1 penalized, 1 as a random effect under `fit_mod(random_sel = TRUE)`, 3 block, and 4 random walk -- are as under **Time-varying logistic** above.
+The four deviate structures (`Time_varying_sel` 1 penalized or as a random effect, 3 block, and 4 random walk) are as under **Time-varying logistic** above.
 
 ### Time-varying double logistic 2	(random walk ascending-time varying parameters)
 Input: `Selectivity = 3 or "DoubleLogistic"`, `N_sel_bins = NA`, `Time_varying_sel = 5`, and `Time_varying_sel_sd = 0.05` or another starting value
@@ -250,12 +252,12 @@ $$sel_{f_i sa}=1-1/(1+e^{-(Slp2_{f_i}+e^{\phi_{f_i sy}^{slp2} } ) (a-(Inf2_{f_i}
 The four deviate structures are as under **Time-varying logistic** above.
 
 ### Non-parametric (Type 2)
-For each age $a \geq A_{min}$ there is an incremental selectivity parameter $p_{f_i say}$ for the fleet $f_i$. Selectivity at age is calculated as follows:
+For each age $a \geq A_{min}$ there is an incremental selectivity parameter $p_{f_i say}$ for fleet $f_i$, and selectivity at age is:
 
 $$sel_{f_i sa}=e^{sel^{`}_{f_i sa} - max(sel^{`}_{f_i sa})}$$
 where
 $$ sel^{`}_{f_i sa} = \sum_{i=A_{min}}^a p_{f_i sa}$$
-Selectivity is 0 for $a < A_{min}$, and $p_{f_i sa} = 0$ above `minage + N_sel_bins`, so selectivity is constant beyond the last estimated bin. `minage`, set in the data, is the youngest age modeled.
+Selectivity is 0 for $a < A_{min}$, and $p_{f_i sa} = 0$ from `minage + N_sel_bins`, so selectivity is constant beyond the last estimated bin. `minage`, set in the data, is the youngest age modeled.
 
 Input: `Selectivity = 5 or "Hake"`, `N_sel_bins = 6`, `Time_varying_sel = NA`, `Time_varying_sel_sd = NA`, and `Bin_first_selected = `$A_{min}$
 
@@ -265,7 +267,7 @@ $$p_{f_i say}=p_{f_i sa}+\phi_{f_i say}$$
 
 Penalized likelihood: `Time_varying_sel = 1`
 $$\phi_{f_i sy} \sim N(0,\sigma^{\phi}_{f_i}) $$
-Random effect: `Time_varying_sel = 1` with `fit_mod(random_sel = TRUE)`, where the deviations are integrated out by the Laplace approximation and $\hat\sigma^{\phi}_{f_i}$ is estimated rather than fixed at `Time_varying_sel_sd`
+Random effect: `Time_varying_sel = 1` with `fit_mod(random_sel = TRUE)`, as under **Time-varying logistic**
 $$\phi_{f_i sy} \sim N(0,\hat\sigma^{\phi}_{f_i}) $$
 
 
@@ -273,10 +275,10 @@ $$\phi_{f_i sy} \sim N(0,\hat\sigma^{\phi}_{f_i}) $$
 Catchability is controlled by the following `fleet_control` columns:
 
 * `Catchability_index`	Fleets given the same value share one catchability parameter.
-* `Catchability`	Text or integer switch specifying catchability. 0 or "Fixed" = fixed at `Catchability_init`; 1 or "Estimated" = a single free parameter; 2 or "Estimated-with-prior" = a single free parameter with a prior; 3 or "Analytical" = q solved in closed form as the maximum likelihood q for the fleet's `Index_distribution` (refused under TruncatedNormal); 4 or "PowerEquation" = power equation, **declared but not yet implemented**; 5 or "Environmental" = linear equation log(q_y) = q_mu + beta * index_y; 6 or "AR1" = REMOVED in 5.12.0 (it never estimated the deviates, so q was constant) -- express the Rogers et al. form as a q linkage with `ar1(1 | Year)` and `observe =`; 7 or "AnalyticalArith" = arithmetic-mean analytical q, the AMAK/ebswp form, paired with the MVN survey likelihood.
+* `Catchability`	Catchability form: 0 or "Fixed" = fixed at `Catchability_init`; 1 or "Estimated" = a single free parameter; 2 or "Estimated-with-prior" = a single free parameter with a prior; 3 or "Analytical" = q solved in closed form as the maximum likelihood q for the fleet's `Index_distribution` (refused under TruncatedNormal); 4 or "PowerEquation" = power equation, **declared but not yet implemented**; 5 or "Environmental" = linear equation log(q_y) = q_mu + beta * index_y; 6 or "AR1" = refused by `data_check()`; express the Rogers et al. form as a q linkage with `ar1(1 | Year)` and `observe =`; 7 or "AnalyticalArith" = arithmetic-mean analytical q, the AMAK/ebswp form, paired with the MVN survey likelihood.
 * `Catchability_init`	Starting or fixed value for catchability
 * `Catchability_prior_sd`	Log-scale SD of the q prior: dnorm(log_q, log(Catchability_init) - bias_adjust_proc * sd^2/2, sd)
-* `Time_varying_q`	Whether a time-varying q is estimated. 0 = no; 1 = penalized deviate; 2 = AR1 (REMOVED in 5.16.0; `data_check()` errors); 3 = time blocks with no penalty; 4 = random walk from the mean following Dorn 2018 (dnorm(q_y - q_y-1, 0, sigma)). Under `Catchability = 5` it instead holds the `env_data` index for log(q_y) = q_mu + beta * index_y.
+* `Time_varying_q`	Whether a time-varying q is estimated. 0 = no; 1 = penalized deviate; 2 = AR1 (refused by `data_check()`); 3 = time blocks with no penalty; 4 = random walk from the mean following Dorn 2018 (dnorm(q_y - q_y-1, 0, sigma)). Under `Catchability = 5` it instead holds the `env_data` index for log(q_y) = q_mu + beta * index_y.
 * `Time_varying_q_sd`	Fixed or starting sd of the time-varying q deviations, read under `Time_varying_q` 1 and 4 and estimated under `fit_mod(random_q = TRUE)`
 
 ### Linear time-invariant catchability formulations
@@ -314,7 +316,7 @@ Under MVN and MVNORM, with the fleet's covariance $\Sigma_{f_i}$ over the same y
 $$\hat{q}_{f_i} = \frac{\tilde{I}_{f_i}' \Sigma_{f_i}^{-1} I_{f_i}}{\tilde{I}_{f_i}' \Sigma_{f_i}^{-1} \tilde{I}_{f_i}}$$
 A TruncatedNormal likelihood has no closed-form $q$, because its truncation term depends on $q$, so `data_check()` refuses `Catchability = 3` there.
 
-Each estimate is solved for the current values of the other parameters, random effects included. With random effects it is therefore not the $q$ that maximizes the likelihood with them integrated out, and its objective should not be compared with that of a fit that estimates $q$. The MVN/MVNORM estimate is not forced positive: with a strongly correlated $\Sigma$ it can go negative at parameter values far from the best fit.
+Each estimate is solved for the current values of the other parameters, random effects included, so with random effects it is not the $q$ that maximizes the likelihood with them integrated out, and its objective should not be compared with that of a fit that estimates $q$. The MVN/MVNORM estimate is not forced positive: with a strongly correlated $\Sigma$ it can go negative at parameter values far from the best fit.
 
 ### Time-varying catchability formulations
 Under `Catchability = 2` the prior above still applies to mean catchability.
@@ -323,7 +325,7 @@ Under `Catchability = 2` the prior above still applies to mean catchability.
 
 `Catchability %in% c(1:2)` and `Time_varying_q %in% c(1, 4)`
 $$\hat{q}_{f_iy} = e^{\bar{q}_{f_i}+ \omega_{f_iy}}$$
-$\omega_{f_iy} \sim N(0,$`Time_varying_q_sd`$)$, with `Time_varying_q_sd` either fixed or estimated under `fit_mod(random_q = TRUE)`
+$\omega_{f_iy} \sim N(0,$`Time_varying_q_sd`$)$ under `1` (IID), or $\omega_{f_iy} - \omega_{f_i,y-1} \sim N(0,$`Time_varying_q_sd`$)$ under `4` (random walk), with `Time_varying_q_sd` either fixed or estimated under `fit_mod(random_q = TRUE)`
 
 *Catchability time-blocks*
 
