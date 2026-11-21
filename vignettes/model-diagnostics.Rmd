@@ -572,6 +572,8 @@ A peel still estimates the years it dropped, as its retrospective forecast: fit 
 
 `incl_proj = TRUE` plots the forecast and projection years (forecast years: `endyr_peel + seq_len(endyr_full - endyr_peel)`, empty for the unpeeled model). Under `getsd = TRUE`, a forecast-year band treats that year's catch as known, carrying the hindcast's uncertainty forward through the F needed to take it; it omits recruitment variability in the forecast years, so it is narrower than a forecast's prediction interval.
 
+A peel withholds `env_data` after its terminal year too, except a fixed-effect linkage covariate, a random-effect grouping column and a column with no value in the years the peel keeps, which it keeps and names in a warning. A series known ahead, such as a climate projection, goes in `projected_env_data_known = "<column>"` and the peels keep it; `TRUE` keeps every column, as before 5.69.0 under the default `rescale = FALSE`. `rescale = "<column>"` standardizes a covariate on each peel's retained years, where `rescale = TRUE` would also turn a temperature in degrees C into z-scores; `?retrospective` has the details.
+
 The `retrospective()` function returns a list with two elements:
 
 | Element | Description |

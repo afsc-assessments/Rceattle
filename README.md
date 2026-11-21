@@ -40,7 +40,7 @@ For operational / management use, pin a specific tagged release rather than
 tracking `main`, e.g.:
 
 ```r
-remotes::install_github("afsc-assessments/Rceattle@5.67.15")
+remotes::install_github("afsc-assessments/Rceattle@5.69.1")
 ```
 
 The maintainer email in `DESCRIPTION` (`grant.adams@noaa.gov`) is the
