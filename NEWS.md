@@ -55,6 +55,72 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   `?sample_rec` adds that under predation SB0, B0 and depletion follow the new
   recruitment.
 
+# Rceattle 5.69.0
+
+## Behavior changes
+
+* **A peel withholds `env_data` after its terminal year, whatever `rescale` is.** Under
+  the default `rescale = FALSE` it withheld the survey and composition data but still
+  fitted an observed covariate (`linkage_spec(observe = )`) through the unpeeled
+  terminal year, and read the post-peel values of a column the model uses directly (the
+  bioenergetics temperature named by `Cindex`, an environmental catchability or M1).
+  Those values are now blanked, and `rearrange_data()` fills a directly-read column with
+  the mean of the years the peel keeps, in the post-peel years and in any year the
+  column is missing. Three kinds of column keep their values, observations included,
+  and `retrospective()` warns once naming them: a fixed-effect linkage covariate and a
+  random-effect grouping column, because an NA in either stops the linkage design being
+  built, and a column with no value in the model years the peel keeps, which would leave
+  nothing to fill it with. Under `rescale = FALSE`, `projected_env_data_known = TRUE`
+  restores the previous peels (see New features).
+
+  **Whose Mohn's rho moves:**
+  - a model with an observed covariate measured after the deepest peel's terminal
+    year. In GOA pollock 2025 (`QcovPol` on the Shelikof QAR1 catchability,
+    observation SD 0.02) the deepest peel fitted 5 post-peel observations and now fits
+    none; terminal SSB rho moves from -0.142031 to -0.142026, and no row of `$mohns`
+    moves by more than 9.4e-6;
+  - the forecast years (`Forecast year` above 0) of a model whose dynamics read an
+    `env_data` column directly: an M1 covariate, or a `Cindex` temperature under
+    `msmMode > 0`;
+  - the hindcast too, where such a column has missing years, since they are now filled
+    with the retained years' mean. On a test model with an environmental catchability
+    and one missing year, terminal SSB rho moves from -0.0018 to -0.0350.
+
+  Under `rescale = TRUE`, a fixed-effect covariate's post-peel values now reach the peel,
+  standardized on the retained years, where those years used to take a zero offset (the
+  retained mean); on a test model with `q ~ temp` this moved SSB rho by 3e-7. The DSEM
+  branch blanks post-peel values the same way (e8648206, acef54cf), but also blanks a
+  column with no retained value.
+
+## Bug fixes
+
+* **`retrospective(rescale = TRUE)` runs on a model with a year-indexed random-effect
+  linkage.** Each peel dropped the `env_data` rows after its terminal year, and an
+  `ar1(1 | Year)`, `rw(1 | Year)` or `(1 | Year)` linkage has one deviation per row, so
+  a peel's model was shorter than the parent's parameters and `retrospective()` stopped:
+  "beta_linkage (inits 46, model 45); beta_linkage_re (inits 40, model 39)" in a
+  reproduction of a Pacific hake model with krill observed as a QAR1 latent on R0. A
+  peel now blanks the post-peel values and keeps the rows.
+
+## New features
+
+* **`retrospective(rescale =)` takes `env_data` column names**, so a peel can
+  standardize a covariate without turning a temperature in degrees C, which drives
+  consumption through `Cindex`, into z-scores. `TRUE` standardizes every numeric column
+  except `Year` and random-effect grouping columns, which are level labels; `FALSE`
+  none. Naming a column that is missing, non-numeric, `Year` or a grouping column is an
+  error before any peel is fitted. A column with fewer than two distinct retained values
+  stays in its own units in that peel, with a warning. Adapted from the DSEM branch
+  (9d6239ef).
+
+* **`retrospective(projected_env_data_known =)` names `env_data` columns whose
+  post-peel values were known at each peel's terminal year**, such as a climate
+  projection, and the peels keep them instead of withholding them. `FALSE` (default)
+  lists none; `TRUE` lists every column, so a peel's `env_data` is what earlier versions
+  gave it under `rescale = FALSE` (on GOA pollock 2025 the peels match 5.67.11's bit for
+  bit). A listed column is left out of the warnings about kept columns,
+  and naming a column that is not in `env_data` is an error before any peel is fitted.
+
 # Rceattle 5.67.12
 
 ## Documentation
