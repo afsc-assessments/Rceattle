@@ -127,7 +127,7 @@ ms_run_proj2 <- fit_mod(
 
 ### Stochastic recruitment via `sample_rec()`
 
-`sample_rec()` replaces the projection deviations with ones resampled from the hindcast and re-runs the model, without re-estimating, under the model's own `build_srr()` settings, so it starts from `ms_run_proj2` (fitted with `proj_mean_rec = FALSE`). `rec_trend` adds a linear trend: `rec_trend = -0.5` imposes a 50% decline in mean recruitment by the end of the projection.
+`sample_rec()` replaces the projection deviations with ones resampled from the hindcast and re-runs the model, with the hindcast held fixed, under the model's own `build_srr()` settings and harvest control rule, so it starts from `ms_run_proj2` (fitted with `proj_mean_rec = FALSE`). `rec_trend` adds a linear trend: `rec_trend = -0.5` imposes a 50% decline in mean recruitment by the end of the projection.
 
 ```{r}
 ms_run_proj3 <- sample_rec(

@@ -1130,6 +1130,13 @@ sim_mod <- function(object = NULL, simulate = FALSE, process = FALSE, Rceattle =
 #'   [run_mse()] each projection year becomes an operating-model hindcast year,
 #'   where the deviations apply either way.
 #'
+#'   `update_model = TRUE` holds the hindcast estimates fixed. A fit run with its
+#'   harvest control rule (`estimateMode` `"Estimate"` or `"Projection"`) reruns
+#'   that rule, so an F the rule estimates is re-solved for the new recruitment.
+#'   Under predation (`msmMode > 0`) a fishing rule's unfished SSB and biomass
+#'   (`MSSB0`, `MSB0`) are re-derived too, so SB0, B0 and depletion in every year
+#'   follow the new recruitment, as in a fresh [fit_mod()] from those deviations.
+#'
 #' @returns Rceattle model
 #' @export
 #'
@@ -1212,6 +1219,9 @@ sample_rec <- function(object = NULL, sample_rec = TRUE, update_model = TRUE, re
   if(update_model){
     # * Update fit ----
     estMode <- object$data_list$estimateMode
+    # A fit that ran its harvest control rule reruns it at mode 2, hindcast fixed; build-only
+    # mode 3 never runs the rule (projected F = 0). Both keep the fit's own map and getsd.
+    fit_getsd <- isTRUE(object[["run_config"]][["fit_control"]][["getsd"]])
     object <-
       suppressWarnings(
         suppressMessages(
@@ -1222,8 +1232,9 @@ sample_rec <- function(object = NULL, sample_rec = TRUE, update_model = TRUE, re
           .refit_like(
             data_list    = object$data_list,
             inits        = object$estimated_params,
-            estimateMode = 3,
-            getsd        = TRUE)
+            estimateMode = if (estMode %in% c(0, 2)) 2 else 3,
+            map          = object$map,
+            getsd        = fit_getsd)
         )
       )
     object$data_list$estimateMode <- estMode
