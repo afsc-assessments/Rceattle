@@ -90,28 +90,28 @@
   }
 
   # -- 6.1 (cpp:1513-1543): natural mortality M1 (log M1 + annual deviation + environmental
-  # effect); predation M2 is 0 at msmMode 0, so M = M1 and Z = M1 + F
-  M1 <- Z <- vector("list", nspp)
+  # effect), and the first pass's Z = M1 + F; later passes add predation M2 (below)
+  M1 <- Z1 <- vector("list", nspp)
   for (sp in seq_len(nspp)) {
     na <- nages[sp]; a <- seq_len(na)
     mult <- 0
     for (i in seq_len(ncol(pd$env))) mult <- mult + pd$env[, i] * p[["M1_beta"]][sp, 1, i]
     M1[[sp]] <- exp(RTMB::matrix(p[["log_M1"]][sp, 1, a], na, Y) +
                       RTMB::matrix(p[["log_M1_dev"]][sp, 1, a, ], na, Y) + rep(mult, each = na))
-    Z[[sp]] <- M1[[sp]] + F_at_age[[sp]]
+    Z1[[sp]] <- M1[[sp]] + F_at_age[[sp]]
   }
-  M <- M1
 
   # -- 6.2 (cpp:1546-1602): spawning biomass per recruit at F = 0, Flimit and Ftarget from
-  # the terminal hindcast year's rates, and at Finit (0 under initMode 2) from the first's
+  # the terminal hindcast year's rates, and at Finit (0 under initMode 2) from the first's.
+  # Zero under predation: M carries M2, so output per recruit is not the stock's own.
   SPR0 <- SPRlimit <- SPRtarget <- SPRFinit <- numeric(nspp)
   NbyageSPR <- array(0, c(4, nspp, max_age))
-  for (sp in seq_len(nspp)) {
+  if (pd$msmMode == 0) for (sp in seq_len(nspp)) {
     a <- seq_len(nages[sp])
-    Zu <- M[[sp]][, H]
+    Zu <- M1[[sp]][, H]
     Zl <- Zu + Flimit_at_age[[sp]][, H]
     Zt <- Zu + Ftarget_at_age[[sp]][, H]
-    Zi <- M[[sp]][, 1]
+    Zi <- M1[[sp]][, 1]
     nu <- .rtmb_per_recruit_survivors(Zu)
     nl <- .rtmb_per_recruit_survivors(Zl)
     nt <- .rtmb_per_recruit_survivors(Zt)
@@ -129,76 +129,128 @@
   R_init <- R0_sp
   steepness <- RTMB::matrix(0.99, nspp, Y)
 
-  # -- 6.4-6.8 (cpp:1744-2351): numbers-at-age (thousands of fish), recruitment, and the
-  # unfished and target-F reference age structures, species by species
-  N <- avgN <- NB0 <- NBF <- dB0 <- dBF <- vector("list", nspp)
-  R <- RTMB::matrix(0, nspp, Y)
-  avg_R <- numeric(nspp)
-  mort_sum <- RTMB::matrix(0, nspp, max_age)
-  zero_N_pen <- numeric(nspp)
-  biomass <- ssb <- B0 <- SB0 <- SBF <- DynamicB0 <- DynamicSB0 <- DynamicSBF <-
-    RTMB::matrix(0, nspp, Y)
-  for (sp in seq_len(nspp)) {
-    na <- nages[sp]
-    mid <- seq_len(na - 2) + 1   # ages between the recruits and the plus group
-    rec_dev <- p[["rec_dev"]][sp, ]
-    # Hindcast recruitment, mean recruitment times exp(deviation)
-    Rh <- R0_sp[sp] * exp(rec_dev[hind])
-
-    # 6.4: initial age structure under initMode 2: mean recruitment decayed by cumulative
-    # M1 (Finit = 0), with a log deviation per age; the plus group sums the geometric tail
-    m1 <- M1[[sp]][, 1]
-    ms <- c(0, cumsum(m1[seq_len(na - 1)]))
-    mort_sum[sp, seq_len(na)] <- ms
-    idev <- p[["init_dev"]][sp, seq_len(na - 1)]
-    Nm <- RTMB::matrix(0, na, Y)
-    Nm[, 1] <- c(Rh[1], R0_sp[sp] * exp(-ms[mid] + idev[mid - 1]),
-                 R0_sp[sp] * exp(-ms[na] + idev[na - 1]) / (1 - exp(-m1[na])))
-
-    # 6.5: hindcast; every cell is floored at 0.001 by posfun, its penalty to ZERO_N
-    for (y in hind[-1]) {
-      s <- Nm[, y - 1] * exp(-Z[[sp]][, y - 1])
-      fl <- .rtmb_posfun(c(Rh[y], s[mid - 1], s[na - 1] + s[na]), 0.001)
-      Nm[, y] <- fl$value
-      zero_N_pen[sp] <- zero_N_pen[sp] + sum(fl$penalty)
+  # -- 6.1 and 6.4-6.11 (cpp:1511-2445), then 7 (cpp:2453-2472) under predation: the
+  # dynamics run niter times. Each pass's M and Z carry the PREVIOUS pass's M2, so the last
+  # pass's M2 is reported but never applied (and with niter = 1, no M2 is applied).
+  msm <- pd$msm
+  su <- pred <- M2 <- M2_dB0 <- M2_dBF <- NULL
+  if (!is.null(msm) && pd$suitMode[1] > 0) {
+    # 5.10 (cpp:1208-1214): parametric suitability depends on parameters and weight only
+    su <- .rtmb_suit_parametric(msm, p[["log_phi"]], gam_a, gam_b)
+  }
+  for (iter in seq_len(pd$niter)) {
+    if (is.null(M2)) {
+      M <- M_dB0 <- M_dBF <- M1
+      Z <- Z1
+    } else {
+      M <- M_dB0 <- M_dBF <- Z <- vector("list", nspp)
+      for (sp in seq_len(nspp)) {
+        M[[sp]] <- M1[[sp]] + M2[[sp]]
+        M_dB0[[sp]] <- M1[[sp]] + M2_dB0[[sp]]
+        M_dBF[[sp]] <- M1[[sp]] + M2_dBF[[sp]]
+        Z[[sp]] <- M1[[sp]] + F_at_age[[sp]] + M2[[sp]]
+      }
     }
-    # 6.6: mean recruitment over the first nyrs_srrmean years; 6.8: the projection
-    # recruits at that mean (proj_mean_rec = 1), with no floor
-    avg_R[sp] <- sum(Rh[seq_len(pd$nyrs_srrmean)] / pd$nyrs_srrmean)
-    for (y in proj) {
-      s <- Nm[, y - 1] * exp(-Z[[sp]][, y - 1])
-      Nm[, y] <- c(avg_R[sp], s[mid - 1], s[na - 1] + s[na])
-    }
-    R[sp, ] <- c(Rh, rep(avg_R[sp], length(proj)))
-    N[[sp]] <- Nm
-    biomass[sp, ] <- RTMB::colSums(Nm * pd$W_pop[[sp]])
-    ssb[sp, ] <- RTMB::colSums(Nm * exp(-Z[[sp]] * sm[sp] / 12) * pd$so[[sp]])
-    avgN[[sp]] <- Nm * (1 - exp(-Z[[sp]])) / Z[[sp]]
 
-    # 6.6 (cpp:1999-2184), Option 1a: unfished (NByage0) and target-F (NByageF) age
-    # structures recruiting at the mean, and their dynamic versions recruiting at the
-    # hindcast R, then at exp(log mean + deviation) in the projection
-    Mm <- M[[sp]]
-    Ft <- Ftarget_at_age[[sp]]
-    b0 <- bF <- d0 <- dF <- RTMB::matrix(0, na, Y)
-    b0[, 1] <- Nm[, 1]; bF[, 1] <- Nm[, 1]; d0[, 1] <- Nm[, 1]; dF[, 1] <- Nm[, 1]
-    for (y in seq_len(Y)[-1]) {
-      r_dyn <- if (y <= H) Rh[y] else exp(log(avg_R[sp]) + rec_dev[y])
-      e0 <- exp(-Mm[, y - 1])
-      eF <- exp(-Mm[, y - 1] - Ft[, y - 1])
-      s <- b0[, y - 1] * e0; b0[, y] <- c(avg_R[sp], s[mid - 1], s[na - 1] + s[na])
-      s <- bF[, y - 1] * eF; bF[, y] <- c(avg_R[sp], s[mid - 1], s[na - 1] + s[na])
-      s <- d0[, y - 1] * e0; d0[, y] <- c(r_dyn, s[mid - 1], s[na - 1] + s[na])
-      s <- dF[, y - 1] * eF; dF[, y] <- c(r_dyn, s[mid - 1], s[na - 1] + s[na])
+    # 6.4-6.8 (cpp:1744-2351): numbers-at-age (thousands of fish), recruitment, and the
+    # unfished and target-F reference age structures, species by species
+    N <- avgN <- avgN_dB0 <- avgN_dBF <- NB0 <- NBF <- dB0 <- dBF <- vector("list", nspp)
+    R <- RTMB::matrix(0, nspp, Y)
+    avg_R <- numeric(nspp)
+    mort_sum <- RTMB::matrix(0, nspp, max_age)
+    zero_N_pen <- numeric(nspp)   # each pass starts again (cpp:1608)
+    biomass <- ssb <- B0 <- SB0 <- SBF <- DynamicB0 <- DynamicSB0 <- DynamicSBF <-
+      RTMB::matrix(0, nspp, Y)
+    for (sp in seq_len(nspp)) {
+      na <- nages[sp]
+      mid <- seq_len(na - 2) + 1   # ages between the recruits and the plus group
+      rec_dev <- p[["rec_dev"]][sp, ]
+      # Hindcast recruitment, mean recruitment times exp(deviation)
+      Rh <- R0_sp[sp] * exp(rec_dev[hind])
+
+      # 6.4: initial age structure under initMode 2: mean recruitment decayed by
+      # cumulative M1 (Finit = 0), with a log deviation per age; the plus group sums the
+      # geometric tail. It ignores M2, while the first year's SSB below reads Z.
+      m1 <- M1[[sp]][, 1]
+      ms <- c(0, cumsum(m1[seq_len(na - 1)]))
+      mort_sum[sp, seq_len(na)] <- ms
+      idev <- p[["init_dev"]][sp, seq_len(na - 1)]
+      Nm <- RTMB::matrix(0, na, Y)
+      Nm[, 1] <- c(Rh[1], R0_sp[sp] * exp(-ms[mid] + idev[mid - 1]),
+                   R0_sp[sp] * exp(-ms[na] + idev[na - 1]) / (1 - exp(-m1[na])))
+
+      # 6.5: hindcast; every cell is floored at 0.001 by posfun, its penalty to ZERO_N
+      for (y in hind[-1]) {
+        s <- Nm[, y - 1] * exp(-Z[[sp]][, y - 1])
+        fl <- .rtmb_posfun(c(Rh[y], s[mid - 1], s[na - 1] + s[na]), 0.001)
+        Nm[, y] <- fl$value
+        zero_N_pen[sp] <- zero_N_pen[sp] + sum(fl$penalty)
+      }
+      # 6.6: mean recruitment over the first nyrs_srrmean years; 6.8: the projection
+      # recruits at that mean (proj_mean_rec = 1), with no floor
+      avg_R[sp] <- sum(Rh[seq_len(pd$nyrs_srrmean)] / pd$nyrs_srrmean)
+      for (y in proj) {
+        s <- Nm[, y - 1] * exp(-Z[[sp]][, y - 1])
+        Nm[, y] <- c(avg_R[sp], s[mid - 1], s[na - 1] + s[na])
+      }
+      R[sp, ] <- c(Rh, rep(avg_R[sp], length(proj)))
+      N[[sp]] <- Nm
+      biomass[sp, ] <- RTMB::colSums(Nm * pd$W_pop[[sp]])
+      ssb[sp, ] <- RTMB::colSums(Nm * exp(-Z[[sp]] * sm[sp] / 12) * pd$so[[sp]])
+      avgN[[sp]] <- Nm * (1 - exp(-Z[[sp]])) / Z[[sp]]
+
+      # 6.6 (cpp:1999-2184), Option 1a: unfished (NByage0) and target-F (NByageF) age
+      # structures recruiting at the mean, on the realized M; and their dynamic versions
+      # recruiting at the hindcast R, then at exp(log mean + deviation) in the projection,
+      # on M1 plus their own M2 (M_dB0, M_dBF)
+      Mm <- M[[sp]]
+      M0 <- M_dB0[[sp]]
+      MF <- M_dBF[[sp]]
+      Ft <- Ftarget_at_age[[sp]]
+      b0 <- bF <- d0 <- dF <- RTMB::matrix(0, na, Y)
+      b0[, 1] <- Nm[, 1]; bF[, 1] <- Nm[, 1]; d0[, 1] <- Nm[, 1]; dF[, 1] <- Nm[, 1]
+      for (y in seq_len(Y)[-1]) {
+        r_dyn <- if (y <= H) Rh[y] else exp(log(avg_R[sp]) + rec_dev[y])
+        e0 <- exp(-Mm[, y - 1])
+        eF <- exp(-Mm[, y - 1] - Ft[, y - 1])
+        e0d <- if (is.null(M2)) e0 else exp(-M0[, y - 1])
+        eFd <- if (is.null(M2)) eF else exp(-MF[, y - 1] - Ft[, y - 1])
+        s <- b0[, y - 1] * e0; b0[, y] <- c(avg_R[sp], s[mid - 1], s[na - 1] + s[na])
+        s <- bF[, y - 1] * eF; bF[, y] <- c(avg_R[sp], s[mid - 1], s[na - 1] + s[na])
+        s <- d0[, y - 1] * e0d; d0[, y] <- c(r_dyn, s[mid - 1], s[na - 1] + s[na])
+        s <- dF[, y - 1] * eFd; dF[, y] <- c(r_dyn, s[mid - 1], s[na - 1] + s[na])
+      }
+      NB0[[sp]] <- b0; NBF[[sp]] <- bF; dB0[[sp]] <- d0; dBF[[sp]] <- dF
+      so_term <- pd$so[[sp]][, H]
+      SB0[sp, ] <- RTMB::colSums(b0 * so_term * exp(-Mm * sm[sp] / 12))
+      SBF[sp, ] <- RTMB::colSums(bF * so_term * exp(-(Mm + Ft) * sm[sp] / 12))
+      DynamicSB0[sp, ] <- RTMB::colSums(d0 * pd$so[[sp]] * exp(-M0 * sm[sp] / 12))
+      DynamicSBF[sp, ] <- RTMB::colSums(dF * pd$so[[sp]] * exp(-(MF + Ft) * sm[sp] / 12))
+      B0[sp, ] <- RTMB::colSums(b0 * pd$W_pop[[sp]][, H])
+      DynamicB0[sp, ] <- RTMB::colSums(d0 * pd$W_pop[[sp]])
+      if (!is.null(msm)) {
+        # 6.11 (cpp:2440-2441): average numbers of the dynamic reference structures
+        avgN_dB0[[sp]] <- d0 * (1 - exp(-M0)) / M0
+        avgN_dBF[[sp]] <- dF * (1 - exp(-MF - Ft)) / (MF + Ft)
+      }
     }
-    NB0[[sp]] <- b0; NBF[[sp]] <- bF; dB0[[sp]] <- d0; dBF[[sp]] <- dF
-    so_term <- pd$so[[sp]][, H]
-    SB0[sp, ] <- RTMB::colSums(b0 * so_term * exp(-Mm * sm[sp] / 12))
-    SBF[sp, ] <- RTMB::colSums(bF * so_term * exp(-(Mm + Ft) * sm[sp] / 12))
-    DynamicSB0[sp, ] <- RTMB::colSums(d0 * pd$so[[sp]] * exp(-Mm * sm[sp] / 12))
-    DynamicSBF[sp, ] <- RTMB::colSums(dF * pd$so[[sp]] * exp(-(Mm + Ft) * sm[sp] / 12))
-    B0[sp, ] <- RTMB::colSums(b0 * pd$W_pop[[sp]][, H])
-    DynamicB0[sp, ] <- RTMB::colSums(d0 * pd$W_pop[[sp]])
+
+    # 7 (cpp:2453-2472): predation, with suitability (empirical: from this pass's numbers),
+    # giving the M2 that the next pass applies
+    if (!is.null(msm)) {
+      avgN_c <- do.call(rbind, avgN)
+      if (pd$suitMode[1] == 0) su <- .rtmb_suit_empirical(msm, avgN_c)
+      pred <- .rtmb_predation(msm, su$S, su$suit_other, avgN_c, do.call(rbind, avgN_dB0),
+                              do.call(rbind, avgN_dBF))
+      M2 <- lapply(msm$cell_rows, function(i) pred$M2[i, , drop = FALSE])
+      M2_dB0 <- lapply(msm$cell_rows, function(i) pred$M2_dB0[i, , drop = FALSE])
+      M2_dBF <- lapply(msm$cell_rows, function(i) pred$M2_dBF[i, , drop = FALSE])
+    }
+  }
+  if (!is.null(msm)) {
+    # cpp:2179-2182: under predation the static references are the input MSSB0 and MSB0
+    SB0 <- RTMB::matrix(msm$MSSB0, nspp, Y)
+    B0 <- RTMB::matrix(msm$MSB0, nspp, Y)
   }
   R0 <- RTMB::matrix(R0_sp, nspp, Y)
   R_hat <- R0   # 6.9: expected recruitment from the mean, with no deviation
@@ -277,9 +329,15 @@
     }
   }
 
-  # -- 12.1 (cpp:3245-3270): depletion against the final-year static reference
-  biomass_depletion <- biomass / B0[, Y]
-  ssb_depletion <- ssb / SB0[, Y]
+  # -- 12.1 (cpp:3245-3270): depletion against the final-year static reference; under
+  # predation with no harvest rule, against the final (unfished) projection year
+  if (is.null(msm)) {
+    biomass_depletion <- biomass / B0[, Y]
+    ssb_depletion <- ssb / SB0[, Y]
+  } else {
+    biomass_depletion <- biomass / biomass[, Y]
+    ssb_depletion <- ssb / ssb[, Y]
+  }
 
   # -- 13 (cpp:3279-4658): negative log-likelihood components. Rows are addressed by the
   # JnllRow labels in .JNLL_ROW_AXIS; columns count fleets or species by row.
@@ -323,16 +381,27 @@
       -sum(RTMB::dnorm(p[["rec_dev"]][sp, hind], mu, R_sd[sp], log = TRUE))
     jnll_comp[jrow[["Zero n-at-age penalty"]], sp] <- zero_N_pen[sp]
   }
-  # 13.15 (cpp:4646-4658): unweighted copy; the composition row is the one that differs
+  # 11 (cpp:3233-3237) and 13.6 (cpp:3753-3817): predicted stomach content from the last
+  # pass, and its likelihood, where suitability is estimated
+  diet_hat <- stomach <- NULL
+  if (!is.null(msm) && pd$suitMode[1] > 0) {
+    diet_hat <- .rtmb_diet_hat(msm, su$S, avgN_c, pred$inv_avail)
+    stomach <- .rtmb_stomach_nll(msm, diet_hat, p[["diet_comp_weights"]])
+    jnll_comp[jrow[["Stomach content data"]], seq_len(nspp)] <- stomach$weighted
+  }
+  # 13.15 (cpp:4646-4658): unweighted copy; the composition and stomach rows differ
   unweighted_jnll_comp <- jnll_comp
   unweighted_jnll_comp[jrow[["Composition data"]], seq_len(n_flt)] <- comp_nll_unweighted
+  if (!is.null(stomach)) {
+    unweighted_jnll_comp[jrow[["Stomach content data"]], seq_len(nspp)] <- stomach$unweighted
+  }
   jnll <- sum(jnll_comp)
 
   # -- 14 (cpp:4661-4887): reports, at the C++ names and shapes
   N_at_age <- to_array(N, nspp, nages)
   avgN_at_age <- to_array(avgN, nspp, nages)
   M1_at_age <- to_array(M1, nspp, nages)
-  M_at_age <- M1_at_age
+  M_at_age <- to_array(M, nspp, nages)
   Z_at_age <- to_array(Z, nspp, nages)
   F_at_age <- to_array(F_at_age, nspp, nages)
   NByage0 <- to_array(NB0, nspp, nages)
@@ -351,6 +420,13 @@
   beta_linkage_obs <- p[["beta_linkage_obs"]]
   beta_linkage_re_all <- numeric(0)
   .rtmb_report_list(pd$fixed_reports)
+  if (!is.null(msm) && !inherits(jnll, "advector")) {
+    # Built in the report() pass only, which keeps the per-pair products off the tape
+    vul <- if (is.null(su$vulnerability)) matrix(0, nspp, nspp) else su$vulnerability
+    vul_other <- if (is.null(su$vulnerability_other)) numeric(nspp) else su$vulnerability_other
+    .rtmb_report_list(.rtmb_predation_reports(msm, su$S, su$suit_other, vul, vul_other, pred,
+                                              avgN_c, diet_hat))
+  }
   .rtmb_report_list(list(
     pop_scalar = pop_scalar, avg_R = avg_R, Z_at_age = Z_at_age, N_at_age = N_at_age,
     avgN_at_age = avgN_at_age, biomass_at_age = biomass_at_age,

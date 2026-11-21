@@ -6,9 +6,10 @@
 
 #' Refuse a configuration the RTMB model does not implement yet
 #'
-#' @details The RTMB port reproduces the C++ only on the paths ported so far (stage 1:
-#'   the single-species core BS2017SS exercises). Any other configuration would return
-#'   a plausible but wrong number, so it stops here and names the setting.
+#' @details The RTMB port reproduces the C++ only on the paths ported so far: the
+#'   single-species core BS2017SS exercises (stage 1), and the predation BS2017MS
+#'   exercises (stage 2). Any other configuration would return a plausible but wrong
+#'   number, so it stops here and names the setting.
 #' @noRd
 .rtmb_check_scope <- function(d) {
   need <- function(ok, what) {
@@ -22,15 +23,30 @@
                 "proj_mean_rec", "HCR", "DynamicHCR", "M1_re", "M1_use_prior", "M2_use_prior",
                 "osa_mode", "adreport_sel", "adreport_catch", "flt_type", "flt_sel_type",
                 "flt_sel_dim", "flt_varying_sel", "bin_first_selected", "sel_norm_bin1",
-                "flt_units", "est_index_q", "index_varying_q", "comp_offset")
+                "flt_units", "est_index_q", "index_varying_q", "comp_offset", "niter",
+                "diet_ll_type", "suit_styr", "suit_endyr", "MSSB0", "MSB0", "other_food")
   missing <- switches[!vapply(switches, function(n) length(d[[n]]) > 0, TRUE)]
   if (length(missing)) stop("The RTMB model needs data element(s) ", toString(missing), ".", call. = FALSE)
   idx_flt <- unique(d[["index_ctl"]][, 1])
   cat_flt <- unique(d[["catch_ctl"]][, 1])
   comp_flt <- unique(d[["comp_ctl"]][, 1])
   need(d[["estimateMode"]] < 4, "estimateMode 4 (a placeholder objective)")
-  need(d[["msmMode"]] == 0, "msmMode > 0 (predation)")
-  need(d[["suitMode"]] == 0, "suitMode > 0")
+  need(d[["msmMode"]] %in% 0:2, "msmMode other than 0, 1 or 2")
+  need(d[["suitMode"]] %in% c(0, 4), "suitMode other than 0 (empirical) or 4 (lognormal on weight)")
+  need(length(unique(d[["suitMode"]])) == 1, "suitMode differing between predators")
+  # The C++ still scores stomachs for an estimated suitability without predation
+  need(d[["msmMode"]] > 0 | d[["suitMode"]] == 0, "estimated suitability at msmMode 0")
+  if (isTRUE(d[["msmMode"]] > 0)) {
+    dc <- d[["diet_ctl"]]
+    need(d[["niter"]] >= 1 & d[["niter"]] == round(d[["niter"]]), "niter other than a whole number >= 1")
+    need(d[["minage"]] == 1, "a minimum age other than 1 under predation")
+    # data_check() refuses 0; available food is positive only for positive other food
+    need(d[["other_food"]] > 0, "other food of 0 or less")
+    need(dc[, 7] == 0, "diet rows for a single year (Year other than 0)")
+    need(dc[, 5] >= d[["minage"]][dc[, 1]] & dc[, 6] >= d[["minage"]][dc[, 2]],
+         "diet-data types 2-4 (rows summed over ages)")
+    need(d[["diet_ll_type"]][d[["suitMode"]] > 0] == 0, "a Dirichlet-multinomial diet likelihood")
+  }
   need(d[["nsex"]] == 1, "two-sex species")
   need(d[["nages"]] >= 2, "a species with one age")
   need(d[["estDynamics"]] == 0, "estDynamics > 0 (fixed numbers-at-age)")
@@ -284,7 +300,20 @@
     growth_linkage_offset = array(0, c(nspp, 1, nyrs, 4)),
     growth_linkage_offset_nat = array(0, c(nspp, 1, nyrs, 4)))
 
+  # Under predation (msmMode > 0) the predation reports are computed, and the C++ runs
+  # niter passes of the dynamics; at msmMode 0 it runs one (cpp:189)
+  msmMode <- int(d[["msmMode"]])
+  msm <- NULL
+  if (msmMode > 0) {
+    msm <- .rtmb_prepare_predation(d, nages, nyrs, nyrs_hind, styr, W_pop, consumption_at_age)
+    fixed_reports[c("M2_at_age", "B_eaten_as_prey", "suit_other", "avail_food", "suitability",
+                    "M2_prop", "B_eaten", "stom_div_bio", "vulnerability",
+                    "vulnerability_other", "diet_hat")] <- NULL
+  }
+
   list(
+    msmMode = msmMode, niter = if (msmMode > 0) int(d[["niter"]]) else 1L,
+    suitMode = int(d[["suitMode"]]), msm = msm,
     nspp = nspp, nages = nages, max_age = max_age, n_flt = n_flt, n_col = max(n_flt, nspp),
     styr = styr, endyr = endyr, nyrs = nyrs, nyrs_hind = nyrs_hind,
     nyrs_srrmean = min(int(d[["srr_mse_switchyr"]]) - styr + 1L, nyrs_hind),
@@ -298,4 +327,137 @@
     n_catch = nrow(cc), n_index = nrow(ic), n_comp = nrow(cmp),
     max_age_cols = max(ncol(d[["comp_obs"]]), nages[int(cmp[, 2])])
   )
+}
+
+#' Data-only pieces of the predation model, on one-sex (species, age) cells
+#'
+#' @details Cells run species, then age: the C++ cell order (predation.hpp:387-401) and
+#'   the rows of `do.call(rbind, <per-species [age, year] list>)`. Weights and ration are
+#'   data, because estimated growth is refused. The scope guard allows only Year 0 diet
+#'   rows for one predator and one prey age, so the diet proportions are year-invariant.
+#' @param W_pop Population weight-at-age (kg), per species [age, year].
+#' @param consumption_at_age Ration (kg/predator/yr), [nspp, 1, max_age, nyrs].
+#' @noRd
+.rtmb_prepare_predation <- function(d, nages, nyrs, nyrs_hind, styr, W_pop, consumption_at_age) {
+  int <- function(x) as.integer(round(x))
+  nspp <- length(nages)
+  max_age <- max(nages)
+  cell_sp <- rep(seq_len(nspp), nages)
+  cell_age <- sequence(nages)
+  nc <- length(cell_sp)
+  first <- cumsum(c(0L, nages))[seq_len(nspp)]
+  suitMode <- int(d[["suitMode"]])
+  W <- do.call(rbind, W_pop)
+  # Positive available food under empirical suitability rests on non-negative prey biomass
+  if (any(W < 0)) {
+    stop("The RTMB model does not yet support negative weight-at-age under predation.", call. = FALSE)
+  }
+  Rat <- do.call(rbind, lapply(seq_len(nspp), function(sp) {
+    matrix(consumption_at_age[sp, 1, seq_len(nages[sp]), ], nages[sp], nyrs)
+  }))
+  # Suitability window per predator, as year columns (cpp:139-143: calendar years in data)
+  suit_cols <- lapply(seq_len(nspp), function(sp) {
+    seq(int(d[["suit_styr"]][sp]) - styr + 1L, int(d[["suit_endyr"]][sp]) - styr + 1L)
+  })
+
+  # Diet proportion by (predator cell, prey cell) (diet_data.hpp:24-87); a repeated row
+  # keeps its last value, as the C++ assignment does
+  dc <- d[["diet_ctl"]]
+  dob <- d[["diet_obs"]]
+  minage <- int(d[["minage"]])
+  dr <- first[int(dc[, 1])] + int(dc[, 5]) - minage[int(dc[, 1])] + 1L
+  dk <- first[int(dc[, 2])] + int(dc[, 6]) - minage[int(dc[, 2])] + 1L
+  dp <- matrix(0, nc, nc)
+  for (i in seq_len(nrow(dc))) dp[dr[i], dk[i]] <- dob[i, 2]
+  # Unattributed diet share per mt of other food (diet_data.hpp:97-133), subtracted in
+  # prey-cell order
+  other_food <- d[["other_food"]]
+  ofdp <- vapply(seq_len(nc), function(r) {
+    of <- other_food[cell_sp[r]]
+    if (of > 0) Reduce(`-`, dp[r, ], 1) / of else 0
+  }, 0)
+
+  # Empirical suitability: the (predator, prey) pairs with a positive diet proportion,
+  # ordered predator then prey, the order the C++ sums them in
+  emp <- NULL
+  emp_sp <- which(suitMode == 0)
+  if (length(emp_sp)) {
+    tr <- which(dp > 0 & (cell_sp %in% emp_sp)[row(dp)], arr.ind = TRUE)
+    tr <- tr[order(tr[, 1], tr[, 2]), , drop = FALSE]
+    cols <- sort(unique(unlist(suit_cols[emp_sp])))
+    by_pred <- lapply(emp_sp, function(sp) {
+      list(t = which(cell_sp[tr[, 1]] == sp), cols = match(suit_cols[[sp]], cols),
+           nyrs = length(suit_cols[[sp]]))
+    })
+    emp <- list(r = tr[, 1], k = tr[, 2], d = dp[tr], cols = cols,
+                by_pred = by_pred[lengths(lapply(by_pred, `[[`, "t")) > 0],
+                G = Matrix::sparseMatrix(i = tr[, 1], j = seq_len(nrow(tr)), x = 1,
+                                         dims = c(nc, nrow(tr))))
+  }
+
+  # Parametric suitability: the (predator, prey, hindcast year) cells whose log weight
+  # ratio is positive (predation.hpp:115-123); data, because weight is
+  ps <- NULL
+  param_sp <- which(suitMode > 0)
+  if (length(param_sp)) {
+    g <- expand.grid(r = which(cell_sp %in% param_sp), k = seq_len(nc), y = seq_len(nyrs_hind))
+    sr <- log(W[cbind(g$r, g$y)] / W[cbind(g$k, g$y)])
+    keep <- !is.na(sr) & sr > 0
+    g <- g[keep, ]
+    ps <- list(sp_r = cell_sp[g$r], sp_k = cell_sp[g$k], sr = sr[keep],
+               lin = g$r + nc * (g$k - 1L) + nc * nc * (g$y - 1L))
+  }
+
+  # Predicted stomach content (diet_data.hpp:160-235): each row's (predator cell, year)
+  # and (prey cell, year) positions over its predator's window, [row, year] column-major
+  dh <- st <- NULL
+  if (length(param_sp)) {
+    dh <- lapply(param_sp, function(sp) {
+      rows <- which(dc[, 1] == sp)
+      if (!length(rows)) return(NULL)
+      yoff <- rep(suit_cols[[sp]] - 1L, each = length(rows))
+      list(rows = rows, nyrs = length(suit_cols[[sp]]),
+           ry = rep(dr[rows], length(suit_cols[[sp]])) + nc * yoff,
+           ky = rep(dk[rows], length(suit_cols[[sp]])) + nc * yoff,
+           rky = rep(dr[rows] + nc * (dk[rows] - 1L), length(suit_cols[[sp]])) + nc * nc * yoff)
+    })
+    dh <- Filter(Negate(is.null), dh)
+    # Stomachs (cpp:3753-3817): runs of stomach_id, scored when their predator's
+    # suitability is estimated. The observed side is data: proportions plus the other-prey
+    # balance, offset and renormalized, times the sample size; and dmultinom's constant.
+    sid_all <- int(d[["stomach_id"]])
+    groups <- split(seq_len(nrow(dc)), factor(sid_all, levels = seq_len(int(d[["n_stomach_obs"]])) - 1L))
+    groups <- groups[lengths(groups) > 0]
+    gsp <- vapply(groups, function(j) int(dc[j[1], 1]), 1L)
+    groups <- groups[gsp %in% param_sp]
+    gsp <- gsp[gsp %in% param_sp]
+    off <- d[["comp_offset"]]
+    obs <- lapply(groups, function(j) {
+      s <- min(Reduce(`+`, dob[j, 2]), 1)
+      o <- c(dob[j, 2], 1 - s) + off
+      x <- o / Reduce(`+`, o) * dob[j[1], 1]
+      list(x = x, const = lgamma(Reduce(`+`, x) + 1) - Reduce(`+`, lgamma(x + 1)))
+    })
+    rows <- unlist(groups, use.names = FALSE)
+    sid <- rep(seq_along(groups), lengths(groups))
+    st <- list(rows = rows, sid = sid, sp = gsp,
+               x = unlist(lapply(obs, function(o) o$x[-length(o$x)]), use.names = FALSE),
+               x_other = vapply(obs, function(o) o$x[length(o$x)], 0),
+               const = vapply(obs, `[[`, 0, "const"),
+               G = Matrix::sparseMatrix(i = sid, j = seq_along(rows), x = 1,
+                                        dims = c(length(groups), length(rows))))
+  }
+
+  # Positions of each cell pair in the C++ [nspp, nspp, max_age, max_age, nyrs] reports,
+  # and of each cell in [nspp, 1, max_age, nyrs]
+  pair_lin <- outer(cell_sp + nspp * nspp * (cell_age - 1L),
+                    nspp * (cell_sp - 1L) + nspp * nspp * max_age * (cell_age - 1L), "+")
+  lin4 <- outer(cell_sp + nspp * (cell_age - 1L), nspp * max_age * (seq_len(nyrs) - 1L), "+")
+  list(nspp = nspp, nc = nc, nyrs = nyrs, nyrs_hind = nyrs_hind, msmMode = int(d[["msmMode"]]),
+       cell_sp = cell_sp, cell_rows = split(seq_len(nc), cell_sp), W = W, Rat = Rat,
+       other_food_c = other_food[cell_sp], ofdp = ofdp, emp = emp, param_sp = param_sp,
+       ps = ps, dh = dh, st = st, n_diet = nrow(dc), comp_offset = d[["comp_offset"]],
+       pair_lin = pair_lin, n_pair4 = nspp * nspp * max_age * max_age,
+       dim5 = c(nspp, nspp, max_age, max_age, nyrs), dim4 = c(nspp, 1, max_age, nyrs),
+       lin4 = lin4, MSSB0 = d[["MSSB0"]], MSB0 = d[["MSB0"]])
 }

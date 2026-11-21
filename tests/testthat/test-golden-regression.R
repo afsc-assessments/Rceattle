@@ -233,9 +233,8 @@ testthat::test_that("the MVN and Normal index families reproduce their pinned ob
   dimnames(Sigma) <- list(as.character(i$Year), as.character(i$Year))
   d$index_cov <- list(BT_Pollock = Sigma)
 
-  # Unphased with heavy polishing: phasing leaves this configuration twice as
-  # loose (4.8e-5 against 2.5e-5), and the extra Newton steps are what reach a
-  # stationary point at all.
+  # Unphased with heavy polishing: phasing leaves this configuration looser, and
+  # the extra Newton steps are what reach a stationary point at all.
   fit <- Rceattle::fit_mod(
     data_list = d, inits = NULL, file = NULL, estimateMode = 0,
     random_rec = FALSE, msmMode = 0,
@@ -254,8 +253,9 @@ testthat::test_that("the MVN and Normal index families reproduce their pinned ob
   #
   # The gate is 1e-3 and not the 1e-4 the rest of the file uses, because on a
   # ridge this flat the gradient records where the optimizer STOPPED, which is
-  # platform-dependent: 2.5e-5 on local macOS/arm64 and 3.5e-4 on ubuntu-latest
-  # (deep-checks run 36433121293, 2026-09-28), which failed the job. The
+  # platform-dependent. At the estimates (TMB's best point, where `fit$opt$par`
+  # sits) it is 2.0e-4 on local macOS/arm64. At the last Newton step it was 3.5e-4
+  # on ubuntu-latest (deep-checks run 36433121293, 2026-09-28), failing 1e-4. The
   # objective is the pinned quantity and it reproduced on that same run to the
   # 1e-6 above; asserting 1e-4 here asserts the optimizer's stopping point, not
   # the model. A value above 1e-3 means it did not reach the ridge at all.
