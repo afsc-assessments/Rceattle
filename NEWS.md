@@ -16,6 +16,22 @@ at it, and the entries below cite each other by version throughout.
 review. It landed as 5.66.9, so a version check written for that fix needs 5.66.9.
 -->
 
+# Rceattle 5.67.15
+
+## Bug fixes
+
+* **`sim_mod(simulate = TRUE)` warns that diet rows "came back empty" only when a
+  stomach's request rounds to zero prey items**: `Sample_size` times
+  `Diet_comp_weights` below 0.5 under a multinomial, `Sample_size` below 0.5 under a
+  Dirichlet-multinomial. It had counted every prey bin observed above zero that drew
+  0, which almost any draw has, so it fired on ordinary multispecies draws with an
+  estimated suitability and blamed a rounding that had not happened: 98-108 of
+  BS2017MS's 2,025 diet rows on each of 10 draws at weight 1, where every stomach
+  places 20 items. It now counts every row of each stomach whose request rounds to
+  zero, and no others (2,025 rows at weight 1e-4, which it had reported as 184). The
+  message text is unchanged and no simulated value moves: 60 fixed-seed BS2017MS
+  draws, under both families, are identical to the previous version.
+
 # Rceattle 5.67.12
 
 ## Documentation
