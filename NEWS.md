@@ -16,6 +16,24 @@ at it, and the entries below cite each other by version throughout.
 review. It landed as 5.66.9, so a version check written for that fix needs 5.66.9.
 -->
 
+# Rceattle 5.67.11.9102 (dev-RTMB)
+
+## Internal
+
+* **Stage 2 of the RTMB port: multispecies predation.** `R/6-rtmb_predation.R` adds
+  the predation `BS2017MS` fits. That covers Type II and Type III MSVPA (`msmMode` 1
+  and 2), with suitability either empirical from the diet data (`suitMode = 0`) or
+  weight-based lognormal (`suitMode = 4`) fit to stomach proportions by a
+  multinomial. It also covers the `niter` loop and dynamic B0 and BF under predation.
+  Against the C++ template it was checked at 5,111 points over the four
+  configurations and meets the stage-1 rules at every one (see
+  `tools/verify/verify-rtmb-oracle.R`). At 201 of those points the C++ tape had
+  frozen a branch the other way at its start point. There the reference is the C++
+  re-taped at that point. NaN available food gives a NaN objective, as the C++ does
+  from 5.67.11. Any other predation setting is refused by name, here or by
+  `data_check()`. The single-species objective is unchanged, and the model is still
+  not called by `fit_mod()`.
+
 # Rceattle 5.67.11.9101 (dev-RTMB)
 
 ## Internal

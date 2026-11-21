@@ -1520,6 +1520,33 @@ the tape matches R, where a C++ `+=` loop sums: from x = (1, 2, 3),
 cached and `gr` reuses its forward sweep**, in TMB and RTMB alike (about 20× and 2×
 faster), so time them alternating between two points.
 
+**Silent: `%*%` does not sum in the C++ order.** `report()` runs on plain doubles, so there
+it goes to BLAS, which sums in its own order and may fuse multiply-adds. On the tape RTMB has
+an order of its own: at BS2017MS's 45 × 45 by 45 × 216 it differs from the sequential sum in
+113 of 9,720 cells. Near the 1e-6 other-food floor, where `suit_other = 1 - sum(suitability)`
+cancels, that moved the reported M2 by 4e-9 relative at the cold start, with the objective
+equal to the C++. `.rtmb_matmul()` sums term by term, in the C++ order, on both.
+
+**A C++ `if` on an estimated value is decided once, at taping; an RTMB indicator decides
+at every point.** They agree until a branch flips: BS2017MS recorded at pollock
+`init_dev = -800`, where prey numbers underflow to exactly 0, gives 1,784,686.178 back at the
+default start in the C++ and 1,784,463.745, the start's own value, in RTMB. The stage-2 gate
+records the indicators at each point and re-tapes the C++ where they differ from its tape
+point. NaN compares as 0 on the tape, and `.rtmb_ind_le()` returns FALSE for it in
+`report()` too, so `1 - .rtmb_ind_le(x, 0)` is the C++ `!(x <= 0)` in both. A product with a
+constant zero folds to 0 on both tapes, NaN included, so a cell the C++ never writes must be a
+constant 0 in RTMB too, not a computed value masked. The C++ report pass runs in doubles and
+does not fold, so at a NaN objective its REPORTs can hold NaN where RTMB holds 0.
+
+**Two limits of the stage-2 equivalence.** On x86_64, base `rowSums()` in `report()`
+accumulates in long double, so `suit_other = 1 - sum(suitability)` at the 1e-6 floor can
+differ in the report there; every gate run was on arm64, where long double is double. And
+`vulnerability_other = 1 - sum(vulnerability)` cancels at large `log_phi`: at about 25, where
+it is near 5e-12, the Hessian differs from the C++ by 1.8e-11 of scale, from the order the
+adjoints of that cancellation are summed in, not from the model. The gate checks the
+Hessian only at points short of that. The m2s4 nlminb path reaches `log_phi` 41, and its
+objective and gradient still pass there.
+
 ## CLAUDE.md's traps in full
 
 `CLAUDE.md` carries each of these as one line. This is the fuller text it held until 2026-09-14,

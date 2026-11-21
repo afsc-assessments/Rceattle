@@ -69,7 +69,7 @@ warning; `verify-osa-cdf.R` falls back to its default instead, which is quieter 
 | `run_mse()`, the OM/EM loop, projection horizons | `verify-mse-hindcast-invariant.R` + `verify-mse-schedule.R` (once), `verify-mse-repro.R` (digest) |
 | a `SIMULATE{}` block, `sim_mod()`, `simulate.Rceattle()` | the `verify-sim-*.R` set (once each) |
 | a `plot_*()` function | **none of these** — see below |
-| `R/6-rtmb_*.R`, or C++ on a path the RTMB port covers | `verify-rtmb-oracle.R` (once), with a no-FMA C++ build |
+| `R/6-rtmb_*.R`, or C++ on a path the RTMB port covers | `verify-rtmb-oracle.R` (once per fixture: `fixture=bs2017ss`, and `fixture=bs2017ms` for predation), with a no-FMA C++ build |
 
 ## What nothing here covers
 

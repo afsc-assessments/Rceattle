@@ -1,6 +1,6 @@
 # Helpers for the RTMB model. Most mirror a function in src/TMB/helper_functions.hpp or
-# spr.hpp in its evaluation order, so the objective matches the C++ to rounding;
-# .rtmb_ind_ge() and .rtmb_safe_den() are the RTMB form of the C++ CondExp branches.
+# spr.hpp in its evaluation order, so the objective matches the C++ to rounding; the
+# .rtmb_ind_*() indicators and .rtmb_safe_den() are the RTMB form of the C++ branches.
 #
 # A branch on an estimated quantity is a 0/1 indicator times each branch, never `if` or
 # `ifelse()`: an `if` on an AD value errors under RTMB's default comparison setting, and
@@ -22,6 +22,30 @@
   on.exit(RTMB::TapeConfig(old))
   RTMB::TapeConfig(comparison = "tape")
   x >= a
+}
+
+#' 0/1 indicator of `x <= a`, recorded on the AD tape
+#'
+#' @details As `.rtmb_ind_ge()`. NaN compares as 0 on the tape, and as FALSE here in the
+#'   `report()` pass, so `1 - .rtmb_ind_le(x, 0)` is the C++ `!(x <= 0)`, which lets NaN
+#'   through.
+#' @noRd
+.rtmb_ind_le <- function(x, a) {
+  if (!inherits(x, "advector")) return(!is.na(x) & x <= a)
+  old <- RTMB::TapeConfig()
+  on.exit(RTMB::TapeConfig(old))
+  RTMB::TapeConfig(comparison = "tape")
+  x <= a
+}
+
+#' 0/1 indicator of `x > a`, recorded on the AD tape; FALSE for NaN, as `.rtmb_ind_le()`
+#' @noRd
+.rtmb_ind_gt <- function(x, a) {
+  if (!inherits(x, "advector")) return(!is.na(x) & x > a)
+  old <- RTMB::TapeConfig()
+  on.exit(RTMB::TapeConfig(old))
+  RTMB::TapeConfig(comparison = "tape")
+  x > a
 }
 
 #' Denominator that is `den` where `m` is 1 and 1 where `m` is 0

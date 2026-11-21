@@ -25,7 +25,7 @@ Each script prints a pass/fail digest and leaves its numbers on stdout.
 
 | Script | Proves |
 |---|---|
-| `verify-rtmb-oracle.R` | The RTMB objective matches the C++ to 1e-12 along a full nlminb path, at perturbed and all-free points, in its REPORTs and ADREPORTs, Jacobian and Hessian; five planted defects are caught; speed against the C++. Takes an optional `-ffp-contract=off` C++ build and `installed=<lib>`. |
+| `verify-rtmb-oracle.R` | The RTMB objective matches the C++ to 1e-12 along full nlminb paths, at perturbed and all-free points, in its REPORTs and ADREPORTs, Jacobian and Hessian; planted defects are caught; speed against the C++. `fixture=bs2017ss` (stage 1, the default) or `fixture=bs2017ms` (predation, `config=` for a subset). Takes an optional `-ffp-contract=off` C++ build and `installed=<lib>`. |
 
 **Simulation — is the draw the distribution the likelihood assumes?**
 
