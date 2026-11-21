@@ -157,7 +157,7 @@ SS weight-at-age (`wtatage.ss`) → Rceattle `weight` sheet:
   at the appropriate `Wt_index`.
 
 > **Maturity already in SS weight-at-age:** SSB is
-> Σ<sub>a</sub>(N · weight · maturity), times `sex_ratio` for a one-sex
+> Σ<sub>a</sub>(N · e<sup>−Z · `spawn_month`/12</sup> · weight · maturity), times `sex_ratio` for a one-sex
 > species. If the SS `wtatage.ss` already
 > bakes maturity into a weight-at-age schedule, point `ssb_wt_index` at
 > that schedule and set every entry of the `maturity` sheet to `1`.

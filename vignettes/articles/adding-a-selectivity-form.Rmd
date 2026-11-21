@@ -21,7 +21,9 @@ test suite fails.
 
 Read the [developer guide](developer-guide.html) first for the pipeline and the
 switch system, and `CONTRIBUTING.md` for the toolchain and the tests. The numbers
-below come from Rceattle 5.56.0 on the bundled `GOApollock` data.
+below come from Rceattle 5.37.0 on the bundled `GOApollock` data, except the
+default-start output and the Atka and GOA cod comparisons, which come from
+5.56.0.
 
 Two terms used throughout. A parameter is *mapped out* when the TMB map holds
 `NA` for it: it stays at its starting value and is not estimated. A *drift guard*

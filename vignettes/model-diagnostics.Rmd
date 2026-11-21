@@ -21,7 +21,7 @@ knitr::opts_chunk$set(
 How to check a fitted model, using the 2022 Northern Rockfish assessment as the
 example:
 
-- **convergence diagnostics**: attached automatically to every fit
+- **convergence diagnostics**: attached automatically to every fit made with `estimateMode` `"Estimate"` or `"Hindcast"`
 - **S3 methods**: `residuals()`, `logLik()`, and the like
 - **fit plots**: compare predicted to observed data
 - **one-step-ahead (OSA) and process residuals**: goodness-of-fit tests for the observation and process models
@@ -135,8 +135,8 @@ as.data.frame(model_1)
 ## Convergence diagnostics
 
 After optimization, `fit_mod()` runs a battery of convergence checks and attaches
-them as `model$convergence`; `status` is the worst `severity` present. Non-OK
-checks are reported by `message()` during the fit, and `print(model)` shows the
+them as `model$convergence`; `status` is the worst `severity` present. `WARN`
+and `FAIL` checks are reported by `message()` during the fit, and `print(model)` shows the
 overall status. A non-converged fit is still returned, never an error, so you
 decide whether to trust it.
 
@@ -176,8 +176,9 @@ The checks cover:
   combinations than others: the condition number of the correlation matrix of
   the estimates (`WARN` above 1e6, `FAIL` above 1e10), the multi-parameter
   version of a 0.999 pairwise correlation. On a fishery it usually means F
-  traded against selectivity. Its square root is a ratio of standard errors,
-  each measured against its own parameter's: 13,634 means the least-determined
+  traded against selectivity. Its square root is a ratio of standard errors
+  on the standardized scale (each parameter divided by its own standard
+  error): 13,634 means the least-determined
   combination is 13,634 times more uncertain than the best-determined one. The
   covariance condition number, which is not scale-invariant, is reported as
   `covariance_condition_number`.
@@ -633,7 +634,7 @@ When reading the result:
 
 - **Non-converged refits are dropped** (reported in a message) *because* they behaved badly, so any spread or bias computed over the rest (including `compare_sim()`'s CV) understates the truth.
 - **By default only the observations are redrawn**: every replicate shares the operating model's single realization of recruitment and mortality, so the spread is observation error alone, a lower bound on estimation uncertainty in SSB and recruitment, not comparable to the model's own uncertainty bands.
-- **Watch for a truncation warning on a natural-scale index.** A fleet with `Index_distribution = "Normal"`, `"MVN"` or `"MVNORM"` is drawn on the natural scale with an absolute sd, so a draw can come out negative, which `data_check()` rejects. Those draws are redrawn, sampling the fleet from a normal *truncated at zero* rather than the untruncated normal the likelihood maximises. Occasional truncation is harmless; a lot is not. `sim_mod()` warns when any row puts more than 2% of its probability at or below zero, `Phi(-mu/sd)`, read off the fit, so it does not vary between replicates.
+- **Watch for a truncation warning on a natural-scale index.** A fleet with `Index_distribution = "Normal"`, `"MVN"` or `"MVNORM"` is drawn on the natural scale with an absolute sd, so a draw can come out negative, which `data_check()` rejects. Those draws are redrawn, sampling the fleet from a normal *truncated at zero* rather than the untruncated normal the likelihood maximises. Occasional truncation is harmless; a lot is not. `sim_mod()` warns above 2% truncation: for a `Normal` fleet, when any row puts more than 2% of its probability at or below zero, `Phi(-mu/sd)`, read off the fit, so it does not vary between replicates; for an `MVN`/`MVNORM` fleet, whenever that replicate rejected a whole-vector draw, so it varies between replicates.
 
 The fix for a `Normal` fleet is `Index_distribution = "TruncatedNormal"`, which fits the truncated density, renormalized by `log Φ(µ/σ)` over `(0, ∞)`, and draws from it by inverse CDF, so draw and likelihood agree and no draw is rejected. `"Normal"` reproduces the AMAK `avo_like` / `cpue_like` term for term, which is what an ADMB bridge compares against; use it there and `"TruncatedNormal"` elsewhere (`data_check()` refuses `"TruncatedNormal"` with `Catchability = "Analytical"`). `MVN`/`MVNORM` have no truncated option, so the gap stays. Either way, an absolute sd that large relative to the index means the natural-scale normal was a poor observation model to begin with.
 
@@ -757,7 +758,7 @@ prof_q <- profile(
 )
 ```
 
-`profile()` returns `Rceattle_list` (one fit per grid row, `NULL` where the fit failed), `grid` (the user-scale value grid, a multiplier or offset under `joint`), `nll` (joint NLL aligned with `grid`, `NA` for non-converged fits), `alias` (the natural-scale name you profiled under, if you used one), `joint`, and echoes of `param` and `slots`. To cross-profile across species, supply one slot per species (e.g. `slots = list(1, 2, 3)` with `param = "sigmaR"`); across sex, one slot per sex, as in the third example above. `cores` behaves as in the other diagnostic functions.
+`profile()` returns `Rceattle_list` (one fit per grid row, `NULL` where the fit failed), `grid` (the user-scale value grid, a multiplier or offset under `joint`), `nll` (joint NLL aligned with `grid`, `NA` for non-converged fits), `alias` (the natural-scale name you profiled under, if you used one), `joint`, and echoes of `param` and `slots`. To cross-profile across species, supply one slot per species (e.g. `slots = list(1, 2, 3)` with `param = "sigmaR"`); across sex on a two-sex model with sex-specific M1 (`M1_model` 2 or 3), one slot per sex (e.g. `slots = list(c(1, 1, 1), c(1, 2, 1))` with `param = "M1"`). `cores` behaves as in the other diagnostic functions.
 
 ### Where the data disagree
 

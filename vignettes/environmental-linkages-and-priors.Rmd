@@ -762,9 +762,10 @@ environmentally driven M with deviations, use the linkage grammar:
 `linkage_spec(~ temp + (1 | Year))`.
 
 `linkages` on M is age-aware: by default a row's `age_bin` is `NA` and the
-offset broadcasts across every age. To pin an effect to one age slice, set
-`by = ~ species + age_bin`; `fit_mod()` supplies the `age_bin` strata, each a
-bin index (age - minage + 1) rather than an age.
+offset broadcasts across every age. With `by = ~ species + age_bin`,
+`fit_mod()` supplies every age bin as a stratum (a bin index,
+age - minage + 1, not an age), so each age gets its own coefficient; there is no
+argument that keeps only one age.
 
 The `M1_indices` column-index argument for `M1_model = 4` / `5` adds the same
 log-scale environmental effect and is soft-deprecated; prefer `linkages`.
@@ -999,11 +1000,11 @@ and two specs disagreeing on `link`, `bounds` or `init`. `est_phase` may
 differ: a fixed donor holds the group.
 
 A linkage on the lead fleet alone does **not** propagate, and that includes the
-`apical` height. The one thing re-targeted onto the shared base is a **prior**,
-which is why it belongs on the lead alone: named on two it is counted twice on
-the coefficient they share, halving its stated variance. The usual spelling is
-a prior on the lead and a plain row for the others. An intercept is also
-re-targeted, so an intercept `init` or `bounds` goes on the donor.
+`apical` height. Two things are re-targeted onto the shared base. A **prior**
+belongs on the lead alone: named on two it is counted twice on the coefficient
+they share, halving its stated variance, so the usual spelling is a prior on
+the lead and a plain row for the others. An intercept `init` or `bounds` also
+goes on the lead.
 
 `build_selectivity()` accepts these keys, which name the slots the parametric
 forms share, under whichever alias your fleet's form has:
@@ -1356,7 +1357,9 @@ cannot be combined with `observe = `.
 
 One model may mix the two treatments. Penalized deviations are ordinary fixed
 effects, so `vcov()` includes them; integrated ones are reported in
-`fit$sdrep`.
+`fit$sdrep`. Under any HCR but `NoFishing` or `ConstantF`, `vcov()` and
+`fit$sdrep` describe the projection fit, which estimates only `log_Ftarget` /
+`log_Flimit`; read them from a fit run with `estimateMode = "Hindcast"`.
 
 An `ar1(1 | Year)` term can additionally be a **state-space covariate** (the
 Rogers et al. 2024 QAR1 catchability model): with `observe = "<env column>",
@@ -1377,7 +1380,7 @@ the covariate is present. The latent AR1 still runs over all years.
 
 The AR1 latent is **zero-mean** (no estimated level), so its mean is confounded
 with the linked parameter's intercept. **Standardize the observed covariate to
-mean 0** (a z-score), or `build_catchability()` warns. One-step-ahead residuals
+mean 0** (a z-score), or `fit_mod()` warns. One-step-ahead residuals
 of the covariate observation come from `osa_residuals(fit, source = "ecov")`,
 residualized first against its own series as in WHAM.
 

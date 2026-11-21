@@ -110,10 +110,9 @@ mse1 <- run_mse(
   calls `set.seed(seed + sim)`, so simulation `1` uses seed `667`. The same
   call with the same `seed` reproduces the trajectories bit-for-bit, with no
   `set.seed()` needed beforehand.
-* `regenerate_seed` (defaults to `seed`) sets the draws for the optional
-  `regenerate_past = TRUE` step, which re-fits the EM to OM-simulated
-  historical data. Set it separately to vary past-data realizations while
-  holding the projection draws fixed.
+* `regenerate_seed` (defaults to `seed`) currently has no effect. The optional
+  `regenerate_past = TRUE` step refits the EM to the OM's *expected* historical
+  index and composition data, with no observation error, so it draws nothing.
 
 Reproducibility holds *within* a package version, not across one:
 
@@ -125,8 +124,8 @@ Reproducibility holds *within* a package version, not across one:
 
 `simulate_data = FALSE` is unaffected by 5.9.0 and 5.18.0. The stream position is
 data-dependent, so changing an unrelated covariance or composition sample size
-moves everything drawn after it. Stomach contents are redrawn only where
-suitability is estimated; `run_mse()` keeps the observed ones.
+moves everything drawn after it. `sim_mod()` redraws stomach contents only where
+suitability is estimated; `run_mse()` always keeps the observed ones.
 
 For management-facing runs, save `packageVersion("Rceattle")` and the `seed`
 with the `.rds`.

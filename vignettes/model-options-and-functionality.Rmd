@@ -212,9 +212,10 @@ build_selectivity(linkages = list(
 ```
 
 Name whichever parameter should vary: `slp_asc`, `inf_asc`, `slp_desc`,
-`inf_desc`, or a `DoubleNormal` alias. `apical` is the one linkage parameter
-every estimated form has: the height of one sex's curve relative to the other's,
-see [Environmental linkages and priors](environmental-linkages-and-priors.html#selectivity).
+`inf_desc`, or a `DoubleNormal` alias. `apical`, the height of one sex's curve
+relative to the other's, is available on every estimated form except `2DAR1` and
+`3DAR1`, on a two-sex species; see
+[Environmental linkages and priors](environmental-linkages-and-priors.html#selectivity).
 
 Bin indexing: with non-parametric and AR(1) forms, selectivity is
 indexed over `N_sel_bins`.
@@ -297,9 +298,10 @@ bin, which stops being the plateau once selectivity is time-varying.
 
 #### Which forms can hold a sex difference in level
 
-Under `"AcrossSexes"` normalization *preserves* a level ratio, and no
-normalization creates one, so whether the sexes can reach different levels at
-all is a property of the **form**:
+`"AcrossSexes"` normalization *preserves* a level ratio and cannot create one,
+so whether the sexes can reach different levels at all is a property of the
+**form**. (`"WithinSex"` at a named bin divides each sex by its own value
+there, so two sexes whose curves differ in shape end on different plateaus.)
 
 | Form | Sex difference in level, from the form alone |
 |---|---|
@@ -310,9 +312,10 @@ all is a property of the **form**:
 | `DoubleLogistic`, `2DAR1`, `3DAR1` | **free**: the height is a free function of that sex's own parameters |
 
 Every row above describes the form on its own. An `apical` selectivity linkage
-adds a per-sex height multiplier to any estimated form, applied after the form's
-own centring or normalization, so a "none" here means the shape cannot hold the
-difference, not that the model cannot. `data_check()` notes the unread
+adds a per-sex height multiplier to any estimated form but `2DAR1`/`3DAR1`,
+applied after the form's own centring and before `Sel_norm_bin` normalization
+(so `Sel_norm_scope` must be `"AcrossSexes"`, or `Sel_norm_bin` `"Off"`), so a "none" here means the
+shape cannot hold the difference, not that the model cannot. `data_check()` notes the unread
 `Sel_norm_scope` on a two-sex `Hake` or `LogisticPM` fleet left on the default
 `"AcrossSexes"`; `LogisticPM` reuses `Sel_norm_bin` as a penalty bin range.
 

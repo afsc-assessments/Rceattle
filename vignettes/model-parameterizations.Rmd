@@ -61,7 +61,7 @@ $$M2_{isa,y} = \sum_{pbj} \left( \frac{N_{pbj,y} \delta_{pbj,y} {S}_{pbjisa}} {\
 ## Consumption
 Consumption is either an environmentally driven bioenergetics model or direct input of consumption-at-age, controlled per species on the `bioenergetics_control` sheet:
 
-* `Ceq`	Which bioenergetics equation scales maximum consumption with temperature: 1 = exponential (Stewart et al 1983); 2 = warm-water temperature dependence (Kitchell et al 1977; sensu Holsman et al 2015); 3 = cool- and cold-water temperature dependence (Thornton and Lessem 1979); 4 = temperature function held at 1.0, which bypasses bioenergetics and reads `ration_data` as empirical annual ration (set `CA = 1`, `fday = 1`, `CB = 0`)
+* `Ceq`	Which bioenergetics equation scales maximum consumption with temperature: 1 = exponential (Stewart et al 1983); 2 = warm-water temperature dependence (Kitchell et al 1977; sensu Holsman et al 2015); 3 = cool- and cold-water temperature dependence (Thornton and Lessem 1979); 4 = no bioenergetics: annual ration (kg per predator per year) is read from `ration_data` and scaled by `Pvalue`; `CA`, `CB` and `fday` are not read
 * `Cindex`	Which `env_data` index supplies $T_y$ for bioenergetics-based ration
 * `Pvalue`	Tuning parameter $\varphi_p$ scaling the maximum consumption used for ration
 * `fday` Foraging days per year, $Fday_p$
@@ -76,7 +76,7 @@ Under `Ceq` 1-3, `ration_data` holds the relative foraging rate $RFR_{pbj,y}$; r
 Annual ration ($\delta_{pbj,y}$, kg per predator per year) of predator $p$ of sex $b$ and age $j$ in year $y$:
 $$\delta_{pbj,y} = RFR_{pbj,y}*Fday_p *\alpha^{\delta}_p W_{pbj,y}^{\left(1+\beta^{\delta}_p\right)} *f\left(T_y \right)_p$$
 
-where $W$ is weight-at-age in **grams** (stored in kg and multiplied by 1000 here), so $\alpha^{\delta}_p$ is the coefficient for a gram-scale weight.
+where $W$ is weight-at-age in **grams** (stored in kg and multiplied by 1000 here), so $\alpha^{\delta}_p$ is the coefficient for a gram-scale weight; the result, in grams, is divided by 1000 to give kg.
 Ration can be tuned by adjusting `Pvalue` ($\varphi_p$) to help convergence:
 $$\delta_{pbj,y} = \varphi_p * \delta_{pbj,y}$$
 
@@ -102,8 +102,8 @@ $$L_2 = e^{G_2 (T^{cl}_p - T_y)}$$
 $$G_2 = \frac{1}{T^{cl}_p-T^{cm}_p}*\log\left( \frac{0.98*(1-CK4_p)}{CK4_p*0.02}\right)$$
 
 ### Input ration-at-age
-`Ceq = 4` reads annual ration at sex/age directly from `ration_data` (kg per predator per year), scaled by `Pvalue`; `CA`, `CB` and `fday` are not read.
-$$\delta_{pbj,y} = \varphi_p * RFR_{pbj,y}$$
+`Ceq = 4` reads annual ration at sex/age, $\delta^{in}_{pbj,y}$, directly from `ration_data` (kg per predator per year), scaled by `Pvalue`; `CA`, `CB` and `fday` are not read.
+$$\delta_{pbj,y} = \varphi_p * \delta^{in}_{pbj,y}$$
 
 
 # Fishery and survey observation model

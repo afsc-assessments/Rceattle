@@ -20,11 +20,12 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
 
 ## Documentation
 
-* **The vignettes are shorter**: prose words 43,024 to 37,246 (-13.4%) across
-  all thirteen, and 18-28% in the main user vignettes. Change history,
+* **The vignettes are shorter**: prose words 43,024 to 37,401 (-13.1%) across
+  all thirteen, and 16-25% in seven of the eleven user vignettes. Change history,
   provenance a user does not act on, and repeated explanations are cut; every
   switch row, equation, citation and passage a help page points to is kept.
-  Code chunks are unchanged except the corrections below.
+  Executable code is unchanged except the corrections below; comments and
+  printed output inside chunks were corrected too.
 
 * **About 90 wrong statements corrected**, each checked against the source.
   The ones that change what a user does: `vignette("hcrs-and-mses")` gave
@@ -33,7 +34,12 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   thinned the fishery instead; `vignette("environmental-linkages-and-priors")`
   said `env_data` rows after `projyr` are kept (they are dropped) and its q
   examples named fisheries with no q; `vignette("introduction")` pointed to
-  `model_1$fleet_control`, which is `NULL`.
+  `model_1$fleet_control`, which is `NULL`; `vignette("model-parameterizations")`
+  described `Ceq = 4` ration as a relative rate scaled by weight (`ration_data`
+  is annual ration in kg per predator, scaled only by `Pvalue`); and
+  `vignette("hcrs-and-mses")` said `regenerate_seed` varies the regenerated past
+  data, which are the OM's expected values with nothing drawn, so the seed has
+  no effect.
 
 # Rceattle 5.67.11
 

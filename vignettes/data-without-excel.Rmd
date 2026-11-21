@@ -495,7 +495,7 @@ M1 can also be estimated rather than fixed. See `?build_M1` for options includin
 
 ### Environmental covariate data (optional)
 
-An optional time series for environmental effects on recruitment, M1, catchability or growth. A linkage formula names its covariate (`~ temp`); a fixed-effect covariate refuses a missing year, years after the last row get a zero offset; the switch-based paths (`Catchability = 5`, bioenergetics `Cindex`) read columns by position after `Year` and fill missing years with the column mean.
+An optional time series for environmental effects on recruitment, M1, catchability or growth. A linkage formula names its covariate (`~ temp`); a linkage refuses a fixed-effect covariate with a missing year, and gives years after the last row a zero offset; the switch-based paths (`Catchability = 5`, bioenergetics `Cindex`) read columns by position after `Year` and fill missing years with the column mean.
 
 Skip this if no environmental covariates are used: `clean_data()` falls back to a Year-only data.frame with no indices, and validation complains only when a feature needs one (env-q catchability, a consumption equation that reads a temperature, `Ceq` 1, 2 or 3, or any env linkage). With no index to read, consumption uses the constant `fT = 1` of `Ceq = 4`: an error under `msmMode > 0`, where consumption drives predation mortality, and a warning under single-species, where it reaches only the reported `ration`.
 
