@@ -13,6 +13,7 @@ retrospective(
   getsd = NULL,
   phase = TRUE,
   fit_control = NULL,
+  projected_env_data_known = FALSE,
   Rceattle = NULL
 )
 }
@@ -21,8 +22,9 @@ retrospective(
 
 \item{peels}{number of retrospective peels used for rho and estimation}
 
-\item{rescale}{TRUE/FALSE whether to subset and rescale environmental
-predictors over the peel years.}
+\item{rescale}{which \code{env_data} columns to standardize on each peel's retained
+years: \code{FALSE} (default) none, \code{TRUE} every numeric column except \code{Year} and
+random-effect grouping columns, or a character vector of column names (see Details).}
 
 \item{nyrs_forecast}{forecast years over which to calculate Mohn's rho, in
 addition to the terminal year}
@@ -43,6 +45,10 @@ deliberately.}
 
 \item{fit_control}{optional \code{\link[=fit_control]{fit_control()}} bundle for the refits. Only
 \code{phase} and \code{getsd} are read; see \strong{What \code{fit_control()} reaches}.}
+
+\item{projected_env_data_known}{\code{env_data} columns whose post-peel values each
+peel keeps, as for a climate projection: \code{FALSE} (default) lists none, \code{TRUE}
+lists every column, or a character vector of column names (see Details).}
 
 \item{Rceattle}{deprecated name for \code{object}, still accepted so existing
 scripts keep working. Supplying both is an error.}
@@ -136,6 +142,27 @@ Take the forecast years as \code{endyr_peel + seq_len(endyr_full - endyr_peel)},
 which is empty for the unpeeled model, rather than \code{(endyr_peel + 1):endyr_full},
 which counts \emph{down} there. Mohn's rho is computed from \code{endyr_peel} and is
 unaffected by any of this.
+
+A peel withholds every \code{env_data} value after its terminal year, as it does
+the survey and composition data: an observed covariate (\code{linkage_spec(observe = )})
+loses those observations, and a column the model reads directly (the bioenergetics
+temperature named by \code{Cindex}, an environmental catchability or M1) takes the
+retained years' mean there and in any year it is missing. List a column in
+\code{projected_env_data_known} when its post-peel values were known at each peel's
+terminal year, such as a climate projection, and the peels keep them; \code{TRUE}
+keeps every column, as peels did before 5.69.0 under \code{rescale = FALSE}.
+Three kinds of column keep their post-peel values regardless, observations
+included, and
+\code{retrospective()} warns once naming any not listed there: a
+fixed-effect linkage covariate and a random-effect grouping column such as
+\code{(1 | regime)}, because an NA in either stops the linkage design being built,
+and a column with no value in the peel's retained years, which the model could not
+fill. Mohn's rho is then conditional on those values being known.
+\code{rescale} standardizes a column on the retained years and applies that centre
+and scale to the whole column. Name the columns when \code{env_data} also holds
+inputs that are not covariates, such as a temperature in degrees C that drives
+consumption, which \code{TRUE} would turn into z-scores. The unpeeled model is not
+rescaled, so standardize those columns the same way before fitting it.
 
 Catchability is estimated only for a fleet holding fitted index rows (see
 \code{\link{build_map}}), and a peel moves \code{endyr}, so a survey whose index
