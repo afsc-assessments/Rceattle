@@ -8,6 +8,17 @@
 #' @param nboot Number of bootstraps taken from asymptotic distribution of MLEs. Default = 10000
 #'
 #' @return an Rceattle object with derived quantities weighted by the specified weights. The length of the derived quantities spans the years which overlap across all models.
+#'
+#' @details
+#' With `uncertainty = TRUE` each fit's parameters are drawn from its asymptotic
+#' covariance, so every fit needs an sdreport (`fit_control(getsd = TRUE)`) and
+#' a TMB object that frees the hindcast parameters. Under any harvest control
+#' rule but `"NoFishing"`, `estimateMode = "Estimate"` without
+#' `projection_uncertainty` leaves `fit$obj` freeing only the rule's F, and
+#' `estimateMode = "Projection"` frees no hindcast parameter at all, so such fits
+#' are refused: refit with `estimateMode = "Hindcast"`, or, for a fixed-effects
+#' fit under a rule that estimates F, with `estimateMode = "Estimate"` and
+#' `fit_control(projection_uncertainty = TRUE)`.
 #' @examples
 #' \dontrun{
 #' # Equal weights across two candidate models.
@@ -105,18 +116,37 @@ model_average <- function(object = NULL, weights = NULL, uncertainty = FALSE, nb
   if(uncertainty){
 
     # Assuming asymptotic multivariate normal
+    # - `obj` must free the hindcast: build_hcr_map() frees only F in an "Estimate"
+    #   fit under a fishing HCR without projection_uncertainty; modes 2 and 4 only F/`dummy`.
+    hcr_only <- sapply(object, function(x) {
+      all(names(x[["obj"]][["par"]]) %in% c("log_Ftarget", "log_Flimit", "dummy"))
+    })
+    if (any(hcr_only)) {
+      stop("Model(s) ", paste(which(hcr_only), collapse = ", "), " free no hindcast ",
+           "parameter in `obj`, so their draws would leave every hindcast quantity ",
+           "at its estimate. Refit with estimateMode = \"Hindcast\", or, for a ",
+           "fixed-effects fit under a rule that estimates F, with ",
+           "estimateMode = \"Estimate\" and fit_control(projection_uncertainty = TRUE).",
+           call. = FALSE)
+    }
+    no_sd <- sapply(object, function(x) is.null(x[["sdrep"]]))
+    if (any(no_sd)) {
+      stop("Model(s) ", paste(which(no_sd), collapse = ", "), " have no sdreport ",
+           "to draw from: refit with estimateMode = \"Estimate\" or \"Hindcast\" and ",
+           "fit_control(getsd = TRUE).", call. = FALSE)
+    }
+
     # - Must have estimated joint precision matrix
-    # TRUE where the model's sdrep carries a random block; a getsd = FALSE fit
-    # reads FALSE.
+    # TRUE where the model's sdrep carries a random block.
     length_ran <- sapply(object, function(x) !is.null(x$sdrep$par.random))
     joint_est <- sapply(object, function(x) is.null(x$sdrep$jointPrecision))
     if(sum(length_ran) > 0){
-      if(sum(joint_est) > 0){
-        stop(paste("Model(s):", which(joint_est > 0)," do not have joint precision matrices: re-estimate with getJointPrecision = TRUE"))
-      }
-
       if(sum(length_ran) != length(object)){
         stop("Does not currently support purely fixed and random effects models together")
+      }
+
+      if(sum(joint_est) > 0){
+        stop(paste("Model(s):", which(joint_est > 0)," do not have joint precision matrices: re-estimate with getJointPrecision = TRUE"))
       }
     }
 

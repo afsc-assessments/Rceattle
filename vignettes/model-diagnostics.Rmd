@@ -842,3 +842,10 @@ To average estimates across model variants, see `?model_average`.
 mod_avg <- model_average(list(model_1, model_1), weights = c(1,1))
 plot_biomass(mod_avg)
 ```
+
+With `uncertainty = TRUE`, each fit's parameters are drawn from its asymptotic
+covariance, so every fit needs an sdreport and an `obj` that frees the hindcast
+parameters. Under any harvest control rule but `"NoFishing"`, an
+`estimateMode = "Estimate"` fit's `obj` frees only the rule's F unless it was
+fitted with `fit_control(projection_uncertainty = TRUE)`, so it is refused;
+refit it with `estimateMode = "Hindcast"`.
