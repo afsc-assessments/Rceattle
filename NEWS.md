@@ -202,7 +202,8 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   its own standard errors. On `BS2017SS` the averaged hindcast log-SSB standard
   error was 1,430 to 4,300 times the fit's own without random effects, and 185
   to 401 times for pollock with `random_rec = TRUE` (cod and arrowtooth were
-  unaffected); it is now 0.95 to 1.37 times (median 1.02). Sibling scripts that
+  unaffected); it is now 0.97 to 1.41 times (median 1.02), all with
+  `nboot = 1000` and `set.seed(1)`. Sibling scripts that
   build such averages: `Rceattle-models` GOA CEATTLE `GOA_18`, `GOA_20` and
   `GOA_21`, and `GOAceattle`'s `R/Figures.R`, which also plots
   `asymptotic_samples` directly.
