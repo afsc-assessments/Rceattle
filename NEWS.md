@@ -41,6 +41,26 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   -0.0785 to -0.0055 (year 3, one peel), with the terminal year and year 1 unchanged.
   No sibling repository has a categorical linkage term.
 
+* **A retrospective peel gives a numeric fixed-effect linkage covariate the mean of
+  the years it keeps**, after its terminal year, the value `rearrange_data()` gives a
+  blanked column, so a peel's forecast reads only covariate values known at its
+  terminal year. `retrospective()` warns once naming those columns. A series known
+  ahead, such as a climate projection, belongs in `projected_env_data_known`, which
+  keeps its values; a category is held either way. A covariate also observed,
+  grouped by or read as a category keeps its values, with a warning. A 0/1 block
+  column takes the mean unless listed in `projected_env_data_known` or refitted as
+  `factor(<column>)`: the GOA circulation study's `post2014` M block and the GOA
+  Pacific cod bridge's M and selectivity blocks are such columns.
+
+  **Whose Mohn's rho moves**: a model whose forecast reads such a covariate, under
+  any `rescale`. On a test model with a fixed M1 slope on temperature (M1 0.35 to
+  0.64 over the hindcast years) and a warm last three years, SSB rho moves from
+  -0.0240 to 0.0115 (forecast year 2) and from -0.0326 to 0.0301 (year 3, one peel),
+  with the terminal year unchanged. A term computed over the whole column
+  (`scale()`, `poly()`, `splines::ns()`) changes in the years the peel keeps too:
+  with `~ 0 + scale(temp)` on that model, terminal SSB rho moves from -0.00104 to
+  -0.00088.
+
 # Rceattle 5.70.0
 
 ## Breaking changes

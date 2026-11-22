@@ -111,7 +111,7 @@ LINKAGE_STRUCTURES <- c(
 #' `materialize_linkage()` refuses an NA in a fixed-effect linkage covariate,
 #' because `model.matrix()` silently drops that row and misaligns the whole
 #' design. Anything that wants to withhold covariate values -- a retrospective
-#' peel -- therefore has to know which columns it must leave alone.
+#' peel -- therefore has to know which columns it must not blank.
 #'
 #' Covariates that appear only inside a bar term (`(1 | Year)`, `ar1(1 | Year)`)
 #' are not fixed terms and are not returned unless `re_groups = TRUE`: a
@@ -132,8 +132,7 @@ LINKAGE_STRUCTURES <- c(
 #' @keywords internal
 #' @noRd
 .rce_linkage_fixed_covariates <- function(data_list, re_groups = FALSE, fixed = TRUE) {
-  groups <- c("srr_linkages", "M1_linkages", "growth_linkages",
-              "q_linkages", "sel_linkages", "comp_linkages")
+  groups <- .LINKAGE_SPEC_GROUPS
   specs <- list()
   collect <- function(x) {
     if (inherits(x, "Rceattle_linkage_spec")) { specs[[length(specs) + 1L]] <<- x }
@@ -152,6 +151,29 @@ LINKAGE_STRUCTURES <- c(
   unique(out)
 }
 
+# The data_list slots that hold linkage specs, one per process.
+.LINKAGE_SPEC_GROUPS <- c("srr_linkages", "M1_linkages", "growth_linkages",
+                          "q_linkages", "sel_linkages", "comp_linkages")
+
 # A fixed-effect term model.matrix() reads as levels rather than a number: a
 # time block (cut(Year, ...)), a regime (factor()), a flag or a label.
 .is_category <- function(x) is.factor(x) || is.logical(x) || is.character(x)
+
+#' How the linkages' fixed terms read each env_data column: as a `category` (a
+#' block or regime, `factor(reg)`), as a `number` (`temp`, `scale(temp)`), or as
+#' an `observed` covariate. A column can be in more than one.
+#' @noRd
+.rce_linkage_column_use <- function(data_list) {
+  use <- list(category = character(0), number = character(0), observed = character(0))
+  for (spec in .rce_linkage_specs(data_list[.LINKAGE_SPEC_GROUPS])) {
+    frame <- stats::model.frame(.parse_linkage_formula(spec[["formula"]])$fixed,
+                                data_list$env_data)
+    # The columns each term reads, e.g. `reg` for factor(reg).
+    cols <- lapply(as.list(attr(attr(frame, "terms"), "variables"))[-1], all.vars)
+    is_cat <- vapply(frame, .is_category, logical(1))
+    use$category <- c(use$category, unlist(cols[is_cat]))
+    use$number <- c(use$number, unlist(cols[!is_cat]))
+    use$observed <- c(use$observed, spec[["observe"]])
+  }
+  lapply(use, unique)
+}

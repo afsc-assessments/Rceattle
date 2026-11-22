@@ -21,8 +21,8 @@
 #'   starts from the unpeeled model's estimates.
 #' @param projected_env_data_known `env_data` columns whose values after each
 #'   peel's terminal year were known then, such as a climate projection, so the
-#'   peels keep them: `FALSE` (default) none, `TRUE` all (as peels did before
-#'   5.69.0), or a character vector of column names.
+#'   peels keep them (a categorical linkage term is held regardless): `FALSE`
+#'   (default) none, `TRUE` all, or a character vector of column names.
 #'
 #' @details
 #' **Forecast years.** A peel's removed years are its retrospective forecast: F
@@ -66,11 +66,17 @@
 #' an observed covariate (`linkage_spec(observe = )`) loses those observations,
 #' and a column the model reads directly (a `Cindex` temperature, an
 #' environmental catchability or M1) takes the retained years' mean there and
-#' in any year it is missing. A fixed-effect linkage covariate, a random-effect
-#' grouping column and a column with no retained value keep their post-peel
-#' values, since the model cannot be built or filled without them, and Mohn's
-#' rho is then conditional on those values; `retrospective()` warns about any
-#' not listed in `projected_env_data_known`. `rescale` standardizes a column on
+#' in any year it is missing. A fixed-effect linkage term that is a category,
+#' such as `cut(Year, ...)` or `factor(regime)`, holds its value from the peel's
+#' terminal year ([linkage_spec()]), though one cut from the whole column, such
+#' as `cut(temp, 3)`, takes its breaks from post-peel values too. A numeric
+#' fixed-effect covariate not listed in `projected_env_data_known` takes the
+#' retained years' mean, so a term computed over the whole column, such as
+#' `scale()`, changes in the retained years too. A random-effect grouping column,
+#' a column with no retained value, and a fixed-effect covariate also observed,
+#' grouped by or read as a category keep their post-peel values, and Mohn's rho
+#' is then conditional on those values; `retrospective()` warns about any not
+#' listed in `projected_env_data_known`. `rescale` standardizes a column on
 #' the retained years and applies that centre and scale to the whole column
 #' (a column with fewer than two distinct retained values stays in its units,
 #' with a warning). Name the columns when `env_data` also holds an input that
@@ -227,7 +233,7 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
   }
 
   # Columns known ahead of each peel's terminal year: kept whole, and left out
-  # of the kept-column warnings.
+  # of the kept-column and mean-fill warnings.
   .known <- projected_env_data_known
   if (is.character(.known)) {
     .bad <- setdiff(.known, names(.envd))
@@ -241,16 +247,23 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
     stop("`projected_env_data_known` must be TRUE, FALSE, or a character vector ",
          "of env_data column names.", call. = FALSE)
   }
-  .warn_fixed <- setdiff(.keep_fixed, .known)
+
+  # fit_mod() holds a category (a block or regime) from the peel's terminal year.
+  # A number takes the retained mean unless also observed, grouped by or known.
+  .use <- .rce_linkage_column_use(object$data_list)
+  .held <- setdiff(.use$category, c(.use$number, .use$observed, .groups))
+  .fill_fixed <- setdiff(intersect(.use$number, .env_all[.is_num]),
+                         c(.use$category, .use$observed, .groups, .known))
+  .warn_fixed <- setdiff(.keep_fixed, c(.held, .fill_fixed, .known))
   .warn_group <- setdiff(.keep_group, .known)
 
   .no_kept <- setdiff(.env_read[.n_kept == 0L],
                       c(.keep_fixed, .keep_group, .known))
   if (.post_any && length(.no_kept)) {
     warning("env_data column(s) ", paste(.no_kept, collapse = ", "), " have no ",
-            "value in years ", styr, "-", endyr - peels, ", so a peel with ",
-            "none keeps their post-peel values rather than leave the column ",
-            "empty, which the model cannot fill.", call. = FALSE)
+            "value in years ", styr, "-", endyr - peels, ", so a peel with none ",
+            "keeps their post-peel values: the model cannot fill an empty column.",
+            call. = FALSE)
   }
   .raw <- .rescale_cols[.n_kept[.rescale_cols] < 2L]
   if (length(.raw)) {
@@ -258,12 +271,20 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
             "units in any peel that keeps fewer than two distinct values of them.",
             call. = FALSE)
   }
+  if (.post_any && length(.fill_fixed)) {
+    warning("Fixed-effect linkage covariate(s) ", paste(.fill_fixed, collapse = ", "),
+            " may not be NA, so each peel gives their post-peel years the mean of ",
+            "the years it keeps. List a series known ahead, such as a climate ",
+            "projection, in `projected_env_data_known`. A 0/1 block column takes ",
+            "the mean too: list it there, or refit it as `factor(<column>)`, which ",
+            "holds its terminal-year value under new coefficient names.",
+            call. = FALSE)
+  }
   if (.post_any && length(.warn_fixed)) {
-    warning("Covariate(s) ", paste(.warn_fixed, collapse = ", "), " enter the model ",
-            "as fixed-effect linkage terms, which may not be NA, so each peel ",
-            "still sees their post-peel values. Mohn's rho for a model with a ",
-            "fixed-effect environmental covariate is conditional on that ",
-            "covariate being known.", call. = FALSE)
+    warning("Fixed-effect linkage covariate(s) ", paste(.warn_fixed, collapse = ", "),
+            " are also observed, grouped by or read as a category, so a peel ",
+            "cannot give them the mean and keeps their post-peel values. Mohn's ",
+            "rho is then conditional on those values being known.", call. = FALSE)
   }
   if (.post_any && length(.warn_group)) {
     warning("Random-effect grouping column(s) ", paste(.warn_group, collapse = ", "),
@@ -371,6 +392,10 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
       any(is.finite(data_list$env_data[[v]][.retained])), logical(1))]
     if (any(.post_peel) && length(.blank)) {
       data_list$env_data[.post_peel, .blank] <- NA
+    }
+    # A numeric fixed-effect covariate cannot be NA: it takes the retained mean.
+    for (col in .fill_fixed) {
+      data_list$env_data[[col]][.post_peel] <- mean(data_list$env_data[[col]][.retained])
     }
     # Centre and scale from the retained years only, applied to the whole column.
     # A column with no retained variation is left alone rather than made NaN.

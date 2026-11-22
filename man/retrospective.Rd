@@ -46,8 +46,8 @@ starts from the unpeeled model's estimates.}
 
 \item{projected_env_data_known}{\code{env_data} columns whose values after each
 peel's terminal year were known then, such as a climate projection, so the
-peels keep them: \code{FALSE} (default) none, \code{TRUE} all (as peels did before
-5.69.0), or a character vector of column names.}
+peels keep them (a categorical linkage term is held regardless): \code{FALSE}
+(default) none, \code{TRUE} all, or a character vector of column names.}
 
 \item{Rceattle}{deprecated name for \code{object}, still accepted so existing
 scripts keep working. Supplying both is an error.}
@@ -114,11 +114,17 @@ gives the reason. \code{print()} counts the peels carrying either attribute;
 an observed covariate (\code{linkage_spec(observe = )}) loses those observations,
 and a column the model reads directly (a \code{Cindex} temperature, an
 environmental catchability or M1) takes the retained years' mean there and
-in any year it is missing. A fixed-effect linkage covariate, a random-effect
-grouping column and a column with no retained value keep their post-peel
-values, since the model cannot be built or filled without them, and Mohn's
-rho is then conditional on those values; \code{retrospective()} warns about any
-not listed in \code{projected_env_data_known}. \code{rescale} standardizes a column on
+in any year it is missing. A fixed-effect linkage term that is a category,
+such as \code{cut(Year, ...)} or \code{factor(regime)}, holds its value from the peel's
+terminal year (\code{\link[=linkage_spec]{linkage_spec()}}), though one cut from the whole column, such
+as \code{cut(temp, 3)}, takes its breaks from post-peel values too. A numeric
+fixed-effect covariate not listed in \code{projected_env_data_known} takes the
+retained years' mean, so a term computed over the whole column, such as
+\code{scale()}, changes in the retained years too. A random-effect grouping column,
+a column with no retained value, and a fixed-effect covariate also observed,
+grouped by or read as a category keep their post-peel values, and Mohn's rho
+is then conditional on those values; \code{retrospective()} warns about any not
+listed in \code{projected_env_data_known}. \code{rescale} standardizes a column on
 the retained years and applies that centre and scale to the whole column
 (a column with fewer than two distinct retained values stays in its units,
 with a warning). Name the columns when \code{env_data} also holds an input that
