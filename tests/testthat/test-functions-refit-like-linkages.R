@@ -101,9 +101,9 @@ testthat::test_that("sample_rec(update_model = TRUE) keeps the model's linkages"
   # sample_rec() rebuilds the model to propagate the new projection
   # recruitment, and routes that rebuild through .refit_like().
   fit <- .refit_linkage_fit()
-  # sample_rec() rebuilds at estimateMode = 3 internally and restores the
-  # source value afterwards; label the source differently so that restore is
-  # actually observable rather than trivially equal to the build-only mode.
+  # sample_rec() rebuilds a fit that ran no projection at estimateMode = 3, then
+  # restores the source value; label the source differently so that restore is
+  # observable rather than trivially equal to the build-only mode.
   fit$data_list$estimateMode <- 1L
 
   resampled <- suppressWarnings(suppressMessages(

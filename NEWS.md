@@ -39,6 +39,45 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   column names, so `rescale = 2` looks like "column 2" but standardizes every
   numeric column.
 
+# Rceattle 5.69.2
+
+## Bug fixes
+
+* **`sample_rec(update_model = TRUE)` projects under the fit's harvest control
+  rule.** Its refit only built the model (`estimateMode = 3`), which never runs
+  the rule, so projected F was 0 under every rule, with no warning, while the
+  returned fit still named the rule. On `BS2017SS` projected `F_spp` was 0 for all
+  three species under `ConstantF` (input 0.2, 0.3, 0.05) and under `NPFMC` (F40%
+  0.336, 0.227, 0.116). A fit that ran its rule (`estimateMode` `"Estimate"` or
+  `"Projection"`) is now rerun at `"Projection"`: the hindcast estimates are
+  unchanged, and a rule that estimates F re-solves it for the new recruitment. In
+  one draw, `NPFMC` keeps F40% and lowers pollock F to as little as 0.243, or
+  0.219 with `rec_trend = -0.5`, as SSB falls below B40%. Where the source fit ran
+  a projection `sdreport()`, each draw now runs one too. Under predation
+  (`msmMode > 0`) the unfished SSB (`MSSB0`), and with it SB0, B0 and depletion
+  in every year, follow the new recruitment, as a fresh `fit_mod()` with those
+  deviations does: `MSSB0` went from 3,906,732 to 5,798,551 mt for `BS2017MS`
+  pollock in one draw. Projections move for anyone calling `sample_rec()` with
+  `update_model = TRUE`, the default, on an `"Estimate"` or `"Projection"` fit
+  with a fishing rule. A `NoFishing` or hindcast-only fit returns the same
+  projection as before, and `run_mse()`, which passes `update_model = FALSE`, is
+  unaffected. No registered sibling repo calls `sample_rec()`; the four
+  `update_model = TRUE` calls in the unregistered `Climate_MSE_projections` are
+  on `NoFishing` fits, so none moves.
+
+* **`sample_rec(update_model = TRUE)` keeps the fit's map.** It rebuilt the map,
+  so a parameter fixed by hand came back free: on a test model with one of its
+  two `sel_inf` cells fixed, both came back free, and `jitter()` or `self_test()`
+  on the result would estimate it. Projections are unchanged. `remove_F()` still
+  rebuilds the map.
+
+## Documentation
+
+* `?sample_rec` and `vignette("projections-and-reference-points")` say the refit
+  holds the hindcast fixed and reruns the fit's harvest control rule;
+  `?sample_rec` adds that under predation SB0, B0 and depletion follow the new
+  recruitment.
+
 # Rceattle 5.69.1
 
 ## Bug fixes
