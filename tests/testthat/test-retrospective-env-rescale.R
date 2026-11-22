@@ -209,6 +209,17 @@ testthat::test_that("a peel holds a category and gives a numeric covariate the r
   testthat::expect_true(all(out$r$Rceattle_list[["Year_17"]]$data_list$linkage_X[, "factor(reg)3"] == 0))
   testthat::expect_true(all(X0[yrs > 18, "factor(reg)3"] == 1))
 
+  # rescale leaves a category alone: TRUE skips it, and naming one is refused.
+  testthat::expect_error(
+    Rceattle::retrospective(fit, peels = 3, rescale = "reg", cores = 1),
+    "cannot be standardized: reg", fixed = TRUE)
+  out <- retro(rescale = TRUE)
+  env <- out$r$Rceattle_list[[paste0("Year_", d$endyr - 1)]]$data_list$env_data
+  for (v in c("reg", "a", "b", "w")) {
+    testthat::expect_identical(env[[v]], env0[[v]])
+  }
+  testthat::expect_equal(mean(env$temp[env$Year <= d$endyr - 1]), 0, tolerance = 1e-10)
+
   # Listed as known ahead, it keeps its post-peel values and is not warned about.
   out <- retro(projected_env_data_known = "temp")
   testthat::expect_false(any(grepl("temp", out$ws, fixed = TRUE)))

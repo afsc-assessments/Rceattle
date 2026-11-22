@@ -61,6 +61,10 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   with `~ 0 + scale(temp)` on that model, terminal SSB rho moves from -0.00104 to
   -0.00088.
 
+* **`retrospective(rescale = TRUE)` leaves out a column a linkage reads as a
+  category**, and naming one in `rescale` is refused: standardizing it would change
+  the category's levels or cut points, and with them the design's columns.
+
 # Rceattle 5.70.0
 
 ## Breaking changes

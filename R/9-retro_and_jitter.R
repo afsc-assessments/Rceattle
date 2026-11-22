@@ -10,8 +10,8 @@
 #' @param peels number of retrospective peels (default 5).
 #' @param rescale which `env_data` columns to standardize on each peel's
 #'   retained years: `FALSE` (default) none, `TRUE` every numeric column except
-#'   `Year` and random-effect grouping columns, or a character vector of column
-#'   names.
+#'   `Year`, random-effect grouping columns and columns a linkage reads as a
+#'   category, or a character vector of column names.
 #' @param nyrs_forecast number of years after each peel's terminal year for
 #'   which Mohn's rho is also calculated (default 3).
 #' @param getsd whether each peel reports standard errors; `NULL` (default) does
@@ -194,6 +194,8 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
   .groups <- intersect(.env_all, .rce_linkage_fixed_covariates(
     object$data_list, re_groups = TRUE, fixed = FALSE))
   .keep_group <- setdiff(.groups, .keep_fixed)
+  # Which columns the linkages read as a category, as a number, or as observed.
+  .use <- .rce_linkage_column_use(object$data_list)
   .post_any <- any(.envd[["Year"]] > endyr - peels, na.rm = TRUE)
   .ret_deep <- !is.na(.envd[["Year"]]) & .envd[["Year"]] >= styr &
     .envd[["Year"]] <= endyr - peels
@@ -203,7 +205,8 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
   }, integer(1))
 
   # A grouping column is a level label and a logical a flag; neither has units.
-  .can_scale <- setdiff(.env_all[.is_num], .groups)
+  # A category's levels or cut points would change, so it is left alone too.
+  .can_scale <- setdiff(.env_all[.is_num], c(.groups, .use$category))
   if (is.character(rescale)) {
     .bad <- setdiff(rescale, names(.envd))
     if (length(.bad)) {
@@ -215,7 +218,8 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
       stop("`rescale` names column(s) that cannot be standardized: ",
            paste(.bad, collapse = ", "), ". `Year`, a random-effect grouping ",
            "column and a logical or non-numeric column have no units to ",
-           "standardize.", call. = FALSE)
+           "standardize, and a column a linkage reads as a category would ",
+           "change its levels.", call. = FALSE)
     }
     .rescale_cols <- intersect(.env_all, rescale)
   } else if ((is.logical(rescale) || is.numeric(rescale)) && length(rescale) == 1L &&
@@ -250,7 +254,6 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
 
   # fit_mod() holds a category (a block or regime) from the peel's terminal year.
   # A number takes the retained mean unless also observed, grouped by or known.
-  .use <- .rce_linkage_column_use(object$data_list)
   .held <- setdiff(.use$category, c(.use$number, .use$observed, .groups))
   .fill_fixed <- setdiff(intersect(.use$number, .env_all[.is_num]),
                          c(.use$category, .use$observed, .groups, .known))

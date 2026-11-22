@@ -24,8 +24,8 @@ retrospective(
 
 \item{rescale}{which \code{env_data} columns to standardize on each peel's
 retained years: \code{FALSE} (default) none, \code{TRUE} every numeric column except
-\code{Year} and random-effect grouping columns, or a character vector of column
-names.}
+\code{Year}, random-effect grouping columns and columns a linkage reads as a
+category, or a character vector of column names.}
 
 \item{nyrs_forecast}{number of years after each peel's terminal year for
 which Mohn's rho is also calculated (default 3).}
