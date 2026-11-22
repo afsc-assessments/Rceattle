@@ -865,8 +865,8 @@ run_mse <- function(om, em, nsim = 10, start_sim = 1, assessment_period = 1, sam
       om_use$estimated_params$log_F <- cbind(om_use$estimated_params$log_F, matrix(0, nrow= nrow(om_use$estimated_params$log_F), ncol = length(new_years)))
 
 
-      # -- Time-varying catchability, selectivity and M1: the new years hold the
-      #    last year's values, set by .hold_curves() once every array spans them.
+      # -- q, selectivity and M1 deviations: padded with 0, then .hold_devs() gives
+      #    the new years the last year's (the operating model's assumed truth).
       om_use$estimated_params$index_q_dev <- cbind(om_use$estimated_params$index_q_dev, matrix(0, nrow= nrow(om_use$estimated_params$index_q_dev), ncol = length(new_years)))
 
       # -- Time-varying selectivity.
@@ -886,7 +886,7 @@ run_mse <- function(om, em, nsim = 10, start_sim = 1, assessment_period = 1, sam
       om_use$estimated_params$log_sel_slp_dev <- log_sel_slp_dev
       om_use$estimated_params$sel_inf_dev <- sel_inf_dev
       om_use$estimated_params$sel_coff_dev <- sel_coff_dev
-      om_use$estimated_params <- .hold_curves(om_use$estimated_params, om_use$data_list, nyrs_hind)
+      om_use$estimated_params <- .hold_devs(om_use$estimated_params, om_use$data_list, nyrs_hind)
 
 
       # * Update map ----
@@ -1080,8 +1080,8 @@ run_mse <- function(om, em, nsim = 10, start_sim = 1, assessment_period = 1, sam
       em_use$estimated_params$log_F <- cbind(em_use$estimated_params$log_F, matrix(0, nrow= nrow(em_use$estimated_params$log_F), ncol = length(new_years)))
 
 
-      # -- Time-varying catchability, selectivity and M1: the new years start from
-      #    the last year's values, set by .hold_curves() once every array spans them.
+      # -- q, selectivity and M1 deviations: padded with 0, then .hold_devs() starts
+      #    the new years at the last year's (the estimation model refits them).
       em_use$estimated_params$index_q_dev <- cbind(em_use$estimated_params$index_q_dev, matrix(0, nrow= nrow(em_use$estimated_params$index_q_dev), ncol = length(new_years)))
 
       # -- Time-varying selectivity.
@@ -1099,7 +1099,7 @@ run_mse <- function(om, em, nsim = 10, start_sim = 1, assessment_period = 1, sam
       em_use$estimated_params$log_sel_slp_dev <- log_sel_slp_dev
       em_use$estimated_params$sel_inf_dev <- sel_inf_dev
       em_use$estimated_params$sel_coff_dev <- sel_coff_dev
-      em_use$estimated_params <- .hold_curves(em_use$estimated_params, em_use$data_list, nyrs_hind)
+      em_use$estimated_params <- .hold_devs(em_use$estimated_params, em_use$data_list, nyrs_hind)
 
 
       # Re-estimate

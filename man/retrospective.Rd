@@ -77,10 +77,11 @@ have been fitted at its terminal year: it ends there, so no later index,
 composition or catch, and no parameter for a later year, enters its
 estimates. It starts from the unpeeled estimates for its own years and uses
 the unpeeled map cut to them. Its removed years are then its retrospective
-forecast: F is fitted to the observed catch with the hindcast held, and q,
-selectivity, M1, weight-at-age, empirical selectivity and ration stay at the
-terminal year (a selectivity form that stores each year's step takes a step
-of 0). Recruitment takes the deviation \code{\link[=sample_rec]{sample_rec()}} uses with
+forecast: F is fitted to the observed catch with the hindcast held;
+weight-at-age, empirical selectivity and ration stay at the terminal year, and
+the q, selectivity and M1 deviations keep their terminal-year values (a form
+whose deviations are year-to-year increments takes an increment of 0).
+Recruitment takes the deviation \code{\link[=sample_rec]{sample_rec()}} uses with
 \code{sample_rec = FALSE}, computed from the peel's fit (for a penalty-form curve
 with no penalty years in the peel, the mean over its own years after the
 first). Each peel's
@@ -102,7 +103,7 @@ wrappers warn about them.
 \strong{Standard errors.} Mohn's rho reads only point estimates, so
 \code{getsd = FALSE} is faster. Under \code{getsd = TRUE} each peel is rebuilt at its
 estimates with the hindcast parameters treated as estimated, so no estimate
-moves. A fitted year's band is the peeled hindcast's own, except a depletion
+moves. A fitted year's band is the peel's hindcast's own, except a depletion
 relative to last-projection-year biomass (\code{HCR = "NoFishing"},
 \code{msmMode > 0}, \code{DynamicHCR = FALSE}), which reads the peeled F. A forecast
 year's band treats the catch as known and carries the hindcast's uncertainty
@@ -136,15 +137,15 @@ warning; Mohn's rho is then conditional on them;
 warning, though a category is still held.
 }
 
-Refitting a returned peel, with \code{\link[=fit_mod]{fit_mod()}} or a diagnostic on it, no longer
-holds its categories, while its numeric covariates stay mean-filled.
+Refitting a returned peel, with \code{\link[=fit_mod]{fit_mod()}} or a diagnostic on it, does not
+hold its categories, while its numeric covariates stay mean-filled.
 
 \code{rescale} standardizes a column on the retained years and applies that centre
 and scale to the whole column (a column with fewer than two distinct retained
-values stays in its units, with a warning). Name the columns when \code{env_data}
-also holds an input that is not a covariate, such as a \code{Cindex} temperature in
-degrees C, which \code{TRUE} would turn into z-scores. The unpeeled model is not
-rescaled, so standardize those columns the same way before fitting it.
+values stays in its units, with a warning). Name the columns when \code{env_data} also holds an input that
+is not a covariate, such as a \code{Cindex} temperature in degrees C, which \code{TRUE}
+would turn into z-scores. The unpeeled model is not rescaled, so standardize
+those columns the same way before fitting it.
 
 \strong{Catchability.} A peel's hindcast uses the unpeeled model's map, cut to its
 years, so a survey whose index falls only in the removed years keeps a free q

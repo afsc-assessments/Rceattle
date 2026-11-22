@@ -797,7 +797,7 @@ peel_reference_sdreport <- function(fit, peel, ep, hold_F, catch_sd = NULL) {
 # pollock 2026; 0.277 on this fixture's 2-year peel). Holding the peeled F and
 # dropping that catch leaves one term: the
 # peel fixes its peeled recruitment deviations yet still scores them, at 0 in
-# the peeled hindcast and at the projected deviation in this report, so R_log_sd
+# the peel's hindcast and at the projected deviation in this report, so R_log_sd
 # alone keeps a gradient of -sum((dev / sigma_R)^2).
 testthat::test_that("a peel's sd rebuild is stationary but for R_log_sd under random recruitment", {
   testthat::skip_on_cran()
@@ -830,7 +830,7 @@ testthat::test_that("a peel's sd rebuild is stationary but for R_log_sd under ra
   testthat::expect_equal(unname(ssb_value[, seq_len(ny)]),
                          unname(peel$quantities$ssb[, seq_len(ny)]))
 
-  # A fitted year's band is the peeled hindcast's own: a fit of the peel's own
+  # A fitted year's band is the peel's hindcast's own: a fit of the peel's own
   # data gives it, to optimizer tolerance.
   ep <- fit$data_list$endyr - 2
   own <- d
@@ -1261,9 +1261,9 @@ testthat::test_that("retrospective() scales a multispecies hindcast curve by its
                          tolerance = 1e-6)
 })
 
-# A peel's hindcast is fitted as a model ending at its terminal year. With a
-# random walk on q, fixing the later years' deviations would pull the terminal
-# estimate toward them, so the peel is checked against a fit of its own data.
+# A peel's hindcast is fitted as a model ending at its terminal year, so it is
+# checked against a fit of its own data. Fitted at full length with the later
+# years' deviations fixed, a random walk on q walked from 0.03 to 0.28 here.
 testthat::test_that("a peel's hindcast is the fit of its own years", {
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("TMB")
@@ -1291,7 +1291,7 @@ testthat::test_that("a peel's hindcast is the fit of its own years", {
   }
   own_fit <- fit_d(own)
   nyrs_peel <- endyr_peel - d$styr + 1
-  # Equal to optimizer tolerance; a peel tied to the later years walks q 0.03 to 0.28.
+  # Equal to optimizer tolerance.
   testthat::expect_equal(peel$quantities$ssb[, 1:nyrs_peel],
                          own_fit$quantities$ssb[, 1:nyrs_peel], tolerance = 1e-3)
   q_dev <- peel$estimated_params$index_q_dev[1, ]

@@ -23,27 +23,31 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
 ## Bug fixes
 
 * **A retrospective peel's hindcast is fitted as a model ending at its terminal
-  year**, so no later index, composition or catch, and no parameter for a later
-  year, enters its estimates: a random-walk penalty no longer ties the peel's
-  terminal deviation to the removed years. The peel starts from the unpeeled
-  estimates for its own years and uses the unpeeled map cut to them, so a
-  parameter fixed, freed or shared by hand stays so. In its forecast years q,
-  selectivity and M1 hold the peel's own terminal-year values, and under
-  `getsd = TRUE` every year's band comes from the peel hindcast's own covariance,
-  random effects included, under any harvest control rule. On 3 peels of
-  `GOA2018SS`, whose Shelikof survey q is a random walk, the peel ending in 2015
-  estimates its terminal q deviation at -0.185 rather than 0.072, and pollock SSB
-  rho moves from -0.0751 to -0.0700 (terminal year) and from 0.5541 to 0.5360
-  (forecast year 3, one peel). `BS2017SS`, which has no q or selectivity
-  deviation, moves by at most 2e-5, relative (optimizer tolerance).
+  year.** Its removed years' data were already withheld; now their parameters are
+  too, so a random-walk penalty no longer ties the peel's terminal deviation to
+  the removed years, and their fixed deviations no longer enter the recruitment or
+  M1 densities. The peel starts from the unpeeled estimates for its own years and
+  uses the unpeeled map cut to them, so a parameter fixed, freed or shared by hand
+  stays so. In its forecast years the q, selectivity and M1 deviations keep the
+  peel's own terminal-year values, and under `getsd = TRUE` every year's band
+  comes from the peel's hindcast covariance, random effects included, under any
+  harvest control rule.
 
-* **The years `run_mse()` adds, and a peel's forecast years, keep the last year's
-  q, selectivity and M1.** A selectivity form that stores each year's step rather
-  than its level (`NonParametricPM`, and `NonParametricIntegrable` under
-  `RandomWalk`) takes a step of 0 there, so its selectivity stays constant instead
-  of walking on. In `run_mse()` a by-year M1 deviation now carries into the years
-  it adds, so the operating model's M stays at the last year's rather than its
-  mean. Projection years keep the model's own projection values.
+  **Whose Mohn's rho moves**: a model with a random walk on q or selectivity, as
+  measured here, and, unmeasured, one with `random_rec` or M1 year deviations. On
+  3 peels of `GOA2018SS`, whose Shelikof survey q is a random walk, the peel ending
+  in 2015 estimates its terminal q deviation (log scale) at -0.185 rather than
+  0.072, and pollock SSB rho moves from -0.0751 to -0.0700 (terminal year) and from
+  0.5541 to 0.5360 (forecast year 3, one peel). `BS2017SS`, which has no q or
+  selectivity deviation, moves by at most 2e-5, relative (optimizer tolerance).
+
+* **In the years `run_mse()` adds, and in a peel's forecast years, the q,
+  selectivity and M1 deviations keep their last-year values.** A selectivity form
+  whose deviations are year-to-year increments (`NonParametricPM`, and
+  `NonParametricIntegrable` under `RandomWalk`) takes an increment of 0 there, so
+  its selectivity stays constant instead of walking on. In `run_mse()` the
+  operating model's by-year M1 deviation stays at the last year's rather than 0.
+  Projection years keep the model's own projection values.
 
 # Rceattle 5.70.2
 
@@ -99,10 +103,11 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   ahead, such as a climate projection, belongs in `projected_env_data_known`, which
   keeps its values. A fixed-effect covariate that is also observed, also read as a
   category (the category term is still held), or logical keeps its values, with a
-  warning. A 0/1 block column takes the mean unless listed in
-  `projected_env_data_known` or refitted as `factor(<column>)`: the GOA circulation
-  study's `post2014` M block, and the GOA Pacific cod bridge's M and selectivity
-  block columns and its per-year selectivity deviation columns, are such columns.
+  warning. A 0/1 block column
+  takes the mean unless listed in `projected_env_data_known` or refitted as
+  `factor(<column>)`: the GOA circulation study's `post2014` M block, and the GOA
+  Pacific cod bridge's M and selectivity block columns and its per-year selectivity
+  deviation columns, are such columns.
 
   **Whose Mohn's rho moves**: a model whose forecast reads such a covariate, under
   any `rescale`. On a test model with a fixed M1 slope on temperature (M1 0.35 to

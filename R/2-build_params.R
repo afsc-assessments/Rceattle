@@ -858,21 +858,20 @@ build_params <- function(data_list) {
 }
 
 
-#' Hold catchability, selectivity and M1 at their year-`last` values in later years
+#' Hold the catchability, selectivity and M1 deviations at their year-`last` values
 #'
-#' Used where a model's years run past its data: a retrospective peel's forecast, and
-#' the years `run_mse()` adds (for an estimation model refitted to new data, these are
-#' starting values). Each deviation keeps its year-`last` value through the model's
-#' last hindcast year, so q, the selectivity curve and M1 stay as they were. The
-#' forms that store each year's step rather than its level (NonParametricPM, and
-#' NonParametricIntegrable under RandomWalk) take a step of 0 instead, which keeps
-#' their curve too. Projection years keep the model's own projection values.
+#' For a retrospective peel's forecast years and the years `run_mse()` adds (the
+#' operating model's assumed truth; the estimation model's starting values). Each
+#' deviation keeps its year-`last` value through the model's last hindcast year; a
+#' selectivity form whose deviations are year-to-year increments (NonParametricPM,
+#' and NonParametricIntegrable under RandomWalk) takes an increment of 0, so its
+#' selectivity holds too. Projection years keep the model's own values.
 #'
 #' @param params parameter list whose deviation arrays already span the later years.
 #' @param data_list the model's data list.
-#' @param last position on the year axis of the last year with data.
+#' @param last year index (1 = styr) whose values the later years take.
 #' @noRd
-.hold_curves <- function(params, data_list, last) {
+.hold_devs <- function(params, data_list, last) {
   later <- (last + 1):dim(params[["index_q_dev"]])[2]
   params[["index_q_dev"]][, later] <- params[["index_q_dev"]][, last]
   params[["log_sel_slp_dev"]][, , , later] <- params[["log_sel_slp_dev"]][, , , last]
@@ -881,9 +880,9 @@ build_params <- function(data_list) {
   params[["log_M1_dev"]][, , , later] <- params[["log_M1_dev"]][, , , last]
 
   fc <- data_list[["fleet_control"]]
-  steps <- fc[["Selectivity"]] %in% "NonParametricPM" |
+  increments <- fc[["Selectivity"]] %in% "NonParametricPM" |
     (fc[["Selectivity"]] %in% "NonParametricIntegrable" &
        fc[["Time_varying_sel"]] %in% "RandomWalk")
-  params[["sel_coff_dev"]][steps, , , later] <- 0
+  params[["sel_coff_dev"]][increments, , , later] <- 0
   params
 }
