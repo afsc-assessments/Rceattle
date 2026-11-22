@@ -986,12 +986,16 @@ sim_mod <- function(object = NULL, simulate = FALSE, process = FALSE, Rceattle =
                 "recovery of predation is optimistic.", call. = FALSE)
       }
 
-      # A stomach the draw placed nothing in comes back at zero rather than
-      # frozen (ceattle.cpp, diet SIMULATE block). The per-predator test above
-      # cannot see it: a predator with some stomachs drawn and some rounded away
-      # is not frozen. Count the emptied stomachs directly, as the composition
-      # draw does.
-      emptied <- was > 0 & kept == 0
+      # A stomach draws Sample_size (first row; times the weight if multinomial)
+      # items rounded half up (ceattle.cpp, section 13.6): under 0.5, none.
+      td    <- sim_obj$env$data
+      sid   <- td[["stomach_id"]]
+      n_s   <- td[["diet_obs"]][match(sid, sid), 1]
+      pl    <- sim_obj$env$parList(par = sim_obj$env$last.par.best)
+      n_eff <- n_s * ifelse(td[["diet_ll_type"]][pred_sp] == 0,
+                            pl[["diet_comp_weights"]][pred_sp], 1)
+      emptied <- td[["suitMode"]][pred_sp] > 0 & !is.na(n_s) & n_s > 0 &
+        n_eff + 0.5 < 1
       if (any(emptied)) {
         warning(sum(emptied), " diet row(s) came back empty for predator(s) ",
                 paste(unique(pred_sp[emptied]), collapse = ", "),
