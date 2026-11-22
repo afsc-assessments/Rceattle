@@ -576,7 +576,7 @@ A peel still estimates the years it dropped, as its retrospective forecast: F is
 - A peel whose forecast refit did not fit F to the peeled catch is kept with no warning, but only in the `$mohns` rows with `Forecast year` 0; `attr(peel, "forecast_refit_error")` gives the reason. `plot_biomass()` and the other `plot_timeseries()` wrappers warn when they draw that peel's forecast years; `plot_catch()`, the other plotters and `as.data.frame()` do not.
 - Under `getsd = TRUE` (the default when the input model has standard errors), a peel whose standard-error rebuild fails after its forecast refit is kept with no warning, but `plot_biomass()`, `as.data.frame()` and `vcov()` read none from it, since `peel$sdrep` may then hold no valid standard errors; `attr(peel, "sd_report_error")` gives the reason.
 
-`?retrospective` covers the standard-error bands, which `env_data` columns a peel keeps, and `rescale`.
+`?retrospective` covers the standard-error bands, how a peel treats each `env_data` column, and `rescale`.
 
 ## Jitter testing
 

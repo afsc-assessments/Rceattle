@@ -150,9 +150,10 @@ LINKAGE_STRUCTURES <- c(
 # time block (cut(Year, ...)), a regime (factor()), a flag or a label.
 .is_category <- function(x) is.factor(x) || is.logical(x) || is.character(x)
 
-#' How the linkages' fixed terms read each env_data column: as a `category` (a
-#' block or regime, `factor(reg)`), as a `number` (`temp`, `scale(temp)`), or as
-#' an `observed` covariate. A column can be in more than one.
+#' How the linkages read each env_data column: a fixed term reads it as a
+#' `category` (a block or regime, `factor(reg)`) or a `number` (`temp`,
+#' `scale(temp)`), and `linkage_spec(observe = )` makes it `observed`. A column can
+#' be in more than one.
 #' @noRd
 .rce_linkage_column_use <- function(data_list) {
   use <- list(category = character(0), number = character(0), observed = character(0))

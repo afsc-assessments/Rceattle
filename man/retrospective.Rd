@@ -110,22 +110,28 @@ which may not hold valid standard errors; \code{attr(peel, "sd_report_error")}
 gives the reason. \code{print()} counts the peels carrying either attribute;
 \code{retrospective()} warns about neither.
 
-\strong{Environmental data.} A peel withholds \code{env_data} after its terminal year:
-an observed covariate (\code{linkage_spec(observe = )}) loses those observations,
-and a column the model reads directly (a \code{Cindex} temperature, an
-environmental catchability or M1) takes the retained years' mean there and
-in any year it is missing. A fixed-effect linkage term that is a category,
-such as \code{cut(Year, ...)} or \code{factor(regime)}, holds its value from the peel's
-terminal year (\code{\link[=linkage_spec]{linkage_spec()}}), though one cut from the whole column, such
-as \code{cut(temp, 3)}, takes its breaks from post-peel values too. A numeric
-fixed-effect covariate not listed in \code{projected_env_data_known} takes the
-retained years' mean, so a term computed over the whole column, such as
-\code{scale()}, changes in the retained years too. A random-effect grouping column,
-a column with no retained value, and a fixed-effect covariate also observed,
-grouped by or read as a category keep their post-peel values, and Mohn's rho
-is then conditional on those values; \code{retrospective()} warns about any not
-listed in \code{projected_env_data_known}. \code{rescale} standardizes a column on
-the retained years and applies that centre and scale to the whole column
+\strong{Environmental data.} A peel forecasts with what was known at its terminal
+year, so after that year each \code{env_data} column is treated by how the model
+reads it:
+\itemize{
+\item an observed covariate (\code{linkage_spec(observe = )}) loses its observations;
+\item a column the model reads directly (a \code{Cindex} temperature, an environmental
+catchability or M1) takes the retained years' mean, as in any missing year;
+\item a numeric fixed-effect linkage covariate, a 0/1 block column included, takes
+the retained years' mean, with a warning; a term computed over the whole
+column, such as \code{scale()}, then changes in the retained years too;
+\item a fixed-effect category, such as \code{cut(Year, ...)} or \code{factor(regime)}, holds
+its terminal-year value (\code{\link[=linkage_spec]{linkage_spec()}}), though one cut from the whole
+column, such as \code{cut(temp, 3)}, still takes its breaks from post-peel values;
+\item a random-effect grouping column, a column with no retained value, and a
+covariate also observed, used as a grouping column or read as a category keep
+their post-peel values, with a warning, and Mohn's rho is then conditional on
+them;
+\item a column listed in \code{projected_env_data_known} keeps its values with no
+warning, though a category is still held.
+}
+
+\code{rescale} standardizes a column on the retained years and applies that centre and scale to the whole column
 (a column with fewer than two distinct retained values stays in its units,
 with a warning). Name the columns when \code{env_data} also holds an input that
 is not a covariate, such as a \code{Cindex} temperature in degrees C, which \code{TRUE}

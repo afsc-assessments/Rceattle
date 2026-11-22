@@ -115,7 +115,7 @@ testthat::test_that("a peel keeps grouping and no-retained-value columns whole",
   testthat::expect_length(r$Rceattle_list, 4L)
   testthat::expect_true(any(grepl("`rescale = 1` is read as TRUE", ws,
                                   fixed = TRUE)))
-  testthat::expect_true(any(grepl("covariate(s) temp may not be NA", ws, fixed = TRUE)))
+  testthat::expect_true(any(grepl("covariate(s) temp cannot be NA", ws, fixed = TRUE)))
   testthat::expect_false(any(grepl("covariate(s) temp are also", ws, fixed = TRUE)))
   testthat::expect_true(any(grepl("grouping column(s) regime", ws, fixed = TRUE)))
   testthat::expect_true(any(grepl("column(s) late have no value in years 1-17",
@@ -141,7 +141,7 @@ testthat::test_that("a peel keeps grouping and no-retained-value columns whole",
     warning = function(w) { ws <<- c(ws, conditionMessage(w)); invokeRestart("muffleWarning") })
   testthat::expect_length(r$Rceattle_list, 4L)
   testthat::expect_false(any(grepl(
-    "are also observed|may not be NA|grouping column|have no value", ws)))
+    "are also observed|cannot be NA|grouping column|have no value", ws)))
   for (peel in r$Rceattle_list) {
     testthat::expect_identical(peel$data_list$env_data, fit$data_list$env_data)
   }
@@ -185,7 +185,7 @@ testthat::test_that("a peel holds a category and gives a numeric covariate the r
     list(r = r, ws = ws)
   }
   out <- retro()
-  testthat::expect_true(any(grepl("covariate(s) temp may not be NA", out$ws,
+  testthat::expect_true(any(grepl("covariate(s) temp cannot be NA", out$ws,
                                   fixed = TRUE)))
   testthat::expect_true(any(grepl("covariate(s) w, qcov are also observed", out$ws,
                                   fixed = TRUE)))

@@ -41,11 +41,12 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   blanked column, so a peel's forecast reads only covariate values known at its
   terminal year. `retrospective()` warns once naming those columns. A series known
   ahead, such as a climate projection, belongs in `projected_env_data_known`, which
-  keeps its values; a category is held either way. A covariate also observed,
-  grouped by or read as a category keeps its values, with a warning. A 0/1 block
-  column takes the mean unless listed in `projected_env_data_known` or refitted as
-  `factor(<column>)`: the GOA circulation study's `post2014` M block and the GOA
-  Pacific cod bridge's M and selectivity blocks are such columns.
+  keeps its values. A covariate also observed, used as a random-effect grouping
+  column or read as a category keeps its values, with a warning. A 0/1 block column
+  takes the mean unless listed in `projected_env_data_known` or refitted as
+  `factor(<column>)`: the GOA circulation study's `post2014` M block, and the GOA
+  Pacific cod bridge's M and selectivity block columns and its per-year selectivity
+  deviation columns, are such columns.
 
   **Whose Mohn's rho moves**: a model whose forecast reads such a covariate, under
   any `rescale`. On a test model with a fixed M1 slope on temperature (M1 0.35 to
@@ -56,9 +57,12 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   with `~ 0 + scale(temp)` on that model, terminal SSB rho moves from -0.00104 to
   -0.00088.
 
+## Bug fixes
+
 * **`retrospective(rescale = TRUE)` leaves out a column a linkage reads as a
-  category**, and naming one in `rescale` is refused: standardizing it would change
-  the category's levels or cut points, and with them the design's columns.
+  category**, and naming one in `rescale` is refused. Standardizing `reg` renamed
+  `factor(reg)`'s levels, so a peel's `init` names no longer matched and
+  `retrospective()` stopped with "unknown `init` name(s)".
 
 # Rceattle 5.70.0
 
