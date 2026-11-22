@@ -1,153 +1,112 @@
 #' Retrospective peels
 #'
-#' @description Calculate Mohn's rho and run retrospective peels for an Rceattle
-#'   model, and evaluate retrospective forecast skill. Each peel uses TMB's map
-#'   to:
-#' 1. filter the data and fixed inputs and map out time-varying parameters for
-#'    the peeled years, holding them at that peel's terminal year;
-#' 2. fit the peeled model;
-#' 3. turn the hindcast parameters off and F for the peeled years on, and fit to
-#'    the peeled catch series, updating the "forecast" dynamics given the
-#'    projection assumptions and the observed catch.
+#' @description Refit an Rceattle model with its last 1, 2, ..., `peels` years
+#'   of data removed, and calculate Mohn's rho for the terminal year and the
+#'   `nyrs_forecast` years after it. Each peel is fitted twice: its hindcast,
+#'   then F in the removed years, fitted to their observed catch with the
+#'   hindcast held fixed.
 #'
 #' @inheritParams rceattle-refit-args
-#' @param peels number of retrospective peels used for rho and estimation
-#' @param rescale which `env_data` columns to standardize on each peel's retained
-#'   years: `FALSE` (default) none, `TRUE` every numeric column except `Year` and
-#'   random-effect grouping columns, or a character vector of column names (see Details).
-#' @param nyrs_forecast forecast years over which to calculate Mohn's rho, in
-#'   addition to the terminal year
-#' @param getsd whether each peel reports standard errors through `TMB::sdreport`,
-#'   at the cost of extra model builds (see Details); `NULL` (default) inherits the
-#'   input model's setting (`TRUE` only if it holds an `sdrep`).
-#' @param phase whether each peel is refitted in phases, default \code{TRUE}. A
-#'   peel restarts from the unpeeled fit's starting values with a year removed,
-#'   so without phasing the parameters barely move, the peels sit on top of the
-#'   full model, and Mohn's rho is biased toward zero. Change it only
-#'   deliberately.
-#' @param projected_env_data_known `env_data` columns whose post-peel values each
-#'   peel keeps, as for a climate projection: `FALSE` (default) lists none, `TRUE`
-#'   lists every column, or a character vector of column names (see Details).
+#' @param peels number of retrospective peels (default 5).
+#' @param rescale which `env_data` columns to standardize on each peel's
+#'   retained years: `FALSE` (default) none, `TRUE` every numeric column except
+#'   `Year` and random-effect grouping columns, or a character vector of column
+#'   names.
+#' @param nyrs_forecast number of years after each peel's terminal year for
+#'   which Mohn's rho is also calculated (default 3).
+#' @param getsd whether each peel reports standard errors; `NULL` (default) does
+#'   so only if `object` holds an `sdrep`. Mohn's rho reads only point
+#'   estimates, so `FALSE` is faster.
+#' @param phase whether each peel is refitted in phases (default `TRUE`); a peel
+#'   starts from the unpeeled model's estimates.
+#' @param projected_env_data_known `env_data` columns whose values after each
+#'   peel's terminal year were known then, such as a climate projection, so the
+#'   peels keep them: `FALSE` (default) none, `TRUE` all (as peels did before
+#'   5.69.0), or a character vector of column names.
 #'
 #' @details
-#' Each peel is fitted twice: a peeled hindcast, then a forecast refit
-#' estimating only the peeled years' F. The second holds every hindcast
-#' parameter fixed, so on its own it reports a standard error of zero across the
-#' hindcast. Under `getsd = TRUE` the peel is therefore rebuilt at those same
-#' parameters with the hindcast parameters treated as estimated and reported
-#' from there; nothing is re-estimated, so no point estimate moves.
+#' **Forecast years.** A peel's removed years are its retrospective forecast: F
+#' is fitted to the observed catch, the survey and composition data are
+#' withheld, and selectivity, catchability and M1 deviations, weight-at-age,
+#' empirical selectivity and ration stay at the peel's terminal year.
+#' Recruitment takes the deviation [sample_rec()] uses with
+#' `sample_rec = FALSE`, computed from the peel's fit (for a penalty-form curve
+#' with no penalty years in the peel, the mean over its own years after the
+#' first). Each peel's
+#' `data_list` holds `endyr` and `endyr_peel` (its terminal year), `endyr_full`
+#' (the unpeeled terminal year, where the forecast ends) and `projyr` (the end
+#' of the projection). The forecast years are
+#' `endyr_peel + seq_len(endyr_full - endyr_peel)`, which is empty for the
+#' unpeeled model, where `(endyr_peel + 1):endyr_full` would count down.
 #'
-#' A band in a fitted year is the peeled hindcast's own: the uncertainty of its
-#' parameters given the data through the peel's terminal year. The exception is
-#' a depletion that divides by last-projection-year biomass (`HCR = "NoFishing"`
-#' under `msmMode > 0` and `DynamicHCR = FALSE`), which reads the peeled F, so its
-#' fitted-year bands move too.
-#' A band in a peeled (forecast) year treats that year's catch as known and its F as
-#' inferred from it: as the hindcast parameters vary, F moves, to first order,
-#' to keep the predicted catch at the observed catch, and the delta method
-#' carries that into the band. The peeled years' recruitment deviations are
-#' fixed at the projected deviation, so the band leaves out recruitment
-#' variability there and is narrower than a forecast's prediction interval.
+#' **Dropped and flagged peels.** A peel whose hindcast did not converge is
+#' dropped, with a warning; under `getsd = TRUE` that includes a hindcast
+#' Hessian that is not positive definite. A peel whose forecast refit did not
+#' fit F to the catch (gradient check, or a peeled F at a bound) is kept but
+#' left out of the `$mohns` rows with `Forecast year` above 0, and
+#' `attr(peel, "forecast_refit_error")` gives the reason. Check it before
+#' reading that peel's forecast years: only `plot_timeseries()` and its
+#' wrappers warn about them.
 #'
-#' Where that rebuild fails -- it errors, its Hessian is not positive definite, it
-#' reports no finite standard error, or moving F with the hindcast parameters fails
-#' (its forecast years would then leave out F's response) -- the peel keeps its point
-#' estimates, `peel$sdrep` keeps what `TMB::sdreport()` returned (`NULL` if the rebuild
-#' errored first; under an indefinite Hessian its numbers are not valid standard errors),
-#' and `attr(peel, "sd_report_error")` gives the reason, so plots, `as.data.frame()` and
-#' `vcov()` read none of it. `print()` counts such peels; no warning is raised, since the
-#' point estimates and Mohn's rho are unaffected.
+#' **Standard errors.** Under `getsd = TRUE` each peel is rebuilt at its
+#' estimates with the hindcast parameters treated as estimated, so no estimate
+#' moves. A fitted year's band is the peeled hindcast's own, except a depletion
+#' relative to last-projection-year biomass (`HCR = "NoFishing"`,
+#' `msmMode > 0`, `DynamicHCR = FALSE`), which reads the peeled F. A forecast
+#' year's band treats the catch as known and carries the hindcast's uncertainty
+#' through the F needed to take it, without recruitment variability, so it is
+#' narrower than a prediction interval. If the rebuild fails (an error, a
+#' Hessian that is not positive definite, or no finite standard error), the
+#' peel is kept, but plots, `as.data.frame()` and `vcov()` ignore its `sdrep`,
+#' which may not hold valid standard errors; `attr(peel, "sd_report_error")`
+#' gives the reason. `print()` counts the peels carrying either attribute;
+#' `retrospective()` warns about neither.
 #'
-#' Mohn's rho reads point estimates, so `getsd = FALSE` is faster, but `TRUE` also drops
-#' a peel whose hindcast Hessian is not positive definite, so the two can average over
-#' different peels.
+#' **Environmental data.** A peel withholds `env_data` after its terminal year:
+#' an observed covariate (`linkage_spec(observe = )`) loses those observations,
+#' and a column the model reads directly (a `Cindex` temperature, an
+#' environmental catchability or M1) takes the retained years' mean there and
+#' in any year it is missing. A fixed-effect linkage covariate, a random-effect
+#' grouping column and a column with no retained value keep their post-peel
+#' values, since the model cannot be built or filled without them, and Mohn's
+#' rho is then conditional on those values; `retrospective()` warns about any
+#' not listed in `projected_env_data_known`. `rescale` standardizes a column on
+#' the retained years and applies that centre and scale to the whole column
+#' (a column with fewer than two distinct retained values stays in its units,
+#' with a warning). Name the columns when `env_data` also holds an input that
+#' is not a covariate, such as a `Cindex` temperature in degrees C, which `TRUE`
+#' would turn into z-scores. The unpeeled model is not rescaled, so standardize
+#' those columns the same way before fitting it.
 #'
-#' A peel whose hindcast did not converge is dropped, with a warning. A peel whose
-#' forecast refit did not fit F to the peeled catch (gradient check, or a peeled F at a
-#' bound) is kept without a warning: its terminal-year Mohn's rho stands, but it is left
-#' out of the \code{$mohns} rows with \code{Forecast year} above 0 (\code{N} counts the
-#' peels used). Check \code{attr(peel, "forecast_refit_error")} before reading its
-#' forecast years or their standard errors; \code{print()} counts such peels, and
-#' \code{plot_timeseries()} and its wrappers warn when they draw those years.
+#' **Catchability.** A peel's hindcast reuses the unpeeled model's map, so a
+#' survey whose index falls only in the removed years keeps a free q with no
+#' index to inform it, which under `getsd = TRUE` can leave the Hessian not
+#' positive definite and drop the peel.
 #'
-#' A peel still estimates the years it dropped: that is its retrospective forecast, fit
-#' to observed catch with the survey and composition data withheld. Its recruitment
-#' deviation is the one [sample_rec()] sets with `sample_rec = FALSE`, computed from the
-#' peel's own fit. Three years matter, and every peel's \code{data_list} carries all
-#' three:
-#' \describe{
-#'   \item{\code{endyr}, \code{endyr_peel}}{the peel's terminal year, what it was fit
-#'     through. Equal to each other.}
-#'   \item{\code{endyr_full}}{the unpeeled model's terminal year, where the
-#'     retrospective forecast ends.}
-#'   \item{\code{projyr}}{the end of the harvest-control-rule projection.}
-#' }
-#' Take the forecast years as \code{endyr_peel + seq_len(endyr_full - endyr_peel)},
-#' which is empty for the unpeeled model, rather than \code{(endyr_peel + 1):endyr_full},
-#' which counts \emph{down} there. Mohn's rho is computed from \code{endyr_peel} and is
-#' unaffected by any of this.
-#'
-#' A peel withholds every \code{env_data} value after its terminal year, as it does
-#' the survey and composition data: an observed covariate (\code{linkage_spec(observe = )})
-#' loses those observations, and a column the model reads directly (the bioenergetics
-#' temperature named by \code{Cindex}, an environmental catchability or M1) takes the
-#' retained years' mean there and in any year it is missing. List a column in
-#' \code{projected_env_data_known} when its post-peel values were known at each peel's
-#' terminal year, such as a climate projection, and the peels keep them; \code{TRUE}
-#' keeps every column, as peels did before 5.69.0 under \code{rescale = FALSE}.
-#' Three kinds of column keep their post-peel values regardless, observations
-#' included, and \code{retrospective()} warns once naming any not listed there:
-#' a fixed-effect linkage covariate and a random-effect grouping column such as
-#' \code{(1 | regime)}, because an NA in either stops the linkage design being built,
-#' and a column with no value in the peel's retained years, which the model could not
-#' fill. Mohn's rho is then conditional on those values being known.
-#' \code{rescale} standardizes a column on the retained years and applies that centre
-#' and scale to the whole column. Name the columns when \code{env_data} also holds
-#' inputs that are not covariates, such as a temperature in degrees C that drives
-#' consumption, which \code{TRUE} would turn into z-scores. The unpeeled model is not
-#' rescaled, so standardize those columns the same way before fitting it.
-#'
-#' Catchability is estimated only for a fleet holding fitted index rows (see
-#' \code{\link{build_map}}), and a peel moves \code{endyr}, so a survey whose index
-#' observations all fall in the peeled-off years has no q estimated in that peel: the
-#' parameter count is not constant across peels. That is deliberate, since a q with no
-#' index to inform it is a flat direction in the likelihood. Rho is computed from SSB and
-#' is unaffected, but \code{npar} and the reported catchability do differ between a
-#' shallow and a deep peel for such a fleet.
-#'
-#' @return An \code{Rceattle_retro} list:
+#' @return An `Rceattle_retro` list:
 #'   \describe{
-#'     \item{\code{Rceattle_list}}{the unpeeled model and each kept peel, named for its
-#'       own terminal year (\code{Year_2017}, ...). Index by name: the list runs from the
-#'       deepest peel to the unpeeled model, and a dropped peel leaves a gap, so it can
-#'       be shorter than \code{peels + 1} and \code{Rceattle_list[[3]]} is not in general
-#'       the 3-year peel. Each
-#'       peel reports its terminal year as \code{data_list$endyr}, so plots draw it only
-#'       as far as it was fit.}
-#'     \item{\code{mohns}}{Mohn's rho by \code{Object} and \code{Forecast year}, one
-#'       column per species, with \code{N} the number of peels averaged. With no peel
-#'       left it is \code{NaN}, and the function warns.}
+#'     \item{\code{Rceattle_list}}{each kept peel, deepest first, then the
+#'       unpeeled model, named for its terminal year (e.g. \code{Year_2016});
+#'       index by name, since a dropped peel leaves a gap.}
+#'     \item{\code{mohns}}{Mohn's rho by \code{Object} and
+#'       \code{Forecast year}, one column per species, with \code{N} the number
+#'       of peels averaged (\code{NaN} where \code{N} is 0; the call warns only
+#'       if no peel converged).}
 #'     \item{\code{peels_requested}}{the \code{peels} asked for.}
 #'   }
-#'   A peel can carry \code{attr(peel, "forecast_refit_error")} or
-#'   \code{attr(peel, "sd_report_error")}, each a one-line reason naming the peel and its
-#'   terminal year (see Details); each is absent on every other peel.
 #'
 #' @examples
 #' \donttest{
 #' data(BS2017SS)
-#' ss_run <- fit_mod(data_list = BS2017SS,
-#'     inits = NULL, file = NULL,
-#'     estimateMode = 0, random_rec = FALSE,
-#'     msmMode = 0, avgnMode = 0,
-#'     phase = FALSE, verbose = 0)
+#' ss_run <- fit_mod(data_list = BS2017SS, inits = NULL, file = NULL,
+#'                   estimateMode = 0, random_rec = FALSE, msmMode = 0,
+#'                   fit_control = fit_control(phase = FALSE, verbose = 0))
 #' retro <- retrospective(ss_run, peels = 10)
 #' }
 #' @export
 retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_forecast = 3, cores = NULL, getsd = NULL, phase = TRUE, fit_control = NULL, projected_env_data_known = FALSE, Rceattle = NULL) {
-  # `phase`, `fit_control` and `projected_env_data_known` are appended after the
-  # older arguments, so those keep their positions. The deprecated `Rceattle`
-  # formal sits last; see R/0-deprecate.R.
+  # Newer arguments follow the older ones so positional calls keep working; the
+  # deprecated `Rceattle` sits last (R/0-deprecate.R).
   if (!missing(Rceattle))
     object <- .rce_deprecated_arg(Rceattle, !missing(object), "Rceattle", "object", "retrospective")
   # Cleared once consumed: .parallel_lapply() exports every binding in this frame
@@ -158,9 +117,8 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
     stop("Object is not of class 'Rceattle'")
   }
 
-  # Peels inherit the input model's sdreport setting unless overridden. Mohn's
-  # rho reads only point estimates, so getsd = FALSE is faster, but it also stops
-  # a non-positive-definite hindcast Hessian dropping a peel.
+  # Peels report SEs only if `object` holds an sdrep. FALSE is faster (rho reads
+  # point estimates) and keeps a peel TRUE would drop for a non-PD Hessian.
   if (is.null(getsd)) getsd <- !is.null(object$sdrep)
 
   ctl <- .rce_refit_control(fit_control, "retrospective")
@@ -169,12 +127,8 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
 
   # Get objects
   object$data_list$endyr_peel <- object$data_list$endyr
-  # Terminal year of the model being peeled. Each peel reports its OWN terminal
-  # year as `endyr` (see run_one_peel), equal to its `endyr_peel`, so without
-  # this field the unpeeled terminal year -- where a peel's retrospective
-  # forecast ends and the true projection begins -- is unrecoverable from a
-  # peel. Set once here: run_one_peel copies this data_list, and extra fields
-  # survive the refits as `endyr_peel` does.
+  # Where each peel's forecast ends, since a peel reports its own terminal year
+  # as `endyr`. Set once: run_one_peel copies this data_list into every peel.
   object$data_list$endyr_full <- object$data_list$endyr
   data_list <- object$data_list # used by Mohn's rho block below
   endyr <- object$data_list$endyr
@@ -183,11 +137,8 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
   projyr <- object$data_list$projyr
   nyrs_proj <- projyr - styr + 1
 
-  # Cross-platform parallel: a FORK cluster where available, PSOCK on
-  # Windows (see .parallel_lapply())
-  # (same approach as run_mse). Respect the CRAN core limit
-  # ('_R_CHECK_LIMIT_CORES_' is set during R CMD check;
-  # parallel::makeCluster errors if we exceed 2 cores then).
+  # FORK cluster where available, PSOCK on Windows (.parallel_lapply()); R CMD
+  # check sets _R_CHECK_LIMIT_CORES_ and makeCluster() errors above 2 cores.
   chk <- tolower(Sys.getenv("_R_CHECK_LIMIT_CORES_", ""))
   cran_cap <- nzchar(chk) && !chk %in% c("false", "0", "no")
   if (is.null(cores)) {
@@ -199,24 +150,12 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
   use_parallel <- peels > 1L && cores > 1L
 
   # Stored-map divergence ----
-  # Each peel's hindcast fit reuses `object$map`, deliberately: Mohn's rho needs
-  # the parameterisation the model was ORIGINALLY fitted with. The cost is that
-  # a later fix to how a map is built never reaches a saved fit -- the peel is
-  # fitted under the old map while the forecast refit below rebuilds it, so one
-  # peel can be fitted and reported under different parameter counts.
-  #
-  # Say when the two disagree rather than change which map a peel uses. The
-  # comparison is rebuilt from the ORIGINAL data and parameters, not the peel's,
-  # so a difference means the author edited or supplied the map, or the map-building
-  # code has changed since this fit was saved, not that the peel has fewer years.
-  #
-  # Hoisted above `run_one_peel`: the condition reads only the input model, and
-  # a warning() raised inside a .parallel_lapply() worker is discarded (see
-  # inst/dev/TRAPS.md), so this fires once per call, never per peel.
+  # A peel's hindcast reuses `object$map` deliberately, so rho compares like
+  # with like. Warn if build_map() on the ORIGINAL inputs now differs (an edited
+  # map or newer map code, not a shorter peel); a worker's warning is discarded.
   .map_drift <- tryCatch({
-    # random_sel must be passed: build_map() hard-defaults it to FALSE and has
-    # no data_list fallback, unlike random_q, so a random_sel = TRUE fit's
-    # stored map frees sel_dev_log_sd where a defaulted fresh map maps it out.
+    # Pass random_sel: build_map() defaults it to FALSE with no data_list
+    # fallback, so a fresh map would map out a random_sel fit's sel_dev_log_sd.
     .fresh <- suppressWarnings(suppressMessages(build_map(
       data_list  = object$data_list,
       params     = object$estimated_params,
@@ -488,9 +427,8 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
     # * Refit ----
     newmod <- suppressWarnings(
       suppressMessages(
-        # Refit the peeled data_list, reusing its HCR / SR / M / growth
-        # configuration; clamp the SR-switch, SR-fit-end, and suitability-end
-        # years back to this peel's terminal year.
+        # Refit the peeled data, clamping the stock-recruit switch and fit-end
+        # years and the suitability end year to the peel's terminal year.
         .refit_like(
           data_list        = data_list,
           inits            = inits,
@@ -535,9 +473,9 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
     map$mapList$log_F[,(nyrs_peel+1):nyrs] <- object$map$mapList$log_F[,(nyrs_peel+1):nyrs]
     map$mapFactor$log_F <-  factor(map$mapList$log_F)
 
-    # Adjust forecased rec_dev in new mod for bias and refit
-    # Penalty years to average R/R_hat over. A peel that ends before them uses its
-    # own years instead; retrospective() warns about this before the peels run.
+    # Forecast-year rec_dev. Under a penalty-form curve, the years to average
+    # R/R_hat over; a peel ending before them uses its own (warned before the
+    # peels run, below).
     hat_yrs <- integer(0)
     if (newmod$data_list$srr_fun != newmod$data_list$srr_pred_fun) {
       hat_yrs <- .srr_hat_cols(newmod$data_list, nyrs_peel)
@@ -662,15 +600,10 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
 
 
     # * Report the peel's own terminal year ----
-    # Set AFTER both refits, never before: `endyr` sizes the model, and the
-    # forecast refit above turns F back on over `(nyrs_peel+1):nyrs` against the
-    # FULL nyrs, so peeling it earlier would index off the end of log_F. Here it
-    # is output metadata only -- every plot builds its year axis per model as
-    # `styr:endyr` (`R/7-plot_ceattle.R`) and nothing outside this file reads
-    # `endyr_peel`, so each peel is drawn only as far as it was fit, while its
-    # parameters, quantities and `catch_data` still span the full hindcast
-    # because the peeled years are its retrospective forecast (see
-    # ?retrospective). Mohn's rho reads `endyr_peel`, not this.
+    # Only after the refits: `endyr` sizes the model, and the forecast refit
+    # indexes log_F over the full hindcast. Here it is metadata (the arrays
+    # still span the full hindcast): plots draw styr:endyr by default, so a peel
+    # shows only as far as it was fit. Rho reads endyr_peel.
     newmod$data_list$endyr <- endyr_peel
 
     newmod
@@ -715,9 +648,8 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
 
   mod_list <- c(list(object), peel_results)
 
-  # Mohn's rho averages the peels against the full model, so with none left the
-  # sums below stay at their initialized zeros and every species column comes
-  # back 0/0. Say so rather than return a table of NaN that looks computed.
+  # With no peel left every rho below is 0/0; say so rather than return a table
+  # of NaN that looks computed.
   if (length(peel_results) == 0L) {
     warning("No peel converged, so Mohn's rho is undefined (every value NaN). ",
             "Inspect a peel with retrospective(..., peels = 1) and read its ",
@@ -725,7 +657,7 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
   }
 
 
-  # Calculate Mohs rho ----
+  # Calculate Mohn's rho ----
   # * Data frame to save ----
   objects <- c("biomass", "ssb", "R", "F_spp")
   mohns <- data.frame(matrix(0, nrow = length(objects) * (nyrs_forecast+1), ncol = 3 + data_list$nspp))
@@ -776,51 +708,15 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
   # * Divide N ----
   mohns[, 4:(data_list$nspp + 3) ] <- mohns[, 4:(data_list$nspp + 3)]/mohns[, 3]
 
-
-
-  # # * Beta coefficients ----
-  # objects <- colnames(object$estimated_params$beta_rec_pars)
-  # beta_mohns <- data.frame(matrix(0, nrow = length(objects), ncol = 3 + data_list$nspp))
-  # colnames(beta_mohns) <- c("Object", "Forecast year", "N", data_list$spnames)
-
-  #
-  #   # * Loop through peels ----
-  #   for (i in 1:(length(mod_list) - 1)) {
-  #     endyr_peel <- mod_list[[i + 1]]$data_list$endyr_peel
-  #     nyrs_peel <- mod_list[[i + 1]]$data_list$endyr_peel - styr + 1
-  #     ind <- 1
-  #
-  #     # * Loop output ----
-  #     for (j in 1:length(objects)) {
-  #       base <- mod_list[[1]]$estimated_params$beta_rec_pars[,j]
-  #       peel <- mod_list[[i + 1]]$estimated_params$beta_rec_pars[,j]
-  #       rel_error <- ((peel - base)/base)
-  #
-  #       # * Save and sum relative error ----
-  #       beta_mohns[j, 1] <- objects[j]        # Object
-  #       beta_mohns[j, 2] <- 0                 # Year
-  #       beta_mohns[j, 3] <- beta_mohns[j, 3] + 1   # N
-  #       beta_mohns[j, 4:(data_list$nspp + 3) ] <- beta_mohns[j, 4:(data_list$nspp + 3)] + rel_error # Relative error
-  #     }
-  #   }
-
-  # * Divide N ----
-  # beta_mohns[, 4:(data_list$nspp + 3) ] <- beta_mohns[, 4:(data_list$nspp + 3)]/beta_mohns[, 3]
-
   mod_list <- rev(mod_list)
-  # Name each entry from its own terminal year rather than assuming all `peels`
-  # survived: a dropped peel then leaves a gap in the labels instead of shifting
-  # every later one onto the wrong model (and `Year_...` running one short of the
-  # vector, which errored). The original model carries endyr_peel = endyr, set
-  # at the top of the function.
+  # Named from each model's own terminal year, so a dropped peel leaves a gap
+  # rather than shifting the labels; the unpeeled model's endyr_peel is endyr.
   names(mod_list) <- paste0(
     "Year_",
     vapply(mod_list, function(x) as.numeric(x$data_list$endyr_peel), numeric(1)))
 
-  # The class adds a print method that reports Mohn's rho against a reference
-  # band; see print.Rceattle_retro(). `peels_requested` records how many peels
-  # were asked for: the drop warning above is gone once the object is read back
-  # off disk, and the list length alone cannot show a drop.
+  # `peels_requested` lets print.Rceattle_retro() show a dropped peel after the
+  # object is saved and read back, when the drop warning is gone.
   structure(list(Rceattle_list = mod_list, mohns = rbind(mohns),
                  peels_requested = peels),
             class = "Rceattle_retro")
@@ -857,9 +753,8 @@ print.Rceattle_retro <- function(x, band = 0.2, ...) {
   sev <- ifelse(is.na(rho), "OK", ifelse(abs(rho) > band, "WARN", "OK"))
   n_bad <- sum(sev == "WARN")
 
-  # Rho is averaged over the peels that survived, so a drop changes it. The
-  # list length alone cannot show one; `peels_requested` is absent on an object
-  # saved before it was carried.
+  # Rho averages the surviving peels, so a drop changes it. `peels_requested` is
+  # absent on an object saved before it was carried.
   n_kept <- length(x$Rceattle_list) - 1L          # the unpeeled model
   n_asked <- x$peels_requested
   n_dropped <- if (is.null(n_asked)) 0L else max(0L, n_asked - n_kept)
