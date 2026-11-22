@@ -72,11 +72,15 @@ then F in the removed years, fitted to their observed catch with the
 hindcast held fixed.
 }
 \details{
-\strong{Forecast years.} A peel's removed years are its retrospective forecast: F
-is fitted to the observed catch, the survey and composition data are
-withheld, and selectivity, catchability and M1 deviations, weight-at-age,
-empirical selectivity and ration stay at the peel's terminal year.
-Recruitment takes the deviation \code{\link[=sample_rec]{sample_rec()}} uses with
+\strong{Hindcast and forecast years.} A peel's hindcast is the model as it would
+have been fitted at its terminal year: it ends there, so no later index,
+composition or catch, and no parameter for a later year, enters its
+estimates. It starts from the unpeeled estimates for its own years and uses
+the unpeeled map cut to them. Its removed years are then its retrospective
+forecast: F is fitted to the observed catch with the hindcast held, and q,
+selectivity, M1, weight-at-age, empirical selectivity and ration stay at the
+terminal year (a selectivity form that stores each year's step takes a step
+of 0). Recruitment takes the deviation \code{\link[=sample_rec]{sample_rec()}} uses with
 \code{sample_rec = FALSE}, computed from the peel's fit (for a penalty-form curve
 with no penalty years in the peel, the mean over its own years after the
 first). Each peel's
@@ -137,15 +141,15 @@ holds its categories, while its numeric covariates stay mean-filled.
 
 \code{rescale} standardizes a column on the retained years and applies that centre
 and scale to the whole column (a column with fewer than two distinct retained
-values stays in its units, with a warning). Name the columns when \code{env_data} also holds an input that
-is not a covariate, such as a \code{Cindex} temperature in degrees C, which \code{TRUE}
-would turn into z-scores. The unpeeled model is not rescaled, so standardize
-those columns the same way before fitting it.
+values stays in its units, with a warning). Name the columns when \code{env_data}
+also holds an input that is not a covariate, such as a \code{Cindex} temperature in
+degrees C, which \code{TRUE} would turn into z-scores. The unpeeled model is not
+rescaled, so standardize those columns the same way before fitting it.
 
-\strong{Catchability.} A peel's hindcast reuses the unpeeled model's map, so a
-survey whose index falls only in the removed years keeps a free q with no
-index to inform it, which under \code{getsd = TRUE} can leave the Hessian not
-positive definite and drop the peel.
+\strong{Catchability.} A peel's hindcast uses the unpeeled model's map, cut to its
+years, so a survey whose index falls only in the removed years keeps a free q
+with no index to inform it, which under \code{getsd = TRUE} can leave the Hessian
+not positive definite and drop the peel.
 }
 \examples{
 \donttest{

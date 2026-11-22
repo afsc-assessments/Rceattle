@@ -24,11 +24,15 @@
 #'   (default) none, `TRUE` all, or a character vector of column names.
 #'
 #' @details
-#' **Forecast years.** A peel's removed years are its retrospective forecast: F
-#' is fitted to the observed catch, the survey and composition data are
-#' withheld, and selectivity, catchability and M1 deviations, weight-at-age,
-#' empirical selectivity and ration stay at the peel's terminal year.
-#' Recruitment takes the deviation [sample_rec()] uses with
+#' **Hindcast and forecast years.** A peel's hindcast is the model as it would
+#' have been fitted at its terminal year: it ends there, so no later index,
+#' composition or catch, and no parameter for a later year, enters its
+#' estimates. It starts from the unpeeled estimates for its own years and uses
+#' the unpeeled map cut to them. Its removed years are then its retrospective
+#' forecast: F is fitted to the observed catch with the hindcast held, and q,
+#' selectivity, M1, weight-at-age, empirical selectivity and ration stay at the
+#' terminal year (a selectivity form that stores each year's step takes a step
+#' of 0). Recruitment takes the deviation [sample_rec()] uses with
 #' `sample_rec = FALSE`, computed from the peel's fit (for a penalty-form curve
 #' with no penalty years in the peel, the mean over its own years after the
 #' first). Each peel's
@@ -88,15 +92,15 @@
 #'
 #' `rescale` standardizes a column on the retained years and applies that centre
 #' and scale to the whole column (a column with fewer than two distinct retained
-#' values stays in its units, with a warning). Name the columns when `env_data` also holds an input that
-#' is not a covariate, such as a `Cindex` temperature in degrees C, which `TRUE`
-#' would turn into z-scores. The unpeeled model is not rescaled, so standardize
-#' those columns the same way before fitting it.
+#' values stays in its units, with a warning). Name the columns when `env_data`
+#' also holds an input that is not a covariate, such as a `Cindex` temperature in
+#' degrees C, which `TRUE` would turn into z-scores. The unpeeled model is not
+#' rescaled, so standardize those columns the same way before fitting it.
 #'
-#' **Catchability.** A peel's hindcast reuses the unpeeled model's map, so a
-#' survey whose index falls only in the removed years keeps a free q with no
-#' index to inform it, which under `getsd = TRUE` can leave the Hessian not
-#' positive definite and drop the peel.
+#' **Catchability.** A peel's hindcast uses the unpeeled model's map, cut to its
+#' years, so a survey whose index falls only in the removed years keeps a free q
+#' with no index to inform it, which under `getsd = TRUE` can leave the Hessian
+#' not positive definite and drop the peel.
 #'
 #' @return An `Rceattle_retro` list:
 #'   \describe{
@@ -166,7 +170,7 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
   use_parallel <- peels > 1L && cores > 1L
 
   # Stored-map divergence ----
-  # A peel's hindcast reuses `object$map` deliberately, so rho compares like
+  # A peel's hindcast uses `object$map`, cut to its years, so rho compares like
   # with like. Warn if build_map() on the ORIGINAL inputs now differs (an edited
   # map or newer map code, not a shorter peel); a worker's warning is discarded.
   .map_drift <- tryCatch({
@@ -426,55 +430,24 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
       data_list$env_data[[col]] <- (data_list$env_data[[col]] - ctr) / scl
     }
 
-    # * Adjust parameters ----
-    #FIXME: adjust for forecasting via MVN
-    inits <- object$estimated_params
-    inits$rec_dev[, (nyrs_peel + 1):nyrs_proj] <- 0
-    inits$log_M1_dev[,,,(nyrs_peel+1):nyrs_proj] <- inits$log_M1_dev[,,,nyrs_peel]
-    inits$index_q_dev[,(nyrs_peel+1):nyrs] <- inits$index_q_dev[,nyrs_peel]
-    inits$log_sel_slp_dev[,,,(nyrs_peel+1):nyrs] <- inits$log_sel_slp_dev[,,,nyrs_peel]
-    inits$sel_inf_dev[,,,(nyrs_peel+1):nyrs] <- inits$sel_inf_dev[,,,nyrs_peel]
-    inits$sel_coff_dev[,,,(nyrs_peel+1):nyrs] <- inits$sel_coff_dev[,,,nyrs_peel]
+    # * Hindcast ----
+    # The model as it would have been fitted at the peel's terminal year: it ends
+    # there, so no later index, composition or catch, and no parameter for a later
+    # year, enters its estimates. It starts from the unpeeled estimates for its own
+    # years and uses the unpeeled map cut to them.
+    hind_list <- data_list
+    hind_list$endyr <- endyr_peel
+    hind_list$catch_data <- dplyr::filter(data_list$catch_data, Year <= endyr_peel)
+    hind_defaults <- suppressWarnings(suppressMessages(build_params(hind_list)))
+    inits <- .peel_params(object$estimated_params, hind_defaults, nyrs_peel)
+    map <- .peel_map(object$map, hind_defaults, nyrs_peel)
 
-    # * Adjust map size ----
-    # Turn off forecasted parameters
-    map <- object$map
-    map$mapList$rec_dev[, (nyrs_peel + 1):nyrs_proj] <- NA
-    map$mapFactor$rec_dev <- factor(map$mapList$rec_dev)
-
-    map$mapList$log_M1_dev[,,,(nyrs_peel+1):nyrs_proj] <- NA
-    map$mapFactor$log_M1_dev <- factor(map$mapList$log_M1_dev)
-
-    map$mapList$index_q_dev[,(nyrs_peel+1):nyrs] <- NA
-    map$mapFactor$index_q_dev <- factor(map$mapList$index_q_dev)
-
-    map$mapList$log_sel_slp_dev[,,,(nyrs_peel+1):nyrs] <- NA
-    map$mapFactor$log_sel_slp_dev <- factor(map$mapList$log_sel_slp_dev)
-
-    map$mapList$sel_inf_dev[,,,(nyrs_peel+1):nyrs] <- NA
-    map$mapFactor$sel_inf_dev <- factor(map$mapList$sel_inf_dev)
-
-    map$mapList$sel_coff_dev[,,,(nyrs_peel+1):nyrs] <- NA
-    map$mapFactor$sel_coff_dev <- factor(map$mapList$sel_coff_dev)
-
-    # -- Map out Fdev for years with 0 catch to very low number
-    zero_catch <- data_list$catch_data |>
-      dplyr::filter(Year <= endyr &
-                      Catch == 0) |>
-      dplyr::mutate(Year = Year - styr + 1) |>
-      dplyr::select(Fleet_code, Year) |>
-      as.matrix()
-    inits$log_F[zero_catch] <- -999
-    map$mapList$log_F[zero_catch] <- NA
-    map$mapFactor$log_F <- factor(map$mapList$log_F)
-
-    # * Refit ----
     newmod <- suppressWarnings(
       suppressMessages(
-        # Refit the peeled data, clamping the stock-recruit switch and fit-end
-        # years and the suitability end year to the peel's terminal year.
+        # Clamp the stock-recruit switch and fit-end years and the suitability
+        # end year to the peel's terminal year.
         .refit_like(
-          data_list        = data_list,
+          data_list        = hind_list,
           inits            = inits,
           map              = map,
           estimateMode     = ifelse(data_list$estimateMode == 2, 0, data_list$estimateMode), # Projection-only (2) is refitted at mode 0
@@ -489,9 +462,16 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
     # Judge the hindcast here: the forecast refit below replaces `newmod` and frees only F,
     # so its gradient cannot show whether the hindcast that Mohn's rho reads converged.
     if (!.refit_converged(newmod)) return(NULL)
+    hind_sdrep <- newmod$sdrep
 
     # Forecast ----
-    peeled_pars <- newmod$estimated_params
+    # Back to the full model: the peel's estimates in its own years, and in the
+    # removed years F started from the unpeeled estimates and fitted to the
+    # observed catch, with q, selectivity and M1 held at the terminal year.
+    peeled_pars <- .unpeel_params(newmod$estimated_params, object$estimated_params)
+    peeled_pars <- .hold_curves(peeled_pars, data_list, nyrs_peel)
+    peeled_pars$log_M1_dev[, , , (nyrs_peel + 1):nyrs_proj] <-
+      peeled_pars$log_M1_dev[, , , nyrs_peel]
 
     # - Add in peeled catch to fit to
     data_list$catch_data <- data_list$catch_data |>
@@ -499,21 +479,20 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
       rbind(peeled_catch_data) |>
       dplyr::arrange(Fleet_code, Year)
 
-    # Keep the peeled hindcast's map before it is replaced: it is what frees the
+    # The hindcast's map at full length, the removed years fixed: it frees the
     # hindcast again for the report-only pass after the forecast refit.
-    map_hindcast <- map
+    map_hindcast <- .unpeel_map(newmod$map, peeled_pars)
 
     # - Update map
     # Only new parameter we are estimating in is the log_F of the peeled years
     map <- build_map(
       data_list = data_list,
-      params = newmod$estimated_params,
+      params = peeled_pars,
       debug = TRUE,
       random_rec = newmod$data_list$random_rec)
     map$mapFactor$dummy <- as.factor(NA); map$mapList$dummy <- NA
 
     # - Turn on F for peeled years to fit to catch (matches full model)
-    peeled_pars$log_F[,(nyrs_peel+1):nyrs] <- object$estimated_params$log_F[,(nyrs_peel+1):nyrs]
     map$mapList$log_F[,(nyrs_peel+1):nyrs] <- object$map$mapList$log_F[,(nyrs_peel+1):nyrs]
     map$mapFactor$log_F <-  factor(map$mapList$log_F)
 
@@ -607,10 +586,13 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
         # A catch of 0 is read as missing; F, and so the removals, are unchanged.
         obj$env$data$catch_obs[peeled, 1] <- 0
         obj$retape()   # rebuild the model with the changed catch
-        # The correction needs the joint precision under random effects. Quiet: an
-        # indefinite Hessian warns "NaNs produced", and the reason is recorded below.
-        sdr <- suppressWarnings(
-          TMB::sdreport(obj, getJointPrecision = length(obj$env$random) > 0))
+        # The hindcast's own Hessian, not this full-length model's, which also
+        # carries the removed years' penalties. The correction needs the joint
+        # precision under random effects. Quiet: an indefinite Hessian warns "NaNs
+        # produced", and the reason is recorded below.
+        sdr <- suppressWarnings(TMB::sdreport(
+          obj, hessian.fixed = solve(hind_sdrep$cov.fixed),
+          getJointPrecision = length(obj$env$random) > 0))
         tryCatch({
           if (isTRUE(sdr$pdHess) && length(fitted_rows)) {
             sdr <- .rce_catch_conditioned_sd(obj, sdr, fitted_rows, data_list$styr)
@@ -855,6 +837,79 @@ print.Rceattle_retro <- function(x, band = 0.2, ...) {
 }
 
 
+# A peel's hindcast ends at its terminal year, so its hindcast-year parameters
+# (log_F and the catchability and selectivity deviations) are shorter. Year is
+# their last dimension, and R fills an array column by column, so a shorter
+# model's years are the leading cells of the longer model's array. rec_dev and
+# log_M1_dev run to projyr in every model, so only their later years change role.
+
+#' The unpeeled estimates as starting values for a peel's hindcast: its own years
+#' from the unpeeled fit, later years of rec_dev and log_M1_dev from `defaults`
+#' (the peel's own starting values).
+#' @noRd
+.peel_params <- function(params, defaults, nyrs_peel) {
+  yrs <- seq_len(nyrs_peel)
+  for (nm in intersect(names(defaults), names(params))) {
+    if (nm == "rec_dev") {
+      defaults[[nm]][, yrs] <- params[[nm]][, yrs]
+    } else if (nm == "log_M1_dev") {
+      defaults[[nm]][, , , yrs] <- params[[nm]][, , , yrs]
+    } else {
+      defaults[[nm]][] <- params[[nm]][seq_along(defaults[[nm]])]
+    }
+  }
+  defaults
+}
+
+#' The unpeeled map cut to a peel's years, so a parameter fixed, freed or shared
+#' by hand stays so. A later year of rec_dev or log_M1_dev is fixed unless it
+#' shares its level with one of the peel's years, as an M1 deviation by age does.
+#' @noRd
+.peel_map <- function(map, defaults, nyrs_peel) {
+  for (nm in intersect(names(defaults), names(map$mapList))) {
+    x <- map$mapList[[nm]]
+    if (nm %in% c("rec_dev", "log_M1_dev")) {
+      later <- slice.index(x, length(dim(x))) > nyrs_peel
+      x[later & !x %in% x[!later]] <- NA
+    } else if (length(x) > length(defaults[[nm]])) {
+      cut <- defaults[[nm]]
+      cut[] <- x[seq_along(cut)]
+      x <- cut
+    } else {
+      next
+    }
+    map$mapList[[nm]] <- x
+    map$mapFactor[[nm]] <- factor(x)
+  }
+  map
+}
+
+#' The peel's estimates back in arrays as long as the unpeeled model's: a shortened
+#' array takes the unpeeled values in the years the peel removed; rec_dev and
+#' log_M1_dev, already full length, are the peel's.
+#' @noRd
+.unpeel_params <- function(peel, full) {
+  for (nm in intersect(names(full), names(peel))) {
+    full[[nm]][seq_along(peel[[nm]])] <- peel[[nm]]
+  }
+  full
+}
+
+#' The peel's map at full length, with the years it removed fixed.
+#' @noRd
+.unpeel_map <- function(map, full) {
+  for (nm in names(map$mapList)) {
+    x <- map$mapList[[nm]]
+    if (length(x) < length(full[[nm]])) {
+      y <- full[[nm]]
+      y[] <- NA            # the full array's shape, every cell fixed
+      y[seq_along(x)] <- x
+      map$mapList[[nm]] <- y
+      map$mapFactor[[nm]] <- factor(y)
+    }
+  }
+  map
+}
 
 
 #' Jitter analysis

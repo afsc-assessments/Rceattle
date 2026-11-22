@@ -830,17 +830,27 @@ testthat::test_that("a peel's sd rebuild is stationary but for R_log_sd under ra
   testthat::expect_equal(unname(ssb_value[, seq_len(ny)]),
                          unname(peel$quantities$ssb[, seq_len(ny)]))
 
-  # Against the held-F report the correction starts from: fitted-year bands do
-  # not depend on the peeled F, so they must be equal, which pins the joint
-  # covariance of fixed and random effects; a forecast year's band, which
-  # depends on that F, must be widened by the correction.
+  # A fitted year's band is the peeled hindcast's own: a fit of the peel's own
+  # data gives it, to optimizer tolerance.
   ep <- fit$data_list$endyr - 2
-  ref_sd <- peel_reference_sdreport(fit, peel, ep, hold_F = TRUE)
+  own <- d
+  own$endyr <- ep
+  for (nm in c("index_data", "comp_data", "catch_data", "caal_data", "diet_data")) {
+    own[[nm]] <- own[[nm]][own[[nm]]$Year <= ep, ]
+  }
+  own_fit <- suppressMessages(suppressWarnings(fit_mod(
+    data_list = own, inits = NULL, file = NULL, estimateMode = 0,
+    random_rec = TRUE, msmMode = 0,
+    fit_control = fit_control(phase = FALSE, getsd = TRUE, verbose = 0))))
   fitted_yrs <- seq_len(ep - fit$data_list$styr + 1)
   forecast_yrs <- (ep - fit$data_list$styr + 2):ny
   ssb_sd <- function(s) matrix(s$sd[names(s$value) == "ssb"], nrow = nspp)
   testthat::expect_equal(ssb_sd(peel$sdrep)[, fitted_yrs],
-                         ssb_sd(ref_sd)[, fitted_yrs], tolerance = 1e-6)
+                         ssb_sd(own_fit$sdrep)[, fitted_yrs], tolerance = 1e-3)
+
+  # Against the held-F report the correction starts from, a forecast year's band,
+  # which depends on the peeled F, must be widened by the correction.
+  ref_sd <- peel_reference_sdreport(fit, peel, ep, hold_F = TRUE)
   testthat::expect_gt(max(ssb_sd(peel$sdrep)[, forecast_yrs] /
                             ssb_sd(ref_sd)[, forecast_yrs]), 1.01)
 
@@ -1249,4 +1259,46 @@ testthat::test_that("retrospective() scales a multispecies hindcast curve by its
   testthat::expect_equal(unname(rd),
                          unname(log(rowMeans((m$quantities$R / m$quantities$R_hat)[, 1:n, drop = FALSE]))),
                          tolerance = 1e-6)
+})
+
+# A peel's hindcast is fitted as a model ending at its terminal year. With a
+# random walk on q, fixing the later years' deviations would pull the terminal
+# estimate toward them, so the peel is checked against a fit of its own data.
+testthat::test_that("a peel's hindcast is the fit of its own years", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("TMB")
+
+  d <- make_test_data(nyrs = 20, seed = 1)
+  d$fleet_control$Catchability[1] <- "Estimated"
+  d$fleet_control$Time_varying_q[1] <- "RandomWalk"
+  d$fleet_control$Time_varying_q_sd[1] <- 0.2
+  # A survey 50% higher in the last two years moves the full fit's walk there.
+  late <- d$index_data$Year > d$endyr - 2
+  d$index_data$Observation[late] <- 1.5 * d$index_data$Observation[late]
+  fit_d <- function(dd) suppressWarnings(suppressMessages(Rceattle::fit_mod(
+    data_list = dd, inits = NULL, file = NULL, estimateMode = 0,
+    random_rec = FALSE, msmMode = 0,
+    fit_control = Rceattle::fit_control(phase = FALSE, getsd = FALSE, verbose = 0))))
+  fit <- fit_d(d)
+  endyr_peel <- d$endyr - 2
+  peel <- suppressWarnings(suppressMessages(Rceattle::retrospective(
+    fit, peels = 2, cores = 1, getsd = FALSE, phase = FALSE)))$Rceattle_list[[paste0("Year_", endyr_peel)]]
+
+  own <- d
+  own$endyr <- endyr_peel
+  for (nm in c("index_data", "comp_data", "catch_data")) {
+    own[[nm]] <- own[[nm]][own[[nm]]$Year <= endyr_peel, ]
+  }
+  own_fit <- fit_d(own)
+  nyrs_peel <- endyr_peel - d$styr + 1
+  # Equal to optimizer tolerance; a peel tied to the later years walks q 0.03 to 0.28.
+  testthat::expect_equal(peel$quantities$ssb[, 1:nyrs_peel],
+                         own_fit$quantities$ssb[, 1:nyrs_peel], tolerance = 1e-3)
+  q_dev <- peel$estimated_params$index_q_dev[1, ]
+  testthat::expect_lt(max(abs(q_dev[1:nyrs_peel] - own_fit$estimated_params$index_q_dev[1, ])),
+                      1e-3)
+
+  # The forecast years hold the peel's terminal q deviation.
+  nyrs <- d$endyr - d$styr + 1
+  testthat::expect_true(all(q_dev[(nyrs_peel + 1):nyrs] == q_dev[nyrs_peel]))
 })

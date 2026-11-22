@@ -22,6 +22,20 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
 
 ## Bug fixes
 
+* **A retrospective peel's hindcast is fitted as a model ending at its terminal
+  year**, so no later index, composition or catch, and no parameter for a later
+  year, enters its estimates: a random-walk penalty no longer ties the peel's
+  terminal deviation to the removed years. The peel starts from the unpeeled
+  estimates for its own years and uses the unpeeled map cut to them, so a
+  parameter fixed, freed or shared by hand stays so. In its forecast years q,
+  selectivity and M1 hold the peel's own terminal-year values, and under
+  `getsd = TRUE` a fitted year's band is the peel hindcast's own. On 3 peels of
+  `GOA2018SS`, whose Shelikof survey q is a random walk, the peel ending in 2015
+  estimates its terminal q deviation at -0.185 rather than 0.072, and pollock SSB
+  rho moves from -0.0751 to -0.0700 (terminal year) and from 0.5541 to 0.5360
+  (forecast year 3, one peel). A model with no q or selectivity deviation moves
+  by under 2e-6, relative (`BS2017SS`).
+
 * **The years `run_mse()` adds, and a peel's forecast years, keep the last year's
   q and selectivity curves.** A selectivity form that stores each year's step
   rather than its level (`NonParametricPM`, and `NonParametricIntegrable` under
