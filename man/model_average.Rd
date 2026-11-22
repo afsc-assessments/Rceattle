@@ -36,10 +36,10 @@ covariance, so every fit needs an sdreport (\code{fit_control(getsd = TRUE)}) an
 a TMB object that frees the hindcast parameters. Under any harvest control
 rule but \code{"NoFishing"}, \code{estimateMode = "Estimate"} without
 \code{projection_uncertainty} leaves \code{fit$obj} freeing only the rule's F, and
-\code{estimateMode = "Projection"} frees no hindcast parameter at all, so such fits
-are refused: refit with \code{estimateMode = "Hindcast"}, or, for a fixed-effects
-fit under a rule that estimates F, with \code{estimateMode = "Estimate"} and
-\code{fit_control(projection_uncertainty = TRUE)}.
+\code{estimateMode = "Projection"} on \code{fit_mod()}'s own map frees no hindcast
+parameter, so such fits are refused: refit with \code{estimateMode = "Hindcast"},
+or, for a fixed-effects fit under a rule that estimates F, with
+\code{estimateMode = "Estimate"} and \code{fit_control(projection_uncertainty = TRUE)}.
 }
 \examples{
 \dontrun{

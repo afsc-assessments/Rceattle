@@ -90,7 +90,7 @@ testthat::test_that("model_average() refuses a fit it cannot draw the hindcast f
   inits  <- hind$estimated_params
   npfmc  <- fit(build_hcr(HCR = "NPFMC"), inits)
   constf <- fit(build_hcr(HCR = "ConstantF", Ftarget = 0.1), inits)
-  # "Projection" frees `dummy` beside F, even with projection_uncertainty.
+  # Under "Projection", projection_uncertainty frees `dummy` beside F, not the hindcast.
   proj   <- fit(build_hcr(HCR = "NPFMC"), inits, estimateMode = 2,
                 projection_uncertainty = TRUE)
   refused <- "free no hindcast parameter"

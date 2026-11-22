@@ -15,10 +15,10 @@
 #' a TMB object that frees the hindcast parameters. Under any harvest control
 #' rule but `"NoFishing"`, `estimateMode = "Estimate"` without
 #' `projection_uncertainty` leaves `fit$obj` freeing only the rule's F, and
-#' `estimateMode = "Projection"` frees no hindcast parameter at all, so such fits
-#' are refused: refit with `estimateMode = "Hindcast"`, or, for a fixed-effects
-#' fit under a rule that estimates F, with `estimateMode = "Estimate"` and
-#' `fit_control(projection_uncertainty = TRUE)`.
+#' `estimateMode = "Projection"` on `fit_mod()`'s own map frees no hindcast
+#' parameter, so such fits are refused: refit with `estimateMode = "Hindcast"`,
+#' or, for a fixed-effects fit under a rule that estimates F, with
+#' `estimateMode = "Estimate"` and `fit_control(projection_uncertainty = TRUE)`.
 #' @examples
 #' \dontrun{
 #' # Equal weights across two candidate models.
@@ -116,8 +116,8 @@ model_average <- function(object = NULL, weights = NULL, uncertainty = FALSE, nb
   if(uncertainty){
 
     # Assuming asymptotic multivariate normal
-    # - `obj` must free the hindcast: build_hcr_map() frees only F in an "Estimate"
-    #   fit under a fishing HCR without projection_uncertainty; modes 2 and 4 only F/`dummy`.
+    # - `obj` must free the hindcast. Under a fishing HCR build_hcr_map() frees only F
+    #   unless projection_uncertainty; fit_mod()'s debug map (modes 2, 4) frees only `dummy`.
     hcr_only <- sapply(object, function(x) {
       all(names(x[["obj"]][["par"]]) %in% c("log_Ftarget", "log_Flimit", "dummy"))
     })
