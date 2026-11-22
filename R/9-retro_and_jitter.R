@@ -15,8 +15,7 @@
 #' @param nyrs_forecast number of years after each peel's terminal year for
 #'   which Mohn's rho is also calculated (default 3).
 #' @param getsd whether each peel reports standard errors; `NULL` (default) does
-#'   so only if `object` holds an `sdrep`. Mohn's rho reads only point
-#'   estimates, so `FALSE` is faster.
+#'   so only if `object` holds an `sdrep`.
 #' @param phase whether each peel is refitted in phases (default `TRUE`); a peel
 #'   starts from the unpeeled model's estimates.
 #' @param projected_env_data_known `env_data` columns whose values after each
@@ -48,7 +47,8 @@
 #' reading that peel's forecast years: only `plot_timeseries()` and its
 #' wrappers warn about them.
 #'
-#' **Standard errors.** Under `getsd = TRUE` each peel is rebuilt at its
+#' **Standard errors.** Mohn's rho reads only point estimates, so
+#' `getsd = FALSE` is faster. Under `getsd = TRUE` each peel is rebuilt at its
 #' estimates with the hindcast parameters treated as estimated, so no estimate
 #' moves. A fitted year's band is the peeled hindcast's own, except a depletion
 #' relative to last-projection-year biomass (`HCR = "NoFishing"`,
@@ -123,7 +123,7 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
     stop("Object is not of class 'Rceattle'")
   }
 
-  # Peels report SEs only if `object` holds an sdrep. FALSE is faster (rho reads
+  # By default, peels report SEs only if `object` holds an sdrep. FALSE is faster (rho reads
   # point estimates) and keeps a peel TRUE would drop for a non-PD Hessian.
   if (is.null(getsd)) getsd <- !is.null(object$sdrep)
 
@@ -261,9 +261,9 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
                       c(.keep_fixed, .keep_group, .known))
   if (.post_any && length(.no_kept)) {
     warning("env_data column(s) ", paste(.no_kept, collapse = ", "), " have no ",
-            "value in years ", styr, "-", endyr - peels, ", so a peel with none ",
-            "keeps their post-peel values: the model cannot fill an empty column.",
-            call. = FALSE)
+            "value in years ", styr, "-", endyr - peels, ", so a peel with no value ",
+            "of them keeps their post-peel values: a blanked column would have no ",
+            "retained mean to fill it.", call. = FALSE)
   }
   .raw <- .rescale_cols[.n_kept[.rescale_cols] < 2L]
   if (length(.raw)) {
@@ -387,7 +387,8 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
     # Retained: the model years the peel fits, which rearrange_data() fills from.
     .retained <- !is.na(.yr) & .yr >= styr & .yr <= endyr_peel
     .blank <- setdiff(.env_read, c(.keep_fixed, .keep_group, .known))
-    # A column with no retained value stays whole: blanked, it would make M1 NaN.
+    # A column with no retained value stays whole: blanked, rearrange_data() would
+    # fill it with NaN for whatever reads it.
     .blank <- .blank[vapply(.blank, function(v)
       any(is.finite(data_list$env_data[[v]][.retained])), logical(1))]
     if (any(.post_peel) && length(.blank)) {
@@ -459,7 +460,7 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
           inits            = inits,
           map              = map,
           estimateMode     = ifelse(data_list$estimateMode == 2, 0, data_list$estimateMode), # Projection-only (2) is refitted at mode 0
-          phase            = phase,  # see `phase` above: peels need phasing to move
+          phase            = phase,
           getsd            = getsd,
           srr_mse_switchyr = min(data_list$srr_mse_switchyr, endyr_peel),
           srr_hat_endyr    = min(data_list$srr_hat_endyr, endyr_peel),
@@ -542,7 +543,7 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
           inits            = peeled_pars,
           map              = map,
           estimateMode     = ifelse(data_list$estimateMode == 2, 0, data_list$estimateMode),
-          phase            = phase,  # see `phase` above: peels need phasing to move
+          phase            = phase,
           getsd            = getsd,
           srr_mse_switchyr = min(data_list$srr_mse_switchyr, endyr_peel),
           srr_hat_endyr    = min(data_list$srr_hat_endyr, endyr_peel),

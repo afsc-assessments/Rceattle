@@ -35,8 +35,7 @@ which Mohn's rho is also calculated (default 3).}
 \verb{_R_CHECK_LIMIT_CORES_}). Set to 1 to force sequential execution.}
 
 \item{getsd}{whether each peel reports standard errors; \code{NULL} (default) does
-so only if \code{object} holds an \code{sdrep}. Mohn's rho reads only point
-estimates, so \code{FALSE} is faster.}
+so only if \code{object} holds an \code{sdrep}.}
 
 \item{phase}{whether each peel is refitted in phases (default \code{TRUE}); a peel
 starts from the unpeeled model's estimates.}
@@ -96,7 +95,8 @@ left out of the \verb{$mohns} rows with \verb{Forecast year} above 0, and
 reading that peel's forecast years: only \code{plot_timeseries()} and its
 wrappers warn about them.
 
-\strong{Standard errors.} Under \code{getsd = TRUE} each peel is rebuilt at its
+\strong{Standard errors.} Mohn's rho reads only point estimates, so
+\code{getsd = FALSE} is faster. Under \code{getsd = TRUE} each peel is rebuilt at its
 estimates with the hindcast parameters treated as estimated, so no estimate
 moves. A fitted year's band is the peeled hindcast's own, except a depletion
 relative to last-projection-year biomass (\code{HCR = "NoFishing"},

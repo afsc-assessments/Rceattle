@@ -132,23 +132,14 @@ LINKAGE_STRUCTURES <- c(
 #' @keywords internal
 #' @noRd
 .rce_linkage_fixed_covariates <- function(data_list, re_groups = FALSE, fixed = TRUE) {
-  groups <- .LINKAGE_SPEC_GROUPS
-  specs <- list()
-  collect <- function(x) {
-    if (inherits(x, "Rceattle_linkage_spec")) { specs[[length(specs) + 1L]] <<- x }
-    else if (is.list(x)) for (e in x) collect(e)
-    invisible(NULL)
-  }
-  for (g in groups) collect(data_list[[g]])
-  if (length(specs) == 0L) return(character(0))
-  out <- unlist(lapply(specs, function(s) {
-    p <- .parse_linkage_formula(s$formula)
+  out <- unlist(lapply(.rce_linkage_specs(data_list[.LINKAGE_SPEC_GROUPS]), function(s) {
+    p <- .parse_linkage_formula(s[["formula"]])
     # A bar term `lhs | group` groups by its right-hand side, as
     # .materialize_re_design() reads it.
-    c(if (fixed) all.vars(p$fixed),
-      if (re_groups) unlist(lapply(p$re_terms, function(bar) all.vars(bar[[3L]]))))
+    c(if (fixed) all.vars(p[["fixed"]]),
+      if (re_groups) unlist(lapply(p[["re_terms"]], function(bar) all.vars(bar[[3L]]))))
   }), use.names = FALSE)
-  unique(out)
+  unique(as.character(out))
 }
 
 # The data_list slots that hold linkage specs, one per process.
