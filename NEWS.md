@@ -67,6 +67,24 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
 * `?model_average` and `vignette("model-diagnostics")` say which fits
   `uncertainty = TRUE` refuses and how to refit them.
 
+# Rceattle 5.69.4
+
+## Documentation
+
+* `?retrospective` and the retrospective section of
+  `vignette("model-diagnostics")` are shorter, and three statements in them are
+  corrected:
+  - A peel starts from the unpeeled model's estimates, not its starting values.
+  - A survey whose index falls only in a peel's removed years keeps a free q in
+    that peel, which under `getsd = TRUE` can drop the peel. The page said no q
+    was estimated there; a peel's hindcast reuses the unpeeled model's map.
+  - `phase = FALSE` is no longer said to bias Mohn's rho toward zero: on
+    `BS2017SS` and `NorthernRockfish2022`, rho with and without phasing agrees
+    within 1e-5.
+
+  The example passes `phase` and `verbose` through `fit_control()`, and the
+  vignette lists all three elements `retrospective()` returns.
+
 # Rceattle 5.69.3
 
 ## Bug fixes

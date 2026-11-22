@@ -560,34 +560,23 @@ plot_biomass(model_1_retro$Rceattle_list)
 plot_biomass(model_1_retro$Rceattle_list, incl_proj = TRUE)
 ```
 
-Each peel holds its own terminal year as `data_list$endyr`, so the first plot draws every peel only as far as it was fit.
-
-A peel still estimates the years it dropped, as its retrospective forecast: fit to the observed catch with the survey and composition data withheld, and recruitment projected at the single deviation `sample_rec(sample_rec = FALSE)` uses, computed over the peel. Fishing mortality is estimated through the unpeeled terminal year and the harvest control rule takes over after it, so each peel has three years:
-
-| Field | Meaning |
-|---|---|
-| `endyr`, `endyr_peel` | the peel's terminal year, what it was fit through |
-| `endyr_full` | the unpeeled terminal year, where the retrospective forecast ends |
-| `projyr` | the end of the projection |
-
-`incl_proj = TRUE` plots the forecast and projection years (forecast years: `endyr_peel + seq_len(endyr_full - endyr_peel)`, empty for the unpeeled model). Under `getsd = TRUE`, a forecast-year band treats that year's catch as known, carrying the hindcast's uncertainty forward through the F needed to take it; it omits recruitment variability in the forecast years, so it is narrower than a forecast's prediction interval.
-
-A peel withholds `env_data` after its terminal year too, except a fixed-effect linkage covariate, a random-effect grouping column and a column with no value in the years the peel keeps, which it keeps and names in a warning. A series known ahead, such as a climate projection, goes in `projected_env_data_known = "<column>"` and the peels keep it; `TRUE` keeps every column, as before 5.69.0 under the default `rescale = FALSE`. `rescale = "<column>"` standardizes a covariate on each peel's retained years, where `rescale = TRUE` would also turn a temperature in degrees C into z-scores; `?retrospective` has the details.
-
-The `retrospective()` function returns a list with two elements:
+Each peel holds its own terminal year as `data_list$endyr`, so the first plot draws every peel only as far as it was fit. `retrospective()` returns:
 
 | Element | Description |
 |---|---|
-| `Rceattle_list` | List of fitted models, ordered from most-peeled to full run, each named for its own terminal year (`Year_2017`, …, `Year_2022`) |
-| `mohns` | Data frame with columns `Object` (quantity: `"biomass"`, `"ssb"`, `"R"`, `"F_spp"`), `Forecast year` (0 = terminal year bias; 1+ = forecast skill), `N` (peels used in that row), and one column per species with mean relative error (Mohn's rho) |
+| `Rceattle_list` | the fitted peels, deepest first, then the full run, each named for its terminal year (`Year_2017`, …, `Year_2022`) |
+| `mohns` | Mohn's rho (mean relative error) by `Object` (`"biomass"`, `"ssb"`, `"R"`, `"F_spp"`) and `Forecast year` (0 = terminal-year bias; 1 to `nyrs_forecast`, default 3, = forecast skill), with `N` the peels used in that row and one column per species |
+| `peels_requested` | the `peels` asked for |
 
-`nyrs_forecast` (default 3) also evaluates rho for years projected beyond each terminal peel, so one call gives forecast skill alongside retrospective bias.
+A peel still estimates the years it dropped, as its retrospective forecast: F is fitted to the observed catch, with those years' survey and composition data withheld, and so is their `env_data`, except the columns `?retrospective` lists. The forecast years are `endyr_peel + seq_len(endyr_full - endyr_peel)`, where `endyr_peel` is the peel's terminal year and `endyr_full` the unpeeled one; the harvest control rule takes over after `endyr_full`, through `projyr`, and `incl_proj = TRUE` plots both. A series known ahead, such as a climate projection, goes in `projected_env_data_known = "<column>"` so the peels keep it, and `rescale = "<column>"` standardizes a covariate on each peel's retained years.
 
-A peel whose hindcast did not converge is dropped with a warning, so `Rceattle_list` can be shorter than `peels + 1`; index it by name, since with a peel missing `Rceattle_list[[3]]` is not the 3-year peel. If no peel converges, Mohn's rho is `NaN` and the call warns.
+`print(model_1_retro)` counts the peels that were dropped or flagged:
 
-A peel whose forecast refit alone did not converge, or left a peeled F at a bound, is kept with no warning. That refit estimates only the peeled years' F with the hindcast held fixed, so the peel counts in terminal-year Mohn's rho; because F was not fitted to the peeled catch, it is left out of the `$mohns` rows with `Forecast year` above 0 (their `N` is smaller). `print()` says how many peels this affects and `attr(peel, "forecast_refit_error")` gives the reason. Plotters still draw that peel's forecast years under `incl_proj = TRUE` or a later `maxyr`; `plot_biomass()` and the other `plot_timeseries()` wrappers warn when they do, `plot_catch()` and the other plotters do not.
+- A peel whose hindcast did not converge is dropped with a warning (under `getsd = TRUE`, so is one whose hindcast Hessian is not positive definite), so index `Rceattle_list` by name rather than position. If no peel converges, Mohn's rho is `NaN` and the call warns.
+- A peel whose forecast refit did not fit F to the peeled catch is kept with no warning, but only in the `$mohns` rows with `Forecast year` 0; `attr(peel, "forecast_refit_error")` gives the reason. `plot_biomass()` and the other `plot_timeseries()` wrappers warn when they draw that peel's forecast years; `plot_catch()`, the other plotters and `as.data.frame()` do not.
+- Under `getsd = TRUE` (the default when the input model has standard errors), a peel whose standard-error rebuild fails after its forecast refit is kept with no warning, but `plot_biomass()`, `as.data.frame()` and `vcov()` read none from it, since `peel$sdrep` may then hold no valid standard errors; `attr(peel, "sd_report_error")` gives the reason.
 
-Under `getsd = TRUE` (the default when the input model has standard errors), a peel whose standard-error calculation fails is **kept**: its point estimates stand and `peel$sdrep` holds what `TMB::sdreport()` returned (`NULL` if the calculation errored before that). With a Hessian that is not positive definite those are not valid standard errors, so `plot_biomass()`, `as.data.frame()` and `vcov()` read none of them. No warning is raised, since Mohn's rho reads point estimates only; `print()` says how many peels have no usable standard errors, `lapply(model_1_retro$Rceattle_list, attr, "sd_report_error")` gives each reason (`NULL` for peels that have a band), and `plot_biomass(model_1_retro$Rceattle_list, add_ci = TRUE)` draws bands for the other peels and warns about this one.
+`?retrospective` covers the standard-error bands, which `env_data` columns a peel keeps, and `rescale`.
 
 ## Jitter testing
 
