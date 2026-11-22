@@ -1,20 +1,50 @@
 <!--
-Version-numbering note. Four gaps in this file are deliberate, not lost entries:
+Version-numbering note. Five gaps in this file are deliberate, not lost entries:
 
   * 4.14.0 was a real DESCRIPTION version whose entries were folded into 5.0.0.
   * 5.2.0-5.2.4 were likewise folded into 5.3.0.
   * main's 4.9.0 / 4.9.1 are the same recruitment changes this line has as
     5.5.0 / 5.5.1, applied to the two lines separately.
   * 5.66.3 to 5.66.5 were numbers a branch held during review; it landed as 5.66.8.
+  * 5.68.0 is the number #308 (`Age_first_selected`) held in review when 5.69.0 landed.
 
-No tag existed above 4.8.0 while the first three were in flight, and the fourth's numbers
-never reached dev, so nobody could have installed an intermediate. They were folded rather
-than renumbered because renumbering a section breaks every (x.y.z) cross-reference pointing
-at it, and the entries below cite each other by version throughout.
+No tag existed above 4.8.0 while the first three were in flight, and the last two's
+numbers never reached dev, so nobody could have installed an intermediate. They were
+folded rather than renumbered because renumbering a section breaks every (x.y.z)
+cross-reference pointing at it, and the entries below cite each other by version
+throughout.
 
 5.66.8 was also the number #300 (`run_mse()` keeps the EM's fixed parameters) held in
 review. It landed as 5.66.9, so a version check written for that fix needs 5.66.9.
 -->
+
+# Rceattle 5.70.2
+
+## Documentation
+
+* **A `"Hindcast"` refit, which the `model_average(uncertainty = TRUE)` refusal
+  (5.70.0) offers, projects with no fishing**, so its projection is of an unfished
+  stock: on `BS2017SS` under `"NPFMC"` with `Proj_F_proportion = 1`, pollock SSB in
+  2030 is 8,574,725 mt from a `"Hindcast"` refit against 3,541,195 mt from the
+  `"Estimate"` fit. The refusal, `?model_average` and
+  `vignette("model-diagnostics")` now say so.
+
+* `?run_mse`: `regenerate_past` refits the EM to the OM's expected data, with no
+  sampling error regardless of `simulate_data`, and `regenerate_seed` has no effect
+  on the MSE. The help said the regenerated data followed `simulate_data` and were
+  seeded by `regenerate_seed`.
+
+* `?fit_control`: under `newtonsteps > 0`, a singular Hessian ends the Newton steps
+  with a warning, and with TMBhelper installed the fit is redone without Newton
+  steps (5.67.4). The help said only that it ends them.
+
+* `vignette("environmental-linkages-and-priors")`: under any HCR but `NoFishing` or
+  `ConstantF`, `vcov()` and `fit$sdrep` cover the hindcast parameters when the fit
+  used `fit_control(projection_uncertainty = TRUE)`.
+
+* NEWS 5.67.8 to 5.70.0 are tightened. 5.67.8 no longer says every `sample_rec()`
+  call in `Climate_MSE_projections` warns, and 5.69.0 adds that
+  `retrospective(rescale = "TRUE")`, a string, is an error.
 
 # Rceattle 5.70.1
 
@@ -72,17 +102,20 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
 
 ## Breaking changes
 
-* **`model_average(uncertainty = TRUE)` refuses a fit whose `obj` frees no
-  hindcast parameter.** Under any HCR but `"NoFishing"`, `estimateMode =
-  "Estimate"` without `fit_control(projection_uncertainty = TRUE)` leaves
-  `fit$obj` freeing only `log_Ftarget` / `log_Flimit`, so under a rule that
-  estimates F every draw held the hindcast at its estimates. On `BS2017SS` under
-  `"NPFMC"`, with or without `random_rec`, the averaged hindcast log-SSB standard
-  error was 0 in all 117 species-years, against 0.021 to 0.082 in the
-  fixed-effects model fitted without an HCR; an `estimateMode = "Projection"`
-  fit, which frees the same parameters, gave the same zeros. It now stops,
-  naming the models: refit with `estimateMode = "Hindcast"`, or, for a
-  fixed-effects fit under a rule that estimates F, with `estimateMode =
+* **`model_average(uncertainty = TRUE)` refuses a `"Projection"` fit with the
+  default map, and an `estimateMode = "Estimate"` fit under any harvest control
+  rule but `"NoFishing"` that did not use
+  `fit_control(projection_uncertainty = TRUE)`.** Such
+  a fit's `fit$obj` holds every hindcast parameter fixed, leaving only
+  `log_Ftarget` / `log_Flimit` free, so under a rule that estimates F every draw
+  held the hindcast at its estimates. On
+  `BS2017SS` under `"NPFMC"`, with or without `random_rec`, the averaged
+  hindcast log-SSB standard error was 0 in all 117 species-years, against 0.021
+  to 0.082 in the fixed-effects model fitted without an HCR; an
+  `estimateMode = "Projection"` fit, which holds the same parameters fixed,
+  gave the same zeros. It now stops, naming the models: refit with
+  `estimateMode = "Hindcast"`, which projects with no fishing, or, for a
+  fixed-effects fit under any rule but `"ConstantF"`, with `estimateMode =
   "Estimate"` and `fit_control(projection_uncertainty = TRUE)`, whose standard
   errors match the hindcast fit's (averaged with itself, 0.91 to 1.26 times
   them, median 1.01, over 400 draws with `set.seed(1)`). `uncertainty = FALSE`
@@ -92,27 +125,22 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
 
 ## Bug fixes
 
-* **`model_average(uncertainty = TRUE)` names the cause where it used to stop on
-  an error from `MASS::mvrnorm()`.** An `"Estimate"` fit under `"ConstantF"`,
-  whose `obj` frees only `log_Flimit` but whose `sdrep` is the hindcast's,
-  stopped with "incompatible arguments" and is now refused as above. With
-  `projection_uncertainty = TRUE` such a fit passes that check and still stops
-  with "'Sigma' is not positive definite": `log_Flimit` is freed but never
-  optimized, so its sdreport is not positive definite. `estimateMode =
-  "Projection"` and `"DebugOptimize"` fits on `fit_mod()`'s own map, which free
-  only F and/or `dummy`, are refused as above even with `projection_uncertainty =
-  TRUE`; they stopped with "infinite or missing values in 'x'" (`"Projection"`
-  with `projection_uncertainty = TRUE`) or "'data' must be of a vector type, was
-  'NULL'" (`"Projection"` under `"ConstantF"` or `"NoFishing"`, and
-  `"DebugOptimize"`). So is a `model_average()` result passed back in, which
-  stopped with "incompatible arguments". A fit with no sdreport (`getsd =
-  FALSE`, or an `estimateMode = "DebugBuild"` refit such as `sample_rec()`
-  returns for a `"Hindcast"` fit) stopped with "'data' must be of a vector type,
-  was 'NULL'"; it is now told to refit with `estimateMode = "Estimate"` or
-  `"Hindcast"` and `fit_control(getsd = TRUE)`. A list mixing a fixed-effects
-  and a random-effects fit named the fixed-effects fit as lacking a joint
-  precision matrix; it now stops with the existing message that the two cannot
-  be averaged together.
+* **`model_average(uncertainty = TRUE)` names the cause where it stopped inside
+  the draw** with "incompatible arguments", "infinite or missing values in 'x'"
+  or "'data' must be of a vector type, was 'NULL'". These fits are now refused as
+  above: an `"Estimate"` fit under `"ConstantF"` without
+  `projection_uncertainty`; `"Projection"` and `"DebugOptimize"` fits with the
+  default map, even with `projection_uncertainty = TRUE`; and a `model_average()`
+  result passed back
+  in. A fit with no sdreport (`getsd = FALSE`, or the `"DebugBuild"` refit
+  `sample_rec()` returns for a `"Hindcast"` fit) is told to refit with
+  `fit_control(getsd = TRUE)`. A list mixing a fixed-effects and a
+  random-effects fit stops with the existing message that the two cannot be
+  averaged together, rather than naming the fixed-effects fit as lacking a joint
+  precision matrix. One fit still stops inside the draw: an `"Estimate"` fit
+  under `"ConstantF"` with `projection_uncertainty = TRUE` gives "'Sigma' is not
+  positive definite", because `log_Flimit` is left free in `fit$obj` but is never
+  optimized.
 
 ## Documentation
 
@@ -165,8 +193,11 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
 ## Bug fixes
 
 * **`sample_rec(update_model = TRUE)` projects under the fit's harvest control
-  rule.** Its refit only built the model (`estimateMode = 3`), which never runs
-  the rule, so projected F was 0 under every rule, with no warning, while the
+  rule.** Projections move for anyone calling `sample_rec()` with
+  `update_model = TRUE`, the default, on an `"Estimate"` or `"Projection"` fit
+  with a fishing rule. Its refit only built the model
+  (`estimateMode = "DebugBuild"`), which never runs the rule, so projected F was 0
+  under every rule, with no warning, while the
   returned fit still named the rule. On `BS2017SS` projected `F_spp` was 0 for all
   three species under `ConstantF` (input 0.2, 0.3, 0.05) and under `NPFMC` (F40%
   0.336, 0.227, 0.116). A fit that ran its rule (`estimateMode` `"Estimate"` or
@@ -178,9 +209,7 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   (`msmMode > 0`) the unfished SSB (`MSSB0`), and with it SB0, B0 and depletion
   in every year, follow the new recruitment, as a fresh `fit_mod()` with those
   deviations does: `MSSB0` went from 3,906,732 to 5,798,551 mt for `BS2017MS`
-  pollock in one draw. Projections move for anyone calling `sample_rec()` with
-  `update_model = TRUE`, the default, on an `"Estimate"` or `"Projection"` fit
-  with a fishing rule. A `NoFishing` or hindcast-only fit returns the same
+  pollock in one draw. A `NoFishing` or hindcast-only fit returns the same
   projection as before, and `run_mse()`, which passes `update_model = FALSE`, is
   unaffected. No registered sibling repo calls `sample_rec()`; the four
   `update_model = TRUE` calls in the unregistered `Climate_MSE_projections` are
@@ -204,16 +233,17 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
 ## Bug fixes
 
 * **`sim_mod(simulate = TRUE)` warns that diet rows "came back empty" only when a
-  stomach's request rounds to zero prey items**: `Sample_size` times
+  stomach's sample size rounds to zero**: `Sample_size` times
   `Diet_comp_weights` below 0.5 under a multinomial, `Sample_size` below 0.5 under a
   Dirichlet-multinomial. It had counted every prey bin observed above zero that drew
   0, which almost any draw has, so it fired on ordinary multispecies draws with an
   estimated suitability and blamed a rounding that had not happened: 98-108 of
   BS2017MS's 2,025 diet rows on each of 10 draws at weight 1, where every stomach
-  places 20 items. It now counts every row of each stomach whose request rounds to
-  zero, and no others (2,025 rows at weight 1e-4, which it had reported as 184). The
-  message text is unchanged and no simulated value moves: 60 fixed-seed BS2017MS
-  draws, under both families, are identical to the previous version.
+  places 20 items. It now counts every row of each stomach whose sample size
+  rounds to zero, and no others (2,025 rows at weight 1e-4, which it had
+  reported as 184). The message text is unchanged and no simulated value moves: 60
+  fixed-seed BS2017MS draws, under both families, are identical to the previous
+  version.
 
 # Rceattle 5.69.0
 
@@ -269,7 +299,8 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   consumption through `Cindex`, into z-scores. `TRUE` standardizes every numeric column
   except `Year` and random-effect grouping columns, which are level labels; `FALSE`
   none. Naming a column that is missing, non-numeric, `Year` or a grouping column is an
-  error before any peel is fitted. A column with fewer than two distinct retained values
+  error before any peel is fitted, so `rescale = "TRUE"`, a string earlier versions read
+  as `TRUE`, is now an error. A column with fewer than two distinct retained values
   stays in its own units in that peel, with a warning. Adapted from the DSEM branch
   (9d6239ef).
 
@@ -312,37 +343,37 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
 
 * **Under multispecies predation (`msmMode > 0`), NaN available food, or a NaN prey
   term in empirical suitability (`suitMode = 0`), now reaches M2 instead of silently
-  dropping that predator or prey age.** TMB evaluates these four tests once, when it
-  records the model, so an age dropped on NaN was missing from every later evaluation
-  of the objective, while the reported quantities still included it. Zero and negative
-  values are handled as before. BS2017MS (`msmMode = 1`, `niter = 3`) recorded with
+  dropping that predator or prey age.** Only a model built where these values are NaN,
+  for example from `inits`, a later phase or a refit, is affected; any other model is
+  unchanged, bit for bit. TMB evaluates these four tests once, when it builds the model,
+  so an age dropped on NaN was missing from every later evaluation of the objective,
+  while the reported quantities still included it. Zero and negative values are handled
+  as before. BS2017MS (`msmMode = 1`, `niter = 3`) built with
   pollock `init_dev` at -720, inside its lower bound of -1000, lost 25 predator ages: its
   objective was 7,372,253 there rather than NaN, and 1,564,196.9 rather than 1,784,463.7
   back at the default start. A fit started there reported an objective of 13,464.0 while
   its own quantities gave 88,409.3; it now stops with nlminb's "NA/NaN gradient
-  evaluation" error. Only a model recorded where these values are NaN, for example from
-  `inits`, a later phase or a refit, is affected; any other model is unchanged, bit for
-  bit.
+  evaluation" error.
 
 # Rceattle 5.67.10
 
 ## Performance
 
-* **Multispecies models build faster.** The predation calculation now makes 5 array
-  calls per predator-prey pair and year rather than 14, by keeping its sums in local
-  variables and reading prey numbers and weights once per prey. Each such call allocates
-  memory when TMB records the model and when it reports quantities, though not when it
-  evaluates the objective. So building a multispecies model, which every `fit_mod()` call
-  repeats (including each refit inside `retrospective()`, `jitter()`, `profile()` and
-  `run_mse()`), takes about a third less time (29-37%), and reporting its quantities
-  about half as long. With `msmMode = 1`, BS2017MS builds in 1.0 s rather than 1.65 s
-  and GOA2018SS in 1.9 s rather than 2.6 s. Long fits gain least, because evaluating the
-  objective and gradient takes as long as before: with `getsd = FALSE`, a BS2017MS fit
-  (`niter = 5`) takes 4.3 s rather than 5.2 s, and a GOA2018SS fit 25.8 s rather than
-  26.7 s. No fit moves: the objective and gradient are identical, bit for bit, to the
-  previous version at every point of the optimizer paths checked, as is every reported
-  quantity at the parameter values checked, and the Pacific hake MSE's seven reference
-  fits reproduce its objectives to every printed digit.
+* **Multispecies models build in 29-37% less time, and no fit moves.** The predation
+  calculation now makes 5 array calls per predator-prey pair and year rather than 14,
+  by keeping its sums in local variables and reading prey numbers and weights once per
+  prey. Each such call allocates memory when TMB builds the model and when it reports
+  quantities, though not when it evaluates the objective. So building a multispecies
+  model, which every `fit_mod()` call repeats (including each refit inside
+  `retrospective()`, `jitter()`, `profile()` and `run_mse()`), is faster, and reporting
+  its quantities takes about half as long. With `msmMode = 1`, BS2017MS builds in
+  1.0 s rather than 1.65 s and GOA2018SS in 1.9 s rather than 2.6 s. Long fits gain
+  least, because evaluating the objective and gradient takes as long as before: with
+  `getsd = FALSE`, a BS2017MS fit (`niter = 5`) takes 4.3 s rather than 5.2 s, and a
+  GOA2018SS fit 25.8 s rather than 26.7 s. The objective and gradient are identical,
+  bit for bit, to the previous version at every point of the optimizer paths checked,
+  as is every reported quantity at the parameter values checked, and the Pacific hake
+  MSE's seven reference fits reproduce its objectives to every printed digit.
 
 # Rceattle 5.67.9
 
@@ -353,18 +384,18 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   objective TMB evaluated, but TMBhelper keeps every Newton step, even one that
   raises the objective, and reported `fit$opt`, `fit$sdrep` and the convergence
   report's gradient at the last one. They are now evaluated at the estimates. With
-  TMBhelper the estimates do not move: estimates and SSB are unchanged bit for bit
-  on 44 NOAA model-comparison fits and on `BS2017SS`, and standard errors moved by
-  at most 6.1e-8 relative across them (1.5e-10 on `BS2017SS`). One comparison fit, stopped at `rel.tol = 1e-4`, had
+  TMBhelper, estimates and SSB are unchanged bit for bit on 44 NOAA model-comparison
+  fits and on `BS2017SS`, and standard errors moved by at most 6.1e-8 relative across
+  them (1.5e-10 on `BS2017SS`). One comparison fit, stopped at `rel.tol = 1e-4`, had
   reported a gradient of 9.2e-5 for estimates whose gradient is 0.131;
   `max_gradient` now warns there. In 19 others the last step was no lower, within
   1.4e-12, and the gradient at the estimates, up to 2.7e-6, had been reported as
-  ~1e-11 (`BS2017SS`: 2.3e-8, reported as 2.0e-11). Convergence warning (8) no longer reads a step that
-  raised the objective as a discontinuous likelihood. Without TMBhelper, the
-  objective is now evaluated at every Newton step, as TMBhelper does, so the
-  estimates are the lowest step rather than the lower of `nlminb`'s point and the
-  last step. On `BS2017SS` that moves parameters by up to 1.35e-10 and SSB by
-  3.3e-11 relative, to exactly the TMBhelper path's estimates.
+  ~1e-11 (`BS2017SS`: 2.3e-8, reported as 2.0e-11). Convergence warning (8) no
+  longer reads a step that raised the objective as a discontinuous likelihood.
+  Without TMBhelper, the objective is now evaluated at every Newton step, as
+  TMBhelper does, so the estimates are the lowest step rather than the lower of
+  `nlminb`'s point and the last step. On `BS2017SS` that moves parameters by up to
+  1.35e-10 and SSB by 3.3e-11 relative, to exactly the TMBhelper path's estimates.
 
 # Rceattle 5.67.8
 
@@ -380,7 +411,7 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   projection years become operating-model hindcast years, where the deviations
   apply. None of the repos registered in `inst/dev/SIBLING-REPOS.md` calls
   `sample_rec()`. The unregistered `Climate_MSE_projections` calls it four times
-  with the defaults, and those calls now warn.
+  with the defaults; those calls warn where the fit kept `proj_mean_rec = TRUE`.
 
 ## Documentation
 

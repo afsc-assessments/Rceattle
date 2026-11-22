@@ -835,8 +835,8 @@ plot_biomass(mod_avg)
 ```
 
 With `uncertainty = TRUE`, each fit's parameters are drawn from its asymptotic
-covariance, so every fit needs an sdreport and an `obj` that frees the hindcast
-parameters. Under any harvest control rule but `"NoFishing"`, an
-`estimateMode = "Estimate"` fit's `obj` frees only the rule's F unless it was
-fitted with `fit_control(projection_uncertainty = TRUE)`, so it is refused;
-refit it with `estimateMode = "Hindcast"`.
+covariance. Under any harvest control rule but `"NoFishing"`, an
+`estimateMode = "Estimate"` fit is refused unless it used
+`fit_control(projection_uncertainty = TRUE)`; `?model_average` gives the refits.
+A `"Hindcast"` refit projects with no fishing, so its averaged projection is of
+an unfished stock.

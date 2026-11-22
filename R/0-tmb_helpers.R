@@ -61,6 +61,8 @@
       ctl[["iter.max"]] <- 0
       at_best <- fit(best_fixed(), -Inf, Inf, steps = 0, sd = getsd, ctl = ctl,
                      loops = 1, elapsed = opt[["time_for_run"]])
+      # Report the optimizer's iterations, timing, start values and bounds, not the
+      # re-evaluation's.
       keep <- c("iterations", "evaluations", "time_for_MLE")
       at_best[keep] <- opt[keep]
       cols <- c("starting_value", "Lower", "Upper")

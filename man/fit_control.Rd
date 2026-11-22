@@ -72,8 +72,9 @@ nothing is flagged). Default \code{1}.}
 a lower final gradient than \code{1}. Default \code{5}.}
 
 \item{newtonsteps}{Integer. Extra unconstrained Newton steps after
-optimization, an alternative to \code{loopnum}; a singular Hessian ends them,
-with a warning. Default \code{0}.}
+optimization, an alternative to \code{loopnum}; a singular Hessian (usually a
+parameter the data do not inform) ends them with a warning, and with
+TMBhelper installed the fit is redone without Newton steps. Default \code{0}.}
 
 \item{phase}{\code{TRUE}/\code{FALSE}, or a list of parameter names with their phases.
 Default \code{FALSE}.}

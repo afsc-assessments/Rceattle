@@ -112,7 +112,8 @@ mse1 <- run_mse(
   `set.seed()` needed beforehand.
 * `regenerate_seed` (defaults to `seed`) currently has no effect. The optional
   `regenerate_past = TRUE` step refits the EM to the OM's *expected* historical
-  index and composition data, with no observation error, so it draws nothing.
+  index, composition and CAAL data, with no observation error, so it draws
+  nothing.
 
 Reproducibility holds *within* a package version, not across one:
 
