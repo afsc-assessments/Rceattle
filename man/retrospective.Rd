@@ -152,9 +152,8 @@ retained years' mean there and in any year it is missing. List a column in
 terminal year, such as a climate projection, and the peels keep them; \code{TRUE}
 keeps every column, as peels did before 5.69.0 under \code{rescale = FALSE}.
 Three kinds of column keep their post-peel values regardless, observations
-included, and
-\code{retrospective()} warns once naming any not listed there: a
-fixed-effect linkage covariate and a random-effect grouping column such as
+included, and \code{retrospective()} warns once naming any not listed there:
+a fixed-effect linkage covariate and a random-effect grouping column such as
 \code{(1 | regime)}, because an NA in either stops the linkage design being built,
 and a column with no value in the peel's retained years, which the model could not
 fill. Mohn's rho is then conditional on those values being known.
