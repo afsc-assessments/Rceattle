@@ -16,6 +16,57 @@ at it, and the entries below cite each other by version throughout.
 review. It landed as 5.66.9, so a version check written for that fix needs 5.66.9.
 -->
 
+# Rceattle 5.70.0
+
+## Breaking changes
+
+* **`model_average(uncertainty = TRUE)` refuses a fit whose `obj` frees no
+  hindcast parameter.** Under any HCR but `"NoFishing"`, `estimateMode =
+  "Estimate"` without `fit_control(projection_uncertainty = TRUE)` leaves
+  `fit$obj` freeing only `log_Ftarget` / `log_Flimit`, so under a rule that
+  estimates F every draw held the hindcast at its estimates. On `BS2017SS` under
+  `"NPFMC"`, with or without `random_rec`, the averaged hindcast log-SSB standard
+  error was 0 in all 117 species-years, against 0.021 to 0.082 in the
+  fixed-effects model fitted without an HCR; an `estimateMode = "Projection"`
+  fit, which frees the same parameters, gave the same zeros. It now stops,
+  naming the models: refit with `estimateMode = "Hindcast"`, or, for a
+  fixed-effects fit under a rule that estimates F, with `estimateMode =
+  "Estimate"` and `fit_control(projection_uncertainty = TRUE)`, whose standard
+  errors match the hindcast fit's (averaged with itself, 0.91 to 1.26 times
+  them, median 1.01, over 400 draws with `set.seed(1)`). `uncertainty = FALSE`
+  is unaffected. No sibling script is refused: every
+  `model_average(uncertainty = TRUE)` call in them averages fits made without an
+  HCR.
+
+## Bug fixes
+
+* **`model_average(uncertainty = TRUE)` names the cause where it used to stop on
+  an error from `MASS::mvrnorm()`.** An `"Estimate"` fit under `"ConstantF"`,
+  whose `obj` frees only `log_Flimit` but whose `sdrep` is the hindcast's,
+  stopped with "incompatible arguments" and is now refused as above. With
+  `projection_uncertainty = TRUE` such a fit passes that check and still stops
+  with "'Sigma' is not positive definite": `log_Flimit` is freed but never
+  optimized, so its sdreport is not positive definite. `estimateMode =
+  "Projection"` and `"DebugOptimize"` fits on `fit_mod()`'s own map, which free
+  only F and/or `dummy`, are refused as above even with `projection_uncertainty =
+  TRUE`; they stopped with "infinite or missing values in 'x'" (`"Projection"`
+  with `projection_uncertainty = TRUE`) or "'data' must be of a vector type, was
+  'NULL'" (`"Projection"` under `"ConstantF"` or `"NoFishing"`, and
+  `"DebugOptimize"`). So is a `model_average()` result passed back in, which
+  stopped with "incompatible arguments". A fit with no sdreport (`getsd =
+  FALSE`, or an `estimateMode = "DebugBuild"` refit such as `sample_rec()`
+  returns for a `"Hindcast"` fit) stopped with "'data' must be of a vector type,
+  was 'NULL'"; it is now told to refit with `estimateMode = "Estimate"` or
+  `"Hindcast"` and `fit_control(getsd = TRUE)`. A list mixing a fixed-effects
+  and a random-effects fit named the fixed-effects fit as lacking a joint
+  precision matrix; it now stops with the existing message that the two cannot
+  be averaged together.
+
+## Documentation
+
+* `?model_average` and `vignette("model-diagnostics")` say which fits
+  `uncertainty = TRUE` refuses and how to refit them.
+
 # Rceattle 5.69.4
 
 ## Documentation
@@ -313,7 +364,8 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   its own standard errors. On `BS2017SS` the averaged hindcast log-SSB standard
   error was 1,430 to 4,300 times the fit's own without random effects, and 185
   to 401 times for pollock with `random_rec = TRUE` (cod and arrowtooth were
-  unaffected); it is now 0.95 to 1.37 times (median 1.02). Sibling scripts that
+  unaffected); it is now 0.97 to 1.41 times (median 1.02), all with
+  `nboot = 1000` and `set.seed(1)`. Sibling scripts that
   build such averages: `Rceattle-models` GOA CEATTLE `GOA_18`, `GOA_20` and
   `GOA_21`, and `GOAceattle`'s `R/Figures.R`, which also plots
   `asymptotic_samples` directly.
