@@ -1302,3 +1302,28 @@ testthat::test_that("a peel's hindcast is the fit of its own years", {
   nyrs <- d$endyr - d$styr + 1
   testthat::expect_true(all(q_dev[(nyrs_peel + 1):nyrs] == q_dev[nyrs_peel]))
 })
+
+# Under a harvest control rule that estimates F, a fit's sdrep is the
+# projection's; a peel's band must still come from its hindcast.
+testthat::test_that("a peel keeps its hindcast band under an HCR that estimates F", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("TMB")
+
+  data(BS2017SS, envir = environment())
+  d <- BS2017SS
+  d$projyr <- 2020
+  d$fleet_control$Proj_F_proportion <- rep(1, 7)
+  fit <- suppressMessages(suppressWarnings(fit_mod(
+    data_list = d, inits = NULL, file = NULL, estimateMode = 0,
+    random_rec = FALSE, msmMode = 0, HCR = build_hcr(HCR = 5),
+    fit_control = fit_control(phase = FALSE, getsd = TRUE, verbose = 0))))
+  r <- suppressMessages(suppressWarnings(
+    retrospective(fit, peels = 1, cores = 1, getsd = TRUE)))
+  peel <- r$Rceattle_list[[paste0("Year_", d$endyr - 1)]]
+  testthat::expect_false(is.null(peel))
+  testthat::expect_null(attr(peel, "sd_report_error"))
+  # The hindcast's parameters, not only the rule's F.
+  testthat::expect_gt(length(peel$sdrep$par.fixed), 10L)
+  ssb_sd <- peel$sdrep$sd[names(peel$sdrep$value) == "ssb"]
+  testthat::expect_true(all(is.finite(ssb_sd)) && all(ssb_sd[1:5] > 0))
+})

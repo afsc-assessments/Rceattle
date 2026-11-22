@@ -441,6 +441,10 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
     hind_defaults <- suppressWarnings(suppressMessages(build_params(hind_list)))
     inits <- .peel_params(object$estimated_params, hind_defaults, nyrs_peel)
     map <- .peel_map(object$map, hind_defaults, nyrs_peel)
+    # Every estimated M1 cell starts at the unpeeled estimate: a deviation by age is
+    # one level over all years, and TMB starts a shared level at its cells' mean.
+    m1_free <- !is.na(map$mapList$log_M1_dev)
+    inits$log_M1_dev[m1_free] <- object$estimated_params$log_M1_dev[m1_free]
 
     newmod <- suppressWarnings(
       suppressMessages(
@@ -450,7 +454,9 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
           data_list        = hind_list,
           inits            = inits,
           map              = map,
-          estimateMode     = ifelse(data_list$estimateMode == 2, 0, data_list$estimateMode), # Projection-only (2) is refitted at mode 0
+          # Hindcast only, so its obj and sdrep are the hindcast's under any HCR; the
+          # forecast refit below fits the HCR.
+          estimateMode     = ifelse(data_list$estimateMode %in% 0:2, 1, data_list$estimateMode),
           phase            = phase,
           getsd            = getsd,
           srr_mse_switchyr = min(data_list$srr_mse_switchyr, endyr_peel),
@@ -462,7 +468,12 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
     # Judge the hindcast here: the forecast refit below replaces `newmod` and frees only F,
     # so its gradient cannot show whether the hindcast that Mohn's rho reads converged.
     if (!.refit_converged(newmod)) return(NULL)
-    hind_sdrep <- newmod$sdrep
+    # The hindcast's own covariance, joint with its random effects, for the bands.
+    hind_sdrep <- if (isTRUE(getsd) && length(newmod$obj$env$random)) {
+      TMB::sdreport(newmod$obj, getJointPrecision = TRUE)
+    } else {
+      newmod$sdrep
+    }
 
     # Forecast ----
     # Back to the full model: the peel's estimates in its own years, and in the
@@ -584,15 +595,16 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
         # A catch of 0 is read as missing; F, and so the removals, are unchanged.
         obj$env$data$catch_obs[peeled, 1] <- 0
         obj$retape()   # rebuild the model with the changed catch
-        # The hindcast's own Hessian, not this full-length model's, which also
-        # carries the removed years' penalties. The correction needs the joint
-        # precision under random effects. Quiet: an indefinite Hessian warns "NaNs
-        # produced", and the reason is recorded below.
+        # Every year's band from the hindcast's own covariance (its Hessian, and its
+        # joint precision under random effects), not this full-length model's,
+        # which also carries the removed years' penalties. Quiet: an indefinite
+        # Hessian warns "NaNs produced", and the reason is recorded below.
         sdr <- suppressWarnings(TMB::sdreport(
-          obj, hessian.fixed = solve(hind_sdrep$cov.fixed),
-          getJointPrecision = length(obj$env$random) > 0))
+          obj, hessian.fixed = solve(hind_sdrep$cov.fixed)))
+        sdr$jointPrecision <- hind_sdrep$jointPrecision
         tryCatch({
-          if (isTRUE(sdr$pdHess) && length(fitted_rows)) {
+          # Run for peeled catch, or under random effects to apply the joint precision.
+          if (isTRUE(sdr$pdHess) && (length(fitted_rows) || length(obj$env$random))) {
             sdr <- .rce_catch_conditioned_sd(obj, sdr, fitted_rows, data_list$styr)
           }
           list(sdrep = sdr)
@@ -1238,8 +1250,11 @@ print.Rceattle_jitter <- function(x, tol = 0.01, ...) {
   # qr.solve() applies j_c[F]^-1 from the formula above (least squares when a fleet
   # has several catch rows in a year).
   keep <- setdiff(seq_along(pa), f_col)
-  j_cc <- j_q[, keep, drop = FALSE] - j_q[, f_col, drop = FALSE] %*%
-    qr.solve(j_c[, f_col, drop = FALSE], j_c[, keep, drop = FALSE])
+  j_cc <- j_q[, keep, drop = FALSE]
+  if (n_f > 0) {
+    j_cc <- j_cc - j_q[, f_col, drop = FALSE] %*%
+      qr.solve(j_c[, f_col, drop = FALSE], j_c[, keep, drop = FALSE])
+  }
   # Covariance of theta: fixed and random effects jointly, else the fixed.
   cov_theta <- if (length(obj$env$random)) solve(sdrep$jointPrecision) else sdrep$cov.fixed
   cov_q <- j_cc %*% cov_theta %*% t(j_cc)   # the delta method
