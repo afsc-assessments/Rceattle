@@ -1365,8 +1365,10 @@ cannot be combined with `observe = `.
 One model may mix the two treatments. Penalized deviations are ordinary fixed
 effects, so `vcov()` includes them; integrated ones are reported in
 `fit$sdrep`. Under any HCR but `NoFishing` or `ConstantF`, `vcov()` and
-`fit$sdrep` describe the projection fit, which estimates only `log_Ftarget` /
-`log_Flimit`; read them from a fit run with `estimateMode = "Hindcast"`.
+`fit$sdrep` describe the projection fit, whose covariance covers only
+`log_Ftarget` / `log_Flimit` unless the fit used
+`fit_control(projection_uncertainty = TRUE)`; otherwise read them from a fit run
+with `estimateMode = "Hindcast"`.
 
 An `ar1(1 | Year)` term can additionally be a **state-space covariate** (the
 Rogers et al. 2024 QAR1 catchability model): with `observe = "<env column>",

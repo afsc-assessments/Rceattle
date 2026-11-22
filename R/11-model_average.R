@@ -12,12 +12,13 @@
 #' @details
 #' With `uncertainty = TRUE` each fit's parameters are drawn from its asymptotic
 #' covariance, so every fit needs an sdreport (`fit_control(getsd = TRUE)`) and
-#' a TMB object that frees the hindcast parameters. Under any harvest control
-#' rule but `"NoFishing"`, `estimateMode = "Estimate"` without
-#' `projection_uncertainty` leaves `fit$obj` freeing only the rule's F, and
-#' `estimateMode = "Projection"` on `fit_mod()`'s own map frees no hindcast
-#' parameter, so such fits are refused: refit with `estimateMode = "Hindcast"`,
-#' or, for a fixed-effects fit under a rule that estimates F, with
+#' a `fit$obj` in which the hindcast parameters are free. An
+#' `estimateMode = "Estimate"` fit under any harvest control rule but
+#' `"NoFishing"` leaves only the rule's F free in `fit$obj` unless it used
+#' `projection_uncertainty`, and a `"Projection"` fit with the default map holds
+#' every hindcast parameter fixed, so such fits are refused. Refit with
+#' `estimateMode = "Hindcast"`, which projects with no fishing, or, for a
+#' fixed-effects fit under any rule but `"ConstantF"`, with
 #' `estimateMode = "Estimate"` and `fit_control(projection_uncertainty = TRUE)`.
 #' @examples
 #' \dontrun{
@@ -116,16 +117,19 @@ model_average <- function(object = NULL, weights = NULL, uncertainty = FALSE, nb
   if(uncertainty){
 
     # Assuming asymptotic multivariate normal
-    # - `obj` must free the hindcast. Under a fishing HCR build_hcr_map() frees only F
-    #   unless projection_uncertainty; fit_mod()'s debug map (modes 2, 4) frees only `dummy`.
+    # - `obj` must leave the hindcast free: under a fishing HCR build_hcr_map() leaves
+    #   only F free unless projection_uncertainty, and "Projection" (2) and
+    #   "DebugOptimize" (4) leave only F and/or `dummy`.
     hcr_only <- sapply(object, function(x) {
       all(names(x[["obj"]][["par"]]) %in% c("log_Ftarget", "log_Flimit", "dummy"))
     })
     if (any(hcr_only)) {
-      stop("Model(s) ", paste(which(hcr_only), collapse = ", "), " free no hindcast ",
-           "parameter in `obj`, so their draws would leave every hindcast quantity ",
-           "at its estimate. Refit with estimateMode = \"Hindcast\", or, for a ",
-           "fixed-effects fit under a rule that estimates F, with ",
+      stop("Model(s) ", paste(which(hcr_only), collapse = ", "), " hold every ",
+           "hindcast parameter fixed in `fit$obj`, as an \"Estimate\" fit under a ",
+           "fishing harvest control rule does without projection_uncertainty, so ",
+           "their draws would leave every hindcast quantity at its estimate. Refit ",
+           "with estimateMode = \"Hindcast\", which projects with no fishing, or, for ",
+           "a fixed-effects fit under any rule but \"ConstantF\", with ",
            "estimateMode = \"Estimate\" and fit_control(projection_uncertainty = TRUE).",
            call. = FALSE)
     }
@@ -139,14 +143,14 @@ model_average <- function(object = NULL, weights = NULL, uncertainty = FALSE, nb
     # - Must have estimated joint precision matrix
     # TRUE where the model's sdrep carries a random block.
     length_ran <- sapply(object, function(x) !is.null(x$sdrep$par.random))
-    joint_est <- sapply(object, function(x) is.null(x$sdrep$jointPrecision))
+    no_joint <- sapply(object, function(x) is.null(x$sdrep$jointPrecision))
     if(sum(length_ran) > 0){
       if(sum(length_ran) != length(object)){
         stop("Does not currently support purely fixed and random effects models together")
       }
 
-      if(sum(joint_est) > 0){
-        stop(paste("Model(s):", which(joint_est > 0)," do not have joint precision matrices: re-estimate with getJointPrecision = TRUE"))
+      if(sum(no_joint) > 0){
+        stop(paste("Model(s):", which(no_joint > 0)," do not have joint precision matrices: re-estimate with getJointPrecision = TRUE"))
       }
     }
 

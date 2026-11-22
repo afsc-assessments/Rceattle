@@ -65,7 +65,7 @@ testthat::test_that("model_average() of a fit with itself reproduces its standar
 
 
 # Under any HCR but NoFishing, without projection_uncertainty, fit$obj is the
-# projection's and frees only the rule's F: on BS2017SS under NPFMC every
+# projection's and leaves only the rule's F free: on BS2017SS under NPFMC every
 # averaged hindcast log-SSB SE was 0. Under ConstantF, whose sdrep is the
 # hindcast's, model_average() stopped on "incompatible arguments"; under
 # estimateMode = "Projection" with projection_uncertainty, on "infinite or
@@ -90,10 +90,10 @@ testthat::test_that("model_average() refuses a fit it cannot draw the hindcast f
   inits  <- hind$estimated_params
   npfmc  <- fit(build_hcr(HCR = "NPFMC"), inits)
   constf <- fit(build_hcr(HCR = "ConstantF", Ftarget = 0.1), inits)
-  # Under "Projection", projection_uncertainty frees `dummy` beside F, not the hindcast.
+  # "Projection" with projection_uncertainty leaves `dummy` and F free, not the hindcast.
   proj   <- fit(build_hcr(HCR = "NPFMC"), inits, estimateMode = 2,
                 projection_uncertainty = TRUE)
-  refused <- "free no hindcast parameter"
+  refused <- "hold every hindcast parameter fixed"
   testthat::expect_error(avg(npfmc, npfmc), refused)
   testthat::expect_error(avg(constf, constf), refused)
   testthat::expect_error(avg(proj, proj), refused)
