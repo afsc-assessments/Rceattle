@@ -34,6 +34,11 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   "no value through" that year, which was false for a column with a value before
   `styr`.
 
+* **`retrospective(rescale =)` warns when given a number.** It still reads one as
+  `TRUE` or `FALSE`, as every earlier version did. Since 5.69.0 `rescale` also takes
+  column names, so `rescale = 2` looks like "column 2" but standardizes every
+  numeric column.
+
 # Rceattle 5.69.1
 
 ## Bug fixes

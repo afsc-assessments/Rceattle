@@ -104,11 +104,14 @@ testthat::test_that("a peel keeps fixed-effect, grouping and no-retained-value c
     Rceattle::retrospective(fit, peels = 3, rescale = "regime", cores = 1),
     "cannot be standardized: regime", fixed = TRUE)
 
+  # A number is still read as TRUE/FALSE, with a warning.
   ws <- character(0)
   r <- withCallingHandlers(suppressMessages(Rceattle::retrospective(
-    fit, peels = 3, rescale = TRUE, cores = 1, getsd = FALSE)),
+    fit, peels = 3, rescale = 1, cores = 1, getsd = FALSE)),
     warning = function(w) { ws <<- c(ws, conditionMessage(w)); invokeRestart("muffleWarning") })
   testthat::expect_length(r$Rceattle_list, 4L)
+  testthat::expect_true(any(grepl("`rescale = 1` is read as TRUE", ws,
+                                  fixed = TRUE)))
   testthat::expect_true(any(grepl("Covariate(s) temp enter", ws, fixed = TRUE)))
   testthat::expect_true(any(grepl("grouping column(s) regime", ws, fixed = TRUE)))
   testthat::expect_true(any(grepl("column(s) late have no value in years 1-17",

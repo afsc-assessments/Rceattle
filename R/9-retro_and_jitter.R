@@ -275,6 +275,12 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
     .rescale_cols <- intersect(.env_all, rescale)
   } else if ((is.logical(rescale) || is.numeric(rescale)) && length(rescale) == 1L &&
              !is.na(rescale)) {
+    # rescale also takes names, so a number reads like a column position.
+    if (is.numeric(rescale)) {
+      warning("`rescale = ", rescale, "` is read as ", as.logical(rescale),
+              ", not as a column position. Pass TRUE, FALSE, or the names of ",
+              "the env_data columns to standardize.", call. = FALSE)
+    }
     .rescale_cols <- if (rescale) .can_scale else character(0)
   } else {
     stop("`rescale` must be TRUE, FALSE, or a character vector of env_data ",
