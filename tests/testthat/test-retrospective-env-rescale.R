@@ -8,7 +8,7 @@
 # listed in projected_env_data_known (a climate projection) is kept whole. A
 # logical column, which the model reads as 0/1, was not withheld in 5.69.0. A
 # numeric fixed-effect covariate takes the retained years' mean unless it is
-# observed, a grouping variable, read as a category too, or known ahead; a
+# also observed, a grouping column, read as a category too, or known ahead; a
 # category is held instead.
 
 testthat::test_that("a peel keeps an observed AR1 latent and rescales only named columns", {

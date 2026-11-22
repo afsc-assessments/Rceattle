@@ -110,9 +110,9 @@ which may not hold valid standard errors; \code{attr(peel, "sd_report_error")}
 gives the reason. \code{print()} counts the peels carrying either attribute;
 \code{retrospective()} warns about neither.
 
-\strong{Environmental data.} A peel forecasts with what was known at its terminal
-year, so after that year each \code{env_data} column is treated by how the model
-reads it:
+\strong{Environmental data.} A peel's forecast should read only what was known at
+its terminal year, so after that year a peel treats each \code{env_data} column by
+how the model reads it:
 \itemize{
 \item an observed covariate (\code{linkage_spec(observe = )}) loses its observations;
 \item a column the model reads directly (a \code{Cindex} temperature, an environmental
@@ -122,18 +122,22 @@ the retained years' mean, with a warning; a term computed over the whole
 column, such as \code{scale()}, then changes in the retained years too;
 \item a fixed-effect category, such as \code{cut(Year, ...)} or \code{factor(regime)}, holds
 its terminal-year value (\code{\link[=linkage_spec]{linkage_spec()}}), though one cut from the whole
-column, such as \code{cut(temp, 3)}, still takes its breaks from post-peel values;
+column, such as \code{cut(temp, 3)}, still sets its breaks from the whole column,
+post-peel years included;
 \item a random-effect grouping column, a column with no retained value, and a
-covariate also observed, used as a grouping column or read as a category keep
-their post-peel values, with a warning, and Mohn's rho is then conditional on
-them;
+fixed-effect covariate that is also observed, also read as a category (the
+category term is still held), or logical keep their post-peel values, with a
+warning; Mohn's rho is then conditional on them;
 \item a column listed in \code{projected_env_data_known} keeps its values with no
 warning, though a category is still held.
 }
 
-\code{rescale} standardizes a column on the retained years and applies that centre and scale to the whole column
-(a column with fewer than two distinct retained values stays in its units,
-with a warning). Name the columns when \code{env_data} also holds an input that
+Refitting a returned peel, with \code{\link[=fit_mod]{fit_mod()}} or a diagnostic on it, no longer
+holds its categories, while its numeric covariates stay mean-filled.
+
+\code{rescale} standardizes a column on the retained years and applies that centre
+and scale to the whole column (a column with fewer than two distinct retained
+values stays in its units, with a warning). Name the columns when \code{env_data} also holds an input that
 is not a covariate, such as a \code{Cindex} temperature in degrees C, which \code{TRUE}
 would turn into z-scores. The unpeeled model is not rescaled, so standardize
 those columns the same way before fitting it.

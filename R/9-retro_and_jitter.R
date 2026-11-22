@@ -62,9 +62,9 @@
 #' gives the reason. `print()` counts the peels carrying either attribute;
 #' `retrospective()` warns about neither.
 #'
-#' **Environmental data.** A peel forecasts with what was known at its terminal
-#' year, so after that year each `env_data` column is treated by how the model
-#' reads it:
+#' **Environmental data.** A peel's forecast should read only what was known at
+#' its terminal year, so after that year a peel treats each `env_data` column by
+#' how the model reads it:
 #'
 #' * an observed covariate (`linkage_spec(observe = )`) loses its observations;
 #' * a column the model reads directly (a `Cindex` temperature, an environmental
@@ -74,17 +74,21 @@
 #'   column, such as `scale()`, then changes in the retained years too;
 #' * a fixed-effect category, such as `cut(Year, ...)` or `factor(regime)`, holds
 #'   its terminal-year value ([linkage_spec()]), though one cut from the whole
-#'   column, such as `cut(temp, 3)`, still takes its breaks from post-peel values;
+#'   column, such as `cut(temp, 3)`, still sets its breaks from the whole column,
+#'   post-peel years included;
 #' * a random-effect grouping column, a column with no retained value, and a
-#'   covariate also observed, used as a grouping column or read as a category keep
-#'   their post-peel values, with a warning, and Mohn's rho is then conditional on
-#'   them;
+#'   fixed-effect covariate that is also observed, also read as a category (the
+#'   category term is still held), or logical keep their post-peel values, with a
+#'   warning; Mohn's rho is then conditional on them;
 #' * a column listed in `projected_env_data_known` keeps its values with no
 #'   warning, though a category is still held.
 #'
-#' `rescale` standardizes a column on the retained years and applies that centre and scale to the whole column
-#' (a column with fewer than two distinct retained values stays in its units,
-#' with a warning). Name the columns when `env_data` also holds an input that
+#' Refitting a returned peel, with [fit_mod()] or a diagnostic on it, no longer
+#' holds its categories, while its numeric covariates stay mean-filled.
+#'
+#' `rescale` standardizes a column on the retained years and applies that centre
+#' and scale to the whole column (a column with fewer than two distinct retained
+#' values stays in its units, with a warning). Name the columns when `env_data` also holds an input that
 #' is not a covariate, such as a `Cindex` temperature in degrees C, which `TRUE`
 #' would turn into z-scores. The unpeeled model is not rescaled, so standardize
 #' those columns the same way before fitting it.
@@ -189,7 +193,8 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
 
   # env_data columns ----
   # How a peel treats each column, warned about here because a warning in a
-  # .parallel_lapply() worker is discarded; the deepest peel keeps the most.
+  # .parallel_lapply() worker is discarded; judged on the deepest peel, which
+  # retains the fewest years.
   .envd <- object$data_list$env_data
   .env_all <- setdiff(names(.envd), "Year")
   .is_num <- vapply(.env_all, function(v) is.numeric(.envd[[v]]), logical(1))
@@ -224,8 +229,9 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
       stop("`rescale` names column(s) that cannot be standardized: ",
            paste(.bad, collapse = ", "), ". `Year`, a random-effect grouping ",
            "column and a logical or non-numeric column have no units to ",
-           "standardize, and one a linkage reads as a category would change its ",
-           "levels, its cut points or which years fall in each.", call. = FALSE)
+           "standardize, and standardizing a column a linkage reads as a category ",
+           "would change its levels, its cut points or which years fall in each.",
+           call. = FALSE)
     }
     .rescale_cols <- intersect(.env_all, rescale)
   } else if ((is.logical(rescale) || is.numeric(rescale)) && length(rescale) == 1L &&
@@ -271,9 +277,9 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
                       c(.keep_fixed, .keep_group, .known))
   if (.post_any && length(.no_kept)) {
     warning("env_data column(s) ", paste(.no_kept, collapse = ", "), " have no ",
-            "value in years ", styr, "-", endyr - peels, ", so a peel with no value ",
-            "of them keeps their post-peel values: a blanked column would have no ",
-            "retained mean to fill it.", call. = FALSE)
+            "value in years ", styr, "-", endyr - peels, ", so a peel that retains ",
+            "none of them keeps their post-peel values: a blanked column would have ",
+            "no retained mean to fill it.", call. = FALSE)
   }
   .raw <- .rescale_cols[.n_kept[.rescale_cols] < 2L]
   if (length(.raw)) {
@@ -284,7 +290,7 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
   if (.post_any && length(.fill_fixed)) {
     warning("Fixed-effect linkage covariate(s) ", paste(.fill_fixed, collapse = ", "),
             " cannot be NA, so each peel gives their post-peel years the mean of ",
-            "the years it keeps. List a series known ahead, such as a climate ",
+            "its retained years. List a series known ahead, such as a climate ",
             "projection, in `projected_env_data_known`. A 0/1 block column takes ",
             "the mean too: list it there, or refit it as `factor(<column>)`, which ",
             "holds its terminal-year value under new coefficient names.",
@@ -293,7 +299,7 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
   if (.post_any && length(.warn_fixed)) {
     warning("Fixed-effect linkage covariate(s) ", paste(.warn_fixed, collapse = ", "),
             " are also observed, used as a random-effect grouping column, read as a ",
-            "category, or logical, so a peel cannot give them the mean and keeps ",
+            "category, or are logical, so a peel cannot give them the mean and keeps ",
             "their post-peel values. List any known ahead in ",
             "`projected_env_data_known`; otherwise Mohn's rho is conditional on ",
             "those values being known.", call. = FALSE)

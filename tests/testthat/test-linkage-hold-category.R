@@ -71,20 +71,21 @@ testthat::test_that("endyr_peel sets the hold year only inside a peel", {
   d <- make_test_data(nyrs = 20, seed = 1)
   yrs <- d$styr:d$projyr
   d$env_data <- data.frame(Year = yrs)
-  f <- ~ cut(Year, c(-Inf, 18, Inf), dig.lab = 4)
-  nm <- colnames(stats::model.matrix(f, d$env_data))[2]
-  block <- function(endyr_peel, endyr_full) {
+  block <- function(endyr_peel, endyr_full, brk = 18) {
     d$endyr_peel <- endyr_peel
     d$endyr_full <- endyr_full
+    f <- stats::as.formula(sprintf("~ cut(Year, c(-Inf, %d, Inf), dig.lab = 4)", brk))
+    nm <- colnames(stats::model.matrix(f, d$env_data))[2]
     fit <- suppressWarnings(suppressMessages(Rceattle::fit_mod(
       data_list = d, inits = NULL, file = NULL, estimateMode = 3,
       random_rec = FALSE, msmMode = 0,
       M1Fun = Rceattle::build_M1(M1_model = 1, linkages = list(
         M1 = Rceattle::linkage_spec(f, est_phase = 0, init = stats::setNames(list(0.3), nm)))),
       fit_control = Rceattle::fit_control(phase = FALSE, getsd = FALSE, verbose = 0))))
-    fit$data_list$linkage_X[yrs > 18, nm]
+    fit$data_list$linkage_X[yrs > brk, nm]
   }
   testthat::expect_true(all(block(17, d$endyr) == 0))   # a peel ending in 17
   testthat::expect_true(all(block(17, 18) == 1))        # left over; endyr is 20
-  testthat::expect_true(all(block(d$endyr, d$endyr) == 1))  # the unpeeled model
+  # The unpeeled model (endyr_peel = endyr): a break after endyr is not held.
+  testthat::expect_true(all(block(d$endyr, d$endyr, brk = d$endyr + 2) == 1))
 })
