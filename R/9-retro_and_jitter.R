@@ -242,7 +242,10 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
   # .parallel_lapply() worker is discarded; the deepest peel keeps the most.
   .envd <- object$data_list$env_data
   .env_all <- setdiff(names(.envd), "Year")
-  .env_num <- .env_all[vapply(.env_all, function(v) is.numeric(.envd[[v]]), logical(1))]
+  .is_num <- vapply(.env_all, function(v) is.numeric(.envd[[v]]), logical(1))
+  # The model reads a logical column as 0/1, so a peel withholds it too.
+  .env_num <- .env_all[.is_num |
+    vapply(.env_all, function(v) is.logical(.envd[[v]]), logical(1))]
   .keep_fixed <- intersect(.env_all, .rce_linkage_fixed_covariates(object$data_list))
   .groups <- intersect(.env_all, .rce_linkage_fixed_covariates(
     object$data_list, re_groups = TRUE, fixed = FALSE))
@@ -255,8 +258,8 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
     length(unique(x[is.finite(x)]))
   }, integer(1))
 
-  # A grouping column is a level label and has no units to standardize.
-  .can_scale <- setdiff(.env_num, .groups)
+  # A grouping column is a level label and a logical a flag; neither has units.
+  .can_scale <- setdiff(.env_all[.is_num], .groups)
   if (is.character(rescale)) {
     .bad <- setdiff(rescale, names(.envd))
     if (length(.bad)) {

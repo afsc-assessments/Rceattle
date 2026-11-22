@@ -5,7 +5,8 @@
 # Pacific hake model with krill observed as a QAR1 latent on R0. rescale = TRUE
 # also turned a bioenergetics temperature into z-scores, so rescale now names
 # columns. A column with no retained value, blanked, made M1 NaN. A column
-# listed in projected_env_data_known (a climate projection) is kept whole.
+# listed in projected_env_data_known (a climate projection) is kept whole. A
+# logical column, which the model reads as 0/1, was not withheld in 5.69.0.
 
 testthat::test_that("a peel keeps an observed AR1 latent and rescales only named columns", {
   testthat::skip_on_cran()
@@ -16,7 +17,8 @@ testthat::test_that("a peel keeps an observed AR1 latent and rescales only named
   yrs <- d$styr:d$endyr
   set.seed(2)
   d$env_data <- data.frame(Year = yrs, qcov = 3 + 2 * stats::rnorm(length(yrs)),
-                           temp = 5 + stats::rnorm(length(yrs)))
+                           temp = 5 + stats::rnorm(length(yrs)),
+                           warm = stats::rnorm(length(yrs)) > 0)
   qf <- Rceattle::build_catchability(linkages = list(
     q = Rceattle::linkage_spec(~ ar1(1 | Year), by = ~ fleet, fleet = 1L,
                                observe = "qcov", obs_sd = 0.3)))
@@ -31,6 +33,9 @@ testthat::test_that("a peel keeps an observed AR1 latent and rescales only named
   testthat::expect_error(
     Rceattle::retrospective(fit, peels = 2, rescale = NA, cores = 1),
     "must be TRUE, FALSE", fixed = TRUE)
+  testthat::expect_error(
+    Rceattle::retrospective(fit, peels = 2, rescale = "warm", cores = 1),
+    "cannot be standardized: warm", fixed = TRUE)
   testthat::expect_error(
     Rceattle::retrospective(fit, peels = 2, projected_env_data_known = "krill", cores = 1),
     "`projected_env_data_known` names column(s) that are not in `env_data`: krill",
@@ -52,7 +57,7 @@ testthat::test_that("a peel keeps an observed AR1 latent and rescales only named
   }
 
   # Named: the observed covariate is withheld after the peel and standardized on
-  # the retained years; the unnamed column is withheld but keeps its units.
+  # the retained years; the unnamed columns are withheld but not standardized.
   env <- deep_env(suppressWarnings(suppressMessages(Rceattle::retrospective(
     fit, peels = 2, rescale = "qcov", cores = 1, getsd = FALSE))))
   post <- env$Year > d$endyr - 2
@@ -60,6 +65,7 @@ testthat::test_that("a peel keeps an observed AR1 latent and rescales only named
   z_kept(env$qcov, post)
   testthat::expect_true(all(is.na(env$temp[post])))
   testthat::expect_identical(env$temp[!post], d$env_data$temp[!post])
+  testthat::expect_identical(env$warm, replace(d$env_data$warm, post, NA))
 
   # TRUE: every numeric column is standardized. A column known ahead keeps its
   # post-peel values, on the retained years' centre and scale.
@@ -71,6 +77,8 @@ testthat::test_that("a peel keeps an observed AR1 latent and rescales only named
   z_kept(env$temp, post)
   ctr <- mean(d$env_data$temp[!post]); scl <- stats::sd(d$env_data$temp[!post])
   testthat::expect_equal(env$temp, (d$env_data$temp - ctr) / scl, tolerance = 1e-12)
+  # A logical flag is withheld but never standardized.
+  testthat::expect_identical(env$warm, replace(d$env_data$warm, post, NA))
 })
 
 testthat::test_that("a peel keeps fixed-effect, grouping and no-retained-value columns whole", {

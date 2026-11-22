@@ -16,6 +16,19 @@ at it, and the entries below cite each other by version throughout.
 review. It landed as 5.66.9, so a version check written for that fix needs 5.66.9.
 -->
 
+# Rceattle 5.69.3
+
+## Bug fixes
+
+* **A retrospective peel withholds a logical `env_data` column too.** 5.69.0
+  withheld only numeric columns, so a logical column kept its post-peel values in
+  every peel, though the model reads it as 0/1: as an observed covariate
+  (`linkage_spec(observe = )`), or through `env_index` in M1, an environmental
+  catchability or a `Cindex` temperature. On a test model with a warm-year flag
+  driving M1, forecast-year SSB rho moves from 0.9116 to 0.9238 (year 2) and from
+  1.3872 to 1.4171 (year 3), the values the same flag gives stored as 0/1 numbers.
+  `rescale` never standardizes a logical column.
+
 # Rceattle 5.69.1
 
 ## Bug fixes
