@@ -6,7 +6,10 @@
 # also turned a bioenergetics temperature into z-scores, so rescale now names
 # columns. A column with no retained value, blanked, made M1 NaN. A column
 # listed in projected_env_data_known (a climate projection) is kept whole. A
-# logical column, which the model reads as 0/1, was not withheld in 5.69.0.
+# logical column, which the model reads as 0/1, was not withheld in 5.69.0. A
+# numeric fixed-effect covariate takes the retained years' mean unless it is
+# also observed, a grouping column, read as a category too, or known ahead; a
+# category is held instead.
 
 testthat::test_that("a peel keeps an observed AR1 latent and rescales only named columns", {
   testthat::skip_on_cran()
@@ -81,7 +84,7 @@ testthat::test_that("a peel keeps an observed AR1 latent and rescales only named
   testthat::expect_identical(env$warm, replace(d$env_data$warm, post, NA))
 })
 
-testthat::test_that("a peel keeps fixed-effect, grouping and no-retained-value columns whole", {
+testthat::test_that("a peel keeps grouping and no-retained-value columns whole", {
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("TMB")
 
@@ -112,7 +115,8 @@ testthat::test_that("a peel keeps fixed-effect, grouping and no-retained-value c
   testthat::expect_length(r$Rceattle_list, 4L)
   testthat::expect_true(any(grepl("`rescale = 1` is read as TRUE", ws,
                                   fixed = TRUE)))
-  testthat::expect_true(any(grepl("Covariate(s) temp enter", ws, fixed = TRUE)))
+  testthat::expect_true(any(grepl("covariate(s) temp cannot be NA", ws, fixed = TRUE)))
+  testthat::expect_false(any(grepl("covariate(s) temp are also", ws, fixed = TRUE)))
   testthat::expect_true(any(grepl("grouping column(s) regime", ws, fixed = TRUE)))
   testthat::expect_true(any(grepl("column(s) late have no value in years 1-17",
                                   ws, fixed = TRUE)))
@@ -120,11 +124,12 @@ testthat::test_that("a peel keeps fixed-effect, grouping and no-retained-value c
 
   env <- r$Rceattle_list[[paste0("Year_", d$endyr - 3)]]$data_list$env_data
   kept <- env$Year <= d$endyr - 3
-  # The fixed-effect covariate keeps its post-peel values, standardized on the
-  # retained years; the grouping label and the column with no retained value
-  # are untouched.
+  # The fixed-effect covariate takes the retained mean after the peel, 0 once
+  # standardized on the retained years; the grouping label and the column with
+  # no retained value are untouched.
   ctr <- mean(d$env_data$temp[kept]); scl <- stats::sd(d$env_data$temp[kept])
-  testthat::expect_equal(env$temp, (d$env_data$temp - ctr) / scl, tolerance = 1e-12)
+  testthat::expect_equal(env$temp, replace((d$env_data$temp - ctr) / scl, !kept, 0),
+                         tolerance = 1e-12)
   testthat::expect_identical(env$regime, d$env_data$regime)
   testthat::expect_identical(env$late, d$env_data$late)
 
@@ -136,9 +141,90 @@ testthat::test_that("a peel keeps fixed-effect, grouping and no-retained-value c
     warning = function(w) { ws <<- c(ws, conditionMessage(w)); invokeRestart("muffleWarning") })
   testthat::expect_length(r$Rceattle_list, 4L)
   testthat::expect_false(any(grepl(
-    "enter the model as fixed-effect|grouping column|have no value", ws)))
+    "are also observed|cannot be NA|grouping column|have no value", ws)))
   for (peel in r$Rceattle_list) {
     testthat::expect_identical(peel$data_list$env_data, fit$data_list$env_data)
+  }
+})
+
+testthat::test_that("a peel holds a category and gives a numeric covariate the retained mean", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("TMB")
+
+  # `temp` takes the mean. `reg` (level 3 first seen after the two deepest peels)
+  # and `a`, `b` (read only through factor(a > b)) are categories, which
+  # fit_mod() holds, so they keep their values silently. `qcov` is also observed,
+  # where the mean would be a made-up observation, and `w` is read both as a
+  # number and as a category, so both keep their values with a warning.
+  d <- make_test_data(nyrs = 20, seed = 1)
+  d$fleet_control$Catchability[1] <- "Estimated"
+  yrs <- d$styr:d$endyr
+  n <- length(yrs)
+  set.seed(5)
+  d$env_data <- data.frame(Year = yrs, temp = 5 + stats::rnorm(n),
+                           reg = c(rep(1, 8), rep(2, 10), 3, 3),
+                           a = stats::rnorm(n), b = stats::rnorm(n),
+                           w = stats::rnorm(n), qcov = stats::rnorm(n))
+  qf <- Rceattle::build_catchability(linkages = list(
+    q = Rceattle::linkage_spec(
+      ~ temp + factor(reg) + factor(a > b) + w + factor(w > 0) + qcov + ar1(1 | Year),
+      by = ~ fleet, fleet = 1L, observe = "qcov", obs_sd = 0.3)))
+  fit <- suppressWarnings(suppressMessages(Rceattle::fit_mod(
+    data_list = d, inits = NULL, file = NULL, estimateMode = 0,
+    random_rec = FALSE, msmMode = 0, qFun = qf,
+    fit_control = Rceattle::fit_control(phase = FALSE, getsd = FALSE, verbose = 0))))
+  env0 <- fit$data_list$env_data
+  X0 <- fit$data_list$linkage_X
+
+  retro <- function(...) {
+    ws <- character(0)
+    r <- withCallingHandlers(suppressMessages(Rceattle::retrospective(
+      fit, peels = 3, cores = 1, getsd = FALSE, ...)),
+      warning = function(w) { ws <<- c(ws, conditionMessage(w)); invokeRestart("muffleWarning") })
+    testthat::expect_length(r$Rceattle_list, 4L)
+    list(r = r, ws = ws)
+  }
+  out <- retro()
+  testthat::expect_true(any(grepl("covariate(s) temp cannot be NA", out$ws,
+                                  fixed = TRUE)))
+  testthat::expect_true(any(grepl("covariate(s) w, qcov are also observed", out$ws,
+                                  fixed = TRUE)))
+  cats <- grep("^factor\\(", colnames(X0), value = TRUE)
+  for (i in 1:3) {
+    peel <- out$r$Rceattle_list[[paste0("Year_", d$endyr - i)]]
+    env <- peel$data_list$env_data
+    kept <- env$Year <= d$endyr - i
+    testthat::expect_identical(env$temp,
+                               replace(env0$temp, !kept, mean(env0$temp[kept])))
+    for (v in c("reg", "a", "b", "w", "qcov")) {
+      testthat::expect_identical(env[[v]], env0[[v]])
+    }
+    # The design: categories after the terminal year repeat its row; the rest of
+    # the hindcast is the parent's.
+    X <- peel$data_list$linkage_X
+    testthat::expect_identical(colnames(X), colnames(X0))
+    testthat::expect_identical(X[kept, cats], X0[kept, cats])
+    testthat::expect_true(all(t(X[!kept, cats, drop = FALSE]) == X[sum(kept), cats]))
+  }
+  testthat::expect_true(all(out$r$Rceattle_list[["Year_17"]]$data_list$linkage_X[, "factor(reg)3"] == 0))
+  testthat::expect_true(all(X0[yrs > 18, "factor(reg)3"] == 1))
+
+  # rescale leaves a category alone: TRUE skips it, and naming one is refused.
+  testthat::expect_error(
+    Rceattle::retrospective(fit, peels = 3, rescale = "reg", cores = 1),
+    "cannot be standardized: reg", fixed = TRUE)
+  out <- retro(rescale = TRUE)
+  env <- out$r$Rceattle_list[[paste0("Year_", d$endyr - 1)]]$data_list$env_data
+  for (v in c("reg", "a", "b", "w")) {
+    testthat::expect_identical(env[[v]], env0[[v]])
+  }
+  testthat::expect_equal(mean(env$temp[env$Year <= d$endyr - 1]), 0, tolerance = 1e-10)
+
+  # Listed as known ahead, it keeps its post-peel values and is not warned about.
+  out <- retro(projected_env_data_known = "temp")
+  testthat::expect_false(any(grepl("temp", out$ws, fixed = TRUE)))
+  for (peel in out$r$Rceattle_list) {
+    testthat::expect_identical(peel$data_list$env_data$temp, env0$temp)
   }
 })
 

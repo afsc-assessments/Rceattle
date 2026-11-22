@@ -16,6 +16,58 @@ at it, and the entries below cite each other by version throughout.
 review. It landed as 5.66.9, so a version check written for that fix needs 5.66.9.
 -->
 
+# Rceattle 5.70.1
+
+## Behavior changes
+
+* **In a retrospective peel, a categorical fixed-effect linkage term holds its value
+  from the peel's terminal year** (`cut(Year, ...)`, `factor()`, a logical column),
+  as the peel has no data after that year to show a block or regime changed, even
+  when its column is listed in `projected_env_data_known`. The design keeps its
+  columns, so `init`, `bounds` and `priors` keys are unchanged. A fit's own
+  projection, and `run_mse()`, read `env_data` as given. A random-effect grouping
+  column is not held.
+
+  **Whose Mohn's rho moves**: a model whose category changes after a peel's terminal
+  year. On a test model with M1 fixed 50% higher in its last two years
+  (`~ 0 + factor(reg)`), the peels ending before the change forecast at their own
+  M1, and SSB rho moves from -0.0445 to -0.0078 (forecast year 2) and from -0.0785
+  to -0.0055 (year 3, one peel), with the terminal year and year 1 unchanged. No
+  sibling repository has a categorical linkage term.
+
+* **A retrospective peel gives a numeric fixed-effect linkage covariate the mean of
+  its retained years**, after its terminal year, the value `rearrange_data()` gives a
+  blanked column, so a peel's forecast reads only covariate values known at its
+  terminal year. `retrospective()` warns once naming those columns. A series known
+  ahead, such as a climate projection, belongs in `projected_env_data_known`, which
+  keeps its values. A fixed-effect covariate that is also observed, also read as a
+  category (the category term is still held), or logical keeps its values, with a
+  warning. A 0/1 block column
+  takes the mean unless listed in `projected_env_data_known` or refitted as
+  `factor(<column>)`: the GOA circulation study's `post2014` M block, and the GOA
+  Pacific cod bridge's M and selectivity block columns and its per-year selectivity
+  deviation columns, are such columns.
+
+  **Whose Mohn's rho moves**: a model whose forecast reads such a covariate, under
+  any `rescale`. On a test model with a fixed M1 slope on temperature (M1 0.35 to
+  0.64 over the hindcast years) and a warm last three years, SSB rho moves from
+  -0.0240 to 0.0115 (forecast year 2) and from -0.0326 to 0.0301 (year 3, one peel),
+  with the terminal year unchanged. A term computed over the whole column
+  (`scale()`, `poly()`, `splines::ns()`) changes in its retained years too:
+  with `~ 0 + scale(temp)` on that model, terminal SSB rho moves from -0.00104 to
+  -0.00088.
+
+## Bug fixes
+
+* **`retrospective(rescale = TRUE)` leaves out a column a linkage reads as a
+  category**, and naming one in `rescale` is refused. Standardizing a column read
+  as `factor(reg)` renamed its levels, so a peel's `init` names no longer matched
+  and `retrospective()` stopped with "unknown `init` name(s)". It also changed a
+  fit silently: on a test model with M1 `~ cut(temp, c(-Inf, 1, Inf))`, a peel put
+  3 of its years in the block where the full model put 9, and terminal SSB rho
+  under `rescale = TRUE` moves from -0.000118 to -0.00257, its value under
+  `rescale = FALSE`.
+
 # Rceattle 5.70.0
 
 ## Breaking changes

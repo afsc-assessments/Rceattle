@@ -24,8 +24,8 @@ retrospective(
 
 \item{rescale}{which \code{env_data} columns to standardize on each peel's
 retained years: \code{FALSE} (default) none, \code{TRUE} every numeric column except
-\code{Year} and random-effect grouping columns, or a character vector of column
-names.}
+\code{Year}, random-effect grouping columns and columns a linkage reads as a
+category, or a character vector of column names.}
 
 \item{nyrs_forecast}{number of years after each peel's terminal year for
 which Mohn's rho is also calculated (default 3).}
@@ -35,8 +35,7 @@ which Mohn's rho is also calculated (default 3).}
 \verb{_R_CHECK_LIMIT_CORES_}). Set to 1 to force sequential execution.}
 
 \item{getsd}{whether each peel reports standard errors; \code{NULL} (default) does
-so only if \code{object} holds an \code{sdrep}. Mohn's rho reads only point
-estimates, so \code{FALSE} is faster.}
+so only if \code{object} holds an \code{sdrep}.}
 
 \item{phase}{whether each peel is refitted in phases (default \code{TRUE}); a peel
 starts from the unpeeled model's estimates.}
@@ -46,8 +45,8 @@ starts from the unpeeled model's estimates.}
 
 \item{projected_env_data_known}{\code{env_data} columns whose values after each
 peel's terminal year were known then, such as a climate projection, so the
-peels keep them: \code{FALSE} (default) none, \code{TRUE} all (as peels did before
-5.69.0), or a character vector of column names.}
+peels keep them (a categorical linkage term is held regardless): \code{FALSE}
+(default) none, \code{TRUE} all, or a character vector of column names.}
 
 \item{Rceattle}{deprecated name for \code{object}, still accepted so existing
 scripts keep working. Supplying both is an error.}
@@ -96,7 +95,8 @@ left out of the \verb{$mohns} rows with \verb{Forecast year} above 0, and
 reading that peel's forecast years: only \code{plot_timeseries()} and its
 wrappers warn about them.
 
-\strong{Standard errors.} Under \code{getsd = TRUE} each peel is rebuilt at its
+\strong{Standard errors.} Mohn's rho reads only point estimates, so
+\code{getsd = FALSE} is faster. Under \code{getsd = TRUE} each peel is rebuilt at its
 estimates with the hindcast parameters treated as estimated, so no estimate
 moves. A fitted year's band is the peeled hindcast's own, except a depletion
 relative to last-projection-year biomass (\code{HCR = "NoFishing"},
@@ -110,18 +110,34 @@ which may not hold valid standard errors; \code{attr(peel, "sd_report_error")}
 gives the reason. \code{print()} counts the peels carrying either attribute;
 \code{retrospective()} warns about neither.
 
-\strong{Environmental data.} A peel withholds \code{env_data} after its terminal year:
-an observed covariate (\code{linkage_spec(observe = )}) loses those observations,
-and a column the model reads directly (a \code{Cindex} temperature, an
-environmental catchability or M1) takes the retained years' mean there and
-in any year it is missing. A fixed-effect linkage covariate, a random-effect
-grouping column and a column with no retained value keep their post-peel
-values, since the model cannot be built or filled without them, and Mohn's
-rho is then conditional on those values; \code{retrospective()} warns about any
-not listed in \code{projected_env_data_known}. \code{rescale} standardizes a column on
-the retained years and applies that centre and scale to the whole column
-(a column with fewer than two distinct retained values stays in its units,
-with a warning). Name the columns when \code{env_data} also holds an input that
+\strong{Environmental data.} A peel's forecast should read only what was known at
+its terminal year, so after that year a peel treats each \code{env_data} column by
+how the model reads it:
+\itemize{
+\item an observed covariate (\code{linkage_spec(observe = )}) loses its observations;
+\item a column the model reads directly (a \code{Cindex} temperature, an environmental
+catchability or M1) takes the retained years' mean, as in any missing year;
+\item a numeric fixed-effect linkage covariate, a 0/1 block column included, takes
+the retained years' mean, with a warning; a term computed over the whole
+column, such as \code{scale()}, then changes in the retained years too;
+\item a fixed-effect category, such as \code{cut(Year, ...)} or \code{factor(regime)}, holds
+its terminal-year value (\code{\link[=linkage_spec]{linkage_spec()}}), though one cut from the whole
+column, such as \code{cut(temp, 3)}, still sets its breaks from the whole column,
+post-peel years included;
+\item a random-effect grouping column, a column with no retained value, and a
+fixed-effect covariate that is also observed, also read as a category (the
+category term is still held), or logical keep their post-peel values, with a
+warning; Mohn's rho is then conditional on them;
+\item a column listed in \code{projected_env_data_known} keeps its values with no
+warning, though a category is still held.
+}
+
+Refitting a returned peel, with \code{\link[=fit_mod]{fit_mod()}} or a diagnostic on it, no longer
+holds its categories, while its numeric covariates stay mean-filled.
+
+\code{rescale} standardizes a column on the retained years and applies that centre
+and scale to the whole column (a column with fewer than two distinct retained
+values stays in its units, with a warning). Name the columns when \code{env_data} also holds an input that
 is not a covariate, such as a \code{Cindex} temperature in degrees C, which \code{TRUE}
 would turn into z-scores. The unpeeled model is not rescaled, so standardize
 those columns the same way before fitting it.

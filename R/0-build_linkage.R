@@ -125,6 +125,11 @@ NULL
 #'   since estimating deviations and their SD jointly as fixed effects is
 #'   degenerate, and never with `observe`, which must stay integrated.
 #'
+#'   In a [retrospective()] peel, a fixed-effect term that is a category
+#'   (`cut(Year, ...)`, `factor()`, a logical column) holds its terminal-year value
+#'   in every later `env_data` row, as the peel has no data after that year to show
+#'   a block or regime changed. A fit's own projection reads `env_data` as given.
+#'
 #' @return An `Rceattle_linkage_spec` object.
 #' @examples
 #' # A covariate on a growth parameter, one coefficient per species. Attach to a
@@ -836,11 +841,14 @@ print.Rceattle_linkage_spec <- function(x, ...) {
 #'   such a spec errors, ids always work.
 #' @param quiet if `TRUE`, suppress the warning that a species / sex / fleet
 #'   filter has no effect because `by` omits it.
+#' @param hold_after the year after which a categorical fixed-effect term holds
+#'   that year's value (see `.linkage_design()`); `NULL` holds nothing.
 #'
 #' @return An `Rceattle_linkage_table` with one row per coefficient.
 #' @keywords internal
 #' @noRd
-materialize_linkage <- function(spec, process, env_data, strata = list(), quiet = FALSE) {
+materialize_linkage <- function(spec, process, env_data, strata = list(), quiet = FALSE,
+                                hold_after = NULL) {
   if (!inherits(spec, "Rceattle_linkage_spec")) {
     stop("`spec` must be an Rceattle_linkage_spec")
   }
@@ -857,7 +865,7 @@ materialize_linkage <- function(spec, process, env_data, strata = list(), quiet 
 
   # 1. The design matrix: fixed-effect columns, then one indicator column per
   #    random-effect level.
-  design  <- .linkage_design(spec$formula, env_data)
+  design  <- .linkage_design(spec$formula, env_data, hold_after)
   X       <- design[["X"]]
   X_names <- colnames(X)
   re      <- design[["re"]]
@@ -912,11 +920,13 @@ materialize_linkage <- function(spec, process, env_data, strata = list(), quiet 
 
 #' The design matrix from a linkage formula: the fixed part through
 #' model.matrix(), then one indicator column per random-effect level.
+#' @param hold_after the year after which a categorical fixed-effect term holds
+#'   that year's value; `NULL` holds nothing.
 #' @return `X`, the bar-term design `re`, and `col_re`: per column of X, the
 #'   random effect's grouping variable, structure (us = IID, rw, ar1) and level
 #'   as a number (its year, re_time); NA on a fixed column.
 #' @noRd
-.linkage_design <- function(formula, env_data) {
+.linkage_design <- function(formula, env_data, hold_after = NULL) {
   # Split fixed from random before building the design matrix. Passing a
   # formula containing a bar straight to model.matrix() evaluates `1 | Year`
   # as a logical OR and yields a nonsense column ("1 | YearTRUE"), so the
@@ -939,7 +949,19 @@ materialize_linkage <- function(spec, process, env_data, strata = list(), quiet 
       "state-space `observe` covariate may be partial, but a fixed-effect ",
       "covariate may not)."), paste(na_fixed, collapse = ", ")), call. = FALSE)
   }
-  X_fixed <- stats::model.matrix(parsed$fixed, data = env_data)
+  mf <- stats::model.frame(parsed$fixed, data = env_data)
+  # No data after `hold_after` say a block or regime changed, so a category
+  # keeps that year's value; its levels, and so the design columns, stay.
+  yr <- env_data[["Year"]]
+  last <- which(yr == hold_after)
+  if (length(last) == 1L) {
+    for (k in which(vapply(mf, .is_category, logical(1)))) {
+      x <- if (is.character(mf[[k]])) factor(mf[[k]]) else mf[[k]]
+      x[yr > hold_after] <- x[last]
+      mf[[k]] <- x
+    }
+  }
+  X_fixed <- stats::model.matrix(attr(mf, "terms"), mf)
   re <- .materialize_re_design(parsed$re_terms, parsed$re_structures, env_data)
 
   # Random parts become indicator columns after the fixed ones, so the C++ adds
@@ -1558,6 +1580,7 @@ materialize_linkage <- function(spec, process, env_data, strata = list(), quiet 
 #'   and `fleet` vectors with `data_list$spnames` /
 #'   `fleet_control$Fleet_name`, which is how a spec that selects a species or
 #'   fleet by name is resolved to an id.
+#' @param hold_after passed to `materialize_linkage()`.
 #'
 #' @return A list with components:
 #' \describe{
@@ -1570,7 +1593,8 @@ materialize_linkage <- function(spec, process, env_data, strata = list(), quiet 
 #' }
 #' @keywords internal
 #' @noRd
-pool_linkages <- function(spec_groups, env_data, strata = list(), quiet = FALSE) {
+pool_linkages <- function(spec_groups, env_data, strata = list(), quiet = FALSE,
+                          hold_after = NULL) {
   has_specs <- !is.null(spec_groups) && length(spec_groups) > 0L &&
     any(vapply(spec_groups, length, integer(1)) > 0L)
   if (!has_specs) return(.empty_pool(env_data))
@@ -1608,7 +1632,8 @@ pool_linkages <- function(spec_groups, env_data, strata = list(), quiet = FALSE)
                                    process = proc,
                                    env_data = env_data,
                                    strata   = strata,
-                                   quiet    = quiet)
+                                   quiet    = quiet,
+                                   hold_after = hold_after)
         per_spec[[length(per_spec) + 1L]] <- tbl
       }
     }
