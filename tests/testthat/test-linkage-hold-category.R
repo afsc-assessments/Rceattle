@@ -1,7 +1,7 @@
-# A categorical fixed-effect linkage term (a time block, a regime, a flag) holds
-# its value from the last year with data: endyr, or a retrospective peel's
-# terminal year. So a peel's forecast never reads a block that starts after its
-# terminal year, and a projection never reads a block break placed after endyr.
+# In a retrospective peel, a categorical fixed-effect linkage term (a time block,
+# a regime, a flag) holds its value from the peel's terminal year, so the peel's
+# forecast never reads a block that starts after it. A fit's own projection reads
+# env_data as given.
 
 testthat::test_that("a category holds its value after hold_after; numbers do not", {
   set.seed(3)
@@ -33,7 +33,7 @@ testthat::test_that("a category holds its value after hold_after; numbers do not
   testthat::expect_identical(design(1990), X0)
 })
 
-testthat::test_that("a projection and a peel hold the endyr and terminal-year block", {
+testthat::test_that("a peel holds its terminal-year block; a projection does not", {
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("TMB")
 
@@ -52,9 +52,9 @@ testthat::test_that("a projection and a peel hold the endyr and terminal-year bl
   }
   m1 <- function(fit) fit$quantities$M1_at_age[1, 1, 1, ]
 
-  # A break after endyr: the projection stays in the endyr block.
+  # A break after endyr: the projection follows it.
   fit <- m1_block(d$endyr + 2)
-  testthat::expect_true(all(m1(fit)[yrs > d$endyr] == m1(fit)[yrs == d$endyr]))
+  testthat::expect_gt(m1(fit)[yrs == d$endyr + 3], m1(fit)[yrs == d$endyr])
 
   # A break two years before endyr: a peel ending before it holds its own block.
   fit <- m1_block(d$endyr - 2)
@@ -67,7 +67,7 @@ testthat::test_that("a projection and a peel hold the endyr and terminal-year bl
 
 testthat::test_that("endyr_peel sets the hold year only inside a peel", {
   # retrospective() leaves endyr_peel and endyr_full on the models it returns; a
-  # later endyr (run_mse() advances it) must hold at that endyr instead.
+  # refit at another endyr (run_mse() advances it) is not a peel and holds nothing.
   d <- make_test_data(nyrs = 20, seed = 1)
   yrs <- d$styr:d$projyr
   d$env_data <- data.frame(Year = yrs)
@@ -86,4 +86,5 @@ testthat::test_that("endyr_peel sets the hold year only inside a peel", {
   }
   testthat::expect_true(all(block(17, d$endyr) == 0))   # a peel ending in 17
   testthat::expect_true(all(block(17, 18) == 1))        # left over; endyr is 20
+  testthat::expect_true(all(block(d$endyr, d$endyr) == 1))  # the unpeeled model
 })

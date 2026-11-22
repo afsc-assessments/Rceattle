@@ -125,11 +125,10 @@ NULL
 #'   since estimating deviations and their SD jointly as fixed effects is
 #'   degenerate, and never with `observe`, which must stay integrated.
 #'
-#'   A fixed-effect term that is a category (`cut(Year, ...)`, `factor()`, a
-#'   logical column) holds its `endyr` value in every later `env_data` row, and
-#'   in a [retrospective()] peel its value from the peel's terminal year, as no
-#'   data after that year say a block or regime changed. A 0/1 block column is a
-#'   number; as `factor(<column>)` it is held, under new coefficient names.
+#'   In a [retrospective()] peel, a fixed-effect term that is a category
+#'   (`cut(Year, ...)`, `factor()`, a logical column) holds its terminal-year value
+#'   in every later `env_data` row, as the peel has no data after that year to show
+#'   a block or regime changed. A fit's own projection reads `env_data` as given.
 #'
 #' @return An `Rceattle_linkage_spec` object.
 #' @examples

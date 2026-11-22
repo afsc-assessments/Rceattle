@@ -20,26 +20,21 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
 
 ## Behavior changes
 
-* **A categorical fixed-effect linkage term holds its value from the last year with
-  data.** A category (`cut(Year, ...)`, `factor()`, a logical column) holds its
-  `endyr` value in every later `env_data` row, and in a retrospective peel its value
-  from the peel's terminal year, since no data after that year say a block or regime
-  changed. The design keeps its columns, so `init`, `bounds` and `priors` keys are
-  unchanged. A year past the last `env_data` row still takes a zero offset, and a
-  random-effect grouping column is not held. A 0/1 block column is a number, not a
-  category; as `factor(<column>)` it is held, under new coefficient names.
+* **In a retrospective peel, a categorical fixed-effect linkage term holds its value
+  from the peel's terminal year** (`cut(Year, ...)`, `factor()`, a logical column),
+  as the peel has no data after that year to show a block or regime changed, and
+  whatever `projected_env_data_known` lists. The design keeps its columns, so
+  `init`, `bounds` and `priors` keys are unchanged. A fit's own projection, and
+  `run_mse()`, read `env_data` as given. A random-effect grouping column is not
+  held. A 0/1 block column is a number, not a category; as `factor(<column>)` it is
+  held, under new coefficient names.
 
-  **Whose fits move.** A projection whose M, growth or recruitment linkage reads a
-  category that changes after `endyr`: `factor(Year)` deviates (each projection year
-  takes the `endyr` deviate), a `cut(Year, ...)` break after `endyr`, or a factor
-  column whose projection rows hold another level; this includes each `run_mse()`
-  model after its own `endyr`. Selectivity and catchability do not act after
-  `endyr`. In a retrospective peel, any process whose category changes after the
-  peel's terminal year: on a test model with M1 fixed 50% higher in its last two
-  years (`~ 0 + factor(reg)`), the peels ending before the change forecast at their
-  own M1, and SSB rho moves from -0.0445 to -0.0078 (forecast year 2) and from
-  -0.0785 to -0.0055 (year 3, one peel), with the terminal year and year 1 unchanged.
-  No sibling repository has a categorical linkage term.
+  **Whose Mohn's rho moves**: a model whose category changes after a peel's terminal
+  year. On a test model with M1 fixed 50% higher in its last two years
+  (`~ 0 + factor(reg)`), the peels ending before the change forecast at their own
+  M1, and SSB rho moves from -0.0445 to -0.0078 (forecast year 2) and from -0.0785
+  to -0.0055 (year 3, one peel), with the terminal year and year 1 unchanged. No
+  sibling repository has a categorical linkage term.
 
 * **A retrospective peel gives a numeric fixed-effect linkage covariate the mean of
   the years it keeps**, after its terminal year, the value `rearrange_data()` gives a

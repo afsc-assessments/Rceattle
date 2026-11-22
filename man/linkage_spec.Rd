@@ -146,11 +146,10 @@ penalized form has no counterpart for. Permitted only with a fixed SD
 since estimating deviations and their SD jointly as fixed effects is
 degenerate, and never with \code{observe}, which must stay integrated.
 
-A fixed-effect term that is a category (\code{cut(Year, ...)}, \code{factor()}, a
-logical column) holds its \code{endyr} value in every later \code{env_data} row, and
-in a \code{\link[=retrospective]{retrospective()}} peel its value from the peel's terminal year, as no
-data after that year say a block or regime changed. A 0/1 block column is a
-number; as \verb{factor(<column>)} it is held, under new coefficient names.
+In a \code{\link[=retrospective]{retrospective()}} peel, a fixed-effect term that is a category
+(\code{cut(Year, ...)}, \code{factor()}, a logical column) holds its terminal-year value
+in every later \code{env_data} row, as the peel has no data after that year to show
+a block or regime changed. A fit's own projection reads \code{env_data} as given.
 }
 \examples{
 # A covariate on a growth parameter, one coefficient per species. Attach to a
