@@ -36,4 +36,11 @@ was fitted with \code{build_srr(proj_mean_rec = FALSE)}; under the default it is
 mean recruitment over the hindcast, and \code{update_model = TRUE} warns. In
 \code{\link[=run_mse]{run_mse()}} each projection year becomes an operating-model hindcast year,
 where the deviations apply either way.
+
+\code{update_model = TRUE} holds the hindcast estimates fixed. A fit run with its
+harvest control rule (\code{estimateMode} \code{"Estimate"} or \code{"Projection"}) reruns
+that rule, so an F the rule estimates is re-solved for the new recruitment.
+Under predation (\code{msmMode > 0}) a fishing rule's unfished SSB and biomass
+(\code{MSSB0}, \code{MSB0}) are re-derived too, so SB0, B0 and depletion in every year
+follow the new recruitment, as in a fresh \code{\link[=fit_mod]{fit_mod()}} from those deviations.
 }
