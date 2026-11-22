@@ -121,3 +121,44 @@ testthat::test_that("a diet row whose weighted sample size rounds to zero comes 
   testthat::expect_warning(Rceattle::sim_mod(mod, simulate = TRUE),
                            "came back empty")
 })
+
+
+# Regression: the warning below once tested each prey bin observed above zero
+# for a draw of 0, which almost any draw has -- 98 to 108 of BS2017MS's 2025 rows
+# per draw at weight 1, where no stomach's request rounds to zero.
+testthat::test_that("the empty-diet warning fires only where a request rounds to zero", {
+  testthat::skip_if_not_installed("TMB")
+
+  # The warning must name exactly these rows' predators and count exactly them.
+  check_emptied <- function(mod, rows, seed) {
+    pred <- mod$data_list$diet_data$Pred
+    set.seed(seed)
+    testthat::expect_warning(
+      sim <- Rceattle::sim_mod(mod, simulate = TRUE),
+      paste0("^", sum(rows), " diet row\\(s\\) came back empty for predator\\(s\\) ",
+             paste(unique(pred[rows]), collapse = ", "), "\\."))
+    x <- sim$diet_data$Stomach_proportion_by_weight
+    testthat::expect_true(all(x[rows] == 0))
+    testthat::expect_gt(sum(x[!rows]), 0)
+  }
+
+  # Multinomial, Sample_size 20. Predator 1 at weight 1 draws 20 items, so a prey
+  # bin at 0 is chance; predator 2 at 0.025 asks for exactly 0.5, rounded half up
+  # to one item; predator 3 at 0.01 asks for 0.2, except in every other stomach,
+  # whose first row -- the only one the template reads -- is 100.
+  fill <- function(dd) {
+    s3 <- unique(dd$stomach_id[dd$Pred == 3])
+    ifelse(!duplicated(dd$stomach_id) & dd$stomach_id %in% s3[c(TRUE, FALSE)],
+           100, dd$Sample_size)
+  }
+  mn <- .diet_sim_fit("Multinomial", c(1, 0.025, 0.01), sample_size = fill)
+  dd <- mn$data_list$diet_data
+  check_emptied(mn, dd$Pred == 3 &
+                  stats::ave(dd$Sample_size, dd$stomach_id, FUN = max) < 100, 5)
+
+  # Dirichlet-multinomial at theta 0.1 draws Sample_size items rounded half up: 20
+  # for predators 1 and 2, where zeros are common, and none for predator 3 at 0.4.
+  dm <- .diet_sim_fit("DirichletMultinomial", log(0.1), sample_size = function(dd)
+    ifelse(dd$Pred == 3, 0.4, dd$Sample_size))
+  check_emptied(dm, dm$data_list$diet_data$Pred == 3, 4)
+})

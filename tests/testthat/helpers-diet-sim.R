@@ -44,8 +44,10 @@
 # multiplier (1 = neutral), and for the Dirichlet-multinomial it is log theta
 # (exp() is taken). Passing log(1) = 0 for a multinomial sets the weight to
 # ZERO, which drops the data from the likelihood and from the draw.
+# `sample_size`, if given, maps the cleaned diet_data (rows in the template's
+# order, with stomach_id) to its new Sample_size.
 .diet_sim_env <- new.env(parent = emptyenv())
-.diet_sim_fit <- function(family, weight_par) {
+.diet_sim_fit <- function(family, weight_par, sample_size = NULL) {
   if (is.null(.diet_sim_env$base)) {
     utils::data("BS2017SS", package = "Rceattle", envir = environment())
     utils::data("BS2017MS", package = "Rceattle", envir = environment())
@@ -59,6 +61,10 @@
       fit_control = Rceattle::fit_control(phase = FALSE, getsd = FALSE, verbose = 0))))
   }
   d <- .diet_sim_env$dat
+  if (!is.null(sample_size)) {
+    d <- Rceattle::clean_data(d)
+    d$diet_data$Sample_size <- sample_size(d$diet_data)
+  }
   d$Diet_distribution <- rep(family, d$nspp)
   inits <- .diet_sim_env$base$estimated_params
   inits$diet_comp_weights[] <- weight_par
