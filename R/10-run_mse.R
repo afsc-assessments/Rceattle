@@ -864,12 +864,9 @@ run_mse <- function(om, em, nsim = 10, start_sim = 1, assessment_period = 1, sam
       # -- log_F
       om_use$estimated_params$log_F <- cbind(om_use$estimated_params$log_F, matrix(0, nrow= nrow(om_use$estimated_params$log_F), ncol = length(new_years)))
 
-      # -- M1_dev
-      #FIXME - simulate
-      # om_use$estimated_params$log_M1_dev[,,,(nyrs_hind + 1):(nyrs_hind + length(new_years))] <- om_use$estimated_params$log_M1_dev[,,,nyrs_hind]
 
-      # -- Time-varying catchability and selectivity: the new years hold the last
-      #    year's curves, set by .hold_curves() once every array spans them.
+      # -- Time-varying catchability, selectivity and M1: the new years hold the
+      #    last year's values, set by .hold_curves() once every array spans them.
       om_use$estimated_params$index_q_dev <- cbind(om_use$estimated_params$index_q_dev, matrix(0, nrow= nrow(om_use$estimated_params$index_q_dev), ncol = length(new_years)))
 
       # -- Time-varying selectivity.
@@ -1082,11 +1079,9 @@ run_mse <- function(om, em, nsim = 10, start_sim = 1, assessment_period = 1, sam
       # -- log_F
       em_use$estimated_params$log_F <- cbind(em_use$estimated_params$log_F, matrix(0, nrow= nrow(em_use$estimated_params$log_F), ncol = length(new_years)))
 
-      # # -- log_M1_dev
-      # em_use$estimated_params$log_M1_dev[,,,(nyrs_hind + 1):(nyrs_hind + length(new_years))] <- em_use$estimated_params$log_M1_dev[,,,nyrs_hind]
 
-      # -- Time-varying catchability and selectivity: the new years start from the
-      #    last year's curves, set by .hold_curves() once every array spans them.
+      # -- Time-varying catchability, selectivity and M1: the new years start from
+      #    the last year's values, set by .hold_curves() once every array spans them.
       em_use$estimated_params$index_q_dev <- cbind(em_use$estimated_params$index_q_dev, matrix(0, nrow= nrow(em_use$estimated_params$index_q_dev), ncol = length(new_years)))
 
       # -- Time-varying selectivity.

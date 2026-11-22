@@ -37,11 +37,12 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   by under 2e-6, relative (`BS2017SS`).
 
 * **The years `run_mse()` adds, and a peel's forecast years, keep the last year's
-  q and selectivity curves.** A selectivity form that stores each year's step
-  rather than its level (`NonParametricPM`, and `NonParametricIntegrable` under
-  `RandomWalk`) takes a step of 0 there, so its selectivity stays constant
-  instead of walking on. The Pacific hake (`MSE_yr2024.R`) and `BS2017SS` MSEs are
-  unchanged.
+  q, selectivity and M1.** A selectivity form that stores each year's step rather
+  than its level (`NonParametricPM`, and `NonParametricIntegrable` under
+  `RandomWalk`) takes a step of 0 there, so its selectivity stays constant instead
+  of walking on. In `run_mse()` a by-year M1 deviation now carries into the years
+  it adds, so the operating model's M stays at the last year's rather than its
+  mean. Projection years keep the model's own projection values.
 
 # Rceattle 5.70.2
 

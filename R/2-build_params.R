@@ -858,14 +858,15 @@ build_params <- function(data_list) {
 }
 
 
-#' Hold catchability and selectivity at their year-`last` values in later years
+#' Hold catchability, selectivity and M1 at their year-`last` values in later years
 #'
-#' Used where a model runs past its data: a retrospective peel's forecast, and the
-#' years `run_mse()` adds (for an estimation model refitted to new data, these are
-#' starting values). Each deviation keeps its year-`last` value, so q and the
-#' selectivity curve stay as they were. The forms that store each year's step rather
-#' than its level (NonParametricPM, and NonParametricIntegrable under RandomWalk)
-#' take a step of 0 instead, which keeps their curve too.
+#' Used where a model's years run past its data: a retrospective peel's forecast, and
+#' the years `run_mse()` adds (for an estimation model refitted to new data, these are
+#' starting values). Each deviation keeps its year-`last` value through the model's
+#' last hindcast year, so q, the selectivity curve and M1 stay as they were. The
+#' forms that store each year's step rather than its level (NonParametricPM, and
+#' NonParametricIntegrable under RandomWalk) take a step of 0 instead, which keeps
+#' their curve too. Projection years keep the model's own projection values.
 #'
 #' @param params parameter list whose deviation arrays already span the later years.
 #' @param data_list the model's data list.
@@ -877,6 +878,7 @@ build_params <- function(data_list) {
   params[["log_sel_slp_dev"]][, , , later] <- params[["log_sel_slp_dev"]][, , , last]
   params[["sel_inf_dev"]][, , , later] <- params[["sel_inf_dev"]][, , , last]
   params[["sel_coff_dev"]][, , , later] <- params[["sel_coff_dev"]][, , , last]
+  params[["log_M1_dev"]][, , , later] <- params[["log_M1_dev"]][, , , last]
 
   fc <- data_list[["fleet_control"]]
   steps <- fc[["Selectivity"]] %in% "NonParametricPM" |

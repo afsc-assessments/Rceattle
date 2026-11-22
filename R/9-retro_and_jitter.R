@@ -470,8 +470,6 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
     # observed catch, with q, selectivity and M1 held at the terminal year.
     peeled_pars <- .unpeel_params(newmod$estimated_params, object$estimated_params)
     peeled_pars <- .hold_curves(peeled_pars, data_list, nyrs_peel)
-    peeled_pars$log_M1_dev[, , , (nyrs_peel + 1):nyrs_proj] <-
-      peeled_pars$log_M1_dev[, , , nyrs_peel]
 
     # - Add in peeled catch to fit to
     data_list$catch_data <- data_list$catch_data |>
