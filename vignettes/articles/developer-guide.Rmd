@@ -232,7 +232,7 @@ the RTMB oracle harness in `tools/verify/`; not used by any fit yet.
 | `6-rtmb_data.R` | One-time data preparation, off the AD tape, and the guard that refuses a configuration not yet ported. |
 | `6-rtmb_selectivity.R` | Selectivity-at-age; mirrors `selectivity.hpp` for the forms ported so far. |
 | `6-rtmb_predation.R` | Multispecies predation: suitability, available food and M2, the predicted stomach content and its likelihood; mirrors `predation.hpp`, `diet_data.hpp` and section 13.6 of `ceattle.cpp`. |
-| `6-rtmb_helpers.R` | `posfun`, `max2`, log-mean-exp, per-recruit and the concentrated sd in their C++ evaluation order, plus the taped 0/1 indicators. |
+| `6-rtmb_helpers.R` | The automatic-differentiation mechanics, explained once: the taped 0/1 indicators, the matrix and group sums in the C++ order, and `posfun`, `max2`, log-mean-exp, per-recruit and the concentrated sd in their C++ evaluation order. |
 
 **Package infrastructure.**
 
