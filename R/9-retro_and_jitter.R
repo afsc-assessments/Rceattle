@@ -12,8 +12,9 @@
 #'
 #' @inheritParams rceattle-refit-args
 #' @param peels number of retrospective peels used for rho and estimation
-#' @param rescale TRUE/FALSE whether to subset and rescale environmental
-#'   predictors over the peel years.
+#' @param rescale which `env_data` columns to standardize on each peel's retained
+#'   years: `FALSE` (default) none, `TRUE` every numeric column except `Year` and
+#'   random-effect grouping columns, or a character vector of column names (see Details).
 #' @param nyrs_forecast forecast years over which to calculate Mohn's rho, in
 #'   addition to the terminal year
 #' @param getsd whether each peel reports standard errors through `TMB::sdreport`,
@@ -24,6 +25,9 @@
 #'   so without phasing the parameters barely move, the peels sit on top of the
 #'   full model, and Mohn's rho is biased toward zero. Change it only
 #'   deliberately.
+#' @param projected_env_data_known `env_data` columns whose post-peel values each
+#'   peel keeps, as for a climate projection: `FALSE` (default) lists none, `TRUE`
+#'   lists every column, or a character vector of column names (see Details).
 #'
 #' @details
 #' Each peel is fitted twice: a peeled hindcast, then a forecast refit
@@ -83,6 +87,26 @@
 #' which counts \emph{down} there. Mohn's rho is computed from \code{endyr_peel} and is
 #' unaffected by any of this.
 #'
+#' A peel withholds every \code{env_data} value after its terminal year, as it does
+#' the survey and composition data: an observed covariate (\code{linkage_spec(observe = )})
+#' loses those observations, and a column the model reads directly (the bioenergetics
+#' temperature named by \code{Cindex}, an environmental catchability or M1) takes the
+#' retained years' mean there and in any year it is missing. List a column in
+#' \code{projected_env_data_known} when its post-peel values were known at each peel's
+#' terminal year, such as a climate projection, and the peels keep them; \code{TRUE}
+#' keeps every column, as peels did before 5.69.0 under \code{rescale = FALSE}.
+#' Three kinds of column keep their post-peel values regardless, observations
+#' included, and \code{retrospective()} warns once naming any not listed there:
+#' a fixed-effect linkage covariate and a random-effect grouping column such as
+#' \code{(1 | regime)}, because an NA in either stops the linkage design being built,
+#' and a column with no value in the peel's retained years, which the model could not
+#' fill. Mohn's rho is then conditional on those values being known.
+#' \code{rescale} standardizes a column on the retained years and applies that centre
+#' and scale to the whole column. Name the columns when \code{env_data} also holds
+#' inputs that are not covariates, such as a temperature in degrees C that drives
+#' consumption, which \code{TRUE} would turn into z-scores. The unpeeled model is not
+#' rescaled, so standardize those columns the same way before fitting it.
+#'
 #' Catchability is estimated only for a fleet holding fitted index rows (see
 #' \code{\link{build_map}}), and a peel moves \code{endyr}, so a survey whose index
 #' observations all fall in the peeled-off years has no q estimated in that peel: the
@@ -120,10 +144,10 @@
 #' retro <- retrospective(ss_run, peels = 10)
 #' }
 #' @export
-retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_forecast = 3, cores = NULL, getsd = NULL, phase = TRUE, fit_control = NULL, Rceattle = NULL) {
-  # `phase` and `fit_control` are appended after the arguments that predate them,
-  # so a positional call keeps its meaning. The deprecated `Rceattle` formal sits
-  # last; see R/0-deprecate.R.
+retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_forecast = 3, cores = NULL, getsd = NULL, phase = TRUE, fit_control = NULL, projected_env_data_known = FALSE, Rceattle = NULL) {
+  # `phase`, `fit_control` and `projected_env_data_known` are appended after the
+  # older arguments, so those keep their positions. The deprecated `Rceattle`
+  # formal sits last; see R/0-deprecate.R.
   if (!missing(Rceattle))
     object <- .rce_deprecated_arg(Rceattle, !missing(object), "Rceattle", "object", "retrospective")
   # Cleared once consumed: .parallel_lapply() exports every binding in this frame
@@ -212,6 +236,104 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
             "to use the current map.", call. = FALSE)
   }
 
+  # env_data columns ----
+  # Which columns a peel keeps whole, warned about here because a warning in a
+  # .parallel_lapply() worker is discarded; the deepest peel keeps the most.
+  .envd <- object$data_list$env_data
+  .env_all <- setdiff(names(.envd), "Year")
+  .is_num <- vapply(.env_all, function(v) is.numeric(.envd[[v]]), logical(1))
+  # The model reads a logical column as 0/1, so a peel withholds it too.
+  .env_read <- .env_all[.is_num |
+    vapply(.env_all, function(v) is.logical(.envd[[v]]), logical(1))]
+  .keep_fixed <- intersect(.env_all, .rce_linkage_fixed_covariates(object$data_list))
+  .groups <- intersect(.env_all, .rce_linkage_fixed_covariates(
+    object$data_list, re_groups = TRUE, fixed = FALSE))
+  .keep_group <- setdiff(.groups, .keep_fixed)
+  .post_any <- any(.envd[["Year"]] > endyr - peels, na.rm = TRUE)
+  .ret_deep <- !is.na(.envd[["Year"]]) & .envd[["Year"]] >= styr &
+    .envd[["Year"]] <= endyr - peels
+  .n_kept <- vapply(.env_read, function(v) {
+    x <- .envd[[v]][.ret_deep]
+    length(unique(x[is.finite(x)]))
+  }, integer(1))
+
+  # A grouping column is a level label and a logical a flag; neither has units.
+  .can_scale <- setdiff(.env_all[.is_num], .groups)
+  if (is.character(rescale)) {
+    .bad <- setdiff(rescale, names(.envd))
+    if (length(.bad)) {
+      stop("`rescale` names column(s) that are not in `env_data`: ",
+           paste(.bad, collapse = ", "), ".", call. = FALSE)
+    }
+    .bad <- setdiff(rescale, .can_scale)
+    if (length(.bad)) {
+      stop("`rescale` names column(s) that cannot be standardized: ",
+           paste(.bad, collapse = ", "), ". `Year`, a random-effect grouping ",
+           "column and a logical or non-numeric column have no units to ",
+           "standardize.", call. = FALSE)
+    }
+    .rescale_cols <- intersect(.env_all, rescale)
+  } else if ((is.logical(rescale) || is.numeric(rescale)) && length(rescale) == 1L &&
+             !is.na(rescale)) {
+    # rescale also takes names, so a number reads like a column position.
+    if (is.numeric(rescale)) {
+      warning("`rescale = ", rescale, "` is read as ", as.logical(rescale),
+              ", not as a column position. Pass TRUE, FALSE, or the names of ",
+              "the env_data columns to standardize.", call. = FALSE)
+    }
+    .rescale_cols <- if (rescale) .can_scale else character(0)
+  } else {
+    stop("`rescale` must be TRUE, FALSE, or a character vector of env_data ",
+         "column names.", call. = FALSE)
+  }
+
+  # Columns known ahead of each peel's terminal year: kept whole, and left out
+  # of the kept-column warnings.
+  .known <- projected_env_data_known
+  if (is.character(.known)) {
+    .bad <- setdiff(.known, names(.envd))
+    if (length(.bad)) {
+      stop("`projected_env_data_known` names column(s) that are not in `env_data`: ",
+           paste(.bad, collapse = ", "), ".", call. = FALSE)
+    }
+  } else if (is.logical(.known) && length(.known) == 1L && !is.na(.known)) {
+    .known <- if (.known) .env_all else character(0)
+  } else {
+    stop("`projected_env_data_known` must be TRUE, FALSE, or a character vector ",
+         "of env_data column names.", call. = FALSE)
+  }
+  .warn_fixed <- setdiff(.keep_fixed, .known)
+  .warn_group <- setdiff(.keep_group, .known)
+
+  .no_kept <- setdiff(.env_read[.n_kept == 0L],
+                      c(.keep_fixed, .keep_group, .known))
+  if (.post_any && length(.no_kept)) {
+    warning("env_data column(s) ", paste(.no_kept, collapse = ", "), " have no ",
+            "value in years ", styr, "-", endyr - peels, ", so a peel with ",
+            "none keeps their post-peel values rather than leave the column ",
+            "empty, which the model cannot fill.", call. = FALSE)
+  }
+  .raw <- .rescale_cols[.n_kept[.rescale_cols] < 2L]
+  if (length(.raw)) {
+    warning("`rescale` leaves ", paste(.raw, collapse = ", "), " in their own ",
+            "units in any peel that keeps fewer than two distinct values of them.",
+            call. = FALSE)
+  }
+  if (.post_any && length(.warn_fixed)) {
+    warning("Covariate(s) ", paste(.warn_fixed, collapse = ", "), " enter the model ",
+            "as fixed-effect linkage terms, which may not be NA, so each peel ",
+            "still sees their post-peel values. Mohn's rho for a model with a ",
+            "fixed-effect environmental covariate is conditional on that ",
+            "covariate being known.", call. = FALSE)
+  }
+  if (.post_any && length(.warn_group)) {
+    warning("Random-effect grouping column(s) ", paste(.warn_group, collapse = ", "),
+            " label which deviation each year takes, so each peel keeps their ",
+            "post-peel values. If a label is derived from data (a warm/cold ",
+            "regime), each peel knows which level its forecast years are in.",
+            call. = FALSE)
+  }
+
   # Per-peel closure ----
   # Each peel only reads the original model, so peels are independent.
   run_one_peel <- function(i) {
@@ -297,11 +419,28 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
         dplyr::arrange(Species, Year)
     }
 
-    # * Rescale environmental predictors ----
-    if(rescale){
-      data_list$env_data <- data_list$env_data |>
-        dplyr::filter(Year <= endyr_peel)
-      data_list$env_data[,2:ncol(data_list$env_data)]<-scale(data_list$env_data[,2:ncol(data_list$env_data)])
+    # * Environmental predictors ----
+    # Blank post-peel values rather than drop rows: a linkage design is built by
+    # row position, so a dropped row would drop a random-effect level.
+    .yr <- data_list$env_data[["Year"]]
+    .post_peel <- !is.na(.yr) & .yr > endyr_peel
+    # Retained: the model years the peel fits, which rearrange_data() fills from.
+    .retained <- !is.na(.yr) & .yr >= styr & .yr <= endyr_peel
+    .blank <- setdiff(.env_read, c(.keep_fixed, .keep_group, .known))
+    # A column with no retained value stays whole: blanked, it would make M1 NaN.
+    .blank <- .blank[vapply(.blank, function(v)
+      any(is.finite(data_list$env_data[[v]][.retained])), logical(1))]
+    if (any(.post_peel) && length(.blank)) {
+      data_list$env_data[.post_peel, .blank] <- NA
+    }
+    # Centre and scale from the retained years only, applied to the whole column.
+    # A column with no retained variation is left alone rather than made NaN.
+    for (col in .rescale_cols) {
+      kept <- data_list$env_data[[col]][.retained]
+      ctr <- mean(kept, na.rm = TRUE)
+      scl <- stats::sd(kept, na.rm = TRUE)
+      if (!is.finite(scl) || scl == 0) next
+      data_list$env_data[[col]] <- (data_list$env_data[[col]] - ctr) / scl
     }
 
     # * Adjust parameters ----

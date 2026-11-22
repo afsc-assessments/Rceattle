@@ -57,20 +57,24 @@ target_props <- function(mod) {
 }
 
 N <- 20
-for (spec in list(list(f="Multinomial",          w=log(1)),
+# The weight is on each family's own scale (ceattle.cpp, section 13.6): the
+# multinomial multiplies N by it raw, the Dirichlet-multinomial uses theta = exp(w).
+for (spec in list(list(f="Multinomial",          w=1),
                   list(f="DirichletMultinomial", w=log(0.1)),
                   list(f="DirichletMultinomial", w=log(1)))) {
   m <- rebuild(spec$f, spec$w)
+  mn <- spec$f == "Multinomial"
   theta <- exp(spec$w); phi <- N*theta
-  infl <- if (spec$f == "Multinomial") 1 else sqrt((N + phi)/(1 + phi))
+  infl <- if (mn) 1 else sqrt((N + phi)/(1 + phi))
   tgt <- target_props(m)
   big <- which(tgt > 0.05)
   set.seed(7)
   reps <- replicate(400, Rceattle::sim_mod(m, simulate=TRUE)$diet_data$Stomach_proportion_by_weight)
   sd_emp <- apply(reps[big, , drop=FALSE], 1, stats::sd)
   sd_exp <- sqrt(tgt[big]*(1-tgt[big])/N) * infl
-  cat(sprintf("\n%-22s theta=%-6s expected sd inflation %.3f (%d bins)\n",
-              spec$f, format(theta, digits=3), infl, length(big)))
+  cat(sprintf("\n%-22s %-12s expected sd inflation %.3f (%d bins)\n", spec$f,
+              if (mn) paste0("weight=", spec$w) else paste0("theta=", format(theta, digits=3)),
+              infl, length(big)))
   cat(sprintf("  realised/expected sd : %.4f\n", mean(sd_emp/sd_exp)))
   cat(sprintf("  centring sum ratio   : %.4f\n",
               sum(rowMeans(reps)[tgt>1e-4])/sum(tgt[tgt>1e-4])))

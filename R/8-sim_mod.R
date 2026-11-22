@@ -986,12 +986,16 @@ sim_mod <- function(object = NULL, simulate = FALSE, process = FALSE, Rceattle =
                 "recovery of predation is optimistic.", call. = FALSE)
       }
 
-      # A stomach the draw placed nothing in comes back at zero rather than
-      # frozen (ceattle.cpp, diet SIMULATE block). The per-predator test above
-      # cannot see it: a predator with some stomachs drawn and some rounded away
-      # is not frozen. Count the emptied stomachs directly, as the composition
-      # draw does.
-      emptied <- was > 0 & kept == 0
+      # A stomach draws Sample_size (first row; times the weight if multinomial)
+      # items rounded half up (ceattle.cpp, section 13.6): under 0.5, none.
+      td    <- sim_obj$env$data
+      sid   <- td[["stomach_id"]]
+      n_s   <- td[["diet_obs"]][match(sid, sid), 1]
+      pl    <- sim_obj$env$parList(par = sim_obj$env$last.par.best)
+      n_eff <- n_s * ifelse(td[["diet_ll_type"]][pred_sp] == 0,
+                            pl[["diet_comp_weights"]][pred_sp], 1)
+      emptied <- td[["suitMode"]][pred_sp] > 0 & !is.na(n_s) & n_s > 0 &
+        n_eff + 0.5 < 1
       if (any(emptied)) {
         warning(sum(emptied), " diet row(s) came back empty for predator(s) ",
                 paste(unique(pred_sp[emptied]), collapse = ", "),
@@ -1130,6 +1134,13 @@ sim_mod <- function(object = NULL, simulate = FALSE, process = FALSE, Rceattle =
 #'   [run_mse()] each projection year becomes an operating-model hindcast year,
 #'   where the deviations apply either way.
 #'
+#'   `update_model = TRUE` holds the hindcast estimates fixed. A fit run with its
+#'   harvest control rule (`estimateMode` `"Estimate"` or `"Projection"`) reruns
+#'   that rule, so an F the rule estimates is re-solved for the new recruitment.
+#'   Under predation (`msmMode > 0`) a fishing rule's unfished SSB and biomass
+#'   (`MSSB0`, `MSB0`) are re-derived too, so SB0, B0 and depletion in every year
+#'   follow the new recruitment, as in a fresh [fit_mod()] from those deviations.
+#'
 #' @returns Rceattle model
 #' @export
 #'
@@ -1212,6 +1223,9 @@ sample_rec <- function(object = NULL, sample_rec = TRUE, update_model = TRUE, re
   if(update_model){
     # * Update fit ----
     estMode <- object$data_list$estimateMode
+    # A fit that ran its harvest control rule reruns it at mode 2, hindcast fixed; build-only
+    # mode 3 never runs the rule (projected F = 0). Both keep the fit's own map and getsd.
+    fit_getsd <- isTRUE(object[["run_config"]][["fit_control"]][["getsd"]])
     object <-
       suppressWarnings(
         suppressMessages(
@@ -1222,8 +1236,9 @@ sample_rec <- function(object = NULL, sample_rec = TRUE, update_model = TRUE, re
           .refit_like(
             data_list    = object$data_list,
             inits        = object$estimated_params,
-            estimateMode = 3,
-            getsd        = TRUE)
+            estimateMode = if (estMode %in% c(0, 2)) 2 else 3,
+            map          = object$map,
+            getsd        = fit_getsd)
         )
       )
     object$data_list$estimateMode <- estMode

@@ -67,6 +67,150 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
 * `?model_average` and `vignette("model-diagnostics")` say which fits
   `uncertainty = TRUE` refuses and how to refit them.
 
+# Rceattle 5.69.3
+
+## Bug fixes
+
+* **A retrospective peel withholds a logical `env_data` column too.** 5.69.0
+  withheld only numeric columns, so a logical column kept its post-peel values in
+  every peel, though the model reads it as 0/1: as an observed covariate
+  (`linkage_spec(observe = )`), or through `env_index` in M1, an environmental
+  catchability or a `Cindex` temperature. On a test model with a warm-year flag
+  driving M1, forecast-year SSB rho moves from 0.9116 to 0.9238 (year 2) and from
+  1.3872 to 1.4171 (year 3), the values the same flag gives stored as 0/1 numbers.
+  `rescale` never standardizes a logical column.
+
+* **The warning about an `env_data` column with no value in a peel's retained years
+  names the years it checked**, `styr` to the deepest peel's terminal year. It said
+  "no value through" that year, which was false for a column with a value before
+  `styr`.
+
+* **`retrospective(rescale =)` warns when given a number.** It still reads one as
+  `TRUE` or `FALSE`, as every earlier version did. Since 5.69.0 `rescale` also takes
+  column names, so `rescale = 2` looks like "column 2" but standardizes every
+  numeric column.
+
+# Rceattle 5.69.2
+
+## Bug fixes
+
+* **`sample_rec(update_model = TRUE)` projects under the fit's harvest control
+  rule.** Its refit only built the model (`estimateMode = 3`), which never runs
+  the rule, so projected F was 0 under every rule, with no warning, while the
+  returned fit still named the rule. On `BS2017SS` projected `F_spp` was 0 for all
+  three species under `ConstantF` (input 0.2, 0.3, 0.05) and under `NPFMC` (F40%
+  0.336, 0.227, 0.116). A fit that ran its rule (`estimateMode` `"Estimate"` or
+  `"Projection"`) is now rerun at `"Projection"`: the hindcast estimates are
+  unchanged, and a rule that estimates F re-solves it for the new recruitment. In
+  one draw, `NPFMC` keeps F40% and lowers pollock F to as little as 0.243, or
+  0.219 with `rec_trend = -0.5`, as SSB falls below B40%. Where the source fit ran
+  a projection `sdreport()`, each draw now runs one too. Under predation
+  (`msmMode > 0`) the unfished SSB (`MSSB0`), and with it SB0, B0 and depletion
+  in every year, follow the new recruitment, as a fresh `fit_mod()` with those
+  deviations does: `MSSB0` went from 3,906,732 to 5,798,551 mt for `BS2017MS`
+  pollock in one draw. Projections move for anyone calling `sample_rec()` with
+  `update_model = TRUE`, the default, on an `"Estimate"` or `"Projection"` fit
+  with a fishing rule. A `NoFishing` or hindcast-only fit returns the same
+  projection as before, and `run_mse()`, which passes `update_model = FALSE`, is
+  unaffected. No registered sibling repo calls `sample_rec()`; the four
+  `update_model = TRUE` calls in the unregistered `Climate_MSE_projections` are
+  on `NoFishing` fits, so none moves.
+
+* **`sample_rec(update_model = TRUE)` keeps the fit's map.** It rebuilt the map,
+  so a parameter fixed by hand came back free: on a test model with one of its
+  two `sel_inf` cells fixed, both came back free, and `jitter()` or `self_test()`
+  on the result would estimate it. Projections are unchanged. `remove_F()` still
+  rebuilds the map.
+
+## Documentation
+
+* `?sample_rec` and `vignette("projections-and-reference-points")` say the refit
+  holds the hindcast fixed and reruns the fit's harvest control rule;
+  `?sample_rec` adds that under predation SB0, B0 and depletion follow the new
+  recruitment.
+
+# Rceattle 5.69.1
+
+## Bug fixes
+
+* **`sim_mod(simulate = TRUE)` warns that diet rows "came back empty" only when a
+  stomach's request rounds to zero prey items**: `Sample_size` times
+  `Diet_comp_weights` below 0.5 under a multinomial, `Sample_size` below 0.5 under a
+  Dirichlet-multinomial. It had counted every prey bin observed above zero that drew
+  0, which almost any draw has, so it fired on ordinary multispecies draws with an
+  estimated suitability and blamed a rounding that had not happened: 98-108 of
+  BS2017MS's 2,025 diet rows on each of 10 draws at weight 1, where every stomach
+  places 20 items. It now counts every row of each stomach whose request rounds to
+  zero, and no others (2,025 rows at weight 1e-4, which it had reported as 184). The
+  message text is unchanged and no simulated value moves: 60 fixed-seed BS2017MS
+  draws, under both families, are identical to the previous version.
+
+# Rceattle 5.69.0
+
+## Behavior changes
+
+* **A peel withholds `env_data` after its terminal year, whatever `rescale` is.** Under
+  the default `rescale = FALSE` it withheld the survey and composition data but still
+  fitted an observed covariate (`linkage_spec(observe = )`) through the unpeeled
+  terminal year, and read the post-peel values of a column the model uses directly (the
+  bioenergetics temperature named by `Cindex`, an environmental catchability or M1).
+  Those values are now blanked, and `rearrange_data()` fills a directly-read column with
+  the mean of the years the peel keeps, in the post-peel years and in any year the
+  column is missing. Three kinds of column keep their values, observations included,
+  and `retrospective()` warns once naming them: a fixed-effect linkage covariate and a
+  random-effect grouping column, because an NA in either stops the linkage design being
+  built, and a column with no value in the model years the peel keeps, which would leave
+  nothing to fill it with. Under `rescale = FALSE`, `projected_env_data_known = TRUE`
+  restores the previous peels (see New features).
+
+  **Whose Mohn's rho moves:**
+  - a model with an observed covariate measured after the deepest peel's terminal
+    year. In GOA pollock 2025 (`QcovPol` on the Shelikof QAR1 catchability,
+    observation SD 0.02) the deepest peel fitted 5 post-peel observations and now fits
+    none; terminal SSB rho moves from -0.142031 to -0.142026, and no row of `$mohns`
+    moves by more than 9.4e-6;
+  - the forecast years (`Forecast year` above 0) of a model whose dynamics read an
+    `env_data` column directly: an M1 covariate, or a `Cindex` temperature under
+    `msmMode > 0`;
+  - the hindcast too, where such a column has missing years, since they are now filled
+    with the retained years' mean. On a test model with an environmental catchability
+    and one missing year, terminal SSB rho moves from -0.0018 to -0.0350.
+
+  Under `rescale = TRUE`, a fixed-effect covariate's post-peel values now reach the peel,
+  standardized on the retained years, where those years used to take a zero offset (the
+  retained mean); on a test model with `q ~ temp` this moved SSB rho by 3e-7. The DSEM
+  branch blanks post-peel values the same way (e8648206, acef54cf), but also blanks a
+  column with no retained value.
+
+## Bug fixes
+
+* **`retrospective(rescale = TRUE)` runs on a model with a year-indexed random-effect
+  linkage.** Each peel dropped the `env_data` rows after its terminal year, and an
+  `ar1(1 | Year)`, `rw(1 | Year)` or `(1 | Year)` linkage has one deviation per row, so
+  a peel's model was shorter than the parent's parameters and `retrospective()` stopped:
+  "beta_linkage (inits 46, model 45); beta_linkage_re (inits 40, model 39)" in a
+  reproduction of a Pacific hake model with krill observed as a QAR1 latent on R0. A
+  peel now blanks the post-peel values and keeps the rows.
+
+## New features
+
+* **`retrospective(rescale =)` takes `env_data` column names**, so a peel can
+  standardize a covariate without turning a temperature in degrees C, which drives
+  consumption through `Cindex`, into z-scores. `TRUE` standardizes every numeric column
+  except `Year` and random-effect grouping columns, which are level labels; `FALSE`
+  none. Naming a column that is missing, non-numeric, `Year` or a grouping column is an
+  error before any peel is fitted. A column with fewer than two distinct retained values
+  stays in its own units in that peel, with a warning. Adapted from the DSEM branch
+  (9d6239ef).
+
+* **`retrospective(projected_env_data_known =)` names `env_data` columns whose
+  post-peel values were known at each peel's terminal year**, such as a climate
+  projection, and the peels keep them instead of withholding them. `FALSE` (default)
+  lists none; `TRUE` lists every column, so a peel's `env_data` is what earlier versions
+  gave it under `rescale = FALSE` (on GOA pollock 2025 the peels match 5.67.11's bit for
+  bit). A listed column is left out of the warnings about kept columns,
+  and naming a column that is not in `env_data` is an error before any peel is fitted.
+
 # Rceattle 5.67.12
 
 ## Documentation
