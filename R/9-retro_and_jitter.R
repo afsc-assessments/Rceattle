@@ -96,9 +96,8 @@
 #' terminal year, such as a climate projection, and the peels keep them; \code{TRUE}
 #' keeps every column, as peels did before 5.69.0 under \code{rescale = FALSE}.
 #' Three kinds of column keep their post-peel values regardless, observations
-#' included, and
-#' \code{retrospective()} warns once naming any not listed there: a
-#' fixed-effect linkage covariate and a random-effect grouping column such as
+#' included, and \code{retrospective()} warns once naming any not listed there:
+#' a fixed-effect linkage covariate and a random-effect grouping column such as
 #' \code{(1 | regime)}, because an NA in either stops the linkage design being built,
 #' and a column with no value in the peel's retained years, which the model could not
 #' fill. Mohn's rho is then conditional on those values being known.
@@ -244,7 +243,7 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
   .env_all <- setdiff(names(.envd), "Year")
   .is_num <- vapply(.env_all, function(v) is.numeric(.envd[[v]]), logical(1))
   # The model reads a logical column as 0/1, so a peel withholds it too.
-  .env_num <- .env_all[.is_num |
+  .env_read <- .env_all[.is_num |
     vapply(.env_all, function(v) is.logical(.envd[[v]]), logical(1))]
   .keep_fixed <- intersect(.env_all, .rce_linkage_fixed_covariates(object$data_list))
   .groups <- intersect(.env_all, .rce_linkage_fixed_covariates(
@@ -253,7 +252,7 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
   .post_any <- any(.envd[["Year"]] > endyr - peels, na.rm = TRUE)
   .ret_deep <- !is.na(.envd[["Year"]]) & .envd[["Year"]] >= styr &
     .envd[["Year"]] <= endyr - peels
-  .n_kept <- vapply(.env_num, function(v) {
+  .n_kept <- vapply(.env_read, function(v) {
     x <- .envd[[v]][.ret_deep]
     length(unique(x[is.finite(x)]))
   }, integer(1))
@@ -270,7 +269,8 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
     if (length(.bad)) {
       stop("`rescale` names column(s) that cannot be standardized: ",
            paste(.bad, collapse = ", "), ". `Year`, a random-effect grouping ",
-           "column and a non-numeric column are not covariates.", call. = FALSE)
+           "column and a logical or non-numeric column have no units to ",
+           "standardize.", call. = FALSE)
     }
     .rescale_cols <- intersect(.env_all, rescale)
   } else if ((is.logical(rescale) || is.numeric(rescale)) && length(rescale) == 1L &&
@@ -299,12 +299,13 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
   .warn_fixed <- setdiff(.keep_fixed, .known)
   .warn_group <- setdiff(.keep_group, .known)
 
-  .no_kept <- setdiff(.env_num[.n_kept == 0L], c(.keep_fixed, .keep_group, .known))
+  .no_kept <- setdiff(.env_read[.n_kept == 0L],
+                      c(.keep_fixed, .keep_group, .known))
   if (.post_any && length(.no_kept)) {
     warning("env_data column(s) ", paste(.no_kept, collapse = ", "), " have no ",
-            "value through ", endyr - peels, ", so a peel with none keeps their ",
-            "post-peel values rather than leave the column empty, which the model ",
-            "cannot fill.", call. = FALSE)
+            "value in years ", styr, "-", endyr - peels, ", so a peel with ",
+            "none keeps their post-peel values rather than leave the column ",
+            "empty, which the model cannot fill.", call. = FALSE)
   }
   .raw <- .rescale_cols[.n_kept[.rescale_cols] < 2L]
   if (length(.raw)) {
@@ -419,7 +420,7 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
     .post_peel <- !is.na(.yr) & .yr > endyr_peel
     # Retained: the model years the peel fits, which rearrange_data() fills from.
     .retained <- !is.na(.yr) & .yr >= styr & .yr <= endyr_peel
-    .blank <- setdiff(.env_num, c(.keep_fixed, .keep_group, .known))
+    .blank <- setdiff(.env_read, c(.keep_fixed, .keep_group, .known))
     # A column with no retained value stays whole: blanked, it would make M1 NaN.
     .blank <- .blank[vapply(.blank, function(v)
       any(is.finite(data_list$env_data[[v]][.retained])), logical(1))]

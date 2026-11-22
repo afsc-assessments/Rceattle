@@ -29,6 +29,11 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   1.3872 to 1.4171 (year 3), the values the same flag gives stored as 0/1 numbers.
   `rescale` never standardizes a logical column.
 
+* **The warning about an `env_data` column with no value in a peel's retained years
+  names the years it checked**, `styr` to the deepest peel's terminal year. It said
+  "no value through" that year, which was false for a column with a value before
+  `styr`.
+
 # Rceattle 5.69.1
 
 ## Bug fixes

@@ -111,7 +111,8 @@ testthat::test_that("a peel keeps fixed-effect, grouping and no-retained-value c
   testthat::expect_length(r$Rceattle_list, 4L)
   testthat::expect_true(any(grepl("Covariate(s) temp enter", ws, fixed = TRUE)))
   testthat::expect_true(any(grepl("grouping column(s) regime", ws, fixed = TRUE)))
-  testthat::expect_true(any(grepl("column(s) late have no value", ws, fixed = TRUE)))
+  testthat::expect_true(any(grepl("column(s) late have no value in years 1-17",
+                                  ws, fixed = TRUE)))
   testthat::expect_true(any(grepl("leaves late in their own units", ws, fixed = TRUE)))
 
   env <- r$Rceattle_list[[paste0("Year_", d$endyr - 3)]]$data_list$env_data
@@ -170,8 +171,9 @@ testthat::test_that("env_data rows with no Year or before styr do not stop a pee
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("TMB")
 
-  # `y` has values only before styr and after the peel: the model years hold
-  # none, so the peel keeps it whole rather than blank it into a NaN M1.
+  # `y` has values only before styr and after the peel's terminal year: the
+  # years the peel keeps hold none, so it keeps `y` whole rather than blank it
+  # into a NaN M1.
   d <- make_test_data(nyrs = 20, seed = 1)
   yrs <- d$styr:d$endyr
   n <- length(yrs)
