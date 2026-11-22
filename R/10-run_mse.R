@@ -868,10 +868,11 @@ run_mse <- function(om, em, nsim = 10, start_sim = 1, assessment_period = 1, sam
       #FIXME - simulate
       # om_use$estimated_params$log_M1_dev[,,,(nyrs_hind + 1):(nyrs_hind + length(new_years))] <- om_use$estimated_params$log_M1_dev[,,,nyrs_hind]
 
-      # -- Time-varying survey catchability - assume last year, filled by columns
-      om_use$estimated_params$index_q_dev <- cbind(om_use$estimated_params$index_q_dev, matrix(om_use$estimated_params$index_q_dev[,ncol(om_use$estimated_params$index_q_dev)], nrow= nrow(om_use$estimated_params$index_q_dev), ncol = length(new_years)))
+      # -- Time-varying catchability and selectivity: the new years hold the last
+      #    year's curves, set by .hold_curves() once every array spans them.
+      om_use$estimated_params$index_q_dev <- cbind(om_use$estimated_params$index_q_dev, matrix(0, nrow= nrow(om_use$estimated_params$index_q_dev), ncol = length(new_years)))
 
-      # -- Time-varying selectivity - assume last year, filled by columns.
+      # -- Time-varying selectivity.
       # Use the fitted arrays' own sex extent (max_sex), not a hardcoded 2: a
       # single-sex model has sex-dim 1, and forcing 2 silently recycles the
       # fitted values into a phantom second sex (and, since build_params sizes
@@ -885,13 +886,10 @@ run_mse <- function(om, em, nsim = 10, start_sim = 1, assessment_period = 1, sam
       sel_inf_dev[,,,1:nyrs_hind] <- om_use$estimated_params$sel_inf_dev
       sel_coff_dev[,,,1:nyrs_hind] <- om_use$estimated_params$sel_coff_dev
 
-      log_sel_slp_dev[,,,(nyrs_hind + 1):(nyrs_hind + length(new_years))] <- log_sel_slp_dev[,,,nyrs_hind]
-      sel_inf_dev[,,,(nyrs_hind + 1):(nyrs_hind + length(new_years))] <- sel_inf_dev[,,,nyrs_hind]
-      sel_coff_dev[,,,(nyrs_hind + 1):(nyrs_hind + length(new_years))] <- sel_coff_dev[,,,nyrs_hind]
-
       om_use$estimated_params$log_sel_slp_dev <- log_sel_slp_dev
       om_use$estimated_params$sel_inf_dev <- sel_inf_dev
       om_use$estimated_params$sel_coff_dev <- sel_coff_dev
+      om_use$estimated_params <- .hold_curves(om_use$estimated_params, om_use$data_list, nyrs_hind)
 
 
       # * Update map ----
@@ -1087,10 +1085,11 @@ run_mse <- function(om, em, nsim = 10, start_sim = 1, assessment_period = 1, sam
       # # -- log_M1_dev
       # em_use$estimated_params$log_M1_dev[,,,(nyrs_hind + 1):(nyrs_hind + length(new_years))] <- em_use$estimated_params$log_M1_dev[,,,nyrs_hind]
 
-      # -- Time-varying survey catchability - assume last year, filled by columns
-      em_use$estimated_params$index_q_dev <- cbind(em_use$estimated_params$index_q_dev, matrix(em_use$estimated_params$index_q_dev[,ncol(em_use$estimated_params$index_q_dev)], nrow= nrow(em_use$estimated_params$index_q_dev), ncol = length(new_years)))
+      # -- Time-varying catchability and selectivity: the new years start from the
+      #    last year's curves, set by .hold_curves() once every array spans them.
+      em_use$estimated_params$index_q_dev <- cbind(em_use$estimated_params$index_q_dev, matrix(0, nrow= nrow(em_use$estimated_params$index_q_dev), ncol = length(new_years)))
 
-      # -- Time-varying selectivity - assume last year, filled by columns.
+      # -- Time-varying selectivity.
       # Sex extent from the fitted arrays (max_sex), not a hardcoded 2 -- see
       # the OM extension above.
       n_sex_em <- dim(em_use$estimated_params$log_sel_slp_dev)[3]
@@ -1102,14 +1101,10 @@ run_mse <- function(om, em, nsim = 10, start_sim = 1, assessment_period = 1, sam
       sel_inf_dev[,,,1:nyrs_hind] <- em_use$estimated_params$sel_inf_dev
       sel_coff_dev[,,,1:nyrs_hind] <- em_use$estimated_params$sel_coff_dev
 
-      # - Initialize new years with last year
-      log_sel_slp_dev[,,,(nyrs_hind + 1):(nyrs_hind + length(new_years))] <- log_sel_slp_dev[,,,nyrs_hind]
-      sel_inf_dev[,,,(nyrs_hind + 1):(nyrs_hind + length(new_years))] <- sel_inf_dev[,,,nyrs_hind]
-      sel_coff_dev[,,,(nyrs_hind + 1):(nyrs_hind + length(new_years))] <- sel_coff_dev[,,,nyrs_hind]
-
       em_use$estimated_params$log_sel_slp_dev <- log_sel_slp_dev
       em_use$estimated_params$sel_inf_dev <- sel_inf_dev
       em_use$estimated_params$sel_coff_dev <- sel_coff_dev
+      em_use$estimated_params <- .hold_curves(em_use$estimated_params, em_use$data_list, nyrs_hind)
 
 
       # Re-estimate

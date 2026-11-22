@@ -856,3 +856,32 @@ build_params <- function(data_list) {
   }
   m1
 }
+
+
+#' Hold catchability and selectivity at their year-`last` values in later years
+#'
+#' Used where a model runs past its data: a retrospective peel's forecast, and the
+#' years `run_mse()` adds (for an estimation model refitted to new data, these are
+#' starting values). Each deviation keeps its year-`last` value, so q and the
+#' selectivity curve stay as they were. The forms that store each year's step rather
+#' than its level (NonParametricPM, and NonParametricIntegrable under RandomWalk)
+#' take a step of 0 instead, which keeps their curve too.
+#'
+#' @param params parameter list whose deviation arrays already span the later years.
+#' @param data_list the model's data list.
+#' @param last position on the year axis of the last year with data.
+#' @noRd
+.hold_curves <- function(params, data_list, last) {
+  later <- (last + 1):dim(params[["index_q_dev"]])[2]
+  params[["index_q_dev"]][, later] <- params[["index_q_dev"]][, last]
+  params[["log_sel_slp_dev"]][, , , later] <- params[["log_sel_slp_dev"]][, , , last]
+  params[["sel_inf_dev"]][, , , later] <- params[["sel_inf_dev"]][, , , last]
+  params[["sel_coff_dev"]][, , , later] <- params[["sel_coff_dev"]][, , , last]
+
+  fc <- data_list[["fleet_control"]]
+  steps <- fc[["Selectivity"]] %in% "NonParametricPM" |
+    (fc[["Selectivity"]] %in% "NonParametricIntegrable" &
+       fc[["Time_varying_sel"]] %in% "RandomWalk")
+  params[["sel_coff_dev"]][steps, , , later] <- 0
+  params
+}

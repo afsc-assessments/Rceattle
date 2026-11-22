@@ -18,6 +18,17 @@ throughout.
 review. It landed as 5.66.9, so a version check written for that fix needs 5.66.9.
 -->
 
+# Rceattle 5.70.3
+
+## Bug fixes
+
+* **The years `run_mse()` adds, and a peel's forecast years, keep the last year's
+  q and selectivity curves.** A selectivity form that stores each year's step
+  rather than its level (`NonParametricPM`, and `NonParametricIntegrable` under
+  `RandomWalk`) takes a step of 0 there, so its selectivity stays constant
+  instead of walking on. The Pacific hake (`MSE_yr2024.R`) and `BS2017SS` MSEs are
+  unchanged.
+
 # Rceattle 5.70.2
 
 ## Documentation
@@ -72,11 +83,10 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   ahead, such as a climate projection, belongs in `projected_env_data_known`, which
   keeps its values. A fixed-effect covariate that is also observed, also read as a
   category (the category term is still held), or logical keeps its values, with a
-  warning. A 0/1 block column
-  takes the mean unless listed in `projected_env_data_known` or refitted as
-  `factor(<column>)`: the GOA circulation study's `post2014` M block, and the GOA
-  Pacific cod bridge's M and selectivity block columns and its per-year selectivity
-  deviation columns, are such columns.
+  warning. A 0/1 block column takes the mean unless listed in
+  `projected_env_data_known` or refitted as `factor(<column>)`: the GOA circulation
+  study's `post2014` M block, and the GOA Pacific cod bridge's M and selectivity
+  block columns and its per-year selectivity deviation columns, are such columns.
 
   **Whose Mohn's rho moves**: a model whose forecast reads such a covariate, under
   any `rescale`. On a test model with a fixed M1 slope on temperature (M1 0.35 to
