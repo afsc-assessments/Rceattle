@@ -16,6 +16,31 @@ at it, and the entries below cite each other by version throughout.
 review. It landed as 5.66.9, so a version check written for that fix needs 5.66.9.
 -->
 
+# Rceattle 5.70.1
+
+## Behavior changes
+
+* **A categorical fixed-effect linkage term holds its value from the last year with
+  data.** A category (`cut(Year, ...)`, `factor()`, a logical column) holds its
+  `endyr` value in every later `env_data` row, and in a retrospective peel its value
+  from the peel's terminal year, since no data after that year say a block or regime
+  changed. The design keeps its columns, so `init`, `bounds` and `priors` keys are
+  unchanged. A year past the last `env_data` row still takes a zero offset, and a
+  random-effect grouping column is not held. A 0/1 block column is a number, not a
+  category; as `factor(<column>)` it is held, under new coefficient names.
+
+  **Whose fits move.** A projection whose M, growth or recruitment linkage reads a
+  category that changes after `endyr`: `factor(Year)` deviates (each projection year
+  takes the `endyr` deviate), a `cut(Year, ...)` break after `endyr`, or a factor
+  column whose projection rows hold another level; this includes each `run_mse()`
+  model after its own `endyr`. Selectivity and catchability do not act after
+  `endyr`. In a retrospective peel, any process whose category changes after the
+  peel's terminal year: on a test model with M1 fixed 50% higher in its last two
+  years (`~ 0 + factor(reg)`), the peels ending before the change forecast at their
+  own M1, and SSB rho moves from -0.0445 to -0.0078 (forecast year 2) and from
+  -0.0785 to -0.0055 (year 3, one peel), with the terminal year and year 1 unchanged.
+  No sibling repository has a categorical linkage term.
+
 # Rceattle 5.70.0
 
 ## Breaking changes

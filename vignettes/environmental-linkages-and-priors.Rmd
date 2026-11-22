@@ -653,10 +653,15 @@ is not an interval, so give `env_data` a per-year block column and write
 `~ factor(block)`.
 
 **A block needs rows in `env_data`.** A block with no rows gets an all-zero
-column and a coefficient nothing identifies, and a hindcast year past the last
-row takes a zero offset. Selectivity and catchability act in the
+column and a coefficient nothing identifies, and a year past the last row takes
+a zero offset. Selectivity and catchability act in the
 hindcast years only, so rows past `endyr` move neither; M, growth and
-recruitment blocks do run through the projection.
+recruitment blocks do run through the projection. Any fixed-effect category
+(`cut(Year, ...)`, `factor()`, a logical column) holds its `endyr` value in every
+later `env_data` row, and in a `retrospective()` peel its value from the peel's
+terminal year, since no data after that year say a block or regime changed. A
+0/1 block column is a number, not a category; as `factor(<column>)` it is held,
+under new coefficient names.
 
 **There is no `block()` helper**: `cut()` already expresses a block in base R.
 

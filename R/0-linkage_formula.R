@@ -151,3 +151,7 @@ LINKAGE_STRUCTURES <- c(
   }), use.names = FALSE)
   unique(out)
 }
+
+# A fixed-effect term model.matrix() reads as levels rather than a number: a
+# time block (cut(Year, ...)), a regime (factor()), a flag or a label.
+.is_category <- function(x) is.factor(x) || is.logical(x) || is.character(x)

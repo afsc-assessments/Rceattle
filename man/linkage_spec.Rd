@@ -145,6 +145,12 @@ penalized form has no counterpart for. Permitted only with a fixed SD
 (\code{init = list(sigma = )}, no \code{sigma} prior, plus a fixed \code{rho} for \code{ar1}),
 since estimating deviations and their SD jointly as fixed effects is
 degenerate, and never with \code{observe}, which must stay integrated.
+
+A fixed-effect term that is a category (\code{cut(Year, ...)}, \code{factor()}, a
+logical column) holds its \code{endyr} value in every later \code{env_data} row, and
+in a \code{\link[=retrospective]{retrospective()}} peel its value from the peel's terminal year, as no
+data after that year say a block or regime changed. A 0/1 block column is a
+number; as \verb{factor(<column>)} it is held, under new coefficient names.
 }
 \examples{
 # A covariate on a growth parameter, one coefficient per species. Attach to a

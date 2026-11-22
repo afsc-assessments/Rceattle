@@ -644,6 +644,10 @@ fit_mod <-
                          sel         = data_list$sel_linkages,
                          comp        = data_list$comp_linkages),
       env_data    = data_list$env_data,
+      # A block or regime holds its value from the last year with data: endyr, or
+      # in a retrospective peel (whose endyr is still endyr_full) its terminal year.
+      hold_after  = if (isTRUE(data_list[["endyr_full"]] == data_list[["endyr"]]))
+        data_list[["endyr_peel"]] else data_list[["endyr"]],
       # The fleet / species levels carry the model's own names, so a spec built
       # with `linkage_spec(fleet = "Shelikof")` can be resolved to an id.
       strata      = list(
