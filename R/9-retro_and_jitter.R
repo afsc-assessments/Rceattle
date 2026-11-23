@@ -20,8 +20,9 @@
 #'   starts from the unpeeled model's estimates.
 #' @param projected_env_data_known `env_data` columns whose values after each
 #'   peel's terminal year were known then, such as a climate projection, so the
-#'   peels keep them (a categorical linkage term is held regardless): `FALSE`
-#'   (default) none, `TRUE` all, or a character vector of column names.
+#'   peels keep them (a categorical linkage term or a q or selectivity random
+#'   effect is held regardless): `FALSE` (default) none, `TRUE` all, or a
+#'   character vector of column names.
 #'
 #' @details
 #' **Hindcast and forecast years.** A peel's hindcast is the model as it would
@@ -34,10 +35,10 @@
 #' the q and selectivity deviations keep their terminal-year values (a form whose
 #' deviations are year-to-year increments takes an increment of 0). M1 deviations
 #' take the peel's projection values: 0 for one estimated by year, an input series
-#' as given. A linkage effect takes the peel's own estimate for each removed year:
-#' a random walk its terminal value, an AR1 its decay toward 0, an IID effect 0.
-#' For M1 and recruitment that is what the model's projection uses; the projection
-#' holds selectivity at the terminal year instead.
+#' as given. A q or selectivity linkage deviation keeps its terminal-year level
+#' too, as the projection holds selectivity. Any other linkage effect takes the
+#' peel's own estimate for each removed year, as the projection does: a random
+#' walk its terminal value, an AR1 its decay toward 0, an IID effect 0.
 #' Recruitment takes the deviation [sample_rec()] uses with
 #' `sample_rec = FALSE`, computed from the peel's fit (for a penalty-form curve
 #' with no penalty years in the peel, the mean over its own years after the
@@ -89,7 +90,8 @@
 #' * a random-effect grouping column, a column with no retained value, and a
 #'   fixed-effect covariate that is also observed, also read as a category (the
 #'   category term is still held), or logical keep their post-peel values, with a
-#'   warning; Mohn's rho is then conditional on them;
+#'   warning; Mohn's rho is then conditional on them (a q or selectivity random
+#'   effect takes its terminal-year level whatever its grouping column says);
 #' * a column listed in `projected_env_data_known` keeps its values with no
 #'   warning, though a category is still held.
 #'
@@ -316,8 +318,10 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
   if (.post_any && length(.warn_group)) {
     warning("Random-effect grouping column(s) ", paste(.warn_group, collapse = ", "),
             " label which deviation each year takes, so each peel keeps their ",
-            "post-peel values. If a label is derived from data (a warm/cold ",
-            "regime), each peel knows which level its forecast years are in.",
+            "post-peel values. A q or selectivity effect still holds its ",
+            "terminal-year level; any other effect takes the level each forecast ",
+            "year is labelled with, so a label derived from data (a warm/cold ",
+            "regime) is known ahead.",
             call. = FALSE)
   }
 

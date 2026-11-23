@@ -199,12 +199,14 @@ testthat::test_that("a peel holds a category and gives a numeric covariate the r
     for (v in c("reg", "a", "b", "w", "qcov")) {
       testthat::expect_identical(env[[v]], env0[[v]])
     }
-    # The design: categories after the terminal year repeat its row; the rest of
-    # the hindcast is the parent's.
+    # The design: categories and the q random effect after the terminal year repeat
+    # its row; the rest of the hindcast is the parent's.
     X <- peel$data_list$linkage_X
     testthat::expect_identical(colnames(X), colnames(X0))
     testthat::expect_identical(X[kept, cats], X0[kept, cats])
     testthat::expect_true(all(t(X[!kept, cats, drop = FALSE]) == X[sum(kept), cats]))
+    re <- grep("_re::", colnames(X))
+    testthat::expect_true(all(t(X[!kept, re, drop = FALSE]) == X[sum(kept), re]))
   }
   testthat::expect_true(all(out$r$Rceattle_list[["Year_17"]]$data_list$linkage_X[, "factor(reg)3"] == 0))
   testthat::expect_true(all(X0[yrs > 18, "factor(reg)3"] == 1))
