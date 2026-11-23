@@ -907,17 +907,26 @@ materialize_linkage <- function(spec, process, env_data, strata = list(), quiet 
   level_grid <- .expand_linkage_strata(strata, by_vars)
   level_grid <- .filter_linkage_strata(level_grid, spec, process, quiet)
   if (nrow(level_grid) == 0L) {
-    return(.empty_materialized(X, X_names))
+    return(.empty_materialized(X, .pool_keys(design, X_names)))
   }
 
   # 4. One row per design column per stratum, carrying its init, bounds and prior,
   #    and on a random-effect column its sd, rho and any observation.
   out <- bind_linkage(.linkage_rows(spec, process, env_data, X_names,
                                     design[["col_re"]], level_grid, by_vars))
-  attr(out, "design_colnames") <- X_names
+  attr(out, "design_colnames") <- .pool_keys(design, X_names)
   attr(out, "design_matrix")   <- X
   out
 }
+
+# Held random-effect columns pool apart from an unheld process's columns of the
+# same name; pool_linkages() strips the mark, so every name a user sees is kept.
+.pool_keys <- function(design, X_names) {
+  if (!isTRUE(design[["held"]])) return(X_names)
+  re <- !is.na(design[["col_re"]][["group"]])
+  replace(X_names, re, paste0(X_names[re], .HELD_KEY))
+}
+.HELD_KEY <- "@held"
 
 
 # The steps of materialize_linkage(), in the order it calls them.
@@ -927,7 +936,8 @@ materialize_linkage <- function(spec, process, env_data, strata = list(), quiet 
 #' @param hold_after the year after which a categorical fixed-effect term holds
 #'   that year's value; `NULL` holds nothing.
 #' @param hold_re `TRUE` to hold the random-effect levels after `hold_after` too.
-#' @return `X`, the bar-term design `re`, and `col_re`: per column of X, the
+#' @return `X`, the bar-term design `re`, `held` (whether its random-effect rows
+#'   were held), and `col_re`: per column of X, the
 #'   random effect's grouping variable, structure (us = IID, rw, ar1) and level
 #'   as a number (its year, re_time); NA on a fixed column.
 #' @noRd
@@ -969,19 +979,18 @@ materialize_linkage <- function(spec, process, env_data, strata = list(), quiet 
   X_fixed <- stats::model.matrix(attr(mf, "terms"), mf)
   re <- .materialize_re_design(parsed$re_terms, parsed$re_structures, env_data)
   # A q or selectivity deviation keeps that year's level too, as a fleet_control
-  # deviation does, so q and selectivity follow the last year's.
-  if (hold_re && length(last) == 1L) {
+  # deviation does.
+  held <- hold_re && length(last) == 1L
+  if (held) {
     later <- which(yr > hold_after)
     re$X[later, ] <- re$X[rep(last, length(later)), , drop = FALSE]
-    # Named apart from an unheld process's columns on the same grouping column.
-    colnames(re$X) <- paste(colnames(re$X), "held")
   }
 
   # Random parts become indicator columns after the fixed ones, so the C++ adds
   # beta * indicator(level) as for a fixed column; only the beta vector
   # (beta_linkage_re) and the density on it differ.
   X <- cbind(X_fixed, re$X)
-  list(X = X, re = re,
+  list(X = X, re = re, held = held,
        col_re = list(group  = c(rep(NA_character_, ncol(X_fixed)), re$group),
                      struct = c(rep(NA_character_, ncol(X_fixed)), re$struct),
                      time   = c(rep(NA_real_,      ncol(X_fixed)), re$time)))
@@ -1667,16 +1676,18 @@ pool_linkages <- function(spec_groups, env_data, strata = list(), quiet = FALSE,
   filled <- rep(FALSE, length(global_names))
   for (i in seq_along(per_spec)) {
     X_i <- attr(per_spec[[i]], "design_matrix")
-    for (cn in colnames(X_i)) {
+    keys_i <- attr(per_spec[[i]], "design_colnames")
+    for (j in seq_along(keys_i)) {
+      cn <- keys_i[j]
       gi <- match(cn, global_names)
-      col_vals <- as.numeric(X_i[, cn])
+      col_vals <- as.numeric(X_i[, j])
       if (!filled[gi]) {
         global_X[, gi] <- col_vals
         filled[gi] <- TRUE
       } else if (!isTRUE(all.equal(as.numeric(global_X[, gi]), col_vals))) {
         stop(sprintf(
           "design column '%s' has inconsistent values across linkage specs",
-          cn), call. = FALSE)
+          sub(paste0(.HELD_KEY, "$"), "", cn)), call. = FALSE)
       }
     }
   }
@@ -1692,10 +1703,11 @@ pool_linkages <- function(spec_groups, env_data, strata = list(), quiet = FALSE,
     remapped[[i]] <- tbl
   }
 
+  colnames(global_X) <- sub(paste0(.HELD_KEY, "$"), "", global_names)
   list(
     table        = .assign_re_registry(bind_linkage(remapped)),
     X            = global_X,
-    design_names = global_names
+    design_names = colnames(global_X)
   )
 }
 
