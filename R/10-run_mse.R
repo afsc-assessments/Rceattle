@@ -322,18 +322,20 @@
 #' Run a management strategy evaluation
 #'
 #' @description Runs a forward-projecting management strategy evaluation (MSE).
-#'   In the years it adds, the selectivity and catchability deviations (a form
-#'   whose deviations are year-to-year increments takes an increment of 0),
-#'   empirical selectivity, ration and weight-at-age are held at the operating
-#'   model's terminal hindcast year. M1 deviations take the operating model's
-#'   projection values (0 where estimated by year, an input series as given). An
-#'   index's `Log_sd` and a composition's `Sample_size` are copied from the
-#'   fleet's last historical row and scaled by `fut_sample`. Unlike a
-#'   [retrospective()] peel, `run_mse()` holds no linkage: covariates read
-#'   `env_data` as given, and a q or selectivity linkage random effect takes the
-#'   operating model's own estimate for each added year (an AR1 decaying toward
-#'   0, an IID effect 0). There is no implementation error and no observation
-#'   error on catch.
+#'   In the years each assessment adds, the operating model holds its
+#'   selectivity and catchability deviations at its terminal hindcast year (a
+#'   form whose deviations are year-to-year increments takes an increment of 0);
+#'   its M1 deviations take its projection values (0 where estimated by year, an
+#'   input series as given). The estimation model starts its own from those
+#'   values and re-estimates any its map leaves free. Empirical selectivity,
+#'   ration and weight-at-age stay at each model's terminal hindcast year. An index's
+#'   `Log_sd` and a composition's `Sample_size` are copied from the fleet's last
+#'   historical row and scaled by `fut_sample`. Unlike a [retrospective()] peel,
+#'   `run_mse()` holds no linkage effect: covariates read `env_data` as given,
+#'   and a q or selectivity linkage random effect takes the operating model's
+#'   own estimate for each added year (a random walk its terminal value, an AR1
+#'   its decay toward 0, an IID effect 0). There is no implementation error and
+#'   no observation error on catch.
 #'   Fixed numbers-at-age (`estDynamics > 0`) are an input rather than a
 #'   forecast, so they are NOT held forward: supply `NByageFixed` rows for every
 #'   projection year, or the uncovered years read 0 and that species contributes
@@ -953,8 +955,10 @@ run_mse <- function(om, em, nsim = 10, start_sim = 1, assessment_period = 1, sam
             # period (srr_*) and the suitability window (suit_*) are pinned to
             # the PRISTINE om$ (not the advancing om_use$) so both stay fixed
             # through the projection -- critical for multispecies models, whose
-            # predation suitability must not drift over the MSE. The OM projects
-            # on mean recruitment across sim iterations (proj_mean_rec = TRUE).
+            # predation suitability must not drift over the MSE. Past its new
+            # endyr the OM projects at mean hindcast recruitment (proj_mean_rec =
+            # TRUE); the years it adds are hindcast years, where sample_rec()'s
+            # deviations apply.
             om_use <- .refit_like(
               data_list        = om_use$data_list,
               inits            = om_use$estimated_params,
