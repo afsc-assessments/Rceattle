@@ -149,7 +149,9 @@ degenerate, and never with \code{observe}, which must stay integrated.
 In a \code{\link[=retrospective]{retrospective()}} peel, a fixed-effect term that is a category
 (\code{cut(Year, ...)}, \code{factor()}, a logical column) holds its terminal-year value
 in every later \code{env_data} row, as the peel has no data after that year to show
-a block or regime changed. A fit's own projection reads \code{env_data} as given.
+a block or regime changed, and so does a q or selectivity random effect, as a
+\code{fleet_control} deviation does. A fit's own projection reads \code{env_data} as
+given.
 }
 \examples{
 # A covariate on a growth parameter, one coefficient per species. Attach to a

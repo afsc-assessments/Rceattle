@@ -18,6 +18,29 @@ throughout.
 review. It landed as 5.66.9, so a version check written for that fix needs 5.66.9.
 -->
 
+# Rceattle 5.70.5
+
+## Bug fixes
+
+* **A retrospective peel holds a q or selectivity linkage deviation at its
+  terminal-year level**, as it holds a `fleet_control` deviation, so the peel's
+  catchability and selectivity follow its last year, as the model's projection
+  holds selectivity. An `ar1()` or `(1 | Year)` effect took the peel's own
+  estimate for each removed year, decaying toward 0 or falling to 0; a random
+  walk held already. M1 and recruitment linkage effects still take the peel's own
+  estimate for each year, as the projection does, and covariate terms keep their
+  peel rules (5.70.1).
+
+  **Whose Mohn's rho moves**: a model with an `ar1()` or `(1 | Year)` linkage on
+  selectivity, F from the first forecast year, as the peel fits F to the observed
+  catch, and biomass from the next; one on q moves no rho, only the q a peel
+  reports for its forecast years. On `BS2017SS` with the pollock fishery made
+  logistic and an `ar1(1 | Year)` linkage on its `inf_asc`, the 2016 peel's 2017
+  selectivity now equals its 2016 value, where it was up to 20% lower (ages 1 to
+  3). With 2 peels, pollock F rho moves from -0.054 to -0.088 (forecast year 1)
+  and from -0.017 to -0.072 (forecast year 2, one peel), and SSB rho at forecast
+  year 2 from 0.0105 to 0.0102.
+
 # Rceattle 5.70.4
 
 ## Behavior changes

@@ -128,7 +128,9 @@ NULL
 #'   In a [retrospective()] peel, a fixed-effect term that is a category
 #'   (`cut(Year, ...)`, `factor()`, a logical column) holds its terminal-year value
 #'   in every later `env_data` row, as the peel has no data after that year to show
-#'   a block or regime changed. A fit's own projection reads `env_data` as given.
+#'   a block or regime changed, and so does a q or selectivity random effect, as a
+#'   `fleet_control` deviation does. A fit's own projection reads `env_data` as
+#'   given.
 #'
 #' @return An `Rceattle_linkage_spec` object.
 #' @examples
@@ -841,8 +843,9 @@ print.Rceattle_linkage_spec <- function(x, ...) {
 #'   such a spec errors, ids always work.
 #' @param quiet if `TRUE`, suppress the warning that a species / sex / fleet
 #'   filter has no effect because `by` omits it.
-#' @param hold_after the year after which a categorical fixed-effect term holds
-#'   that year's value (see `.linkage_design()`); `NULL` holds nothing.
+#' @param hold_after the year after which a categorical fixed-effect term, and a
+#'   q or selectivity random effect, hold that year's value (see
+#'   `.linkage_design()`); `NULL` holds nothing.
 #'
 #' @return An `Rceattle_linkage_table` with one row per coefficient.
 #' @keywords internal
@@ -865,7 +868,8 @@ materialize_linkage <- function(spec, process, env_data, strata = list(), quiet 
 
   # 1. The design matrix: fixed-effect columns, then one indicator column per
   #    random-effect level.
-  design  <- .linkage_design(spec$formula, env_data, hold_after)
+  design  <- .linkage_design(spec$formula, env_data, hold_after,
+                             hold_re = process %in% c("q", "sel"))
   X       <- design[["X"]]
   X_names <- colnames(X)
   re      <- design[["re"]]
@@ -922,11 +926,12 @@ materialize_linkage <- function(spec, process, env_data, strata = list(), quiet 
 #' model.matrix(), then one indicator column per random-effect level.
 #' @param hold_after the year after which a categorical fixed-effect term holds
 #'   that year's value; `NULL` holds nothing.
+#' @param hold_re `TRUE` to hold the random-effect levels after `hold_after` too.
 #' @return `X`, the bar-term design `re`, and `col_re`: per column of X, the
 #'   random effect's grouping variable, structure (us = IID, rw, ar1) and level
 #'   as a number (its year, re_time); NA on a fixed column.
 #' @noRd
-.linkage_design <- function(formula, env_data, hold_after = NULL) {
+.linkage_design <- function(formula, env_data, hold_after = NULL, hold_re = FALSE) {
   # Split fixed from random before building the design matrix. Passing a
   # formula containing a bar straight to model.matrix() evaluates `1 | Year`
   # as a logical OR and yields a nonsense column ("1 | YearTRUE"), so the
@@ -963,6 +968,14 @@ materialize_linkage <- function(spec, process, env_data, strata = list(), quiet 
   }
   X_fixed <- stats::model.matrix(attr(mf, "terms"), mf)
   re <- .materialize_re_design(parsed$re_terms, parsed$re_structures, env_data)
+  # A q or selectivity deviation keeps that year's level too, as a fleet_control
+  # deviation does, so q and selectivity follow the last year's.
+  if (hold_re && length(last) == 1L) {
+    later <- which(yr > hold_after)
+    re$X[later, ] <- re$X[rep(last, length(later)), , drop = FALSE]
+    # Named apart from an unheld process's columns on the same grouping column.
+    colnames(re$X) <- paste(colnames(re$X), "held")
+  }
 
   # Random parts become indicator columns after the fixed ones, so the C++ adds
   # beta * indicator(level) as for a fixed column; only the beta vector

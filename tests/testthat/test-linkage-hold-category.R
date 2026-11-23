@@ -89,3 +89,71 @@ testthat::test_that("endyr_peel sets the hold year only inside a peel", {
   # The unpeeled model (endyr_peel = endyr): a break after endyr is not held.
   testthat::expect_true(all(block(d$endyr, d$endyr, brk = d$endyr + 2) == 1))
 })
+
+# A q or selectivity linkage deviation holds its level after the hold year too, as
+# a fleet_control deviation does; a fixed covariate does not.
+testthat::test_that("a held random effect keeps its level after hold_after", {
+  set.seed(4)
+  env <- data.frame(Year = 2000:2015, temp = stats::rnorm(16))
+  f <- ~ temp + ar1(1 | Year)
+  X0 <- Rceattle:::.linkage_design(f, env, hold_after = 2009)$X
+  X1 <- Rceattle:::.linkage_design(f, env, hold_after = 2009, hold_re = TRUE)$X
+  later <- env$Year > 2009
+  fixed <- 1:2   # (Intercept), temp
+  re <- seq(3, ncol(X1))
+  testthat::expect_identical(unname(X1[!later, ]), unname(X0[!later, ]))
+  testthat::expect_identical(X1[later, fixed], X0[later, fixed])
+  testthat::expect_true(all(t(X1[later, re]) == X1[env$Year == 2009, re]))
+  testthat::expect_false(identical(unname(X1[later, re]), unname(X0[later, re])))
+  # Named apart from the same grouping column unheld, so the two can be pooled.
+  testthat::expect_false(any(colnames(X1)[re] %in% colnames(X0)))
+})
+
+testthat::test_that("a peel holds a q linkage deviation at its terminal year", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("TMB")
+
+  d <- make_test_data(nyrs = 20, seed = 1)
+  d$fleet_control$Catchability[1] <- "Estimated"
+  d$env_data <- data.frame(Year = d$styr:d$projyr)
+  # A survey 50% higher in years 15-18, inside the 2-year peel.
+  late <- d$index_data$Year > d$endyr - 6 & d$index_data$Year <= d$endyr - 2
+  d$index_data$Observation[late] <- 1.5 * d$index_data$Observation[late]
+  fit <- suppressWarnings(suppressMessages(Rceattle::fit_mod(
+    data_list = d, inits = NULL, file = NULL, estimateMode = 0,
+    random_rec = FALSE, msmMode = 0,
+    qFun = Rceattle::build_catchability(linkages = list(q = Rceattle::linkage_spec(
+      ~ ar1(1 | Year), by = ~ fleet, fleet = 1L, link = "log", init = list(sigma = 0.2)))),
+    fit_control = Rceattle::fit_control(phase = FALSE, getsd = FALSE, verbose = 0))))
+  endyr_peel <- d$endyr - 2
+  peel <- suppressWarnings(suppressMessages(Rceattle::retrospective(
+    fit, peels = 2, cores = 1, getsd = FALSE, phase = FALSE)))$Rceattle_list[[paste0("Year_", endyr_peel)]]
+
+  k <- endyr_peel - d$styr + 1
+  q <- peel$quantities$index_q[1, ]
+  for (yr in (k + 1):(d$endyr - d$styr + 1)) testthat::expect_equal(q[[yr]], q[[k]])
+})
+
+# A held q effect and an unheld R0 effect on the same grouping column build apart.
+testthat::test_that("a peel holds a q effect that shares its grouping column with R0", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("TMB")
+
+  d <- make_test_data(nyrs = 20, seed = 1)
+  d$fleet_control$Catchability[1] <- "Estimated"
+  d$env_data <- data.frame(Year = d$styr:d$projyr)
+  fit <- suppressWarnings(suppressMessages(Rceattle::fit_mod(
+    data_list = d, inits = NULL, file = NULL, estimateMode = 0,
+    random_rec = FALSE, msmMode = 0,
+    qFun = Rceattle::build_catchability(linkages = list(q = Rceattle::linkage_spec(
+      ~ (1 | Year), by = ~ fleet, fleet = 1L, link = "log", init = list(sigma = 0.2)))),
+    recFun = Rceattle::build_srr(linkages = list(R0 = Rceattle::linkage_spec(~ (1 | Year)))),
+    fit_control = Rceattle::fit_control(phase = FALSE, getsd = FALSE, verbose = 0))))
+  r <- suppressWarnings(suppressMessages(Rceattle::retrospective(
+    fit, peels = 2, cores = 1, getsd = FALSE, phase = FALSE)))
+  testthat::expect_length(r$Rceattle_list, 3L)
+  peel <- r$Rceattle_list[[paste0("Year_", d$endyr - 2)]]
+  q <- peel$quantities$index_q[1, ]
+  k <- d$endyr - 2 - d$styr + 1
+  testthat::expect_equal(q[[k + 1]], q[[k]])
+})

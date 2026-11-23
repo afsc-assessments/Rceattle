@@ -663,7 +663,9 @@ fixed-effect category (`cut(Year, ...)`, `factor()`, a logical column) holds its
 value from the peel's terminal year, as the peel has no data after that year to
 show a block or regime changed. A 0/1 block column is a number, so a peel gives
 it the mean of its retained years; as `factor(<column>)` it is held, under new
-coefficient names.
+coefficient names. A q or selectivity random effect (`rw()`, `ar1()`, `(1 | Year)`)
+also keeps its terminal-year level, as a `fleet_control` deviation does, so the
+peel's catchability and selectivity follow its last year.
 
 **There is no `block()` helper**: `cut()` already expresses a block in base R.
 

@@ -644,8 +644,9 @@ fit_mod <-
                          sel         = data_list$sel_linkages,
                          comp        = data_list$comp_linkages),
       env_data    = data_list$env_data,
-      # In a retrospective peel (endyr still endyr_full) a block or regime holds
-      # its terminal-year value; a fit's own projection reads env_data as given.
+      # In a retrospective peel (endyr still endyr_full) a block or regime, and a q
+      # or selectivity random effect, hold their terminal-year values; a fit's own
+      # projection reads env_data as given.
       hold_after  = if (isTRUE(data_list[["endyr_full"]] == data_list[["endyr"]] &&
                                data_list[["endyr_peel"]] < data_list[["endyr"]]))
         data_list[["endyr_peel"]],
