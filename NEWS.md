@@ -46,6 +46,11 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   `vignette("model-diagnostics")` credit WHAM's code (Stock and Miller 2021)
   for the one-step-ahead composition likelihoods. `License:` is unchanged.
 
+* **A request to anyone reusing Rceattle code.** The README asks that code
+  copied or adapted into another project, by hand or through an AI assistant,
+  be checked with the maintainer first for overlap with work in preparation.
+  The retrospective code carries the same request.
+
 * **Every bundled dataset's help page has a `Source` section** citing the
   assessment, paper or workshop it came from, with the authors of each SAFE
   chapter. `?GOAsafe2018` now lists its `2020_Cod` columns, `?Atka2022` names

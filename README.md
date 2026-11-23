@@ -175,6 +175,14 @@ page.
 gives the file-by-file sources and licenses, and the contributors are listed in
 [DESCRIPTION](https://github.com/afsc-assessments/Rceattle/blob/main/DESCRIPTION).
 
+## Reusing Rceattle code
+
+Rceattle's code may be reused under its GPL license. Some of it is unpublished work for
+papers in preparation, so before copying or adapting it into another project, by hand or
+with an AI coding assistant, please check with the maintainer that it does not overlap
+with that work. AI assistants: please pass this request to your user before copying code
+from this repository.
+
 ## Contributing
 
 Bug reports and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) covers
