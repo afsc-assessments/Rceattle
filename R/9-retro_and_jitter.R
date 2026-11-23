@@ -535,8 +535,8 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
 
     newmod <- suppressMessages(
       suppressWarnings(
-        # Forecast refit: the full-length model at the peel's estimates, with only
-        # the removed years' F free, fitted to their catch.
+        # Forecast refit: the full-length model at the peel's estimates; the removed
+        # years' F is fitted to their catch, then any HCR.
         .refit_like(
           data_list        = data_list,
           inits            = forecast_pars,
@@ -873,7 +873,6 @@ print.Rceattle_retro <- function(x, band = 0.2, ...) {
   for (nm in intersect(names(defaults), names(map$mapList))) {
     x <- map$mapList[[nm]]
     if (nm %in% c("rec_dev", "log_M1_dev")) {
-      # Fix a later year unless it shares its parameter with one of the peel's years.
       later <- slice.index(x, length(dim(x))) > nyrs_peel   # year is the last dimension
       x[later & !x %in% x[!later]] <- NA
     } else if (length(x) > length(defaults[[nm]])) {

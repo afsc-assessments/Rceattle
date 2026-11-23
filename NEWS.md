@@ -37,24 +37,26 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   harvest control rule.
 
   **Whose Mohn's rho moves**: in the forecast years, any model with q,
-  selectivity or M1 year deviations, IID included, whose forecast years took the
-  unpeeled model's value at the peel's terminal year rather than the peel's own;
-  in every year, a model with a random walk on q or selectivity, as measured
-  here, and, unmeasured, one with `random_rec` or M1 year deviations. On
-  `GOA2018SS` (3 peels with `getsd = FALSE`, of a fit with `phase = FALSE`), whose
+  selectivity or M1 year deviations, IID included, since those years took the
+  unpeeled model's value at the peel's terminal year; in every year, a model
+  with a random walk on q or selectivity, as measured here, and, unmeasured, one
+  that estimates a deviation sd (`random_rec`, `random_q`, `random_sel`) or has
+  M1 year deviations. On `GOA2018SS` (3 peels with
+  `getsd = FALSE`, of a fit with `phase = TRUE`), whose
   Shelikof and ADF&G survey q are random walks and whose fishery selectivity is
   `RandomWalkAscending`, the peel ending in 2015 estimates its terminal q
   deviations (log scale) at -0.185 (Shelikof) and -0.028 (ADF&G) rather than
-  0.072 and -0.303, and pollock SSB rho moves from -0.0751 to -0.0700 (terminal
-  year) and from 0.554 to 0.536 (forecast year 3, one peel). `BS2017SS`, which has
-  no q or selectivity deviation, moves by under 2e-6, relative (optimizer
+  0.072 and -0.303, and pollock SSB rho moves from -0.075 to -0.070 (terminal
+  year) and from 0.55 to 0.54 (forecast year 3, one peel). `BS2017SS`, which has
+  no q or selectivity deviation, moves by under 1e-5, relative (optimizer
   tolerance). The sibling assessments that run `retrospective()` include GOA
   pollock 2024 to 2026, EBS pollock 2024, Pacific hake, BSAI yellowfin sole, GOA
-  arrowtooth flounder, the GOA multispecies assessment and GOA-ATF-ESP. The GOA
-  pollock 2025 and 2026 scripts
-  carry ADF&G q and fishery selectivity as `rw(1 | Year)` linkages and Shelikof q
-  as an `ar1(1 | Year)` linkage, which this release neither cuts to a peel's
-  years nor holds.
+  arrowtooth flounder, the GOA multispecies assessment and GOA-ATF-ESP. A linkage
+  deviation needs no cutting, such as the `rw(1 | Year)` ADF&G q and fishery
+  selectivity and the `ar1(1 | Year)` Shelikof q of the GOA pollock 2025 and 2026
+  scripts, or an `ar1(1 | Year)` on R0: it stays free in the peel's hindcast, and
+  the removed years, which carry no data, leave the fitted years as a fit of the
+  peel's own data has them (to 8e-5 in SSB on a test model).
 
 * **In the years `run_mse()` adds, and in a peel's forecast years, the q and
   selectivity deviations keep their last-year values**, as the model's projection

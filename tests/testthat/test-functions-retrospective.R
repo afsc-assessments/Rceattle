@@ -691,8 +691,7 @@ testthat::test_that("a peel reports standard errors for its own hindcast", {
     se <- ssb_se(m)
     testthat::expect_true(all(is.finite(se)))
     testthat::expect_true(all(se > 0))   # the defect: every one was exactly 0
-    # The positive case for the pdHess arm of the usability check below: a
-    # healthy rebuild must pass it, or a real band would be declined instead.
+    # A healthy rebuild is positive definite.
     testthat::expect_true(isTRUE(m$sdrep$pdHess))
     # Predicted catch is ADREPORTed only inside the correction, not in what it returns.
     testthat::expect_false("catch_hat" %in% names(m$sdrep$value))
@@ -795,10 +794,9 @@ peel_reference_sdreport <- function(fit, peel, ep, hold_F, catch_sd = NULL) {
 # through the hindcast's random effects, so the report sat off the optimum (max
 # gradient 0.15-4.19 on parameters other than sigma_R across 10 peels of GOA
 # pollock 2026; 0.277 on this fixture's 2-year peel). Holding the peeled F and
-# dropping that catch leaves one term: the
-# peel fixes its peeled recruitment deviations yet still scores them, at 0 in
-# the peel's hindcast and at the projected deviation in this report, so R_log_sd
-# alone keeps a gradient of -sum((dev / sigma_R)^2).
+# dropping that catch leaves one term: this report scores the peeled
+# recruitment deviations at the projected deviation, which the peel's hindcast
+# does not score, so R_log_sd alone keeps a gradient.
 testthat::test_that("a peel's sd rebuild is stationary but for R_log_sd under random recruitment", {
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("TMB")
@@ -908,8 +906,9 @@ testthat::test_that("a peel's catch-conditioned band matches the joint report wi
 # what TMB::sdreport() returned (no sdrep if it threw) and records why on
 # attr(peel, "sd_report_error"), which stops plots drawing it; it raises no warning,
 # since the peel converged and Mohn's rho reads point estimates only. A rebuild
-# fails four ways -- it throws, cannot factor its Hessian, reports nothing finite,
-# or its correction throws -- each covered below.
+# fails three ways -- it throws, reports nothing finite, or its correction throws
+# -- each covered below; a report TMB marks pdHess = FALSE is kept, since the
+# hindcast's own Hessian already passed.
 testthat::test_that("a peel whose sd rebuild fails keeps its sdreport, and records why", {
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("TMB")
