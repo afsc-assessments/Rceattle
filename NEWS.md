@@ -51,8 +51,11 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
     the MSVPA model is Holsman et al. 2016; 2D-AR1 selectivity is Xu et al.
     2019; and 3D-AR1 is Cheng et al. 2023, since no 2024 paper exists. TMB is
     now cited as the 2016 *Journal of Statistical Software* paper, not the 2015
-    preprint. Two `data_check()` messages and one from `plot_form()` carry the
-    corrected years.
+    preprint. The "Hake" selectivity form cites the 2015 Pacific hake
+    assessment (Taylor et al. 2015, not 2014), the warm-water bioenergetics
+    form Holsman and Aydin (2015), and random-walk selectivity the 2018 GOA
+    pollock assessment (Dorn et al. 2018). Two `data_check()` messages and one
+    from `plot_form()` carry the corrected years.
   - Help pages now cite methods they described without a source: Mohn (1999)
     in `?retrospective`, Thorson et al. (2017) in `?build_composition`,
     Thorson and Kristensen (2016) for TMB's epsilon bias correction

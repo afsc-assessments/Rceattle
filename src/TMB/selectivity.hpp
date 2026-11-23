@@ -136,7 +136,7 @@ void convert_length_selectivity(
  * - 2 NonParametric (Ianelli et al. 2018, AMAK): one log coefficient per bin, mean-centred.
  * - 3 DoubleLogistic (Dorn and Methot 1990).
  * - 4 DescendingLogistic.
- * - 5 Hake (Taylor et al. 2014): exp of the cumulative sum of coefficients.
+ * - 5 Hake (Taylor et al. 2015): exp of the cumulative sum of coefficients.
  * - 6 2DAR1 (Xu et al. 2019): inverse logit of coefficients with AR1 deviates by bin and year.
  * - 7 3DAR1 (Cheng et al. 2023): as 6, with a cohort term.
  * - 8 DoubleNormal: Gaussian dome with a right-tail floor.

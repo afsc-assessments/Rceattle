@@ -139,7 +139,7 @@ Set the `Selectivity` column of `fleet_control`; integers and strings both work:
 | `2` | `"NonParametric"` | Age- or length-bin-indexed; penalties via `Sel_curve_pen1` / `Sel_curve_pen2` |
 | `3` | `"DoubleLogistic"` | Dome-shaped (ascending + descending logistic) |
 | `4` | `"DescendingLogistic"` | Descending only |
-| `5` | `"Hake"` | Non-parametric à la Taylor et al. (Pacific hake) |
+| `5` | `"Hake"` | Non-parametric à la Taylor et al. (2015; Pacific hake) |
 | `6` | `"2DAR1"` | 2D AR(1) bin × year (Xu et al. 2019) |
 | `7` | `"3DAR1"` | 3D AR(1) bin × year × cohort (Cheng et al. 2023) |
 | `8` | `"DoubleNormal"` | Four-parameter double normal: peak, ascending and descending widths, and a right-tail floor (the Stock Synthesis pattern 24 shape without its initial-selectivity and plateau-width parameters) |
@@ -795,6 +795,11 @@ derived quantity needs the covariance
   availability of walleye pollock (*Gadus chalcogrammus*) to assessment
   surveys in the Gulf of Alaska. *ICES Journal of Marine Science*,
   82(1), fsae005.
+- Taylor, I.G., Grandin, C., Hicks, A.C., Taylor, N., Cox, S. (2015).
+  Status of the Pacific hake (whiting) stock in U.S. and Canadian waters
+  in 2015. Joint Technical Committee of the U.S. and Canada Pacific
+  Hake/Whiting Agreement; National Marine Fisheries Service; Fisheries
+  and Oceans Canada.
 - Thorson, J.T., Johnson, K.F., Methot, R.D., Taylor, I.G. (2017).
   Model-based estimates of effective sample size in stock assessment
   models using the Dirichlet-multinomial distribution. *Fisheries

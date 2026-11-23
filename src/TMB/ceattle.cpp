@@ -4145,7 +4145,7 @@ Type objective_function<Type>::operator() () {
         }
       }
 
-      // Hake non-parametric (5): IID deviates (Taylor et al. 2014), over all N_sel_bins,
+      // Hake non-parametric (5): IID deviates (Taylor et al. 2015), over all N_sel_bins,
       // including any bin build_map() holds at 0.
       if(((flt_varying_sel(flt) == 1) || (flt_varying_sel(flt) == 2)) && (flt_sel_type(flt) == 5)){
         for(int bin = 0; bin < flt_n_sel_bins(flt); bin++){

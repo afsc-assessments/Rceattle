@@ -174,7 +174,7 @@ Each row defines one fleet (fishery or survey) and controls how it is modeled. M
 #   "NonParametric"      (2), freely estimated selectivity-at-age/length with smoothness penalty
 #   "DoubleLogistic"     (3), ascending + descending dome-shaped logistic
 #   "DescendingLogistic" (4), descending logistic only (declining with age)
-#   "Hake"               (5), non-parametric selectivity à la Taylor et al. (Pacific hake)
+#   "Hake"               (5), non-parametric selectivity à la Taylor et al. (2015; Pacific hake)
 #   "2DAR1"              (6), 2D autoregressive random effects (bin × year)
 #   "3DAR1"              (7), 3D autoregressive random effects (bin × year × cohort)
 #   "DoubleNormal"       (8), Gaussian ascending/descending limbs blended at peak
@@ -637,6 +637,11 @@ Every fit also records the configuration it used in `fit$run_config`, so
   energetics model for lake trout, *Salvelinus namaycush*: application
   to the Lake Michigan population. *Canadian Journal of Fisheries and
   Aquatic Sciences*, 40, 681-698.
+- Taylor, I.G., Grandin, C., Hicks, A.C., Taylor, N., Cox, S. (2015).
+  Status of the Pacific hake (whiting) stock in U.S. and Canadian waters
+  in 2015. Joint Technical Committee of the U.S. and Canada Pacific
+  Hake/Whiting Agreement; National Marine Fisheries Service; Fisheries
+  and Oceans Canada.
 - Thornton, K.W., Lessem, A.S. (1978). A temperature algorithm for
   modifying biological rates. *Transactions of the American Fisheries
   Society*, 107, 284-287.
