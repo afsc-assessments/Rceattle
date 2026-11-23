@@ -159,8 +159,11 @@ Wassermann, S. N., Adams, G. D., Haltuch, M. A., Kaplan, I. C., Marshall, K. N.,
 ## Code and data from other projects
 
 Rceattle began as a TMB implementation of the ADMB CEATTLE model of Kirstin Holsman,
-James Ianelli and Kerim Aydin (Holsman et al. 2016) and has since grown well beyond it.
-It adapts code from Trijoulet et al.'s
+James Ianelli and Kerim Aydin (Holsman et al. 2016). It has since grown into a general
+age-structured assessment package: one or many species, one or two sexes, age- or
+length-based data with estimated growth, 13 selectivity forms, time variation through
+random effects and environmental linkages, and tools for diagnostics, simulation,
+management strategy evaluation and model averaging. It adapts code from Trijoulet et al.'s
 one-step-ahead reference code and [WHAM](https://github.com/timjmiller/wham)
 (one-step-ahead composition likelihoods, and growth curves from Giancarlo Correa's
 growth branch), Vanessa Trijoulet's multispecies model (predator-prey vulnerability and
