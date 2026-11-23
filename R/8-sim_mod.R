@@ -999,9 +999,9 @@ sim_mod <- function(object = NULL, simulate = FALSE, process = FALSE, Rceattle =
       if (any(emptied)) {
         warning(sum(emptied), " diet row(s) came back empty for predator(s) ",
                 paste(unique(pred_sp[emptied]), collapse = ", "),
-                ". Their sample size times Diet_comp_weights rounded to zero, ",
-                "so the draw placed no prey items. Those rows carry no ",
-                "information into a refit.", call. = FALSE)
+                ". Their sample size (times Diet_comp_weights under a ",
+                "multinomial) rounded to zero, so the draw placed no prey items. ",
+                "Those rows carry no information into a refit.", call. = FALSE)
       }
     }
   }

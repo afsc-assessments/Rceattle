@@ -18,6 +18,15 @@ throughout.
 review. It landed as 5.66.9, so a version check written for that fix needs 5.66.9.
 -->
 
+# Rceattle 5.70.4
+
+## Bug fixes
+
+* **Under a Dirichlet-multinomial diet likelihood, `sim_mod()`'s empty-diet warning
+  no longer blames `Diet_comp_weights`**: it names `Sample_size` times
+  `Diet_comp_weights` under a multinomial and `Sample_size` alone under a
+  Dirichlet-multinomial, the counts it has tested since 5.69.1.
+
 # Rceattle 5.70.3
 
 ## Bug fixes
