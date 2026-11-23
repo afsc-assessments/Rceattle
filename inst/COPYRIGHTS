@@ -1,9 +1,11 @@
 Code and data in Rceattle that come from other projects
 =======================================================
 
-Rceattle is a TMB reimplementation of CEATTLE, the ADMB model written by
-Kirstin Holsman, James Ianelli and Kerim Aydin (Holsman et al. 2016). The pieces
-below come from other projects and keep their original licenses. Each entry
+Rceattle began as a TMB implementation of CEATTLE, the ADMB multispecies model
+written by Kirstin Holsman, James Ianelli and Kerim Aydin (Holsman et al. 2016),
+and has since grown into a general single- and multi-species stock assessment
+package. The pieces below come from other projects and keep their original
+licenses. Each entry
 names who holds copyright in what was taken; the main authors are also listed
 as contributors in DESCRIPTION.
 
