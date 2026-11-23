@@ -321,11 +321,11 @@
 #' Run a management strategy evaluation
 #'
 #' @description Runs a forward-projecting management strategy evaluation (MSE).
-#'   Projected selectivity, catchability, foraging days and weight-at-age are
-#'   held at the operating model's terminal hindcast year, survey SD is the
-#'   average over the historical series, and composition sample size is held at
-#'   the last year. There is no implementation error and no observation error on
-#'   catch. Fixed numbers-at-age (`estDynamics > 0`) are an input rather than a
+#'   In the years it adds, the selectivity, catchability and M1 deviations,
+#'   foraging days and weight-at-age are held at the operating model's terminal
+#'   hindcast year, survey SD is the average over the historical series, and
+#'   composition sample size is held at the last year. There is no
+#'   implementation error and no observation error on catch. Fixed numbers-at-age (`estDynamics > 0`) are an input rather than a
 #'   forecast, so they are NOT held forward: supply `NByageFixed` rows for every
 #'   projection year, or the uncovered years read 0 and that species contributes
 #'   nothing, with a warning naming it.
@@ -864,14 +864,11 @@ run_mse <- function(om, em, nsim = 10, start_sim = 1, assessment_period = 1, sam
       # -- log_F
       om_use$estimated_params$log_F <- cbind(om_use$estimated_params$log_F, matrix(0, nrow= nrow(om_use$estimated_params$log_F), ncol = length(new_years)))
 
-      # -- M1_dev
-      #FIXME - simulate
-      # om_use$estimated_params$log_M1_dev[,,,(nyrs_hind + 1):(nyrs_hind + length(new_years))] <- om_use$estimated_params$log_M1_dev[,,,nyrs_hind]
 
-      # -- Time-varying survey catchability - assume last year, filled by columns
-      om_use$estimated_params$index_q_dev <- cbind(om_use$estimated_params$index_q_dev, matrix(om_use$estimated_params$index_q_dev[,ncol(om_use$estimated_params$index_q_dev)], nrow= nrow(om_use$estimated_params$index_q_dev), ncol = length(new_years)))
+      # -- q and selectivity deviations: padded with 0; the new years then take the
+      #    last year's q, selectivity and M1 deviations (the operating model's truth).
+      om_use$estimated_params$index_q_dev <- cbind(om_use$estimated_params$index_q_dev, matrix(0, nrow= nrow(om_use$estimated_params$index_q_dev), ncol = length(new_years)))
 
-      # -- Time-varying selectivity - assume last year, filled by columns.
       # Use the fitted arrays' own sex extent (max_sex), not a hardcoded 2: a
       # single-sex model has sex-dim 1, and forcing 2 silently recycles the
       # fitted values into a phantom second sex (and, since build_params sizes
@@ -885,13 +882,12 @@ run_mse <- function(om, em, nsim = 10, start_sim = 1, assessment_period = 1, sam
       sel_inf_dev[,,,1:nyrs_hind] <- om_use$estimated_params$sel_inf_dev
       sel_coff_dev[,,,1:nyrs_hind] <- om_use$estimated_params$sel_coff_dev
 
-      log_sel_slp_dev[,,,(nyrs_hind + 1):(nyrs_hind + length(new_years))] <- log_sel_slp_dev[,,,nyrs_hind]
-      sel_inf_dev[,,,(nyrs_hind + 1):(nyrs_hind + length(new_years))] <- sel_inf_dev[,,,nyrs_hind]
-      sel_coff_dev[,,,(nyrs_hind + 1):(nyrs_hind + length(new_years))] <- sel_coff_dev[,,,nyrs_hind]
-
       om_use$estimated_params$log_sel_slp_dev <- log_sel_slp_dev
       om_use$estimated_params$sel_inf_dev <- sel_inf_dev
       om_use$estimated_params$sel_coff_dev <- sel_coff_dev
+      om_use$estimated_params <- .hold_devs(om_use$estimated_params, om_use$data_list, nyrs_hind)
+      om_use$estimated_params$log_M1_dev[, , , nyrs_hind + seq_along(new_years)] <-
+        om_use$estimated_params$log_M1_dev[, , , nyrs_hind]
 
 
       # * Update map ----
@@ -1084,13 +1080,11 @@ run_mse <- function(om, em, nsim = 10, start_sim = 1, assessment_period = 1, sam
       # -- log_F
       em_use$estimated_params$log_F <- cbind(em_use$estimated_params$log_F, matrix(0, nrow= nrow(em_use$estimated_params$log_F), ncol = length(new_years)))
 
-      # # -- log_M1_dev
-      # em_use$estimated_params$log_M1_dev[,,,(nyrs_hind + 1):(nyrs_hind + length(new_years))] <- em_use$estimated_params$log_M1_dev[,,,nyrs_hind]
 
-      # -- Time-varying survey catchability - assume last year, filled by columns
-      em_use$estimated_params$index_q_dev <- cbind(em_use$estimated_params$index_q_dev, matrix(em_use$estimated_params$index_q_dev[,ncol(em_use$estimated_params$index_q_dev)], nrow= nrow(em_use$estimated_params$index_q_dev), ncol = length(new_years)))
+      # -- q and selectivity deviations: padded with 0; the new years then start at
+      #    the last year's q, selectivity and M1 deviations (the EM refits them).
+      em_use$estimated_params$index_q_dev <- cbind(em_use$estimated_params$index_q_dev, matrix(0, nrow= nrow(em_use$estimated_params$index_q_dev), ncol = length(new_years)))
 
-      # -- Time-varying selectivity - assume last year, filled by columns.
       # Sex extent from the fitted arrays (max_sex), not a hardcoded 2 -- see
       # the OM extension above.
       n_sex_em <- dim(em_use$estimated_params$log_sel_slp_dev)[3]
@@ -1102,14 +1096,12 @@ run_mse <- function(om, em, nsim = 10, start_sim = 1, assessment_period = 1, sam
       sel_inf_dev[,,,1:nyrs_hind] <- em_use$estimated_params$sel_inf_dev
       sel_coff_dev[,,,1:nyrs_hind] <- em_use$estimated_params$sel_coff_dev
 
-      # - Initialize new years with last year
-      log_sel_slp_dev[,,,(nyrs_hind + 1):(nyrs_hind + length(new_years))] <- log_sel_slp_dev[,,,nyrs_hind]
-      sel_inf_dev[,,,(nyrs_hind + 1):(nyrs_hind + length(new_years))] <- sel_inf_dev[,,,nyrs_hind]
-      sel_coff_dev[,,,(nyrs_hind + 1):(nyrs_hind + length(new_years))] <- sel_coff_dev[,,,nyrs_hind]
-
       em_use$estimated_params$log_sel_slp_dev <- log_sel_slp_dev
       em_use$estimated_params$sel_inf_dev <- sel_inf_dev
       em_use$estimated_params$sel_coff_dev <- sel_coff_dev
+      em_use$estimated_params <- .hold_devs(em_use$estimated_params, em_use$data_list, nyrs_hind)
+      em_use$estimated_params$log_M1_dev[, , , nyrs_hind + seq_along(new_years)] <-
+        em_use$estimated_params$log_M1_dev[, , , nyrs_hind]
 
 
       # Re-estimate

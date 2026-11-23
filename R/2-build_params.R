@@ -856,3 +856,33 @@ build_params <- function(data_list) {
   }
   m1
 }
+
+
+#' Hold the catchability and selectivity deviations at their year-`last` values
+#'
+#' For a retrospective peel's forecast years and the years `run_mse()` adds (the
+#' operating model's assumed truth; the estimation model's starting values),
+#' matching the projection, which holds selectivity at the last hindcast year.
+#' Each deviation keeps its year-`last` value
+#' through the model's last hindcast year; a selectivity form whose deviations are
+#' year-to-year increments (NonParametricPM, and NonParametricIntegrable under
+#' RandomWalk) takes an increment of 0, so its selectivity holds too.
+#'
+#' @param params parameter list whose deviation arrays already span the later years.
+#' @param data_list the model's data list.
+#' @param last year index (1 = styr) whose values the later years take.
+#' @noRd
+.hold_devs <- function(params, data_list, last) {
+  later <- (last + 1):dim(params[["index_q_dev"]])[2]
+  params[["index_q_dev"]][, later] <- params[["index_q_dev"]][, last]
+  params[["log_sel_slp_dev"]][, , , later] <- params[["log_sel_slp_dev"]][, , , last]
+  params[["sel_inf_dev"]][, , , later] <- params[["sel_inf_dev"]][, , , last]
+  params[["sel_coff_dev"]][, , , later] <- params[["sel_coff_dev"]][, , , last]
+
+  fc <- data_list[["fleet_control"]]
+  increments <- fc[["Selectivity"]] %in% "NonParametricPM" |
+    (fc[["Selectivity"]] %in% "NonParametricIntegrable" &
+       fc[["Time_varying_sel"]] %in% "RandomWalk")
+  params[["sel_coff_dev"]][increments, , , later] <- 0
+  params
+}

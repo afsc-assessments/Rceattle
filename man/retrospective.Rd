@@ -72,10 +72,20 @@ then F in the removed years, fitted to their observed catch with the
 hindcast held fixed.
 }
 \details{
-\strong{Forecast years.} A peel's removed years are its retrospective forecast: F
-is fitted to the observed catch, the survey and composition data are
-withheld, and selectivity, catchability and M1 deviations, weight-at-age,
-empirical selectivity and ration stay at the peel's terminal year.
+\strong{Hindcast and forecast years.} A peel's hindcast is the model as it would
+have been fitted at its terminal year: it ends there, so no later index,
+composition or catch, and no parameter for a later year, enters its
+estimates. It starts from the unpeeled estimates for its own years and uses
+the unpeeled map cut to them. Its removed years are then its retrospective
+forecast: F is fitted to the observed catch with the hindcast held.
+Weight-at-age, empirical selectivity and ration stay at the terminal year, and
+the q and selectivity deviations keep their terminal-year values (a form whose
+deviations are year-to-year increments takes an increment of 0). M1 deviations
+take the peel's projection values: 0 for one estimated by year, an input series
+as given. A linkage effect takes the peel's own estimate for each removed year:
+a random walk its terminal value, an AR1 its decay toward 0, an IID effect 0.
+For M1 and recruitment that is what the model's projection uses; the projection
+holds selectivity at the terminal year instead.
 Recruitment takes the deviation \code{\link[=sample_rec]{sample_rec()}} uses with
 \code{sample_rec = FALSE}, computed from the peel's fit (for a penalty-form curve
 with no penalty years in the peel, the mean over its own years after the
@@ -98,14 +108,14 @@ wrappers warn about them.
 \strong{Standard errors.} Mohn's rho reads only point estimates, so
 \code{getsd = FALSE} is faster. Under \code{getsd = TRUE} each peel is rebuilt at its
 estimates with the hindcast parameters treated as estimated, so no estimate
-moves. A fitted year's band is the peeled hindcast's own, except a depletion
+moves. A fitted year's band is the peel's hindcast's own, except a depletion
 relative to last-projection-year biomass (\code{HCR = "NoFishing"},
 \code{msmMode > 0}, \code{DynamicHCR = FALSE}), which reads the peeled F. A forecast
 year's band treats the catch as known and carries the hindcast's uncertainty
 through the F needed to take it, without recruitment variability, so it is
-narrower than a prediction interval. If the rebuild fails (an error, a
-Hessian that is not positive definite, or no finite standard error), the
-peel is kept, but plots, \code{as.data.frame()} and \code{vcov()} ignore its \code{sdrep},
+narrower than a prediction interval. If the rebuild fails (an error, or no
+finite standard error), the peel is kept, but plots, \code{as.data.frame()} and
+\code{vcov()} ignore its \code{sdrep},
 which may not hold valid standard errors; \code{attr(peel, "sd_report_error")}
 gives the reason. \code{print()} counts the peels carrying either attribute;
 \code{retrospective()} warns about neither.
@@ -132,8 +142,8 @@ warning; Mohn's rho is then conditional on them;
 warning, though a category is still held.
 }
 
-Refitting a returned peel, with \code{\link[=fit_mod]{fit_mod()}} or a diagnostic on it, no longer
-holds its categories, while its numeric covariates stay mean-filled.
+Refitting a returned peel, with \code{\link[=fit_mod]{fit_mod()}} or a diagnostic on it, does not
+hold its categories, while its numeric covariates stay mean-filled.
 
 \code{rescale} standardizes a column on the retained years and applies that centre
 and scale to the whole column (a column with fewer than two distinct retained
@@ -142,10 +152,10 @@ is not a covariate, such as a \code{Cindex} temperature in degrees C, which \cod
 would turn into z-scores. The unpeeled model is not rescaled, so standardize
 those columns the same way before fitting it.
 
-\strong{Catchability.} A peel's hindcast reuses the unpeeled model's map, so a
-survey whose index falls only in the removed years keeps a free q with no
-index to inform it, which under \code{getsd = TRUE} can leave the Hessian not
-positive definite and drop the peel.
+\strong{Catchability.} A peel's hindcast uses the unpeeled model's map, cut to its
+years, so a survey whose index falls only in the removed years keeps a free q
+with no index to inform it, which under \code{getsd = TRUE} can leave the Hessian
+not positive definite and drop the peel.
 }
 \examples{
 \donttest{
