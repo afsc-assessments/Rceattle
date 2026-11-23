@@ -49,9 +49,10 @@ value or vector the same length as the number of fleets.}
 \item{simulate_data}{Include simulated random error proportional to that
 estimated or provided for the data from the OM.}
 
-\item{regenerate_past}{Refit the EM to historical conditioning data before
-the MSE, generated from the OM with or without sampling error according to
-\code{simulate_data}.}
+\item{regenerate_past}{Refit the EM before the MSE to historical index,
+composition and CAAL data regenerated from the OM, with observation error
+when \code{simulate_data = TRUE} (drawn once and shared by every simulation)
+and as expected values otherwise.}
 
 \item{sample_rec}{Include resampled hindcast recruitment deviations in the OM
 projection. Resampled rather than drawn from N(0, sigmaR) because the
@@ -82,7 +83,9 @@ NULL.}
 
 \item{seed}{seed for the simulation}
 
-\item{regenerate_seed}{seed for regenerating data}
+\item{regenerate_seed}{Seed for the observation error drawn into the
+regenerated past data (\code{regenerate_past} and \code{simulate_data} both
+\code{TRUE}). Default \code{seed}.}
 
 \item{loopnum}{Number of times to restart optimization; \code{loopnum = 3}
 sometimes reaches a lower final gradient than \code{1}.}
@@ -107,11 +110,21 @@ A list of operating models (differing by simulated recruitment, per
 }
 \description{
 Runs a forward-projecting management strategy evaluation (MSE).
-Projected selectivity, catchability, foraging days and weight-at-age are
-held at the operating model's terminal hindcast year, survey SD is the
-average over the historical series, and composition sample size is held at
-the last year. There is no implementation error and no observation error on
-catch. Fixed numbers-at-age (\code{estDynamics > 0}) are an input rather than a
+In the years each assessment adds, the operating model holds its
+selectivity and catchability deviations at its terminal hindcast year (a
+form whose deviations are year-to-year increments takes an increment of 0);
+its M1 deviations take its projection values (0 where estimated by year, an
+input series as given). The estimation model starts its own from those
+values and re-estimates any its map leaves free. Empirical selectivity,
+ration and weight-at-age stay at each model's terminal hindcast year. An index's
+\code{Log_sd} and a composition's \code{Sample_size} are copied from the fleet's last
+historical row and scaled by \code{fut_sample}. Unlike a \code{\link[=retrospective]{retrospective()}} peel,
+\code{run_mse()} holds no linkage effect: covariates read \code{env_data} as given,
+and a q or selectivity linkage random effect takes the operating model's
+own estimate for each added year (a random walk its terminal value, an AR1
+its decay toward 0, an IID effect 0). There is no implementation error and
+no observation error on catch.
+Fixed numbers-at-age (\code{estDynamics > 0}) are an input rather than a
 forecast, so they are NOT held forward: supply \code{NByageFixed} rows for every
 projection year, or the uncovered years read 0 and that species contributes
 nothing, with a warning naming it.

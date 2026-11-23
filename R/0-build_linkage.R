@@ -125,6 +125,12 @@ NULL
 #'   since estimating deviations and their SD jointly as fixed effects is
 #'   degenerate, and never with `observe`, which must stay integrated.
 #'
+#'   In a [retrospective()] peel, a fixed-effect term that is a category
+#'   (`cut(Year, ...)`, `factor()`, a logical column) holds its terminal-year value
+#'   in every later `env_data` row, as the peel has no data after that year to show
+#'   a block or regime changed. A q or selectivity random effect also holds its
+#'   terminal-year level. A fit's own projection reads `env_data` as given.
+#'
 #' @return An `Rceattle_linkage_spec` object.
 #' @examples
 #' # A covariate on a growth parameter, one coefficient per species. Attach to a
@@ -836,11 +842,15 @@ print.Rceattle_linkage_spec <- function(x, ...) {
 #'   such a spec errors, ids always work.
 #' @param quiet if `TRUE`, suppress the warning that a species / sex / fleet
 #'   filter has no effect because `by` omits it.
+#' @param hold_after the year after which a categorical fixed-effect term or a q
+#'   or selectivity random effect holds that year's value (see
+#'   `.linkage_design()`); `NULL` holds nothing.
 #'
 #' @return An `Rceattle_linkage_table` with one row per coefficient.
 #' @keywords internal
 #' @noRd
-materialize_linkage <- function(spec, process, env_data, strata = list(), quiet = FALSE) {
+materialize_linkage <- function(spec, process, env_data, strata = list(), quiet = FALSE,
+                                hold_after = NULL) {
   if (!inherits(spec, "Rceattle_linkage_spec")) {
     stop("`spec` must be an Rceattle_linkage_spec")
   }
@@ -857,7 +867,8 @@ materialize_linkage <- function(spec, process, env_data, strata = list(), quiet 
 
   # 1. The design matrix: fixed-effect columns, then one indicator column per
   #    random-effect level.
-  design  <- .linkage_design(spec$formula, env_data)
+  design  <- .linkage_design(spec$formula, env_data, hold_after,
+                             hold_re = process %in% c("q", "sel"))
   X       <- design[["X"]]
   X_names <- colnames(X)
   re      <- design[["re"]]
@@ -895,28 +906,41 @@ materialize_linkage <- function(spec, process, env_data, strata = list(), quiet 
   level_grid <- .expand_linkage_strata(strata, by_vars)
   level_grid <- .filter_linkage_strata(level_grid, spec, process, quiet)
   if (nrow(level_grid) == 0L) {
-    return(.empty_materialized(X, X_names))
+    return(.empty_materialized(X, .pool_keys(design, X_names)))
   }
 
   # 4. One row per design column per stratum, carrying its init, bounds and prior,
   #    and on a random-effect column its sd, rho and any observation.
   out <- bind_linkage(.linkage_rows(spec, process, env_data, X_names,
                                     design[["col_re"]], level_grid, by_vars))
-  attr(out, "design_colnames") <- X_names
+  attr(out, "design_colnames") <- .pool_keys(design, X_names)
   attr(out, "design_matrix")   <- X
   out
 }
+
+# Held random-effect columns pool apart from an unheld process's columns of the
+# same name; pool_linkages() strips the mark, so every name a user sees is kept.
+.pool_keys <- function(design, X_names) {
+  if (!isTRUE(design[["held"]])) return(X_names)
+  re <- !is.na(design[["col_re"]][["group"]])
+  replace(X_names, re, paste0(X_names[re], .HELD_KEY))
+}
+.HELD_KEY <- "@held"
 
 
 # The steps of materialize_linkage(), in the order it calls them.
 
 #' The design matrix from a linkage formula: the fixed part through
 #' model.matrix(), then one indicator column per random-effect level.
-#' @return `X`, the bar-term design `re`, and `col_re`: per column of X, the
-#'   random effect's grouping variable, structure (us = IID, rw, ar1) and level
-#'   as a number (its year, re_time); NA on a fixed column.
+#' @param hold_after the year after which a categorical fixed-effect term holds
+#'   that year's value; `NULL` holds nothing.
+#' @param hold_re `TRUE` to hold the random-effect levels after `hold_after` too.
+#' @return `X`, the bar-term design `re`, `held` (whether its random-effect rows
+#'   were held), and `col_re`: per column of X, the random effect's grouping
+#'   variable, structure (us = IID, rw, ar1) and level as a number (its year,
+#'   re_time); NA on a fixed column.
 #' @noRd
-.linkage_design <- function(formula, env_data) {
+.linkage_design <- function(formula, env_data, hold_after = NULL, hold_re = FALSE) {
   # Split fixed from random before building the design matrix. Passing a
   # formula containing a bar straight to model.matrix() evaluates `1 | Year`
   # as a logical OR and yields a nonsense column ("1 | YearTRUE"), so the
@@ -939,14 +963,33 @@ materialize_linkage <- function(spec, process, env_data, strata = list(), quiet 
       "state-space `observe` covariate may be partial, but a fixed-effect ",
       "covariate may not)."), paste(na_fixed, collapse = ", ")), call. = FALSE)
   }
-  X_fixed <- stats::model.matrix(parsed$fixed, data = env_data)
+  mf <- stats::model.frame(parsed$fixed, data = env_data)
+  # No data after `hold_after` say a block or regime changed, so a category
+  # keeps that year's value; its levels, and so the design columns, stay.
+  yr <- env_data[["Year"]]
+  last <- which(yr == hold_after)
+  if (length(last) == 1L) {
+    for (k in which(vapply(mf, .is_category, logical(1)))) {
+      x <- if (is.character(mf[[k]])) factor(mf[[k]]) else mf[[k]]
+      x[yr > hold_after] <- x[last]
+      mf[[k]] <- x
+    }
+  }
+  X_fixed <- stats::model.matrix(attr(mf, "terms"), mf)
   re <- .materialize_re_design(parsed$re_terms, parsed$re_structures, env_data)
+  # A q or selectivity deviation keeps that year's level too, as a fleet_control
+  # deviation does.
+  held <- hold_re && length(last) == 1L
+  if (held) {
+    later <- which(yr > hold_after)
+    re[["X"]][later, ] <- re[["X"]][rep(last, length(later)), , drop = FALSE]
+  }
 
   # Random parts become indicator columns after the fixed ones, so the C++ adds
   # beta * indicator(level) as for a fixed column; only the beta vector
   # (beta_linkage_re) and the density on it differ.
   X <- cbind(X_fixed, re$X)
-  list(X = X, re = re,
+  list(X = X, re = re, held = held,
        col_re = list(group  = c(rep(NA_character_, ncol(X_fixed)), re$group),
                      struct = c(rep(NA_character_, ncol(X_fixed)), re$struct),
                      time   = c(rep(NA_real_,      ncol(X_fixed)), re$time)))
@@ -1535,16 +1578,14 @@ materialize_linkage <- function(spec, process, env_data, strata = list(), quiet 
 #'
 #' Collects every spec that's been registered against a process,
 #' materializes each against the supplied `env_data` and `strata`,
-#' unions their design-matrix columns by name into a single shared
+#' unions their design-matrix columns by key into a single shared
 #' design matrix `X`, and remaps each row's local `X_col` index to the
 #' global column. Used inside `fit_mod()` once all `build_*()` outputs
 #' have populated `data_list`.
 #'
-#' Two design columns from different specs that share a name are
-#' assumed to hold identical numeric values (which holds for
-#' deterministic terms generated by [stats::model.matrix()] over the
-#' same `env_data`). The first occurrence wins on order; subsequent
-#' specs reuse the column.
+#' Two design columns that share a key (`.pool_keys()`) are assumed to hold
+#' identical values; the first occurrence wins. A peel's held q or selectivity
+#' random-effect column has its own key, so `colnames(X)` can repeat a name.
 #'
 #' @param spec_groups named list whose names are process labels
 #'   (one of [LINKAGE_PROCESSES]) and whose elements are themselves
@@ -1558,19 +1599,22 @@ materialize_linkage <- function(spec, process, env_data, strata = list(), quiet 
 #'   and `fleet` vectors with `data_list$spnames` /
 #'   `fleet_control$Fleet_name`, which is how a spec that selects a species or
 #'   fleet by name is resolved to an id.
+#' @param hold_after passed to `materialize_linkage()`.
 #'
 #' @return A list with components:
 #' \describe{
 #'   \item{table}{An `Rceattle_linkage_table` with `X_col` indices
 #'     remapped to the global design matrix. May have zero rows.}
 #'   \item{X}{A numeric matrix `[nrow(env_data) x n_global_cols]` with
-#'     `colnames(X)` = the union of design-column names across specs.}
+#'     `colnames(X)` = the design-column names across specs, in first-seen
+#'     order.}
 #'   \item{design_names}{`colnames(X)` (separate copy for caller
 #'     convenience).}
 #' }
 #' @keywords internal
 #' @noRd
-pool_linkages <- function(spec_groups, env_data, strata = list(), quiet = FALSE) {
+pool_linkages <- function(spec_groups, env_data, strata = list(), quiet = FALSE,
+                          hold_after = NULL) {
   has_specs <- !is.null(spec_groups) && length(spec_groups) > 0L &&
     any(vapply(spec_groups, length, integer(1)) > 0L)
   if (!has_specs) return(.empty_pool(env_data))
@@ -1608,20 +1652,21 @@ pool_linkages <- function(spec_groups, env_data, strata = list(), quiet = FALSE)
                                    process = proc,
                                    env_data = env_data,
                                    strata   = strata,
-                                   quiet    = quiet)
+                                   quiet    = quiet,
+                                   hold_after = hold_after)
         per_spec[[length(per_spec) + 1L]] <- tbl
       }
     }
   }
   if (length(per_spec) == 0L) return(.empty_pool(env_data))
 
-  # Union of design-column names, in first-seen order.
+  # Union of design-column keys, in first-seen order.
   global_names <- unique(unlist(
     lapply(per_spec, function(t) attr(t, "design_colnames")),
     use.names = FALSE))
 
   # Build the global design matrix by overlaying per-spec columns by
-  # name. Same-named columns must carry identical numeric values; we
+  # key. Columns sharing a key must carry identical numeric values; we
   # take the first occurrence and verify on subsequent ones.
   nyr <- nrow(env_data)
   global_X <- matrix(0, nrow = nyr, ncol = length(global_names))
@@ -1629,9 +1674,11 @@ pool_linkages <- function(spec_groups, env_data, strata = list(), quiet = FALSE)
   filled <- rep(FALSE, length(global_names))
   for (i in seq_along(per_spec)) {
     X_i <- attr(per_spec[[i]], "design_matrix")
-    for (cn in colnames(X_i)) {
+    keys_i <- attr(per_spec[[i]], "design_colnames")
+    for (j in seq_along(keys_i)) {
+      cn <- keys_i[j]
       gi <- match(cn, global_names)
-      col_vals <- as.numeric(X_i[, cn])
+      col_vals <- as.numeric(X_i[, j])
       if (!filled[gi]) {
         global_X[, gi] <- col_vals
         filled[gi] <- TRUE
@@ -1654,10 +1701,11 @@ pool_linkages <- function(spec_groups, env_data, strata = list(), quiet = FALSE)
     remapped[[i]] <- tbl
   }
 
+  colnames(global_X) <- sub(paste0(.HELD_KEY, "$"), "", global_names)
   list(
     table        = .assign_re_registry(bind_linkage(remapped)),
     X            = global_X,
-    design_names = global_names
+    design_names = colnames(global_X)
   )
 }
 

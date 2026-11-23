@@ -66,11 +66,12 @@ these is reported by a warning: a composition for a fleet with no catch that
 year comes back empty, while a stomach whose predator has empirical
 suitability, and a covariance fleet's observations outside its fitted window,
 keep their observed values. A composition, CAAL or diet row whose sample size
-times its weight rounds below one observation also comes back empty, with
-\code{Sample_size} dropped to zero so a refit does not score a row with no
-data behind it. A hindcast survey year with no observation (\code{NA}) stays
-\code{NA} and is NOT warned about, since the likelihood never scored it,
-while the independent survey families still draw their projection rows
+(times its weight under a multinomial) rounds to zero also comes back empty;
+a composition or CAAL row then has \code{Sample_size} set to zero so a refit
+does not score a row with no data behind it. A hindcast survey year with no
+observation (\code{NA}) stays \code{NA} and is NOT warned about, since the
+likelihood never scored it, while the independent survey families still draw
+their projection rows
 (negative \code{Year}), which \code{\link{run_mse}} reveals as each
 assessment's new data.
 

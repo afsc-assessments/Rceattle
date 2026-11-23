@@ -95,6 +95,7 @@ ms_run_proj2 <- Rceattle::fit_mod(data_list = BS2017MS,
                                   inits = ms_run$estimated_params, # Initial parameters from single species ests
                                   file = NULL, # Don't save
                                   estimateMode = 3, # Do not estimate. Not changing parameters right now
+                                  recFun = build_srr(proj_mean_rec = FALSE), # Project from rec_dev, not avg_R
                                   niter = 5, # 5 iterations around population and predation dynamics
                                   random_rec = FALSE, # No random recruitment
                                   msmMode = 1, # MSVPA based
@@ -107,7 +108,7 @@ ms_run_proj2 <- Rceattle::fit_mod(data_list = BS2017MS,
 # * Changing future recruitment (function) ----
 # Function sample historical recruitment deviates and place in the projection
 # "rec_trend" adds a linear trend in recruitment. In this case, a 50% decrease by 2026
-ms_run_proj3 <- sample_rec(ms_run, sample_rec = TRUE, update_model = TRUE, rec_trend = -0.5)
+ms_run_proj3 <- sample_rec(ms_run_proj2, sample_rec = TRUE, update_model = TRUE, rec_trend = -0.5) # fitted with proj_mean_rec = FALSE
 
 
 # * Plot ----

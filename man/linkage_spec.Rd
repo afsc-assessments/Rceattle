@@ -145,6 +145,12 @@ penalized form has no counterpart for. Permitted only with a fixed SD
 (\code{init = list(sigma = )}, no \code{sigma} prior, plus a fixed \code{rho} for \code{ar1}),
 since estimating deviations and their SD jointly as fixed effects is
 degenerate, and never with \code{observe}, which must stay integrated.
+
+In a \code{\link[=retrospective]{retrospective()}} peel, a fixed-effect term that is a category
+(\code{cut(Year, ...)}, \code{factor()}, a logical column) holds its terminal-year value
+in every later \code{env_data} row, as the peel has no data after that year to show
+a block or regime changed. A q or selectivity random effect also holds its
+terminal-year level. A fit's own projection reads \code{env_data} as given.
 }
 \examples{
 # A covariate on a growth parameter, one coefficient per species. Attach to a

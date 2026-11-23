@@ -781,18 +781,30 @@ implies `getsd = FALSE`, and a non-NULL one no longer implies a band (5.66.8).**
 `estimateMode = 3` build with the hindcast free, the peeled F held at its catch-fitted values and
 the peeled catch zeroed, then made catch-conditioned by `.rce_catch_conditioned_sd()` (5.66.8),
 because the forecast refit's own `sdreport` reports exactly 0 across the span the peel is drawn
-over. Where that rebuild throws, cannot factor its Hessian, reports nothing finite, or its
-correction throws, the peel keeps its point estimates and what `TMB::sdreport()` returned (`NULL`
-if the rebuild threw first), with the reason on `attr(peel, "sd_report_error")`. **That attribute
-is what stops a band:** under an indefinite Hessian `sdreport()` mixes NaN with finite values that
-are not standard errors, so `.rce_usable_sdrep()` gives plots, `as.data.frame()` and `vcov()`
-nothing to read. Read the attribute, or `print()`'s count, to tell this apart from `getsd = FALSE`.
+over. Since 5.70.3 that rebuild takes the hindcast's own covariance: its `cov.fixed` inverted into
+`hessian.fixed`, and its joint precision under random effects. Where the rebuild throws, reports
+nothing finite, or its correction throws, the peel keeps its point estimates and what
+`TMB::sdreport()` returned (`NULL` if the rebuild threw first), with the reason on
+`attr(peel, "sd_report_error")`. **That attribute is what stops a band:** what a failed rebuild
+returns is not a set of standard errors, so `.rce_usable_sdrep()` gives plots, `as.data.frame()`
+and `vcov()` nothing to read. Read the attribute, or `print()`'s count, to tell this apart from
+`getsd = FALSE`.
 
-**That report keeps a sigma_R gradient by construction.** On GOA pollock 2026 (10 peels) the largest
-gradient is 1.89e-4 to 3.68e-4 on everything but `R_log_sd`, which sits at 0.25-2.47 in magnitude: the
-peeled recruitment deviations, at 0 when the peel was fitted, are held at the projected value here and
-still enter its penalty. Against each peel's own hindcast report that term moves fitted-year SSB bands
-by at most 0.056% and recruitment bands by at most 0.65%.
+**TMB reads one triangle of the `hessian.fixed` it is given**: `pdHess` is `chol()` of it, and the
+joint precision takes `forceSymmetric(uplo = "L")`. `S <- solve(cov.fixed)` leaves its two
+triangles slightly unequal, so on 300-parameter matrices `chol(S)` fails 10 of 10 from condition
+number 3e9 up, where `chol()` of the hindcast's own Hessian passes, and a joint precision built from
+`S` misstates the least-determined variances by 5-7% at 1e9 and by 190-1130%, some negative, at
+3e9. Symmetrized, `(S + t(S)) / 2` passes 10 of 10 up to 1e14, where `solve()` itself fails, with
+standard errors within 3e-7, relative, at 1e11. The rebuild passes the symmetrized matrix.
+
+**The full-length rebuild keeps a sigma_R gradient by construction.** On GOA pollock 2026 (10
+peels, measured before 5.70.3) the largest gradient is 1.89e-4 to 3.68e-4 on everything but
+`R_log_sd`, which sits at 0.25-2.47 in magnitude: the rebuild scores the peeled recruitment
+deviations at the projected value, which the peel's hindcast does not score. Before 5.70.3, when the
+band used the rebuild's own Hessian, that term moved fitted-year SSB bands by at most 0.056% and
+recruitment bands by at most 0.65% against each peel's own hindcast report; the hindcast's
+covariance leaves it out.
 
 **A kept peel's `.conv_hindcast` and `$convergence` are its forecast refit's, and only that refit's
 gradient and bounds are judged.** Its F-only Hessian says nothing about the peel. The gradient alone
@@ -917,6 +929,19 @@ on the fit above; and SAM's `lagR` option changes only a column label, not a val
 repo's tooling and were wrong. The constants are platform-independent (verified across Windows
 and macOS/arm64 to 16 digits), but on a new machine capture the baseline **before** the change
 you want to test — a failure you cannot attribute is worse than no check.
+
+**A C++ `if` on a parameter-dependent value is decided once, when TMB records the tape.** Every
+later `fn`/`gr` keeps that branch, while `report()` re-decides it, so a tape recorded where the
+test came out differently fits a different model from the one reported. `x > 0` is false for
+NaN and drops the term; until 5.67.11 the available-food and prey-term tests in `predation.hpp`
+did that. BS2017MS (`msmMode = 1`, `niter = 3`) recorded at pollock `init_dev = -720` (inside its
+-1000 bound) returned 7,372,253 there rather than NaN, and 1,564,196.9 rather than 1,784,463.7
+back at the default start. **`!(x <= 0)` only stops NaN being dropped: an exact 0 at recording
+still drops the term from every later evaluation.** At `init_dev = -800` those prey numbers
+underflow to 0, and the tape returns 1,784,686.178 at the default start, on 5.67.11 too. Only a
+taped branch (`CondExpGt`, with the denominator guarded) re-decides on replay. On the tape, NaN
+times a constant-zero suitability is also 0 (TMBad folds it), so `report()` can show NaN where
+`fn` does not.
 
 ## The refit path, and the eight callers
 

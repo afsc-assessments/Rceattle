@@ -644,6 +644,11 @@ fit_mod <-
                          sel         = data_list$sel_linkages,
                          comp        = data_list$comp_linkages),
       env_data    = data_list$env_data,
+      # In a peel's forecast refit (endyr still endyr_full), categories and
+      # q/selectivity random effects hold their terminal-year values.
+      hold_after  = if (isTRUE(data_list[["endyr_full"]] == data_list[["endyr"]] &&
+                               data_list[["endyr_peel"]] < data_list[["endyr"]]))
+        data_list[["endyr_peel"]],
       # The fleet / species levels carry the model's own names, so a spec built
       # with `linkage_spec(fleet = "Shelikof")` can be resolved to an id.
       strata      = list(

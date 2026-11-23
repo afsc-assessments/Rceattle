@@ -65,12 +65,15 @@
 #' @param use_gradient logical. Use the analytic gradient during phasing.
 #'   Default `TRUE`.
 #' @param rel_tol Numeric tolerance for flagging a discontinuous likelihood,
-#'   comparing `nlminb`'s objective with a fresh evaluation of the object it
-#'   came from. Default `1`.
+#'   comparing `nlminb`'s objective with a fresh evaluation at the estimates
+#'   (under `newtonsteps > 0` the reported objective is that evaluation, so
+#'   nothing is flagged). Default `1`.
 #' @param loopnum Integer. Times to restart optimization; `3` sometimes reaches
 #'   a lower final gradient than `1`. Default `5`.
 #' @param newtonsteps Integer. Extra unconstrained Newton steps after
-#'   optimization, an alternative to `loopnum`. Default `0`.
+#'   optimization, an alternative to `loopnum`; a singular Hessian (usually a
+#'   parameter the data do not inform) ends them with a warning, and with
+#'   TMBhelper installed the fit is redone without Newton steps. Default `0`.
 #' @param phase `TRUE`/`FALSE`, or a list of parameter names with their phases.
 #'   Default `FALSE`.
 #' @param TMBfilename Optional path (without `.cpp`) to an alternate TMB

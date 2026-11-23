@@ -30,6 +30,18 @@ an Rceattle object with derived quantities weighted by the specified weights. Th
 \description{
 Model average of derived quantities
 }
+\details{
+With \code{uncertainty = TRUE} each fit's parameters are drawn from its asymptotic
+covariance, so every fit needs an sdreport (\code{fit_control(getsd = TRUE)}) and
+a \code{fit$obj} in which the hindcast parameters are free. An
+\code{estimateMode = "Estimate"} fit under any harvest control rule but
+\code{"NoFishing"} leaves only the rule's F free in \code{fit$obj} unless it used
+\code{projection_uncertainty}, and a \code{"Projection"} fit with the default map holds
+every hindcast parameter fixed, so such fits are refused. Refit with
+\code{estimateMode = "Hindcast"}, which projects with no fishing, or, for a
+fixed-effects fit under any rule but \code{"ConstantF"}, with
+\code{estimateMode = "Estimate"} and \code{fit_control(projection_uncertainty = TRUE)}.
+}
 \examples{
 \dontrun{
 # Equal weights across two candidate models.

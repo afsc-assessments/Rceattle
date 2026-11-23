@@ -205,9 +205,10 @@ testthat::test_that("a missing hindcast survey year simulates to NA", {
 
 # ---------------------------------------------------------------------------
 # The same, for `simulate = FALSE`. This is the path `self_test(simulate =
-# FALSE)` and `run_mse(regenerate_past = TRUE)` take, and it wrote `index_hat`
-# over every row -- so a survey year the operating model never produced came
-# back as the model's PREDICTION for it, which a refit then fits. That is the
+# FALSE)` and `run_mse(regenerate_past = TRUE, simulate_data = FALSE)` take,
+# and it wrote `index_hat` over every row -- so a survey year the operating
+# model never produced came back as the model's PREDICTION for it, which a
+# refit then fits. That is the
 # same defect as drawing one, through a different door, and it is why the
 # predicate is shared between the two branches rather than written twice.
 # ---------------------------------------------------------------------------

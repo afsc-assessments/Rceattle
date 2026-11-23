@@ -1,20 +1,698 @@
 <!--
-Version-numbering note. Four gaps in this file are deliberate, not lost entries:
+Version-numbering note. Five gaps in this file are deliberate, not lost entries:
 
   * 4.14.0 was a real DESCRIPTION version whose entries were folded into 5.0.0.
   * 5.2.0-5.2.4 were likewise folded into 5.3.0.
   * main's 4.9.0 / 4.9.1 are the same recruitment changes this line has as
     5.5.0 / 5.5.1, applied to the two lines separately.
   * 5.66.3 to 5.66.5 were numbers a branch held during review; it landed as 5.66.8.
+  * 5.68.0 is the number #308 (`Age_first_selected`) held in review when 5.69.0 landed.
 
-No tag existed above 4.8.0 while the first three were in flight, and the fourth's numbers
-never reached dev, so nobody could have installed an intermediate. They were folded rather
-than renumbered because renumbering a section breaks every (x.y.z) cross-reference pointing
-at it, and the entries below cite each other by version throughout.
+No tag existed above 4.8.0 while the first three were in flight, and the last two's
+numbers never reached dev, so nobody could have installed an intermediate. They were
+folded rather than renumbered because renumbering a section breaks every (x.y.z)
+cross-reference pointing at it, and the entries below cite each other by version
+throughout.
 
 5.66.8 was also the number #300 (`run_mse()` keeps the EM's fixed parameters) held in
 review. It landed as 5.66.9, so a version check written for that fix needs 5.66.9.
 -->
+
+# Rceattle 5.70.8
+
+## Documentation
+
+* **NEWS 5.70.3 no longer says a q deviation moves a peel's forecast-year Mohn's
+  rho**: on `BS2017SS` with an IID q deviation, every pollock rho agrees with
+  5.70.2 within 1.8e-5 (SSB and F within 2.6e-6), as close as cod's, which has
+  none; a selectivity deviation moves pollock F rho from -0.1075 to -0.1196
+  (forecast year 1). NEWS 5.70.6 says its MSE change is measured against 5.70.3
+  to 5.70.5, with none against 5.67.3, and that the estimation model re-estimates
+  M1. NEWS 5.69.0 and 5.69.3 point to 5.70.1's category exclusion from
+  `rescale`, and 5.69.0 lists its breaking change first.
+
+* `?run_mse` separates the operating model, which holds its q and selectivity
+  deviations and takes its projection M1 in the years it adds, from the
+  estimation model, which starts from those values and re-estimates any its map
+  leaves free. `?retrospective` defines Mohn's rho in `@return`. `?sim_mod` says
+  the weight enters a row's sample size only under a multinomial, and that only
+  composition and CAAL rows have `Sample_size` set to zero.
+
+* A `retrospective()` warning new in this release, three vignette lines and a
+  few code comments are reworded. No number changes.
+
+# Rceattle 5.70.7
+
+## Documentation
+
+* **The 5.67.12 to 5.70.6 entries point forward where a later one changed what
+  they describe**, as these entries ship to `main` together: what a peel does with
+  `env_data` and linkage effects, what `run_mse()` does with M1, and what
+  `regenerate_past` and `regenerate_seed` do. 5.69.0 now lists
+  `retrospective(rescale = "TRUE")` or `"FALSE"`, a string, under Breaking changes.
+  No number changes.
+
+* `?run_mse` says what the years it adds take: an increment of 0 for an
+  increment-form selectivity, held empirical selectivity, ration and weight-at-age,
+  and `Log_sd` and `Sample_size` copied from the fleet's last historical row and
+  scaled by `fut_sample` (it said survey SD was the historical average). It also
+  says that, unlike a retrospective peel, it holds no linkage effect.
+
+* `?retrospective` and NEWS 5.70.1 say a plain logical linkage term is a category
+  and is held in a peel, while a logical column read as a number keeps its
+  post-peel values, with a warning. `?retrospective` also says that a category level
+  beginning after a peel's terminal year leaves its estimated coefficient with no
+  data, so `getsd = TRUE` drops that peel, and that only `fit_mod()` refits a
+  returned peel. Three `retrospective()` warnings, new in this release, are
+  reworded to match.
+
+* `model_average()`'s refusal (5.70.0) names `"Projection"` and `"DebugOptimize"`
+  fits as well as an `"Estimate"` one. `vignette("model-diagnostics")` describes a
+  peel as refitted to its terminal year and says `projection_uncertainty` works
+  for fixed-effects fits under any rule but `"ConstantF"`.
+
+# Rceattle 5.70.6
+
+## Behavior changes
+
+* **The years `run_mse()` adds take the operating model's projection M1
+  deviations**, as the model's projection and a retrospective peel do: 0 for a
+  deviation estimated by year, and an input series as given. The estimation
+  model starts from its own and re-estimates any its map leaves free. This
+  undoes 5.70.3, which held the last year's deviation, so M1 in `run_mse()` is
+  again as in 5.70.2 and earlier, including the 5.67.3 release. The q
+  and selectivity deviations still keep their last-year values, as the
+  projection holds selectivity.
+
+  **Whose MSEs move** (against 5.70.3 to 5.70.5; none against 5.67.3): one
+  whose operating or estimation model has an M1
+  deviation by year (`M1_re` 2, 3, 5 or 6) or an input M1 series that changes by
+  year; by-age deviations (`M1_re` 1, 4) do not. No registered sibling MSE has
+  one: the EBS pollock 2024 `mse.R` uses `M1_model = "fixed"`, and hake has none.
+  On `BS2017SS` with `M1_re = 5`, the operating model's pollock age-3 M1 in 2018
+  to 2020 goes from 0.570 to 0.402, and its 2020 SSB rises 55% (pollock), 117%
+  (cod) and 69% (arrowtooth flounder) in the first simulation. On a test model
+  with an input M1 series rising 1.4% a year, the operating model's added years
+  now follow the series where they stayed at its last hindcast value. The
+  Pacific hake (`MSE_yr2024.R`) and `BS2017SS` MSEs, which have no M1 year
+  deviation, are unchanged.
+
+# Rceattle 5.70.5
+
+## Bug fixes
+
+* **A retrospective peel holds an `ar1()` or IID linkage effect on q or
+  selectivity at its terminal-year level**, as it holds a `Time_varying_q` or
+  `Time_varying_sel` deviation, and as the model's projection holds selectivity.
+  An `ar1()` or `(1 | Year)` effect took the peel's own estimate for each removed
+  year, decaying toward 0 or falling to 0, and one grouped by a regime took each
+  removed year's labelled level; a random walk held already (a penalized one to
+  within 2e-5). M1, recruitment and growth linkage effects are unchanged, and
+  covariate terms keep their peel rules (5.70.1). The warning about random-effect
+  grouping columns now says which effects hold and which read the label.
+
+  **Whose Mohn's rho moves**: a model with an `ar1()` or IID linkage effect on
+  selectivity (one grouped by a regime only if a removed year changes regime). F
+  moves from the first forecast year, since the peel fits F to the observed
+  catch, and biomass from the second (SSB from the first where
+  `spawn_month > 0`); one on q moves no rho, only the q a peel reports for its
+  forecast years. On `BS2017SS` with the pollock fishery made logistic and an
+  `ar1(1 | Year)` linkage on its `inf_asc`, the 2016 peel's 2017 selectivity now
+  equals its 2016 value, where it was up to 20% lower (ages 1 to 3). With 2
+  peels, pollock F rho moves from -0.054 to -0.088 (forecast year 1) and from
+  -0.017 to -0.072 (forecast year 2, one peel), and SSB rho at forecast year 2
+  from 0.0105 to 0.0102. The rules a peel now follows, combining 5.69.0 to 5.70.5,
+  are in `?retrospective` ("Hindcast and forecast years", "Environmental data").
+
+# Rceattle 5.70.4
+
+## Behavior changes
+
+* **`run_mse(regenerate_past = TRUE)` draws observation error into the regenerated
+  past data when `simulate_data = TRUE`** (the default), as it does for each
+  assessment's new data. The draw is made once, before the simulations, and every
+  simulation shares it; `regenerate_seed` sets it. Since December 2023 the EM had
+  been refitted to the OM's expected values whatever `simulate_data` was (5.70.2
+  documented this), so `regenerate_seed` had no effect, and no setting now gives
+  expected past data with sampled future data. Under `simulate_data = FALSE`
+  nothing changes. On `BS2017SS` the regenerated EM's 2017 pollock SSB is 6,371,109
+  or 5,981,965 mt with `regenerate_seed = 1` or `2`, against 6,276,201 mt from
+  expected values.
+
+  **Whose MSEs move**: every `run_mse(regenerate_past = TRUE, simulate_data = TRUE)`
+  run. No registered sibling repository makes one, nor the Pacific hake MSE; the
+  unregistered `Rceattle_MSE` (`1a_BSAI_MSE_Runs.R`, `1b_GOA_MSE_Runs_1977.R`) does,
+  through a wrapper that defaults to `regenerate_past = TRUE` and sets
+  `simulate_data = TRUE`.
+
+## Bug fixes
+
+* **`run_mse(regenerate_past = TRUE)` regenerates the past data from the OM as
+  fitted, then keeps the EM's years.** It drew from the OM after dropping its
+  index, composition and CAAL rows past `endyr`, while the OM's model still
+  simulated them. Where the OM's data held such a row, the regenerated data were
+  misaligned, with only a generic length warning. On `BS2017SS`:
+  - one projection survey row shifted each later index value by one row: the second
+    survey's series started at 6,508,004, the first survey's projection value;
+  - one projection composition row misaligned every composition value across rows
+    and bins, and the EM's 2017 pollock SSB came out 5,489,001 mt, against
+    6,276,201 mt without that row.
+
+  **Whose MSEs move**: `regenerate_past = TRUE` with an OM whose index, composition
+  or CAAL data hold a row past `endyr`. No bundled dataset has one, and no
+  registered sibling sets `regenerate_past = TRUE`. An OM with no row past `endyr`
+  is unchanged.
+
+* **Under a Dirichlet-multinomial diet likelihood, `sim_mod()`'s empty-diet warning
+  no longer blames `Diet_comp_weights`**: it now says the sample size is multiplied
+  by `Diet_comp_weights` only under a multinomial, as the count it has tested since
+  5.69.1 is.
+
+# Rceattle 5.70.3
+
+## Bug fixes
+
+* **A retrospective peel's hindcast is fitted as a model ending at its terminal
+  year.** Its removed years' data were already withheld; now their parameters are
+  too, so a random-walk penalty no longer ties the peel's terminal deviation to
+  the removed years, and their fixed deviations no longer enter the recruitment or
+  M1 densities. The peel starts from the unpeeled estimates for its own years and
+  uses the unpeeled map cut to them, so a parameter fixed, freed or shared by hand
+  stays so. In its forecast years the q and selectivity deviations keep the
+  peel's terminal-year values; M1 deviations take the peel's projection values
+  (0 for one estimated by year, an input series as given); and a linkage effect
+  takes the peel's own estimate for each removed year (a random walk its
+  terminal value, an AR1 its decay toward 0, an IID effect 0), which for M1 and
+  recruitment is what the model's projection uses; 5.70.5 holds one on q or
+  selectivity at its terminal-year level. Under `getsd = TRUE` every
+  year's band comes from the peel's hindcast covariance, random effects
+  included, under any harvest control rule.
+
+  **Whose Mohn's rho moves**: in the forecast years, any model with selectivity
+  or M1 year deviations, IID included, since those years took the unpeeled
+  model's value at the peel's terminal year (a q deviation there changes only the
+  q the peel reports); in every year, a model
+  with a random walk on q or selectivity, as measured here, and, unmeasured, one
+  that estimates a deviation sd (`random_rec`, `random_q`, `random_sel`) or has
+  M1 year deviations. On `GOA2018SS` (3 peels with `getsd = FALSE`, of a fit
+  with `phase = TRUE`), whose Shelikof and ADF&G survey q are random walks and
+  whose fishery selectivity is `RandomWalkAscending`, the peel ending in 2015
+  estimates its terminal q deviations (log scale) at -0.185 (Shelikof) and
+  -0.028 (ADF&G) rather than 0.072 and -0.303, and pollock SSB rho moves from
+  -0.075 to -0.070 (terminal year) and from 0.55 to 0.54 (forecast year 3, one
+  peel). In `BS2017SS`, which has no q or selectivity deviation, SSB and R move
+  by under 1e-5, relative (optimizer tolerance). The sibling assessments that
+  run `retrospective()` include GOA pollock 2024 to 2026, EBS pollock 2024,
+  Pacific hake, BSAI yellowfin sole, GOA arrowtooth flounder, the GOA
+  multispecies assessment and GOA-ATF-ESP. A linkage deviation, such as the
+  `rw(1 | Year)` ADF&G q and fishery selectivity and the `ar1(1 | Year)`
+  Shelikof q of the GOA pollock 2025 and 2026 scripts, or an `ar1(1 | Year)` on
+  R0, needs no cutting: it stays free in the peel's hindcast, and its removed
+  years carry no data, so the fitted years match a fit of the peel's own data
+  (to 8e-5 in SSB on a test model).
+
+* **In the years `run_mse()` adds, and in a peel's forecast years, the q and
+  selectivity deviations keep their last-year values**, as the model's projection
+  holds selectivity; `run_mse()` already did, except for the increment forms. A
+  selectivity form whose deviations are year-to-year increments
+  (`NonParametricPM`, and `NonParametricIntegrable` under `RandomWalk`) takes an
+  increment of 0 there, so its selectivity stays constant instead of walking on.
+  In `run_mse()` it also held the by-year M1 deviation at its last-year value in
+  the years it adds (5.70.6 undoes this). The EBS pollock 2024 MSE (`mse.R`), whose
+  fishery, AVO, ATS and CPUE selectivity are `NonParametricPM` under `RandomWalk`,
+  now holds their selectivity in the years it adds; the Pacific hake
+  (`MSE_yr2024.R`) and `BS2017SS` MSEs are unchanged.
+
+# Rceattle 5.70.2
+
+## Documentation
+
+* **A `"Hindcast"` refit, which the `model_average(uncertainty = TRUE)` refusal
+  (5.70.0) offers, projects with no fishing**, so its projection is of an unfished
+  stock: on `BS2017SS` under `"NPFMC"` with `Proj_F_proportion = 1`, pollock SSB in
+  2030 is 8,574,725 mt from a `"Hindcast"` refit against 3,541,195 mt from the
+  `"Estimate"` fit. The refusal, `?model_average` and
+  `vignette("model-diagnostics")` now say so.
+
+* `?run_mse`: `regenerate_past` refits the EM to the OM's expected data, with no
+  sampling error regardless of `simulate_data`, and `regenerate_seed` has no effect
+  on the MSE. The help said the regenerated data followed `simulate_data` and were
+  seeded by `regenerate_seed`. (5.70.4 makes them do so.)
+
+* `?fit_control`: under `newtonsteps > 0`, a singular Hessian ends the Newton steps
+  with a warning, and with TMBhelper installed the fit is redone without Newton
+  steps (5.67.4). The help said only that it ends them.
+
+* `vignette("environmental-linkages-and-priors")`: under any HCR but `NoFishing` or
+  `ConstantF`, `vcov()` and `fit$sdrep` cover the hindcast parameters when the fit
+  used `fit_control(projection_uncertainty = TRUE)`.
+
+* NEWS 5.67.8 to 5.70.0 are tightened. 5.67.8 no longer says every `sample_rec()`
+  call in `Climate_MSE_projections` warns, and 5.69.0 adds that
+  `retrospective(rescale = "TRUE")`, a string, is an error.
+
+# Rceattle 5.70.1
+
+## Behavior changes
+
+* **In a retrospective peel, a categorical fixed-effect linkage term holds its value
+  from the peel's terminal year** (`cut(Year, ...)`, `factor()`, a logical column),
+  as the peel has no data after that year to show a block or regime changed, even
+  when its column is listed in `projected_env_data_known`. The linkage's design
+  matrix keeps its columns, so `init`, `bounds` and `priors` keys are unchanged. A
+  fit's own projection, and `run_mse()`, read `env_data` as given. A random-effect grouping
+  column is not held (5.70.5 holds a q or selectivity random effect whatever its
+  grouping column says).
+
+  **Whose Mohn's rho moves**: a model whose category changes after a peel's terminal
+  year. On a test model with M1 fixed 50% higher in its last two years
+  (`~ 0 + factor(reg)`), the peels ending before the change forecast at their own
+  M1, and SSB rho moves from -0.0445 to -0.0078 (forecast year 2) and from -0.0785
+  to -0.0055 (year 3, one peel), with the terminal year and year 1 unchanged. No
+  sibling repository has a categorical linkage term.
+
+* **A retrospective peel gives a numeric fixed-effect linkage covariate the mean of
+  its retained years**, after its terminal year, the value `rearrange_data()` gives a
+  blanked column, so a peel's forecast reads only covariate values known at its
+  terminal year. `retrospective()` warns once naming those columns. A series known
+  ahead, such as a climate projection, belongs in `projected_env_data_known`, which
+  keeps its values. A fixed-effect covariate that is also observed, also read as a
+  category (the category term is still held), or logical but read as a number
+  (`as.numeric(flag)`) keeps its values, with a warning; a plain logical term is a
+  category and is held. A 0/1 block column takes the mean unless listed in
+  `projected_env_data_known` or refitted as `factor(<column>)`: the GOA circulation
+  study's `post2014` M block, and the GOA Pacific cod bridge's M and selectivity
+  block columns and its per-year selectivity deviation columns, are such columns.
+
+  **Whose Mohn's rho moves**: a model whose forecast reads such a covariate, under
+  any `rescale`. On a test model with a fixed M1 slope on temperature (M1 0.35 to
+  0.64 over the hindcast years) and a warm last three years, SSB rho moves from
+  -0.0240 to 0.0115 (forecast year 2) and from -0.0326 to 0.0301 (year 3, one peel),
+  with the terminal year unchanged. A term computed over the whole column
+  (`scale()`, `poly()`, `splines::ns()`) changes in its retained years too:
+  with `~ 0 + scale(temp)` on that model, terminal SSB rho moves from -0.00104 to
+  -0.00088.
+
+## Bug fixes
+
+* **`retrospective(rescale = TRUE)` leaves out a column a linkage reads as a
+  category**, and naming one in `rescale` is refused. Standardizing a column read
+  as `factor(reg)` renamed its levels, so a peel's `init` names no longer matched
+  and `retrospective()` stopped with "unknown `init` name(s)". It also changed a
+  fit silently: on a test model with M1 `~ cut(temp, c(-Inf, 1, Inf))`, a peel put
+  3 of its years in the block where the full model put 9, and terminal SSB rho
+  under `rescale = TRUE` moves from -0.000118 to -0.00257, its value under
+  `rescale = FALSE`.
+
+# Rceattle 5.70.0
+
+## Breaking changes
+
+* **`model_average(uncertainty = TRUE)` refuses a `"Projection"` fit with the
+  default map, and an `estimateMode = "Estimate"` fit under any harvest control
+  rule but `"NoFishing"` that did not use
+  `fit_control(projection_uncertainty = TRUE)`.** Such
+  a fit's `fit$obj` holds every hindcast parameter fixed, leaving only
+  `log_Ftarget` / `log_Flimit` free, so under a rule that estimates F every draw
+  held the hindcast at its estimates. On
+  `BS2017SS` under `"NPFMC"`, with or without `random_rec`, the averaged
+  hindcast log-SSB standard error was 0 in all 117 species-years, against 0.021
+  to 0.082 in the fixed-effects model fitted without an HCR; an
+  `estimateMode = "Projection"` fit, which holds the same parameters fixed,
+  gave the same zeros. It now stops, naming the models: refit with
+  `estimateMode = "Hindcast"`, which projects with no fishing, or, for a
+  fixed-effects fit under any rule but `"ConstantF"`, with `estimateMode =
+  "Estimate"` and `fit_control(projection_uncertainty = TRUE)`, whose standard
+  errors match the hindcast fit's (averaged with itself, 0.91 to 1.26 times
+  them, median 1.01, over 400 draws with `set.seed(1)`). `uncertainty = FALSE`
+  is unaffected. No sibling script is refused: every
+  `model_average(uncertainty = TRUE)` call in them averages fits made without an
+  HCR.
+
+## Bug fixes
+
+* **`model_average(uncertainty = TRUE)` names the cause where it used to stop
+  inside the draw** with "incompatible arguments", "infinite or missing values in 'x'"
+  or "'data' must be of a vector type, was 'NULL'". These fits are now refused as
+  above: an `"Estimate"` fit under `"ConstantF"` without
+  `projection_uncertainty`; `"Projection"` and `"DebugOptimize"` fits with the
+  default map, even with `projection_uncertainty = TRUE`; and a `model_average()`
+  result passed back
+  in. A fit with no sdreport (`getsd = FALSE`, or the `"DebugBuild"` refit
+  `sample_rec()` returns for a `"Hindcast"` fit) is told to refit with
+  `fit_control(getsd = TRUE)`. A list mixing a fixed-effects and a
+  random-effects fit stops with the existing message that the two cannot be
+  averaged together, rather than naming the fixed-effects fit as lacking a joint
+  precision matrix. One fit still stops inside the draw: an `"Estimate"` fit
+  under `"ConstantF"` with `projection_uncertainty = TRUE` gives "'Sigma' is not
+  positive definite", because `log_Flimit` is left free in `fit$obj` but is never
+  optimized.
+
+## Documentation
+
+* `?model_average` and `vignette("model-diagnostics")` say which fits
+  `uncertainty = TRUE` refuses and how to refit them.
+
+# Rceattle 5.69.4
+
+## Documentation
+
+* `?retrospective` and the retrospective section of
+  `vignette("model-diagnostics")` are shorter, and three statements in them are
+  corrected:
+  - A peel starts from the unpeeled model's estimates, not its starting values.
+  - A survey whose index falls only in a peel's removed years keeps a free q in
+    that peel, which under `getsd = TRUE` can drop the peel. The page said no q
+    was estimated there; a peel's hindcast reuses the unpeeled model's map.
+  - `phase = FALSE` is no longer said to bias Mohn's rho toward zero: on
+    `BS2017SS` and `NorthernRockfish2022`, rho with and without phasing agrees
+    within 1e-5.
+
+  The example passes `phase` and `verbose` through `fit_control()`, and the
+  vignette lists all three elements `retrospective()` returns.
+
+# Rceattle 5.69.3
+
+## Bug fixes
+
+* **A retrospective peel withholds a logical `env_data` column too.** 5.69.0
+  withheld only numeric columns, so a logical column kept its post-peel values in
+  every peel, though the model reads it as 0/1: as an observed covariate
+  (`linkage_spec(observe = )`), or through `env_index` in M1, an environmental
+  catchability or a `Cindex` temperature. On a test model with a warm-year flag
+  driving M1, forecast-year SSB rho moves from 0.9116 to 0.9238 (year 2) and from
+  1.3872 to 1.4171 (year 3), the values the same flag gives stored as 0/1 numbers.
+  `rescale` never standardizes a logical column (5.70.1 also leaves out a column a
+  linkage reads as a category).
+
+* **The warning about an `env_data` column with no value in a peel's retained years
+  names the years it checked**, `styr` to the deepest peel's terminal year. It said
+  "no value through" that year, which was false for a column with a value before
+  `styr`.
+
+* **`retrospective(rescale =)` warns when given a number.** It still reads one as
+  `TRUE` or `FALSE`, as every earlier version did. Since 5.69.0 `rescale` also takes
+  column names, so `rescale = 2` looks like "column 2" but standardizes every
+  numeric column.
+
+# Rceattle 5.69.2
+
+## Bug fixes
+
+* **`sample_rec(update_model = TRUE)` projects under the fit's harvest control
+  rule.** Projections move for anyone calling `sample_rec()` with
+  `update_model = TRUE`, the default, on an `"Estimate"` or `"Projection"` fit
+  with a fishing rule. Its refit only built the model
+  (`estimateMode = "DebugBuild"`), which never runs the rule, so projected F was 0
+  under every rule, with no warning, while the
+  returned fit still named the rule. On `BS2017SS` projected `F_spp` was 0 for all
+  three species under `ConstantF` (input 0.2, 0.3, 0.05) and under `NPFMC` (F40%
+  0.336, 0.227, 0.116). A fit that ran its rule (`estimateMode` `"Estimate"` or
+  `"Projection"`) is now rerun at `"Projection"`: the hindcast estimates are
+  unchanged, and a rule that estimates F re-solves it for the new recruitment. In
+  one draw, `NPFMC` keeps F40% and lowers pollock F to as little as 0.243, or
+  0.219 with `rec_trend = -0.5`, as SSB falls below B40%. Where the source fit ran
+  a projection `sdreport()`, each draw now runs one too. Under predation
+  (`msmMode > 0`) the unfished SSB (`MSSB0`), and with it SB0, B0 and depletion
+  in every year, follow the new recruitment, as a fresh `fit_mod()` with those
+  deviations does: `MSSB0` went from 3,906,732 to 5,798,551 mt for `BS2017MS`
+  pollock in one draw. A `NoFishing` or hindcast-only fit returns the same
+  projection as before, and `run_mse()`, which passes `update_model = FALSE`, is
+  unaffected. No registered sibling repo calls `sample_rec()`; the four
+  `update_model = TRUE` calls in the unregistered `Climate_MSE_projections` are
+  on `NoFishing` fits, so none moves.
+
+* **`sample_rec(update_model = TRUE)` keeps the fit's map.** It rebuilt the map,
+  so a parameter fixed by hand came back free: on a test model with one of its
+  two `sel_inf` cells fixed, both came back free, and `jitter()` or `self_test()`
+  on the result would estimate it. Projections are unchanged. `remove_F()` still
+  rebuilds the map.
+
+## Documentation
+
+* `?sample_rec` and `vignette("projections-and-reference-points")` say the refit
+  holds the hindcast fixed and reruns the fit's harvest control rule;
+  `?sample_rec` adds that under predation SB0, B0 and depletion follow the new
+  recruitment.
+
+# Rceattle 5.69.1
+
+## Bug fixes
+
+* **`sim_mod(simulate = TRUE)` warns that diet rows "came back empty" only when a
+  stomach's sample size rounds to zero**: `Sample_size` times
+  `Diet_comp_weights` below 0.5 under a multinomial, `Sample_size` below 0.5 under a
+  Dirichlet-multinomial. It had counted every prey bin observed above zero that drew
+  0, which almost any draw has, so it fired on ordinary multispecies draws with an
+  estimated suitability and blamed a rounding that had not happened: 98-108 of
+  BS2017MS's 2,025 diet rows on each of 10 draws at weight 1, where every stomach
+  places 20 items. It now counts every row of each stomach whose sample size
+  rounds to zero, and no others (2,025 rows at weight 1e-4, which it had
+  reported as 184). The message text is unchanged (5.70.4 rewords it) and no
+  simulated value moves: 60
+  fixed-seed BS2017MS draws, under both families, are identical to the previous
+  version.
+
+# Rceattle 5.69.0
+
+## Breaking changes
+
+* **`retrospective(rescale = "TRUE")` or `"FALSE"`, a string, is an error.** Earlier
+  versions read it as the logical; it is now read as a column name (see New
+  features). No sibling script passes either string.
+
+## Behavior changes
+
+* **A peel withholds `env_data` after its terminal year, whatever `rescale` is.** Under
+  the default `rescale = FALSE` it withheld the survey and composition data but still
+  fitted an observed covariate (`linkage_spec(observe = )`) through the unpeeled
+  terminal year, and read the post-peel values of a column the model uses directly (the
+  bioenergetics temperature named by `Cindex`, an environmental catchability or M1).
+  Those values are now blanked, and `rearrange_data()` fills a directly-read column with
+  the mean of the years the peel keeps, in the post-peel years and in any year the
+  column is missing. Three kinds of column keep their values, observations included,
+  and `retrospective()` warns once naming them: a fixed-effect linkage covariate and a
+  random-effect grouping column, because an NA in either stops the linkage design being
+  built (5.70.1 gives a numeric covariate the retained mean and holds a category), and
+  a column with no value in the model years the peel keeps, which would leave nothing
+  to fill it with. Under `rescale = FALSE`, `projected_env_data_known = TRUE` restored the
+  previous peels at 5.69.0 (see New features); 5.70.1, 5.70.3 and 5.70.5 change peels
+  whatever it is set to.
+
+  **Whose Mohn's rho moves:**
+  - a model with an observed covariate measured after the deepest peel's terminal
+    year. In GOA pollock 2025 (`QcovPol` on the Shelikof QAR1 catchability,
+    observation SD 0.02) the deepest peel fitted 5 post-peel observations and now fits
+    none; terminal SSB rho moves from -0.142031 to -0.142026, and no row of `$mohns`
+    moves by more than 9.4e-6;
+  - the forecast years (`Forecast year` above 0) of a model whose dynamics read an
+    `env_data` column directly: an M1 covariate, or a `Cindex` temperature under
+    `msmMode > 0`;
+  - the hindcast too, where such a column has missing years, since they are now filled
+    with the retained years' mean. On a test model with an environmental catchability
+    and one missing year, terminal SSB rho moves from -0.0018 to -0.0350.
+
+  Under `rescale = TRUE`, a fixed-effect covariate's post-peel values now reach the peel,
+  standardized on the retained years, where those years used to take a zero offset (the
+  retained mean); on a test model with `q ~ temp` this moved SSB rho by 3e-7 (5.70.1
+  gives them the retained mean again, 0 once standardized). The DSEM
+  branch blanks post-peel values the same way (e8648206, acef54cf), but also blanks a
+  column with no retained value.
+
+## Bug fixes
+
+* **`retrospective(rescale = TRUE)` runs on a model with a year-indexed random-effect
+  linkage.** Each peel dropped the `env_data` rows after its terminal year, and an
+  `ar1(1 | Year)`, `rw(1 | Year)` or `(1 | Year)` linkage has one deviation per row, so
+  a peel's model was shorter than the parent's parameters and `retrospective()` stopped:
+  "beta_linkage (inits 46, model 45); beta_linkage_re (inits 40, model 39)" in a
+  reproduction of a Pacific hake model with krill observed as a QAR1 latent on R0. A
+  peel now blanks the post-peel values and keeps the rows.
+
+## New features
+
+* **`retrospective(rescale =)` takes `env_data` column names**, so a peel can
+  standardize a covariate without turning a temperature in degrees C, which drives
+  consumption through `Cindex`, into z-scores. `TRUE` standardizes every numeric column
+  except `Year` and random-effect grouping columns, which are level labels; `FALSE`
+  none. Naming a column that is missing, non-numeric, `Year` or a grouping column is an
+  error before any peel is fitted (5.70.1 also leaves out, and refuses, a column a
+  linkage reads as a category). A column with fewer than two distinct retained values
+  stays in its own units in that peel, with a warning. Adapted from the DSEM branch
+  (9d6239ef).
+
+* **`retrospective(projected_env_data_known =)` names `env_data` columns whose
+  post-peel values were known at each peel's terminal year**, such as a climate
+  projection, and the peels keep them instead of withholding them. `FALSE` (default)
+  lists none; `TRUE` lists every column, so a peel's `env_data` is what earlier versions
+  gave it under `rescale = FALSE` (at 5.69.0, on GOA pollock 2025, the peels matched
+  5.67.11's bit for bit). A listed column is left out of the warnings about kept
+  columns, and naming a column that is not in `env_data` is an error before any peel is
+  fitted.
+
+# Rceattle 5.67.12
+
+## Documentation
+
+* **The vignettes are shorter**: prose words 43,024 to 37,401 (-13.1%) across
+  all thirteen, and 16-25% in seven of the eleven user vignettes. Change history,
+  provenance a user does not act on, and repeated explanations are cut; every
+  switch row, equation, citation and passage a help page points to is kept.
+  Executable code is unchanged except the corrections below; comments and
+  printed output inside chunks were corrected too.
+
+* **About 90 wrong statements corrected**, each checked against the source.
+  The ones that change what a user does: `vignette("hcrs-and-mses")` gave
+  `sampling_period` in the wrong fleet order for `NorthernRockfish2022` (fleet 1
+  is the bottom-trawl survey), so its "Triennial bottom-trawl survey" run
+  thinned the fishery instead; `vignette("environmental-linkages-and-priors")`
+  said `env_data` rows after `projyr` are kept (they are dropped) and its q
+  examples named fisheries with no q; `vignette("introduction")` pointed to
+  `model_1$fleet_control`, which is `NULL`; `vignette("model-parameterizations")`
+  described `Ceq = 4` ration as a relative rate scaled by weight (`ration_data`
+  is annual ration in kg per predator, scaled only by `Pvalue`); and
+  `vignette("hcrs-and-mses")` said `regenerate_seed` varies the regenerated past
+  data, which are the OM's expected values with nothing drawn, so the seed has
+  no effect (until 5.70.4).
+
+# Rceattle 5.67.11
+
+## Bug fixes
+
+* **Under multispecies predation (`msmMode > 0`), NaN available food, or a NaN prey
+  term in empirical suitability (`suitMode = 0`), now reaches M2 instead of silently
+  dropping that predator or prey age.** Only a model built where these values are NaN,
+  for example from `inits`, a later phase or a refit, is affected; any other model is
+  unchanged, bit for bit. TMB evaluates these four tests once, when it builds the model,
+  so an age dropped on NaN was missing from every later evaluation of the objective,
+  while the reported quantities still included it. Zero and negative values are handled
+  as before. BS2017MS (`msmMode = 1`, `niter = 3`) built with
+  pollock `init_dev` at -720, inside its lower bound of -1000, lost 25 predator ages: its
+  objective was 7,372,253 there rather than NaN, and 1,564,196.9 rather than 1,784,463.7
+  back at the default start. A fit started there reported an objective of 13,464.0 while
+  its own quantities gave 88,409.3; it now stops with nlminb's "NA/NaN gradient
+  evaluation" error.
+
+# Rceattle 5.67.10
+
+## Performance
+
+* **Multispecies models build in 29-37% less time, and no fit moves.** The predation
+  calculation now makes 5 array calls per predator-prey pair and year rather than 14,
+  by keeping its sums in local variables and reading prey numbers and weights once per
+  prey. Each such call allocates memory when TMB builds the model and when it reports
+  quantities, though not when it evaluates the objective. So building a multispecies
+  model, which every `fit_mod()` call repeats (including each refit inside
+  `retrospective()`, `jitter()`, `profile()` and `run_mse()`), is faster, and reporting
+  its quantities takes about half as long. With `msmMode = 1`, BS2017MS builds in
+  1.0 s rather than 1.65 s and GOA2018SS in 1.9 s rather than 2.6 s. Long fits gain
+  least, because evaluating the objective and gradient takes as long as before: with
+  `getsd = FALSE`, a BS2017MS fit (`niter = 5`) takes 4.3 s rather than 5.2 s, and a
+  GOA2018SS fit 25.8 s rather than 26.7 s. The objective and gradient are identical,
+  bit for bit, to the previous version at every point of the optimizer paths checked,
+  as is every reported quantity at the parameter values checked, and the Pacific hake
+  MSE's seven reference fits reproduce its objectives to every printed digit.
+
+# Rceattle 5.67.9
+
+## Bug fixes
+
+* **With `newtonsteps > 0`, the hindcast's reported gradient, objective and standard
+  errors describe the estimates.** `fit_mod()` takes its estimates from the lowest
+  objective TMB evaluated, but TMBhelper keeps every Newton step, even one that
+  raises the objective, and reported `fit$opt`, `fit$sdrep` and the convergence
+  report's gradient at the last one. They are now evaluated at the estimates. With
+  TMBhelper, estimates and SSB are unchanged bit for bit on 44 NOAA model-comparison
+  fits and on `BS2017SS`, and standard errors moved by at most 6.1e-8 relative across
+  them (1.5e-10 on `BS2017SS`). One comparison fit, stopped at `rel.tol = 1e-4`, had
+  reported a gradient of 9.2e-5 for estimates whose gradient is 0.131;
+  `max_gradient` now warns there. In 19 others the last step was no lower, within
+  1.4e-12, and the gradient at the estimates, up to 2.7e-6, had been reported as
+  ~1e-11 (`BS2017SS`: 2.3e-8, reported as 2.0e-11). Convergence warning (8) no
+  longer reads a step that raised the objective as a discontinuous likelihood.
+  Without TMBhelper, the objective is now evaluated at every Newton step, as
+  TMBhelper does, so the estimates are the lowest step rather than the lower of
+  `nlminb`'s point and the last step. On `BS2017SS` that moves parameters by up to
+  1.35e-10 and SSB by 3.3e-11 relative, to exactly the TMBhelper path's estimates.
+
+# Rceattle 5.67.8
+
+## Bug fixes
+
+* **`sample_rec(update_model = TRUE)` warns when the model projects mean
+  recruitment.** Under the `build_srr()` default `proj_mean_rec = TRUE`,
+  projected recruitment is `avg_R` (mean hindcast recruitment) and ignores the
+  projection deviations, so `sample_rec()` left it unchanged: by exactly 0 on
+  `BS2017MS`. The deviations reach only the dynamic B0 series, which a
+  `DynamicHCR` reads. What `sample_rec()` returns is unchanged; it only warns.
+  `run_mse()` calls it with `update_model = FALSE` and does not warn: its
+  projection years become operating-model hindcast years, where the deviations
+  apply. None of the repos registered in `inst/dev/SIBLING-REPOS.md` calls
+  `sample_rec()`. The unregistered `Climate_MSE_projections` calls it four times
+  with the defaults; those calls warn where the fit kept `proj_mean_rec = TRUE`.
+
+## Documentation
+
+* `vignette("projections-and-reference-points")`: the manual-deviation and
+  `sample_rec()` examples now fit with `build_srr(proj_mean_rec = FALSE)`, so
+  their "Stochastic recruitment" and "Declining recruitment" scenarios differ
+  from "No fishing"; before, they plotted on top of it. `?sample_rec` and
+  `vignette("model-options-and-functionality")` say the deviations apply only
+  under that switch.
+
+# Rceattle 5.67.7
+
+## Documentation
+
+* `vignette("projections-and-reference-points")` no longer says that
+  `random_rec = TRUE` carries recruitment process uncertainty into the
+  projections. Projection-year deviations are not estimated under either
+  setting; no results change. On `BS2017SS` projected to 2060, as in the
+  vignette, the projected log-SSB standard errors of a fixed- and a
+  random-effects fit differ by less than 6%.
+
+# Rceattle 5.67.6
+
+## Bug fixes
+
+* **`model_average(uncertainty = TRUE)` draws each model's parameters from its
+  asymptotic covariance.** Point estimates are unchanged, but every average
+  with `uncertainty = TRUE` gets new `$sdrep$sd` and `$asymptotic_samples`, and
+  so new intervals under `add_ci = TRUE` and in `as.data.frame()`. Without
+  random effects it drew from the precision matrix (the inverse covariance);
+  with them it set the first parameter's variance to 100 (on `BS2017SS`,
+  pollock's log mean recruitment). A fit averaged with itself should reproduce
+  its own standard errors. On `BS2017SS` the averaged hindcast log-SSB standard
+  error was 1,430 to 4,300 times the fit's own without random effects, and 185
+  to 401 times for pollock with `random_rec = TRUE` (cod and arrowtooth were
+  unaffected); it is now 0.97 to 1.41 times (median 1.02), all with
+  `nboot = 1000` and `set.seed(1)`. Sibling scripts that
+  build such averages: `Rceattle-models` GOA CEATTLE `GOA_18`, `GOA_20` and
+  `GOA_21`, and `GOAceattle`'s `R/Figures.R`, which also plots
+  `asymptotic_samples` directly.
+
+# Rceattle 5.67.5
+
+## Bug fixes
+
+* **`plot(fit, what = ...)` draws the figure.** It had drawn nothing since the
+  plotters moved to ggplot2: each returns a ggplot, which draws only when
+  printed, and the dispatcher discarded it. It now prints the plot and still
+  returns `invisible(NULL)`.
+
+# Rceattle 5.67.4
+
+## Bug fixes
+
+* **`fit_control(newtonsteps > 0)` no longer fails the fit when the Hessian is singular.**
+  With TMBhelper installed, its Newton steps solve the Hessian without a guard, so a
+  direction the data do not inform stopped `fit_mod()` with a "singular" error and no
+  fit. The fit is now redone without Newton steps, giving the same fit as
+  `newtonsteps = 0`, with a warning; with `getsd = TRUE`, `fit$convergence` then reports
+  the singular Hessian (`sdreport_failed`). Without TMBhelper, the steps already stopped
+  there and now warn too. Fits whose Newton steps succeed are unchanged, bit for bit. In
+  the NOAA model comparison at `newtonsteps = 3`, a state-space replicate that returned
+  no fit now returns one.
 
 # Rceattle 5.67.3
 
