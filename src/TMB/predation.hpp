@@ -335,7 +335,7 @@ void calculate_msvpa_suitability(array<Type> &stom_div_bio,
  * @param nyrs                Years, hindcast plus projection.
  * @param nsex                Sexes modelled per species: 1 = combined, 2 = both.
  * @param nages               Age bins per species.
- * @param msmMode             Predation mode (1 = Type II MSVPA, Holsman et al. 2015;
+ * @param msmMode             Predation mode (1 = Type II MSVPA, Holsman et al. 2016;
  *                            2 = Type III MSVPA, which squares the prey term).
  * @param avgN_at_age         Average numbers-at-age (thousands of fish).
  * @param avgN_at_age_dB0     Average numbers-at-age at F=0.

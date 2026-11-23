@@ -61,7 +61,7 @@ struct LOM_t : vector<matrix<Type> > {
  * except that free functions stay snake_case.
  *
  * CITATIONS:
- * 1. Holsman, K. K., Ianelli, J., Aydin, K., Punt, A. E., & Moffitt, E. A. (2015). A comparison of fisheries biological reference points estimated from temperature-specific multi-species and single-species climate-enhanced stock assessment models. Deep-Sea Research Part II: Topical Studies in Oceanography, 134, 360–378. https://doi.org/10.1016/j.dsr2.2015.08.001
+ * 1. Holsman, K. K., Ianelli, J., Aydin, K., Punt, A. E., & Moffitt, E. A. (2016). A comparison of fisheries biological reference points estimated from temperature-specific multi-species and single-species climate-enhanced stock assessment models. Deep-Sea Research Part II: Topical Studies in Oceanography, 134, 360–378. https://doi.org/10.1016/j.dsr2.2015.08.001
  * 2. Adams, G. D., Holsman, K. K., Barbeaux, S. J., Dorn, M. W., Ianelli, J. N., Spies, I., ... & Punt, A. E. (2022). An ensemble approach to understand predation mortality for groundfish in the Gulf of Alaska. Fisheries Research, 251, 106303.
  * 3. Wassermann, S. N., Adams, G. D., Haltuch, M. A., Kaplan, I. C., Marshall, K. N., & Punt, A. E. (2025). Even low levels of cannibalism can bias population estimates for Pacific hake. ICES Journal of Marine Science, 82(1), fsae064.
  * ------------------------------------------------------------------------- //
@@ -97,7 +97,7 @@ Type objective_function<Type>::operator() () {
   DATA_INTEGER(estimateMode);             // 0 = hindcast + HCR projection, 1 = hindcast, 2 = projection from inits, 3 = build only, 4 = smoke test
   DATA_INTEGER(msmMode);
   //    0 = single species (no predation mortality)
-  //    1 = Type II MSVPA based (sensu Holsman et al 2015)
+  //    1 = Type II MSVPA based (sensu Holsman et al. 2016)
   //    2 = Type III MSVPA based
   //    3-9 = not yet implemented (Holling forms, predator interference and
   //          preemption, Hassell-Varley, Ecosim)
@@ -4180,7 +4180,7 @@ Type objective_function<Type>::operator() () {
         }
       }
 
-      // 3D AR1 (7): GMRF over bin, year and cohort (Cheng et al. 2024). Sel_curve_pen1-3
+      // 3D AR1 (7): GMRF over bin, year and cohort (Cheng et al. 2023). Sel_curve_pen1-3
       // carry the bin, year and cohort correlations.
       if(flt_sel_type(flt) == 7){
         int n_sel_bins = flt_n_sel_bins(flt);

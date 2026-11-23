@@ -5,10 +5,10 @@
 #' Retrospective peels
 #'
 #' @description Refit an Rceattle model with its last 1, 2, ..., `peels` years
-#'   of data removed, and calculate Mohn's rho for the terminal year and the
-#'   `nyrs_forecast` years after it. Each peel is fitted twice: its hindcast,
-#'   then F in the removed years, fitted to their observed catch with the
-#'   hindcast held fixed.
+#'   of data removed, and calculate Mohn's rho (Mohn 1999) for the terminal year
+#'   and the `nyrs_forecast` years after it. Each peel is fitted twice: its
+#'   hindcast, then F in the removed years, fitted to their observed catch with
+#'   the hindcast held fixed.
 #'
 #' @inheritParams rceattle-refit-args
 #' @param peels number of retrospective peels (default 5).
@@ -143,6 +143,10 @@
 #'                   fit_control = fit_control(phase = FALSE, verbose = 0))
 #' retro <- retrospective(ss_run, peels = 10)
 #' }
+#' @references
+#' Mohn, R. 1999. The retrospective problem in sequential population analysis:
+#'   an investigation using cod fishery and simulated data. ICES J. Mar. Sci.
+#'   56:473-488.
 #' @export
 retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_forecast = 3, cores = NULL, getsd = NULL, phase = TRUE, fit_control = NULL, projected_env_data_known = FALSE, Rceattle = NULL) {
   # Newer arguments follow the older ones so positional calls keep working; the

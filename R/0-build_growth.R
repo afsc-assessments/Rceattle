@@ -7,8 +7,11 @@
 #'     no parameters estimated.
 #'   * `"vonBertalanffy"`: sex-specific von Bertalanffy (parameters
 #'     `K`, `L1`, `Linf`).
-#'   * `"Richards"`: sex-specific Richards (adds `m`).
+#'   * `"Richards"`: sex-specific Richards (1959) curve (adds `m`).
 #'
+#' @references
+#' Richards, F.J. 1959. A flexible growth function for empirical use. J. Exp.
+#'   Bot. 10:290-301.
 #' @keywords internal
 GROWTH_FUNS <- c("empirical", "vonBertalanffy", "Richards")
 
@@ -57,7 +60,7 @@ GROWTH_FUNS <- c("empirical", "vonBertalanffy", "Richards")
 #' Allowed growth-parameter names for `linkages` in [build_growth()]
 #'
 #' Natural-scale names of the underlying growth-function parameters.
-#' Von Bertalanffy uses `K`, `L1`, `Linf`; Richards adds `m`.
+#' Von Bertalanffy uses `K`, `L1`, `Linf`; Richards (1959) adds `m`.
 #' `sd_L1` / `sd_Linf` are the standard deviations of length-at-age
 #' anchored at `L1` and `Linf` (the SD-at-age interpolation endpoints).
 #' Only intercept-only specs (`~ 1`) are honored
@@ -165,6 +168,9 @@ GROWTH_LINKAGE_PARAMS <- c("K", "L1", "Linf", "m", "sd_L1", "sd_Linf")
 #' columns `L50_mat_len` and `slope_mat_len`.
 #'
 #' @return A list of switches defining the growth model.
+#' @references
+#' Richards, F.J. 1959. A flexible growth function for empirical use. J. Exp.
+#'   Bot. 10:290-301.
 #' @export
 #'
 #' @examples

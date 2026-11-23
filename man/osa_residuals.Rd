@@ -147,8 +147,11 @@ age-varying processes via random effects and links to environmental
 covariates. Fish. Res. 240:105967.
 
 Stewart, I.J., and Monnahan, C.C. 2025. Diagnosing common sources of lack of
-fit to composition data using one-step-ahead residuals. Can. J. Fish. Aquat.
-Sci. 82:1-13.
+fit to composition data in fisheries stock assessment models using
+one-step-ahead (OSA) residuals. Can. J. Fish. Aquat. Sci. 82:1-13.
+
+Dunn, P.K., and Smyth, G.K. 1996. Randomized quantile residuals. J. Comput.
+Graph. Stat. 5:236-244.
 }
 \seealso{
 \code{\link[=osa_diagnostics]{osa_diagnostics()}}, \code{\link[=plot.rceattle_osa]{plot.rceattle_osa()}}, \code{\link[=process_residuals]{process_residuals()}},

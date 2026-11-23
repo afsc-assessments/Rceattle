@@ -170,3 +170,8 @@ mse <- run_mse(om = om, em = om, nsim = 10,
 mse_summary(mse)$species
 }
 }
+\references{
+Punt, A.E., Butterworth, D.S., de Moor, C.L., De Oliveira, J.A.A., and
+Haddon, M. 2016. Management strategy evaluation: best practices. Fish Fish.
+17:303-334.
+}

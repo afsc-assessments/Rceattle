@@ -90,9 +90,9 @@ Recruitment is \eqn{R0} (log scale) plus annual deviates, and the
 reported \code{steepness} holds its placeholder 0.99 rather than being
 estimated.
 \deqn{R_y = exp(R0 + R_{dev,y})}
-\item \code{srr_fun = 2} or \code{"BevertonHolt"}:
+\item \code{srr_fun = 2} or \code{"BevertonHolt"} (Beverton and Holt 1957):
 \deqn{R_y = \frac{\alpha_{srr} * SB_{y-minage}}{1+\beta_{srr} * SB_{y-minage}}}
-\item \code{srr_fun = 4} or \code{"Ricker"}:
+\item \code{srr_fun = 4} or \code{"Ricker"} (Ricker 1954):
 \deqn{R_y = \alpha_{srr} * SB_{y-minage} * exp(-\beta_{srr} * SB_{y-minage})}
 }
 
@@ -160,4 +160,12 @@ build_srr(srr_fun = "mean", srr_pred_fun = "BevertonHolt")
 # (single-species only).
 build_srr(srr_fun = "BevertonHolt", srr_est_mode = "LognormalPrior",
           srr_prior = 0.8, srr_prior_sd = 0.2)
+}
+\references{
+Beverton, R.J.H., and Holt, S.J. 1957. On the dynamics of exploited fish
+populations. Fishery Investigations Series II, Vol. 19.
+UK Ministry of Agriculture, Fisheries and Food, London.
+
+Ricker, W.E. 1954. Stock and recruitment. J. Fish. Res. Board Can.
+11:559-623.
 }

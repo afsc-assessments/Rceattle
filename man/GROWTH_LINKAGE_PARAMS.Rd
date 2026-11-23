@@ -8,7 +8,7 @@ GROWTH_LINKAGE_PARAMS
 }
 \description{
 Natural-scale names of the underlying growth-function parameters.
-Von Bertalanffy uses \code{K}, \code{L1}, \code{Linf}; Richards adds \code{m}.
+Von Bertalanffy uses \code{K}, \code{L1}, \code{Linf}; Richards (1959) adds \code{m}.
 \code{sd_L1} / \code{sd_Linf} are the standard deviations of length-at-age
 anchored at \code{L1} and \code{Linf} (the SD-at-age interpolation endpoints).
 Only intercept-only specs (\code{~ 1}) are honored

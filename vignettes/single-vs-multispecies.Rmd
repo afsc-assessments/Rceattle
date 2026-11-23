@@ -25,7 +25,7 @@ switch between them, with Bering Sea and Gulf of Alaska examples. The switch is
 | `msmMode` | Predation mortality (M2) |
 |---|---|
 | `0` | Off, single-species; total M = M1 |
-| `1` | Type II MSVPA (Holsman et al. 2015) |
+| `1` | Type II MSVPA (Holsman et al. 2016) |
 | `2` | Type III MSVPA |
 
 In single-species mode the model is a standard statistical catch-at-age model. In multi-species mode, a bioenergetics-based predation component (M2) is added to natural mortality so that predator abundance directly affects prey survival. The two modes share the same data format and most `fit_mod()` arguments: switch `msmMode`, and lower a fixed M1 where predation now supplies part of it (see `BS2017MS`).
@@ -146,7 +146,7 @@ goa_ms <- fit_mod(
 
 | `suitMode` | String | Description | Available? |
 |---|---|---|:---:|
-| `0` | `"Empirical"` | Empirical proportions from observed stomach content data (MSVPA-style; Holsman et al. 2015) | Yes |
+| `0` | `"Empirical"` | Empirical proportions from observed stomach content data (MSVPA-style; Holsman et al. 2016) | Yes |
 | `1` | `"GammaLength"` | Gamma suitability on prey length-at-age | Not yet |
 | `2` | `"GammaWeight"` | Gamma suitability on prey weight-at-age | Yes |
 | `3` | `"LognormalLength"` | Log-normal suitability on prey length-at-age | Not yet |
@@ -184,3 +184,11 @@ plot_b_eaten_prop(Rceattle = mod_list, model_names = mod_names)
 ```
 
 For model averaging across single- and multi-species variants, see `?model_average`.
+
+## References
+
+- Holsman, K.K., Ianelli, J., Aydin, K., Punt, A.E., Moffitt, E.A.
+  (2016). A comparison of fisheries biological reference points
+  estimated from temperature-specific multi-species and single-species
+  climate-enhanced stock assessment models. *Deep Sea Research Part II*,
+  134, 360-378.

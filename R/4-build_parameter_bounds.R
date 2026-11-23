@@ -25,7 +25,7 @@
 
 #' Build parameter bounds
 #'
-#' Function to build parameter bounds based on Holsman et al 2015 and Kinzey and Punt 2010
+#' Function to build parameter bounds based on Holsman et al. 2016 and Kinzey and Punt 2009
 #'
 #' @param param_list Parameter list object built from \code{\link{build_params}}
 #' @param data_list a Rceattle data object

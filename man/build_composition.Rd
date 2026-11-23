@@ -15,9 +15,10 @@ build_composition(linkages = NULL)
 A list of composition-weighting settings for \code{\link[=fit_mod]{fit_mod()}}.
 }
 \description{
-Holds \strong{priors} on the Dirichlet-multinomial composition-weighting
-overdispersion. The DM weight (the "theta" that scales the effective sample
-size) is otherwise an unpenalized free parameter; a linkage lets you put a
+Holds \strong{priors} on the Dirichlet-multinomial (Thorson et al. 2017)
+composition-weighting overdispersion. The DM weight (the "theta" that scales
+the effective sample size) is otherwise an unpenalized free parameter; a
+linkage lets you put a
 prior on it through the same grammar as every other parameter. The three
 parameters target the three DM likelihoods:
 \describe{
@@ -44,4 +45,9 @@ build_composition(linkages = list(
                             priors = list(`(Intercept)` = gamma(2, 0.5)))))
 }
 
+}
+\references{
+Thorson, J.T., Johnson, K.F., Methot, R.D., and Taylor, I.G. 2017.
+Model-based estimates of effective sample size in stock assessment models
+using the Dirichlet-multinomial distribution. Fish. Res. 192:84-93.
 }

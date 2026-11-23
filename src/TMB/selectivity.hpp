@@ -137,8 +137,8 @@ void convert_length_selectivity(
  * - 3 DoubleLogistic (Dorn and Methot 1990).
  * - 4 DescendingLogistic.
  * - 5 Hake (Taylor et al. 2014): exp of the cumulative sum of coefficients.
- * - 6 2DAR1: inverse logit of coefficients with AR1 deviates by bin and year.
- * - 7 3DAR1 (Cheng et al. 2024): as 6, with a cohort term.
+ * - 6 2DAR1 (Xu et al. 2019): inverse logit of coefficients with AR1 deviates by bin and year.
+ * - 7 3DAR1 (Cheng et al. 2023): as 6, with a cohort term.
  * - 8 DoubleNormal: Gaussian dome with a right-tail floor.
  * - 9 NonParametricPM (AMAK "pm"): random walk on the log curve, capped at Sel_cap_bin.
  * - 11 LogisticPM (AMAK "pm" bottom-trawl survey): multiplicative deviates, free first bin.

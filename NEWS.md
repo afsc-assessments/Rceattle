@@ -46,6 +46,23 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   `vignette("model-diagnostics")` credit WHAM's code (Stock and Miller 2021)
   for the one-step-ahead composition likelihoods. `License:` is unchanged.
 
+* **Literature citations corrected and completed.**
+  - Wrong citations fixed: Thornton and Lessem is 1978; Kinzey and Punt is 2009;
+    the MSVPA model is Holsman et al. 2016; 2D-AR1 selectivity is Xu et al.
+    2019; and 3D-AR1 is Cheng et al. 2023, since no 2024 paper exists. TMB is
+    now cited as the 2016 *Journal of Statistical Software* paper, not the 2015
+    preprint. Two `data_check()` messages and one from `plot_form()` carry the
+    corrected years.
+  - Help pages now cite methods they described without a source: Mohn (1999)
+    in `?retrospective`, Thorson et al. (2017) in `?build_composition`,
+    Thorson and Kristensen (2016) in `?fit_control`, Beverton and Holt (1957)
+    and Ricker (1954) in `?build_srr`, Punt et al. (2016) in `?run_mse`,
+    Richards (1959) in `?build_growth`, Dunn and Smyth (1996) in
+    `?osa_residuals`, and Methot and Wetzel (2013) for the `DoubleNormalSS3`
+    form.
+  - Every vignette that cites a paper now ends with a reference list, and the
+    vignettes cite the same methods where they introduce them.
+
 * **A request to anyone reusing Rceattle code.** The README asks that code
   copied or adapted into another project, by hand or through an AI assistant,
   be checked with the maintainer first for overlap with work in preparation.

@@ -19,9 +19,15 @@ Authors@R: c(
            comment = "predicted diet averaged over predator ages, weighted by numbers"),
     person("Tim", "Miller", role = "ctb",
            comment = c(ORCID = "0000-0003-1411-1206",
-                       "WHAM one-step-ahead composition likelihoods")),
+                       "OSA composition code, via OSA_multivariate_dists and WHAM")),
     person("Anders", "Nielsen", role = "ctb",
-           comment = "osa_order(), via WHAM"),
+           comment = "OSA composition code, incl. osa_order()"),
+    person("Christoffer Moesgaard", "Albertsen", role = "ctb",
+           comment = "OSA composition code, from OSA_multivariate_dists"),
+    person("Kasper", "Kristensen", role = "ctb",
+           comment = "OSA composition code, from OSA_multivariate_dists"),
+    person("Chris M.", "Legault", role = "ctb",
+           comment = "OSA composition code, from OSA_multivariate_dists"),
     person("Giancarlo M.", "Correa", role = "ctb",
            comment = "growth curves, from WHAM's growth branch; OFI 2023 examples"),
     person("Jane", "Sullivan", role = "ctb",
@@ -40,9 +46,10 @@ Authors@R: c(
     person("Ian G.", "Taylor", role = "ctb",
            comment = "rich.colors.short(), from r4ss"))
 Description: Implements the CEATTLE model using Template Model Builder
-    ('TMB'; Kristensen et al. 2015), which can be installed following
-    <https://github.com/kaskr/adcomp/wiki/Download>. Structured similar
-    to the original manuscript in terms of modularization. Separate
+    ('TMB'; Kristensen et al. 2016 <doi:10.18637/jss.v070.i05>), which can be
+    installed following <https://github.com/kaskr/adcomp/wiki/Download>.
+    Structured similar to the original manuscript in terms of
+    modularization. Separate
     functions estimate retrospective temperature- and size-specific
     predator rations, prey preference, and weight-at-age. These are then
     used as inputs to the CEATTLE model to evaluate how predation

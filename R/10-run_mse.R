@@ -429,6 +429,10 @@
 #'
 #' @return A list of operating models (differing by simulated recruitment, per
 #'   \code{nsim}) and estimation models fit to each (differing by terminal year).
+#' @references
+#' Punt, A.E., Butterworth, D.S., de Moor, C.L., De Oliveira, J.A.A., and
+#'   Haddon, M. 2016. Management strategy evaluation: best practices. Fish Fish.
+#'   17:303-334.
 #' @examples
 #' \dontrun{
 #' data(BS2017SS)

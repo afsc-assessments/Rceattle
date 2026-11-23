@@ -126,7 +126,7 @@
 #'   Dirichlet-multinomial weights.
 #' @param msmMode The predation-mortality mode, as a string alias or integer
 #'   code: \code{"SingleSpecies"} (0, the default, no predation),
-#'   \code{"MSVPA"} (1, the Type-II MSVPA predation of Holsman et al. 2015) or
+#'   \code{"MSVPA"} (1, the Type-II MSVPA predation of Holsman et al. 2016) or
 #'   \code{"TypeIIIMSVPA"} (2). Codes 3 to 9 (Kinzey & Punt 2009 functional
 #'   responses, Holling forms, Ecosim) are declared but refused by
 #'   \code{data_check()} until validated against the current parameter set; see
@@ -145,7 +145,7 @@
 #'   age structure under any mode.
 #' @param suitMode how predator-prey suitability is derived, per predator (one
 #'   value or a vector of length \code{nspp}): 0 = empirical from diet data
-#'   (Holsman et al. 2015), 2 = weight-based gamma, 4 = weight-based lognormal,
+#'   (Holsman et al. 2016), 2 = weight-based gamma, 4 = weight-based lognormal,
 #'   6 = weight-based normal. The length-based forms (1, 3, 5) are declared but
 #'   refused by the data check.
 #' @param suit_styr The first year used to calculate mean suitability, as one

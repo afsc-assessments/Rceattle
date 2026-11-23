@@ -6,7 +6,7 @@
 \alias{Rceattle-package}
 \title{Rceattle: Fits the Multispecies Assessment Model (CEATTLE) Using TMB}
 \description{
-Implements the CEATTLE model using Template Model Builder ('TMB'; Kristensen et al. 2015), which can be installed following \url{https://github.com/kaskr/adcomp/wiki/Download}. Structured similar to the original manuscript in terms of modularization. Separate functions estimate retrospective temperature- and size-specific predator rations, prey preference, and weight-at-age. These are then used as inputs to the CEATTLE model to evaluate how predation mortality, recruitment, and survival of three target species change under historical climate conditions and harvest rates.
+Implements the CEATTLE model using Template Model Builder ('TMB'; Kristensen et al. 2016 \doi{10.18637/jss.v070.i05}), which can be installed following \url{https://github.com/kaskr/adcomp/wiki/Download}. Structured similar to the original manuscript in terms of modularization. Separate functions estimate retrospective temperature- and size-specific predator rations, prey preference, and weight-at-age. These are then used as inputs to the CEATTLE model to evaluate how predation mortality, recruitment, and survival of three target species change under historical climate conditions and harvest rates.
 }
 \references{
 \itemize{
@@ -23,9 +23,9 @@ Oceanography, 134, 360-378.
 K.N., Punt, A.E. (2025). Even low levels of cannibalism can bias
 population estimates for Pacific hake. ICES Journal of Marine Science,
 82(1), fsae064.
-\item Kristensen, K., Nielsen, A., Berg, C.W., Skaug, H., Bell, B. (2015).
-TMB: automatic differentiation and Laplace approximation. arXiv
-preprint arXiv:1509.00660.
+\item Kristensen, K., Nielsen, A., Berg, C.W., Skaug, H., Bell, B.M. (2016).
+TMB: automatic differentiation and Laplace approximation. Journal of
+Statistical Software, 70(5). doi:10.18637/jss.v070.i05.
 }
 }
 \seealso{
@@ -52,8 +52,11 @@ Other contributors:
   \item Kerim Aydin (original ADMB CEATTLE model) [contributor]
   \item Cole C. Monnahan (bias-adjustment controls in fit_control()) [contributor]
   \item Raquel Ruiz Diaz (predicted diet averaged over predator ages, weighted by numbers) [contributor]
-  \item Tim Miller (\href{https://orcid.org/0000-0003-1411-1206}{ORCID}) (WHAM one-step-ahead composition likelihoods) [contributor]
-  \item Anders Nielsen (osa_order(), via WHAM) [contributor]
+  \item Tim Miller (\href{https://orcid.org/0000-0003-1411-1206}{ORCID}) (OSA composition code, via OSA_multivariate_dists and WHAM) [contributor]
+  \item Anders Nielsen (OSA composition code, incl. osa_order()) [contributor]
+  \item Christoffer Moesgaard Albertsen (OSA composition code, from OSA_multivariate_dists) [contributor]
+  \item Kasper Kristensen (OSA composition code, from OSA_multivariate_dists) [contributor]
+  \item Chris M. Legault (OSA composition code, from OSA_multivariate_dists) [contributor]
   \item Giancarlo M. Correa (growth curves, from WHAM's growth branch; OFI 2023 examples) [contributor]
   \item Jane Sullivan (whamGrowthData, from the OFI 2023 workshop's WHAM examples) [contributor]
   \item James Thorson (\href{https://orcid.org/0000-0001-7415-1010}{ORCID}) (TMBAIC(), from TMBhelper) [contributor]

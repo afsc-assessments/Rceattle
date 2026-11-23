@@ -108,7 +108,7 @@ distribution parameters estimated.
 
 | Value | String | Description | Available? |
 |:---:|---|---|:---:|
-| `0` | `"Empirical"` | Empirical proportions from observed stomach data (MSVPA-style; Holsman et al. 2015) | Yes |
+| `0` | `"Empirical"` | Empirical proportions from observed stomach data (MSVPA-style; Holsman et al. 2016) | Yes |
 | `1` | `"GammaLength"` | Gamma suitability on prey length-at-age | **Not yet** |
 | `2` | `"GammaWeight"` | Gamma suitability on prey weight-at-age | Yes |
 | `3` | `"LognormalLength"` | Log-normal suitability on prey length-at-age | **Not yet** |
@@ -140,8 +140,8 @@ Set the `Selectivity` column of `fleet_control`; integers and strings both work:
 | `3` | `"DoubleLogistic"` | Dome-shaped (ascending + descending logistic) |
 | `4` | `"DescendingLogistic"` | Descending only |
 | `5` | `"Hake"` | Non-parametric à la Taylor et al. (Pacific hake) |
-| `6` | `"2DAR1"` | 2D AR(1) bin × year (Cheng et al. 2024) |
-| `7` | `"3DAR1"` | 3D AR(1) bin × year × cohort |
+| `6` | `"2DAR1"` | 2D AR(1) bin × year (Xu et al. 2019) |
+| `7` | `"3DAR1"` | 3D AR(1) bin × year × cohort (Cheng et al. 2023) |
 | `8` | `"DoubleNormal"` | Four-parameter double normal: peak, ascending and descending widths, and a right-tail floor (the Stock Synthesis pattern 24 shape without its initial-selectivity and plateau-width parameters) |
 | `9` | `"NonParametricPM"` | Ianelli non-parametric with the ADMB AMAK ("pm") penalty; see `Sel_avgsel_pen`, `Sel_cap_bin` |
 | `11` | `"LogisticPM"` | AMAK ("pm") logistic: multiplicative inflection/slope deviations plus a free age-1 log-selectivity |
@@ -497,7 +497,7 @@ Set `Comp_distribution` (or `CAAL_distribution`) per fleet:
 |:---:|---|
 | `-1` | `"MultinomialAFSC"` (AFSC convention; the `Comp_distribution` default) |
 | `0` | `"Multinomial"` (the `CAAL_distribution` default) |
-| `1` | `"DirichletMultinomial"` |
+| `1` | `"DirichletMultinomial"` (Thorson et al. 2017) |
 
 Diet composition uses an analogous switch on the bioenergetics control sheet:
 `Diet_distribution = 0` (multinomial) or `1` (Dirichlet-multinomial).
@@ -660,7 +660,7 @@ reproducibility guarantees.
 | `self_test()` | Simulate and refit; check the model recovers what generated the data |
 | `compare_sim()` | Estimation-vs-truth comparison across simulated replicates |
 | `model_average()` | Weighted average of derived quantities across multiple fits, with optional bootstrap uncertainty |
-| `reweight_comps()` | Iterative McAllister-Ianelli tuning of multinomial `Comp_weights` |
+| `reweight_comps()` | Iterative McAllister-Ianelli (1997) tuning of multinomial `Comp_weights` |
 
 ## 12. Plotting
 
@@ -773,14 +773,37 @@ derived quantity needs the covariance
   Spies, I., Stewart, I.J., Punt, A.E. (2022). An ensemble approach
   to understand predation mortality for groundfish in the Gulf of
   Alaska. *Fisheries Research*, 251, 106303.
+- Cheng, M.L.H., Thorson, J.T., Ianelli, J.N., Cunningham, C.J. (2023).
+  Unlocking the triad of age, year, and cohort effects for stock
+  assessment: demonstration of a computationally efficient and
+  reproducible framework using weight-at-age. *Fisheries Research*,
+  266, 106755.
 - Holsman, K.K., Ianelli, J., Aydin, K., Punt, A.E., Moffitt, E.A.
   (2016). A comparison of fisheries biological reference points
   estimated from temperature-specific multi-species and single-species
   climate-enhanced stock assessment models. *Deep Sea Research Part II*,
   134, 360-378.
+- Kinzey, D., Punt, A.E. (2009). Multispecies and single-species models
+  of fish population dynamics: comparing parameter estimates. *Natural
+  Resource Modeling*, 22, 67-104.
+- McAllister, M.K., Ianelli, J.N. (1997). Bayesian stock assessment
+  using catch-age data and the sampling-importance resampling
+  algorithm. *Canadian Journal of Fisheries and Aquatic Sciences*, 54,
+  284-300.
+- Rogers, L.A., Monnahan, C.C., Williams, K., Jones, D.T., Dorn, M.W.
+  (2024). Climate-driven changes in the timing of spawning and the
+  availability of walleye pollock (*Gadus chalcogrammus*) to assessment
+  surveys in the Gulf of Alaska. *ICES Journal of Marine Science*,
+  82(1), fsae005.
+- Thorson, J.T., Johnson, K.F., Methot, R.D., Taylor, I.G. (2017).
+  Model-based estimates of effective sample size in stock assessment
+  models using the Dirichlet-multinomial distribution. *Fisheries
+  Research*, 192, 84-93.
 - Wassermann, S.N., Adams, G.D., Haltuch, M.A., Kaplan, I.C., Marshall,
   K.N., Punt, A.E. (2025). Even low levels of cannibalism can bias
   population estimates for Pacific hake. *ICES Journal of Marine
   Science*, 82(1), fsae064.
-- Cheng, M.L.H., et al. (2024). 2D / 3D AR(1) selectivity.
-- Rogers, L.A., et al. (2024). AR(1) catchability for GOA pollock.
+- Xu, H., Thorson, J.T., Methot, R.D., Taylor, I.G. (2019). A new
+  semi-parametric method for autocorrelated age- and time-varying
+  selectivity in age-structured assessment models. *Canadian Journal of
+  Fisheries and Aquatic Sciences*, 76, 268-285.

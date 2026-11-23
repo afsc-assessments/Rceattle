@@ -7,7 +7,7 @@
  * Updates the fT matrix in place. Supports multiple bioenergetics models:
  * 1 = Exponential function (Stewart et al. 1983)
  * 2 = Warm-water species temperature dependence (Kitchell et al. 1977)
- * 3 = Cool/cold-water species temperature dependence (Thornton and Lessem 1979)
+ * 3 = Cool/cold-water species temperature dependence (Thornton and Lessem 1978)
  * 4 = Constant (fT = 1.0)
  *
  * @param fT         Temperature functions [nspp, nyrs], updated.
@@ -73,7 +73,7 @@ void calculate_temperature_function(matrix<Type> &fT,
         fT(sp, yr) = pow(Vc, Xc) * exp(Xc * (1.0 - Vc));
         break;
 
-      case 3: // Cool/cold-water species temperature dependence, Thornton and Lessem 1979
+      case 3: // Cool/cold-water species temperature dependence, Thornton and Lessem 1978
         G2 = (1.0 / (Tcl(sp) - Tcm(sp))) * log((0.98 * (1.0 - CK4(sp))) / (CK4(sp) * 0.02));
         L2 = exp(G2 * (Tcl(sp) - env_index(yr, Cindex(sp))));
         Kb = (CK4(sp) * L2) / (1.0 + CK4(sp) * (L2 - 1.0));
