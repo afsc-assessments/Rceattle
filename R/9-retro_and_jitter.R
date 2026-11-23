@@ -320,8 +320,10 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
   if (.post_any && length(.warn_group)) {
     warning("Random-effect grouping column(s) ", paste(.warn_group, collapse = ", "),
             " label which deviation each year takes, so each peel keeps their ",
-            "post-peel values. If a label is derived from data (a warm/cold ",
-            "regime), each peel knows which level its forecast years are in.",
+            "post-peel values. A q or selectivity effect still holds its ",
+            "terminal-year level; any other effect takes the level each forecast ",
+            "year is labelled with, so a label derived from data (a warm/cold ",
+            "regime) is known ahead.",
             call. = FALSE)
   }
 

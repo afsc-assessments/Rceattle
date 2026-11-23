@@ -29,7 +29,8 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   estimate for each removed year, decaying toward 0 or falling to 0; a random
   walk held already. M1 and recruitment linkage effects still take the peel's own
   estimate for each year, as the projection does, and covariate terms keep their
-  peel rules (5.70.1).
+  peel rules (5.70.1). The warning about random-effect grouping columns now says
+  which effects hold and which read the label.
 
   **Whose Mohn's rho moves**: a model with an `ar1()` or `(1 | Year)` linkage on
   selectivity, F from the first forecast year, as the peel fits F to the observed
