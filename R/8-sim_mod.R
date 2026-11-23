@@ -1432,10 +1432,10 @@ get_growth_matrix_r <- function(fracyr, nsex_sp, nages_sp, nlengths_sp, nyrs,
 
                 length_at_age[s, a, y] = (last_linear^m + (last_linear^m - linf^m) * (exp(-k * (current_age - minage_sp)) - 1.0))^(1/m)
               }else{
-                lagk <- growth_params_sp[s, y-1, 2]
+                lagk <- growth_params_sp[s, y-1, 1]
                 lagm <- growth_params_sp[s, y-1, 4]
                 laglinf <-  growth_params_sp[s, y-1, 3]
-                length_at_age[s, a, y] <- (length_at_age[s, a-1, y-1]^lagm + (length_at_age[s, a-1, y-1]^lagm - laglinf^lagm) * (exp(-lagk) - 1))^1/lagm
+                length_at_age[s, a, y] <- (length_at_age[s, a-1, y-1]^lagm + (length_at_age[s, a-1, y-1]^lagm - laglinf^lagm) * (exp(-lagk) - 1))^(1/lagm)
               }
             }
           }
