@@ -45,5 +45,24 @@ Authors:
   \item Grant Adams \email{grant.adams@noaa.gov} (\href{https://orcid.org/0000-0003-0297-8347}{ORCID})
 }
 
+Other contributors:
+\itemize{
+  \item Kirstin K. Holsman (original ADMB CEATTLE model; Eastern Bering Sea data) [contributor]
+  \item James N. Ianelli (original ADMB CEATTLE model; AMAK and ebswp conventions) [contributor]
+  \item Kerim Aydin (original ADMB CEATTLE model) [contributor]
+  \item Cole C. Monnahan (bias-adjustment controls in fit_control()) [contributor]
+  \item Raquel Ruiz Diaz (diet data weighted by predator numbers-at-age) [contributor]
+  \item Tim Miller (\href{https://orcid.org/0000-0003-1411-1206}{ORCID}) (WHAM one-step-ahead composition likelihoods) [contributor]
+  \item Anders Nielsen (osa_order(), via WHAM) [contributor]
+  \item Giancarlo M. Correa (growth curves, from WHAM's growth branch; OFI 2023 examples) [contributor]
+  \item Jane Sullivan (OFI 2023 WHAM workshop examples (whamGrowthData)) [contributor]
+  \item James Thorson (\href{https://orcid.org/0000-0001-7415-1010}{ORCID}) (TMBAIC(), from TMBhelper) [contributor]
+  \item Matthew L. H. Cheng (construct_Q(), from GMRF_WAA; multispecies test helper) [contributor]
+  \item Vanessa Trijoulet (predator-prey vulnerability transform) [contributor]
+  \item Gavin Fay (TMBphase()) [contributor]
+  \item Arni Magnusson (rich.colors(), from gplots) [contributor]
+  \item Ian G. Taylor (rich.colors.short(), from r4ss) [contributor]
+}
+
 }
 \keyword{internal}

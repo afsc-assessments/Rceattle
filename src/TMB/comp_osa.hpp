@@ -31,7 +31,8 @@
  */
 
 // Reorder categories so kept (keep > 0.5) entries come first, preserving the
-// original order within the kept and dropped groups.
+// original order within the kept and dropped groups. Anders Nielsen's order(),
+// via WHAM src/age_comp_osa.hpp.
 template<class Type>
 vector<int> osa_order(vector<Type> k){
   int n = k.size();

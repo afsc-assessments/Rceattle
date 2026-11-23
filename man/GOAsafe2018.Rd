@@ -5,12 +5,23 @@
 \alias{GOAsafe2018}
 \title{Gulf of Alaska 2018 SAFE report reference values}
 \format{
-A list with components:
+A list with components, each a data frame of \code{Year} and one
+column per assessment (\code{2018_Pollock}, \code{2018_Cod},
+\code{2018_ATF}, \code{2020_Cod}):
 \describe{
 \item{biomass}{Total biomass time series}
 \item{ssb}{Spawning stock biomass time series}
 \item{recruitment}{Recruitment time series}
 }
+}
+\source{
+The 2018 columns are from the chapters cited in
+\code{\link{GOApollock}}, \code{\link{GOAcod}} and \code{\link{GOAatf}};
+\code{2020_Cod} is from Barbeaux, S., Ferriss, B., Palsson, W., Shotwell,
+K., Spies, I., Wang, M., and Zador, S. 2020. Assessment of the Pacific cod
+stock in the Gulf of Alaska. In: Stock assessment and fishery evaluation
+report for the groundfish resources of the Gulf of Alaska. North Pacific
+Fishery Management Council, Anchorage, AK.
 }
 \usage{
 GOAsafe2018
@@ -18,6 +29,6 @@ GOAsafe2018
 \description{
 A list containing biomass, spawning stock biomass, and recruitment
 reference values from the 2018 Gulf of Alaska Stock Assessment and
-Fishery Evaluation (SAFE) report.
+Fishery Evaluation (SAFE) report, plus the 2020 Pacific cod assessment.
 }
 \keyword{datasets}

@@ -1,0 +1,135 @@
+Code and data in Rceattle that come from other projects
+=======================================================
+
+Rceattle is a TMB reimplementation of CEATTLE, the ADMB model written by
+Kirstin Holsman, Jim Ianelli and Kerim Aydin (Holsman et al. 2016). The pieces
+below come from other projects and keep their original licenses. The authors
+of the adapted code are listed as contributors in DESCRIPTION, except for
+rho_trans() and max2(), one-line idioms from the TMB examples and the
+tmb-users list.
+
+
+Code adapted from other projects
+--------------------------------
+
+src/TMB/comp_osa.hpp
+    One-step-ahead forms of the multinomial and Dirichlet-multinomial, ported
+    from WHAM, src/age_comp_osa.hpp (src/age_comp_osa.h in current WHAM; Tim
+    Miller; https://github.com/timjmiller/wham). GPL-3. WHAM's version follows
+    Trijoulet et al. (2023). osa_order() is Anders Nielsen's order(), from the
+    same WHAM file.
+
+src/TMB/helper_functions.hpp: ddirmultinom()
+    From WHAM, src/age_comp_osa.hpp. GPL-3.
+
+src/TMB/helper_functions.hpp: construct_Q()
+    From Matt Cheng's GMRF_WAA (https://github.com/chengmatt/GMRF_WAA), the code
+    for Cheng et al. (2023). That repository states no license.
+
+src/TMB/helper_functions.hpp: rho_trans()
+    From the TMB examples (https://github.com/kaskr/adcomp). GPL-2.
+
+src/TMB/helper_functions.hpp: max2()
+    A one-line idiom from the tmb-users list
+    (https://groups.google.com/g/tmb-users/c/QAVmgj66OC0).
+
+src/TMB/growth.hpp: estimate_growth(), estimate_growth_within_yr()
+    Adapted from Giancarlo Correa's growth code in WHAM's growth branch
+    (https://github.com/timjmiller/wham/tree/growth, at commit 16770d4): the
+    mean length-at-age block of src/wham_v0.cpp and pred_LAA() in
+    src/helper_functions.hpp. GPL-3.
+
+src/TMB/predation.hpp: calculate_vulnerability()
+    The multinomial-logistic vulnerability transform of Trijoulet et al. (2020),
+    following MS_SSM.cpp in https://github.com/vtrijoulet/Multisp_model_JAE
+    (Vanessa Trijoulet). That repository states no license.
+
+R/6-phaser.R: TMBphase()
+    Adapted from TMBphase by Gavin Fay
+    (https://github.com/kaskr/TMB_contrib_R/tree/master/TMBphase). GPL-2.
+
+R/6-tmb_aic.R: TMBAIC()
+    Copied from TMBhelper::TMBAIC() by James Thorson
+    (https://github.com/kaskr/TMB_contrib_R/tree/master/TMBhelper). GPL-3.
+
+R/7-plot_ceattle.R: rich.colors.short()
+    rich.colors() from gplots, by Arni Magnusson (GPL-2), as shortened in r4ss
+    by Ian G. Taylor (GPL-3).
+
+tests/testthat/helpers-make-msm-data.R
+    Adapted from code by Matt Cheng.
+
+tests/comparison/WHAM-growth-comparison.R, tests/comparison/WHAM-OSA-comparison.R,
+tests/comparison/WHAM_growth_comparison/helper.R and case3.xlsx, data/whamGrowthData.rda
+    Modified from case 3 of the WHAM growth examples by Giancarlo Correa and Jane
+    Sullivan for the Ocean Frontier Institute's 2023 workshop
+    (https://giancarlomcorrea.netlify.app/post/ofi-workshop/). No license stated.
+
+
+Methods taken from other assessment models
+------------------------------------------
+
+These were translated into TMB from each model's equations, documentation and
+ADMB code. The source is cited in the code where each is used, and the license
+notices are given here in case a translated passage counts as a copy.
+
+Stock Synthesis (Methot and Wetzel 2013; https://github.com/nmfs-ost/ss3-source-code,
+CC0-1.0): the DoubleNormalSS3 selectivity, growth CV patterns, plus-group mean
+length, the exponential environmental link on catchability, initial equilibrium
+catch and the InitF convention.
+
+AMAK (https://github.com/afsc-assessments/amak; Copyright (c) 2014 NMFS-toolbox)
+and ebswp (https://github.com/afsc-assessments/ebswp; Copyright (c) 2026 Jim
+Ianelli), both MIT-licensed: the AFSC multinomial composition likelihood, the
+non-parametric selectivity penalties, the NonParametricPM and LogisticPM forms,
+the stock-recruit curve penalty, the normal index likelihood, the MVN survey
+likelihood and the arithmetic-mean analytical q.
+
+afscOSA (https://github.com/noaa-afsc/afscOSA, GPL-3): the layout of the
+one-step-ahead residual plots, rewritten here.
+
+
+Bundled data
+------------
+
+data/ holds:
+  - the 2017 Eastern Bering Sea CEATTLE inputs (Holsman et al. 2017) and three
+    Rceattle fits to them;
+  - single-species models set up in CEATTLE from published assessments, which
+    are not the operational models, and the estimates of the 2018 and 2020
+    Gulf of Alaska assessments (GOAsafe2018);
+  - the Georges Bank recreation of Curti et al. (2013);
+  - the OFI 2023 workshop example (whamGrowthData).
+
+Each help page (for example ?GOApollock) cites its source under "Source".
+inst/extdata/BS2017SS.xlsx is the same data as ?BS2017SS, and
+inst/extdata/GeorgesBank3spp.xlsx holds the same numbers as ?GeorgesBank3spp in an
+older workbook layout. inst/extdata/CEATTLE_classic_SS.Rdata and
+CEATTLE_classic_MS.Rdata are early Rceattle fits to the Eastern Bering Sea
+inputs, kept as test references.
+
+
+References
+----------
+
+Cheng, M.L.H., Thorson, J.T., Ianelli, J.N., Cunningham, C.J. (2023).
+  Unlocking the triad of age, year, and cohort effects for stock assessment:
+  demonstration of a computationally efficient and reproducible framework using
+  weight-at-age. Fisheries Research 266: 106755.
+Holsman, K.K., Ianelli, J., Aydin, K., Punt, A.E., Moffitt, E.A. (2016). A
+  comparison of fisheries biological reference points estimated from
+  temperature-specific multi-species and single-species climate-enhanced stock
+  assessment models. Deep Sea Research Part II 134: 360-378.
+Holsman, K.K., Ianelli, J.N., Aydin, K. (2017). 2017 multi-species stock
+  assessment for walleye pollock, Pacific cod, and arrowtooth flounder in the
+  Eastern Bering Sea. North Pacific Fishery Management Council, Anchorage, AK.
+Methot, R.D., Wetzel, C.R. (2013). Stock synthesis: a biological and
+  statistical framework for fish stock assessment and fishery management.
+  Fisheries Research 142: 86-99.
+Trijoulet, V., Fay, G., Miller, T.J. (2020). Performance of a state-space
+  multispecies model: what are the consequences of ignoring predation and
+  process errors in stock assessments? Journal of Applied Ecology 57: 121-135.
+Trijoulet, V., Albertsen, C.M., Kristensen, K., Legault, C.M., Miller, T.J.,
+  Nielsen, A. (2023). Model validation for compositional data in stock
+  assessment models: calculating residuals with correct properties. Fisheries
+  Research 257: 106487.

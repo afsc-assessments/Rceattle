@@ -7,6 +7,11 @@
 \format{
 A list with the same structure as \code{\link{BS2017SS}}.
 }
+\source{
+The single-species models of Adams et al. (2022, Fisheries Research
+251: 106303), set up in CEATTLE from the 2018 assessments cited in
+\code{\link{GOApollock}}, \code{\link{GOAcod}} and \code{\link{GOAatf}}.
+}
 \usage{
 GOA2018SS
 }

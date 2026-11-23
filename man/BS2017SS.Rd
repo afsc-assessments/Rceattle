@@ -124,6 +124,15 @@ NA.}
 \item{Proj_F_proportion}{The proportion of future fishing mortality assigned to this fleet.}
 }
 }
+\source{
+Converted from the ADMB inputs of the 2017 Eastern Bering Sea
+multispecies CEATTLE assessment, run in single-species mode: Holsman, K.K.,
+Ianelli, J.N., and Aydin, K. 2017. 2017 multi-species stock assessment for
+walleye pollock, Pacific cod, and arrowtooth flounder in the Eastern Bering
+Sea. Multi-species supplement to the stock assessment and fishery
+evaluation report for the groundfish resources of the Bering Sea/Aleutian
+Islands regions. North Pacific Fishery Management Council, Anchorage, AK.
+}
 \usage{
 BS2017SS
 }

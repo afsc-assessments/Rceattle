@@ -40,7 +40,7 @@ For operational / management use, pin a specific tagged release rather than
 tracking `main`, e.g.:
 
 ```r
-remotes::install_github("afsc-assessments/Rceattle@5.70.8")
+remotes::install_github("afsc-assessments/Rceattle@5.71.0")
 ```
 
 The maintainer email in `DESCRIPTION` (`grant.adams@noaa.gov`) is the
@@ -155,6 +155,22 @@ Holsman, K. K., Ianelli, J., Aydin, K., Punt, A. E., & Moffitt, E. A. (2016). A 
 Kristensen, K., Nielsen, A., Berg, C. W., Skaug, H., & Bell, B. (2015). TMB: automatic differentiation and Laplace approximation. arXiv preprint arXiv:1509.00660.
 
 Wassermann, S. N., Adams, G. D., Haltuch, M. A., Kaplan, I. C., Marshall, K. N., & Punt, A. E. (2025). Even low levels of cannibalism can bias population estimates for Pacific hake. ICES Journal of Marine Science, 82(1), fsae064.
+
+## Code and data from other projects
+
+Rceattle reimplements in TMB the ADMB CEATTLE model of Kirstin Holsman, Jim Ianelli
+and Kerim Aydin (Holsman et al. 2016). It adapts code from
+[WHAM](https://github.com/timjmiller/wham) (one-step-ahead composition likelihoods, and
+growth curves from Giancarlo Correa's growth branch), Vanessa Trijoulet's multispecies
+model (the predator-prey vulnerability transform), Matt Cheng's GMRF_WAA (the 3D-AR1
+precision matrix), Jim Thorson's TMBhelper (`TMBAIC()`), Gavin Fay's `TMBphase`, and
+`rich.colors` from gplots and r4ss. It follows Stock Synthesis, AMAK and ebswp
+conventions for several options, and the `afscOSA` layout for the one-step-ahead
+residual plots. The bundled datasets come from published assessments and papers and
+one WHAM workshop, each cited on its help page.
+[inst/COPYRIGHTS](https://github.com/afsc-assessments/Rceattle/blob/main/inst/COPYRIGHTS)
+gives the file-by-file sources and licenses, and the contributors are listed in
+[DESCRIPTION](https://github.com/afsc-assessments/Rceattle/blob/main/DESCRIPTION).
 
 ## Contributing
 

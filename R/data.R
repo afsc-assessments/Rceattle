@@ -122,6 +122,13 @@
 #' \item{Month}{Observation month for the fleet (0 = not specified).}
 #' \item{Proj_F_proportion}{The proportion of future fishing mortality assigned to this fleet.}
 #'}
+#' @source Converted from the ADMB inputs of the 2017 Eastern Bering Sea
+#'   multispecies CEATTLE assessment, run in single-species mode: Holsman, K.K.,
+#'   Ianelli, J.N., and Aydin, K. 2017. 2017 multi-species stock assessment for
+#'   walleye pollock, Pacific cod, and arrowtooth flounder in the Eastern Bering
+#'   Sea. Multi-species supplement to the stock assessment and fishery
+#'   evaluation report for the groundfish resources of the Bering Sea/Aleutian
+#'   Islands regions. North Pacific Fishery Management Council, Anchorage, AK.
 "BS2017SS"
 
 
@@ -132,6 +139,9 @@
 #' Eastern Bering Sea. See \code{\link{BS2017SS}} for format details.
 #'
 #' @format A list with the same structure as \code{\link{BS2017SS}}.
+#' @source Converted from the ADMB inputs of the 2017 Eastern Bering Sea
+#'   multispecies CEATTLE assessment (Holsman et al. 2017), multispecies mode;
+#'   the full citation is in \code{\link{BS2017SS}}.
 "BS2017MS"
 
 
@@ -142,6 +152,8 @@
 #' flounder) without estimating natural mortality.
 #'
 #' @format An object of class \code{Rceattle}.
+#' @source Fit by Rceattle to the 2017 Eastern Bering Sea CEATTLE inputs; see
+#'   \code{\link{BS2017SS}} for their source.
 "EBS_ss_run"
 
 
@@ -151,6 +163,8 @@
 #' for the Eastern Bering Sea with natural mortality estimated.
 #'
 #' @format An object of class \code{Rceattle}.
+#' @source Fit by Rceattle to the 2017 Eastern Bering Sea CEATTLE inputs; see
+#'   \code{\link{BS2017SS}} for their source.
 "EBS_ss_M_run"
 
 
@@ -161,6 +175,8 @@
 #' flounder).
 #'
 #' @format An object of class \code{Rceattle}.
+#' @source Fit by Rceattle to the 2017 Eastern Bering Sea CEATTLE inputs; see
+#'   \code{\link{BS2017SS}} for their source.
 "EBS_ms_run"
 
 
@@ -171,6 +187,9 @@
 #' for format details.
 #'
 #' @format A list with the same structure as \code{\link{BS2017SS}}.
+#' @source The single-species models of Adams et al. (2022, Fisheries Research
+#'   251: 106303), set up in CEATTLE from the 2018 assessments cited in
+#'   \code{\link{GOApollock}}, \code{\link{GOAcod}} and \code{\link{GOAatf}}.
 "GOA2018SS"
 
 
@@ -181,6 +200,12 @@
 #' for format details.
 #'
 #' @format A list with the same structure as \code{\link{BS2017SS}}.
+#' @source The 2017 assessment model, as carried into the 2018 SAFE, set up in
+#'   CEATTLE (not the operational model): Spies, I., Aydin, K., Ianelli, J.N.,
+#'   and Palsson, W. 2017, and Spies, I., and Palsson, W. 2018. Assessment of
+#'   the arrowtooth flounder stock in the Gulf of Alaska. In: Stock assessment
+#'   and fishery evaluation report for the groundfish resources of the Gulf of
+#'   Alaska. North Pacific Fishery Management Council, Anchorage, AK.
 "GOAatf"
 
 
@@ -191,6 +216,14 @@
 #' \code{\link{BS2017SS}} for format details.
 #'
 #' @format A list with the same structure as \code{\link{BS2017SS}}.
+#' @source The 2021 assessment model, as carried into the 2023 SAFE, set up in
+#'   CEATTLE (not the operational model): Shotwell, S.K., Spies, I., Ianelli,
+#'   J.N., Aydin, K., Hanselman, D.H., Palsson, W., Siwicke, K., Sullivan, J.,
+#'   and Yasumiishi, E. 2021, and Shotwell, S.K., Hanselman, D.H., von Szalay,
+#'   P., and Williams, B.C. 2023. Assessment of the arrowtooth flounder stock in
+#'   the Gulf of Alaska. In: Stock assessment and fishery evaluation report for
+#'   the groundfish resources of the Gulf of Alaska. North Pacific Fishery
+#'   Management Council, Anchorage, AK.
 "GOAatf2023"
 
 
@@ -201,6 +234,12 @@
 #' details.
 #'
 #' @format A list with the same structure as \code{\link{BS2017SS}}.
+#' @source The 2018 assessment, set up in CEATTLE (not the operational model):
+#'   Barbeaux, S., Aydin, K., Fissel, B., Holsman, K., Laurel, B., Palsson, W.,
+#'   Shotwell, K., Yang, Q., and Zador, S. 2018.
+#'   Assessment of the Pacific cod stock in the Gulf of Alaska. In: Stock
+#'   assessment and fishery evaluation report for the groundfish resources of
+#'   the Gulf of Alaska. North Pacific Fishery Management Council, Anchorage, AK.
 "GOAcod"
 
 
@@ -211,6 +250,12 @@
 #' format details.
 #'
 #' @format A list with the same structure as \code{\link{BS2017SS}}.
+#' @source The 2018 assessment, set up in CEATTLE (not the operational model):
+#'   Dorn, M., Aydin, K., Fissel, B., Palsson, W., Spalinger, K., Stienessen,
+#'   S., Williams, K., and Zador, S. 2018. Assessment of the walleye pollock
+#'   stock in the Gulf of Alaska. In: Stock assessment and fishery evaluation
+#'   report for the groundfish resources of the Gulf of Alaska. North Pacific
+#'   Fishery Management Council, Anchorage, AK.
 "GOApollock"
 
 
@@ -218,24 +263,37 @@
 #'
 #' A list containing biomass, spawning stock biomass, and recruitment
 #' reference values from the 2018 Gulf of Alaska Stock Assessment and
-#' Fishery Evaluation (SAFE) report.
+#' Fishery Evaluation (SAFE) report, plus the 2020 Pacific cod assessment.
 #'
-#' @format A list with components:
+#' @format A list with components, each a data frame of \code{Year} and one
+#'   column per assessment (\code{2018_Pollock}, \code{2018_Cod},
+#'   \code{2018_ATF}, \code{2020_Cod}):
 #' \describe{
 #'   \item{biomass}{Total biomass time series}
 #'   \item{ssb}{Spawning stock biomass time series}
 #'   \item{recruitment}{Recruitment time series}
 #' }
+#' @source The 2018 columns are from the chapters cited in
+#'   \code{\link{GOApollock}}, \code{\link{GOAcod}} and \code{\link{GOAatf}};
+#'   \code{2020_Cod} is from Barbeaux, S., Ferriss, B., Palsson, W., Shotwell,
+#'   K., Spies, I., Wang, M., and Zador, S. 2020. Assessment of the Pacific cod
+#'   stock in the Gulf of Alaska. In: Stock assessment and fishery evaluation
+#'   report for the groundfish resources of the Gulf of Alaska. North Pacific
+#'   Fishery Management Council, Anchorage, AK.
 "GOAsafe2018"
 
 
 #' Data inputs for a three-species Georges Bank CEATTLE model
 #'
 #' A data list containing inputs for a multispecies CEATTLE model fit to
-#' three groundfish species on Georges Bank. See \code{\link{BS2017SS}} for
-#' format details.
+#' cod, hake and herring on Georges Bank, 1978-2007. See \code{\link{BS2017SS}}
+#' for format details.
 #'
 #' @format A list with the same structure as \code{\link{BS2017SS}}.
+#' @source A CEATTLE recreation of the multispecies statistical catch-at-age
+#'   model of Curti, K.L., Collie, J.S., Legault, C.M., and Link, J.S. 2013.
+#'   Evaluating the performance of a multispecies statistical catch-at-age
+#'   model. Canadian Journal of Fisheries and Aquatic Sciences 70: 470-484.
 "GeorgesBank3spp"
 
 
@@ -246,16 +304,26 @@
 #' \code{\link{BS2017SS}} for format details.
 #'
 #' @format A list with the same structure as \code{\link{BS2017SS}}.
+#' @source The 2022 assessment, set up in CEATTLE (not the operational model):
+#'   Williams, B.C., Hulson, P.-J.F., Lunsford, C.R., and Ferriss, B. 2022.
+#'   Assessment of the northern rockfish stock in the Gulf of Alaska. In: Stock
+#'   assessment and fishery evaluation report for the groundfish resources of
+#'   the Gulf of Alaska. North Pacific Fishery Management Council, Anchorage, AK.
 "NorthernRockfish2022"
 
 
 #' Data inputs for Atka mackerel CEATTLE model (2022)
 #'
 #' A data list containing inputs for a single-species CEATTLE model fit to
-#' Aleutian Islands Atka mackerel data through 2022. See
+#' Bering Sea and Aleutian Islands Atka mackerel data through 2022. See
 #' \code{\link{BS2017SS}} for format details.
 #'
 #' @format A list with the same structure as \code{\link{BS2017SS}}.
+#' @source The 2022 assessment, set up in CEATTLE (not the operational model):
+#'   Lowe, S., and Ianelli, J. 2022. Assessment of the Atka mackerel stock in
+#'   the Bering Sea and Aleutian Islands. In: Stock assessment and fishery
+#'   evaluation report for the groundfish resources of the Bering Sea/Aleutian
+#'   Islands regions. North Pacific Fishery Management Council, Anchorage, AK.
 "Atka2022"
 
 
@@ -269,4 +337,7 @@
 #' selectivity before fitting.
 #'
 #' @format A list with the same structure as \code{\link{BS2017SS}}.
+#' @source Built from case 3 of the WHAM growth examples by Giancarlo Correa
+#'   and Jane Sullivan for the Ocean Frontier Institute's 2023 workshop,
+#'   <https://giancarlomcorrea.netlify.app/post/ofi-workshop/>.
 "whamGrowthData"

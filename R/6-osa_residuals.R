@@ -42,8 +42,9 @@
 #' each observation is added -- so [fit_mod()] does not produce them, and the fit
 #' must have been optimized at `estimateMode < 3`. Composition data are
 #' decomposed into univariate conditional residuals (binomial / beta-binomial;
-#' Trijoulet et al. 2023), and the last bin of each composition is fixed by the
-#' sum-to-N constraint, so it has no residual (`NA`).
+#' Trijoulet et al. 2023, in the form adapted from WHAM, Stock and Miller 2021),
+#' and the last bin of each composition is fixed by the sum-to-N constraint, so
+#' it has no residual (`NA`).
 #'
 #' Choosing between the methods, what each costs, how they behave under random
 #' effects, the ceiling on `|residual|` under `"cdf"`, and where compositions at
@@ -131,6 +132,11 @@
 #'
 #' Trijoulet, V., et al. 2023. Model validation for compositional data in stock
 #'   assessment models. Fish. Res. 257:106487.
+#'
+#' Stock, B.C., and Miller, T.J. 2021. The Woods Hole Assessment Model (WHAM): a
+#'   general state-space assessment framework that incorporates time- and
+#'   age-varying processes via random effects and links to environmental
+#'   covariates. Fish. Res. 240:105967.
 #'
 #' Stewart, I.J., and Monnahan, C.C. 2025. Diagnosing common sources of lack of
 #'   fit to composition data using one-step-ahead residuals. Can. J. Fish. Aquat.

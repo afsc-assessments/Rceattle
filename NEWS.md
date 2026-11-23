@@ -18,6 +18,39 @@ throughout.
 review. It landed as 5.66.9, so a version check written for that fix needs 5.66.9.
 -->
 
+# Rceattle 5.71.0
+
+## Breaking changes
+
+* **`inst/extdata/GeorgesBank3sppTrijoulet.xlsx` is removed**, at the
+  maintainer's direction. Nothing in the package read it, and where it came
+  from was not documented, so it could not be credited. `system.file()` now
+  returns `""` for it; ask the maintainer for a copy. A minor bump, because no
+  fit used it. The bundled `GeorgesBank3spp` is unchanged.
+
+## Documentation
+
+* Credit for borrowed code and data. `DESCRIPTION` lists as contributors:
+  - the authors of the original ADMB CEATTLE (Holsman, Ianelli, Aydin);
+  - the people who contributed code to Rceattle;
+  - the authors of code adapted from WHAM, TMBhelper, `TMBphase`, GMRF_WAA,
+    gplots, r4ss and the Trijoulet et al. (2020) multispecies model;
+  - the authors of the OFI 2023 WHAM growth examples that `whamGrowthData`
+    and two comparison scripts are built from.
+
+  The new `inst/COPYRIGHTS` gives each borrowed piece's source and license, and
+  the README has a short "Code and data from other projects" section.
+  `?TMBAIC` credits James Thorson, and `?osa_residuals` and
+  `vignette("model-diagnostics")` cite WHAM (Stock and Miller 2021) for the
+  composition decomposition. `License:` is unchanged.
+
+* Every bundled dataset's help page has a `Source` section citing the
+  assessment, paper or workshop it came from, with the authors of each SAFE
+  chapter.
+  `?GOAsafe2018` now lists its `2020_Cod` columns, `?Atka2022` names the
+  Bering Sea and Aleutian Islands stock, and `?GeorgesBank3spp` no longer
+  calls herring a groundfish. No number changes.
+
 # Rceattle 5.70.8
 
 ## Documentation

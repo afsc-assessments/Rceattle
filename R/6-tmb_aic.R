@@ -7,6 +7,8 @@
 #' @param n the sample size, for use in AICc calculation (default=Inf, for which AICc=AIC)
 #'
 #' @return AIC, where a parsimonious model has a AIC relative to other candidate models
+#' @author James Thorson; copied from `TMBhelper::TMBAIC()`
+#'   (<https://github.com/kaskr/TMB_contrib_R>, GPL-3).
 
 #' @export
 TMBAIC=function(opt, p=2, n=Inf){

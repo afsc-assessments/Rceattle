@@ -19,3 +19,7 @@ AIC, where a parsimonious model has a AIC relative to other candidate models
 \description{
 \code{TMBAIC} calculates AIC for a given model fit
 }
+\author{
+James Thorson; copied from \code{TMBhelper::TMBAIC()}
+(\url{https://github.com/kaskr/TMB_contrib_R}, GPL-3).
+}
