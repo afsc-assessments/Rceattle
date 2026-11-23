@@ -147,7 +147,8 @@ testthat::test_that("a peel holds a q linkage deviation at its terminal year", {
 
 # A held q effect and an unheld R0 effect on the same grouping column pool apart,
 # under their own names: pooled by name, the peel stopped ("design column
-# 'Year_re::19' has inconsistent values"), and renamed, an `init` on a level did.
+# 'Year_re::19' has inconsistent values"); with the columns renamed, the init on
+# Year_re::5 stopped it.
 testthat::test_that("a peel holds a q effect that shares its grouping column with R0", {
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("TMB")
@@ -168,9 +169,13 @@ testthat::test_that("a peel holds a q effect that shares its grouping column wit
   q <- peel$quantities$index_q[1, ]
   k <- d$endyr - 2 - d$styr + 1
   testthat::expect_equal(q[[k + 1]], q[[k]])
-  # The held q columns sit beside R0's under the same names.
+  # The held q columns sit beside R0's under the same names, and R0 reads its own.
   testthat::expect_setequal(colnames(peel$data_list$linkage_X),
                             colnames(fit$data_list$linkage_X))
+  tbl <- peel$data_list$linkage_table
+  re <- !is.na(tbl$re_group)
+  testthat::expect_length(intersect(tbl$X_col[re & tbl$process == "q"],
+                                    tbl$X_col[re & tbl$process == "recruitment"]), 0L)
 })
 
 # A q linkage with no random effect (a covariate or a prior on its mean) has
