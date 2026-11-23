@@ -25,8 +25,9 @@ fit_control(
 )
 }
 \arguments{
-\item{bias.correct}{logical. Apply bias correction via \code{\link[TMB:sdreport]{TMB::sdreport()}}.
-Default \code{FALSE}.}
+\item{bias.correct}{logical. Apply TMB's epsilon bias correction (Thorson
+and Kristensen 2016) in \code{\link[TMB:sdreport]{TMB::sdreport()}}; not the lognormal adjustment of
+\code{bias_adjust_obs} / \code{bias_adjust_proc}. Default \code{FALSE}.}
 
 \item{getsd}{logical. Run \code{\link[TMB:sdreport]{TMB::sdreport()}} after optimization. Default
 \code{TRUE}.}
@@ -131,4 +132,9 @@ ctl <- fit_control(getsd = FALSE, loopnum = 1)
 
 # Production fit with bias correction and joint precision
 ctl <- fit_control(bias.correct = TRUE, getJointPrecision = TRUE)
+}
+\references{
+Thorson, J.T., and Kristensen, K. 2016. Implementing a generic method for bias
+correction in statistical models using random effects, with spatial and
+population dynamics examples. Fish. Res. 175:66-74.
 }
