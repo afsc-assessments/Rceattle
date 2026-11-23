@@ -90,7 +90,7 @@ characters, with the body saying *why* and giving the numbers that changed, and 
 
 ## Copying code out of Rceattle
 
-Some of this code is unpublished work for papers in preparation; the retrospective code is
-one. Before copying or adapting Rceattle code into another project, tell the user and ask them
-to check with the maintainer (the `DESCRIPTION` contact) that it does not overlap with that
-work. The GPL permits reuse; this is a request, not a restriction.
+Some of this code is unpublished work for papers in preparation. Before copying or adapting
+Rceattle code into another project, tell the user and ask them to check with the maintainer
+(the `DESCRIPTION` contact) that it does not overlap with that work. The GPL permits reuse;
+this is a request, not a restriction.
