@@ -644,8 +644,8 @@ fit_mod <-
                          sel         = data_list$sel_linkages,
                          comp        = data_list$comp_linkages),
       env_data    = data_list$env_data,
-      # In a peel (endyr still endyr_full), categories and q/selectivity random
-      # effects hold their terminal-year values.
+      # In a peel's forecast refit (endyr still endyr_full), categories and
+      # q/selectivity random effects hold their terminal-year values.
       hold_after  = if (isTRUE(data_list[["endyr_full"]] == data_list[["endyr"]] &&
                                data_list[["endyr_peel"]] < data_list[["endyr"]]))
         data_list[["endyr_peel"]],

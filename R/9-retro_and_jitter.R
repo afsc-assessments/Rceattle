@@ -30,7 +30,8 @@
 #' composition or catch, and no parameter for a later year, enters its
 #' estimates. It starts from the unpeeled estimates for its own years and uses
 #' the unpeeled map cut to them. Its removed years are then its retrospective
-#' forecast: F is fitted to the observed catch with the hindcast held.
+#' forecast: F is fitted to the observed catch with the hindcast fixed at its
+#' estimates.
 #' Weight-at-age, empirical selectivity and ration stay at the terminal year, and
 #' the q and selectivity deviations keep their terminal-year values (a form whose
 #' deviations are year-to-year increments takes an increment of 0). M1 deviations
@@ -42,8 +43,8 @@
 #' Recruitment takes the deviation [sample_rec()] uses with
 #' `sample_rec = FALSE`, computed from the peel's fit (for a penalty-form curve
 #' with no penalty years in the peel, the mean over its own years after the
-#' first). Each peel's
-#' `data_list` holds `endyr` and `endyr_peel` (its terminal year), `endyr_full`
+#' first). Each peel's `data_list` holds `endyr` and `endyr_peel` (its terminal
+#' year), `endyr_full`
 #' (the unpeeled terminal year, where the forecast ends) and `projyr` (the end
 #' of the projection). The forecast years are
 #' `endyr_peel + seq_len(endyr_full - endyr_peel)`, which is empty for the
@@ -51,7 +52,9 @@
 #'
 #' **Dropped and flagged peels.** A peel whose hindcast did not converge is
 #' dropped, with a warning; under `getsd = TRUE` that includes a hindcast
-#' Hessian that is not positive definite. A peel whose forecast refit did not
+#' Hessian that is not positive definite, as when a category level begins after
+#' the peel's terminal year and so leaves its estimated coefficient with no data
+#' (`getsd = FALSE` keeps that peel). A peel whose forecast refit did not
 #' fit F to the catch (gradient check, or a peeled F at a bound) is kept but
 #' left out of the `$mohns` rows with `Forecast year` above 0, and
 #' `attr(peel, "forecast_refit_error")` gives the reason. Check it before
@@ -83,27 +86,30 @@
 #' * a numeric fixed-effect linkage covariate, a 0/1 block column included, takes
 #'   the retained years' mean, with a warning; a term computed over the whole
 #'   column, such as `scale()`, then changes in the retained years too;
-#' * a fixed-effect category, such as `cut(Year, ...)` or `factor(regime)`, holds
-#'   its terminal-year value ([linkage_spec()]), though one cut from the whole
+#' * a fixed-effect category, such as `cut(Year, ...)`, `factor(regime)` or a
+#'   logical column, holds its terminal-year value ([linkage_spec()]), though one
+#'   cut from the whole
 #'   column, such as `cut(temp, 3)`, still sets its breaks from the whole column,
 #'   post-peel years included;
 #' * a random-effect grouping column, a column with no retained value, and a
 #'   fixed-effect covariate that is also observed, also read as a category (the
-#'   category term is still held), or logical keep their post-peel values, with a
-#'   warning; Mohn's rho is then conditional on them (a q or selectivity random
-#'   effect takes its terminal-year level whatever its grouping column says);
+#'   category term is still held), or logical but read as a number
+#'   (`as.numeric(flag)`) keep their post-peel values, with a warning; Mohn's rho
+#'   is then conditional on them (a q or selectivity random effect takes its
+#'   terminal-year level whatever its grouping column says);
 #' * a column listed in `projected_env_data_known` keeps its values with no
 #'   warning, though a category is still held.
 #'
-#' Refitting a returned peel, with [fit_mod()] or a diagnostic on it, does not
-#' hold its categories, while its numeric covariates stay mean-filled.
+#' Refitting a returned peel's `data_list` with [fit_mod()] does not hold its
+#' categories, while its numeric covariates stay mean-filled; a diagnostic such
+#' as [jitter()] or [profile()] does not work on a returned peel.
 #'
 #' `rescale` standardizes a column on the retained years and applies that centre
 #' and scale to the whole column (a column with fewer than two distinct retained
-#' values stays in its units, with a warning). Name the columns when `env_data` also holds an input that
-#' is not a covariate, such as a `Cindex` temperature in degrees C, which `TRUE`
-#' would turn into z-scores. The unpeeled model is not rescaled, so standardize
-#' those columns the same way before fitting it.
+#' values stays in its units, with a warning). Name the columns when `env_data`
+#' also holds an input that is not a covariate, such as a `Cindex` temperature in
+#' degrees C, which `TRUE` would turn into z-scores. The unpeeled model is not
+#' rescaled, so standardize those columns the same way before fitting it.
 #'
 #' **Catchability.** A peel's hindcast uses the unpeeled model's map, cut to its
 #' years, so a survey whose index falls only in the removed years keeps a free q
@@ -290,7 +296,8 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
     warning("env_data column(s) ", paste(.no_kept, collapse = ", "), " have no ",
             "value in years ", styr, "-", endyr - peels, ", so a peel that retains ",
             "none of them keeps their post-peel values: a blanked column would have ",
-            "no retained mean to fill it.", call. = FALSE)
+            "no retained mean to fill it. Where the model reads them, Mohn's rho is ",
+            "then conditional on those values.", call. = FALSE)
   }
   .raw <- .rescale_cols[.n_kept[.rescale_cols] < 2L]
   if (length(.raw)) {
@@ -310,7 +317,8 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
   if (.post_any && length(.warn_fixed)) {
     warning("Fixed-effect linkage covariate(s) ", paste(.warn_fixed, collapse = ", "),
             " are also observed, used as a random-effect grouping column, read as a ",
-            "category, or are logical, so a peel cannot give them the mean and keeps ",
+            "category, or are logical columns read as numbers, so a peel cannot give ",
+            "them the mean and keeps ",
             "their post-peel values. List any known ahead in ",
             "`projected_env_data_known`; otherwise Mohn's rho is conditional on ",
             "those values being known.", call. = FALSE)
@@ -320,8 +328,8 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
             " label which deviation each year takes, so each peel keeps their ",
             "post-peel values. A q or selectivity effect still holds its ",
             "terminal-year level; any other effect takes the level each forecast ",
-            "year is labelled with, so a label derived from data (a warm/cold ",
-            "regime) is known ahead.",
+            "year is labelled with, so a peel treats a label derived from data (a ",
+            "warm/cold regime) as known ahead.",
             call. = FALSE)
   }
 

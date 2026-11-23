@@ -18,6 +18,36 @@ throughout.
 review. It landed as 5.66.9, so a version check written for that fix needs 5.66.9.
 -->
 
+# Rceattle 5.70.7
+
+## Documentation
+
+* **The 5.67.12 to 5.70.6 entries point forward where a later one changed what
+  they describe**, as these entries ship to `main` together: what a peel does with
+  `env_data` and linkage effects, what `run_mse()` does with M1, and what
+  `regenerate_past` and `regenerate_seed` do. 5.69.0 now lists
+  `retrospective(rescale = "TRUE")` or `"FALSE"`, a string, under Breaking changes.
+  No number changes.
+
+* `?run_mse` says what the years it adds take: an increment of 0 for an
+  increment-form selectivity, held empirical selectivity, ration and weight-at-age,
+  and `Log_sd` and `Sample_size` copied from the fleet's last historical row and
+  scaled by `fut_sample` (it said survey SD was the historical average). It also
+  says that, unlike a retrospective peel, it holds no linkage effect.
+
+* `?retrospective` and NEWS 5.70.1 say a plain logical linkage term is a category
+  and is held in a peel, while a logical column read as a number keeps its
+  post-peel values, with a warning. `?retrospective` also says that a category level
+  beginning after a peel's terminal year leaves its estimated coefficient with no
+  data, so `getsd = TRUE` drops that peel, and that only `fit_mod()` refits a
+  returned peel. Three `retrospective()` warnings, new in this release, are
+  reworded to match.
+
+* `model_average()`'s refusal (5.70.0) names `"Projection"` and `"DebugOptimize"`
+  fits as well as an `"Estimate"` one. `vignette("model-diagnostics")` describes a
+  peel as refitted to its terminal year and says `projection_uncertainty` serves
+  fixed-effects fits under any rule but `"ConstantF"`.
+
 # Rceattle 5.70.6
 
 ## Behavior changes
@@ -25,7 +55,8 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
 * **The years `run_mse()` adds take the operating and estimation models'
   projection M1 deviations**, as the model's projection and a retrospective peel
   do: 0 for a deviation estimated by year, and an input series as given. This
-  returns to the M1 handling before 5.70.3, which held the last year's. The q
+  undoes 5.70.3, which held the last year's deviation, so M1 in `run_mse()` is
+  again as in 5.70.2 and earlier, including the 5.67.3 release. The q
   and selectivity deviations still keep their last-year values, as the
   projection holds selectivity.
 
@@ -65,7 +96,8 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   equals its 2016 value, where it was up to 20% lower (ages 1 to 3). With 2
   peels, pollock F rho moves from -0.054 to -0.088 (forecast year 1) and from
   -0.017 to -0.072 (forecast year 2, one peel), and SSB rho at forecast year 2
-  from 0.0105 to 0.0102.
+  from 0.0105 to 0.0102. The rules a peel now follows, combining 5.69.0 to 5.70.5,
+  are in `?retrospective` ("Hindcast and forecast years", "Environmental data").
 
 # Rceattle 5.70.4
 
@@ -125,8 +157,9 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   peel's terminal-year values; M1 deviations take the peel's projection values
   (0 for one estimated by year, an input series as given); and a linkage effect
   takes the peel's own estimate for each removed year (a random walk its
-  terminal value, an AR1 its decay toward 0, an IID effect 0), which for M1 and
-  recruitment is what the model's projection uses. Under `getsd = TRUE` every
+  terminal value, an AR1 its decay toward 0, an IID effect 0; 5.70.5 holds one on
+  q or selectivity at its terminal-year level), which for M1 and recruitment is
+  what the model's projection uses. Under `getsd = TRUE` every
   year's band comes from the peel's hindcast covariance, random effects
   included, under any harvest control rule.
 
@@ -154,15 +187,15 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
 
 * **In the years `run_mse()` adds, and in a peel's forecast years, the q and
   selectivity deviations keep their last-year values**, as the model's projection
-  holds selectivity. A selectivity form whose deviations are year-to-year
-  increments (`NonParametricPM`, and `NonParametricIntegrable` under `RandomWalk`)
-  takes an increment of 0 there, so its selectivity stays constant instead of
-  walking on. In `run_mse()` the by-year M1 deviation also keeps the last year's
-  value rather than 0, and projection years keep the model's own projection
-  values (5.70.6 reverses this). The EBS pollock 2024 MSE (`mse.R`), whose fishery, AVO, ATS and CPUE
-  selectivity are `NonParametricPM` under `RandomWalk`, now holds their
-  selectivity in the years it adds; the Pacific hake (`MSE_yr2024.R`) and
-  `BS2017SS` MSEs are unchanged.
+  holds selectivity; `run_mse()` already did, except for the increment forms. A
+  selectivity form whose deviations are year-to-year increments
+  (`NonParametricPM`, and `NonParametricIntegrable` under `RandomWalk`) takes an
+  increment of 0 there, so its selectivity stays constant instead of walking on.
+  In `run_mse()` the by-year M1 deviation also kept the last year's value in the
+  years it adds (5.70.6 reverses this). The EBS pollock 2024 MSE (`mse.R`), whose
+  fishery, AVO, ATS and CPUE selectivity are `NonParametricPM` under `RandomWalk`,
+  now holds their selectivity in the years it adds; the Pacific hake
+  (`MSE_yr2024.R`) and `BS2017SS` MSEs are unchanged.
 
 # Rceattle 5.70.2
 
@@ -178,7 +211,7 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
 * `?run_mse`: `regenerate_past` refits the EM to the OM's expected data, with no
   sampling error regardless of `simulate_data`, and `regenerate_seed` has no effect
   on the MSE. The help said the regenerated data followed `simulate_data` and were
-  seeded by `regenerate_seed`.
+  seeded by `regenerate_seed`. (5.70.4 makes them do so.)
 
 * `?fit_control`: under `newtonsteps > 0`, a singular Hessian ends the Newton steps
   with a warning, and with TMBhelper installed the fit is redone without Newton
@@ -202,7 +235,8 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   when its column is listed in `projected_env_data_known`. The design keeps its
   columns, so `init`, `bounds` and `priors` keys are unchanged. A fit's own
   projection, and `run_mse()`, read `env_data` as given. A random-effect grouping
-  column is not held.
+  column is not held (5.70.5 holds a q or selectivity random effect whatever its
+  grouping column says).
 
   **Whose Mohn's rho moves**: a model whose category changes after a peel's terminal
   year. On a test model with M1 fixed 50% higher in its last two years
@@ -217,12 +251,12 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   terminal year. `retrospective()` warns once naming those columns. A series known
   ahead, such as a climate projection, belongs in `projected_env_data_known`, which
   keeps its values. A fixed-effect covariate that is also observed, also read as a
-  category (the category term is still held), or logical keeps its values, with a
-  warning. A 0/1 block column
-  takes the mean unless listed in `projected_env_data_known` or refitted as
-  `factor(<column>)`: the GOA circulation study's `post2014` M block, and the GOA
-  Pacific cod bridge's M and selectivity block columns and its per-year selectivity
-  deviation columns, are such columns.
+  category (the category term is still held), or logical but read as a number
+  (`as.numeric(flag)`) keeps its values, with a warning; a plain logical term is a
+  category and is held. A 0/1 block column takes the mean unless listed in
+  `projected_env_data_known` or refitted as `factor(<column>)`: the GOA circulation
+  study's `post2014` M block, and the GOA Pacific cod bridge's M and selectivity
+  block columns and its per-year selectivity deviation columns, are such columns.
 
   **Whose Mohn's rho moves**: a model whose forecast reads such a covariate, under
   any `rescale`. On a test model with a fixed M1 slope on temperature (M1 0.35 to
@@ -405,9 +439,11 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   column is missing. Three kinds of column keep their values, observations included,
   and `retrospective()` warns once naming them: a fixed-effect linkage covariate and a
   random-effect grouping column, because an NA in either stops the linkage design being
-  built, and a column with no value in the model years the peel keeps, which would leave
-  nothing to fill it with. Under `rescale = FALSE`, `projected_env_data_known = TRUE`
-  restores the previous peels (see New features).
+  built (5.70.1 gives a numeric covariate the retained mean and holds a category), and
+  a column with no value in the model years the peel keeps, which would leave nothing
+  to fill it with. Under `rescale = FALSE`, `projected_env_data_known = TRUE` restored the
+  previous peels at 5.69.0 (see New features); 5.70.1, 5.70.3 and 5.70.5 change peels
+  whatever it is set to.
 
   **Whose Mohn's rho moves:**
   - a model with an observed covariate measured after the deepest peel's terminal
@@ -424,9 +460,16 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
 
   Under `rescale = TRUE`, a fixed-effect covariate's post-peel values now reach the peel,
   standardized on the retained years, where those years used to take a zero offset (the
-  retained mean); on a test model with `q ~ temp` this moved SSB rho by 3e-7. The DSEM
+  retained mean); on a test model with `q ~ temp` this moved SSB rho by 3e-7 (5.70.1
+  gives them the retained mean again, 0 once standardized). The DSEM
   branch blanks post-peel values the same way (e8648206, acef54cf), but also blanks a
   column with no retained value.
+
+## Breaking changes
+
+* **`retrospective(rescale = "TRUE")` or `"FALSE"`, a string, is an error.** Earlier
+  versions read it as the logical; it is now read as a column name (see New
+  features). No sibling script passes either string.
 
 ## Bug fixes
 
@@ -454,8 +497,10 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   post-peel values were known at each peel's terminal year**, such as a climate
   projection, and the peels keep them instead of withholding them. `FALSE` (default)
   lists none; `TRUE` lists every column, so a peel's `env_data` is what earlier versions
-  gave it under `rescale = FALSE` (on GOA pollock 2025 the peels match 5.67.11's bit for
-  bit). A listed column is left out of the warnings about kept columns,
+  gave it under `rescale = FALSE` (at 5.69.0, on GOA pollock 2025, the peels matched
+  5.67.11's bit for bit; 5.70.1, 5.70.3 and 5.70.5 change peels whatever it is set
+  to). A
+  listed column is left out of the warnings about kept columns,
   and naming a column that is not in `env_data` is an error before any peel is fitted.
 
 # Rceattle 5.67.12
@@ -481,7 +526,7 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   is annual ration in kg per predator, scaled only by `Pvalue`); and
   `vignette("hcrs-and-mses")` said `regenerate_seed` varies the regenerated past
   data, which are the OM's expected values with nothing drawn, so the seed has
-  no effect.
+  no effect (until 5.70.4).
 
 # Rceattle 5.67.11
 
