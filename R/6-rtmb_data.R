@@ -6,9 +6,10 @@
 
 #' Refuse a configuration the RTMB model does not implement yet
 #'
-#' @details The RTMB port reproduces the C++ only on the paths ported so far (stage 1:
-#'   the single-species core BS2017SS exercises). Any other configuration would return
-#'   a plausible but wrong number, so it stops here and names the setting.
+#' @details The RTMB port reproduces the C++ only on the paths ported so far: the
+#'   single-species core BS2017SS exercises (stage 1), and the predation BS2017MS
+#'   exercises (stage 2). Any other configuration would return a plausible but wrong
+#'   number, so it stops here and names the setting.
 #' @noRd
 .rtmb_check_scope <- function(d) {
   need <- function(ok, what) {
@@ -22,15 +23,30 @@
                 "proj_mean_rec", "HCR", "DynamicHCR", "M1_re", "M1_use_prior", "M2_use_prior",
                 "osa_mode", "adreport_sel", "adreport_catch", "flt_type", "flt_sel_type",
                 "flt_sel_dim", "flt_varying_sel", "bin_first_selected", "sel_norm_bin1",
-                "flt_units", "est_index_q", "index_varying_q", "comp_offset")
+                "flt_units", "est_index_q", "index_varying_q", "comp_offset", "niter",
+                "diet_ll_type", "suit_styr", "suit_endyr", "MSSB0", "MSB0", "other_food")
   missing <- switches[!vapply(switches, function(n) length(d[[n]]) > 0, TRUE)]
   if (length(missing)) stop("The RTMB model needs data element(s) ", toString(missing), ".", call. = FALSE)
   idx_flt <- unique(d[["index_ctl"]][, 1])
   cat_flt <- unique(d[["catch_ctl"]][, 1])
   comp_flt <- unique(d[["comp_ctl"]][, 1])
   need(d[["estimateMode"]] < 4, "estimateMode 4 (a placeholder objective)")
-  need(d[["msmMode"]] == 0, "msmMode > 0 (predation)")
-  need(d[["suitMode"]] == 0, "suitMode > 0")
+  need(d[["msmMode"]] %in% 0:2, "msmMode other than 0, 1 or 2")
+  need(d[["suitMode"]] %in% c(0, 4), "suitMode other than 0 (empirical) or 4 (lognormal on weight)")
+  need(length(unique(d[["suitMode"]])) == 1, "suitMode differing between predators")
+  # The C++ still scores stomachs for an estimated suitability without predation
+  need(d[["msmMode"]] > 0 | d[["suitMode"]] == 0, "estimated suitability at msmMode 0")
+  if (isTRUE(d[["msmMode"]] > 0)) {
+    dc <- d[["diet_ctl"]]
+    need(d[["niter"]] >= 1 & d[["niter"]] == round(d[["niter"]]), "niter other than a whole number >= 1")
+    need(d[["minage"]] == 1, "a minimum age other than 1 under predation")
+    # data_check() refuses 0; available food is positive only for positive other food
+    need(d[["other_food"]] > 0, "other food of 0 or less")
+    need(dc[, 7] == 0, "diet rows for a single year (Year other than 0)")
+    need(dc[, 5] >= d[["minage"]][dc[, 1]] & dc[, 6] >= d[["minage"]][dc[, 2]],
+         "diet-data types 2-4 (rows summed over ages)")
+    need(d[["diet_ll_type"]][d[["suitMode"]] > 0] == 0, "a Dirichlet-multinomial diet likelihood")
+  }
   need(d[["nsex"]] == 1, "two-sex species")
   need(d[["nages"]] >= 2, "a species with one age")
   need(d[["estDynamics"]] == 0, "estDynamics > 0 (fixed numbers-at-age)")
@@ -88,7 +104,7 @@
 #'
 #' @param data The data list the C++ `MakeADFun()` receives (`fit$obj$env$data`).
 #' @return A list read by `.rtmb_objective()`. Population matrices are per species,
-#'   [age, year]; observation rows are grouped by fleet.
+#'   `[age, year]`; observation rows are grouped by fleet.
 #' @noRd
 .rtmb_prepare_data <- function(data) {
   d <- data
@@ -109,7 +125,7 @@
   # A comparison with an NA observation is false in the C++ (NaN > 0), not NA.
   true_only <- function(x) !is.na(x) & x
 
-  # 5.7 (growth.hpp, empirical weight): weight-at-age by species role and by fleet (kg)
+  # Weight-at-age (kg) by species role and by fleet, from data (cpp 5.7, growth.hpp)
   wo <- d[["weight_obs"]]
   w_of <- function(row, sp) wo[row, 1, seq_len(nages[sp]), yr_ind, drop = TRUE]
   W_pop <- lapply(seq_len(nspp), function(sp) w_of(int(d[["pop_wt_index"]][sp]), sp))
@@ -122,18 +138,19 @@
   }
   for (f in seq_len(n_flt)) weight_hat[2 * nspp + f, 1, seq_len(nages[flt_spp[f]]), ] <- W_flt[[f]]
 
-  # 5.4 and 5.7: spawning output, female SSB weight times mature females (one-sex
-  # species: maturity times the data sex ratio, before 6.4 resets the first age's ratio to 1)
-  spawn_output <- array(0, c(nspp, max_age, nyrs))
-  so <- vector("list", nspp)
+  # Spawning output (kg per fish): SSB weight x maturity x the data sex ratio at every age,
+  # built before 6.4 resets the first-age ratio to 1 (cpp 5.4, 5.7)
+  spawn_output <- vector("list", nspp)
+  spawn_output_rep <- array(0, c(nspp, max_age, nyrs))
   for (sp in seq_len(nspp)) {
     a <- seq_len(nages[sp])
     mature_females <- d[["maturity"]][sp, a] * d[["sex_ratio"]][sp, a]
-    so[[sp]] <- W_ssb[[sp]] * mature_females
-    spawn_output[sp, a, ] <- so[[sp]]
+    spawn_output[[sp]] <- W_ssb[[sp]] * mature_females
+    spawn_output_rep[sp, a, ] <- spawn_output[[sp]]
   }
 
-  # 5.9 (bioenergetics.hpp): temperature function and annual ration (kg/yr); data only
+  # Annual ration (kg/predator/yr), data only: Ceq 1-3 from fT, fday (foraging days per year)
+  # and ration_data, a relative foraging rate; Ceq 4 ration_data as input (bioenergetics.hpp)
   env <- d[["env_index"]]
   fT <- matrix(0, nspp, nyrs)
   consumption_at_age <- array(0, c(nspp, 1, max_age, nyrs))
@@ -143,15 +160,15 @@
     temp <- if (ci >= 1 && ci <= ncol(env)) env[, ci] else rep(0, nyrs)
     Qc <- d[["Qc"]][sp]; Tcm <- d[["Tcm"]][sp]; Tco <- d[["Tco"]][sp]
     fT[sp, ] <- switch(as.character(eq),
-      "1" = exp(Qc * temp),
-      "2" = {
+      "1" = exp(Qc * temp),   # Exponential function (Stewart et al. 1983)
+      "2" = {   # Warm-water species temperature dependence (Kitchell et al. 1977)
         Yc <- log(Qc) * (Tcm - Tco + 2.0)
         Zc <- log(Qc) * (Tcm - Tco)
         Vc <- (Tcm - temp) / (Tcm - Tco)
         Xc <- Zc^2 * (1.0 + (1.0 + 40.0 / Yc)^0.5)^2 / 400.0
         Vc^Xc * exp(Xc * (1.0 - Vc))
       },
-      "3" = {
+      "3" = {   # Cool/cold-water species temperature dependence (Thornton and Lessem 1979)
         Tcl <- d[["Tcl"]][sp]; CK1 <- d[["CK1"]][sp]; CK4 <- d[["CK4"]][sp]
         G2 <- (1.0 / (Tcl - Tcm)) * log((0.98 * (1.0 - CK4)) / (CK4 * 0.02))
         L2 <- exp(G2 * (Tcl - temp))
@@ -161,21 +178,21 @@
         Ka <- (CK1 * L1) / (1.0 + CK1 * (L1 - 1.0))
         Ka * Kb
       },
-      rep(1.0, nyrs))
+      rep(1.0, nyrs))   # 4: input ration, no temperature effect
     a <- seq_len(nages[sp])
-    ration <- d[["ration_data"]][sp, 1, a, yr_ind, drop = TRUE]
+    ration_data <- d[["ration_data"]][sp, 1, a, yr_ind, drop = TRUE]
     cons <- 0   # an equation code above 4 leaves consumption at 0, as in the C++
     if (d[["Ceq"]][sp] < 4) {
       cons <- d[["CA"]][sp] * (W_pop[[sp]] * 1000.0)^(1.0 + d[["CB"]][sp]) *
         rep(fT[sp, ], each = nages[sp]) * d[["fday"]][sp]
-      cons <- cons * d[["Pvalue"]][sp] * ration / 1000.0
+      cons <- cons * d[["Pvalue"]][sp] * ration_data / 1000.0
     }
-    if (d[["Ceq"]][sp] == 4) cons <- d[["Pvalue"]][sp] * ration
+    if (d[["Ceq"]][sp] == 4) cons <- d[["Pvalue"]][sp] * ration_data
     consumption_at_age[sp, 1, a, ] <- cons
   }
 
-  # 5.8 (selectivity.hpp), form 0: selectivity read from emp_sel; zero in hindcast
-  # years without a row, and the last year with a row held through the projection
+  # Fixed selectivity (form 0) read from emp_sel: zero in hindcast years without a row,
+  # and the last year with a row held through the projection (cpp 5.8, selectivity.hpp)
   sel_fixed <- vector("list", n_flt)
   for (f in which(d[["flt_sel_type"]] == 0)) {
     na <- nages[flt_spp[f]]
@@ -192,52 +209,53 @@
     sel_fixed[[f]] <- s
   }
 
-  # 8.1: index rows by fleet; the sd is the row's log-scale sd and the observation the
-  # log index (obsvec); a row is fitted in 0 < year <= endyr with a positive index
+  # Index rows by fleet: year index `yr` (1 = styr), catchability year `q_yr`, log-scale
+  # `sd`, log index `obs`; fitted in 0 < year <= endyr with a positive index (cpp 8.1)
   ic <- d[["index_ctl"]]
   index <- lapply(seq_len(n_flt), function(f) {
     r <- which(ic[, 1] == f)
     if (length(r) == 0) return(NULL)
-    yr <- ic[r, 3]
-    col <- col_of(yr)
+    year <- ic[r, 3]
+    col <- col_of(year)
     pos <- int(d[["index_obsvec_idx"]][r])
-    fit <- true_only(yr > 0 & yr <= endyr & d[["index_obs"]][r, 1] > 0 & pos >= 0)
+    fit <- true_only(year > 0 & year <= endyr & d[["index_obs"]][r, 1] > 0 & pos >= 0)
     sd <- d[["index_obs"]][r, 2]
-    list(rows = r, col = col, qcol = pmin(col, nyrs_hind), mo = d[["index_n"]][r, 1],
+    list(rows = r, yr = col, q_yr = pmin(col, nyrs_hind), month = d[["index_n"]][r, 1],
          fit = fit, sd = sd, obs = d[["obsvec"]][pos[fit] + 1L],
          bias = d[["bias_adjust_obs"]] * (sd[fit] * sd[fit]) / 2.0)
   })
 
-  # 9.1: catch rows by fleet; fitted in 0 < year <= endyr with a positive catch
+  # Catch rows by fleet, fitted in 0 < year <= endyr with a positive catch (cpp 9.1)
   cc <- d[["catch_ctl"]]
   catch <- lapply(seq_len(n_flt), function(f) {
     r <- which(cc[, 1] == f)
     if (length(r) == 0) return(NULL)
-    yr <- cc[r, 3]
+    year <- cc[r, 3]
     pos <- int(d[["catch_obsvec_idx"]][r])
     pos_obs <- d[["catch_obs"]][r, 1] > 0
-    fit <- true_only(yr > 0 & yr <= endyr & d[["flt_type"]][f] == 1 & pos_obs & pos >= 0)
-    analytical <- true_only(yr > 0 & yr <= endyr & d[["flt_type"]][f] == 1 & pos_obs)
+    fit <- true_only(year > 0 & year <= endyr & d[["flt_type"]][f] == 1 & pos_obs & pos >= 0)
+    analytical <- true_only(year > 0 & year <= endyr & d[["flt_type"]][f] == 1 & pos_obs)
     sd <- d[["catch_obs"]][r, 2]
-    list(rows = r, col = col_of(yr), fit = fit, sd = sd,
+    list(rows = r, yr = col_of(year), fit = fit, sd = sd,
          obs = d[["obsvec"]][pos[fit] + 1L],
          bias = d[["bias_adjust_obs"]] * (sd[fit] * sd[fit]) / 2.0,
          analytical = analytical, log_obs_analytical = log(d[["catch_obs"]][r[analytical], 1]))
   })
 
-  # 10.1 and 13.4: composition rows grouped by fleet and type (0 age, 1 length); the
-  # multinomial's data-only term lgamma(sum(x) + 1) - sum(lgamma(x + 1)) is precomputed
+  # Composition rows by fleet and type (0 age, 1 length), with ageing error and the
+  # age-length key as [observed bin, true age] and the multinomial constant (cpp 10.1, 13.4)
   cmp <- d[["comp_ctl"]]
   comp_offset <- d[["comp_offset"]]
   keys <- unique(cmp[, c(1, 4), drop = FALSE])
   comp <- lapply(seq_len(nrow(keys)), function(k) {
     f <- int(keys[k, 1]); type <- int(keys[k, 2]); sp <- flt_spp[f]
     r <- which(cmp[, 1] == f & cmp[, 4] == type)
-    yr <- cmp[r, 5]
+    year <- cmp[r, 5]
     na <- nages[sp]
     nb <- if (type == 0) na else int(d[["nlengths"]][sp])
-    col <- col_of(yr)
-    fit <- true_only(yr <= endyr & yr > 0 & d[["flt_type"]][f] > 0 & d[["comp_n"]][r, 2] > 0)
+    col <- col_of(year)
+    fit <- true_only(year <= endyr & year > 0 & d[["flt_type"]][f] > 0 &
+                       d[["comp_n"]][r, 2] > 0)
     obs_n <- t((d[["comp_obs"]][r[fit], seq_len(nb), drop = FALSE] + comp_offset) *
                d[["comp_n"]][r[fit], 2])
     ae <- d[["age_error"]][int(d[["flt_ageing_error_index"]][f]) + 1L, seq_len(na), seq_len(na)]
@@ -245,20 +263,21 @@
       d[["age_trans_matrix"]][int(d[["flt_age_transition_index"]][f]) + 1L, 1,
                               seq_len(na), seq_len(nb)]
     }
-    list(flt = f, type = type, sp = sp, rows = r, col = col, qcol = pmin(col, nyrs_hind),
-         mo = d[["comp_n"]][r, 1], nb = nb, fit = fit, obs_n = obs_n,
+    list(flt = f, type = type, sp = sp, rows = r, yr = col, q_yr = pmin(col, nyrs_hind),
+         month = d[["comp_n"]][r, 1], nb = nb, fit = fit, obs_n = obs_n,
          ll_const = lgamma(colSums(obs_n) + 1) - colSums(lgamma(obs_n + 1)),
-         ae_t = t(matrix(ae, na, na)), alk_t = if (type == 1) t(matrix(alk, na, nb)))
+         age_error_t = t(matrix(ae, na, na)),
+         age_length_t = if (type == 1) t(matrix(alk, na, nb)))
   })
 
-  # 14: reports that are data, or zero on every path ported so far (predation, growth,
-  # linkages, CAAL), at the C++ names and shapes so rename_output() reads them unchanged
+  # Data-only reports, and zeros for growth, linkages and CAAL (not ported) and predation at
+  # msmMode 0, at the C++ names and shapes so rename_output() reads them (cpp 14)
   max_nlengths <- max(int(d[["nlengths"]]))
   max_nlengths_pop <- max(int(d[["nlengths_pop"]]))
   pop4 <- c(nspp, 1, max_age, nyrs)
   pair5 <- c(nspp, nspp, max_age, max_age, nyrs)
   fixed_reports <- list(
-    weight_hat = weight_hat, spawn_output = spawn_output, fT = fT,
+    weight_hat = weight_hat, spawn_output = spawn_output_rep, fT = fT,
     consumption_at_age = consumption_at_age,
     comp_obs = d[["comp_obs"]], caal_obs = d[["caal_obs"]], diet_obs = d[["diet_obs"]],
     caal_hat = matrix(0, nrow(d[["caal_obs"]]), ncol(d[["caal_obs"]])),
@@ -284,7 +303,20 @@
     growth_linkage_offset = array(0, c(nspp, 1, nyrs, 4)),
     growth_linkage_offset_nat = array(0, c(nspp, 1, nyrs, 4)))
 
+  # Under predation (msmMode > 0) the predation reports are computed, and the C++ runs
+  # niter passes of the dynamics; at msmMode 0 it runs one (cpp:189)
+  msmMode <- int(d[["msmMode"]])
+  msm <- NULL
+  if (msmMode > 0) {
+    msm <- .rtmb_prepare_predation(d, nages, nyrs, nyrs_hind, styr, W_pop, consumption_at_age)
+    fixed_reports[c("M2_at_age", "B_eaten_as_prey", "suit_other", "avail_food", "suitability",
+                    "M2_prop", "B_eaten", "stom_div_bio", "vulnerability",
+                    "vulnerability_other", "diet_hat")] <- NULL
+  }
+
   list(
+    msmMode = msmMode, niter = if (msmMode > 0) int(d[["niter"]]) else 1L,
+    suitMode = int(d[["suitMode"]]), msm = msm,
     nspp = nspp, nages = nages, max_age = max_age, n_flt = n_flt, n_col = max(n_flt, nspp),
     styr = styr, endyr = endyr, nyrs = nyrs, nyrs_hind = nyrs_hind,
     nyrs_srrmean = min(int(d[["srr_mse_switchyr"]]) - styr + 1L, nyrs_hind),
@@ -292,10 +324,152 @@
     flt_n_sel_bins = int(d[["flt_n_sel_bins"]]), flt_sel_lead = int(d[["flt_sel_lead"]]),
     spawn_month = d[["spawn_month"]], bias_adjust_proc = d[["bias_adjust_proc"]],
     bias_adjust_obs = d[["bias_adjust_obs"]], comp_offset = comp_offset, env = env,
-    W_pop = W_pop, W_flt = W_flt, so = so, sel_fixed = sel_fixed,
+    W_pop = W_pop, W_flt = W_flt, spawn_output = spawn_output, sel_fixed = sel_fixed,
     index = index, catch = catch, comp = comp,
     fixed_reports = fixed_reports, comp_obs = d[["comp_obs"]],
     n_catch = nrow(cc), n_index = nrow(ic), n_comp = nrow(cmp),
     max_age_cols = max(ncol(d[["comp_obs"]]), nages[int(cmp[, 2])])
   )
+}
+
+#' Data-only pieces of the predation model, on one-sex (species, age) cells
+#'
+#' @details Cells run species, then age: the C++ cell order (predation.hpp:387-401) and
+#'   the rows of `do.call(rbind, <per-species [age, year] list>)`. Weights and ration are
+#'   data, because estimated growth is refused. The scope guard allows only Year 0 diet
+#'   rows for one predator and one prey age, so the diet proportions are year-invariant.
+#' @param W_pop Population weight-at-age (kg), per species `[age, year]`.
+#' @param consumption_at_age Ration (kg/predator/yr), `[nspp, 1, max_age, nyrs]`.
+#' @noRd
+.rtmb_prepare_predation <- function(d, nages, nyrs, nyrs_hind, styr, W_pop, consumption_at_age) {
+  int <- function(x) as.integer(round(x))
+  nspp <- length(nages)
+  max_age <- max(nages)
+  cell_sp <- rep(seq_len(nspp), nages)
+  cell_age <- sequence(nages)
+  ncell <- length(cell_sp)
+  first <- cumsum(c(0L, nages))[seq_len(nspp)]
+  suitMode <- int(d[["suitMode"]])
+  W <- do.call(rbind, W_pop)
+  # Positive available food under empirical suitability rests on non-negative prey biomass
+  if (any(W < 0)) {
+    stop("The RTMB model does not yet support negative weight-at-age under predation.", call. = FALSE)
+  }
+  ration <- do.call(rbind, lapply(seq_len(nspp), function(sp) {
+    matrix(consumption_at_age[sp, 1, seq_len(nages[sp]), ], nages[sp], nyrs)
+  }))
+  # Suitability window per predator, as year columns; calendar years in the data (cpp:139-143)
+  suit_cols <- lapply(seq_len(nspp), function(sp) {
+    seq(int(d[["suit_styr"]][sp]) - styr + 1L, int(d[["suit_endyr"]][sp]) - styr + 1L)
+  })
+
+  # Diet proportion by [predator cell, prey cell]; a repeated row keeps its last value
+  # (diet_data.hpp:24-87)
+  dc <- d[["diet_ctl"]]
+  dob <- d[["diet_obs"]]
+  minage <- int(d[["minage"]])
+  diet_pred <- first[int(dc[, 1])] + int(dc[, 5]) - minage[int(dc[, 1])] + 1L
+  diet_prey <- first[int(dc[, 2])] + int(dc[, 6]) - minage[int(dc[, 2])] + 1L
+  diet_prop <- matrix(0, ncell, ncell)
+  for (i in seq_len(nrow(dc))) diet_prop[diet_pred[i], diet_prey[i]] <- dob[i, 2]
+  # Other food's stom_div_bio: the diet share no modelled prey accounts for, per mt of other
+  # food, subtracted in prey-cell order (diet_data.hpp:97-133)
+  other_food <- d[["other_food"]]
+  other_stom_div_bio <- vapply(seq_len(ncell), function(r) {
+    of <- other_food[cell_sp[r]]
+    if (of > 0) Reduce(`-`, diet_prop[r, ], 1) / of else 0
+  }, 0)
+
+  # Empirical suitability: the (predator cell, prey cell) pairs with a positive diet
+  # proportion, ordered predator then prey, the order the C++ sums them in
+  empirical <- NULL
+  emp_sp <- which(suitMode == 0)
+  if (length(emp_sp)) {
+    pairs <- which(diet_prop > 0 & (cell_sp %in% emp_sp)[row(diet_prop)], arr.ind = TRUE)
+    pairs <- pairs[order(pairs[, 1], pairs[, 2]), , drop = FALSE]
+    years <- sort(unique(unlist(suit_cols[emp_sp])))
+    # Each predator's pairs, and its window as columns of `years`
+    windows <- lapply(emp_sp, function(sp) {
+      list(pairs = which(cell_sp[pairs[, 1]] == sp), cols = match(suit_cols[[sp]], years),
+           nyrs = length(suit_cols[[sp]]))
+    })
+    empirical <- list(pred = pairs[, 1], prey = pairs[, 2], diet_prop = diet_prop[pairs],
+                      years = years,
+                      windows = windows[lengths(lapply(windows, `[[`, "pairs")) > 0],
+                      sum_by_pred = Matrix::sparseMatrix(i = pairs[, 1],
+                                                         j = seq_len(nrow(pairs)), x = 1,
+                                                         dims = c(ncell, nrow(pairs))))
+  }
+
+  # Parametric suitability: the (predator cell, prey cell, hindcast year) elements whose
+  # log weight ratio is positive; data, because weight is (predation.hpp:115-123)
+  size_pairs <- NULL
+  param_sp <- which(suitMode > 0)
+  if (length(param_sp)) {
+    grid <- expand.grid(r = which(cell_sp %in% param_sp), k = seq_len(ncell),
+                        y = seq_len(nyrs_hind))
+    log_wt_ratio <- log(W[cbind(grid$r, grid$y)] / W[cbind(grid$k, grid$y)])
+    keep <- !is.na(log_wt_ratio) & log_wt_ratio > 0
+    grid <- grid[keep, ]
+    size_pairs <- list(pred_sp = cell_sp[grid$r], prey_sp = cell_sp[grid$k],
+                       log_wt_ratio = log_wt_ratio[keep],
+                       index = grid$r + ncell * (grid$k - 1L) + ncell * ncell * (grid$y - 1L))
+  }
+
+  # Predicted stomach content: each row's positions in [cell, year] (pred_pos, prey_pos) and
+  # [cell, cell, year] (pair_pos), [row, year] over its window (diet_data.hpp:160-235)
+  diet_rows <- stomach <- NULL
+  if (length(param_sp)) {
+    diet_rows <- lapply(param_sp, function(sp) {
+      rows <- which(dc[, 1] == sp)
+      if (!length(rows)) return(NULL)
+      yoff <- rep(suit_cols[[sp]] - 1L, each = length(rows))
+      list(rows = rows, nyrs = length(suit_cols[[sp]]),
+           pred_pos = rep(diet_pred[rows], length(suit_cols[[sp]])) + ncell * yoff,
+           prey_pos = rep(diet_prey[rows], length(suit_cols[[sp]])) + ncell * yoff,
+           pair_pos = rep(diet_pred[rows] + ncell * (diet_prey[rows] - 1L),
+                         length(suit_cols[[sp]])) + ncell * ncell * yoff)
+    })
+    diet_rows <- Filter(Negate(is.null), diet_rows)
+    # Stomach samples, runs of stomach_id, scored where suitability is estimated; observed
+    # proportions and other-prey balance, offset, renormalized, x sample size (cpp:3753-3817)
+    sid_all <- int(d[["stomach_id"]])
+    groups <- split(seq_len(nrow(dc)), factor(sid_all, levels = seq_len(int(d[["n_stomach_obs"]])) - 1L))
+    groups <- groups[lengths(groups) > 0]
+    gsp <- vapply(groups, function(j) int(dc[j[1], 1]), 1L)
+    groups <- groups[gsp %in% param_sp]
+    gsp <- gsp[gsp %in% param_sp]
+    off <- d[["comp_offset"]]
+    obs <- lapply(groups, function(j) {   # Reduce: in order; sum() may use extended precision
+      s <- min(Reduce(`+`, dob[j, 2]), 1)
+      o <- c(dob[j, 2], 1 - s) + off
+      x <- o / Reduce(`+`, o) * dob[j[1], 1]
+      list(x = x, const = lgamma(Reduce(`+`, x) + 1) - Reduce(`+`, lgamma(x + 1)))
+    })
+    rows <- unlist(groups, use.names = FALSE)
+    sample <- rep(seq_along(groups), lengths(groups))
+    stomach <- list(rows = rows, sample = sample, pred_sp = gsp,
+                    obs_n = unlist(lapply(obs, function(o) o$x[-length(o$x)]),
+                                   use.names = FALSE),
+                    obs_n_other = vapply(obs, function(o) o$x[length(o$x)], 0),
+                    ll_const = vapply(obs, `[[`, 0, "const"),
+                    by_sample = Matrix::sparseMatrix(i = sample, j = seq_along(rows), x = 1,
+                                                     dims = c(length(groups), length(rows))))
+  }
+
+  # Positions of each cell pair in the C++ [nspp, nspp, max_age, max_age, nyrs] reports,
+  # and of each cell in [nspp, 1, max_age, nyrs]
+  pair_lin <- outer(cell_sp + nspp * nspp * (cell_age - 1L),
+                    nspp * (cell_sp - 1L) + nspp * nspp * max_age * (cell_age - 1L), "+")
+  lin4 <- outer(cell_sp + nspp * (cell_age - 1L), nspp * max_age * (seq_len(nyrs) - 1L), "+")
+  list(nspp = nspp, ncell = ncell, nyrs = nyrs, nyrs_hind = nyrs_hind,
+       msmMode = int(d[["msmMode"]]), cell_sp = cell_sp,
+       cell_rows = split(seq_len(ncell), cell_sp),
+       W = W, ration = ration, other_food = other_food[cell_sp],
+       other_stom_div_bio = other_stom_div_bio, empirical = empirical, param_sp = param_sp,
+       size_pairs = size_pairs, diet_rows = diet_rows, stomach = stomach, n_diet = nrow(dc),
+       comp_offset = d[["comp_offset"]],
+       pair_lin = pair_lin, n_pair4 = nspp * nspp * max_age * max_age,
+       dim5 = c(nspp, nspp, max_age, max_age, nyrs), dim4 = c(nspp, 1, max_age, nyrs),
+       lin4 = lin4, MSSB0 = d[["MSSB0"]], MSB0 = d[["MSB0"]])
 }
