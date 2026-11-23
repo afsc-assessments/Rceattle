@@ -18,6 +18,29 @@ throughout.
 review. It landed as 5.66.9, so a version check written for that fix needs 5.66.9.
 -->
 
+# Rceattle 5.70.6
+
+## Behavior changes
+
+* **The years `run_mse()` adds take the operating and estimation models'
+  projection M1 deviations**, as the model's projection and a retrospective peel
+  do: 0 for a deviation estimated by year, and an input series as given. This
+  returns to the M1 handling before 5.70.3, which held the last year's. The q
+  and selectivity deviations still keep their last-year values, as the
+  projection holds selectivity.
+
+  **Whose MSEs move**: one whose operating or estimation model has an M1
+  deviation by year (`M1_re` 2, 3, 5 or 6) or an input M1 series that changes by
+  year; by-age deviations (`M1_re` 1, 4) do not. No registered sibling MSE has
+  one: the EBS pollock 2024 `mse.R` uses `M1_model = "fixed"`, and hake has none.
+  On `BS2017SS` with `M1_re = 5`, the operating model's pollock age-3 M1 in 2018
+  to 2020 goes from 0.570 to 0.402, and its 2020 SSB rises 55% (pollock), 117%
+  (cod) and 69% (arrowtooth flounder) in the first simulation. On a test model
+  with an input M1 series rising 1.4% a year, the operating model's added years
+  now follow the series where they stayed at its last hindcast value. The
+  Pacific hake (`MSE_yr2024.R`) and `BS2017SS` MSEs, which have no M1 year
+  deviation, are unchanged.
+
 # Rceattle 5.70.5
 
 ## Bug fixes
@@ -136,7 +159,7 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   takes an increment of 0 there, so its selectivity stays constant instead of
   walking on. In `run_mse()` the by-year M1 deviation also keeps the last year's
   value rather than 0, and projection years keep the model's own projection
-  values. The EBS pollock 2024 MSE (`mse.R`), whose fishery, AVO, ATS and CPUE
+  values (5.70.6 reverses this). The EBS pollock 2024 MSE (`mse.R`), whose fishery, AVO, ATS and CPUE
   selectivity are `NonParametricPM` under `RandomWalk`, now holds their
   selectivity in the years it adds; the Pacific hake (`MSE_yr2024.R`) and
   `BS2017SS` MSEs are unchanged.
