@@ -7,8 +7,8 @@
 <title>Environmental linkages and priors • Rceattle</title>
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_Pro-0.4.10/font.css" rel="stylesheet">
-<link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_Pro-0.5.0/font.css" rel="stylesheet">
+<link href="../deps/JetBrains_Mono-0.5.0/font.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Environmental linkages and priors">
@@ -21,7 +21,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.67.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.70.8</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -80,7 +80,7 @@
       <h1>Environmental linkages and priors</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/vignettes/environmental-linkages-and-priors.Rmd" class="external-link"><code>vignettes/environmental-linkages-and-priors.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.70.8/vignettes/environmental-linkages-and-priors.Rmd" class="external-link"><code>vignettes/environmental-linkages-and-priors.Rmd</code></a></small>
       <div class="d-none name"><code>environmental-linkages-and-priors.Rmd</code></div>
     </div>
 
@@ -89,22 +89,22 @@
 <div class="section level2">
 <h2 id="overview">Overview<a class="anchor" aria-label="anchor" href="#overview"></a>
 </h2>
-<p>Environmental drivers (temperature, prey density, climate indices)
-enter stock assessments through recruitment, natural mortality, growth,
-catchability, and selectivity. Rceattle holds them in a
-<strong>long-format linkage table</strong>: one row per estimated
-coefficient tying a design column to a process parameter. Describe a
-linkage with <code><a href="../reference/linkage_spec.html">linkage_spec()</a></code>, a formula-driven helper, and
-pass it to the relevant <code>build_*()</code> function; the process
-applies the resulting offset to its parameter, year by year.</p>
-<p>The linkage path is wired for <strong>growth</strong> (von
-Bertalanffy and Richards), <strong>natural mortality</strong>
-(<code>M1</code>), <strong>recruitment</strong> (<code>R0</code>,
-<code>alpha</code>, <code>beta</code>, <code>R_init</code>),
-<strong>catchability</strong> (<code>q</code>),
-<strong>selectivity</strong> (each form’s own parameters), and,
-prior-only, the <strong>Dirichlet-multinomial composition
-weights</strong>.</p>
+<p>This vignette is for assessment authors who want to tie a process
+parameter to environmental covariates (temperature, prey density,
+climate indices), time blocks or random effects, or to put a prior on
+it. Rceattle holds every such link in a <strong>long-format linkage
+table</strong>: one row per estimated coefficient tying a design column
+to a process parameter. Describe a linkage with
+<code><a href="../reference/linkage_spec.html">linkage_spec()</a></code> and pass it to the relevant
+<code>build_*()</code> function; the process applies the resulting
+offset to its parameter, year by year.</p>
+<p>Linkages are available for <strong>growth</strong> (von Bertalanffy
+and Richards), <strong>natural mortality</strong> (<code>M1</code>),
+<strong>recruitment</strong> (<code>R0</code>, <code>alpha</code>,
+<code>beta</code>, <code>R_init</code>), <strong>catchability</strong>
+(<code>q</code>), <strong>selectivity</strong> (each form’s own
+parameters), and, prior-only, the <strong>Dirichlet-multinomial
+composition weights</strong>.</p>
 </div>
 <div class="section level2">
 <h2 id="a-first-example-temperature-on-k">A first example: temperature on <code>K</code><a class="anchor" aria-label="anchor" href="#a-first-example-temperature-on-k"></a>
@@ -121,22 +121,16 @@ temperature index, one slope per species and sex
 <span><span class="va">whamGrowthData</span><span class="op">$</span><span class="va">fleet_control</span><span class="op">$</span><span class="va">Selectivity</span> <span class="op">&lt;-</span> <span class="st">"Logistic"</span></span>
 <span><span class="va">whamGrowthData</span><span class="op">$</span><span class="va">fleet_control</span><span class="op">$</span><span class="va">Selectivity_dimension</span> <span class="op">&lt;-</span> <span class="st">"Length"</span></span>
 <span></span>
-<span><span class="co"># 1. Attach an env_data table to the data list. Must include `Year`</span></span>
-<span><span class="co">#    plus whatever covariates show up in your formulas. Here `temp` is</span></span>
-<span><span class="co">#    a placeholder; in real use it would be a standardized SST series,</span></span>
-<span><span class="co">#    PDO index, etc.</span></span>
+<span><span class="co"># 1. Attach env_data: `Year` plus the covariates your formulas name.</span></span>
+<span><span class="co">#    `temp` is a placeholder for, e.g., a standardized SST series.</span></span>
 <span><span class="va">yrs</span> <span class="op">&lt;-</span> <span class="va">whamGrowthData</span><span class="op">$</span><span class="va">styr</span><span class="op">:</span><span class="va">whamGrowthData</span><span class="op">$</span><span class="va">endyr</span></span>
 <span><span class="va">whamGrowthData</span><span class="op">$</span><span class="va">env_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>  Year <span class="op">=</span> <span class="va">yrs</span>,</span>
 <span>  temp <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">yrs</span><span class="op">)</span>, <span class="fl">0</span>, <span class="fl">0.1</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># 2. Build a growth specification with one linkage per parameter that</span></span>
-<span><span class="co">#    you want to vary. linkage_spec() captures one process parameter's</span></span>
-<span><span class="co">#    formula, strata (by / species / sex / fleet), link, init, bounds,</span></span>
-<span><span class="co">#    priors, random-effect handling (formula terms, integrate) and any</span></span>
-<span><span class="co">#    state-space covariate (observe, obs_sd, obs_sd_est). ?linkage_spec</span></span>
-<span><span class="co">#    documents each.</span></span>
+<span><span class="co"># 2. One linkage_spec() per parameter to vary; ?linkage_spec documents</span></span>
+<span><span class="co">#    its arguments.</span></span>
 <span><span class="va">growth_spec</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/build_growth.html">build_growth</a></span><span class="op">(</span></span>
 <span>  fun <span class="op">=</span> <span class="st">"vonBertalanffy"</span>,</span>
 <span>  linkages <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
@@ -170,6 +164,7 @@ for species
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/linkage_spec.html">linkage_spec</a></span><span class="op">(</span></span>
 <span>  <span class="va">formula</span>,</span>
 <span>  param     <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  data      <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  by        <span class="op">=</span> <span class="op">~</span> <span class="va">species</span>,</span>
 <span>  species   <span class="op">=</span> <span class="cn">NULL</span>,                 <span class="co"># ids or spnames</span></span>
 <span>  sex       <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -191,13 +186,13 @@ predictors, etc.). A <code>(1 | Year)</code> (IID),
 (AR1) term adds a random effect with one deviation per level of the
 variable after the bar (<em>Random effects</em> below).</p></li>
 <li><p><strong><code>param</code></strong>: target parameter name
-(e.g. <code>"K"</code>). Filled in automatically when the spec is
-registered under a <code>linkages = list(K = ...)</code> list
-key.</p></li>
+(e.g. <code>"K"</code>). Filled in from the list key when the spec sits
+under <code>linkages = list(K = ...)</code>.</p></li>
 <li><p><strong><code>by</code></strong>: stratifying factors (default
-<code>~species</code>); use <code>~species + sex</code> for
-per-(species, sex) coefficients, or <code>NULL</code> to share a single
-coefficient set.</p></li>
+<code>~species</code>; <code>~fleet</code> on q, selectivity and the
+fleet composition weights, <code>~fleet + sex</code> on
+<code>apical</code>); <code>~species + sex</code> per (species, sex),
+<code>NULL</code> one shared set.</p></li>
 <li><p><strong><code>species</code></strong> /
 <strong><code>sex</code></strong> / <strong><code>fleet</code></strong>:
 restrict a spec to specific strata. Use with the multi-spec form
@@ -210,24 +205,22 @@ integers (<code>1L</code>, <code>2L</code>) or strings
 (<code>"Females"</code>/<code>"Males"</code>, case-insensitive). Prefer
 names for fleets: an id that is wrong but in range attaches the linkage
 to a different fleet and the model still fits, while a misspelled name
-errors and lists the fleets you do have.</p></li>
+errors.</p></li>
 <li>
 <p><strong><code>link</code></strong>: relates the linear predictor
 to the natural-scale target. <code>"identity"</code>
 <strong>adds</strong> to the natural-scale parameter, <code>"log"</code>
 (the default) <strong>multiplies</strong> it, and
 <code>"exponential"</code> raises it to a covariate-dependent power,
-<code>q^exp(beta * x)</code> — the power is of the parameter, not of the
+<code>q^exp(beta * x)</code>: the power is of the parameter, not of the
 covariate (equations under <em>How the pieces fit together</em>).</p>
-<p>This is Stock Synthesis’s environmental link type 1, and
-<code>"exponential"</code> is SS3’s own name for it
-(<code>case 1: // exponential env link</code>). It is <em>not</em> SS3’s
-q <em>power function</em>, which is a separate option that raises the
-vulnerable biomass to the power <code>1 + p</code>
-(<code>pow(vbio, 1 + p)</code>) – that is what
-<code>Catchability = "PowerEquation"</code> is reserved for.</p>
-<p>SS3 multiplies the parameter on whatever scale it stores, so that
-scale decides where the link belongs:</p>
+<p><code>"exponential"</code> is Stock Synthesis’s environmental link
+type 1. It is <em>not</em> SS3’s q <em>power function</em>, which raises
+the vulnerable biomass to the power <code>1 + p</code>
+(<code>pow(vbio, 1 + p)</code>);
+<code>Catchability = "PowerEquation"</code> is reserved for that. SS3
+multiplies the parameter on whatever scale it stores, so that scale
+decides where the link belongs:</p>
 <table class="table">
 <colgroup>
 <col width="25%">
@@ -272,76 +265,50 @@ scale decides where the link belongs:</p>
 </tbody>
 </table>
 <p>So a <code>NatM</code> or growth line carrying
-<code>env-var 1xx</code> bridges with <code>"log"</code>, not this, and
-Rceattle refuses <code>"exponential"</code> there rather than let it
-through: on a natural-scale parameter it would raise the value to a
-power instead of scaling it, and on M – where <code>log M</code> is
-always negative, M being below 1 – that inverts the sign of the
-covariate effect. Recruitment is the one case where the form <em>is</em>
-right and simply has no accumulator yet, so the refusal says that
-instead of offering <code>"log"</code> (which is SS3’s type
-<strong>2</strong>).</p>
-<p>Two further conditions on catchability. The link multiplies
-<code>log q</code>, so the base has to be <strong>estimated</strong>: a
-formula with no intercept, or an intercept fixed at
-<code>est_phase = 0</code>, masks <code>index_log_q</code> and freezes
-the value being multiplied, and is refused. A free base is not
-second-guessed at build time: <code>fit_mod(inits = )</code> and an
-intercept <code>init</code> both override
-<code>Catchability_init</code>, so where <code>log q</code> really
-starts is only knowable once the model is built. It also cannot share a
-fleet with a <strong>random-effect</strong> q linkage, because those
-deviations accumulate into <code>q_linkage_offset</code>, which sits
-inside the multiply – they would be scaled by <code>exp(beta * x)</code>
-while their density still scored them at a constant sigma. For an
-environmental effect plus q deviations, express the deviations as
-<code>Time_varying_q</code>, whose <code>index_q_dev</code> the template
-keeps outside the multiply, as SS3 does its dev blocks.</p>
+<code>env-var 1xx</code> bridges with <code>"log"</code>, and Rceattle
+refuses <code>"exponential"</code> there: on a natural-scale parameter
+it would raise the value to a power instead of scaling it. Recruitment
+is the one case where the form <em>is</em> right but is not yet wired,
+so the refusal says that instead of offering <code>"log"</code> (which
+is SS3’s type <strong>2</strong>).</p>
+<p>On catchability the link multiplies <code>log q</code>, so the base
+has to be <strong>estimated</strong>: a formula with no intercept, or an
+intercept fixed at <code>est_phase = 0</code>, freezes
+<code>log q</code> and is refused. The link also cannot share a fleet
+with a <strong>random-effect</strong> q linkage, whose deviations it
+would scale by <code>exp(beta * x)</code> while their density still
+scored them at a constant sigma. For an environmental effect plus q
+deviations, put the deviations in <code>Time_varying_q</code>, which
+stays outside the multiply.</p>
 <p>Because <code>beta</code> multiplies a <em>log</em>, the size of the
 effect depends on how far <code>log q</code> sits from zero: at
 <code>q = 1</code> the covariate does nothing whatever <code>beta</code>
-is, and below <code>q = 1</code> the sign of the effect inverts. Both
-are SS3’s properties, not Rceattle’s.</p>
+is, and below <code>q = 1</code> the sign of the effect inverts.</p>
 <p><strong>Report <code>beta</code> with its base, never alone.</strong>
-To first order <code>log q_y = log q * (1 + beta * x_y)</code>, so what
-the index informs is the product <code>log q * beta</code>, not
-<code>beta</code>. With an estimated base the fit is free to cross
-<code>q = 1</code> and re-express the same curve with the opposite sign
-of <code>beta</code>: in the simulate-and-refit check in
-<code>test-linkage-exponential-link.R</code>, a truth of
-<code>q = 0.3, beta = +0.4</code> came back as
-<code>q = 467.0, beta = -0.0775</code>, preserving
-<code>log q * beta</code> to 1.1% with the fitted <code>q</code> series
-correlating 0.984 with the truth. The test asserts that invariant rather
-than those values, which are from one platform. Interpret and plot the
-fitted catchability (<code>fit$quantities$index_q</code>), and pin the
-level with a q prior
+To first order <code>log q_y = log q * (1 + beta * x_y)</code>, so the
+index informs the product <code>log q * beta</code>, and with an
+estimated base the fit is free to cross <code>q = 1</code> and
+re-express the same curve with the opposite sign of <code>beta</code>.
+Interpret and plot the fitted catchability
+(<code>fit$quantities$index_q</code>), and pin the level with a q prior
 (<code>Catchability = "Estimated-with-prior"</code>) if you need
 <code>beta</code> itself to be identified.
-<code><a href="../reference/convergence_diagnostics.html">convergence_diagnostics()</a></code> flags a fit sitting at
-<code>q = 1</code> as <code>exponential_q_near_one</code>, a WARN when
-the fitted catchability is within 0.1% of 1.</p>
+<code><a href="../reference/convergence_diagnostics.html">convergence_diagnostics()</a></code> warns
+(<code>exponential_q_near_one</code>) when the fitted catchability is
+within 0.1% of 1.</p>
 <p><strong>On catchability the effect stops at the last hindcast
-year.</strong> The q linkage tensors are built over hindcast years only
-(the recruitment, M and growth tensors do span the projection), and a
+year.</strong> A q linkage spans the hindcast years only, and a
 projection-year index is predicted at the last hindcast year’s
-catchability, so a covariate value for a projection year does not move
-<code>q</code> there. SS3 carries its environmental link across the
-forecast (<code>for (y1 = styr - 1; y1 &lt;= YrMax; y1++)</code>), so a
-bridge that compares forecast index predictions will diverge.</p>
+catchability. SS3 carries its environmental link across the forecast, so
+a bridge that compares forecast index predictions will diverge.</p>
 <p><strong>Set a bound.</strong> <code>beta</code> enters a double
-exponential here, so the usable range is far narrower than for
-<code>"log"</code>, and it depends on the base: the exponent is
-<code>log q * exp(beta * x)</code>, so at <code>q = 0.0012</code>
-(<code>log q = -6.7</code>) a <code>beta * x</code> of only 5 gives
-<code>-994</code> and <code>index_q</code> underflows to exactly 0 –
-where both the likelihood and its gradient are dead and no line search
-can recover. Under <code>"log"</code> the same <code>beta</code> is
-harmless, because <code>beta * x</code> enters the exponent linearly and
-overflow starts near 709. Pass <code>bounds</code> on any
-<code>"exponential"</code> slope, and scale them to the base: underflow
-starts once <code>|beta * x| &gt; log(709 / |log q|)</code>, which at
-<code>log q = -6.7</code> is <code>beta * x</code> of about 4.7 – so a
+exponential here, so its usable range is far narrower than under
+<code>"log"</code> and depends on the base: where <code>index_q</code>
+underflows to exactly 0 the likelihood and its gradient are both dead.
+Pass <code>bounds</code> on any <code>"exponential"</code> slope, scaled
+to the base: underflow starts once
+<code>|beta * x| &gt; log(709 / |log q|)</code>, a <code>beta * x</code>
+of about 4.7 at <code>q = 0.0012</code> (<code>log q = -6.7</code>). A
 bound of <code>c(-2, 2)</code> is <em>not</em> safe there, since a
 standardized covariate reaches <code>x = 2.4</code> over a long
 series.</p>
@@ -351,9 +318,9 @@ series.</p>
 column (<code>init = list(temp = 0.05)</code>,
 <code>bounds = list(temp = c(-2, 2))</code>). <strong>A slope is on the
 link scale, an <code>(Intercept)</code> on the parameter’s natural
-scale</strong> — <code>init = list(intercept = 0.3)</code> means an M1
-of 0.3/yr, not a log. Mind that split: it is the one place a linkage
-value can be read on the wrong scale and still fit.</p></li>
+scale</strong>: <code>init = list(intercept = 0.3)</code> means an M1 of
+0.3/yr, not a log. This is the one place a linkage value can be read on
+the wrong scale and still fit.</p></li>
 <li><p><strong><code>priors</code></strong>: named list keyed by
 design-matrix column. Each entry is either an
 <code>Rceattle_prior</code> or a list keyed by species id; see
@@ -373,8 +340,7 @@ ordinal (<code>0</code> fixes, <code>1+</code> estimates).</p></li>
 <span><span class="fu"><a href="../reference/prior_beta.html">prior_beta</a></span><span class="op">(</span><span class="va">shape1</span>, <span class="va">shape2</span><span class="op">)</span></span></code></pre></div>
 <p>Inside <code>linkage_spec(priors = ...)</code> the unprefixed
 <code>normal()</code>, <code>lognormal()</code>, <code><a href="https://rdrr.io/r/base/Special.html" class="external-link">gamma()</a></code>,
-<code><a href="https://rdrr.io/r/base/Special.html" class="external-link">beta()</a></code> resolve to those constructors through a private data
-mask scoped to the <code>priors</code> argument, so
+<code><a href="https://rdrr.io/r/base/Special.html" class="external-link">beta()</a></code> resolve to those constructors;
 <code><a href="https://rdrr.io/r/base/Special.html" class="external-link">base::gamma()</a></code> / <code><a href="https://rdrr.io/r/base/Special.html" class="external-link">base::beta()</a></code> are untouched
 elsewhere:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
@@ -396,10 +362,10 @@ log scale; under the default
 <code>meanlog - sdlog^2/2</code>, so <code>exp(meanlog)</code> is the
 prior mean (the median with <code>FALSE</code>). On covariate rows the
 prior applies to the coefficient as-is, regardless of link function.</p>
-<p>For programmatic prior assembly (e.g. species-specific priors built
-in a loop) call the <code>prior_*</code> constructors directly:</p>
+<p>For programmatic prior assembly (e.g. priors built in a loop) call
+the <code>prior_*</code> constructors directly:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># One prior SD per species, however you derive them.</span></span>
+<code class="sourceCode R"><span><span class="co"># One prior SD per covariate, however derived.</span></span>
 <span><span class="va">species_specific_sds</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.3</span>, <span class="fl">0.7</span>, <span class="fl">0.5</span><span class="op">)</span></span>
 <span><span class="va">priors</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="va">species_specific_sds</span>, <span class="kw">function</span><span class="op">(</span><span class="va">s</span><span class="op">)</span> <span class="fu"><a href="../reference/prior_normal.html">prior_normal</a></span><span class="op">(</span><span class="fl">0</span>, <span class="va">s</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">priors</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"temp"</span>, <span class="st">"PDO"</span>, <span class="st">"salinity"</span><span class="op">)</span></span>
@@ -412,12 +378,12 @@ in a loop) call the <code>prior_*</code> constructors directly:</p>
 <div class="section level2">
 <h2 id="putting-a-prior-on-the-parameter-itself">Putting a prior on the parameter itself<a class="anchor" aria-label="anchor" href="#putting-a-prior-on-the-parameter-itself"></a>
 </h2>
-<p>A prior attached to an <code>(Intercept)</code> row is
-<strong>re-targeted to the base parameter</strong>, so the same grammar
-puts an informative prior straight onto a growth parameter
-(<code>K</code>, <code>L1</code>, <code>Linf</code>, <code>m</code>),
-onto natural mortality (<code>M1</code>), or onto a recruitment
-parameter (<code>R0</code>, <code>alpha</code>, <code>beta</code>).</p>
+<p>A prior on an <code>(Intercept)</code> row is <strong>re-targeted to
+the base parameter</strong>, so the same grammar puts an informative
+prior straight onto a growth parameter (<code>K</code>, <code>L1</code>,
+<code>Linf</code>, <code>m</code>), natural mortality (<code>M1</code>),
+or a recruitment parameter (<code>R0</code>, <code>alpha</code>,
+<code>beta</code>).</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Example: prior on K for von Bertalanffy growth</span></span>
 <span><span class="va">growth_spec</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/build_growth.html">build_growth</a></span><span class="op">(</span></span>
@@ -441,12 +407,11 @@ parameter (<code>R0</code>, <code>alpha</code>, <code>beta</code>).</p>
 </h3>
 <p>The standard deviations of length-at-age at the <code>L1</code> and
 <code>Linf</code> anchors (<code>sd_L1</code>, <code>sd_Linf</code>) are
-linkage targets too, under the same <code>init</code> /
-<code>bounds</code> / <code>priors</code> contract; they act on the
-growth SD-at-age, not on the mean curve. The SD-at-age has no year
-dimension, so only intercept-bearing formulas are honored: a slope row
-warns and has no effect, and a slope-only formula
-(<code>~ 0 + temp</code>) errors.</p>
+linkage targets too, taking <code>init</code>, <code>bounds</code> and
+<code>priors</code> the same way; they act on the growth SD-at-age, not
+on the mean curve. The SD-at-age has no year dimension, so only
+intercept-bearing formulas are honored: a slope row warns and has no
+effect, and a slope-only formula (<code>~ 0 + temp</code>) errors.</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Prior on the SD at L1 anchored at exp(log(5)) = 5 length units,</span></span>
 <span><span class="co"># with a tight normal prior on the log scale.</span></span>
@@ -576,10 +541,8 @@ sub-stratum, or a list that drills down further:</p>
 <span>    <span class="op">)</span></span>
 <span>  <span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>The same syntax works for any prior family. Reach for it when prior
-strength differs across stocks — one species has published temperature
-sensitivity and another has none — or across the sexes within a stock.
-Built programmatically:</p>
+<p>The same syntax works for any prior family. Built
+programmatically:</p>
 <div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">sd_by_species</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>`1` <span class="op">=</span> <span class="fl">0.1</span>, `2` <span class="op">=</span> <span class="fl">0.5</span>, `3` <span class="op">=</span> <span class="fl">1.0</span><span class="op">)</span></span>
 <span><span class="va">priors_per_sp</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="va">sd_by_species</span>, <span class="kw">function</span><span class="op">(</span><span class="va">s</span><span class="op">)</span> <span class="fu"><a href="../reference/prior_normal.html">prior_normal</a></span><span class="op">(</span><span class="fl">0</span>, <span class="va">s</span><span class="op">)</span><span class="op">)</span></span>
@@ -593,10 +556,10 @@ Built programmatically:</p>
 <div class="section level2">
 <h2 id="per-species-formulas">Per-species formulas<a class="anchor" aria-label="anchor" href="#per-species-formulas"></a>
 </h2>
-<p>Where species have qualitatively different relationships — species 1
-responds to temperature only, species 2 also to PDO — register
-<em>multiple specs against the same parameter</em> and scope each with
-its <code>species</code> argument:</p>
+<p>Where species have different relationships (species 1 responds to
+temperature only, species 2 also to PDO), register <em>multiple specs
+against the same parameter</em> and scope each with its
+<code>species</code> argument:</p>
 <div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/build_growth.html">build_growth</a></span><span class="op">(</span></span>
 <span>  fun <span class="op">=</span> <span class="st">"vonBertalanffy"</span>,</span>
@@ -622,10 +585,9 @@ its <code>species</code> argument:</p>
 <div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">linkages</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>K <span class="op">=</span> <span class="va">single_spec</span><span class="op">)</span>             <span class="co"># one formula for all sp</span></span>
 <span><span class="va">linkages</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>K <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">spec_a</span>, <span class="va">spec_b</span><span class="op">)</span><span class="op">)</span>    <span class="co"># different formulas per sp</span></span></code></pre></div>
-<p>A <code>build_*()</code> output’s <code>linkages$K</code> is either
-an <code>Rceattle_linkage_spec</code> or a <code>list</code> of them;
-after fitting, <code>fit$data_list$linkage_table</code> shows the
-materialized rows with <code>species</code> and <code>X_col</code>.</p>
+<p>After fitting, <code>fit$data_list$linkage_table</code> shows the
+resulting rows with their <code>species</code> and
+<code>X_col</code>.</p>
 <p>Each spec holds its own priors, which can themselves be
 species-keyed:</p>
 <div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
@@ -646,8 +608,7 @@ species-keyed:</p>
 </h2>
 <p>The <code>sex</code> argument mirrors <code>species</code>: it scopes
 a spec to a subset of sex ids, so the multi-spec form can register
-<em>separate specs per sex</em> against one parameter — sex-dimorphic M
-priors, or different env responses for females and males:</p>
+<em>separate specs per sex</em> against one parameter:</p>
 <div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Female and male M1 each get their own intercept-only prior.</span></span>
 <span><span class="va">M1_spec</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/build_M1.html">build_M1</a></span><span class="op">(</span></span>
@@ -674,19 +635,16 @@ priors, or different env responses for females and males:</p>
 <p>The <code>sex</code> filter applies only when <code>by</code>
 includes <code>sex</code>; otherwise <code><a href="../reference/fit_mod.html">fit_mod()</a></code> warns that
 it has no effect, and a filter matching none of the model’s levels warns
-that the spec is dropped. Reach for the multi-spec form when the sexes
-need different RHS terms, <code>init</code>/<code>bounds</code>, or
-<code>est_phase</code>. For different prior <em>values</em> on one
-shared formula, the nested-priors form above is simpler: one spec, one
-set of design columns, priors keyed by <code>species</code> then
-<code>sex</code>.</p>
+that the spec is dropped. Use the multi-spec form when the sexes need
+different right-hand-side terms, <code>init</code>/<code>bounds</code>,
+or <code>est_phase</code>. For different prior <em>values</em> on one
+shared formula, the nested-priors form above is simpler.</p>
 </div>
 <div class="section level2">
 <h2 id="polynomial-and-basis-expansion-formulas">Polynomial and basis-expansion formulas<a class="anchor" aria-label="anchor" href="#polynomial-and-basis-expansion-formulas"></a>
 </h2>
-<p>The formula passed to <code><a href="../reference/linkage_spec.html">linkage_spec()</a></code> is fed straight to
-<a href="https://stat.ethz.ch/R-manual/R-devel/library/stats/html/model.matrix.html" class="external-link"><code>stats::model.matrix()</code></a>,
-so any expression it understands works: polynomial bases, splines,
+<p>The formula passed to <code><a href="../reference/linkage_spec.html">linkage_spec()</a></code> goes straight to <a href="https://stat.ethz.ch/R-manual/R-devel/library/stats/html/model.matrix.html" class="external-link"><code>stats::model.matrix()</code></a>,
+so anything it understands works: polynomial bases, splines,
 interactions, and arithmetic transformations.</p>
 <p><strong>Polynomials.</strong> <code><a href="https://rdrr.io/r/stats/poly.html" class="external-link">poly()</a></code> gives an orthogonal
 basis and <code>poly(..., raw = TRUE)</code> raw monomials. Each order
@@ -700,9 +658,9 @@ is its own design column with its own coefficient:</p>
 <span><span class="co"># design columns produced:</span></span>
 <span><span class="co">#   (Intercept), poly(temp, 4)1, poly(temp, 4)2,</span></span>
 <span><span class="co">#   poly(temp, 4)3, poly(temp, 4)4</span></span></code></pre></div>
-<p><code><a href="https://rdrr.io/r/stats/poly.html" class="external-link">poly()</a></code> orthogonalises against every row of
-<code>env_data</code> supplied, including any beyond the projection
-horizon, so the columns are zero-mean over that span and the linear
+<p><code><a href="https://rdrr.io/r/stats/poly.html" class="external-link">poly()</a></code> orthogonalises against the <code>env_data</code>
+rows from <code>styr</code> to <code>projyr</code> (the fit drops any
+others), so the columns are zero-mean over that span and the linear
 slope, the quadratic curvature and so on are estimated independently.
 Prefer it unless you have a scientific reason to want raw monomials.</p>
 <p><strong>Arbitrary arithmetic.</strong> Use <code><a href="https://rdrr.io/r/base/AsIs.html" class="external-link">I()</a></code> to insert
@@ -717,10 +675,9 @@ formula crossing operator and reduces to <code>temp</code>):</p>
 <span><span class="op">)</span></span></code></pre></div>
 <p>The design column name is the deparsed call (<code>I(temp^2)</code>),
 so <code>init</code>, <code>bounds</code> and <code>priors</code> must
-key that same string — backticks let you write it as a name.</p>
+key that same string; backticks let you write it as a name.</p>
 <p><strong>Splines.</strong> <code><a href="https://rdrr.io/r/splines/ns.html" class="external-link">splines::ns()</a></code> gives natural
-cubic splines: flexibility without a high-order polynomial’s tail
-behaviour:</p>
+cubic splines:</p>
 <div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/linkage_spec.html">linkage_spec</a></span><span class="op">(</span></span>
 <span>  formula <span class="op">=</span> <span class="op">~</span> <span class="fu">splines</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/splines/ns.html" class="external-link">ns</a></span><span class="op">(</span><span class="va">temp</span>, df <span class="op">=</span> <span class="fl">4</span><span class="op">)</span>,</span>
@@ -735,9 +692,9 @@ product column; <code>temp * PDO</code> is shorthand for
 <span>  by      <span class="op">=</span> <span class="op">~</span> <span class="va">species</span>,</span>
 <span>  priors  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>`temp:PDO` <span class="op">=</span> <span class="fu">normal</span><span class="op">(</span><span class="fl">0</span>, <span class="fl">0.5</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p><strong>Mixing forms across species.</strong> With the per-species
-formula machinery one species can take a polynomial response and another
-a linear one, without duplicating columns:</p>
+<p><strong>Mixing forms across species.</strong> With per-species specs
+one species can take a polynomial response and another a linear one,
+without duplicating columns:</p>
 <div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/build_growth.html">build_growth</a></span><span class="op">(</span></span>
 <span>  fun <span class="op">=</span> <span class="st">"vonBertalanffy"</span>,</span>
@@ -752,8 +709,8 @@ a linear one, without duplicating columns:</p>
 <span><span class="op">)</span></span></code></pre></div>
 <p>Same-named columns must be numerically identical across the specs
 that use them. Deterministic formulas evaluated against one
-<code>env_data</code> give that automatically; only specs built against
-different <code>env_data</code> frames can break it.</p>
+<code>env_data</code> guarantee that; only specs built against different
+<code>env_data</code> frames can break it.</p>
 </div>
 <div class="section level2">
 <h2 id="time-blocks">Time blocks<a class="anchor" aria-label="anchor" href="#time-blocks"></a>
@@ -798,22 +755,30 @@ fixed-effect coefficient is free either way, so a block needs no
 non-adjacent year spans is not an interval, so give
 <code>env_data</code> a per-year block column and write
 <code>~ factor(block)</code>.</p>
-<p><strong>A block needs rows in <code>env_data</code>.</strong> The
-design column is built over the rows supplied, so a block with no rows
-gets an all-zero column and a coefficient nothing identifies, and a
-hindcast year past the last row takes a zero offset, leaving the base
-parameter unshifted. Selectivity and catchability act in the hindcast
-years only, so rows past <code>endyr</code> move neither; M, growth and
-recruitment blocks do run through the projection.</p>
-<p><strong>There is no <code>block()</code> helper.</strong> A block
-term would be a second grammar for what <code><a href="https://rdrr.io/r/base/cut.html" class="external-link">cut()</a></code> already
-expresses in base R.</p>
+<p><strong>A block needs rows in <code>env_data</code>.</strong> A block
+with no rows gets an all-zero column and a coefficient nothing
+identifies, and a year past the last row takes a zero offset.
+Selectivity and catchability act in the hindcast years only, so rows
+past <code>endyr</code> move neither; M, growth and recruitment blocks
+do run through the projection, as <code>env_data</code> gives them.</p>
+<p><strong>A retrospective peel holds a block.</strong> In a
+<code><a href="../reference/retrospective.html">retrospective()</a></code> peel, any fixed-effect category
+(<code>cut(Year, ...)</code>, <code><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor()</a></code>, a logical column)
+holds its value from the peel’s terminal year, as the peel has no data
+after that year to show a block or regime changed. A 0/1 block column is
+a number, so a peel gives it the mean of its retained years; as
+<code>factor(&lt;column&gt;)</code> it is held, under new coefficient
+names. A q or selectivity random effect, <code>rw()</code>,
+<code>ar1()</code> or IID, also keeps its terminal-year level, as a
+<code>fleet_control</code> deviation does.</p>
+<p><strong>There is no <code>block()</code> helper</strong>:
+<code><a href="https://rdrr.io/r/base/cut.html" class="external-link">cut()</a></code> already expresses a block in base R.</p>
 <p><strong>The right-hand side is evaluated against
 <code>env_data</code>.</strong> The fixed part goes to
 <code>model.matrix(data = env_data)</code>, so
-<code>~ cut(Year, ...)</code> needs a <code>Year</code> column, which is
-otherwise optional. <code>species</code>, <code>sex</code> and
-<code>fleet</code> are <code>by</code> arguments rather than design
+<code>~ cut(Year, ...)</code> reads the <code>Year</code> column every
+<code>env_data</code> must hold. <code>species</code>, <code>sex</code>
+and <code>fleet</code> are <code>by</code> arguments rather than design
 columns, so <code>~ temp * fleet</code> fails with
 <code>object 'fleet' not found</code>. <code><a href="https://rdrr.io/r/stats/model.matrix.html" class="external-link">model.matrix()</a></code> falls
 back to the calling environment, so a stray object of that name becomes
@@ -922,14 +887,13 @@ with one key, <code>M1</code>. The offset enters additively on the log
 scale, so a coefficient of <code>0.3</code> on a normalized temperature
 index multiplies <code>M1</code> by <code>exp(0.3 * temp[yr])</code>
 each year.</p>
-<p><strong>Why <code>M1</code> and not <code>M</code>?</strong> CEATTLE
-decomposes total natural mortality as <code>M = M1 + M2</code>. Only
-<code>M1</code> (residual / non-predation) is a parameter;
-<code>M2</code> (predation) is derived from predator abundance,
-suitability, and ration each iteration. An environmental effect on
-predation therefore propagates through upstream parameters: a temp
-effect on predator <code>K</code>, on recruitment, or on bioenergetics
-ration inputs.</p>
+<p><strong>Why <code>M1</code> and not <code>M</code>?</strong> Total
+natural mortality is <code>M = M1 + M2</code>, and only <code>M1</code>
+(residual / non-predation) is a parameter; <code>M2</code> (predation)
+is derived from predator abundance, suitability, and ration. An
+environmental effect on predation therefore enters through upstream
+parameters (predator <code>K</code>, recruitment, or bioenergetics
+ration inputs).</p>
 <div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">yrs</span> <span class="op">&lt;-</span> <span class="va">GOApollock</span><span class="op">$</span><span class="va">styr</span><span class="op">:</span><span class="va">GOApollock</span><span class="op">$</span><span class="va">endyr</span></span>
 <span><span class="va">GOApollock</span><span class="op">$</span><span class="va">env_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
@@ -960,30 +924,24 @@ interchangeably:</p>
 <div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/build_M1.html">build_M1</a></span><span class="op">(</span>M1_model <span class="op">=</span> <span class="st">"sex_age_invariant"</span>, M1_re <span class="op">=</span> <span class="st">"ar1_age"</span><span class="op">)</span>   <span class="co"># = 1, 4</span></span>
 <span><span class="fu"><a href="../reference/build_M1.html">build_M1</a></span><span class="op">(</span>M1_model <span class="op">=</span> <span class="fl">1</span>,                   M1_re <span class="op">=</span> <span class="fl">4</span><span class="op">)</span>           <span class="co"># equivalent</span></span></code></pre></div>
-<p>Random effects on M1 need a level that leaves them identifiable, so
-<code>M1_re &gt; 0</code> is available for <code>M1_model</code>
+<p><code>M1_re &gt; 0</code> is available for <code>M1_model</code>
 <code>0</code> (<code>"fixed"</code>), <code>1</code> and
 <code>2</code>, and for <code>3</code> only with a by-year family
 (<code>2</code> or <code>5</code>). Under <code>"fixed"</code> the input
 schedule is held and the deviations carry M’s variation on their own.
-Under <code>3</code> the level is already age-specific, so the
-age-specific <code>log_M1</code> and an age-varying deviation enter the
-likelihood only as their sum and are not separately identifiable. For an
-environmentally driven M with deviations, use the linkage grammar:
-<code>linkage_spec(~ temp + (1 | Year))</code>.</p>
+For an environmentally driven M with deviations, use the linkage
+grammar: <code>linkage_spec(~ temp + (1 | Year))</code>.</p>
 <p><code>linkages</code> on M is age-aware: by default a row’s
 <code>age_bin</code> is <code>NA</code> and the offset broadcasts across
-every age. To pin an effect to one age slice, set
-<code>by = ~ species + age_bin</code> and supply
-<code>strata$age_bin</code>, a bin index (age - minage + 1) rather than
-an age; <code><a href="../reference/fit_mod.html">fit_mod()</a></code> supplies it automatically, so only a
-direct materialize call needs it.</p>
+every age. With <code>by = ~ species + age_bin</code>,
+<code><a href="../reference/fit_mod.html">fit_mod()</a></code> supplies every age bin as a stratum (a bin index,
+age - minage + 1, not an age), so each age gets its own coefficient;
+there is no argument that keeps only one age.</p>
 <p>The <code>M1_indices</code> column-index argument for
 <code>M1_model = 4</code> / <code>5</code> adds the same log-scale
-environmental effect and is soft-deprecated. Prefer
-<code>linkages</code>: it composes with priors, bounds, and per-species
-formulas. Supplying both for one coefficient double-counts the
-effect.</p>
+environmental effect and is soft-deprecated; prefer
+<code>linkages</code>. Supplying both for one coefficient double-counts
+the effect.</p>
 <p>Inspecting the result:</p>
 <div class="sourceCode" id="cb28"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span><span class="op">$</span><span class="va">data_list</span><span class="op">$</span><span class="va">linkage_table</span>         <span class="co"># rows have process == "M"</span></span>
@@ -1017,31 +975,26 @@ form, <code>srr_pred_fun</code>) is <code>"BevertonHolt"</code> or
 age-structure, read at year 0 because the initial state is one year. Use
 it where the series begins after a regime shift, so the stock starts at
 a recruitment other than
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>R</mi><mn>0</mn></msub><annotation encoding="application/x-tex">R_0</annotation></semantics></math>:
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>R</mi><mn>0</mn></msub><annotation encoding="application/x-tex">R_0</annotation></semantics></math>;
 without it the level has to go into <code>init_dev</code>, which is
-penalised per age, and the fit pays a recruitment-deviate penalty for
-sitting where the data say it sits. Unlike the three above it has no
-base parameter in <code>rec_pars</code>, so an intercept-only
-<code>~ 1</code> keeps the level on its own estimated coefficient — and
-<code>init</code> / <code>bounds</code> on that intercept are the
-natural-scale multiplier on
+penalised per age. Unlike the three above it has no base parameter, so
+an intercept-only <code>~ 1</code> keeps the level on its own estimated
+coefficient, and <code>init</code> / <code>bounds</code> on that
+intercept are the natural-scale multiplier on
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>R</mi><mn>0</mn></msub><annotation encoding="application/x-tex">R_0</annotation></semantics></math>
-(<code>init = 0.25</code> is a quarter), logged onto the coefficient in
-place of a base parameter. One design column per species, since only
-year 0 is read. It needs <code>link = "log"</code>, and is refused under
+(<code>init = 0.25</code> is a quarter), logged onto the coefficient.
+One design column per species, since only year 0 is read. It needs
+<code>link = "log"</code>, and is refused under
 <code>initMode = "FreeParams"</code> (which never reads
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>R</mi><mrow><mi>i</mi><mi>n</mi><mi>i</mi><mi>t</mi></mrow></msub><annotation encoding="application/x-tex">R_{init}</annotation></semantics></math>)
 and <code>"OffsetEquilibrium"</code> (which already scales the same ages
 by <code>rec_dev[, 1]</code>).</li>
 </ul>
 <p>The level is informed only by the first year’s observations, so it is
-weakly identified at the low end: once the initial cohorts are
-effectively annihilated the data cannot tell one very small level from
-another, and a fit can settle there with a clean gradient. Bound it on a
-real assessment — the bound is the natural-scale multiplier — and read
-the estimated multiplier rather than the convergence flag alone.
-<code>tools/verify/verify-sim-recovery-r-init.R</code> measures both the
-recovery and the rate at which a replicate runs away.</p>
+weakly identified at the low end, where a fit can settle with a clean
+gradient. Bound it on a real assessment (the bound is the natural-scale
+multiplier), and read the estimated multiplier rather than the
+convergence flag alone.</p>
 <div class="sourceCode" id="cb29"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># A free initial level, Rceattle's form of Stock Synthesis's SR_regime block.</span></span>
 <span><span class="co"># SS3 shrinks that block at sigma_R / ave_age; this is free, so add a</span></span>
@@ -1119,16 +1072,13 @@ recommended alternative to <code>srr_est_mode</code> /
 <span>    alpha <span class="op">=</span> <span class="fu"><a href="../reference/linkage_spec.html">linkage_spec</a></span><span class="op">(</span><span class="op">~</span> <span class="fl">1</span>, init <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>`(Intercept)` <span class="op">=</span> <span class="fl">20</span><span class="op">)</span>, est_phase <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span>
 <span>  <span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p><code>prior_lognormal(p1, p2)</code> is a normal density on the log
-of the parameter, centred so <code>p1</code> is the log of its mean
-under the default <code>fit_control(bias_adjust_proc = TRUE)</code>, and
-of its median with <code>FALSE</code>. On a Ricker curve it gives the
-same objective as <code>srr_est_mode = "LognormalPrior"</code>, which is
-deprecated (5.33.0) and refused alongside it. The one prior a linkage
-cannot express is on Beverton-Holt steepness, which needs spawning
-biomass per recruit: <code>srr_est_mode = "LognormalPrior"</code> or
-<code>"BetaPrior"</code> remains for that, in single-species models
-only.</p>
+<p><code><a href="../reference/prior_lognormal.html">prior_lognormal()</a></code> is centred as described under
+<em>Priors</em>. On a Ricker curve it gives the same objective as
+<code>srr_est_mode = "LognormalPrior"</code>, which is deprecated for
+this and refused alongside it. The one prior a linkage cannot express is
+on Beverton-Holt steepness, which needs spawning biomass per recruit:
+<code>srr_est_mode = "LognormalPrior"</code> or <code>"BetaPrior"</code>
+remains for that, in single-species models only.</p>
 <p><code>srr_fun</code> accepts integer codes or readable strings
 interchangeably:</p>
 <div class="sourceCode" id="cb32"><pre class="downlit sourceCode r">
@@ -1138,8 +1088,7 @@ interchangeably:</p>
 <p>Inspecting the result:</p>
 <div class="sourceCode" id="cb33"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span><span class="op">$</span><span class="va">data_list</span><span class="op">$</span><span class="va">linkage_table</span>             <span class="co"># rows have process == "recruitment"</span></span>
-<span><span class="va">fit</span><span class="op">$</span><span class="va">quantities</span><span class="op">$</span><span class="va">recruitment_linkage_offset</span>  <span class="co"># [nspp, n_rec_params, nyrs]</span></span>
-<span>                                           <span class="co"># n_rec_params = 3 (R0, alpha, beta)</span></span></code></pre></div>
+<span><span class="va">fit</span><span class="op">$</span><span class="va">quantities</span><span class="op">$</span><span class="va">recruitment_linkage_offset</span>  <span class="co"># [nspp, 4 (R0, alpha, beta, R_init), nyrs]</span></span></code></pre></div>
 <p>A linkage row’s <code>age_bin</code> is ignored for recruitment,
 which is at age 0 by definition; the <code>sex_ratio</code> data input
 partitions recruits across sexes downstream.</p>
@@ -1153,10 +1102,9 @@ by species/sex/age, so its linkages use <code>by = ~ fleet</code>.
 <code><a href="../reference/build_catchability.html">build_catchability()</a></code> takes the same <code>linkages</code>
 argument with a single parameter key, <code>q</code>:</p>
 <div class="sourceCode" id="cb34"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># A q linkage shifts an ESTIMATED log q, so restrict it to fleets that have</span></span>
+<code class="sourceCode R"><span><span class="co"># A q linkage shifts an estimated log q, so restrict it to fleets that have</span></span>
 <span><span class="co"># one: a fishery carries no survey index, and a Fixed or Analytical q is</span></span>
-<span><span class="co"># refused because the linkage would either have no effect or make a fixed q</span></span>
-<span><span class="co"># time-varying.</span></span>
+<span><span class="co"># refused.</span></span>
 <span><span class="va">q_data</span> <span class="op">&lt;-</span> <span class="va">data_list</span></span>
 <span><span class="va">srv</span> <span class="op">&lt;-</span> <span class="va">q_data</span><span class="op">$</span><span class="va">fleet_control</span><span class="op">$</span><span class="va">Fleet_name</span><span class="op">[</span><span class="va">q_data</span><span class="op">$</span><span class="va">fleet_control</span><span class="op">$</span><span class="va">Fleet_type</span> <span class="op">==</span> <span class="fl">2</span><span class="op">]</span></span>
 <span><span class="va">q_data</span><span class="op">$</span><span class="va">fleet_control</span><span class="op">$</span><span class="va">Catchability</span><span class="op">[</span><span class="va">q_data</span><span class="op">$</span><span class="va">fleet_control</span><span class="op">$</span><span class="va">Fleet_type</span> <span class="op">==</span> <span class="fl">2</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="st">"Estimated"</span></span>
@@ -1176,48 +1124,38 @@ argument with a single parameter key, <code>q</code>:</p>
 <span><span class="va">fit</span><span class="op">$</span><span class="va">quantities</span><span class="op">$</span><span class="va">q_linkage_offset</span>      <span class="co"># [n_flt, nyrs_hind]</span></span>
 <span><span class="va">fit</span><span class="op">$</span><span class="va">quantities</span><span class="op">$</span><span class="va">q_linkage_log_mult</span>    <span class="co"># [n_flt, nyrs_hind]; exponential link only</span></span></code></pre></div>
 <p>Restrict a spec to particular fleets with the <code>fleet</code>
-argument, and attach priors as for any other process. Name the fleets
-rather than numbering them: names are checked against
-<code>fleet_control$Fleet_name</code> when the model is assembled,
-whereas a <code>Fleet_code</code> typo that stays in range quietly links
-the wrong survey:</p>
+argument, by name rather than <code>Fleet_code</code> (see
+<code>fleet</code> under <em>The <code><a href="../reference/linkage_spec.html">linkage_spec()</a></code>
+API</em>):</p>
 <div class="sourceCode" id="cb35"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/build_catchability.html">build_catchability</a></span><span class="op">(</span>linkages <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>  q <span class="op">=</span> <span class="fu"><a href="../reference/linkage_spec.html">linkage_spec</a></span><span class="op">(</span><span class="op">~</span> <span class="va">temp</span>, by <span class="op">=</span> <span class="op">~</span> <span class="va">fleet</span>, fleet <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Pollock"</span>, <span class="st">"EIT_Pollock"</span><span class="op">)</span>,</span>
+<code class="sourceCode R"><span><span class="co"># For q_data above, where every survey's q is estimated.</span></span>
+<span><span class="fu"><a href="../reference/build_catchability.html">build_catchability</a></span><span class="op">(</span>linkages <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>  q <span class="op">=</span> <span class="fu"><a href="../reference/linkage_spec.html">linkage_spec</a></span><span class="op">(</span><span class="op">~</span> <span class="va">temp</span>, by <span class="op">=</span> <span class="op">~</span> <span class="va">fleet</span>, fleet <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"BT_Pollock"</span>, <span class="st">"EIT_Pollock"</span><span class="op">)</span>,</span>
 <span>                   priors <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>temp <span class="op">=</span> <span class="fu">normal</span><span class="op">(</span><span class="fl">0</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <p>The <code>Catchability = "Environmental"</code> /
 <code>Time_varying_q</code> column pair does the same thing, naming
 covariates by their position in a comma-separated list of
-<code>env_data</code> column indices; such a model still fits, with a
-deprecation warning pointing at <code><a href="../reference/build_catchability.html">build_catchability()</a></code>. As a
-linkage the effect is a formula, holds priors/bounds/phase, and names
-the fleet explicitly.</p>
-<p>An intercept-bearing formula (<code>~ temp</code>) leaves the base
-catchability estimable to hold the level and fixes the intercept row at
-0, as elsewhere.</p>
+<code>env_data</code> column indices; such a model fits, with a
+deprecation warning pointing at <code><a href="../reference/build_catchability.html">build_catchability()</a></code>.</p>
 <div class="section level3">
 <h3 id="a-prior-on-the-survey-catchability">A prior on the survey catchability<a class="anchor" aria-label="anchor" href="#a-prior-on-the-survey-catchability"></a>
 </h3>
-<p>A survey’s catchability is often known from outside the model: an
-acoustic or diver survey believed to see close to the whole stock
-(<code>q ≈ 1</code>), or a <code>q</code> prior borrowed from a
-catchability meta-analysis or a companion assessment. Put that belief on
-the fleet’s catchability with a <code>~ 1</code> formula and a prior on
-the intercept:</p>
+<p>Where a survey’s catchability is known from outside the model (an
+acoustic survey believed to see close to the whole stock, or a
+meta-analysis), give the fleet a <code>~ 1</code> formula with a prior
+on the intercept:</p>
 <div class="sourceCode" id="cb36"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/build_catchability.html">build_catchability</a></span><span class="op">(</span>linkages <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>  <span class="co"># Survey q for fleet 2 believed near 1, with moderate uncertainty.</span></span>
-<span>  q <span class="op">=</span> <span class="fu"><a href="../reference/linkage_spec.html">linkage_spec</a></span><span class="op">(</span><span class="op">~</span> <span class="fl">1</span>, by <span class="op">=</span> <span class="op">~</span> <span class="va">fleet</span>, fleet <span class="op">=</span> <span class="fl">2</span>,</span>
+<span>  <span class="co"># EIT survey q believed near 1, with moderate uncertainty.</span></span>
+<span>  q <span class="op">=</span> <span class="fu"><a href="../reference/linkage_spec.html">linkage_spec</a></span><span class="op">(</span><span class="op">~</span> <span class="fl">1</span>, by <span class="op">=</span> <span class="op">~</span> <span class="va">fleet</span>, fleet <span class="op">=</span> <span class="st">"EIT_Pollock"</span>,</span>
 <span>                   priors <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>`(Intercept)` <span class="op">=</span> <span class="fu">lognormal</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">log</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span>, <span class="fl">0.2</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<p>The prior is on <code>q</code> on its natural scale, so a
-<code>lognormal(log(1), 0.2)</code> says “<code>q</code> is near 1, and
-I’d be mildly surprised by a factor of ~1.5 either way.”
-<code>~ 1</code> alone gives an estimated <code>q</code> with a prior on
-its level and no environmental effect; write <code>~ 1 + temp</code> to
-keep the level prior <em>and</em> link <code>q</code> to a covariate.
-This replaces <code>Catchability = "Estimated-with-prior"</code>: both
-put a prior on the same <code>q</code>, so <code><a href="../reference/fit_mod.html">fit_mod()</a></code>
-refuses the pair, including on a <code>q</code> shared through
+<p>The prior is on <code>q</code> on its natural scale. <code>~ 1</code>
+alone gives an estimated <code>q</code> with a prior on its level and no
+environmental effect; write <code>~ 1 + temp</code> to keep the level
+prior <em>and</em> link <code>q</code> to a covariate. This replaces
+<code>Catchability = "Estimated-with-prior"</code>: both put a prior on
+the same <code>q</code>, so <code><a href="../reference/fit_mod.html">fit_mod()</a></code> refuses the pair,
+including on a <code>q</code> shared through
 <code>Catchability_index</code>.</p>
 </div>
 </div>
@@ -1229,34 +1167,25 @@ unlike the other processes, has several parameters.</p>
 <p>Because <code>~ fleet</code> is the default, <strong>fleets sharing a
 <code>Selectivity_index</code> or a <code>Catchability_index</code>
 estimate one coefficient for the whole group and keep identical
-selectivity — provided the linkage reaches every member</strong>
-(5.57.0). Before that each member got its own coefficient and the copies
-diverged, which is the defect the shared index exists to prevent.</p>
-<p>The proviso is the thing to remember. The <em>base</em> parameter is
-shared, but the offset a linkage adds is applied <strong>per
-fleet</strong>, so a <code>fleet =</code> filter naming some members
-moves only those: the group shares a coefficient and still fits
-different curves. <strong>Name every member, or pass
-<code>by = NULL</code> for a single row that reaches all of
+selectivity, provided the linkage reaches every member</strong>.</p>
+<p>The <em>base</em> parameter is shared, but the offset a linkage adds
+is applied <strong>per fleet</strong>. <strong>Name every member, or
+pass <code>by = NULL</code> for a single row that reaches all of
 them.</strong> Four things are refused on a mirrored block: naming a
-strict subset; a random-effect linkage (each member would get its own
-deviation series and SD); two rows for one design column on one fleet
-(the offset is added once per row, so that fleet moves twice as far);
-and two specs disagreeing on <code>link</code>, <code>bounds</code> or
-<code>init</code>. <code>est_phase</code> may differ — a fixed donor
-holds the group, which is how a reference model that fixes some time
-blocks is reproduced.</p>
+strict subset; a random-effect linkage; two rows for one design column
+on one fleet; and two specs disagreeing on <code>link</code>,
+<code>bounds</code> or <code>init</code>. <code>est_phase</code> may
+differ: a fixed donor holds the group.</p>
 <p>A linkage on the lead fleet alone does <strong>not</strong>
-propagate, and that includes the <code>apical</code> height. The one
-thing re-targeted onto the shared base is a <strong>prior</strong>,
-which is why it belongs on a single member: named on two it is counted
-twice on the coefficient they share, halving its stated variance. The
-usual spelling is a prior on one member and a plain row for the others.
-An intercept is also re-targeted, so an intercept <code>init</code> or
-<code>bounds</code> goes on the donor.</p>
+propagate, and that includes the <code>apical</code> height. Two things
+are re-targeted onto the shared base. A <strong>prior</strong> belongs
+on the lead alone: named on two it is counted twice on the coefficient
+they share, halving its stated variance, so the usual spelling is a
+prior on the lead and a plain row for the others. An intercept
+<code>init</code> or <code>bounds</code> also goes on the lead.</p>
 <p><code><a href="../reference/build_selectivity.html">build_selectivity()</a></code> accepts these keys, which name the
-slots shared across the parametric forms under whichever alias your
-fleet’s form actually has:</p>
+slots the parametric forms share, under whichever alias your fleet’s
+form has:</p>
 <table class="table">
 <colgroup>
 <col width="33%">
@@ -1296,22 +1225,20 @@ fleet’s form actually has:</p>
 </table>
 <p><strong>A per-sex apical height.</strong> Fishing mortality is one
 <code>log_F</code> per fleet and year shared by the sexes, so a sex
-difference in F can only come from selectivity, and no form has a height
-parameter of its own. <code>apical</code> multiplies one sex’s whole
-curve by <code>exp(log_sel_apical)</code>, bin by bin, after the form
-and before normalization, so it works for every estimated form. Name the
-fleet and the sex that holds it; the other sex is the reference, as in
-Stock Synthesis’s male-offset option:</p>
+difference in F can only come from selectivity. <code>apical</code>
+multiplies one sex’s whole curve by <code>exp(log_sel_apical)</code>,
+bin by bin, after the form and before normalization, so it works for
+every estimated form. Name the fleet and the sex that holds it; the
+other sex is the reference, as in Stock Synthesis’s male-offset
+option:</p>
 <div class="sourceCode" id="cb37"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/build_selectivity.html">build_selectivity</a></span><span class="op">(</span>linkages <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>  apical <span class="op">=</span> <span class="fu"><a href="../reference/linkage_spec.html">linkage_spec</a></span><span class="op">(</span><span class="op">~</span> <span class="fl">1</span>, by <span class="op">=</span> <span class="op">~</span> <span class="va">fleet</span> <span class="op">+</span> <span class="va">sex</span>, fleet <span class="op">=</span> <span class="fl">3</span>, sex <span class="op">=</span> <span class="st">"male"</span>,</span>
 <span>                        priors <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>intercept <span class="op">=</span> <span class="fu">lognormal</span><span class="op">(</span><span class="fl">0</span>, <span class="fl">0.5</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<p>It adds to the form rather than replacing part of it: the form’s own
-parameters are estimated separately for each sex already, so a two-sex
+<p>It adds to the form rather than replacing part of it: a two-sex
 <code>Logistic</code> fleet estimates a slope and an inflection per sex
-<strong>plus</strong> this multiplier, and the named sex’s curve has
-three parameters to the reference sex’s two. An SS male offset usually
-ties the male shape to the female’s; this does not.</p>
+<strong>plus</strong> this multiplier. An SS male offset usually ties
+the male shape to the female’s; this does not.</p>
 <p>The multiplier equals the ratio of the sexes’ peak heights only where
 their shapes peak equally, which the logistic family does on an age
 axis; for a dome with sex-specific shape it is the pointwise multiplier,
@@ -1327,10 +1254,7 @@ offset out (use <code>"AcrossSexes"</code>, under which the
 more-selected sex peaks at 1, or turn <code>Sel_norm_bin</code> off).
 The contrast is informed only by joint compositions
 (<code>comp_data$Sex = 3</code>); with single-sex compositions it rests
-on its prior. On <code>GOAatf</code>’s fishery (Logistic, across-sex
-normalization) the male multiplier fits at 2.15 (log offset 0.77, SE
-0.21), which is also the peak ratio there because both logistic curves
-saturate.</p>
+on its prior.</p>
 <div class="sourceCode" id="cb38"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Only the parametric forms are wired for selectivity linkages, so name the</span></span>
 <span><span class="co"># fleets that use one -- here the Logistic surveys.</span></span>
@@ -1350,34 +1274,30 @@ saturate.</p>
 <p>Each spec carries its own <code>link</code>, so one fit can multiply
 the log-space slope (<code>link = "log"</code>) and add to the
 natural-space inflection (<code>link = "identity"</code>).</p>
-<p><strong>Supported forms:</strong> the parametric selectivities —
+<p><strong>Supported forms:</strong> the parametric selectivities,
 <code>Logistic</code>, <code>DoubleLogistic</code>,
 <code>DescendingLogistic</code>, <code>DoubleNormal</code>,
 <code>LogisticPM</code>, and <code>DoubleNormalSS3</code>, which reads
 only its own six parameters (<code>dn_peak</code>,
 <code>top_logit</code>, <code>ascend_se</code>, <code>descend_se</code>,
 <code>start_logit</code>, <code>end_logit</code>). A linkage on any
-other form errors at fit time naming the fleet, rather than being
-estimated to no effect. <code>apical</code> is the exception: it
-multiplies the finished curve, so every estimated form takes it. The
-non-parametric forms (<code>coff</code>) are excluded on principle: they
-mean-centre their coefficients every year, so a per-year offset applied
-across all bins cancels exactly, and the per-bin covariate that would be
-needed is not something the formula grammar expresses.
-<code>Time_varying_sel</code> process-error deviates are a separate
-mechanism and compose additively with a selectivity linkage.</p>
+other form errors at fit time naming the fleet. <code>apical</code> is
+the exception: it multiplies the finished curve, so every estimated form
+takes it. The non-parametric forms (<code>coff</code>) are excluded:
+they mean-centre their coefficients every year, so a per-year offset
+applied across all bins cancels exactly. <code>Time_varying_sel</code>
+process-error deviates are a separate mechanism and compose additively
+with a selectivity linkage.</p>
 </div>
 <div class="section level2">
 <h2 id="data-weighting-dirichlet-multinomial">Data weighting (Dirichlet-multinomial)<a class="anchor" aria-label="anchor" href="#data-weighting-dirichlet-multinomial"></a>
 </h2>
-<p>The Dirichlet-multinomial (DM) likelihood (Thorson et al. 2017) is a
-self-weighting alternative to Francis (2011) or McAllister-Ianelli
-(1997) tuning: it estimates each composition dataset’s <strong>effective
-sample size</strong> inside the fit rather than iterating an external
-weight. Where a fleet has only a handful of comp years that weight is
-poorly identified and can be pushed to an implausible extreme; a prior
-on it keeps it in a believable range without returning to
-hand-tuning:</p>
+<p>The Dirichlet-multinomial (DM) likelihood (Thorson et al. 2017)
+estimates each composition dataset’s <strong>effective sample
+size</strong> inside the fit, in place of Francis (2011) or
+McAllister-Ianelli (1997) tuning. Where a fleet has only a handful of
+comp years that weight is poorly identified; a prior on it keeps it in a
+believable range:</p>
 <div class="sourceCode" id="cb39"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Use the DM likelihood on the fleets you want it to self-weight ...</span></span>
 <span><span class="va">data_list</span><span class="op">$</span><span class="va">fleet_control</span><span class="op">$</span><span class="va">Comp_distribution</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span><span class="op">)</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="st">"DirichletMultinomial"</span></span>
@@ -1422,17 +1342,14 @@ hand-tuning:</p>
 </tr>
 </tbody>
 </table>
-<p>The prior is on the weight itself (a larger weight = a larger
-effective sample size = the composition data trusted more). It only
-makes sense where the DM is actually estimating that weight, so a
+<p>The prior is on the weight itself: a larger weight is a larger
+effective sample size, so the composition data are trusted more. A
 <code>theta_*</code> linkage on a fleet or predator whose likelihood is
-<strong>not</strong> <code>DirichletMultinomial</code> errors up front
-rather than sitting inert. And because the weight is a single number per
-fleet, not a time series, this is a <strong>prior only</strong>: a
-covariate (<code>~ temp</code>), an <code>init</code> or an
-<code>est_phase</code> on a composition spec is rejected. Start or fix
-the weight through the model’s usual <code>inits</code> /
-<code>map</code> if you need to.</p>
+<strong>not</strong> <code>DirichletMultinomial</code> errors up front.
+The weight is a single number per fleet, not a time series: a covariate
+(<code>~ temp</code>) or an <code>est_phase</code> on a composition spec
+is rejected. An <code>init</code> starts the weight; fix it through
+<code><a href="../reference/fit_mod.html">fit_mod()</a></code>’s <code>map</code>.</p>
 </div>
 <div class="section level2">
 <h2 id="a-multi-process-example">A multi-process example<a class="anchor" aria-label="anchor" href="#a-multi-process-example"></a>
@@ -1464,12 +1381,12 @@ the weight through the model’s usual <code>inits</code> /
 <li>one shared design matrix
 <code>X = model.matrix(~ temp + PDO, env_data)</code> of three
 columns,</li>
-<li>16 linkage-table rows: 4 (sp × sex) + 3 (Linf cols) × 3 (sp) + 3 (m
-intercepts),</li>
+<li>24 table rows (3 species × 2 sexes): 2 × 6 (K) + 3 × 3 (Linf) + 3
+(m),</li>
 <li>same-named columns (<code>(Intercept)</code>, <code>temp</code>)
 matched across specs, so nothing is duplicated in <code>X</code>.</li>
 </ul>
-<p>Per-process logic — only Richards has <code>m</code> — is enforced at
+<p>Per-process logic (only Richards has <code>m</code>) is enforced at
 build time:</p>
 <div class="sourceCode" id="cb41"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/build_growth.html">build_growth</a></span><span class="op">(</span></span>
@@ -1507,13 +1424,12 @@ build time:</p>
 <span></span>
 <span><span class="co"># Linkage table contains rows for all three processes:</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">data_list</span><span class="op">$</span><span class="va">linkage_table</span><span class="op">$</span><span class="va">process</span><span class="op">)</span></span>
-<span><span class="co">#&gt;      growth           M  recruitment</span></span>
-<span><span class="co">#&gt;           4           4            4</span></span></code></pre></div>
+<span><span class="co">#&gt;      growth           M recruitment</span></span>
+<span><span class="co">#&gt;           2           2           2</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="inspecting-and-debugging">Inspecting and debugging<a class="anchor" aria-label="anchor" href="#inspecting-and-debugging"></a>
 </h2>
-<p>Diagnostics worth knowing:</p>
 <div class="sourceCode" id="cb43"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># The materialized table, one row per estimated coefficient.</span></span>
 <span><span class="va">fit</span><span class="op">$</span><span class="va">data_list</span><span class="op">$</span><span class="va">linkage_table</span></span>
@@ -1521,9 +1437,8 @@ build time:</p>
 <span><span class="co"># The shared design matrix, one column per unique RHS term.</span></span>
 <span><span class="va">fit</span><span class="op">$</span><span class="va">data_list</span><span class="op">$</span><span class="va">linkage_X</span></span>
 <span></span>
-<span><span class="co"># Per-(species, sex, growth_param, year) offsets actually applied to</span></span>
-<span><span class="co"># growth_parameters this iteration. Useful for verifying the linkage</span></span>
-<span><span class="co"># fired as you intended.</span></span>
+<span><span class="co"># Per-(species, sex, growth_param, year) offsets applied to</span></span>
+<span><span class="co"># growth_parameters; check them to confirm the linkage acts as intended.</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/str.html" class="external-link">str</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">quantities</span><span class="op">$</span><span class="va">growth_linkage_offset</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/str.html" class="external-link">str</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">quantities</span><span class="op">$</span><span class="va">M_linkage_offset</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/str.html" class="external-link">str</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">quantities</span><span class="op">$</span><span class="va">recruitment_linkage_offset</span><span class="op">)</span></span>
@@ -1537,13 +1452,8 @@ build time:</p>
 <div class="section level2">
 <h2 id="behind-the-scenes-automatic-base-parameter-handling">Behind the scenes: automatic base-parameter handling<a class="anchor" aria-label="anchor" href="#behind-the-scenes-automatic-base-parameter-handling"></a>
 </h2>
-<p>For three species × two sexes × <code>~ temp</code> (intercept +
-slope) the pooled table has 12 rows, an <code>(Intercept)</code> and a
-<code>temp</code> slope per (species, sex). Priors and inits supplied
-for <code>(Intercept)</code> flow to the <em>base parameter</em>
-(<code>K</code>, <code>M1</code>, <code>R0</code>, …); the slope rows
-hold the year-by-year offset that combines with the base. What happens
-to the base parameter depends on whether the formula holds an
+<p>What happens to the base parameter (<code>K</code>, <code>M1</code>,
+<code>R0</code>, …) depends on whether the formula holds an
 intercept:</p>
 <table class="table">
 <colgroup>
@@ -1578,14 +1488,9 @@ intercept:</p>
 </tbody>
 </table>
 <p><strong>Intercept-bearing formulas (<code>~ 1</code>,
-<code>~ temp</code>)</strong>: the base parameter stays estimable —
-<code>R0</code> for species <code>s</code> lives on
-<code>rec_pars[s, 1]</code> exactly as it does without any linkages. The
-<code>(Intercept)</code> row is a hook for <code>init</code> and
-<code>priors</code>; its <code>beta_linkage</code> slot is held at
-<code>0</code> and not estimated, so the recruitment, mortality and
-growth processes read <code>base + offset(yr)</code> with the offset
-being exactly the slope contribution.</p>
+<code>~ temp</code>)</strong>: the base parameter stays estimable,
+exactly as without any linkages, and the <code>(Intercept)</code> row is
+held at <code>0</code> (<em>How the pieces fit together</em>).</p>
 <p><strong>Slope-only formulas (<code>~ 0 + temp</code>)</strong>: there
 is no <code>(Intercept)</code> row, so the base parameter is held fixed,
 at its default initial value, at the value supplied by
@@ -1596,21 +1501,17 @@ for the intercept.</p>
 <code>init</code> and the base parameter<a class="anchor" aria-label="anchor" href="#init-and-the-base-parameter"></a>
 </h3>
 <p>An <code>init</code> on the <code>(Intercept)</code> row
-<strong>starts the base parameter</strong> rather than the linkage row,
-which keeps the value on the per-process phase logic and the optimizer
-grounded. With <code>est_phase = 0</code> the base parameter is held at
-that value even when <code>fit_mod(inits = )</code> carries another; for
-an estimated intercept it is only a starting value, and
-<code>inits</code> win.</p>
+<strong>starts the base parameter</strong> rather than the linkage row.
+With <code>est_phase = 0</code> the base parameter is held at that value
+even when <code>fit_mod(inits = )</code> carries another; for an
+estimated intercept it is only a starting value, and <code>inits</code>
+win.</p>
 <p><strong>Recruitment <code>R_init</code> is the exception to all of
-the above</strong>, because it is the one linkage parameter with no base
-parameter to carry the level (see the Recruitment section). Its
-<code>(Intercept)</code> coefficient <em>is</em> the level, so it stays
-estimable rather than being held at <code>0</code>; its natural-scale
-<code>init</code> and <code>bounds</code> are logged onto that
-coefficient instead of onto a base parameter; and with
-<code>est_phase = 0</code> it is the coefficient, not a base parameter,
-that is held against <code>inits</code>.</p>
+the above</strong>: it has no base parameter to carry the level (see
+<em>Recruitment</em>), so its <code>(Intercept)</code> coefficient
+<em>is</em> the level. It stays estimable rather than being held at
+<code>0</code>, and with <code>est_phase = 0</code> it is the
+coefficient that is held against <code>inits</code>.</p>
 <div class="sourceCode" id="cb44"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Start M1 at 0.06 without estimating an extra intercept beta.</span></span>
 <span><span class="fu"><a href="../reference/build_M1.html">build_M1</a></span><span class="op">(</span></span>
@@ -1627,25 +1528,23 @@ that is held against <code>inits</code>.</p>
 <h3 id="stratification">Stratification<a class="anchor" aria-label="anchor" href="#stratification"></a>
 </h3>
 <p><code>by</code> determines <em>which</em> base-parameter slots are
-affected: one <code>(Intercept)</code> row per stratum, and each such
-row carrying an <code>init</code> pushes it into the matching
-base-parameter slot. That holds for every linkage target with a base
-parameter (<code>K</code>, <code>L1</code>, <code>Linf</code>,
-<code>m</code>, the SD endpoints <code>sd_L1</code> /
-<code>sd_Linf</code>, <code>M1</code>, <code>R0</code>,
-<code>alpha</code>, <code>beta</code>, the selectivity and catchability
-targets, and the composition weights). <code>R_init</code> has none, and
-is the exception described above.</p>
+affected: one <code>(Intercept)</code> row per stratum, each pushing any
+<code>init</code> it carries into the matching slot. That holds for
+every linkage target with a base parameter (<code>K</code>,
+<code>L1</code>, <code>Linf</code>, <code>m</code>, the SD endpoints
+<code>sd_L1</code> / <code>sd_Linf</code>, <code>M1</code>,
+<code>R0</code>, <code>alpha</code>, <code>beta</code>, the selectivity
+and catchability targets, and the composition weights).
+<code>R_init</code> has none, and is the exception described above.</p>
 </div>
 <div class="section level3">
 <h3 id="single-sex-models-and-by-----sex">Single-sex models and <code>by = ~ ... + sex</code><a class="anchor" aria-label="anchor" href="#single-sex-models-and-by-----sex"></a>
 </h3>
 <p>On a single-sex model (<code>nsex = 1</code> for every species in
 scope), <code>by = ~ species + sex</code> warns and collapses to the
-equivalent of <code>by = ~ species</code>: there is only one sex level
-to stratify on. With mixed <code>nsex</code> each species gets its own
-number of sex levels, one row per parameter for a single-sex species and
-two for a two-sex one.</p>
+equivalent of <code>by = ~ species</code>. With mixed <code>nsex</code>
+each species gets its own number of sex levels, one row per parameter
+for a single-sex species and two for a two-sex one.</p>
 </div>
 </div>
 <div class="section level2">
@@ -1685,28 +1584,23 @@ selectivity parameter
 and a time-varying natural-mortality <code>M1_re</code> model becomes
 <code>build_M1(linkages = list(M1 = linkage_spec(~ (1 | Year))))</code>.
 The <code>Time_varying_*</code> / <code>M1_re</code> switches are
-soft-deprecated: they still fit with their exact numerics and
-<code><a href="../reference/fit_mod.html">fit_mod()</a></code> emits a nudge when it sees them, while the
-grammar adds a <strong>prior</strong> on the deviation SD, or a free
-estimate of it, in place of a fixed input value.</p>
+soft-deprecated: they still fit, and <code><a href="../reference/fit_mod.html">fit_mod()</a></code> emits a
+nudge when it sees them.</p>
 <p><code>sigma</code> means different things across structures. Under
 <code>rw()</code> it is the <strong>innovation</strong> (step) SD, the
-SD of each year-to-year change, a random walk being non-stationary with
-no overall spread. Under <code>ar1()</code> it is the
-<strong>marginal</strong> (stationary) SD, the overall spread of the
-deviations
-(<code>sigma_marginal = sigma_innovation / sqrt(1 - rho^2)</code>),
-following the <code>glmmTMB</code> convention. The two agree at
-<code>rho = 0</code>, where <code>ar1</code> reduces to IID, so a
-<code>sigma</code> estimated under <code>rw()</code> is not comparable
-with one under <code>ar1()</code>.</p>
+SD of each year-to-year change. Under <code>ar1()</code> it is the
+<strong>marginal</strong> (stationary) SD
+(<code>sigma_marginal = sigma_innovation / sqrt(1 - rho^2)</code>), the
+<code>glmmTMB</code> convention. The two agree at <code>rho = 0</code>,
+where <code>ar1</code> reduces to IID, so a <code>sigma</code> estimated
+under <code>rw()</code> is not comparable with one under
+<code>ar1()</code>.</p>
 <p>Each grouping level gets one deviation; each random term in each
 stratum estimates its own SD. The SD and (for <code>ar1</code>) the
-correlation route through the same <code>init</code> /
-<code>priors</code> arguments as every other parameter:
-<code>init = list(sigma = 0.1)</code> fixes the SD (the same as fixing
-<code>Time_varying_*_sd</code>), <code>init = list(rho = 0.7)</code>
-fixes the correlation, and
+correlation are set through <code>init</code> / <code>priors</code> like
+any other parameter: <code>init = list(sigma = 0.1)</code> fixes the SD
+(the same as fixing <code>Time_varying_*_sd</code>),
+<code>init = list(rho = 0.7)</code> fixes the correlation, and
 <code>priors = list(sigma = lognormal(...))</code> /
 <code>priors = list(rho = normal(...))</code> place priors.
 <code>rw()</code> / <code>ar1()</code> need a numeric grouping variable
@@ -1718,30 +1612,29 @@ fixes the correlation, and
 Laplace approximation. Many reference assessments instead treat them as
 <strong>penalized fixed effects</strong>: the deviations stay in the
 objective as a plain penalty with a <em>fixed</em> SD and are never
-integrated. That is what ADMB/AMAK models do, and what Rceattle’s own
-legacy <code>Time_varying_sel</code> / <code>Time_varying_q</code>
-switches do. The two are genuinely different models — the marginal
-likelihood holds a log-determinant term the penalized form has no
-counterpart for — so an integrated <code>rw()</code> will not reproduce
-a penalized reference fit.</p>
+integrated. That is what ADMB/AMAK models do, and what Rceattle’s
+<code>Time_varying_sel</code> / <code>Time_varying_q</code> switches do
+by default. The two are different models, so an integrated
+<code>rw()</code> will not reproduce a penalized reference fit.</p>
 <p><code>integrate = FALSE</code> asks for the penalized treatment:</p>
 <div class="sourceCode" id="cb46"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/build_selectivity.html">build_selectivity</a></span><span class="op">(</span>linkages <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>  slp_asc <span class="op">=</span> <span class="fu"><a href="../reference/linkage_spec.html">linkage_spec</a></span><span class="op">(</span><span class="op">~</span> <span class="fu">rw</span><span class="op">(</span><span class="fl">1</span> <span class="op">|</span> <span class="va">Year</span><span class="op">)</span>, fleet <span class="op">=</span> <span class="st">"GOA_pollock_fishery"</span>,</span>
 <span>                         init <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>sigma <span class="op">=</span> <span class="fl">0.05</span><span class="op">)</span>, integrate <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <p>It is permitted <strong>only with a fixed SD</strong> (and, for
-<code>ar1</code>, a fixed correlation). A variance is consistently
-estimated only by integrating the deviations out; estimating the
-deviations <em>and</em> their SD jointly as fixed effects is degenerate,
-since the objective improves without bound as both go to zero. This is
-the same reason <code>goa_pk</code> fixes <code>sigmaR</code> when it
-treats recruitment deviations as penalized. It cannot be combined with
-<code>observe =</code>: an observed latent state must stay integrated
-for the observation to identify it.</p>
-<p>One model may mix the two treatments — an integrated state-space
-catchability alongside a penalized selectivity walk is fine. Penalized
-deviations are ordinary fixed effects, so <code>sdreport()</code> gives
-them standard errors, which an integrated term does not get.</p>
+<code>ar1</code>, a fixed correlation): estimating the deviations
+<em>and</em> their SD jointly as fixed effects is degenerate, since the
+objective improves without bound as both go to zero. It cannot be
+combined with <code>observe =</code>.</p>
+<p>One model may mix the two treatments. Penalized deviations are
+ordinary fixed effects, so <code><a href="https://rdrr.io/r/stats/vcov.html" class="external-link">vcov()</a></code> includes them; integrated
+ones are reported in <code>fit$sdrep</code>. Under any HCR but
+<code>NoFishing</code> or <code>ConstantF</code>, <code><a href="https://rdrr.io/r/stats/vcov.html" class="external-link">vcov()</a></code>
+and <code>fit$sdrep</code> describe the projection fit, whose covariance
+covers only <code>log_Ftarget</code> / <code>log_Flimit</code> unless
+the fit used <code>fit_control(projection_uncertainty = TRUE)</code>;
+otherwise read them from a fit run with
+<code>estimateMode = "Hindcast"</code>.</p>
 <p>An <code>ar1(1 | Year)</code> term can additionally be a
 <strong>state-space covariate</strong> (the Rogers et al. 2024 QAR1
 catchability model): with
@@ -1752,47 +1645,39 @@ through an estimated effect size (reported as
 <code>beta_linkage_obs</code> in <code>fit$quantities</code>, with a
 standard error via <code>ADREPORT</code>). The effect size and the AR1
 SD are separately identified only when <code>obs_sd</code> is
-informative (small relative to the latent’s SD); an uninformatively
-large <code>obs_sd</code> lets the observation stop pinning the latent,
-so use the measured series’ actual measurement error.
-(<code>obs_sd</code> is held fixed by default; set
-<code>obs_sd_est = TRUE</code> to estimate it instead, as the reference
+informative (small relative to the latent’s SD), so use the measured
+series’ actual measurement error. <code>obs_sd</code> is held fixed by
+default; <code>obs_sd_est = TRUE</code> estimates it, as the reference
 <code>Estimate_q = 6</code> model does, but freely estimated it
 collapses toward 0 on a smooth covariate, so keep it fixed unless the
-covariate is informative.)</p>
+covariate is informative.</p>
 <p>The observed covariate need <strong>not</strong> span the whole
 series: where <code>env_data</code> starts after the model start year (a
 survey that began mid-series), it is auto-extended to <code>styr</code>
 with <code>NA</code> and the observation is applied
 <strong>only</strong> where the covariate is present. The latent AR1
-still runs over all years; no observation is fabricated for the
-un-surveyed ones.</p>
+still runs over all years.</p>
 <p>The AR1 latent is <strong>zero-mean</strong> (no estimated level), so
 its mean is confounded with the linked parameter’s intercept.
 <strong>Standardize the observed covariate to mean 0</strong> (a
-z-score), or <code><a href="../reference/build_catchability.html">build_catchability()</a></code> warns. One-step-ahead
-residuals of the covariate observation come from
+z-score), or <code><a href="../reference/fit_mod.html">fit_mod()</a></code> warns. One-step-ahead residuals of
+the covariate observation come from
 <code>osa_residuals(fit, source = "ecov")</code>, residualized first
 against its own series as in WHAM.</p>
 <p><code>rw()</code> / <code>ar1()</code> couple <em>consecutive</em>
 deviations with a unit lag, so their time points must be <strong>equally
-spaced</strong>: a missing year would otherwise be treated as a single
-step, so a grid with gaps errors rather than mis-specifying the
-process.</p>
+spaced</strong>: a grid with gaps errors.</p>
 <p><code>env_data</code> is applied to model years <strong>by row
 position</strong>: row 1 is the model start year, and years beyond the
 last row get a zero offset (so <code>env_data</code> may stop short of
-the projection horizon). When <code>env_data</code> holds a
-<code>Year</code> column it must be contiguous and start at
-<code>styr</code>; a gappy or unsorted <code>Year</code>, or one holding
-<code>NA</code>, errors rather than applying a covariate/deviate to the
-wrong year. Rows <em>before</em> <code>styr</code> are dropped with a
-warning, since they would shift every later row. Rows <em>after</em> the
-model years are kept: alignment runs from the front, so they change no
-offset, but <code><a href="https://rdrr.io/r/base/cut.html" class="external-link">cut()</a></code>, <code><a href="https://rdrr.io/r/stats/poly.html" class="external-link">poly()</a></code> and
-<code><a href="https://rdrr.io/r/base/scale.html" class="external-link">scale()</a></code> are computed over the rows <code>env_data</code>
-supplies, so discarding them would move a design matrix that was already
-right.</p>
+the projection horizon). Its <code>Year</code> column is checked: a late
+start or a gap is filled with <code>NA</code> (with a message), which a
+fixed-effect covariate then refuses; an unsorted <code>Year</code>, or
+one holding <code>NA</code>, errors. Rows <em>before</em>
+<code>styr</code> are dropped with a warning, and so are rows after
+<code>projyr</code>: <code><a href="https://rdrr.io/r/base/cut.html" class="external-link">cut()</a></code>, <code><a href="https://rdrr.io/r/stats/poly.html" class="external-link">poly()</a></code> and
+<code><a href="https://rdrr.io/r/base/scale.html" class="external-link">scale()</a></code> are computed over the rows kept, so the design
+matrix spans only the model years.</p>
 </div>
 </div>
 <div class="section level2">
@@ -1802,10 +1687,10 @@ right.</p>
 <li>
 <strong>Time-variation switches are not auto-translated.</strong>
 The soft-deprecated <code>Time_varying_q</code> /
-<code>Time_varying_sel</code> / <code>M1_re</code> switches (above) are
-not rewritten into the grammar for you; rewrite the spec by hand when
-you want the grammar’s features. The switches estimate their deviations
-as penalized fixed effects with a fixed SD, so a faithful rewrite pairs
+<code>Time_varying_sel</code> / <code>M1_re</code> switches are not
+rewritten into the grammar for you; rewrite the spec by hand for the
+grammar’s features. The <code>Time_varying_*</code> switches default to
+penalized fixed effects with a fixed SD, so a faithful rewrite pairs
 <code>rw()</code> with <code>integrate = FALSE</code> and
 <code>init = list(sigma = )</code> set to the switch’s
 <code>Time_varying_*_sd</code>; an integrated <code>rw()</code> is a
@@ -1827,7 +1712,7 @@ on the non-parametric selectivity forms, which have no additive slot,
 and on the separable <code>M1_re = 6</code> (age × year), which has no
 1-D grammar structure; both keep the switch-based path.</li>
 <li>
-<strong>Only the grammar’s random effects are simulated.</strong>
+<strong>q and selectivity switches are not simulated.</strong>
 <code>sim_mod(process = )</code> and <code>self_test(process = )</code>
 redraw catchability and selectivity where they are written as a random
 linkage; the legacy <code>Time_varying_q</code> /
@@ -1838,8 +1723,8 @@ warns that they did. Recruitment and M are drawn from their own switches
 QAR1) linkages are the one grammar form that is deliberately not
 redrawn: the latent state is measured by an observed covariate series,
 and redrawing the state alone would leave the two describing different
-histories. A switch-based time-varying process therefore cannot have
-that process redrawn in a self-test.</li>
+histories. A switch-based q or selectivity process therefore cannot be
+redrawn in a self-test.</li>
 <li>
 <strong><code>sigma</code> means different things in the two
 systems.</strong> In a linkage, <code>init = list(sigma = )</code> under
@@ -1850,21 +1735,19 @@ the AR(1) <strong>innovation</strong> SD, and scale it to a marginal of
 coincide only at <code>rho = 0</code>.</li>
 <li>
 <strong>Age-dependent linkages on processes other than M</strong>:
-only the M accumulator consumes the <code>age_bin</code> stratum (a
-row’s <code>age_bin == NA</code> broadcasts across ages; a specific
-value pins the offset to that age slice). The schema is reserved for
-other processes that may eventually vary by age.</li>
+only M reads the <code>age_bin</code> stratum (a row’s
+<code>age_bin == NA</code> broadcasts across ages; a specific value pins
+the offset to that age slice).</li>
 <li>
 <strong>Non-parametric selectivity</strong>: a <code>coff</code>
-linkage needs a per-bin covariate, since a per-year scalar cancels under
-the annual mean-centring; the formula grammar does not yet express
-that.</li>
+linkage needs a per-bin covariate, which the formula grammar does not
+yet express (see <em>Selectivity</em>).</li>
 <li>
 <strong>Legacy retirement</strong>:
 <code>srr_fun %in% c(1, 3, 5)</code> and <code>srr_indices</code> are
-errors from 5.32.0: express the environmental effect as a recruitment
-linkage. <code>M1_indices</code> and <code>M1_model %in% c(4, 5)</code>
-remain deprecated. See the migration table in <code>NEWS.md</code>.</li>
+errors: express the environmental effect as a recruitment linkage.
+<code>M1_indices</code> and <code>M1_model %in% c(4, 5)</code> are
+deprecated. Each message names the replacement.</li>
 </ul>
 </div>
 <div class="section level2">

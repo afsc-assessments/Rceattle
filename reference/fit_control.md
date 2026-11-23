@@ -96,8 +96,9 @@ fit_control(
 - rel_tol:
 
   Numeric tolerance for flagging a discontinuous likelihood, comparing
-  `nlminb`'s objective with a fresh evaluation of the object it came
-  from. Default `1`.
+  `nlminb`'s objective with a fresh evaluation at the estimates (under
+  `newtonsteps > 0` the reported objective is that evaluation, so
+  nothing is flagged). Default `1`.
 
 - loopnum:
 
@@ -107,7 +108,9 @@ fit_control(
 - newtonsteps:
 
   Integer. Extra unconstrained Newton steps after optimization, an
-  alternative to `loopnum`. Default `0`.
+  alternative to `loopnum`; a singular Hessian (usually a parameter the
+  data do not inform) ends them with a warning, and with TMBhelper
+  installed the fit is redone without Newton steps. Default `0`.
 
 - phase:
 

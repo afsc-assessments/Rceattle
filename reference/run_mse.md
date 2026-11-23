@@ -1,14 +1,25 @@
 # Run a management strategy evaluation
 
-Runs a forward-projecting management strategy evaluation (MSE).
-Projected selectivity, catchability, foraging days and weight-at-age are
-held at the operating model's terminal hindcast year, survey SD is the
-average over the historical series, and composition sample size is held
-at the last year. There is no implementation error and no observation
-error on catch. Fixed numbers-at-age (`estDynamics > 0`) are an input
-rather than a forecast, so they are NOT held forward: supply
-`NByageFixed` rows for every projection year, or the uncovered years
-read 0 and that species contributes nothing, with a warning naming it.
+Runs a forward-projecting management strategy evaluation (MSE). In the
+years each assessment adds, the operating model holds its selectivity
+and catchability deviations at its terminal hindcast year (a form whose
+deviations are year-to-year increments takes an increment of 0); its M1
+deviations take its projection values (0 where estimated by year, an
+input series as given). The estimation model starts its own from those
+values and re-estimates any its map leaves free. Empirical selectivity,
+ration and weight-at-age stay at each model's terminal hindcast year. An
+index's `Log_sd` and a composition's `Sample_size` are copied from the
+fleet's last historical row and scaled by `fut_sample`. Unlike a
+[`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md)
+peel, `run_mse()` holds no linkage effect: covariates read `env_data` as
+given, and a q or selectivity linkage random effect takes the operating
+model's own estimate for each added year (a random walk its terminal
+value, an AR1 its decay toward 0, an IID effect 0). There is no
+implementation error and no observation error on catch. Fixed
+numbers-at-age (`estDynamics > 0`) are an input rather than a forecast,
+so they are NOT held forward: supply `NByageFixed` rows for every
+projection year, or the uncovered years read 0 and that species
+contributes nothing, with a warning naming it.
 
 ## Usage
 
@@ -76,9 +87,10 @@ run_mse(
 
 - regenerate_past:
 
-  Refit the EM to historical conditioning data before the MSE, generated
-  from the OM with or without sampling error according to
-  `simulate_data`.
+  Refit the EM before the MSE to historical index, composition and CAAL
+  data regenerated from the OM, with observation error when
+  `simulate_data = TRUE` (drawn once and shared by every simulation) and
+  as expected values otherwise.
 
 - sample_rec:
 
@@ -123,7 +135,8 @@ run_mse(
 
 - regenerate_seed:
 
-  seed for regenerating data
+  Seed for the observation error drawn into the regenerated past data
+  (`regenerate_past` and `simulate_data` both `TRUE`). Default `seed`.
 
 - loopnum:
 

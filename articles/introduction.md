@@ -2,11 +2,12 @@
 
 ## Overview
 
-This vignette fits a sequence of five single- and multi-species models
-with `Rceattle`, applied to walleye pollock, arrowtooth flounder, and
-Pacific cod in the Gulf of Alaska and eastern Bering Sea. The model
-follows Holsman et al. (2016) and Adams et al. (2022). Every function
-has help available via `?`. The workflow is:
+`Rceattle` fits CEATTLE, a climate-linked, single- and multi-species
+age-structured stock assessment model (Holsman et al. 2016; Adams et
+al. 2022), using Template Model Builder (TMB). This vignette is the
+starting point for new users: it fits five single- and multi-species
+models to walleye pollock, arrowtooth flounder, and Pacific cod in the
+Gulf of Alaska and eastern Bering Sea. The workflow is:
 
 1.  Install `Rceattle`
 
@@ -14,19 +15,18 @@ has help available via `?`. The workflow is:
 
 3.  Fit assessment models:
 
-- model 1: a single-species assessment model estimated with recruitment
-  estimated as penalized effects;
+- model 1: single species, recruitment deviations as penalized fixed
+  effects;
 
-- model 2: three single-species assessment models jointly estimated with
-  recruitment estimated as penalized effects;
+- model 2: three single-species models fit jointly, recruitment
+  deviations as penalized fixed effects;
 
-- model 3: as model 2, but with natural mortality estimated for each
-  species;
+- model 3: model 2 with natural mortality estimated for each species;
 
-- model 4: as model 3, but with recruitment estimated as random effects;
+- model 4: model 3 with recruitment deviations as random effects;
 
-- model 5: full multi-species assessment models with time- and age-
-  varying natural mortality due to predation.
+- model 5: multispecies, with time- and age-varying natural mortality
+  due to predation.
 
 4.  Compare models by AIC and Mohn’s rho (retrospective analysis)
 
@@ -34,12 +34,11 @@ has help available via `?`. The workflow is:
 
 ## 1. Installation
 
-`Rceattle` and associated dependencies and can be installed as follows:
+Install `Rceattle` and its dependencies with:
 
 ``` r
 
-# Not run: this installs the package the vignette is already using, so
-# executing it in CI would reinstall mid-render.
+# Not run when the vignette is built: it would reinstall the package mid-render.
 # Rceattle (pulls CRAN dependencies automatically; e.g. TMB, Matrix, dplyr)
 install.packages("remotes")
 remotes::install_github("afsc-assessments/Rceattle")
@@ -51,27 +50,27 @@ remotes::install_github("afsc-assessments/Rceattle")
 
 ## 2. Data
 
-`Rceattle` needs a data object to run. Data from the 2018 Gulf of Alaska
-and 2017 eastern Bering Sea single- and multi-species assessments are
-bundled with the package:
+Data from the 2018 Gulf of Alaska and 2017 eastern Bering Sea single-
+and multi-species assessments are bundled with the package:
 
 ``` r
 
 library(Rceattle)
 data("GOApollock") # Data for GOA-pollock (1-species) ?GOApollock for more information on the data 
 data("BS2017SS") # Combined data for 3 species. ?BS2017SS for more information on the data 
-data("BS2017MS") # Multi-species data. Note: the only difference is the residual mortality (M1_base) is lower
+data("BS2017MS") # Multi-species data: lower residual mortality (M1_base) for pollock ages 1-2
 ```
 
-Data can be visualized using the `plot_data` function:
+Plot the data with
+[`plot_data()`](https://afsc-assessments.github.io/Rceattle/reference/plot_data.md):
 
 ``` r
 
 plot_data(GOApollock)
 ```
 
-The data files can be written to excel, modified within excel, and read
-back into `R` as follows:
+A data list can be written to Excel, edited there, and read back into
+`R`:
 
 ``` r
 
@@ -79,16 +78,18 @@ Rceattle::write_data(data_list = BS2017SS, file = "BS2017SS.xlsx")
 mydata <- Rceattle::read_data( file = "BS2017SS.xlsx")
 ```
 
-A description of the inputs and file structure can be found on the first
-sheet (`meta_data`) and the associated help function
-[`?BS2017SS`](https://afsc-assessments.github.io/Rceattle/reference/BS2017SS.md).
+The first sheet (`meta_data`) and
+[`?BS2017SS`](https://afsc-assessments.github.io/Rceattle/reference/BS2017SS.md)
+describe the inputs and file structure.
 
 ## 3. Fit models
 
-Models are fit with the `fit_mod` function. The first model is a
-single-species fit with no stock–recruit relationship to Gulf of Alaska
-pollock. It has 8 fleets: 1 fishery, 6 surveys, and 1 fleet turned off
-(its data excluded from the likelihood; see `model_1$fleet_control`).
+Models are fit with
+[`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md).
+Model 1 is a single-species fit to Gulf of Alaska pollock with no
+stock–recruit relationship. It has 8 fleets: 1 fishery, 6 surveys, and 1
+fleet turned off (its data excluded from the likelihood; see
+`model_1$data_list$fleet_control`).
 
 ``` r
 
@@ -102,11 +103,10 @@ model_1 <- Rceattle::fit_mod(data_list = GOApollock,
 summary(model_1)
 ```
 
-The second model fits three single-species models jointly, with no
-stock–recruit curve and natural mortality fixed at the input values
-(`mydata$M1_base`). It has 7 fleets: 3 fisheries (one per species) and 4
-surveys (see `mydata$fleet_control`). Single-species mode is the default
-(`msmMode = 0`):
+Model 2 fits three single-species models jointly (`msmMode = 0`, the
+default), with no stock–recruit curve and natural mortality fixed at the
+input values (`mydata$M1_base`). It has 7 fleets: 3 fisheries (one per
+species) and 4 surveys (see `mydata$fleet_control`).
 
 ``` r
 
@@ -121,9 +121,10 @@ model_2 <- Rceattle::fit_mod(data_list = mydata,
 summary(model_2)
 ```
 
-Alternatively, natural mortality can be estimated with the `build_M1`
-function; `M1_model = "sex_age_invariant"` estimates a single M per
-species, constant across sex and age:
+Model 3 estimates natural mortality with
+[`build_M1()`](https://afsc-assessments.github.io/Rceattle/reference/build_M1.md);
+`M1_model = "sex_age_invariant"` estimates a single M per species,
+constant across sex and age:
 
 ``` r
 
@@ -138,9 +139,9 @@ model_3 <- Rceattle::fit_mod(data_list = mydata,
 summary(model_3)
 ```
 
-`model_4` treats recruitment as random effects via `random_rec`. It
-starts from the previous model’s MLEs and skips phasing to reduce
-run-time:
+Model 4 treats recruitment deviations as random effects
+(`random_rec = TRUE`), starting from model 3’s MLEs and skipping phasing
+to reduce run time:
 
 ``` r
 
@@ -156,9 +157,9 @@ model_4 <- Rceattle::fit_mod(data_list = mydata,
 summary(model_4)
 ```
 
-Setting `msmMode = 1` estimates time- and age-varying natural mortality
-from predation, running the model in multi-species mode. This follows
-the MSVPA parameterization of [Magnusson
+Model 5 sets `msmMode = 1`, running in multi-species mode: it estimates
+time- and age-varying natural mortality from predation, following the
+MSVPA parameterization of [Magnusson
 (1995)](https://link.springer.com/article/10.1007/BF00179756).
 
 ``` r
@@ -179,8 +180,7 @@ summary(model_5)
 ## 4. Reading the fitted object
 
 [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
-returns an object of class `Rceattle`. Rather than reaching into it by
-hand, most of what you need is reachable through standard S3 methods:
+returns an object of class `Rceattle`, with the standard S3 methods:
 
 ``` r
 
@@ -196,29 +196,25 @@ head(as.data.frame(model_1))
 [`plot()`](https://rdrr.io/r/graphics/plot.default.html),
 [`simulate()`](https://rdrr.io/r/stats/simulate.html) and
 [`profile()`](https://rdrr.io/r/stats/profile.html) dispatch on the fit
-too, and the diagnostics return their own classes with
-[`print()`](https://rdrr.io/r/base/print.html) methods that summarize
-the result,
-[`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md)
-gives an `Rceattle_retro`,
-[`jitter()`](https://afsc-assessments.github.io/Rceattle/reference/jitter.md)
-an `Rceattle_jitter`,
-[`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md)
-an `Rceattle_selftest`,
-[`profile()`](https://rdrr.io/r/stats/profile.html) an
-`Rceattle_profile`, and
-[`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md)
-an `rceattle_osa`. A data list read by
+too. The diagnostics
+([`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md),
+[`jitter()`](https://afsc-assessments.github.io/Rceattle/reference/jitter.md),
+[`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md),
+[`profile()`](https://rdrr.io/r/stats/profile.html),
+[`osa_residuals()`](https://afsc-assessments.github.io/Rceattle/reference/osa_residuals.md))
+return their own classes, whose
+[`print()`](https://rdrr.io/r/base/print.html) methods summarize the
+result. A data list read by
 [`read_data()`](https://afsc-assessments.github.io/Rceattle/reference/read_data.md)
-is an `Rceattle_data`, which also prints and summarizes.
+also prints and summarizes.
 
-The numbers themselves live in two places. Derived quantities on their
-natural scale are in `fit$quantities`, biomass, `ssb`, `N_at_age`,
+Derived quantities on their natural scale (biomass, `ssb`, `N_at_age`,
 `M_at_age`, `sel_at_age`, reference points and the likelihood
-components. The parameters the optimizer actually estimated are in
-`fit$estimated_params`, mostly on a log scale, under abbreviated names.
+components) are in `fit$quantities`. The estimated parameters are in
+`fit$estimated_params`, mostly on a log scale, under abbreviated names
+that
 [`parameter_dictionary()`](https://afsc-assessments.github.io/Rceattle/reference/parameter_dictionary.md)
-explains those names:
+explains:
 
 ``` r
 
@@ -231,9 +227,8 @@ Anything beginning `log_`, or ending `_log_sd`, needs
 in the dictionary’s `natural` column.
 
 [`quantity_dictionary()`](https://afsc-assessments.github.io/Rceattle/reference/quantity_dictionary.md)
-does the same job for the reported quantities, what each one means, the
-units it is in, its dimensions, and whether `sdreport()` gives it a
-standard error:
+does the same for the reported quantities: what each means, its units
+and dimensions, and whether `sdreport()` gives it a standard error:
 
 ``` r
 
@@ -246,24 +241,22 @@ dict[dict$se, c("quantity", "units")]
 ```
 
 Units follow the model throughout: numbers-at-age are **thousands of
-fish** and weight-at-age is **kg**, so their product is **mt**. Two
-things worth reading off the dictionary before using a quantity. `ssb`
-is *female* spawning-stock biomass, and every per-recruit reference
-point (`SPR0`, `SPRlimit`, `SPRtarget`) is defined only in
-single-species mode, on a multispecies fit the model leaves them at
-zero, which is not an estimate of zero.
+fish** and weight-at-age is **kg**, so their product is **mt**. `ssb` is
+*female* spawning-stock biomass. Every per-recruit reference point
+(`SPR0`, `SPRlimit`, `SPRtarget`) is defined only in single-species
+mode; on a multispecies fit the model leaves them at zero, which is not
+an estimate of zero.
 
 ## 5. Compare models
 
 Models can be compared by marginal or joint negative log-likelihood,
 AIC, and retrospective analysis. AIC cannot compare a
-penalized-likelihood fit against a marginal-likelihood fit. The
-likelihood components are stored in the model objects built above:
+penalized-likelihood fit against a marginal-likelihood fit.
 
 ``` r
 
 # Evaluate 1 model
-AIC(model_1)                    # AIC, via the logLik() method below
+AIC(model_1)                    # AIC, via the logLik() method
 model_1$opt$objective           # Negative log-likelihood
 model_1$quantities$jnll_comp    # Negative log-likelihood components
 
@@ -272,11 +265,10 @@ sapply(list(model_2, model_3, model_5), AIC)
 ```
 
 [`report_tables()`](https://afsc-assessments.github.io/Rceattle/reference/report_tables.md)
-collects the quantities an assessment reports, the fit and its
-likelihood decomposition, the time series with uncertainty, the
-reference points, and the fits to index and catch, into one set of tidy
-tables. Every table holds a `model` column, so several fits stack for a
-like-for-like comparison:
+collects what an assessment reports (the fit and its likelihood
+decomposition, time series with uncertainty, reference points, and fits
+to index and catch) into tidy tables, each with a `model` column so
+several fits stack for comparison:
 
 ``` r
 
@@ -285,20 +277,17 @@ tabs
 tabs$reference_points
 ```
 
-Read the `basis` column of `reference_points` before quoting anything
-from it. A CEATTLE fit leaves a *number* behind for reference points it
-never estimated, and each one looks like an estimate: `Ftarget` and
-`Flimit` sit at 1.0/yr unless the harvest control rule estimates them,
-and in multispecies mode `SB0` is a placeholder until a no-fishing
-projection derives it, which would make B40% a few hundred tonnes. Those
-cells are returned as `NA` with the reason in `basis`, rather than as
-the number the model happens to hold.
-
-Diagnostics are attached rather than computed: a retrospective or a
-jitter is tens to hundreds of refits, so
+Read the `basis` column of `reference_points` before quoting from it. A
+CEATTLE fit leaves a plausible-looking *number* for reference points it
+never estimated: `Ftarget` and `Flimit` sit at 1.0/yr unless the harvest
+control rule estimates them, and in multispecies mode `SB0` is a
+placeholder until a no-fishing projection derives it.
 [`report_tables()`](https://afsc-assessments.github.io/Rceattle/reference/report_tables.md)
-never runs one on your behalf. Pass them in once you have them, and the
-matching sections appear:
+returns those cells as `NA`, with the reason in `basis`.
+
+[`report_tables()`](https://afsc-assessments.github.io/Rceattle/reference/report_tables.md)
+never runs a retrospective or a jitter; pass in the ones you have and
+the matching sections appear:
 
 ``` r
 
@@ -306,12 +295,9 @@ report_tables(model_1, retro = model_1_retro, osa = osa_residuals(model_1))
 ```
 
 [`standard_output()`](https://afsc-assessments.github.io/Rceattle/reference/standard_output.md)
-relabels the result into the NOAA standardized assessment output that
-the `stockplotr` and `asar` packages read, so Rceattle results can be
-plotted and written into a report by the same tooling used for SS3, BAM,
-WHAM and FIMS. That standard describes one stock and has no species
-dimension, so a fit with more than one needs `species` to pick the stock
-to emit:
+relabels the result into the NOAA standardized assessment output read by
+the `stockplotr` and `asar` packages. That standard describes one stock,
+so a fit with more than one species needs `species` to pick the stock:
 
 ``` r
 
@@ -319,15 +305,16 @@ head(standard_output(tabs, model = "pollock"))
 head(standard_output(tabs, model = "three_species", species = 1))
 ```
 
-The `retrospective` function measures retrospective bias, returning a
-list of refit models and a data.frame of Mohn’s rho values.
+[`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md)
+measures retrospective bias, returning a list of refit models and a
+data.frame of Mohn’s rho values.
 
 ``` r
 
 model_1_retro <- retrospective(model_1, peels = 7)
 
-# `mohns` is long: columns Object, `Forecast year` (0 = terminal peel), N, then one
-# column per species. Read the rho by name -- column 2 is the peel year, not a rho.
+# `mohns` has columns Object, `Forecast year` (0 = each peel's terminal year), N, then
+# one column per species. Read the rho by name -- column 2 is `Forecast year`, not a rho.
 rho <- subset(model_1_retro$mohns, Object == "biomass" & `Forecast year` == 0)
 plot_biomass(model_1_retro$Rceattle_list,
              model_names = paste("Pollock; mohns =", round(rho[["Pollock"]], 3)))
@@ -335,10 +322,9 @@ plot_biomass(model_1_retro$Rceattle_list,
 
 ## 6. Model plots and diagnostics
 
-`Rceattle` includes plots for hindcast and forecast time series of
-biomass, SSB, recruitment, biomass consumed as prey, mortality-at-age,
-and depletion, with uncertainty. Time-series plots accept a list of
-models (see above).
+`Rceattle` plots hindcast and projection time series of biomass, SSB,
+recruitment, biomass consumed as prey, mortality-at-age, and depletion,
+with uncertainty. Time-series plots accept a list of models.
 
 ``` r
 
@@ -365,15 +351,15 @@ plot_depletion(model_list, model_names = model_names, incl_proj = FALSE, add_ci 
 plot_ssb_depletion(model_list, model_names = model_names, incl_proj = FALSE, add_ci = FALSE)
 ```
 
-Diagnostic plots cover selectivity, composition fits, index fits, and
-catch fits. Composition plots take a single model; selectivity, index
-and catch plots take one or more.
+Diagnostic plots cover selectivity and the fits to composition, index
+and catch data. Composition plots take a single model; selectivity,
+index and catch plots take one or more.
 
-Each fleet is drawn on the dimension its selectivity was estimated on,
-age, or length bin for a fleet whose `Selectivity_dimension` is
-`"Length"`. With one model, colour is the year, so time-varying
-selectivity reads as a fan. With several, colour separates the models
-and the fan moves to transparency.
+[`plot_selectivity()`](https://afsc-assessments.github.io/Rceattle/reference/plot_selectivity.md)
+draws each fleet on age, or on length bin for a fleet whose
+`Selectivity_dimension` is `"Length"`. With one model, colour is the
+year, so time-varying selectivity reads as a fan; with several, colour
+separates the models and the fan moves to transparency.
 
 ``` r
 
@@ -393,21 +379,19 @@ plot_index(model_list) # - All models
 plot_catch(model_list)
 ```
 
-Outputs of the model can queried using the `$` sign:
+Components of the fitted object, accessed with `$`:
 
-- `model_1$initial_params` - list of initial parameter values prior to
-  estimation
+- `model_1$initial_params` - initial parameter values
 
-- `model_1$bounds` - list of parameter bounds
+- `model_1$bounds` - parameter bounds
 
-- `model_1$map` - list of parameter map in factor form
-  (`model_1$map$mapFactor`) or list form (`model_1$map$mapList`)
+- `model_1$map` - parameter map in factor form (`model_1$map$mapFactor`)
+  or list form (`model_1$map$mapList`)
 
-- `model_1$estimated_params` - list of estimated parameters post
-  estimation
+- `model_1$estimated_params` - estimated parameters
 
-- `model_1$quantities` - list of derived quantities (SSB, biomass,
-  selectivity, etc)
+- `model_1$quantities` - derived quantities (SSB, biomass, selectivity,
+  etc)
 
 - `model_1$data_list` - the input data
 

@@ -51,3 +51,21 @@ sample_rec(
 ## Value
 
 Rceattle model
+
+## Details
+
+Projected recruitment uses the sampled deviations only if the model was
+fitted with `build_srr(proj_mean_rec = FALSE)`; under the default it is
+mean recruitment over the hindcast, and `update_model = TRUE` warns. In
+[`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
+each projection year becomes an operating-model hindcast year, where the
+deviations apply either way.
+
+`update_model = TRUE` holds the hindcast estimates fixed. A fit run with
+its harvest control rule (`estimateMode` `"Estimate"` or `"Projection"`)
+reruns that rule, so an F the rule estimates is re-solved for the new
+recruitment. Under predation (`msmMode > 0`) a fishing rule's unfished
+SSB and biomass (`MSSB0`, `MSB0`) are re-derived too, so SB0, B0 and
+depletion in every year follow the new recruitment, as in a fresh
+[`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
+from those deviations.

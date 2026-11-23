@@ -7,8 +7,8 @@
 <title>4. Projections and reference points • Rceattle</title>
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_Pro-0.4.10/font.css" rel="stylesheet">
-<link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_Pro-0.5.0/font.css" rel="stylesheet">
+<link href="../deps/JetBrains_Mono-0.5.0/font.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="4. Projections and reference points">
@@ -21,7 +21,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.67.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.70.8</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -79,22 +79,22 @@
 
       <h1>4. Projections and reference points</h1>
             
-            <h4 data-toc-skip class="date">2026-11-09</h4>
+            <h4 data-toc-skip class="date">2026-11-23</h4>
       
-      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/vignettes/projections-and-reference-points.Rmd" class="external-link"><code>vignettes/projections-and-reference-points.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.70.8/vignettes/projections-and-reference-points.Rmd" class="external-link"><code>vignettes/projections-and-reference-points.Rmd</code></a></small>
       <div class="d-none name"><code>projections-and-reference-points.Rmd</code></div>
     </div>
 
     
     
-<p>Once a model is fitted, Rceattle can project the stock forward under
-alternative fishing mortality and recruitment assumptions. This vignette
-covers:</p>
+<p>This vignette projects a fitted model forward under alternative
+fishing mortality and recruitment assumptions:</p>
 <ul>
 <li>Fixed-F projections (including mean historical F)</li>
 <li>Manual and stochastic recruitment in the projection period</li>
 <li>Random recruitment effects</li>
 <li>Visualizing projection uncertainty across scenarios</li>
+<li>The available harvest control rules</li>
 </ul>
 <div class="section level2">
 <h2 id="setup">Setup<a class="anchor" aria-label="anchor" href="#setup"></a>
@@ -143,10 +143,9 @@ covers:</p>
 holding all estimated parameters fixed, under a specified harvest
 control rule. <code>build_hcr(HCR = 2, Ftarget = ...)</code> sets a
 constant F for each species.</p>
-<p>When several fisheries target the same species, the
-<code>Proj_F_proportion</code> column in <code>fleet_control</code>
-splits projected F across those fleets. The values must sum to 1 per
-species.</p>
+<p>Where several fisheries catch one species,
+<code>fleet_control$Proj_F_proportion</code> splits its projected F
+across them; the values must sum to 1 per species.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">BS2017SS</span><span class="op">$</span><span class="va">fleet_control</span><span class="op">$</span><span class="va">Proj_F_proportion</span> <span class="op">&lt;-</span> <span class="fl">1</span>  <span class="co"># One fishery fleet per species</span></span>
 <span><span class="va">BS2017MS</span><span class="op">$</span><span class="va">fleet_control</span><span class="op">$</span><span class="va">Proj_F_proportion</span> <span class="op">&lt;-</span> <span class="fl">1</span></span>
@@ -173,10 +172,16 @@ species.</p>
 <div class="section level3">
 <h3 id="manual-recruitment-deviations">Manual recruitment deviations<a class="anchor" aria-label="anchor" href="#manual-recruitment-deviations"></a>
 </h3>
-<p>Projection recruitment deviations live in the parameter list, so you
-can overwrite them directly before projecting.
+<p>Projection recruitment deviations are in the parameter list, so you
+can overwrite them before projecting. Projected recruitment uses them
+only under <code>build_srr(proj_mean_rec = FALSE)</code>; the default
+projects mean recruitment over the hindcast (<code>avg_R</code>)
+whatever the deviations. With <code>proj_mean_rec = FALSE</code>, a
+deviation of 0 projects R0, which on <code>BS2017MS</code> is 26–37%
+below <code>avg_R</code>, so this scenario projects lower recruitment
+than <code>ms_run</code> even with zero deviations.
 <code>estimateMode = 3</code> evaluates the model without re-estimating
-anything, so only the updated deviations change the projection.</p>
+anything.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">nyrs</span>      <span class="op">&lt;-</span> <span class="va">BS2017MS</span><span class="op">$</span><span class="va">endyr</span> <span class="op">-</span> <span class="va">BS2017MS</span><span class="op">$</span><span class="va">styr</span> <span class="op">+</span> <span class="fl">1</span></span>
 <span><span class="va">nyrs_proj</span> <span class="op">&lt;-</span> <span class="va">BS2017MS</span><span class="op">$</span><span class="va">projyr</span> <span class="op">-</span> <span class="va">BS2017MS</span><span class="op">$</span><span class="va">styr</span> <span class="op">+</span> <span class="fl">1</span></span>
@@ -194,6 +199,7 @@ anything, so only the updated deviations change the projection.</p>
 <span>  inits        <span class="op">=</span> <span class="va">ms_run</span><span class="op">$</span><span class="va">estimated_params</span>,</span>
 <span>  file         <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  estimateMode <span class="op">=</span> <span class="fl">3</span>,   <span class="co"># Evaluate only, do not re-estimate</span></span>
+<span>  recFun       <span class="op">=</span> <span class="fu"><a href="../reference/build_srr.html">build_srr</a></span><span class="op">(</span>proj_mean_rec <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span>,  <span class="co"># Project from rec_dev</span></span>
 <span>  niter        <span class="op">=</span> <span class="fl">5</span>,</span>
 <span>  random_rec   <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  msmMode      <span class="op">=</span> <span class="fl">1</span>,</span>
@@ -204,14 +210,17 @@ anything, so only the updated deviations change the projection.</p>
 <div class="section level3">
 <h3 id="stochastic-recruitment-via-sample_rec">Stochastic recruitment via <code>sample_rec()</code><a class="anchor" aria-label="anchor" href="#stochastic-recruitment-via-sample_rec"></a>
 </h3>
-<p><code><a href="../reference/sample_rec.html">sample_rec()</a></code> bootstraps historical recruitment
-deviations into the projection period. The optional
-<code>rec_trend</code> argument adds a linear trend:
-<code>rec_trend = -0.5</code> imposes a 50% decline in mean recruitment
-by the end of the projection.</p>
+<p><code><a href="../reference/sample_rec.html">sample_rec()</a></code> replaces the projection deviations with
+ones resampled from the hindcast and re-runs the model, with the
+hindcast held fixed, under the model’s own <code><a href="../reference/build_srr.html">build_srr()</a></code>
+settings and harvest control rule, so it starts from
+<code>ms_run_proj2</code> (fitted with
+<code>proj_mean_rec = FALSE</code>). <code>rec_trend</code> adds a
+linear trend: <code>rec_trend = -0.5</code> imposes a 50% decline in
+mean recruitment by the end of the projection.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">ms_run_proj3</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/sample_rec.html">sample_rec</a></span><span class="op">(</span></span>
-<span>  Rceattle     <span class="op">=</span> <span class="va">ms_run</span>,</span>
+<span>  object       <span class="op">=</span> <span class="va">ms_run_proj2</span>,  <span class="co"># Fitted with proj_mean_rec = FALSE</span></span>
 <span>  sample_rec   <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  update_model <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  rec_trend    <span class="op">=</span> <span class="op">-</span><span class="fl">0.5</span>   <span class="co"># 50% decline in mean recruitment</span></span>
@@ -221,6 +230,12 @@ by the end of the projection.</p>
 <div class="section level2">
 <h2 id="comparing-projection-scenarios">Comparing projection scenarios<a class="anchor" aria-label="anchor" href="#comparing-projection-scenarios"></a>
 </h2>
+<p>Only “Constant F” fishes. “No fishing” and “Constant F” project
+<code>avg_R</code>. “Stochastic recruitment” draws its deviations around
+R0 (see above), so compare its shape rather than its level against “No
+fishing”. “Declining recruitment” resamples the hindcast deviations,
+which average back to <code>avg_R</code>, so it starts near “No
+fishing”.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">mod_list</span>  <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">ms_run</span>, <span class="va">ms_run_proj</span>, <span class="va">ms_run_proj2</span>, <span class="va">ms_run_proj3</span><span class="op">)</span></span>
 <span><span class="va">mod_names</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
@@ -237,10 +252,16 @@ by the end of the projection.</p>
 <div class="section level2">
 <h2 id="random-recruitment-effects">Random recruitment effects<a class="anchor" aria-label="anchor" href="#random-recruitment-effects"></a>
 </h2>
-<p>Setting <code>random_rec = TRUE</code> treats log-recruitment
-deviations as random effects, marginalized via the Laplace
-approximation, rather than as penalized fixed effects. This propagates
-recruitment process uncertainty into the projections.</p>
+<p><code>random_rec = TRUE</code> treats log-recruitment deviations as
+random effects, marginalized via the Laplace approximation, rather than
+as penalized fixed effects, and estimates their standard deviation,
+sigma_R (<code>R_log_sd</code> holds its log); otherwise sigma_R is
+fixed at its starting value: <code>sigma_rec</code>, unless
+<code>inits</code> supply one. Under a non-equilibrium start (the
+default <code>initMode</code>), the initial-abundance deviations are
+random effects too. Projection-year deviations are not estimated under
+either setting, so <code>random_rec</code> adds no recruitment
+variability to the projections.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">ss_re</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fit_mod.html">fit_mod</a></span><span class="op">(</span></span>
 <span>  data_list    <span class="op">=</span> <span class="va">BS2017SS</span>,</span>
@@ -263,9 +284,8 @@ recruitment process uncertainty into the projections.</p>
 <div class="section level2">
 <h2 id="available-harvest-control-rules">Available harvest control rules<a class="anchor" aria-label="anchor" href="#available-harvest-control-rules"></a>
 </h2>
-<p>The <code>HCR</code> argument to <code><a href="../reference/fit_mod.html">fit_mod()</a></code> accepts the
-output of <code><a href="../reference/build_hcr.html">build_hcr()</a></code>. See <code><a href="../reference/build_hcr.html">?build_hcr</a></code> for full
-parameter details.</p>
+<p><code>fit_mod(HCR = build_hcr(...))</code> sets the rule;
+<code><a href="../reference/build_hcr.html">?build_hcr</a></code> has the parameters.</p>
 <table class="table">
 <colgroup>
 <col width="25%">
@@ -302,8 +322,8 @@ parameter details.</p>
 <tr class="even">
 <td>3</td>
 <td><code>"ConstantFSSB"</code></td>
-<td>F that achieves <code>Ftarget</code>% of SSB₀ at the end of the
-projection</td>
+<td>F that achieves <code>Ftarget</code>% of SB<sub>0</sub> at the end
+of the projection</td>
 <td>Yes</td>
 </tr>
 <tr class="odd">

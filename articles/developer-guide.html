@@ -7,8 +7,8 @@
 <title>Developer guide • Rceattle</title>
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_Pro-0.4.10/font.css" rel="stylesheet">
-<link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_Pro-0.5.0/font.css" rel="stylesheet">
+<link href="../deps/JetBrains_Mono-0.5.0/font.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Developer guide">
@@ -21,7 +21,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.67.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.70.8</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -80,18 +80,18 @@
       <h1>Developer guide</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/vignettes/articles/developer-guide.Rmd" class="external-link"><code>vignettes/articles/developer-guide.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.70.8/vignettes/articles/developer-guide.Rmd" class="external-link"><code>vignettes/articles/developer-guide.Rmd</code></a></small>
       <div class="d-none name"><code>developer-guide.Rmd</code></div>
     </div>
 
     
     
-<p>This guide is for people who want to modify Rceattle itself: add a
-parameter, a data input, a new selectivity or suitability form, or a
-likelihood component. It is not needed to <em>fit</em> models, for that,
-start with the user articles (<a href="introduction.html">Introduction</a> and <a href="model-options-and-functionality.html">Model options and
-functionality</a>).</p>
-<p>It consolidates and updates the developer notes on the <a href="https://github.com/afsc-assessments/Rceattle/wiki" class="external-link">GitHub
+<p>This guide is for people modifying Rceattle itself: adding a
+parameter, a data input, a selectivity or suitability form, or a
+likelihood component. To <em>fit</em> models, start with the user
+articles (<a href="introduction.html">Introduction</a> and <a href="model-options-and-functionality.html">Model options and
+functionality</a>). It consolidates and updates the developer notes on
+the <a href="https://github.com/afsc-assessments/Rceattle/wiki" class="external-link">GitHub
 wiki</a>.</p>
 <div class="section level2">
 <h2 id="repository-layout">Repository layout<a class="anchor" aria-label="anchor" href="#repository-layout"></a>
@@ -139,21 +139,19 @@ articles like this one.</td>
 </tr>
 <tr class="odd">
 <td><code>.github/workflows/</code></td>
-<td>
-<code>R-CMD-check.yaml</code> and <code>pkgdown.yaml</code> CI.</td>
+<td>The six CI workflows.</td>
 </tr>
 <tr class="even">
 <td><code>inst/dev/</code></td>
-<td>Committed developer notes that ship with the package:
-<code>TRAPS.md</code> (verified traps with their measured numbers — read
-it before touching anything it names), <code>SIBLING-REPOS.md</code>
-(the consumer repositories an API change is swept against),
-<code>SIMPLIFY-LOG.md</code> (design wishes; a defect never goes here),
-and two runnable selectivity examples. The working notes — the session
-handoff, the triaged backlog and the per-subsystem
-<code>TODO-*.md</code> records — live in a separate maintainer
-repository, and the open items that code comments used to cite are now
-GitHub issues.</td>
+<td>Developer notes that ship with the package: <code>TRAPS.md</code>
+(verified traps with their measured numbers; read it before touching
+anything it names), <code>SIBLING-REPOS.md</code> (the consumer
+repositories an API change is swept against),
+<code>SIMPLIFY-LOG.md</code> (design wishes, never defects), and two
+runnable selectivity examples. The working notes (session handoff,
+triaged backlog, per-subsystem <code>TODO-*.md</code> records) live in a
+separate maintainer repository, and the open items code comments used to
+cite are GitHub issues.</td>
 </tr>
 <tr class="odd">
 <td><code>data-raw/</code></td>
@@ -163,7 +161,7 @@ GitHub issues.</td>
 </tr>
 <tr class="even">
 <td><code>tools/verify/</code></td>
-<td>22 standalone verification harnesses <code>/golden-check</code> does
+<td>23 standalone verification harnesses <code>/golden-check</code> does
 not cover — the optimizer path, array bounds, the MSE draw digests, the
 simulation recoveries.</td>
 </tr>
@@ -171,8 +169,8 @@ simulation recoveries.</td>
 <td><code>.claude/commands/</code></td>
 <td>The slash commands referenced below (<code>/golden-check</code>,
 <code>/new-column</code>, <code>/verify</code>,
-<code>/ecosystem-sweep</code>). Each is a markdown file stating the full
-procedure, usable as a checklist by a person.</td>
+<code>/ecosystem-sweep</code>). Each is a markdown file with the full
+procedure, usable by a person as a checklist.</td>
 </tr>
 </tbody>
 </table>
@@ -208,8 +206,8 @@ job.</p>
 </td>
 <td>
 <strong><code>adding-a-selectivity-form.html</code> — read it
-first.</strong> It names all the files and the two static tests that
-catch a half-finished form; this row is orientation, not the job</td>
+first.</strong> It names every file and the two static tests that catch
+a half-finished form</td>
 <td>the dispatch is <code>switch (sel_case)</code> in
 <code>src/TMB/selectivity.hpp</code>, <strong>not</strong>
 <code>switch (sel_type)</code> — <code>sel_case</code> is derived, and
@@ -237,8 +235,8 @@ must agree, and <code>test-schema-jnll-rows.R</code> checks it</td>
 <td><code>R/0-column_schema.R</code></td>
 <td>
 <strong>not only there.</strong> <code><a href="../reference/switch_check.html">switch_check()</a></code> fills
-defaults through 23 hand-written calls, not a loop, so a column with a
-default needs a 24th in <code>R/0-switches.R</code>;
+defaults through 22 hand-written calls, not a loop, so a column with a
+default needs a 23rd in <code>R/0-switches.R</code>;
 <code>meta = TRUE</code> is the constructor default and
 <code>R/data.R</code>’s <code>@format</code> is pinned to the schema by
 <code>test-schema-canonical.R</code>; and
@@ -456,10 +454,9 @@ requested).</td>
 <code><a href="../reference/self_test.html">self_test()</a></code>, the <code>plot_*()</code> family) all take the
 fitted <code>Rceattle</code> object returned by
 <code><a href="../reference/fit_mod.html">fit_mod()</a></code>.</p>
-<p>Before that pipeline runs, a user can assemble or edit the
-<code>data_list</code> programmatically and see exactly what a given
-model needs, see <strong>Data assembly and the column schema</strong>
-below.</p>
+<p>To assemble or edit the <code>data_list</code> in R before the
+pipeline runs, and to see what a given model needs, see <strong>Data
+assembly and the column schema</strong> below.</p>
 </div>
 <div class="section level2">
 <h2 id="every-file-in-r-and-what-it-does">Every file in <code>R/</code>, and what it does<a class="anchor" aria-label="anchor" href="#every-file-in-r-and-what-it-does"></a>
@@ -471,15 +468,14 @@ the <code>1-</code> to <code>6-</code> chain, and the 31 files under
 files a fit passes through are repeated here so this table is complete
 on its own; <a href="#the-fit-pipeline">The fit pipeline</a> gives them
 in order.</p>
-<p>A note on vocabulary used below, because two words do double duty in
-this package. <strong>The map</strong> means the TMB <code>map</code>,
-the mask saying which parameters are estimated and which are held fixed;
-a parameter that is “mapped out” is not estimated. A <strong>switch
-map</strong> (<code>sel_map</code>, <code>q_map</code>) is a different
-thing: a lookup from the readable name a user types to the integer the
-template consumes. <strong>Deviates</strong> are the annual offsets that
-make a parameter time-varying — estimated per year, and penalized or
-integrated as random effects depending on the setting.
+<p>Two words do double duty in this package. <strong>The map</strong> is
+the TMB <code>map</code>, the mask saying which parameters are estimated
+and which are held fixed; a parameter that is “mapped out” is not
+estimated. A <strong>switch map</strong> (<code>sel_map</code>,
+<code>q_map</code>) is a lookup from the readable name a user types to
+the integer the template consumes. <strong>Deviates</strong> are the
+annual offsets that make a parameter time-varying, estimated per year
+and penalized or integrated as random effects depending on the setting.
 <strong>Apical</strong> selectivity is selectivity at the age or length
 where the curve peaks.</p>
 <p><strong>Specifications and registries</strong> — the source of truth
@@ -501,12 +497,11 @@ package follows.</p>
 <strong>Every workbook column</strong>: name, sheet, type, default,
 allowed values, old spellings, TMB target, and the one-line
 <code>doc</code> that is written verbatim into
-<code>meta_data_names.xlsx</code>. Note the <code><a href="../reference/BS2017SS.html">?BS2017SS</a></code> field
-text is <em>not</em> generated from it — that lives in
-<code>data.R</code> and is only asserted to agree.
-<code>has_default</code> is wired for <code>fleet_control</code> only;
-for the 34 control and bioenergetics scalars the <code>default</code>
-field is documentation.</td>
+<code>meta_data_names.xlsx</code>. The <code><a href="../reference/BS2017SS.html">?BS2017SS</a></code> field text
+is <em>not</em> generated from it: that lives in <code>data.R</code> and
+is only asserted to agree. <code>has_default</code> is wired for
+<code>fleet_control</code> only; for the 34 control and bioenergetics
+scalars the <code>default</code> field is documentation.</td>
 </tr>
 <tr class="even">
 <td><code>0-switches.R</code></td>
@@ -517,7 +512,7 @@ integer, plus <code><a href="../reference/switch_check.html">switch_check()</a><
 <code>revert_switches()</code>. Also the selectivity-penalty sign
 registry <code>.RCE_SEL_PEN_POSITIVE</code> and the
 <code>Sel_norm_bin</code> codes. <code><a href="../reference/switch_check.html">switch_check()</a></code> fills
-defaults through 23 hand-written calls, one per column — not a loop over
+defaults through 22 hand-written calls, one per column — not a loop over
 the schema.</td>
 </tr>
 <tr class="odd">
@@ -1022,19 +1017,18 @@ raises.</td>
 <div class="section level3">
 <h3 id="three-dictionaries-you-can-just-run">Three dictionaries you can just run<a class="anchor" aria-label="anchor" href="#three-dictionaries-you-can-just-run"></a>
 </h3>
-<p>Worth knowing before reading any code: three of the registries above
-are <strong>exported functions</strong>, and between them they answer
-“what is this variable and what are its units” without opening the
-template.</p>
+<p>Three of the registries above are <strong>exported
+functions</strong>; between them they answer “what is this variable and
+what are its units” without opening the template.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/quantity_dictionary.html">quantity_dictionary</a></span><span class="op">(</span><span class="op">)</span>   <span class="co"># reported quantity -&gt; meaning, units, dimensions</span></span>
 <span><span class="fu"><a href="../reference/parameter_dictionary.html">parameter_dictionary</a></span><span class="op">(</span><span class="op">)</span>  <span class="co"># internal parameter name -&gt; natural-scale name, process</span></span>
 <span><span class="fu"><a href="../reference/parameter_index.html">parameter_index</a></span><span class="op">(</span><span class="op">)</span>       <span class="co"># parameter -&gt; which axis each dimension means</span></span></code></pre></div>
-<p>Note the output names changed in the 5.x series: the quantities older
-scripts and the wiki call <code>NByage</code> and
-<code>biomassSSB</code> are now <code>N_at_age</code> and
-<code>ssb</code>. <code><a href="../reference/quantity_dictionary.html">quantity_dictionary()</a></code> is the authority on
-the current name.</p>
+<p>Older scripts and the wiki use <code>NByage</code> and
+<code>biomassSSB</code> for the quantities now named
+<code>N_at_age</code> and <code>ssb</code>;
+<code><a href="../reference/quantity_dictionary.html">quantity_dictionary()</a></code> is the authority on the current
+name.</p>
 </div>
 </div>
 <div class="section level2">
@@ -1062,58 +1056,54 @@ TMB.</li>
 <code>tv_sel_map</code>, <code>q_map</code>, <code>tv_q_map</code>,
 <code>comp_loglike_map</code>, <code>fleet_map</code>,
 <code>initMode_map</code>, <code>suitMode_map</code>, and
-<code>hcr_map</code>. Adding a value to a map is what makes a new string
-name legal; <code>validate_switches()</code> rejects anything not
-listed.</p>
+<code>hcr_map</code>. Adding a value to a map makes a new string name
+legal; <code>validate_switches()</code> rejects anything not listed.</p>
 </div>
 <div class="section level2">
 <h2 id="data-assembly-and-the-column-schema">Data assembly and the column schema<a class="anchor" aria-label="anchor" href="#data-assembly-and-the-column-schema"></a>
 </h2>
 <p>A CEATTLE <code>data_list</code> has many possible inputs, but any
-one assessment uses only some of them. A few pieces keep that
-manageable.</p>
+one assessment uses only some of them.</p>
 <p><strong>The column schema (<code>R/0-column_schema.R</code>) defines
 every <code>fleet_control</code> column in one place.</strong>
 <code>.rce_column_schema()</code> records each column’s name, type,
 default value, older accepted spellings, and a one-line description. The
-rest of the package reads the column from there, so adding a column
-means editing this one file:</p>
+rest of the package reads the column from there (recipe:
+<code>/new-column</code>):</p>
 <ul>
 <li>
-<code><a href="../reference/switch_check.html">switch_check()</a></code> fills its default,</li>
+<code><a href="../reference/switch_check.html">switch_check()</a></code> fills its default, one hand-written call
+each,</li>
 <li>
 <code><a href="../reference/write_data.html">write_data()</a></code> writes it to the workbook and
 <code><a href="../reference/read_data.html">read_data()</a></code> reads it back,</li>
-<li>the meta sheet and the <code><a href="../reference/BS2017SS.html">?BS2017SS</a></code> field descriptions
-document it,</li>
+<li>the meta sheet is regenerated from it by
+<code>data-raw/regenerate_meta_xlsx.R</code>; <code>R/data.R</code> must
+match it,</li>
 <li>
 <code><a href="../reference/data_check.html">data_check()</a></code> and <code><a href="../reference/rearrange_data.html">rearrange_data()</a></code> refer to
 it by its current name.</li>
 </ul>
-<p>If a column has older accepted spellings, list them in the schema’s
+<p>List a column’s older accepted spellings in the schema’s
 <code>aliases</code> field. Whenever a <code>data_list</code> enters the
-pipeline, an older spelling is translated to the current name
-automatically, so workbooks and scripts written against earlier column
-names keep working (<code>test-schema-canonical.R</code> checks
-this).</p>
-<p>Both spellings at once is the case to know about, because it is what
-a script produces when it assigns an older name to a
-<code>data_list</code> that <code><a href="../reference/read_data.html">read_data()</a></code> has already
-translated: the assignment creates the old column beside the new one.
-They must then hold the same setting (an integer switch code and its
-string count as the same) and anything else is an error naming both
+pipeline, an older spelling is translated to the current name, so
+workbooks and scripts written against earlier column names keep working
+(<code>test-schema-canonical.R</code> checks this).</p>
+<p>A script produces both spellings at once when it assigns an older
+name to a <code>data_list</code> that <code><a href="../reference/read_data.html">read_data()</a></code> has
+already translated: the assignment creates the old column beside the new
+one. The two must then hold the same setting (an integer switch code and
+its string count as the same); anything else is an error naming both
 values. Nothing is merged and no blank is filled in from the other
 column, because <code>NA</code> is a real setting in several of these
 (<code>Sel_norm_bin</code> and <code>Sel_cap_bin</code> mean “do not
 normalize” and “no cap”; <code>Proj_F_proportion</code> means “no F
 apportioned”), so filling could not express clearing a value and would
-move a number silently. Until 5.25.0 the older spelling was simply
-discarded here, which is how several assessment scripts came to be
-running settings they did not ask for.</p>
-<p><strong><code><a href="../reference/data_requirements.html">data_requirements()</a></code></strong> reports, for a
-given model setup, which inputs that model requires, which are optional,
-and which are ignored, so you can see what a configuration needs before
-fitting rather than hitting a validation error partway through.</p>
+move a number silently.</p>
+<p><strong><code><a href="../reference/data_requirements.html">data_requirements()</a></code></strong> reports which
+inputs a given model setup requires, which are optional and which are
+ignored, so you see what a configuration needs before fitting rather
+than as a validation error partway through.</p>
 <p><strong><code><a href="../reference/build_data.html">build_data()</a></code> with
 <code><a href="../reference/model_config.html">model_config()</a></code></strong> assembles or edits a
 <code>data_list</code> in R, supplying only the inputs a given model
@@ -1126,20 +1116,18 @@ configuration.</p>
 <h2 id="run-configuration-save-load">Run configuration (save / load)<a class="anchor" aria-label="anchor" href="#run-configuration-save-load"></a>
 </h2>
 <p><code><a href="../reference/save_config.html">save_config()</a></code> and <code><a href="../reference/load_config.html">load_config()</a></code> write and
-read a run’s full configuration, the model setup plus the estimation and
-uncertainty settings from <code><a href="../reference/fit_control.html">fit_control()</a></code>, as a plain-text
-YAML file. Each field is commented with its meaning, and fields left at
+read a run’s full configuration (the model setup plus the estimation and
+uncertainty settings from <code><a href="../reference/fit_control.html">fit_control()</a></code>) as a plain-text
+YAML file. Each field is commented with its meaning and fields left at
 their default are omitted, so two saved runs differ in the file only
-where they differ in substance, and the file reviews cleanly in version
-control.</p>
+where they differ in substance.</p>
 <p>Apply a saved configuration with
 <code>fit_mod(data_list, config = load_config("run.yaml"))</code>. It
-fills in only the arguments you did not pass yourself, so an explicit
-argument always takes precedence. Every fit also stores the
-configuration it ran with, available as <code>run_config(fit)</code>.
-Formulas, priors, and nested <code>build_*()</code> specifications all
-save and reload, so reopening a saved configuration reproduces the same
-fit.</p>
+fills in only the arguments you did not pass, so an explicit argument
+always takes precedence. Every fit stores the configuration it ran with,
+as <code>run_config(fit)</code>. Formulas, priors and nested
+<code>build_*()</code> specifications all save and reload, so reopening
+a saved configuration reproduces the same fit.</p>
 </div>
 <div class="section level2">
 <h2 id="the-tmb-template">The TMB template<a class="anchor" aria-label="anchor" href="#the-tmb-template"></a>
@@ -1225,14 +1213,14 @@ blocks.</td>
 data objects), then the <code>PARAMETER_*</code> block, then the
 population and observation dynamics, and finally the joint negative
 log-likelihood. The likelihood is accumulated in the
-<code>jnll_comp</code> matrix, rows are likelihood components, columns
+<code>jnll_comp</code> matrix: rows are likelihood components, columns
 are species/fleet. Each row is addressed by a named constant from the
 <code>JnllRow</code> enum (<code>JNLL_INDEX</code>,
 <code>JNLL_CATCH</code>, <code>JNLL_COMP</code>, …
 <code>JNLL_LINKAGE_RE</code>, with <code>JNLL_N_ROWS</code> dimensioning
-the matrix), so a row is referred to by name in the C++ rather than by a
-bare integer. The enum has <strong>two hand-synced partners</strong>:
-the display names in <code>R/6-rename_output.R</code>, and
+the matrix), so the C++ names a row rather than using a bare integer.
+The enum has <strong>two hand-synced partners</strong>: the display
+names in <code>R/6-rename_output.R</code>, and
 <code>.JNLL_ROW_AXIS</code> in <code>R/9-profile.R</code>, which records
 whether a row’s columns count fleets or species. Adding or reordering a
 row means updating all three by hand, or a row is classified on the
@@ -1256,8 +1244,8 @@ compiler flag, since CRAN rejects warning-suppressing flags.</p>
 is the user entry point, attached through the per-process builders:</p>
 <ul>
 <li>
-<code><a href="../reference/build_srr.html">build_srr()</a></code>: recruitment (<code>R0</code>,
-<code>alpha</code>, <code>beta</code>),</li>
+<code><a href="../reference/build_srr.html">build_srr()</a></code>: <code>R0</code>, <code>alpha</code>,
+<code>beta</code> and <code>R_init</code>,</li>
 <li>
 <code><a href="../reference/build_M1.html">build_M1()</a></code>: natural mortality (<code>M1</code>),</li>
 <li>
@@ -1278,13 +1266,13 @@ is the user entry point, attached through the per-process builders:</p>
 </ul>
 <p>The same formula grammar covers every way a parameter can vary. The
 right-hand side can be a covariate (<code>~ temp</code>), a set of time
-blocks (<code>~ cut(Year, ...)</code> (the fixed part goes straight to
+blocks (<code>~ cut(Year, ...)</code>; the fixed part goes straight to
 <code><a href="https://rdrr.io/r/stats/model.matrix.html" class="external-link">model.matrix()</a></code>, so there is no bespoke block helper), or a
-year-to-year random effect) independent (<code>~ (1|Year)</code>), a
+year-to-year random effect: independent (<code>~ (1|Year)</code>), a
 random walk (<code>rw(1|Year)</code>), or first-order autoregressive
 (<code>ar1(1|Year)</code>). <code>~ 1</code> with a <code>priors</code>
-list leaves the parameter at one value but places a prior on it. Use
-<code>by =</code> to say what the effect varies over,
+list leaves the parameter at one value but places a prior on it.
+<code>by =</code> says what the effect varies over:
 <code>by = ~ species + sex + age_bin</code> for the population
 processes, <code>by = ~ fleet</code> for catchability and
 selectivity.</p>
@@ -1295,19 +1283,18 @@ composition-weight parameter is the <code>~ 1</code> case, keyed by
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/build_selectivity.html">build_selectivity</a></span><span class="op">(</span>linkages <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>  inf_asc <span class="op">=</span> <span class="fu"><a href="../reference/linkage_spec.html">linkage_spec</a></span><span class="op">(</span><span class="op">~</span> <span class="fl">1</span>, by <span class="op">=</span> <span class="op">~</span> <span class="va">fleet</span>,</span>
 <span>                         priors <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>`(Intercept)` <span class="op">=</span> <span class="fu">normal</span><span class="op">(</span><span class="fl">50</span>, <span class="fl">10</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<p>The Dirichlet-multinomial composition weights take a prior only (they
-have no covariate or random-effect form). See
-<code><a href="../articles/environmental-linkages-and-priors.html">vignette("environmental-linkages-and-priors")</a></code> for the full
-grammar.</p>
-<p>Note that inside <code>priors =</code>, the bare constructors
+<p>The Dirichlet-multinomial weights have no covariate or random-effect
+form. See <code><a href="../articles/environmental-linkages-and-priors.html">vignette("environmental-linkages-and-priors")</a></code> for
+the full grammar.</p>
+<p>Inside <code>priors =</code>, the bare constructors
 <code>normal()</code>, <code>lognormal()</code>, <code><a href="https://rdrr.io/r/base/Special.html" class="external-link">gamma()</a></code>,
 <code><a href="https://rdrr.io/r/base/Special.html" class="external-link">beta()</a></code> are <strong>not</strong> the exported
-<code>prior_*()</code> functions. <code><a href="../reference/linkage_spec.html">linkage_spec()</a></code> evaluates
+<code>prior_*()</code> functions: <code><a href="../reference/linkage_spec.html">linkage_spec()</a></code> evaluates
 the <code>priors</code> quosure in a data mask
 (<code>rlang::eval_tidy(..., data = .prior_dispatch_mask())</code>) that
 binds <code>normal</code> → <code>prior_normal</code>, and so on. Both
-spellings work inside <code><a href="../reference/linkage_spec.html">linkage_spec()</a></code>, and the bare form is
-intentional, do not “fix” it to <code><a href="../reference/prior_normal.html">prior_normal()</a></code>.</p>
+spellings work inside <code><a href="../reference/linkage_spec.html">linkage_spec()</a></code>; the bare form is
+intentional, so do not “fix” it to <code><a href="../reference/prior_normal.html">prior_normal()</a></code>.</p>
 </div>
 <div class="section level2">
 <h2 id="recipes">Recipes<a class="anchor" aria-label="anchor" href="#recipes"></a>
@@ -1345,8 +1332,8 @@ the <code><a href="../reference/fit_mod.html">fit_mod()</a></code> roxygen.</li>
 <li>
 <code>REPORT()</code> it in <code>ceattle.cpp</code> (and
 <code>ADREPORT()</code> it if it needs a standard error). A
-<code>REPORT</code> inside a comment block is not reported, enumerate
-from a real fit, not from a grep, when checking what a model actually
+<code>REPORT</code> inside a comment block is not reported, so enumerate
+a real fit, not a grep, when checking what a model actually
 returns.</li>
 <li>Give it dimension names in <code>R/6-rename_output.R</code> if it is
 an array.</li>
@@ -1355,9 +1342,9 @@ an array.</li>
 holds a standard error. <code>test-schema-quantity-dictionary.R</code>
 reads the template and a fit and asserts the two agree, so a quantity
 added here and not there fails a test.</li>
-<li>If a quantity is only defined for some configurations, the
+<li>If a quantity is only defined for some configurations (the
 per-recruit reference points are computed only under
-<code>msmMode = 0</code>, say so in its <code>meaning</code>, and gate
+<code>msmMode = 0</code>), say so in its <code>meaning</code>, and gate
 it in <code><a href="../reference/report_tables.html">report_tables()</a></code>. CEATTLE leaves a <em>number</em>
 behind rather than a gap, so an ungated quantity reports a plausible
 wrong figure.</li>
@@ -1366,21 +1353,19 @@ wrong figure.</li>
 <div class="section level3">
 <h3 id="add-or-change-a-data-input">Add or change a data input<a class="anchor" aria-label="anchor" href="#add-or-change-a-data-input"></a>
 </h3>
-<p>There are two cases. Follow the one that matches.</p>
 <p><strong>A <code>fleet_control</code> column</strong> (e.g. a new
-per-fleet setting), add it in <strong>one</strong> place,
-<code>R/0-column_schema.R</code>:</p>
+per-fleet setting) starts in <code>R/0-column_schema.R</code>:</p>
 <ol style="list-style-type: decimal">
 <li>Add a row to <code>.rce_column_schema()</code> with the column’s
 canonical name, type, default, any back-compat <code>aliases</code>, and
-its doc string. Everything downstream (<code><a href="../reference/switch_check.html">switch_check()</a></code>
-default-filling, <code><a href="../reference/write_data.html">write_data()</a></code>/<code><a href="../reference/read_data.html">read_data()</a></code>
-ordering, the meta sheet, the field dictionary) reads from the schema,
-so no other file needs editing to make the column persist and
-round-trip.</li>
+its doc string. <code><a href="../reference/write_data.html">write_data()</a></code> and <code><a href="../reference/read_data.html">read_data()</a></code>
+then round-trip it with no other edit, but a default needs a
+<code><a href="../reference/switch_check.html">switch_check()</a></code> call, <code>R/data.R</code> needs an entry,
+and <code>meta_data_names.xlsx</code> is regenerated by
+<code>data-raw/regenerate_meta_xlsx.R</code> (tests check both).</li>
 <li>Consume the column where it matters (<code><a href="../reference/data_check.html">data_check()</a></code>,
 <code><a href="../reference/rearrange_data.html">rearrange_data()</a></code>, or the cpp) by its
-<strong>canonical</strong> name, aliases are already upgraded on
+<strong>canonical</strong> name; aliases are already upgraded on
 entry.</li>
 <li>If it is a rename of an existing column, put the old spelling in
 <code>aliases</code> and pin it in
@@ -1395,9 +1380,9 @@ consume it in the module.</li>
 <strong>Add read <em>and</em> write support in
 <code>R/0-read_write_excel_data.R</code>.</strong> A new element with no
 <code><a href="../reference/write_data.html">write_data()</a></code>/<code><a href="../reference/read_data.html">read_data()</a></code> handling round-trips
-to nothing through the standard xlsx format; the feature is silently
-lossy. (This is exactly how <code>index_cov</code> was lost; it is the
-single most common data-input bug.)</li>
+to nothing through the standard xlsx format, silently. It is the single
+most common data-input bug (<code>index_cov</code> was lost this
+way).</li>
 <li>Add validation in <code>R/1-data_check.R</code> and, if the model
 needs it, a row in the <code>data_requirements</code> table
 (<code>R/1-data_requirements_table.R</code>).</li>
@@ -1440,22 +1425,22 @@ option introduces bounded parameters (see the
 <code>ceattle.cpp</code>, in the <code>jnll_comp</code> matrix,
 addressed by the <code>JnllRow</code> row constant and the species/fleet
 column: data likelihoods first, then priors and penalties. Add or modify
-the relevant term there, with any math it shares with another term in
+the term there, putting any math it shares with another term in
 <code>likelihood.hpp</code>, then recompile and re-run the regression
 tests (below) to confirm the objective changes only as intended.</p>
 <p><strong>Add or update the matching <code>SIMULATE</code> block at the
 same time.</strong> Every observation and every process error is drawn
-in a <code>SIMULATE</code> block next to the density that scores it, so
-the two are edited together. A simulator that has drifted from its
-likelihood does not error, it makes <code><a href="../reference/self_test.html">self_test()</a></code> report
-recovery against a data-generating process the model never assumed.
-Three rules the existing blocks follow:</p>
+in a <code>SIMULATE</code> block next to the density that scores it. A
+simulator that has drifted from its likelihood does not error; it makes
+<code><a href="../reference/self_test.html">self_test()</a></code> report recovery against a data-generating
+process the model never assumed. The existing blocks follow three
+rules:</p>
 <ul>
 <li>
-<strong>Draw what the density assumes</strong>: including the
+<strong>Draw what the density assumes</strong>, including the
 bias-correction convention and the scale (log vs. natural). Where a
 family has no exact sampler (a multivariate normal truncated to the
-positive orthant, say) note it in the draw and warn from
+positive orthant, say), note it in the draw and warn from
 <code><a href="../reference/sim_mod.html">sim_mod()</a></code> rather than substituting a different
 distribution.</li>
 <li>
@@ -1468,28 +1453,27 @@ under its name is readable as the data it replaced, which is why
 are separate copies.</li>
 <li>
 <strong>Do not draw what the model does not define.</strong> If two
-densities score one latent, the AMAK/Ianelli stock-recruit penalty is
-the live example; there is no single distribution to draw from. Leave it
-and warn.</li>
+densities score one latent (the AMAK/Ianelli stock-recruit penalty is
+the live example), there is no single distribution to draw from. Leave
+it and warn.</li>
 </ul>
 <p><code>simulate_state</code> selects which processes are redrawn
 (recruitment, M, growth, catchability, selectivity). Its slot order is
 the linkage process code, so a random linkage is gated by
-<code>simulate_state(linkage_process(i))</code> with no translation,
+<code>simulate_state(linkage_process(i))</code> with no translation;
 change one and change the other (<code>R/0-linkage_encode.R</code>).</p>
 <p><code>simulate_period</code> is a two-slot vector, and <strong>only
 slot 0 is read</strong>. It gates the <em>process</em> draws, whose
 densities cover the hindcast alone. Observations are drawn in every
-period deliberately, because <code><a href="../reference/run_mse.html">run_mse()</a></code> splices the
-negative-<code>Year</code> rows back in as the next assessment’s data,
-so gating them would hand the estimation model observations that were
-never simulated. Slot 1 is reserved for a projection-period process draw
-(WHAM uses its equivalent that way) and is inert today; nothing in
-<code><a href="../reference/sim_mod.html">sim_mod()</a></code>’s interface reaches either slot, and the tests
-and <code>tools/verify/</code> scripts that exercise slot 0 do so
-through the internal <code>.sim_draw(period = )</code>. Wiring slot 1 up
-means giving the projection-period deviations a density to draw from
-first.</p>
+period, because <code><a href="../reference/run_mse.html">run_mse()</a></code> splices the
+negative-<code>Year</code> rows back in as the next assessment’s data;
+gating them would hand the estimation model observations that were never
+simulated. Slot 1 is reserved for a projection-period process draw (as
+WHAM uses its equivalent) and is inert. Nothing in
+<code><a href="../reference/sim_mod.html">sim_mod()</a></code>’s interface reaches either slot; the tests and
+<code>tools/verify/</code> scripts that exercise slot 0 use the internal
+<code>.sim_draw(period = )</code>. Wiring up slot 1 first needs a
+density for the projection-period deviations to draw from.</p>
 <p>Both are <code>DATA_IVECTOR</code>s, defaulted in
 <code><a href="../reference/build_osa_data.html">build_osa_data()</a></code>, the single funnel every data list passes
 through on its way to <code>MakeADFun()</code>.</p>
@@ -1521,10 +1505,10 @@ checks estimates.</li>
 fixtures.</li>
 </ul>
 <p>Run the suite with <code><a href="https://devtools.r-lib.org/reference/test.html" class="external-link">devtools::test()</a></code> (or
-<code><a href="https://testthat.r-lib.org/reference/test_package.html" class="external-link">testthat::test_local()</a></code>). After any C++ change, recompile
-(<code>src/TMB/compile.R</code> or <code><a href="https://pkgbuild.r-lib.org/reference/compile_dll.html" class="external-link">pkgbuild::compile_dll()</a></code>)
-before testing, since the tests load the compiled
-<code>.so</code>/<code>.dll</code>.</p>
+<code><a href="https://testthat.r-lib.org/reference/test_package.html" class="external-link">testthat::test_local()</a></code>). After a C++ change, rebuild with
+<code>pkgload::load_all(".")</code> and test with
+<code>TESTTHAT_PARALLEL=false</code>; a header-only edit may not rebuild
+(see <code>inst/dev/TRAPS.md</code>).</p>
 </div>
 <div class="section level2">
 <h2 id="branches-and-releases">Branches and releases<a class="anchor" aria-label="anchor" href="#branches-and-releases"></a>
@@ -1543,7 +1527,7 @@ commit-message convention and what CI runs where are stated once, in <a href="ht
 <ul>
 <li>
 <strong><code>gradient is of length 1</code> (or similar).</strong>
-The population is usually crashing, numbers-at-age going negative or a
+The population is usually crashing: numbers-at-age going negative, or a
 divide-by-zero. Check starting values and bounds for the offending
 process.</li>
 <li>
@@ -1563,10 +1547,9 @@ conversion</a> article.)</li>
 <div class="section level2">
 <h2 id="the-argument-names-and-what-is-deliberately-left-alone">The argument names, and what is deliberately left alone<a class="anchor" aria-label="anchor" href="#the-argument-names-and-what-is-deliberately-left-alone"></a>
 </h2>
-<p>The diagnostics take the fitted model as <code>object</code>
-(5.11.0). <code>Rceattle</code> and <code>fit</code> still work and are
-silent; they warn from 5.12.0 and go in 6.0.0. To find your own call
-sites now:</p>
+<p>The diagnostics take the fitted model as <code>object</code>.
+<code>Rceattle</code> and <code>fit</code> still work and are silent by
+default; they go in 6.0.0. To find your own call sites:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">options</a></span><span class="op">(</span>Rceattle.warn_deprecated_args <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
 <p>Three keep their own names on purpose. <code><a href="https://rdrr.io/r/stats/profile.html" class="external-link">profile()</a></code> takes
@@ -1578,38 +1561,38 @@ from its generic fails <code>R CMD check</code>.
 of simulations, not a fitted model, so their names say more than
 <code>object</code> would.</p>
 <p>The rest of the surface below is <strong>known-awkward and
-deliberately unchanged</strong>. It is recorded here so it is not
-reopened each time someone reads the API cold.</p>
+deliberately unchanged</strong>, recorded here so it is not reopened
+each time someone reads the API cold.</p>
 <p><em>Switch codes are frozen.</em> Renumbering any of them silently
 reinterprets every saved <code>run_config</code> YAML, every workbook,
 and every fitted <code>.rds</code> in <code>../Rceattle-models</code>
-and <code>../GOA-ATF-ESP</code>, the same integer would mean something
-new with nothing to signal it. This outweighs the readability of a
-tidier numbering, so these stay as they are:</p>
+and <code>../GOA-ATF-ESP</code>: the same integer would mean something
+new with nothing to signal it. That outweighs a tidier numbering, so
+these stay as they are:</p>
 <ul>
 <li>
 <code>estimateMode</code> 0 = “Estimate” but 1 = “Hindcast”, which
 reads backwards.</li>
 <li>
 <code>srr_fun</code>’s valid set is non-contiguous: 0/2/4 are live,
-1/3/5 soft-deprecated.</li>
+1/3/5 are errors.</li>
 <li>
 <code>sel_map</code> skips 10, 12 and 14.</li>
 <li>
 <code>initMode</code> 1 (<code>Equilibrium</code>) and 5
 (<code>OffsetEquilibrium</code>) differ by one term.</li>
 <li>
-<code>msmMode</code> accepts 3–9, then <code><a href="../reference/data_check.html">data_check()</a></code>
-rejects them.</li>
+<code>msmMode</code> 3–9 are not implemented: <code><a href="../reference/fit_mod.html">fit_mod()</a></code>
+rejects them (<code>msmMode_map</code> holds 0–2).</li>
 </ul>
 <p><em>Overloaded columns.</em> <code>Time_varying_q</code> is a mode
 code for most fleets but a 1-based <code>env_data</code> column index
 (possibly comma-separated, <code>"1,3"</code>) when
 <code>Catchability</code> is <code>Environmental</code> (5). Code 6 was
-the other such form and is removed, but the overload is not academic: it
-is why the <code>Time_varying_q</code> mode checks
-(<code>validate_switches()</code>, the soft-deprecation, and the 5.16.0
-<code>"AR1"</code> refusal) all exempt those fleets. A check that
+the other such form and is removed. The overload is why the
+<code>Time_varying_q</code> mode checks
+(<code>validate_switches()</code>, the soft-deprecation, and the
+<code>"AR1"</code> refusal) all exempt those fleets; a check that
 forgets it rejects a working model for a value the assessor never set as
 a mode.</p>
 <p><code>Sel_curve_pen1</code> is a penalty weight for selectivity
@@ -1627,16 +1610,15 @@ the live list is <code>.deprecated_ctl_args</code> in
 <code>R/6-fit_mod.R</code>.</p>
 <p><em>One more collision.</em> <code><a href="../reference/compare_sim.html">compare_sim()</a></code> has an
 argument named <code>object</code> that is a character selector for
-which part of the model to compare, not a fitted model. It predates this
-release and is left alone for the same reason <code>operating_mod</code>
-is, but it is the one place where <code>object</code> means something
-else.</p>
+which part of the model to compare, not a fitted model. It is left alone
+for the same reason <code>operating_mod</code> is, but it is the one
+place where <code>object</code> means something else.</p>
 <p><em><code><a href="https://rdrr.io/r/stats/profile.html" class="external-link">profile()</a></code> is the odd diagnostic out.</em> It refits
 like <code><a href="../reference/retrospective.html">retrospective()</a></code>, <code><a href="../reference/jitter.html">jitter()</a></code> and
 <code><a href="../reference/self_test.html">self_test()</a></code> but takes only a bare <code>getsd=</code>, no
 <code>phase</code>, no <code>fit_control</code>, so every profile point
-refits at <code>.refit_like()</code>’s unphased default. Worth knowing
-when reading a profile that looks flatter than expected.</p>
+refits at <code>.refit_like()</code>’s unphased default. Keep that in
+mind when a profile looks flatter than expected.</p>
 </div>
 <div class="section level2">
 <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a>
@@ -1650,8 +1632,8 @@ wiki</a>, the original developer notes this page consolidates.</li>
 equation-level detail on selectivity, catchability, and predation.</li>
 <li>Adams et al. (2022), <em>Fisheries Research</em> 251:106303, the TMB
 generalisation of CEATTLE. Holsman et al. (2016), <em>Deep-Sea Research
-II</em> 134:360–378 (the original model. Wassermann et al. (2025),
-<em>ICES JMS</em>) the hake/cannibalism extension.</li>
+II</em> 134:360–378, the original model. Wassermann et al. (2025),
+<em>ICES JMS</em>, the hake/cannibalism extension.</li>
 </ul>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

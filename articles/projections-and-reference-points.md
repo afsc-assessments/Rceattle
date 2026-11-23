@@ -1,13 +1,13 @@
 # 4. Projections and reference points
 
-Once a model is fitted, Rceattle can project the stock forward under
-alternative fishing mortality and recruitment assumptions. This vignette
-covers:
+This vignette projects a fitted model forward under alternative fishing
+mortality and recruitment assumptions:
 
 - Fixed-F projections (including mean historical F)
 - Manual and stochastic recruitment in the projection period
 - Random recruitment effects
 - Visualizing projection uncertainty across scenarios
+- The available harvest control rules
 
 ## Setup
 
@@ -56,9 +56,9 @@ ms_run <- fit_mod(
 estimated parameters fixed, under a specified harvest control rule.
 `build_hcr(HCR = 2, Ftarget = ...)` sets a constant F for each species.
 
-When several fisheries target the same species, the `Proj_F_proportion`
-column in `fleet_control` splits projected F across those fleets. The
-values must sum to 1 per species.
+Where several fisheries catch one species,
+`fleet_control$Proj_F_proportion` splits its projected F across them;
+the values must sum to 1 per species.
 
 ``` r
 
@@ -86,10 +86,14 @@ plot_catch(ms_run_proj, incl_proj = TRUE)
 
 ### Manual recruitment deviations
 
-Projection recruitment deviations live in the parameter list, so you can
-overwrite them directly before projecting. `estimateMode = 3` evaluates
-the model without re-estimating anything, so only the updated deviations
-change the projection.
+Projection recruitment deviations are in the parameter list, so you can
+overwrite them before projecting. Projected recruitment uses them only
+under `build_srr(proj_mean_rec = FALSE)`; the default projects mean
+recruitment over the hindcast (`avg_R`) whatever the deviations. With
+`proj_mean_rec = FALSE`, a deviation of 0 projects R0, which on
+`BS2017MS` is 26–37% below `avg_R`, so this scenario projects lower
+recruitment than `ms_run` even with zero deviations. `estimateMode = 3`
+evaluates the model without re-estimating anything.
 
 ``` r
 
@@ -109,6 +113,7 @@ ms_run_proj2 <- fit_mod(
   inits        = ms_run$estimated_params,
   file         = NULL,
   estimateMode = 3,   # Evaluate only, do not re-estimate
+  recFun       = build_srr(proj_mean_rec = FALSE),  # Project from rec_dev
   niter        = 5,
   random_rec   = FALSE,
   msmMode      = 1,
@@ -120,15 +125,19 @@ ms_run_proj2 <- fit_mod(
 ### Stochastic recruitment via `sample_rec()`
 
 [`sample_rec()`](https://afsc-assessments.github.io/Rceattle/reference/sample_rec.md)
-bootstraps historical recruitment deviations into the projection period.
-The optional `rec_trend` argument adds a linear trend:
+replaces the projection deviations with ones resampled from the hindcast
+and re-runs the model, with the hindcast held fixed, under the model’s
+own
+[`build_srr()`](https://afsc-assessments.github.io/Rceattle/reference/build_srr.md)
+settings and harvest control rule, so it starts from `ms_run_proj2`
+(fitted with `proj_mean_rec = FALSE`). `rec_trend` adds a linear trend:
 `rec_trend = -0.5` imposes a 50% decline in mean recruitment by the end
 of the projection.
 
 ``` r
 
 ms_run_proj3 <- sample_rec(
-  Rceattle     = ms_run,
+  object       = ms_run_proj2,  # Fitted with proj_mean_rec = FALSE
   sample_rec   = TRUE,
   update_model = TRUE,
   rec_trend    = -0.5   # 50% decline in mean recruitment
@@ -136,6 +145,12 @@ ms_run_proj3 <- sample_rec(
 ```
 
 ## Comparing projection scenarios
+
+Only “Constant F” fishes. “No fishing” and “Constant F” project `avg_R`.
+“Stochastic recruitment” draws its deviations around R0 (see above), so
+compare its shape rather than its level against “No fishing”. “Declining
+recruitment” resamples the hindcast deviations, which average back to
+`avg_R`, so it starts near “No fishing”.
 
 ``` r
 
@@ -154,10 +169,15 @@ plot_catch(Rceattle = mod_list, model_names = mod_names, incl_proj = TRUE)
 
 ## Random recruitment effects
 
-Setting `random_rec = TRUE` treats log-recruitment deviations as random
-effects, marginalized via the Laplace approximation, rather than as
-penalized fixed effects. This propagates recruitment process uncertainty
-into the projections.
+`random_rec = TRUE` treats log-recruitment deviations as random effects,
+marginalized via the Laplace approximation, rather than as penalized
+fixed effects, and estimates their standard deviation, sigma_R
+(`R_log_sd` holds its log); otherwise sigma_R is fixed at its starting
+value: `sigma_rec`, unless `inits` supply one. Under a non-equilibrium
+start (the default `initMode`), the initial-abundance deviations are
+random effects too. Projection-year deviations are not estimated under
+either setting, so `random_rec` adds no recruitment variability to the
+projections.
 
 ``` r
 
@@ -182,20 +202,16 @@ plot_recruitment(
 
 ## Available harvest control rules
 
-The `HCR` argument to
-[`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
-accepts the output of
-[`build_hcr()`](https://afsc-assessments.github.io/Rceattle/reference/build_hcr.md).
-See
+`fit_mod(HCR = build_hcr(...))` sets the rule;
 [`?build_hcr`](https://afsc-assessments.github.io/Rceattle/reference/build_hcr.md)
-for full parameter details.
+has the parameters.
 
 | Value | String | Description | Multi-species? |
 |----|----|----|----|
 | 0 | `"NoFishing"` | No fishing, estimate hindcast only | Yes |
 | 1 | `"CMSY"` | CMSY: maximize catch across all species (can constrain depletion ≥ `Plimit`) | Yes |
 | 2 | `"ConstantF"` | Constant F set at `Ftarget` for each species | Yes |
-| 3 | `"ConstantFSSB"` | F that achieves `Ftarget`% of SSB₀ at the end of the projection | Yes |
+| 3 | `"ConstantFSSB"` | F that achieves `Ftarget`% of SB₀ at the end of the projection | Yes |
 | 4 | `"ConstantFSPR"` | Constant F_SPR set at `Ftarget`; can be scaled by `Fmult` (NEFSC convention) | No |
 | 5 | `"NPFMC"` | NPFMC Tier 3 SPR-based HCR (`Ftarget`, `Flimit`, `Ptarget`, `Plimit`, `Alpha`) | No |
 | 6 | `"PFMC"` | PFMC Category 1 40-10 ACL rule with uncertainty buffer (`Flimit`, `Ptarget`, `Plimit`, `Pstar`, `Sigma`; 40-10 needs `Ptarget = 0.40`, `Plimit = 0.10`) | Yes |

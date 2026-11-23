@@ -45,6 +45,20 @@ an Rceattle object with derived quantities weighted by the specified
 weights. The length of the derived quantities spans the years which
 overlap across all models.
 
+## Details
+
+With `uncertainty = TRUE` each fit's parameters are drawn from its
+asymptotic covariance, so every fit needs an sdreport
+(`fit_control(getsd = TRUE)`) and a `fit$obj` in which the hindcast
+parameters are free. An `estimateMode = "Estimate"` fit under any
+harvest control rule but `"NoFishing"` leaves only the rule's F free in
+`fit$obj` unless it used `projection_uncertainty`, and a `"Projection"`
+fit with the default map holds every hindcast parameter fixed, so such
+fits are refused. Refit with `estimateMode = "Hindcast"`, which projects
+with no fishing, or, for a fixed-effects fit under any rule but
+`"ConstantF"`, with `estimateMode = "Estimate"` and
+`fit_control(projection_uncertainty = TRUE)`.
+
 ## Examples
 
 ``` r

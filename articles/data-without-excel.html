@@ -7,8 +7,8 @@
 <title>6. Building a data object in R • Rceattle</title>
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_Pro-0.4.10/font.css" rel="stylesheet">
-<link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_Pro-0.5.0/font.css" rel="stylesheet">
+<link href="../deps/JetBrains_Mono-0.5.0/font.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="6. Building a data object in R">
@@ -21,7 +21,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.67.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.70.8</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -79,43 +79,34 @@
 
       <h1>6. Building a data object in R</h1>
             
-            <h4 data-toc-skip class="date">2026-11-09</h4>
+            <h4 data-toc-skip class="date">2026-11-23</h4>
       
-      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/vignettes/data-without-excel.Rmd" class="external-link"><code>vignettes/data-without-excel.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.70.8/vignettes/data-without-excel.Rmd" class="external-link"><code>vignettes/data-without-excel.Rmd</code></a></small>
       <div class="d-none name"><code>data-without-excel.Rmd</code></div>
     </div>
 
     
     
-<p>Rceattle normally reads input data from an Excel workbook via
-<code><a href="../reference/read_data.html">read_data()</a></code>. The same data object can be built entirely in
-R as a named list, useful when:</p>
-<ul>
-<li>Simulating data for testing or MSE operating models</li>
-<li>Generating inputs programmatically (e.g., multi-scenario loops or
-sensitivity analyses)</li>
-<li>Integrating Rceattle into pipelines that don’t use Excel</li>
-</ul>
-<p>Everything passed to <code><a href="../reference/fit_mod.html">fit_mod()</a></code> lives in this list, so
-understanding its structure also helps you modify existing data objects
-read from Excel. This vignette walks through each component. The result
-is validated by <code>build_data(.check = TRUE)</code> (the default) and
-fitted with <code><a href="../reference/fit_mod.html">fit_mod()</a></code>, or exported back to Excel with
-<code><a href="../reference/write_data.html">write_data()</a></code>.</p>
-<p>If you would rather start from a workbook than a list,
-<code><a href="../reference/write_template.html">write_template()</a></code> writes a minimal, structurally complete
-single-species starter workbook on the current column names that you can
-open, edit, and read back with <code><a href="../reference/read_data.html">read_data()</a></code>:</p>
+<p>Rceattle normally reads input data from an Excel workbook with
+<code><a href="../reference/read_data.html">read_data()</a></code>. This vignette builds the same data object in R
+as a named list, for simulated data (testing, MSE operating models),
+programmatic inputs (scenario loops, sensitivity analyses) or pipelines
+without Excel. A data object read from Excel has the same structure, so
+this also helps when editing one. <code>build_data(.check = TRUE)</code>
+(the default) validates the result, <code><a href="../reference/fit_mod.html">fit_mod()</a></code> fits it, and
+<code><a href="../reference/write_data.html">write_data()</a></code> exports it back to Excel.</p>
+<p>To start from a workbook instead, <code><a href="../reference/write_template.html">write_template()</a></code>
+writes a minimal single-species starter workbook to edit and read back
+with <code><a href="../reference/read_data.html">read_data()</a></code>:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/write_template.html">write_template</a></span><span class="op">(</span><span class="st">"my_data_template.xlsx"</span><span class="op">)</span></span>
 <span><span class="va">dat</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/read_data.html">read_data</a></span><span class="op">(</span><span class="st">"my_data_template.xlsx"</span><span class="op">)</span></span></code></pre></div>
 <div class="section level2">
 <h2 id="the-quick-path-build_data">The quick path: <code>build_data()</code><a class="anchor" aria-label="anchor" href="#the-quick-path-build_data"></a>
 </h2>
-<p>Most of the time you do not need to assemble the whole list by hand.
-<code><a href="../reference/build_data.html">build_data()</a></code> is a constructor that takes only the blocks a
-model uses and default-fills the rest (via <code><a href="../reference/clean_data.html">clean_data()</a></code>),
-so a single-species model does not need the predation, growth, or
+<p><code><a href="../reference/build_data.html">build_data()</a></code> takes only the blocks a model uses and
+default-fills the rest (via <code><a href="../reference/clean_data.html">clean_data()</a></code>), so a
+single-species model does not need the predation, growth, or
 empirical-selectivity blocks. It has three combinable entry points:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://afsc-assessments.github.io/Rceattle/">Rceattle</a></span><span class="op">)</span></span>
@@ -123,8 +114,8 @@ empirical-selectivity blocks. It has three combinable entry points:</p>
 <span><span class="co"># 1. Copy-and-edit an existing data object (a bundled dataset, a read_data()</span></span>
 <span><span class="co">#    result, or a combine_data() result):</span></span>
 <span><span class="va">dat</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/build_data.html">build_data</a></span><span class="op">(</span>base <span class="op">=</span> <span class="va">BS2017SS</span>, projyr <span class="op">=</span> <span class="fl">2060</span><span class="op">)</span></span></code></pre></div>
-<p>The other two entry points need your own workbook or your own blocks,
-so they are shown rather than run here:</p>
+<p>The other two need your own workbook or blocks, so are shown but not
+run:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># 2. Read a workbook, then override a few blocks:</span></span>
 <span><span class="va">dat</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/build_data.html">build_data</a></span><span class="op">(</span>file <span class="op">=</span> <span class="st">"GOA_pollock.xlsx"</span>,</span>
@@ -135,25 +126,22 @@ so they are shown rather than run here:</p>
 <span>                  fleet_control <span class="op">=</span> <span class="va">fc</span>, weight <span class="op">=</span> <span class="va">wt</span>, maturity <span class="op">=</span> <span class="va">mat</span>,</span>
 <span>                  sex_ratio <span class="op">=</span> <span class="va">sr</span>, catch_data <span class="op">=</span> <span class="va">catch</span>, index_data <span class="op">=</span> <span class="va">survey</span>,</span>
 <span>                  comp_data <span class="op">=</span> <span class="va">ages</span><span class="op">)</span></span></code></pre></div>
-<p><code><a href="../reference/build_data.html">build_data()</a></code> checks each block name against the
-recognized schema, so a typo (<code>maturty</code>) or a case-slip
-(<code>Maturity</code>) is caught at construction with a suggestion (not
-much later inside a fit) and legacy names (<code>fsh_biom</code>,
+<p><code><a href="../reference/build_data.html">build_data()</a></code> checks each block name: a typo
+(<code>maturty</code>) or case-slip (<code>Maturity</code>) is caught
+with a suggestion, and legacy names (<code>fsh_biom</code>,
 <code>srv_biom</code>, <code>wt</code>, <code>pmature</code>,
-<code>Pyrs</code>) are mapped to their canonical equivalents. Printing
-the result shows an indented specification tree rather than the raw
-list:</p>
+<code>Pyrs</code>) are mapped to their canonical names. Printing the
+result shows a specification tree rather than the raw list:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">dat</span>            <span class="co"># &lt;Rceattle data&gt;: dimensions -&gt; fleets -&gt; processes -&gt; ...</span></span></code></pre></div>
 <div class="section level3">
 <h3 id="which-inputs-does-my-model-need">Which inputs does my model need?<a class="anchor" aria-label="anchor" href="#which-inputs-does-my-model-need"></a>
 </h3>
-<p>Rather than reading the table below by hand, ask
-<code><a href="../reference/data_requirements.html">data_requirements()</a></code>: it reports, for a given configuration,
+<p><code><a href="../reference/data_requirements.html">data_requirements()</a></code> reports, for a given configuration,
 which blocks are <strong>Required</strong>, <strong>Optional</strong>
 (used if supplied, otherwise default-filled), or
-<strong>Ignored</strong> (not consulted because the feature is off), the
-exact conditions the fit-time validation enforces.</p>
+<strong>Ignored</strong> (the feature is off), under the conditions the
+fit-time validation enforces.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/data_requirements.html">data_requirements</a></span><span class="op">(</span>msmMode <span class="op">=</span> <span class="fl">0</span><span class="op">)</span>            <span class="co"># single-species: predation Ignored</span></span>
 <span><span class="fu"><a href="../reference/data_requirements.html">data_requirements</a></span><span class="op">(</span>msmMode <span class="op">=</span> <span class="fl">1</span><span class="op">)</span>            <span class="co"># multispecies: diet + bioenergetics Required</span></span>
@@ -207,18 +195,16 @@ exact conditions the fit-time validation enforces.</p>
 </tr>
 </tbody>
 </table>
-<p>In default single-species mode (<code>msmMode = 0</code>) you can
-omit any of these by leaving the field unset.</p>
+<p>In single-species mode (<code>msmMode = 0</code>) you can omit the
+<code>msmMode &gt; 0</code> rows by leaving them unset.</p>
 </div>
 </div>
 <div class="section level2">
 <h2 id="building-the-list-by-hand">Building the list by hand<a class="anchor" aria-label="anchor" href="#building-the-list-by-hand"></a>
 </h2>
-<p>The rest of this vignette assembles the list field by field. This is
-the machinery <code><a href="../reference/build_data.html">build_data()</a></code> wraps, useful when you are
-simulating data, generating inputs programmatically, or want to
-understand exactly what each block contains. Feel free to skip sections
-you don’t need.</p>
+<p>The rest of this vignette assembles the list field by field: the
+structure <code><a href="../reference/build_data.html">build_data()</a></code> wraps. Skip the sections you don’t
+need.</p>
 </div>
 <div class="section level2">
 <h2 id="setup">Setup<a class="anchor" aria-label="anchor" href="#setup"></a>
@@ -226,9 +212,9 @@ you don’t need.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://afsc-assessments.github.io/Rceattle/">Rceattle</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Define core dimensions up front, these drive the size of all downstream arrays.</span></span>
+<span><span class="co"># Core dimensions; these set the size of every downstream array.</span></span>
 <span><span class="va">nspp</span>     <span class="op">&lt;-</span> <span class="fl">2</span>   <span class="co"># number of species (or stocks)</span></span>
-<span><span class="va">nages</span>    <span class="op">&lt;-</span> <span class="fl">10</span>  <span class="co"># maximum age classes (same for all species here)</span></span>
+<span><span class="va">nages</span>    <span class="op">&lt;-</span> <span class="fl">10</span>  <span class="co"># number of age bins (same for all species here)</span></span>
 <span><span class="va">nlengths</span> <span class="op">&lt;-</span> <span class="fl">20</span>  <span class="co"># number of length bins (for age-length keys / CAAL data)</span></span>
 <span><span class="va">nyrs</span>     <span class="op">&lt;-</span> <span class="fl">30</span>  <span class="co"># number of hindcast years</span></span>
 <span><span class="va">years</span>    <span class="op">&lt;-</span> <span class="fl">1</span><span class="op">:</span><span class="va">nyrs</span></span>
@@ -238,8 +224,8 @@ you don’t need.</p>
 <div class="section level2">
 <h2 id="species-model-controls">1. Species / model controls<a class="anchor" aria-label="anchor" href="#species-model-controls"></a>
 </h2>
-<p>These scalars and vectors describe the biological structure of each
-species and control which population model is used.</p>
+<p>Scalars and vectors giving each species’ biological structure and
+which population model is used.</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">simData</span><span class="op">$</span><span class="va">nspp</span>    <span class="op">&lt;-</span> <span class="va">nspp</span></span>
 <span><span class="va">simData</span><span class="op">$</span><span class="va">styr</span>    <span class="op">&lt;-</span> <span class="fl">1</span>       <span class="co"># first year of hindcast</span></span>
@@ -264,7 +250,7 @@ species and control which population model is used.</p>
 <span><span class="co"># estDynamics controls how population abundance is estimated:</span></span>
 <span><span class="co">#   0 = estimate population dynamics (standard statistical catch-at-age)</span></span>
 <span><span class="co">#   1 = fix N-at-age exactly to values in NByageFixed (e.g., external estimates)</span></span>
-<span><span class="co">#   2 = scale NByageFixed by a single estimated scalar per species</span></span>
+<span><span class="co">#   2 = as 1, times a per-species scalar estimated if msmMode &gt; 0</span></span>
 <span><span class="va">simData</span><span class="op">$</span><span class="va">estDynamics</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fl">0</span>, <span class="va">nspp</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Indices linking each species to its weight and growth datasets.</span></span>
@@ -283,10 +269,9 @@ species and control which population model is used.</p>
 <span><span class="co"># strength of the recruitment penalty in penalized-likelihood mode.</span></span>
 <span><span class="va">simData</span><span class="op">$</span><span class="va">sigma_rec</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fl">1</span>, <span class="va">nspp</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Non-modeled ("other") prey biomass available to predators. Used in</span></span>
-<span><span class="co"># multi-species mode to prevent unrealistically high predation mortality when</span></span>
-<span><span class="co"># modeled prey are scarce. Setting this too low forces predators to over-eat</span></span>
-<span><span class="co"># modeled prey; too high dilutes the predation signal.</span></span>
+<span><span class="co"># Non-modeled ("other") prey biomass available to predators, read in</span></span>
+<span><span class="co"># multi-species mode. Too low forces predators to over-eat modeled prey; too</span></span>
+<span><span class="co"># high dilutes the predation signal.</span></span>
 <span><span class="va">simData</span><span class="op">$</span><span class="va">other_food</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fl">1e5</span>, <span class="va">nspp</span><span class="op">)</span>   <span class="co"># metric tons of non-modelled prey</span></span></code></pre></div>
 </div>
 <div class="section level2">
@@ -305,7 +290,7 @@ modeled. Multiple fleets can target the same species.</p>
 <span><span class="co">#   "Logistic"           (1), two-parameter ascending logistic (a50, slope)</span></span>
 <span><span class="co">#   "NonParametric"      (2), freely estimated selectivity-at-age/length with smoothness penalty</span></span>
 <span><span class="co">#   "DoubleLogistic"     (3), ascending + descending dome-shaped logistic</span></span>
-<span><span class="co">#   "DescendingLogistic" (4), descending logistic only (dome-shaped for oldest ages)</span></span>
+<span><span class="co">#   "DescendingLogistic" (4), descending logistic only (declining with age)</span></span>
 <span><span class="co">#   "Hake"               (5), non-parametric selectivity à la Taylor et al. (Pacific hake)</span></span>
 <span><span class="co">#   "2DAR1"              (6), 2D autoregressive random effects (bin × year)</span></span>
 <span><span class="co">#   "3DAR1"              (7), 3D autoregressive random effects (bin × year × cohort)</span></span>
@@ -314,7 +299,7 @@ modeled. Multiple fleets can target the same species.</p>
 <span><span class="co">#   "LogisticPM"        (11), AMAK logistic with multiplicative deviations</span></span>
 <span><span class="co">#   "NonParametricIntegrable" (13), deviations with a proper density (random_sel)</span></span>
 <span><span class="co">#   "DoubleNormalSS3"   (15), SS3 size pattern 24, six-parameter</span></span>
-<span><span class="co">#   (sel_map in R/0-switches.R is the registry; 10, 12 and 14 are unused)</span></span>
+<span><span class="co">#   (10, 12 and 14 are unused)</span></span>
 <span><span class="co">#</span></span>
 <span><span class="co"># Selectivity_dimension: "Age" or "Length"</span></span>
 <span><span class="co">#   Length-based selectivity requires an age-to-length transition matrix (see below).</span></span>
@@ -327,7 +312,7 @@ modeled. Multiple fleets can target the same species.</p>
 <span><span class="co">#   "PowerEquation"        (4), NOT YET IMPLEMENTED; data_check() refuses it</span></span>
 <span><span class="co">#   "AnalyticalArith"      (7), arithmetic-mean analytical Q</span></span>
 <span><span class="co">#   "Environmental"        (5), mu_q + X * beta, where X is a covariate in env_data</span></span>
-<span><span class="co">#   "AR1"                  (6), REMOVED in 5.12.0; data_check() errors. Use a q</span></span>
+<span><span class="co">#   "AR1"                  (6), refused by data_check(). Use a q</span></span>
 <span><span class="co">#                                  linkage with ar1(1 | Year) and observe = &lt;column&gt;</span></span>
 <span><span class="co">#   NA, not applicable (use for fisheries without CPUE)</span></span>
 <span></span>
@@ -345,8 +330,7 @@ modeled. Multiple fleets can target the same species.</p>
 <span>  Month       <span class="op">=</span> <span class="fl">0</span>,                   <span class="co"># 0 = not specified; read for comps and</span></span>
 <span>                                     <span class="co"># weight-at-age when growth is estimated</span></span>
 <span></span>
-<span>  <span class="co"># Selectivity_index links fleets that share the same selectivity curve.</span></span>
-<span>  <span class="co"># Fleets with the same index share all selectivity parameters.</span></span>
+<span>  <span class="co"># Fleets with the same Selectivity_index share all selectivity parameters.</span></span>
 <span>  Selectivity_index         <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="op">(</span><span class="va">nspp</span> <span class="op">*</span> <span class="fl">2</span><span class="op">)</span>,</span>
 <span>  Selectivity               <span class="op">=</span> <span class="st">"Logistic"</span>,</span>
 <span>  Selectivity_dimension     <span class="op">=</span> <span class="st">"Age"</span>,</span>
@@ -357,8 +341,8 @@ modeled. Multiple fleets can target the same species.</p>
 <span>  <span class="co">#   0 / "Off" = time-invariant (default)</span></span>
 <span>  <span class="co">#   1 / "IID" = penalized log-normal deviates (SD fixed at Time_varying_sel_sd</span></span>
 <span>  <span class="co">#       unless random_sel = TRUE in fit_mod)</span></span>
-<span>  <span class="co">#   2 / "AR1" = REMOVED in 5.16.0; data_check() errors on it</span></span>
-<span>  <span class="co">#   3 / "Block" = time blocks (specify via R-side mapping)</span></span>
+<span>  <span class="co">#   2 / "AR1" = refused by data_check()</span></span>
+<span>  <span class="co">#   3 / "Block" = time blocks (Selectivity_block column of index_data / catch_data)</span></span>
 <span>  <span class="co">#   4 / "RandomWalk" = random walk</span></span>
 <span>  <span class="co">#   5 / "RandomWalkAscending" = random walk on ascending portion of double logistic</span></span>
 <span>  Time_varying_sel          <span class="op">=</span> <span class="fl">0</span>,</span>
@@ -391,7 +375,7 @@ modeled. Multiple fleets can target the same species.</p>
 <span>  <span class="co">#   0 / "Off" = time-invariant</span></span>
 <span>  <span class="co">#   1 / "IID" = penalized log-normal deviates (SD fixed at Time_varying_q_sd</span></span>
 <span>  <span class="co">#       unless random_q = TRUE in fit_mod)</span></span>
-<span>  <span class="co">#   2 / "AR1" = REMOVED in 5.16.0; data_check() errors on it</span></span>
+<span>  <span class="co">#   2 / "AR1" = refused by data_check()</span></span>
 <span>  <span class="co">#   3 / "Block" = time blocks</span></span>
 <span>  <span class="co">#   4 / "RandomWalk" = random walk</span></span>
 <span>  Time_varying_q          <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="cn">NA</span><span class="op">)</span>, <span class="va">nspp</span><span class="op">)</span>,</span>
@@ -420,23 +404,20 @@ modeled. Multiple fleets can target the same species.</p>
 <div class="section level2">
 <h2 id="survey-index-data">3. Survey index data<a class="anchor" aria-label="anchor" href="#survey-index-data"></a>
 </h2>
-<p>One row per fleet-year combination for survey fleets.
-<code>Observation</code> is the biomass index on the
-<strong>natural</strong> scale – mt, or thousands of fish if
-<code>Observation_units = 2</code> – not a log. The likelihood takes the
-log itself, and <code><a href="../reference/data_check.html">data_check()</a></code> requires it to be positive. A
-negative <code>Year</code> value tells Rceattle to predict the index
-without including it in the likelihood, which is useful for model
-checking.</p>
+<p>One row per survey fleet-year. <code>Observation</code> is the index
+on the <strong>natural</strong> scale (mt, or thousands of fish if
+<code>Observation_units = 2</code>), not a log, and
+<code><a href="../reference/data_check.html">data_check()</a></code> requires it to be positive. A negative
+<code>Year</code> predicts the index without including it in the
+likelihood.</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">simData</span><span class="op">$</span><span class="va">index_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>  Fleet_name        <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="st">"Survey Species"</span>, <span class="fl">1</span><span class="op">:</span><span class="va">nspp</span><span class="op">)</span>, each <span class="op">=</span> <span class="va">nyrs</span><span class="op">)</span>,</span>
 <span>  Fleet_code        <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">1</span>, <span class="va">nspp</span> <span class="op">*</span> <span class="fl">2</span>, by <span class="op">=</span> <span class="fl">2</span><span class="op">)</span>, each <span class="op">=</span> <span class="va">nyrs</span><span class="op">)</span>,</span>
 <span>  Species           <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fl">1</span><span class="op">:</span><span class="va">nspp</span>, each <span class="op">=</span> <span class="va">nyrs</span><span class="op">)</span>,</span>
 <span>  Year              <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="va">years</span>, <span class="va">nspp</span><span class="op">)</span>,</span>
-<span>  <span class="co"># This is the month the index predictor uses: 0 = start of year, before any</span></span>
-<span>  <span class="co"># mortality; 6 = mid-year. A mid-year survey left at 0 is predicted ~9.5% high</span></span>
-<span>  <span class="co"># at Z = 0.2.</span></span>
+<span>  <span class="co"># Month the index prediction uses: 0 = start of year, before any mortality;</span></span>
+<span>  <span class="co"># 6 = mid-year. A mid-year survey left at 0 is predicted 10.5% high at Z = 0.2.</span></span>
 <span>  Month             <span class="op">=</span> <span class="fl">0</span>,</span>
 <span>  <span class="co"># Selectivity_block: integer index into the selectivity/Q parameter block.</span></span>
 <span>  <span class="co"># Used when Time_varying_sel or Time_varying_q = 3 (time blocks).</span></span>
@@ -448,9 +429,9 @@ checking.</p>
 <div class="section level2">
 <h2 id="catch-data">4. Catch data<a class="anchor" aria-label="anchor" href="#catch-data"></a>
 </h2>
-<p>One row per fishery fleet-year combination. <code>Log_sd</code> is
-typically set small (0.01–0.05) when catch is treated as known; increase
-it if catch is highly uncertain.</p>
+<p>One row per fishery fleet-year. <code>Log_sd</code> is typically set
+small (0.01–0.05) when catch is treated as known; increase it if catch
+is highly uncertain.</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">simData</span><span class="op">$</span><span class="va">catch_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>  Fleet_name        <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="st">"Fishery Species"</span>, <span class="fl">1</span><span class="op">:</span><span class="va">nspp</span><span class="op">)</span>, each <span class="op">=</span> <span class="va">nyrs</span><span class="op">)</span>,</span>
@@ -466,15 +447,14 @@ it if catch is highly uncertain.</p>
 <div class="section level2">
 <h2 id="composition-data-optional">5. Composition data (optional)<a class="anchor" aria-label="anchor" href="#composition-data-optional"></a>
 </h2>
-<p>Age or length composition data. <code>Age0_Length1 = 0</code> for age
-compositions, <code>1</code> for length compositions.
-<code>Sex = 0</code> for combined sex, <code>1</code> for females,
-<code>2</code> for males, <code>3</code> for joint female+male.
-Composition columns (<code>Comp_1</code>, <code>Comp_2</code>, …) can be
-raw counts or proportions; Rceattle normalizes internally.</p>
-<p>Skip this section entirely (don’t set <code>simData$comp_data</code>)
-if no composition data are available, <code><a href="../reference/clean_data.html">clean_data()</a></code> will
-fill it with an empty data.frame.</p>
+<p>Age comps (<code>Age0_Length1 = 0</code>) or length comps
+(<code>1</code>). <code>Sex = 0</code> for combined sex, <code>1</code>
+for females, <code>2</code> for males, <code>3</code> for joint
+female+male. Composition columns (<code>Comp_1</code>,
+<code>Comp_2</code>, …) can be raw counts or proportions; Rceattle
+normalizes internally.</p>
+<p>With no composition data, leave <code>simData$comp_data</code> unset;
+<code><a href="../reference/clean_data.html">clean_data()</a></code> fills it with an empty data.frame.</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">comp_matrix</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">nyrs</span> <span class="op">*</span> <span class="va">nspp</span> <span class="op">*</span> <span class="va">nages</span> <span class="op">*</span> <span class="fl">2</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>                      nrow <span class="op">=</span> <span class="va">nyrs</span> <span class="op">*</span> <span class="va">nspp</span> <span class="op">*</span> <span class="fl">2</span>, ncol <span class="op">=</span> <span class="va">nages</span><span class="op">)</span></span>
@@ -498,15 +478,12 @@ fill it with an empty data.frame.</p>
 <div class="section level2">
 <h2 id="conditional-age-at-length-caal-data-optional">6. Conditional age-at-length (CAAL) data (optional)<a class="anchor" aria-label="anchor" href="#conditional-age-at-length-caal-data-optional"></a>
 </h2>
-<p>CAAL data provide observed age frequencies within each length bin and
-allow the model to jointly fit length and age compositions, and
-optionally estimate the growth curve internally (see
-<code><a href="../articles/model-parameterizations.html">vignette("model-parameterizations")</a></code> and
-<code><a href="../reference/build_growth.html">?build_growth</a></code>). One row per fleet-sex-year-length-bin
-combination.</p>
-<p><code>caal_data</code> becomes <strong>required</strong> when growth
-is being estimated internally (<code>any(growth_model &gt; 0)</code>);
-otherwise it can be omitted.</p>
+<p>CAAL data are observed age frequencies within each length bin, one
+row per fleet-sex-year-length bin. <code>caal_data</code> is
+<strong>required</strong> when growth is estimated internally
+(<code>any(growth_model &gt; 0)</code>; see <code><a href="../reference/build_growth.html">?build_growth</a></code>
+and <code><a href="../articles/growth-estimation.html">vignette("growth-estimation")</a></code>); otherwise it can be
+omitted.</p>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">caal_matrix</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">nyrs</span> <span class="op">*</span> <span class="va">nspp</span> <span class="op">*</span> <span class="va">nages</span> <span class="op">*</span> <span class="fl">2</span> <span class="op">*</span> <span class="va">nlengths</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>                      nrow <span class="op">=</span> <span class="va">nyrs</span> <span class="op">*</span> <span class="va">nspp</span> <span class="op">*</span> <span class="fl">2</span> <span class="op">*</span> <span class="va">nlengths</span>, ncol <span class="op">=</span> <span class="va">nages</span><span class="op">)</span></span>
@@ -536,9 +513,9 @@ otherwise it can be omitted.</p>
 </h3>
 <p>The probability that a fish of age <em>a</em> is observed in length
 bin <em>l</em>. Required when fitting length compositions or estimating
-growth internally. Each row must sum to 1. The placeholder below uses an
+growth internally. Each row must sum to 1. The placeholder below is an
 identity matrix (age <em>a</em> maps exactly to length bin <em>a</em>);
-replace with empirical or model-based growth matrices.</p>
+replace it with an empirical or model-based growth matrix.</p>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">age_trans_list</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fl">1</span><span class="op">:</span><span class="va">nspp</span>, <span class="kw">function</span><span class="op">(</span><span class="va">sp</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">tmp</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fl">0</span>, nrow <span class="op">=</span> <span class="va">nages</span>, ncol <span class="op">=</span> <span class="va">nlengths</span><span class="op">)</span></span>
@@ -556,9 +533,9 @@ replace with empirical or model-based growth matrices.</p>
 <h3 id="ageing-error-matrix">Ageing error matrix<a class="anchor" aria-label="anchor" href="#ageing-error-matrix"></a>
 </h3>
 <p>The probability that a fish of true age <em>t</em> is read as
-observed age <em>o</em>. An identity matrix (no error) is a conservative
-starting point. Ageing error matrices can be generated with standard
-tools (e.g., the AgeingError package) and substituted here.</p>
+observed age <em>o</em>. The identity matrix below means no ageing
+error; a matrix from, e.g., the AgeingError package can be
+substituted.</p>
 <div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">age_error_list</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fl">1</span><span class="op">:</span><span class="va">nspp</span>, <span class="kw">function</span><span class="op">(</span><span class="va">sp</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">tmp</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">as.data.frame</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/diag.html" class="external-link">diag</a></span><span class="op">(</span><span class="fl">1</span>, <span class="va">nages</span><span class="op">)</span><span class="op">)</span></span>
@@ -570,10 +547,9 @@ tools (e.g., the AgeingError package) and substituted here.</p>
 <div class="section level3">
 <h3 id="weight-at-age">Weight-at-age<a class="anchor" aria-label="anchor" href="#weight-at-age"></a>
 </h3>
-<p>Mean weight (kg) at each age. Setting <code>Year = 0</code> applies
-the same schedule to all years (time-invariant). Providing multiple rows
-with different years enables time-varying weight-at-age, which is used
-in empirical weight-at-age models.</p>
+<p>Mean weight (kg) at each age. <code>Year = 0</code> applies the same
+schedule to all years (time-invariant); rows for different years give
+time-varying weight-at-age.</p>
 <div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">weight_matrix</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="op">(</span><span class="fl">1</span><span class="op">:</span><span class="va">nages</span> <span class="op">/</span> <span class="va">nages</span><span class="op">)</span><span class="op">^</span><span class="fl">3</span> <span class="op">*</span> <span class="fl">0.01</span>,</span>
 <span>                        nrow <span class="op">=</span> <span class="va">nspp</span>, ncol <span class="op">=</span> <span class="va">nages</span>, byrow <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
@@ -591,10 +567,9 @@ in empirical weight-at-age models.</p>
 <div class="section level3">
 <h3 id="maturity-at-age">Maturity-at-age<a class="anchor" aria-label="anchor" href="#maturity-at-age"></a>
 </h3>
-<p>Proportion mature at each age, used to compute spawning stock
-biomass. Values should range from 0 to 1. For sex-structured models
-(<code>nsex = 2</code>) this represents the proportion of females that
-are mature.</p>
+<p>Proportion mature at each age (0 to 1), used to compute SSB. For
+sex-structured models (<code>nsex = 2</code>) it is the proportion of
+females that are mature.</p>
 <div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">mat_matrix</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fl">1</span>, nrow <span class="op">=</span> <span class="va">nspp</span>, ncol <span class="op">=</span> <span class="va">nages</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">mat_matrix</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"Age"</span>, <span class="fl">1</span><span class="op">:</span><span class="va">nages</span><span class="op">)</span></span>
@@ -616,31 +591,24 @@ recruitment.</p>
 longest-lived species, and <strong>each row must be filled across its
 own species’ <code>nages</code></strong>. Columns past that are padding
 and may be <code>NA</code>.</p>
-<p>Getting this wrong is quiet. Both tables are summed over age:
-spawning biomass uses <code>maturity</code> (times
-<code>sex_ratio</code> where a species is modelled one-sex), and
-spawner-per-recruit sums the same schedule. So a <code>maturity</code>
-gap leaves SSB <code>NA</code> for any species, and a
-<code>sex_ratio</code> gap does the same for a one-sex species. On a
-<strong>two-sex</strong> species <code>sex_ratio</code> reaches only
-spawner-per-recruit, so the model fits normally and the failure waits
-until a harvest control rule asks for reference points.
-<code><a href="../reference/data_check.html">data_check()</a></code> names the table, the species and the missing
-ages.</p>
-<p>Rows are read by position: the <code>Species</code> column is dropped
-before the model sees these tables, so row <em>i</em> must be species
+<p>A <code>maturity</code> gap leaves SSB <code>NA</code> for any
+species, and a <code>sex_ratio</code> gap does the same for a one-sex
+species. On a <strong>two-sex</strong> species <code>sex_ratio</code> is
+read only at the first age (<code>minage</code>), to split recruitment
+by sex. <code><a href="../reference/data_check.html">data_check()</a></code> names the table, the species and the
+missing ages.</p>
+<p>Rows are read by position, so row <em>i</em> must be species
 <em>i</em>.</p>
 </div>
 <div class="section level3">
 <h3 id="fixed-selectivity-optional">Fixed selectivity (optional)<a class="anchor" aria-label="anchor" href="#fixed-selectivity-optional"></a>
 </h3>
-<p>Pre-specified selectivity-at-age values for fleets whose selectivity
-is fixed (not estimated). <strong>Required</strong> when any fleet has
-<code>Selectivity = "Fixed"</code>. Skip if all fleets estimate their
-own selectivity (as in this example).</p>
-<p>When you do need it, the table looks like:</p>
+<p>Selectivity-at-age for fleets whose selectivity is fixed (not
+estimated). <strong>Required</strong> when any fleet has
+<code>Selectivity = "Fixed"</code>; skip it if every fleet estimates its
+own selectivity, as here. The table looks like:</p>
 <div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Example for one fleet whose selectivity is fixed at the supplied row of values</span></span>
+<code class="sourceCode R"><span><span class="co"># One fleet whose selectivity is fixed at the supplied row of values</span></span>
 <span><span class="va">emp_sel</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>  Fleet_name <span class="op">=</span> <span class="st">"Survey Species 1"</span>,</span>
 <span>  Fleet_code <span class="op">=</span> <span class="fl">1</span>,</span>
@@ -655,29 +623,30 @@ own selectivity (as in this example).</p>
 <div class="section level3">
 <h3 id="fixed-numbers-at-age-optional">Fixed numbers-at-age (optional)<a class="anchor" aria-label="anchor" href="#fixed-numbers-at-age-optional"></a>
 </h3>
-<p>Used when <code>estDynamics &gt; 0</code>:</p>
+<p><strong>Required</strong> when
+<code>any(estDynamics &gt; 0)</code>:</p>
 <ul>
 <li>
 <code>1</code> = numbers-at-age fixed exactly to these values</li>
 <li>
-<code>2</code> = numbers-at-age scaled by a single estimated scalar
-per species</li>
+<code>2</code> = as <code>1</code>, times a per-species scalar
+estimated if <code>msmMode &gt; 0</code>
+</li>
 </ul>
-<p><strong>Required</strong> when <code>any(estDynamics &gt; 0)</code>.
-Skip if you’re estimating population dynamics from scratch (the default
-<code>estDynamics = 0</code>).</p>
-<p>When you do need it, the table has columns <code>Species_name</code>,
-<code>Species</code>, <code>Sex</code>, <code>Year</code>, then
-<code>Age1 ... Age&lt;nages&gt;</code> for the fixed numbers-at-age.</p>
+<p>Skip it when estimating population dynamics (the default
+<code>estDynamics = 0</code>). The table has columns
+<code>Species_name</code>, <code>Species</code>, <code>Sex</code>,
+<code>Year</code>, then <code>Age1 ... Age&lt;nages&gt;</code> for the
+fixed numbers-at-age.</p>
 </div>
 <div class="section level3">
 <h3 id="natural-mortality-m1-base">Natural mortality (M1 base)<a class="anchor" aria-label="anchor" href="#natural-mortality-m1-base"></a>
 </h3>
-<p>Residual natural mortality-at-age before any predation component. In
-single-species mode, total mortality M = M1. In multi-species mode, M =
-M1 + M2 where M2 is predation mortality estimated from the bioenergetics
-model. When switching to multi-species mode it is important to reduce M1
-accordingly (see <code><a href="../articles/single-vs-multispecies.html">vignette("single-vs-multispecies")</a></code>).</p>
+<p>Residual natural mortality-at-age, excluding predation. In
+single-species mode M = M1; in multi-species mode M = M1 + M2, where M2
+is predation mortality estimated from the bioenergetics model. When
+switching to multi-species mode, reduce M1 accordingly (see
+<code><a href="../articles/single-vs-multispecies.html">vignette("single-vs-multispecies")</a></code>).</p>
 <div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">m_matrix</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fl">0.2</span>, nrow <span class="op">=</span> <span class="va">nspp</span>, ncol <span class="op">=</span> <span class="va">nages</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">m_matrix</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"Age"</span>, <span class="fl">1</span><span class="op">:</span><span class="va">nages</span><span class="op">)</span></span>
@@ -689,20 +658,23 @@ an age-specific vector, or a temperature-dependent function.</p>
 <div class="section level3">
 <h3 id="environmental-covariate-data-optional">Environmental covariate data (optional)<a class="anchor" aria-label="anchor" href="#environmental-covariate-data-optional"></a>
 </h3>
-<p>An optional time series used in environment-recruitment, -M1,
--catchability, or -growth relationships. Missing years are filled with
-the column mean. Column names after <code>Year</code> can be anything
-and are referenced by column order.</p>
-<p>Skip this if no environmental covariates are used.
-<code><a href="../reference/clean_data.html">clean_data()</a></code> will fall back to a Year-only data.frame with
-no indices, and validation only complains when a feature actually needs
-one (env-q catchability, a consumption equation that reads a
-temperature, <code>Ceq</code> 1, 2 or 3, or any env linkage). With no
-index to read, consumption uses the constant <code>fT = 1</code> of
-<code>Ceq = 4</code>. That is an error under
-<code>msmMode &gt; 0</code>, where consumption drives predation
-mortality, and a warning under single-species, where it reaches only the
-reported <code>ration</code>.</p>
+<p>An optional time series for environmental effects on recruitment, M1,
+catchability or growth. A linkage formula names its covariate
+(<code>~ temp</code>); a linkage refuses a fixed-effect covariate with a
+missing year, and gives years after the last row a zero offset; the
+switch-based paths (<code>Catchability = 5</code>, bioenergetics
+<code>Cindex</code>) read columns by position after <code>Year</code>
+and fill missing years with the column mean.</p>
+<p>Skip this if no environmental covariates are used:
+<code><a href="../reference/clean_data.html">clean_data()</a></code> falls back to a Year-only data.frame with no
+indices, and validation complains only when a feature needs one (env-q
+catchability, a consumption equation that reads a temperature,
+<code>Ceq</code> 1, 2 or 3, or any env linkage). With no index to read,
+consumption uses the constant <code>fT = 1</code> of
+<code>Ceq = 4</code>: an error under <code>msmMode &gt; 0</code>, where
+consumption drives predation mortality, and a warning under
+single-species, where it reaches only the reported
+<code>ration</code>.</p>
 <div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">simData</span><span class="op">$</span><span class="va">env_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>  Year    <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="va">nyrs</span>,</span>
@@ -717,8 +689,8 @@ single-species mode)<a class="anchor" aria-label="anchor" href="#multi-species-b
 <p>These parameters govern the Wisconsin bioenergetics model used to
 compute predation mortality (M2) in multi-species mode. In
 single-species mode they reach only the reported <code>ration</code> and
-<code>consumption_at_age</code>, never the objective, and can be omitted
-entirely; Rceattle fills any missing scalars with safe defaults
+<code>consumption_at_age</code>, never the objective, and can be
+omitted; Rceattle fills any missing scalars with safe defaults
 (<code>Ceq = 4</code>, the constant form that reads no environmental
 index).</p>
 <p>In multi-species mode (<code>msmMode &gt; 0</code>)
@@ -726,17 +698,17 @@ index).</p>
 <code>Pvalue</code>, <code>fday</code>, <code>CA</code>,
 <code>CB</code>, <code>Qc</code>, <code>Tco</code>, <code>Tcm</code>,
 <code>Tcl</code>, <code>CK1</code>, <code>CK4</code> must be supplied as
-length-<code>nspp</code> vectors; <code><a href="../reference/data_check.html">data_check()</a></code> will list
-any that are missing or wrong-length. Likewise <code>diet_data</code>
-and <code>ration_data</code> are required.</p>
-<p>See <code><a href="../reference/build_M1.html">?build_M1</a></code> and the CEATTLE technical documentation
-for full details on each parameter.</p>
+length-<code>nspp</code> vectors, and <code><a href="../reference/data_check.html">data_check()</a></code> lists
+any that are missing or wrong-length. <code>diet_data</code> and
+<code>ration_data</code> are also required.</p>
+<p>See “Consumption” in <code><a href="../articles/model-parameterizations.html">vignette("model-parameterizations")</a></code>
+for each parameter.</p>
 <div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Ceq: consumption (bioenergetics) equation form for each species:</span></span>
 <span><span class="co">#   1 = Exponential (Stewart et al. 1983)</span></span>
 <span><span class="co">#   2 = Warm-water temperature dependence (Kitchell et al. 1977)</span></span>
 <span><span class="co">#   3 = Cool/cold-water temperature dependence (Thornton &amp; Lessem 1979)</span></span>
-<span><span class="co">#   4 = bypass bioenergetics; use ration_data directly (set CA = 1, fday = 1, CB = 0)</span></span>
+<span><span class="co">#   4 = bypass bioenergetics; ration_data is annual ration per predator (kg)</span></span>
 <span><span class="va">simData</span><span class="op">$</span><span class="va">Ceq</span>    <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fl">4</span>,  <span class="va">nspp</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">simData</span><span class="op">$</span><span class="va">Cindex</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fl">1</span>,  <span class="va">nspp</span><span class="op">)</span>   <span class="co"># which env_data covariate column drives it, counting from 1</span></span>
@@ -758,21 +730,19 @@ for full details on each parameter.</p>
 <span><span class="va">simData</span><span class="op">$</span><span class="va">Diet_distribution</span>      <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fl">0</span>, <span class="va">nspp</span><span class="op">)</span></span>
 <span><span class="va">simData</span><span class="op">$</span><span class="va">Diet_comp_weights</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fl">1</span>, <span class="va">nspp</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Ration data (optional in single-species mode): observed mean ration-at-age from</span></span>
-<span><span class="co"># bioenergetics studies. Required when msmMode &gt; 0. Skip in single-species mode.</span></span>
-<span><span class="co">#</span></span>
-<span><span class="co"># When provided, columns are: Species, Sex, Year, Age1, ..., Age&lt;nages&gt;.</span></span>
+<span><span class="co"># Ration data: observed mean ration-at-age from bioenergetics studies.</span></span>
+<span><span class="co"># Required when msmMode &gt; 0; skip in single-species mode.</span></span>
+<span><span class="co"># Columns: Species, Sex, Year, Age1, ..., Age&lt;nages&gt;.</span></span>
 <span></span>
 <span><span class="co"># Diet composition data: observed stomach content proportions (predator-prey pairs).</span></span>
 <span><span class="co"># Required when msmMode &gt; 0; skip in single-species mode.</span></span>
-<span><span class="co">#</span></span>
-<span><span class="co"># When provided, columns are: Pred, Prey, Pred_sex, Prey_sex, Pred_age,</span></span>
-<span><span class="co"># Prey_age, Year, Sample_size, Stomach_proportion_by_weight.</span></span></code></pre></div>
+<span><span class="co"># Columns: Pred, Prey, Pred_sex, Prey_sex, Pred_age, Prey_age, Year,</span></span>
+<span><span class="co"># Sample_size, Stomach_proportion_by_weight.</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="validate-and-fit">9. Validate and fit<a class="anchor" aria-label="anchor" href="#validate-and-fit"></a>
 </h2>
-<p><code><a href="../reference/plot_data.html">plot_data()</a></code> prints a summary of the data list.</p>
+<p><code><a href="../reference/plot_data.html">plot_data()</a></code> plots a timeline of the data.</p>
 <div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/plot_data.html">plot_data</a></span><span class="op">(</span><span class="va">simData</span><span class="op">)</span></span></code></pre></div>
 <div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
@@ -781,7 +751,7 @@ for full details on each parameter.</p>
 <span><span class="co"># estimateMode: 0 = full fit (hindcast + projection)</span></span>
 <span><span class="co">#               1 = hindcast only</span></span>
 <span><span class="co">#               2 = projection only (fix parameters, run HCR)</span></span>
-<span><span class="co">#               3 = evaluate only (MakeADFun, no optimisation), useful for debugging</span></span>
+<span><span class="co">#               3 = build the objective only (no optimisation), useful for debugging</span></span>
 <span><span class="co">#</span></span>
 <span><span class="co"># msmMode:      0 = single-species, 1 = Type II MSVPA, 2 = Type III MSVPA</span></span>
 <span><span class="co">#</span></span>
@@ -800,9 +770,8 @@ for full details on each parameter.</p>
 <span></span>
 <span><span class="va">sim_run</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fit_mod.html">fit_mod</a></span><span class="op">(</span></span>
 <span>  data_list    <span class="op">=</span> <span class="va">simData</span>,</span>
-<span>  <span class="co"># simData carries caal_data, which is the age composition within a length bin</span></span>
-<span>  <span class="co"># and so is predicted from growth: it needs a parametric growth model, per the</span></span>
-<span>  <span class="co"># requirements table above.</span></span>
+<span>  <span class="co"># simData carries caal_data, which is predicted from growth, so it needs a</span></span>
+<span>  <span class="co"># parametric growth model.</span></span>
 <span>  growthFun    <span class="op">=</span> <span class="fu"><a href="../reference/build_growth.html">build_growth</a></span><span class="op">(</span>fun <span class="op">=</span> <span class="st">"vonBertalanffy"</span><span class="op">)</span>,</span>
 <span>  estimateMode <span class="op">=</span> <span class="fl">3</span>,    <span class="co"># change to 0 for a real fit</span></span>
 <span>  msmMode      <span class="op">=</span> <span class="fl">0</span>,</span>
@@ -815,10 +784,8 @@ for full details on each parameter.</p>
 <div class="section level2">
 <h2 id="export-back-to-excel-optional">10. Export back to Excel (optional)<a class="anchor" aria-label="anchor" href="#export-back-to-excel-optional"></a>
 </h2>
-<p><code><a href="../reference/write_data.html">write_data()</a></code> exports the data list to an Excel workbook
-in the standard Rceattle template format, which can then be edited and
-re-read with <code><a href="../reference/read_data.html">read_data()</a></code>, so you can move between R-based
-and spreadsheet-based workflows.</p>
+<p><code><a href="../reference/write_data.html">write_data()</a></code> exports the data list to an Excel workbook,
+to edit and re-read with <code><a href="../reference/read_data.html">read_data()</a></code>.</p>
 <div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/write_data.html">write_data</a></span><span class="op">(</span><span class="va">simData</span>, file <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile</a></span><span class="op">(</span>fileext <span class="op">=</span> <span class="st">".xlsx"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 </div>
@@ -828,18 +795,17 @@ and spreadsheet-based workflows.</p>
 <p><code><a href="../reference/write_data.html">write_data()</a></code> stores the <em>data</em>; the model
 <em>structure</em> and estimation controls live in the
 <code><a href="../reference/fit_mod.html">fit_mod()</a></code> call (or in a <code><a href="../reference/model_config.html">model_config()</a></code> slot).
-<code><a href="../reference/save_config.html">save_config()</a></code> writes that full run configuration, the
+<code><a href="../reference/save_config.html">save_config()</a></code> writes that run configuration (the
 <code><a href="../reference/model_config.html">model_config()</a></code> structure plus the estimation controls and
-<code><a href="../reference/fit_control.html">fit_control()</a></code> bundle, to a documented, git-diffable YAML
-file, so two assessment runs diff cleanly and a configuration can be
-archived alongside the data. <code><a href="../reference/load_config.html">load_config()</a></code> reads it back,
-and passing it as <code>fit_mod(config = ...)</code> reproduces the fit
-(filling only the arguments you did not pass explicitly). The model
-structure is overlaid field by field: a field the config leaves at its
-default keeps what the data object holds, so a config built from
-<code><a href="../reference/model_config.html">model_config()</a></code> does not drop linkages attached with
-<code>build_data(model_config = )</code>, and a field both set
-differently is taken from the config with a warning:</p>
+<code><a href="../reference/fit_control.html">fit_control()</a></code> bundle) to a YAML file that diffs cleanly
+between runs and can be archived with the data.
+<code><a href="../reference/load_config.html">load_config()</a></code> reads it back, and
+<code>fit_mod(config = ...)</code> reproduces the fit, filling only the
+arguments you did not pass. The structure is overlaid field by field: a
+field the config leaves at its default keeps what the data object holds
+(so linkages attached with <code>build_data(model_config = )</code>
+survive), and a field both set differently is taken from the config,
+with a warning:</p>
 <div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">cfg_file</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile</a></span><span class="op">(</span>fileext <span class="op">=</span> <span class="st">".yaml"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/save_config.html">save_config</a></span><span class="op">(</span><span class="fu"><a href="../reference/model_config.html">model_config</a></span><span class="op">(</span>msmMode <span class="op">=</span> <span class="fl">1</span>, initMode <span class="op">=</span> <span class="st">"OffsetEquilibrium"</span><span class="op">)</span>, <span class="va">cfg_file</span><span class="op">)</span></span>

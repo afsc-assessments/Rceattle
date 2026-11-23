@@ -2,15 +2,14 @@
 
 ## Overview
 
-This vignette shows how to estimate growth with Rceattle’s built-in von
-Bertalanffy and Richards growth functions, and how to use the
-formula-driven
-[`linkage_spec()`](https://afsc-assessments.github.io/Rceattle/reference/linkage_spec.md)
-API to add covariates and priors to growth parameters.
-
-The examples use the bundled `whamGrowthData` dataset, which supplies
-conditional age-at-length data (`caal_data`) plus the stock assessment
-inputs needed to estimate growth.
+This vignette shows how to estimate growth with Rceattle’s von
+Bertalanffy and Richards growth functions, add covariates and priors to
+growth parameters with
+[`linkage_spec()`](https://afsc-assessments.github.io/Rceattle/reference/linkage_spec.md),
+and match a Stock Synthesis growth specification. The examples use the
+bundled `whamGrowthData` dataset, which supplies conditional
+age-at-length data (`caal_data`) and the other inputs needed to estimate
+growth.
 
 ## Load data and inspect the growth dataset
 
@@ -42,9 +41,7 @@ Growth linkages are built with
 and
 [`linkage_spec()`](https://afsc-assessments.github.io/Rceattle/reference/linkage_spec.md).
 A linkage can act on any von Bertalanffy parameter, `K`, `Linf`, or `L1`
-(natural-scale names; the default `link = "log"` keeps the underlying
-TMB parameter on the log scale), and can hold priors on the linked
-coefficients.
+(natural-scale names), and can hold priors on the linked coefficients.
 
 ``` r
 
@@ -78,15 +75,13 @@ growth_spec <- build_growth(
 - `formula = ~ temp` fits an intercept and a temperature slope.
 - `by = ~ species` gives each species its own intercept and slope (add
   `+ sex` to further split by sex).
-- `link = "log"` (the default) keeps the underlying TMB parameter on the
-  log scale, so the slope rows act multiplicatively on natural `Linf`.
+- `link = "log"` (the default) makes the slope rows act multiplicatively
+  on natural `Linf`.
 - `priors` attaches a Normal prior to both the intercept and the
-  temperature slope.
+  temperature slope. The `(Intercept)` prior is on the base `Linf`
+  value, on the natural scale.
 
-The `(Intercept)` prior is a prior on the base `Linf` value (natural
-scale, because the default log link is back-transformed inside the prior
-block). An intercept-bearing linkage replaces the base parameter and
-holds its level.
+The intercept row is held at 0, so the base parameter keeps the level.
 
 ### Time-varying growth
 
@@ -104,14 +99,10 @@ build_growth(
 )
 ```
 
-This is the only route to time-varying growth. The `growth_re` switch
-that earlier versions held in the `data_list` was never implemented,
-nothing consumed it, the deviation array was mapped off in every
-configuration, and the model gave it no density, so it is removed as of
-5.9.0 and setting it now raises a deprecation message. Unlike the
-switch, a random linkage holds a real density, so it is estimated,
-reported in the linkage table, and redrawn by
-`sim_mod(process = "growth")`.
+This is the only route to time-varying growth. A `growth_re` switch in
+the `data_list` is ignored with a deprecation message: it never had an
+effect on any fit. A random linkage is estimated, reported in the
+linkage table, and redrawn by `sim_mod(process = "growth")`.
 
 ## Fit the model
 
@@ -158,7 +149,7 @@ baseline_fit <- Rceattle::fit_mod(
 
 richards_model <- Rceattle::fit_mod(
   data_list = whamGrowthData,
-  inits = NULL, # Initial parameters from above
+  inits = NULL, # Initial parameters at default
   estimateMode = 0,   # Estimate
   growthFun = build_growth(fun = "Richards"), # Richards
   random_rec = FALSE, # No random recruitment
@@ -219,16 +210,10 @@ reports the per-fish result as `quantities$spawn_output`.
 
 ## Notes on priors through linkages
 
-- A prior on `"(Intercept)"` in a growth linkage constrains the base
-  growth parameter itself.
-- A prior on a covariate column such as `temp` constrains that driver’s
-  effect on the parameter.
-- The linkage API accepts any R-style formula and supports per-species
-  or per-sex stratification.
-- The length-at-age SD endpoints `sd_L1` and `sd_Linf` are also linkage
-  targets, so you can set `init` / `bounds` / `priors` on them. Only
-  intercept formulas (e.g. `~ 1`) are honored, the SDs do not vary by
-  year, so slope terms have no effect. See the “Growth SD endpoints”
-  section of
-  [`vignette("environmental-linkages-and-priors")`](https://afsc-assessments.github.io/Rceattle/articles/environmental-linkages-and-priors.md)
-  for an example.
+The length-at-age SD endpoints `sd_L1` and `sd_Linf` are also linkage
+targets, so you can set `init` / `bounds` / `priors` on them. Only
+intercept formulas (e.g. `~ 1`) are honored: the SDs do not vary by
+year, so slope terms have no effect. See the “Growth SD endpoints”
+section of
+[`vignette("environmental-linkages-and-priors")`](https://afsc-assessments.github.io/Rceattle/articles/environmental-linkages-and-priors.md)
+for an example.

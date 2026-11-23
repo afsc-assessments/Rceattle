@@ -1,13 +1,11 @@
 # Developer guide
 
-This guide is for people who want to modify Rceattle itself: add a
-parameter, a data input, a new selectivity or suitability form, or a
-likelihood component. It is not needed to *fit* models, for that, start
-with the user articles
+This guide is for people modifying Rceattle itself: adding a parameter,
+a data input, a selectivity or suitability form, or a likelihood
+component. To *fit* models, start with the user articles
 ([Introduction](https://afsc-assessments.github.io/Rceattle/articles/introduction.md)
 and [Model options and
 functionality](https://afsc-assessments.github.io/Rceattle/articles/model-options-and-functionality.md)).
-
 It consolidates and updates the developer notes on the [GitHub
 wiki](https://github.com/afsc-assessments/Rceattle/wiki).
 
@@ -21,11 +19,11 @@ wiki](https://github.com/afsc-assessments/Rceattle/wiki).
 | `inst/extdata/` | Excel templates, including `meta_data_names.xlsx` (the authoritative column/switch reference). |
 | `data/` | Built-in example data lists (`BS2017SS`, `GOA2018SS`, `NorthernRockfish2022`, …). |
 | `vignettes/` | User articles; `vignettes/articles/` holds website-only articles like this one. |
-| `.github/workflows/` | `R-CMD-check.yaml` and `pkgdown.yaml` CI. |
-| `inst/dev/` | Committed developer notes that ship with the package: `TRAPS.md` (verified traps with their measured numbers — read it before touching anything it names), `SIBLING-REPOS.md` (the consumer repositories an API change is swept against), `SIMPLIFY-LOG.md` (design wishes; a defect never goes here), and two runnable selectivity examples. The working notes — the session handoff, the triaged backlog and the per-subsystem `TODO-*.md` records — live in a separate maintainer repository, and the open items that code comments used to cite are now GitHub issues. |
+| `.github/workflows/` | The six CI workflows. |
+| `inst/dev/` | Developer notes that ship with the package: `TRAPS.md` (verified traps with their measured numbers; read it before touching anything it names), `SIBLING-REPOS.md` (the consumer repositories an API change is swept against), `SIMPLIFY-LOG.md` (design wishes, never defects), and two runnable selectivity examples. The working notes (session handoff, triaged backlog, per-subsystem `TODO-*.md` records) live in a separate maintainer repository, and the open items code comments used to cite are GitHub issues. |
 | `data-raw/` | Generators for committed artefacts, notably `regenerate_meta_xlsx.R` for `meta_data_names.xlsx`. |
-| `tools/verify/` | 22 standalone verification harnesses `/golden-check` does not cover — the optimizer path, array bounds, the MSE draw digests, the simulation recoveries. |
-| `.claude/commands/` | The slash commands referenced below (`/golden-check`, `/new-column`, `/verify`, `/ecosystem-sweep`). Each is a markdown file stating the full procedure, usable as a checklist by a person. |
+| `tools/verify/` | 23 standalone verification harnesses `/golden-check` does not cover — the optimizer path, array bounds, the MSE draw digests, the simulation recoveries. |
+| `.claude/commands/` | The slash commands referenced below (`/golden-check`, `/new-column`, `/verify`, `/ecosystem-sweep`). Each is a markdown file with the full procedure, usable by a person as a checklist. |
 
 The whole model (observation model, population dynamics, and likelihood)
 is a single C++ TMB script, `src/TMB/ceattle.cpp`, which `#include`s a
@@ -44,9 +42,9 @@ a recipe is the job.
 
 | I want to … | Start at | Then usually also |
 |----|----|----|
-| add a **selectivity form** | **`adding-a-selectivity-form.html` — read it first.** It names all the files and the two static tests that catch a half-finished form; this row is orientation, not the job | the dispatch is `switch (sel_case)` in `src/TMB/selectivity.hpp`, **not** `switch (sel_type)` — `sel_case` is derived, and form 13 under a random walk rewrites itself to `-13`. Five files are always touched: `R/0-switches.R` (`sel_map`), `R/0-column_schema.R`, `R/data.R`, `R/1-data_check.R`, `R/3-build_map.R`. Codes 1-9, 11, 13 and 15 are taken; the next free one is 16 |
+| add a **selectivity form** | **`adding-a-selectivity-form.html` — read it first.** It names every file and the two static tests that catch a half-finished form | the dispatch is `switch (sel_case)` in `src/TMB/selectivity.hpp`, **not** `switch (sel_type)` — `sel_case` is derived, and form 13 under a random walk rewrites itself to `-13`. Five files are always touched: `R/0-switches.R` (`sel_map`), `R/0-column_schema.R`, `R/data.R`, `R/1-data_check.R`, `R/3-build_map.R`. Codes 1-9, 11, 13 and 15 are taken; the next free one is 16 |
 | add a **likelihood component** | `src/TMB/ceattle.cpp` §13 and the `JnllRow` enum | `R/6-rename_output.R` (row labels) and `.JNLL_ROW_AXIS` in `R/9-profile.R` — all three must agree, and `test-schema-jnll-rows.R` checks it |
-| add a **workbook column** | `R/0-column_schema.R` | **not only there.** [`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md) fills defaults through 23 hand-written calls, not a loop, so a column with a default needs a 24th in `R/0-switches.R`; `meta = TRUE` is the constructor default and `R/data.R`’s `@format` is pinned to the schema by `test-schema-canonical.R`; and `meta_data_names.xlsx` is a committed file regenerated by `data-raw/regenerate_meta_xlsx.R`. `.claude/commands/new-column.md` has the full eight-step recipe |
+| add a **workbook column** | `R/0-column_schema.R` | **not only there.** [`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md) fills defaults through 22 hand-written calls, not a loop, so a column with a default needs a 23rd in `R/0-switches.R`; `meta = TRUE` is the constructor default and `R/data.R`’s `@format` is pinned to the schema by `test-schema-canonical.R`; and `meta_data_names.xlsx` is a committed file regenerated by `data-raw/regenerate_meta_xlsx.R`. `.claude/commands/new-column.md` has the full eight-step recipe |
 | add a **switch value** (a new form name) | `R/0-switches.R` (the relevant `*_map`) | `validate_switches()` rejects anything not in the map |
 | change **what a parameter starts at** | `R/2-build_params.R` | `R/4-build_parameter_bounds.R` if it needs bounds |
 | change **which parameters are estimated** | `R/3-build_map.R` | `R/6-phaser.R` if it should be phased |
@@ -93,9 +91,9 @@ in `R/6-phaser.R`;
 the `plot_*()` family) all take the fitted `Rceattle` object returned by
 [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md).
 
-Before that pipeline runs, a user can assemble or edit the `data_list`
-programmatically and see exactly what a given model needs, see **Data
-assembly and the column schema** below.
+To assemble or edit the `data_list` in R before the pipeline runs, and
+to see what a given model needs, see **Data assembly and the column
+schema** below.
 
 ## Every file in `R/`, and what it does
 
@@ -106,13 +104,12 @@ chain draws on. The nine files a fit passes through are repeated here so
 this table is complete on its own; [The fit pipeline](#the-fit-pipeline)
 gives them in order.
 
-A note on vocabulary used below, because two words do double duty in
-this package. **The map** means the TMB `map`, the mask saying which
-parameters are estimated and which are held fixed; a parameter that is
-“mapped out” is not estimated. A **switch map** (`sel_map`, `q_map`) is
-a different thing: a lookup from the readable name a user types to the
-integer the template consumes. **Deviates** are the annual offsets that
-make a parameter time-varying — estimated per year, and penalized or
+Two words do double duty in this package. **The map** is the TMB `map`,
+the mask saying which parameters are estimated and which are held fixed;
+a parameter that is “mapped out” is not estimated. A **switch map**
+(`sel_map`, `q_map`) is a lookup from the readable name a user types to
+the integer the template consumes. **Deviates** are the annual offsets
+that make a parameter time-varying, estimated per year and penalized or
 integrated as random effects depending on the setting. **Apical**
 selectivity is selectivity at the age or length where the curve peaks.
 
@@ -121,8 +118,8 @@ setting means. Change a value here and the rest of the package follows.
 
 | File | What it holds |
 |----|----|
-| `0-column_schema.R` | **Every workbook column**: name, sheet, type, default, allowed values, old spellings, TMB target, and the one-line `doc` that is written verbatim into `meta_data_names.xlsx`. Note the [`?BS2017SS`](https://afsc-assessments.github.io/Rceattle/reference/BS2017SS.md) field text is *not* generated from it — that lives in `data.R` and is only asserted to agree. `has_default` is wired for `fleet_control` only; for the 34 control and bioenergetics scalars the `default` field is documentation. |
-| `0-switches.R` | The 20 switch maps (`sel_map`, `q_map`, `initMode_map`, …) mapping a readable name to the template’s integer, plus [`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md) / `validate_switches()` / `convert_switches()` / `revert_switches()`. Also the selectivity-penalty sign registry `.RCE_SEL_PEN_POSITIVE` and the `Sel_norm_bin` codes. [`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md) fills defaults through 23 hand-written calls, one per column — not a loop over the schema. |
+| `0-column_schema.R` | **Every workbook column**: name, sheet, type, default, allowed values, old spellings, TMB target, and the one-line `doc` that is written verbatim into `meta_data_names.xlsx`. The [`?BS2017SS`](https://afsc-assessments.github.io/Rceattle/reference/BS2017SS.md) field text is *not* generated from it: that lives in `data.R` and is only asserted to agree. `has_default` is wired for `fleet_control` only; for the 34 control and bioenergetics scalars the `default` field is documentation. |
+| `0-switches.R` | The 20 switch maps (`sel_map`, `q_map`, `initMode_map`, …) mapping a readable name to the template’s integer, plus [`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md) / `validate_switches()` / `convert_switches()` / `revert_switches()`. Also the selectivity-penalty sign registry `.RCE_SEL_PEN_POSITIVE` and the `Sel_norm_bin` codes. [`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md) fills defaults through 22 hand-written calls, one per column — not a loop over the schema. |
 | `0-parameter_dictionary.R` | Internal parameter name → natural-scale name, process, meaning, dimensions. Exported as [`parameter_dictionary()`](https://afsc-assessments.github.io/Rceattle/reference/parameter_dictionary.md). |
 | `0-parameter_index.R` | Parameter → model coordinate: which axes a block’s dimensions mean (species, sex, fleet, year, age, bin), the slot labels for seven non-selectivity blocks *and* for each selectivity form, and the shortened-axis registry. Exported as [`parameter_index()`](https://afsc-assessments.github.io/Rceattle/reference/parameter_index.md). |
 | `0-quantity_dictionary.R` | Reported quantity → meaning, **units**, dimensions. Exported as [`quantity_dictionary()`](https://afsc-assessments.github.io/Rceattle/reference/quantity_dictionary.md). |
@@ -243,9 +240,9 @@ runs, in order.
 
 ### Three dictionaries you can just run
 
-Worth knowing before reading any code: three of the registries above are
-**exported functions**, and between them they answer “what is this
-variable and what are its units” without opening the template.
+Three of the registries above are **exported functions**; between them
+they answer “what is this variable and what are its units” without
+opening the template.
 
 ``` r
 
@@ -254,9 +251,8 @@ parameter_dictionary()  # internal parameter name -> natural-scale name, process
 parameter_index()       # parameter -> which axis each dimension means
 ```
 
-Note the output names changed in the 5.x series: the quantities older
-scripts and the wiki call `NByage` and `biomassSSB` are now `N_at_age`
-and `ssb`.
+Older scripts and the wiki use `NByage` and `biomassSSB` for the
+quantities now named `N_at_age` and `ssb`;
 [`quantity_dictionary()`](https://afsc-assessments.github.io/Rceattle/reference/quantity_dictionary.md)
 is the authority on the current name.
 
@@ -275,60 +271,55 @@ the single source of truth for that correspondence, via four functions:
 
 The mappings live in named vectors: `sel_map`, `tv_sel_map`, `q_map`,
 `tv_q_map`, `comp_loglike_map`, `fleet_map`, `initMode_map`,
-`suitMode_map`, and `hcr_map`. Adding a value to a map is what makes a
-new string name legal; `validate_switches()` rejects anything not
-listed.
+`suitMode_map`, and `hcr_map`. Adding a value to a map makes a new
+string name legal; `validate_switches()` rejects anything not listed.
 
 ## Data assembly and the column schema
 
 A CEATTLE `data_list` has many possible inputs, but any one assessment
-uses only some of them. A few pieces keep that manageable.
+uses only some of them.
 
 **The column schema (`R/0-column_schema.R`) defines every
 `fleet_control` column in one place.** `.rce_column_schema()` records
 each column’s name, type, default value, older accepted spellings, and a
 one-line description. The rest of the package reads the column from
-there, so adding a column means editing this one file:
+there (recipe: `/new-column`):
 
 - [`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md)
-  fills its default,
+  fills its default, one hand-written call each,
 - [`write_data()`](https://afsc-assessments.github.io/Rceattle/reference/write_data.md)
   writes it to the workbook and
   [`read_data()`](https://afsc-assessments.github.io/Rceattle/reference/read_data.md)
   reads it back,
-- the meta sheet and the
-  [`?BS2017SS`](https://afsc-assessments.github.io/Rceattle/reference/BS2017SS.md)
-  field descriptions document it,
+- the meta sheet is regenerated from it by
+  `data-raw/regenerate_meta_xlsx.R`; `R/data.R` must match it,
 - [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
   and
   [`rearrange_data()`](https://afsc-assessments.github.io/Rceattle/reference/rearrange_data.md)
   refer to it by its current name.
 
-If a column has older accepted spellings, list them in the schema’s
-`aliases` field. Whenever a `data_list` enters the pipeline, an older
-spelling is translated to the current name automatically, so workbooks
-and scripts written against earlier column names keep working
-(`test-schema-canonical.R` checks this).
+List a column’s older accepted spellings in the schema’s `aliases`
+field. Whenever a `data_list` enters the pipeline, an older spelling is
+translated to the current name, so workbooks and scripts written against
+earlier column names keep working (`test-schema-canonical.R` checks
+this).
 
-Both spellings at once is the case to know about, because it is what a
-script produces when it assigns an older name to a `data_list` that
+A script produces both spellings at once when it assigns an older name
+to a `data_list` that
 [`read_data()`](https://afsc-assessments.github.io/Rceattle/reference/read_data.md)
 has already translated: the assignment creates the old column beside the
-new one. They must then hold the same setting (an integer switch code
-and its string count as the same) and anything else is an error naming
-both values. Nothing is merged and no blank is filled in from the other
+new one. The two must then hold the same setting (an integer switch code
+and its string count as the same); anything else is an error naming both
+values. Nothing is merged and no blank is filled in from the other
 column, because `NA` is a real setting in several of these
 (`Sel_norm_bin` and `Sel_cap_bin` mean “do not normalize” and “no cap”;
 `Proj_F_proportion` means “no F apportioned”), so filling could not
-express clearing a value and would move a number silently. Until 5.25.0
-the older spelling was simply discarded here, which is how several
-assessment scripts came to be running settings they did not ask for.
+express clearing a value and would move a number silently.
 
 **[`data_requirements()`](https://afsc-assessments.github.io/Rceattle/reference/data_requirements.md)**
-reports, for a given model setup, which inputs that model requires,
-which are optional, and which are ignored, so you can see what a
-configuration needs before fitting rather than hitting a validation
-error partway through.
+reports which inputs a given model setup requires, which are optional
+and which are ignored, so you see what a configuration needs before
+fitting rather than as a validation error partway through.
 
 **[`build_data()`](https://afsc-assessments.github.io/Rceattle/reference/build_data.md)
 with
@@ -346,19 +337,18 @@ configuration.
 [`save_config()`](https://afsc-assessments.github.io/Rceattle/reference/save_config.md)
 and
 [`load_config()`](https://afsc-assessments.github.io/Rceattle/reference/load_config.md)
-write and read a run’s full configuration, the model setup plus the
+write and read a run’s full configuration (the model setup plus the
 estimation and uncertainty settings from
-[`fit_control()`](https://afsc-assessments.github.io/Rceattle/reference/fit_control.md),
-as a plain-text YAML file. Each field is commented with its meaning, and
+[`fit_control()`](https://afsc-assessments.github.io/Rceattle/reference/fit_control.md))
+as a plain-text YAML file. Each field is commented with its meaning and
 fields left at their default are omitted, so two saved runs differ in
-the file only where they differ in substance, and the file reviews
-cleanly in version control.
+the file only where they differ in substance.
 
 Apply a saved configuration with
 `fit_mod(data_list, config = load_config("run.yaml"))`. It fills in only
-the arguments you did not pass yourself, so an explicit argument always
-takes precedence. Every fit also stores the configuration it ran with,
-available as `run_config(fit)`. Formulas, priors, and nested `build_*()`
+the arguments you did not pass, so an explicit argument always takes
+precedence. Every fit stores the configuration it ran with, as
+`run_config(fit)`. Formulas, priors and nested `build_*()`
 specifications all save and reload, so reopening a saved configuration
 reproduces the same fit.
 
@@ -385,19 +375,18 @@ The model opens with the `DATA_*` block (switches such as
 `estimateMode`, `msmMode`, `suitMode`, `initMode`, `srr_fun`, `HCR`,
 plus the data objects), then the `PARAMETER_*` block, then the
 population and observation dynamics, and finally the joint negative
-log-likelihood. The likelihood is accumulated in the `jnll_comp` matrix,
+log-likelihood. The likelihood is accumulated in the `jnll_comp` matrix:
 rows are likelihood components, columns are species/fleet. Each row is
 addressed by a named constant from the `JnllRow` enum (`JNLL_INDEX`,
 `JNLL_CATCH`, `JNLL_COMP`, … `JNLL_LINKAGE_RE`, with `JNLL_N_ROWS`
-dimensioning the matrix), so a row is referred to by name in the C++
-rather than by a bare integer. The enum has **two hand-synced
-partners**: the display names in `R/6-rename_output.R`, and
-`.JNLL_ROW_AXIS` in `R/9-profile.R`, which records whether a row’s
-columns count fleets or species. Adding or reordering a row means
-updating all three by hand, or a row is classified on the wrong axis and
-a survey’s likelihood is reported against a species.
-`tests/testthat/test-schema-jnll-rows.R` reads the template and asserts
-the three agree.
+dimensioning the matrix), so the C++ names a row rather than using a
+bare integer. The enum has **two hand-synced partners**: the display
+names in `R/6-rename_output.R`, and `.JNLL_ROW_AXIS` in `R/9-profile.R`,
+which records whether a row’s columns count fleets or species. Adding or
+reordering a row means updating all three by hand, or a row is
+classified on the wrong axis and a survey’s likelihood is reported
+against a species. `tests/testthat/test-schema-jnll-rows.R` reads the
+template and asserts the three agree.
 
 **Building.** `src/TMB/compile.R` compiles the model
 (`framework = "TMBad"`); `TMB` and `RcppEigen` are `LinkingTo`
@@ -414,7 +403,7 @@ and `R/0-priors.R`.
 user entry point, attached through the per-process builders:
 
 - [`build_srr()`](https://afsc-assessments.github.io/Rceattle/reference/build_srr.md):
-  recruitment (`R0`, `alpha`, `beta`),
+  `R0`, `alpha`, `beta` and `R_init`,
 - [`build_M1()`](https://afsc-assessments.github.io/Rceattle/reference/build_M1.md):
   natural mortality (`M1`),
 - [`build_growth()`](https://afsc-assessments.github.io/Rceattle/reference/build_growth.md):
@@ -430,14 +419,14 @@ user entry point, attached through the per-process builders:
 
 The same formula grammar covers every way a parameter can vary. The
 right-hand side can be a covariate (`~ temp`), a set of time blocks
-(`~ cut(Year, ...)` (the fixed part goes straight to
+(`~ cut(Year, ...)`; the fixed part goes straight to
 [`model.matrix()`](https://rdrr.io/r/stats/model.matrix.html), so there
-is no bespoke block helper), or a year-to-year random effect)
+is no bespoke block helper), or a year-to-year random effect:
 independent (`~ (1|Year)`), a random walk (`rw(1|Year)`), or first-order
 autoregressive (`ar1(1|Year)`). `~ 1` with a `priors` list leaves the
-parameter at one value but places a prior on it. Use `by =` to say what
-the effect varies over, `by = ~ species + sex + age_bin` for the
-population processes, `by = ~ fleet` for catchability and selectivity.
+parameter at one value but places a prior on it. `by =` says what the
+effect varies over: `by = ~ species + sex + age_bin` for the population
+processes, `by = ~ fleet` for catchability and selectivity.
 
 Placing a **prior** on a selectivity, catchability, or
 composition-weight parameter is the `~ 1` case, keyed by
@@ -450,21 +439,21 @@ build_selectivity(linkages = list(
                          priors = list(`(Intercept)` = normal(50, 10)))))
 ```
 
-The Dirichlet-multinomial composition weights take a prior only (they
-have no covariate or random-effect form). See
+The Dirichlet-multinomial weights have no covariate or random-effect
+form. See
 [`vignette("environmental-linkages-and-priors")`](https://afsc-assessments.github.io/Rceattle/articles/environmental-linkages-and-priors.md)
 for the full grammar.
 
-Note that inside `priors =`, the bare constructors `normal()`,
-`lognormal()`, [`gamma()`](https://rdrr.io/r/base/Special.html),
+Inside `priors =`, the bare constructors `normal()`, `lognormal()`,
+[`gamma()`](https://rdrr.io/r/base/Special.html),
 [`beta()`](https://rdrr.io/r/base/Special.html) are **not** the exported
-`prior_*()` functions.
+`prior_*()` functions:
 [`linkage_spec()`](https://afsc-assessments.github.io/Rceattle/reference/linkage_spec.md)
 evaluates the `priors` quosure in a data mask
 (`rlang::eval_tidy(..., data = .prior_dispatch_mask())`) that binds
 `normal` → `prior_normal`, and so on. Both spellings work inside
-[`linkage_spec()`](https://afsc-assessments.github.io/Rceattle/reference/linkage_spec.md),
-and the bare form is intentional, do not “fix” it to
+[`linkage_spec()`](https://afsc-assessments.github.io/Rceattle/reference/linkage_spec.md);
+the bare form is intentional, so do not “fix” it to
 [`prior_normal()`](https://afsc-assessments.github.io/Rceattle/reference/prior_normal.md).
 
 ## Recipes
@@ -496,16 +485,16 @@ and the bare form is intentional, do not “fix” it to
 
 1.  `REPORT()` it in `ceattle.cpp` (and `ADREPORT()` it if it needs a
     standard error). A `REPORT` inside a comment block is not reported,
-    enumerate from a real fit, not from a grep, when checking what a
-    model actually returns.
+    so enumerate a real fit, not a grep, when checking what a model
+    actually returns.
 2.  Give it dimension names in `R/6-rename_output.R` if it is an array.
 3.  Add it to the quantity dictionary in `R/0-quantity_dictionary.R`,
     with its units and whether it holds a standard error.
     `test-schema-quantity-dictionary.R` reads the template and a fit and
     asserts the two agree, so a quantity added here and not there fails
     a test.
-4.  If a quantity is only defined for some configurations, the
-    per-recruit reference points are computed only under `msmMode = 0`,
+4.  If a quantity is only defined for some configurations (the
+    per-recruit reference points are computed only under `msmMode = 0`),
     say so in its `meaning`, and gate it in
     [`report_tables()`](https://afsc-assessments.github.io/Rceattle/reference/report_tables.md).
     CEATTLE leaves a *number* behind rather than a gap, so an ungated
@@ -513,24 +502,22 @@ and the bare form is intentional, do not “fix” it to
 
 ### Add or change a data input
 
-There are two cases. Follow the one that matches.
-
-**A `fleet_control` column** (e.g. a new per-fleet setting), add it in
-**one** place, `R/0-column_schema.R`:
+**A `fleet_control` column** (e.g. a new per-fleet setting) starts in
+`R/0-column_schema.R`:
 
 1.  Add a row to `.rce_column_schema()` with the column’s canonical
     name, type, default, any back-compat `aliases`, and its doc string.
-    Everything downstream
-    ([`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md)
-    default-filling,
-    [`write_data()`](https://afsc-assessments.github.io/Rceattle/reference/write_data.md)/[`read_data()`](https://afsc-assessments.github.io/Rceattle/reference/read_data.md)
-    ordering, the meta sheet, the field dictionary) reads from the
-    schema, so no other file needs editing to make the column persist
-    and round-trip.
+    [`write_data()`](https://afsc-assessments.github.io/Rceattle/reference/write_data.md)
+    and
+    [`read_data()`](https://afsc-assessments.github.io/Rceattle/reference/read_data.md)
+    then round-trip it with no other edit, but a default needs a
+    [`switch_check()`](https://afsc-assessments.github.io/Rceattle/reference/switch_check.md)
+    call, `R/data.R` needs an entry, and `meta_data_names.xlsx` is
+    regenerated by `data-raw/regenerate_meta_xlsx.R` (tests check both).
 2.  Consume the column where it matters
     ([`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md),
     [`rearrange_data()`](https://afsc-assessments.github.io/Rceattle/reference/rearrange_data.md),
-    or the cpp) by its **canonical** name, aliases are already upgraded
+    or the cpp) by its **canonical** name; aliases are already upgraded
     on entry.
 3.  If it is a rename of an existing column, put the old spelling in
     `aliases` and pin it in `test-schema-canonical.R`.
@@ -543,9 +530,9 @@ covariate):
 2.  **Add read *and* write support in `R/0-read_write_excel_data.R`.** A
     new element with no
     [`write_data()`](https://afsc-assessments.github.io/Rceattle/reference/write_data.md)/[`read_data()`](https://afsc-assessments.github.io/Rceattle/reference/read_data.md)
-    handling round-trips to nothing through the standard xlsx format;
-    the feature is silently lossy. (This is exactly how `index_cov` was
-    lost; it is the single most common data-input bug.)
+    handling round-trips to nothing through the standard xlsx format,
+    silently. It is the single most common data-input bug (`index_cov`
+    was lost this way).
 3.  Add validation in `R/1-data_check.R` and, if the model needs it, a
     row in the `data_requirements` table
     (`R/1-data_requirements_table.R`).
@@ -579,23 +566,23 @@ catch a half-finished addition. The general shape:
 The joint negative log-likelihood is assembled in section 13 of
 `ceattle.cpp`, in the `jnll_comp` matrix, addressed by the `JnllRow` row
 constant and the species/fleet column: data likelihoods first, then
-priors and penalties. Add or modify the relevant term there, with any
-math it shares with another term in `likelihood.hpp`, then recompile and
-re-run the regression tests (below) to confirm the objective changes
-only as intended.
+priors and penalties. Add or modify the term there, putting any math it
+shares with another term in `likelihood.hpp`, then recompile and re-run
+the regression tests (below) to confirm the objective changes only as
+intended.
 
 **Add or update the matching `SIMULATE` block at the same time.** Every
 observation and every process error is drawn in a `SIMULATE` block next
-to the density that scores it, so the two are edited together. A
-simulator that has drifted from its likelihood does not error, it makes
+to the density that scores it. A simulator that has drifted from its
+likelihood does not error; it makes
 [`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md)
 report recovery against a data-generating process the model never
-assumed. Three rules the existing blocks follow:
+assumed. The existing blocks follow three rules:
 
-- **Draw what the density assumes**: including the bias-correction
+- **Draw what the density assumes**, including the bias-correction
   convention and the scale (log vs. natural). Where a family has no
   exact sampler (a multivariate normal truncated to the positive
-  orthant, say) note it in the draw and warn from
+  orthant, say), note it in the draw and warn from
   [`sim_mod()`](https://afsc-assessments.github.io/Rceattle/reference/sim_mod.md)
   rather than substituting a different distribution.
 - **Report under a `*_sim` name.** TMB never clears its report
@@ -605,29 +592,29 @@ assumed. Three rules the existing blocks follow:
   data it replaced, which is why `comp_sim`, `caal_sim` and `diet_sim`
   are separate copies.
 - **Do not draw what the model does not define.** If two densities score
-  one latent, the AMAK/Ianelli stock-recruit penalty is the live
-  example; there is no single distribution to draw from. Leave it and
+  one latent (the AMAK/Ianelli stock-recruit penalty is the live
+  example), there is no single distribution to draw from. Leave it and
   warn.
 
 `simulate_state` selects which processes are redrawn (recruitment, M,
 growth, catchability, selectivity). Its slot order is the linkage
 process code, so a random linkage is gated by
-`simulate_state(linkage_process(i))` with no translation, change one and
+`simulate_state(linkage_process(i))` with no translation; change one and
 change the other (`R/0-linkage_encode.R`).
 
 `simulate_period` is a two-slot vector, and **only slot 0 is read**. It
 gates the *process* draws, whose densities cover the hindcast alone.
-Observations are drawn in every period deliberately, because
+Observations are drawn in every period, because
 [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
-splices the negative-`Year` rows back in as the next assessment’s data,
-so gating them would hand the estimation model observations that were
-never simulated. Slot 1 is reserved for a projection-period process draw
-(WHAM uses its equivalent that way) and is inert today; nothing in
+splices the negative-`Year` rows back in as the next assessment’s data;
+gating them would hand the estimation model observations that were never
+simulated. Slot 1 is reserved for a projection-period process draw (as
+WHAM uses its equivalent) and is inert. Nothing in
 [`sim_mod()`](https://afsc-assessments.github.io/Rceattle/reference/sim_mod.md)’s
-interface reaches either slot, and the tests and `tools/verify/` scripts
-that exercise slot 0 do so through the internal `.sim_draw(period = )`.
-Wiring slot 1 up means giving the projection-period deviations a density
-to draw from first.
+interface reaches either slot; the tests and `tools/verify/` scripts
+that exercise slot 0 use the internal `.sim_draw(period = )`. Wiring up
+slot 1 first needs a density for the projection-period deviations to
+draw from.
 
 Both are `DATA_IVECTOR`s, defaulted in
 [`build_osa_data()`](https://afsc-assessments.github.io/Rceattle/reference/build_osa_data.md),
@@ -652,9 +639,9 @@ fixtures and guards:
 Run the suite with
 [`devtools::test()`](https://devtools.r-lib.org/reference/test.html) (or
 [`testthat::test_local()`](https://testthat.r-lib.org/reference/test_package.html)).
-After any C++ change, recompile (`src/TMB/compile.R` or
-[`pkgbuild::compile_dll()`](https://pkgbuild.r-lib.org/reference/compile_dll.html))
-before testing, since the tests load the compiled `.so`/`.dll`.
+After a C++ change, rebuild with `pkgload::load_all(".")` and test with
+`TESTTHAT_PARALLEL=false`; a header-only edit may not rebuild (see
+`inst/dev/TRAPS.md`).
 
 ## Branches and releases
 
@@ -669,7 +656,7 @@ CI runs where are stated once, in
 ## Debugging tips
 
 - **`gradient is of length 1` (or similar).** The population is usually
-  crashing, numbers-at-age going negative or a divide-by-zero. Check
+  crashing: numbers-at-age going negative, or a divide-by-zero. Check
   starting values and bounds for the offending process.
 - **Model will not converge.** Inspect `mod$identified` (when reported)
   to see which parameters are hard to estimate, and adjust their
@@ -684,9 +671,9 @@ CI runs where are stated once, in
 
 ## The argument names, and what is deliberately left alone
 
-The diagnostics take the fitted model as `object` (5.11.0). `Rceattle`
-and `fit` still work and are silent; they warn from 5.12.0 and go in
-6.0.0. To find your own call sites now:
+The diagnostics take the fitted model as `object`. `Rceattle` and `fit`
+still work and are silent by default; they go in 6.0.0. To find your own
+call sites:
 
 ``` r
 
@@ -703,34 +690,33 @@ result and a set of simulations, not a fitted model, so their names say
 more than `object` would.
 
 The rest of the surface below is **known-awkward and deliberately
-unchanged**. It is recorded here so it is not reopened each time someone
-reads the API cold.
+unchanged**, recorded here so it is not reopened each time someone reads
+the API cold.
 
 *Switch codes are frozen.* Renumbering any of them silently reinterprets
 every saved `run_config` YAML, every workbook, and every fitted `.rds`
-in `../Rceattle-models` and `../GOA-ATF-ESP`, the same integer would
-mean something new with nothing to signal it. This outweighs the
-readability of a tidier numbering, so these stay as they are:
+in `../Rceattle-models` and `../GOA-ATF-ESP`: the same integer would
+mean something new with nothing to signal it. That outweighs a tidier
+numbering, so these stay as they are:
 
 - `estimateMode` 0 = “Estimate” but 1 = “Hindcast”, which reads
   backwards.
-- `srr_fun`’s valid set is non-contiguous: 0/2/4 are live, 1/3/5
-  soft-deprecated.
+- `srr_fun`’s valid set is non-contiguous: 0/2/4 are live, 1/3/5 are
+  errors.
 - `sel_map` skips 10, 12 and 14.
 - `initMode` 1 (`Equilibrium`) and 5 (`OffsetEquilibrium`) differ by one
   term.
-- `msmMode` accepts 3–9, then
-  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
-  rejects them.
+- `msmMode` 3–9 are not implemented:
+  [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
+  rejects them (`msmMode_map` holds 0–2).
 
 *Overloaded columns.* `Time_varying_q` is a mode code for most fleets
 but a 1-based `env_data` column index (possibly comma-separated,
 `"1,3"`) when `Catchability` is `Environmental` (5). Code 6 was the
-other such form and is removed, but the overload is not academic: it is
-why the `Time_varying_q` mode checks (`validate_switches()`, the
-soft-deprecation, and the 5.16.0 `"AR1"` refusal) all exempt those
-fleets. A check that forgets it rejects a working model for a value the
-assessor never set as a mode.
+other such form and is removed. The overload is why the `Time_varying_q`
+mode checks (`validate_switches()`, the soft-deprecation, and the
+`"AR1"` refusal) all exempt those fleets; a check that forgets it
+rejects a working model for a value the assessor never set as a mode.
 
 `Sel_curve_pen1` is a penalty weight for selectivity 2/9/11/13 and
 `Sel_curve_pen2` a curvature penalty for 2/9/13, while for 6/7 both are
@@ -753,9 +739,9 @@ with a warning; the live list is `.deprecated_ctl_args` in
 *One more collision.*
 [`compare_sim()`](https://afsc-assessments.github.io/Rceattle/reference/compare_sim.md)
 has an argument named `object` that is a character selector for which
-part of the model to compare, not a fitted model. It predates this
-release and is left alone for the same reason `operating_mod` is, but it
-is the one place where `object` means something else.
+part of the model to compare, not a fitted model. It is left alone for
+the same reason `operating_mod` is, but it is the one place where
+`object` means something else.
 
 *[`profile()`](https://rdrr.io/r/stats/profile.html) is the odd
 diagnostic out.* It refits like
@@ -764,8 +750,8 @@ diagnostic out.* It refits like
 and
 [`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md)
 but takes only a bare `getsd=`, no `phase`, no `fit_control`, so every
-profile point refits at `.refit_like()`’s unphased default. Worth
-knowing when reading a profile that looks flatter than expected.
+profile point refits at `.refit_like()`’s unphased default. Keep that in
+mind when a profile looks flatter than expected.
 
 ## See also
 
@@ -776,5 +762,5 @@ knowing when reading a profile that looks flatter than expected.
   equation-level detail on selectivity, catchability, and predation.
 - Adams et al. (2022), *Fisheries Research* 251:106303, the TMB
   generalisation of CEATTLE. Holsman et al. (2016), *Deep-Sea Research
-  II* 134:360–378 (the original model. Wassermann et al. (2025), *ICES
-  JMS*) the hake/cannibalism extension.
+  II* 134:360–378, the original model. Wassermann et al. (2025), *ICES
+  JMS*, the hake/cannibalism extension.

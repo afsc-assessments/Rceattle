@@ -1,9 +1,8 @@
 # 7. Converting from Stock Synthesis
 
-This vignette converts a Stock Synthesis (SS3) model into the Rceattle
-data structure, following the SS files top-to-bottom and copying each
-block into the corresponding Rceattle sheet. Rceattle column and sheet
-names are in `code` font.
+For assessment authors porting a Stock Synthesis (SS3) model to
+Rceattle: this vignette follows the SS files top to bottom and maps each
+block onto the corresponding Rceattle sheet.
 
 The examples reference the 2019 Pacific hake assessment, in Nis Sand
 Jacobsen’s
@@ -47,7 +46,7 @@ fleet:
 | (assign) | `Fleet_code` | Unique integer; must be in order |
 | `fleet_type` | `Fleet_type` | `1` = fishery, `2` = survey, `0` = ignore |
 | (associate) | `Species` | Species the fleet observes |
-| (per-fleet) | `Month` | Month of observation (added in 4.0.1) |
+| (per-fleet) | `Month` | Month of observation |
 
 `meta_data` documents every remaining `fleet_control` column:
 selectivity, catchability, composition likelihood and the rest.
@@ -62,7 +61,7 @@ SS catch data → Rceattle `catch_data` sheet:
 | `seas` | `Month` | Currently informational; Baranov is annual |
 | `fleet` | `Fleet_code` | Re-map if the codes differ from SS |
 | `catch` | `Catch` | Convert to mt; Rceattle works in mt and thousands of fish throughout (see [`?plot_timeseries`](https://afsc-assessments.github.io/Rceattle/reference/plot_timeseries.md)) |
-| `catch_se` | `Log_sd` | Lognormal F-dev SD |
+| `catch_se` | `Log_sd` | Lognormal catch SD |
 
 ## Survey indices
 
@@ -101,7 +100,7 @@ Comp options, on `fleet_control` unless the row says otherwise:
 |----|----|----|
 | `_N_lbins` (26) | `nlengths` (on `control` sheet) | Number of length bins |
 | Sex aggregation | `Sex` column on `comp_data` | Hake is single-sex |
-| Comp likelihood | `Comp_distribution` | `0` = multinomial, `1` = Dirichlet-multinomial. (`-1` = legacy AFSC convention.) |
+| Comp likelihood | `Comp_distribution` | `0` = multinomial, `1` = Dirichlet-multinomial; default `-1` = AFSC multinomial |
 | Selectivity bin range | `Sel_norm_bin`, `Sel_norm_bin_upper`, `Bin_first_selected` | First selected bin and the bin(s) at which selectivity is normalized to 1 |
 
 `comp_data`:
@@ -117,25 +116,23 @@ Comp options, on `fleet_control` unless the row says otherwise:
 | —           | `Age0_Length1`         | `0` = age comp, `1` = length comp  |
 
 Where the SS comp data covers fewer ages than `nages` (comps to age 15
-in a 20-age model, say), `Sel_norm_bin` / `Sel_norm_bin_upper` and
-`N_sel_bins` control how the missing ages are accumulated. Whether to
-zero-pad or accumulate at the upper age is a question for the assessment
-document or its authors, not an inference.
+in a 20-age model, say), `Comp_accum_young` / `Comp_accum_old` (bin
+ordinals) set the bins the missing ages fold into. Whether to zero-pad
+or accumulate at the upper age is for the assessment document or its
+authors to say.
 
 For a two-sex conversion, `Sel_norm_scope` decides whether the
 normalization reference is pooled over the sexes (`"AcrossSexes"`, the
 default, which keeps relative sex-specific selectivity) or taken per sex
 (`"WithinSex"`). Rceattle’s equivalent of the SS male apical-selectivity
-offset is the `apical` selectivity linkage parameter, added in 5.38.0:
-name the fleet and the sex that holds it, as the SS male-offset option
-does. The ratio is informed only by joint (`comp_data$Sex = 3`)
-composition data, so it is identified only over the years that hold it;
-without such a linkage, relative sex selectivity rests on the
-normalization scope alone.
+offset is the `apical` selectivity linkage parameter: name the fleet and
+the sex that holds it. The ratio is informed only by joint
+(`comp_data$Sex = 3`) composition data, so it is identified only over
+the years that hold it; without such a linkage, relative sex selectivity
+rests on the normalization scope alone.
 
-`Part`, `Ageerr`, `Lbin_lo`, `Lbin_hi`, `CompressBins`, `CompError`,
-`ParmSelect`, and `minsamplesize` from SS do not have direct Rceattle
-equivalents.
+`Part`, `Lbin_lo`, `Lbin_hi`, `CompressBins`, `ParmSelect`, and
+`minsamplesize` from SS do not have direct Rceattle equivalents.
 
 ## Ageing error
 
@@ -158,15 +155,15 @@ SS weight-at-age (`wtatage.ss`) → Rceattle `weight` sheet:
 - On `control`, point `pop_wt_index` and `ssb_wt_index` for each species
   at the appropriate `Wt_index`.
 
-> **SSB hack for SS weight-at-age:** SSB is computed as Σ_(a)(N · weight
-> · maturity). If the SS `wtatage.ss` already bakes maturity into a
-> weight-at-age schedule, point `ssb_wt_index` at that schedule and set
-> every entry of the `maturity` sheet to `1`.
+> **Maturity already in SS weight-at-age:** SSB is Σ_(a)(N ·
+> e^(−Z · `spawn_month`/12) · weight · maturity), times `sex_ratio` for
+> a one-sex species. If the SS `wtatage.ss` already bakes maturity into
+> a weight-at-age schedule, point `ssb_wt_index` at that schedule and
+> set every entry of the `maturity` sheet to `1`.
 
 If SS estimates weight-at-age rather than reading it from data, copy
 from `wtatage_new.ss` instead; those estimates are conditional on the SS
-population dynamics, so they are mildly circular when ported to
-Rceattle.
+population dynamics, so they are mildly circular in Rceattle.
 
 ## Other inputs
 
@@ -178,9 +175,8 @@ Rceattle.
 - `age_trans_matrix` sheet, converts age to length for
   length-composition data. Set every entry to `0` if the assessment has
   no length data; otherwise fill from the SS age-length transition.
-- `ration_data` and `diet_data`, the diet and consumption inputs, for
-  multi-species models only. SS does not provide these; derive them
-  externally.
+- `ration_data` and `diet_data`, the consumption and diet inputs, for
+  multi-species models only; SS does not provide these.
 
 ## Verifying the conversion against SS
 
@@ -200,13 +196,12 @@ numbers-at-age and confirms the catches and indices match SS:
 A remaining difference traces back to a coercion bug in the data port,
 to a mortality convention (Rceattle’s Baranov is annual, SS allows
 seasonal), or to a likelihood difference: Rceattle fits comps as
-multinomial or Dirichlet-multinomial, not in the SS lognormal-on-comp
-forms.
+multinomial or Dirichlet-multinomial.
 
 ## See also
 
-- Vignette 6, [Building a data object without
-  Excel](https://afsc-assessments.github.io/Rceattle/articles/data-without-excel.md),
+- Vignette 6, [Building a data object in
+  R](https://afsc-assessments.github.io/Rceattle/articles/data-without-excel.md),
   for the in-R structure of `data_list`, which is what to script
   against.
 - Vignette 0, [Model options and

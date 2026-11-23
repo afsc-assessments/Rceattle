@@ -7,8 +7,8 @@
 <title>7. Converting from Stock Synthesis • Rceattle</title>
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_Pro-0.4.10/font.css" rel="stylesheet">
-<link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_Pro-0.5.0/font.css" rel="stylesheet">
+<link href="../deps/JetBrains_Mono-0.5.0/font.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="7. Converting from Stock Synthesis">
@@ -21,7 +21,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.67.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.70.8</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -80,16 +80,15 @@
       <h1>7. Converting from Stock Synthesis</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/vignettes/stock-synthesis-conversion.Rmd" class="external-link"><code>vignettes/stock-synthesis-conversion.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.70.8/vignettes/stock-synthesis-conversion.Rmd" class="external-link"><code>vignettes/stock-synthesis-conversion.Rmd</code></a></small>
       <div class="d-none name"><code>stock-synthesis-conversion.Rmd</code></div>
     </div>
 
     
     
-<p>This vignette converts a Stock Synthesis (SS3) model into the
-Rceattle data structure, following the SS files top-to-bottom and
-copying each block into the corresponding Rceattle sheet. Rceattle
-column and sheet names are in <code>code</code> font.</p>
+<p>For assessment authors porting a Stock Synthesis (SS3) model to
+Rceattle: this vignette follows the SS files top to bottom and maps each
+block onto the corresponding Rceattle sheet.</p>
 <p>The examples reference the 2019 Pacific hake assessment, in Nis Sand
 Jacobsen’s <a href="https://github.com/nissandjac/PacifichakeMSE/tree/master/inst/extdata/SS32019" class="external-link"><code>PacifichakeMSE</code></a>
 repo. Apart from consumption and diet, which SS does not estimate, every
@@ -212,7 +211,7 @@ ignore</td>
 <tr class="odd">
 <td>(per-fleet)</td>
 <td><code>Month</code></td>
-<td>Month of observation (added in 4.0.1)</td>
+<td>Month of observation</td>
 </tr>
 </tbody>
 </table>
@@ -260,7 +259,7 @@ composition likelihood and the rest.</p>
 <tr class="odd">
 <td><code>catch_se</code></td>
 <td><code>Log_sd</code></td>
-<td>Lognormal F-dev SD</td>
+<td>Lognormal catch SD</td>
 </tr>
 </tbody>
 </table>
@@ -405,7 +404,7 @@ otherwise:</p>
 <td><code>Comp_distribution</code></td>
 <td>
 <code>0</code> = multinomial, <code>1</code> =
-Dirichlet-multinomial. (<code>-1</code> = legacy AFSC convention.)</td>
+Dirichlet-multinomial; default <code>-1</code> = AFSC multinomial</td>
 </tr>
 <tr class="even">
 <td>Selectivity bin range</td>
@@ -470,26 +469,24 @@ to 1</td>
 </tbody>
 </table>
 <p>Where the SS comp data covers fewer ages than <code>nages</code>
-(comps to age 15 in a 20-age model, say), <code>Sel_norm_bin</code> /
-<code>Sel_norm_bin_upper</code> and <code>N_sel_bins</code> control how
-the missing ages are accumulated. Whether to zero-pad or accumulate at
-the upper age is a question for the assessment document or its authors,
-not an inference.</p>
+(comps to age 15 in a 20-age model, say), <code>Comp_accum_young</code>
+/ <code>Comp_accum_old</code> (bin ordinals) set the bins the missing
+ages fold into. Whether to zero-pad or accumulate at the upper age is
+for the assessment document or its authors to say.</p>
 <p>For a two-sex conversion, <code>Sel_norm_scope</code> decides whether
 the normalization reference is pooled over the sexes
 (<code>"AcrossSexes"</code>, the default, which keeps relative
 sex-specific selectivity) or taken per sex (<code>"WithinSex"</code>).
 Rceattle’s equivalent of the SS male apical-selectivity offset is the
-<code>apical</code> selectivity linkage parameter, added in 5.38.0: name
-the fleet and the sex that holds it, as the SS male-offset option does.
-The ratio is informed only by joint (<code>comp_data$Sex = 3</code>)
-composition data, so it is identified only over the years that hold it;
-without such a linkage, relative sex selectivity rests on the
-normalization scope alone.</p>
-<p><code>Part</code>, <code>Ageerr</code>, <code>Lbin_lo</code>,
-<code>Lbin_hi</code>, <code>CompressBins</code>, <code>CompError</code>,
-<code>ParmSelect</code>, and <code>minsamplesize</code> from SS do not
-have direct Rceattle equivalents.</p>
+<code>apical</code> selectivity linkage parameter: name the fleet and
+the sex that holds it. The ratio is informed only by joint
+(<code>comp_data$Sex = 3</code>) composition data, so it is identified
+only over the years that hold it; without such a linkage, relative sex
+selectivity rests on the normalization scope alone.</p>
+<p><code>Part</code>, <code>Lbin_lo</code>, <code>Lbin_hi</code>,
+<code>CompressBins</code>, <code>ParmSelect</code>, and
+<code>minsamplesize</code> from SS do not have direct Rceattle
+equivalents.</p>
 </div>
 <div class="section level2">
 <h2 id="ageing-error">Ageing error<a class="anchor" aria-label="anchor" href="#ageing-error"></a>
@@ -520,16 +517,17 @@ each fleet at the appropriate <code>Wt_index</code>.</li>
 <code>Wt_index</code>.</li>
 </ul>
 <blockquote>
-<p><strong>SSB hack for SS weight-at-age:</strong> SSB is computed as
-Σ<sub>a</sub>(N · weight · maturity). If the SS <code>wtatage.ss</code>
-already bakes maturity into a weight-at-age schedule, point
-<code>ssb_wt_index</code> at that schedule and set every entry of the
-<code>maturity</code> sheet to <code>1</code>.</p>
+<p><strong>Maturity already in SS weight-at-age:</strong> SSB is
+Σ<sub>a</sub>(N · e<sup>−Z · <code>spawn_month</code>/12</sup> · weight
+· maturity), times <code>sex_ratio</code> for a one-sex species. If the
+SS <code>wtatage.ss</code> already bakes maturity into a weight-at-age
+schedule, point <code>ssb_wt_index</code> at that schedule and set every
+entry of the <code>maturity</code> sheet to <code>1</code>.</p>
 </blockquote>
 <p>If SS estimates weight-at-age rather than reading it from data, copy
 from <code>wtatage_new.ss</code> instead; those estimates are
 conditional on the SS population dynamics, so they are mildly circular
-when ported to Rceattle.</p>
+in Rceattle.</p>
 </div>
 <div class="section level2">
 <h2 id="other-inputs">Other inputs<a class="anchor" aria-label="anchor" href="#other-inputs"></a>
@@ -549,9 +547,9 @@ length-composition data. Set every entry to <code>0</code> if the
 assessment has no length data; otherwise fill from the SS age-length
 transition.</li>
 <li>
-<code>ration_data</code> and <code>diet_data</code>, the diet and
-consumption inputs, for multi-species models only. SS does not provide
-these; derive them externally.</li>
+<code>ration_data</code> and <code>diet_data</code>, the consumption
+and diet inputs, for multi-species models only; SS does not provide
+these.</li>
 </ul>
 </div>
 <div class="section level2">
@@ -576,16 +574,15 @@ injected.</li>
 <p>A remaining difference traces back to a coercion bug in the data
 port, to a mortality convention (Rceattle’s Baranov is annual, SS allows
 seasonal), or to a likelihood difference: Rceattle fits comps as
-multinomial or Dirichlet-multinomial, not in the SS lognormal-on-comp
-forms.</p>
+multinomial or Dirichlet-multinomial.</p>
 </div>
 <div class="section level2">
 <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a>
 </h2>
 <ul>
 <li>Vignette 6, <a href="data-without-excel.html">Building a data object
-without Excel</a>, for the in-R structure of <code>data_list</code>,
-which is what to script against.</li>
+in R</a>, for the in-R structure of <code>data_list</code>, which is
+what to script against.</li>
 <li>Vignette 0, <a href="model-options-and-functionality.html">Model
 options and functionality</a>, for the option tables referenced
 above.</li>

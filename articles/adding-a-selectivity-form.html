@@ -7,8 +7,8 @@
 <title>Adding a selectivity form • Rceattle</title>
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_Pro-0.4.10/font.css" rel="stylesheet">
-<link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_Pro-0.5.0/font.css" rel="stylesheet">
+<link href="../deps/JetBrains_Mono-0.5.0/font.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Adding a selectivity form">
@@ -21,7 +21,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.67.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.70.8</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -80,7 +80,7 @@
       <h1>Adding a selectivity form</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/vignettes/articles/adding-a-selectivity-form.Rmd" class="external-link"><code>vignettes/articles/adding-a-selectivity-form.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.70.8/vignettes/articles/adding-a-selectivity-form.Rmd" class="external-link"><code>vignettes/articles/adding-a-selectivity-form.Rmd</code></a></small>
       <div class="d-none name"><code>adding-a-selectivity-form.Rmd</code></div>
     </div>
 
@@ -90,14 +90,15 @@
 fixes which ages or lengths a fleet’s data can inform, and so which
 biomass the model reports. This article follows one existing form,
 <code>Selectivity = "DoubleNormal"</code> (code 8), through every file
-it touches, so that you can add your own by the same route. Every path,
+it touches, so you can add your own by the same route. Every path,
 function and code quoted here is checked by
-<code>tests/testthat/test-docs-anchors.R</code>, so if this page and the
+<code>tests/testthat/test-docs-anchors.R</code>: if this page and the
 code disagree, the test suite fails.</p>
 <p>Read the <a href="developer-guide.html">developer guide</a> first for
 the pipeline and the switch system, and <code>CONTRIBUTING.md</code> for
 the toolchain and the tests. The numbers below come from Rceattle 5.37.0
-on the bundled <code>GOApollock</code> data.</p>
+on the bundled <code>GOApollock</code> data, except the default-start
+output and the Atka and GOA cod comparisons, which come from 5.56.0.</p>
 <p>Two terms used throughout. A parameter is <em>mapped out</em> when
 the TMB map holds <code>NA</code> for it: it stays at its starting value
 and is not estimated. A <em>drift guard</em> is a test that reads the
@@ -116,9 +117,9 @@ compares strings. The integer appears once, in
 <code><a href="../reference/rearrange_data.html">rearrange_data()</a></code>, which calls
 <code>convert_switches()</code> and passes the code to the template as
 <code>flt_sel_type</code>. The template dispatches on it.</p>
-<p>So the two sides of a form are bound by nothing but agreement: the
-name and code in <code>sel_map</code>, and the <code>case</code> label
-in <code>selectivity.hpp</code>. Several places inside R also key on the
+<p>The two sides of a form are bound by nothing but agreement: the name
+and code in <code>sel_map</code>, and the <code>case</code> label in
+<code>selectivity.hpp</code>. Several places inside R also key on the
 form, and each is a site to edit. Find them with
 <code>grep -n 'NonParametric\|sel_type\|Selectivity %in%' R/</code>,
 rather than trusting this list to stay complete: the parametric-form
@@ -140,27 +141,27 @@ groups in <code>R/0-switches.R</code> (<code>.np</code>,
 separate.</strong> <code>.RCE_SEL_PEN_POSITIVE</code>
 (<code>R/0-switches.R</code>) lists, per <code>Sel_curve_pen</code>
 slot, the forms that read that slot as a weight; it drives the
-negative-weight refusal only. <code>.sd_specs</code>, a few lines below
-it, drives the <code>Sel_shape_sd</code> / <code>Sel_curvature_sd</code>
-/ <code>Sel_devmag_sd</code> conversion and has its own form list. Both
-are keyed by canonical NAME, not by the integer, so a new form is absent
-from both by default. The two fail in opposite directions: absent from
+negative-weight refusal only. <code>.sd_specs</code>, in
+<code><a href="../reference/switch_check.html">switch_check()</a></code>, drives the <code>Sel_shape_sd</code> /
+<code>Sel_curvature_sd</code> / <code>Sel_devmag_sd</code> conversion
+and has its own form list. A new form is absent from both by default,
+and <code>.sd_specs</code> lists each form by code as well as name. The
+two fail in opposite directions: absent from
 <code>.RCE_SEL_PEN_POSITIVE</code>, a negative weight on your form is
 accepted silently; absent from <code>.sd_specs</code>, a user who sets
 the SD column gets a hard stop saying the form does not use that slot.
-Add the name to each slot it reads, in both.</p>
+Add the form to each slot it reads, in both.</p>
 <p><strong>Which code to take.</strong> Codes are frozen, because a
-saved configuration and a saved fit hold the integer. Three are not free
-although no form uses them: 10 was retired; 12 is still named in the
-normalizer’s exclusion list in <code>selectivity.hpp</code>
-(<code>sel_type != 12</code>); and 14 was advertised as a second
-integrable form before being collapsed into 13, which means
-<code>meta_data_names.xlsx</code> – the template every workbook is built
-from – carried <code>14 = ...</code> on <code>dev</code> for six days. A
-<code>Selectivity</code> column written in that window holds it. Retired
-is not free. 15 was taken in 5.46.0 by <code>DoubleNormalSS3</code>,
-Stock Synthesis size pattern 24, so <strong>the next form takes
-16.</strong></p>
+saved configuration and a saved fit hold the integer, so a retired code
+is not free. Three are not free although no form uses them: 10 was
+retired; 12 is still named in the normalizer’s exclusion list in
+<code>selectivity.hpp</code> (<code>sel_type != 12</code>); and 14 was
+advertised as a second integrable form before being collapsed into 13,
+so <code>meta_data_names.xlsx</code> (the template every workbook is
+built from) carried <code>14 = ...</code> on <code>dev</code> for six
+days, and a <code>Selectivity</code> column written then holds it. 15 is
+<code>DoubleNormalSS3</code>, Stock Synthesis size pattern 24, so
+<strong>the next form takes 16.</strong></p>
 </div>
 <div class="section level2">
 <h2 id="the-files-in-pipeline-order">The files, in pipeline order<a class="anchor" aria-label="anchor" href="#the-files-in-pipeline-order"></a>
@@ -267,12 +268,11 @@ at the values 0 and 10 (slot 1 at the length midpoint on a length-based
 fleet), <code>log_sel_slp</code> at 0.5. Two forms override them because
 those defaults describe the wrong curve for their reading of the slots –
 LogisticPM, whose slot 2 is an age-1 LOG-selectivity, and DoubleNormal,
-whose slots are a peak and a logit floor (5.56.0). Both blocks sit
-together in <code><a href="../reference/build_params.html">build_params()</a></code>; copy their shape. Note the peak
-is on the <strong>1-based bin ordinal</strong>, because
-<code>selectivity.hpp</code> evaluates an age-based curve at
-<code>bin + 1</code> – <code>(nages + 1) / 2</code>, not an absolute
-age.</td>
+whose slots are a peak and a logit floor. Both blocks sit together in
+<code><a href="../reference/build_params.html">build_params()</a></code>; copy their shape. The peak is on the
+<strong>1-based bin ordinal</strong>, <code>(nages + 1) / 2</code>, not
+an absolute age, because <code>selectivity.hpp</code> evaluates an
+age-based curve at <code>bin + 1</code>.</td>
 </tr>
 <tr class="even">
 <td>
@@ -384,16 +384,16 @@ receives.</p>
 because <code><a href="../reference/build_params.html">build_params()</a></code> carries a DoubleNormal block: the
 peak starts at the bin mid-range <code>(nages + 1) / 2</code> and the
 floor at logit 0.</p>
-<p><strong>This is what that block is for, and it is the clearest reason
-to write one.</strong> Before 5.56.0 the form took the logistic family’s
-shared defaults, which for its reading of the slots describe a peak
-below the first bin and a floor of <code>plogis(10) = 0.99996</code> –
-selectivity 1 at every age. A flat curve leaves the ascending width with
-no effect on the likelihood, so its gradient is zero and the optimizer
-has no direction to move it in: a phased fit stayed on that ridge at an
-objective of <strong>3085.98</strong>, against <strong>914.10</strong>
-from the derived starts. The peak is what escapes it; a low floor alone
-does not.</p>
+<p><strong>This is the clearest reason to write such a block.</strong>
+Before 5.56.0 the form took the logistic family’s shared defaults, which
+for its reading of the slots describe a peak below the first bin and a
+floor of <code>plogis(10) = 0.99996</code>: selectivity 1 at every age.
+A flat curve leaves the ascending width with no effect on the
+likelihood, so its gradient is zero and the optimizer has no direction
+to move it in: a phased fit stayed on that ridge at an objective of
+<strong>3085.98</strong>, against <strong>914.10</strong> from the
+derived starts. The peak is what escapes it; a low floor alone does
+not.</p>
 <p>You can still supply your own, which is how the derived values were
 chosen – they reach the same optimum a hand-tuned set did:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
@@ -417,15 +417,14 @@ chosen – they reach the same optimum a hand-tuned set did:</p>
 <span><span class="co">#&gt;  [1] 0.002 0.029 0.179 0.579 0.973 0.982 0.898 0.762 0.601 0.441</span></span></code></pre>
 <p>The same data under the shipped <code>DoubleLogistic</code>, also
 static, reach an objective of 918.15 with the same 220 parameters (AIC
-2276.31), so the double normal fits these age compositions a little
-better – on this stock. That does not generalise: on the Atka mackerel
-fishery the dataset’s own <code>NonParametric</code> fits better still
-(755.6 against 989.9), and on the GOA cod trawl fishery the double
-normal collapses to a degenerate corner (<code>sigma_desc</code> to 0
-and the floor to 1, i.e. a plain logistic) and returns convergence FAIL.
-The floor is also only weakly identified here – see the standard error
-below. Terminal female spawning-stock biomass moves from 390,251 t to
-344,169 t.</p>
+2276.31), so the double normal fits these age comps a little better on
+this stock. That does not generalise: on the Atka mackerel fishery the
+dataset’s own <code>NonParametric</code> fits better still (755.6
+against 989.9), and on the GOA cod trawl fishery the double normal
+collapses to a degenerate corner (<code>sigma_desc</code> to 0 and the
+floor to 1, i.e. a plain logistic) and returns convergence FAIL. Here
+the floor is only weakly identified (see the standard error below).
+Terminal SSB moves from 390,251 t to 344,169 t.</p>
 <p><code><a href="../reference/parameter_index.html">parameter_index()</a></code> shows the relabelled slots, and the
 standard-error table shows what a floor at its limit looks like:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
@@ -477,11 +476,11 @@ Actual length: 1.</code></pre>
 schema column declaring <code>allowed = "sel_map"</code> is actually
 validated, so the map cannot drift from the schema. Nothing static
 checks the type lists in <code>ceattle.cpp</code> or the slot-label
-switch; those two are the ones to check by hand. The behaviour tests for
-the form itself are yours to write;
-<code>test-selectivity-double-normal.R</code> is the pattern: a static
-curve against an R implementation, then the map under <code>Off</code>,
-<code>IID</code> and <code>Block</code>.</p>
+switch; check those two by hand. The behaviour tests for the form itself
+are yours to write, on the pattern of
+<code>test-selectivity-double-normal.R</code>: a static curve against an
+R implementation, then the map under <code>Off</code>, <code>IID</code>
+and <code>Block</code>.</p>
 </div>
 <div class="section level2">
 <h2 id="troubleshooting">Troubleshooting<a class="anchor" aria-label="anchor" href="#troubleshooting"></a>
@@ -496,8 +495,8 @@ arm and the arrays are zeroed before it, so a <code>case</code> label
 that does not match leaves the curve at zero, or, with
 <code>Sel_norm_bin</code> set, divides by a zero reference and gives a
 <code>NaN</code> objective. Rebuild the DLL
-(<code>pkgload::load_all(".")</code>); a header edit is inert until
-then.</p>
+(<code>pkgload::load_all(".")</code>) and check it rebuilt: a
+header-only edit can be skipped (<code>inst/dev/TRAPS.md</code>).</p>
 <p><strong>The parameter is not estimated.</strong>
 <code>fit$map$mapList</code> holds <code>NA</code> for every cell that
 is mapped out. If your slot is <code>NA</code>, the
@@ -511,8 +510,8 @@ which is the flat-curve case above.</p>
 <code>Time_varying_sel</code> modes your block names. A mode it does not
 name is mapped out without a message unless <code><a href="../reference/data_check.html">data_check()</a></code>
 refuses it, so <strong>every mode your block omits needs a refusal next
-to the existing per-form checks</strong> – that is the only thing
-standing between a user and a static curve where they asked for a walk.
+to the existing per-form checks</strong>: nothing else stands between a
+user and a static curve where they asked for a walk.
 <code>RandomWalkAscending</code> is the worked example: only the
 <code>DoubleLogistic</code> block frees its deviates, so
 <code><a href="../reference/data_check.html">data_check()</a></code> refuses it on every other form and points the

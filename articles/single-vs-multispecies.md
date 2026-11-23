@@ -1,6 +1,8 @@
 # 5. Single- vs. multi-species models
 
-The key switch between model types is `msmMode` in
+When to fit a single-species or a multispecies (predation) model, and
+how to switch between them, with Bering Sea and Gulf of Alaska examples.
+The switch is `msmMode` in
 [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md):
 
 | `msmMode` | Predation mortality (M2)            |
@@ -14,7 +16,8 @@ model. In multi-species mode, a bioenergetics-based predation component
 (M2) is added to natural mortality so that predator abundance directly
 affects prey survival. The two modes share the same data format and most
 [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
-arguments, switching between them is a one-line change.
+arguments: switch `msmMode`, and lower a fixed M1 where predation now
+supplies part of it (see `BS2017MS`).
 
 ## When to use each mode
 
@@ -42,8 +45,8 @@ estimates as starting values (`inits`) for the multi-species run.
 library(Rceattle)
 
 # BS2017SS and BS2017MS use the same data structure but differ in M1_base:
-# the multi-species dataset has lower residual mortality because some of
-# that mortality is explained by predation (M2) in multi-species mode.
+# the multi-species dataset has lower residual mortality for pollock ages 1-2,
+# where predation (M2) explains part of it in multi-species mode.
 data(BS2017SS)
 data(BS2017MS)
 BS2017SS$projyr <- 2060
@@ -80,15 +83,16 @@ ms_run <- fit_mod(
     verbose      = 1))
 ```
 
-The `niter` argument controls how many times the population dynamics and
-predation mortality equations are iterated to convergence within each
-gradient step. Five iterations is typically sufficient.
+The `niter` argument sets how many times the population dynamics and
+predation mortality equations are iterated in each evaluation of the
+objective; the count is fixed, with no convergence test. Five iterations
+is typically sufficient.
 
 ## Gulf of Alaska example
 
-`GOA2018SS` is a combined three-species data list (pollock, arrowtooth
-flounder, Pacific cod) for the 2018 GOA assessment. The same dataset is
-used for both single- and multi-species runs.
+`GOA2018SS` is a three-species data list (pollock, arrowtooth flounder,
+Pacific cod) for the 2018 GOA assessment, used for both the single- and
+multi-species runs.
 
 ``` r
 
@@ -138,9 +142,8 @@ goa_ms <- fit_mod(
 
 ## Predator-prey suitability (`suitMode`)
 
-`suitMode` determines how prey preference is estimated for each predator
-species. It can be a single value (same for all predators) or a vector
-of length `nspp`.
+`suitMode` sets how prey preference is estimated for each predator
+species: one value for all predators, or a vector of length `nspp`.
 
 | `suitMode` | String | Description | Available? |
 |----|----|----|:--:|
@@ -152,12 +155,11 @@ of length `nspp`.
 | `5` | `"NormalLength"` | Normal suitability on prey length-at-age | Not yet |
 | `6` | `"NormalWeight"` | Normal suitability on prey weight-at-age | Yes |
 
-Values 1, 3 and 5, every length-based mode, are blocked at runtime
-pending validation of the growth-model integration:
+The length-based modes are blocked pending validation of the
+growth-model integration:
 [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
 errors with “Length-based suitability (suitMode 1, 3, or 5) is not yet
-implemented”. Use `suitMode = 0` (empirical), or a weight-based mode:
-`2`, `4` or `6`.
+implemented”.
 
 ## Comparing outputs
 
@@ -176,9 +178,8 @@ plot_ssb_depletion(Rceattle = mod_list, model_names = mod_names)
 plot_m_at_age(Rceattle = mod_list, model_names = mod_names, age = 2)
 plot_m2_at_age_prop(Rceattle = mod_list, model_names = mod_names)
 
-# plot_mortality() accepts only a single model; call separately per model.
-# It draws one component at a time, never the sum: use plot_m_at_age() above for
-# total M (M1 + M2).
+# plot_mortality() takes one model and draws one component at a time, never the
+# sum; plot_m_at_age() above gives total M (M1 + M2).
 plot_mortality(ms_run)                    # M2-at-age, one line per year
 plot_mortality(ms_run, M2 = FALSE)        # M1-at-age instead
 plot_mortality(ms_run, type = "heatmap")  # the same series as an age x year tile

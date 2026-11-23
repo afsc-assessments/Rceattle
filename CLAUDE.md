@@ -619,6 +619,10 @@ One line each; the fuller text and the measured numbers are in
   `om$`** (`verify-mse-hindcast-invariant.R`).
 - **Every error is drawn in a `SIMULATE{}` block beside its density**; a
   new likelihood family owes a draw (`verify-sim-*.R`).
+- **A C++ `if` on a parameter-dependent value is decided once, at
+  taping**, and `report()` re-decides it: `x > 0` drops NaN for the
+  whole fit (write `!(x <= 0)`), and an exact 0 at taping is dropped
+  either way.
 - **An MSE draw is per observation row**, so changing the OM horizon or
   row count changes every later draw (`TODO-mse-horizon.md`).
 - **The guards are not themselves guarded**: golden runs only in

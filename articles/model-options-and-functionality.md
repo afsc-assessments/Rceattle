@@ -17,10 +17,6 @@ Synthesis migration.
 > Equations: see vignette 8 [§Population
 > dynamics](https://afsc-assessments.github.io/Rceattle/articles/model-parameterizations.html#population-dynamics).
 
-Dimensions and the time horizon are set on the `data_list`; the
-population and estimation switches are arguments to
-[`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md):
-
 | Switch | Where set | Role |
 |----|----|----|
 | `nspp`, `nages`, `nsex`, `nlengths` | `data_list` | Population structure |
@@ -37,7 +33,7 @@ population and estimation switches are arguments to
 | `0` | Single-species (M = M1 only) | Validated |
 | `1` | Multi-species, MSVPA Type II predation | Validated |
 | `2` | Multi-species, MSVPA Type III predation | Validated |
-| `3:9` | Kinzey & Punt (2009) functional responses (Holling I/II/III, predator interference, predator preemption, Hassell-Varley, Ecosim) | **Blocked**: [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md) will refuse these until they are validated against the current parameter set |
+| `3:9` | Kinzey & Punt (2009) functional responses (Holling I/II/III, predator interference, predator preemption, Hassell-Varley, Ecosim) | **Not implemented**: [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md) rejects them as invalid `msmMode` codes |
 
 ### `initMode`, initial age structure
 
@@ -53,43 +49,35 @@ Codes (also accept the string aliases listed):
 | `5` | `"OffsetEquilibrium"` | Unfished equilibrium, F_(init) = 0, displaced by the year-1 recruitment deviation instead of sitting at R_(init); init devs off, no init-dev penalty (Cole Monnahan / AFSC GOA pollock convention) |
 | `6` | `"FishedNonEquilibriumSelected"` | As `3`, but F_(init) is weighted by the fishery’s selectivity at age before it accumulates, so the first year decays with ∑(M1 + F_(init) s_(a)). Stock Synthesis’s InitF convention; F_(init) is the apical initial F. Use this where the fishery is size-selective, since `3` charges unselected young ages the full F_(init) and `4` applies it once |
 
-Rceattle estimates one F_(init) per species where SS3 carries one per
-fleet, so under mode `6` a species with more than one fishery decays its
-initial age structure at the **mean** selectivity of those fisheries.
-F_(init) is then the apical initial F of none of them, and
+F_(init) is one per species (SS3 carries one per fleet), so under mode
+`6` a species with more than one fishery decays its initial age
+structure at the **mean** selectivity of those fisheries, F_(init) is
+the apical initial F of none of them, and
 [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
-warns: the initial state sets the SSB scale.
+warns.
 
 #### The initial equilibrium catch
 
 Modes `3`, `4` and `6` estimate F_(init), but nothing identifies it
-unless you give it an observation: the catch the stock yielded under
-that initial fishing mortality, in the year before the hindcast. Write
-it as an ordinary `catch_data` row at `styr - 1`, with the fleet’s
-`Catch` and `Log_sd`. No new columns.
-
-**It is read only under mode `6`.** The prediction is Baranov at
-F_(init) × selectivity, and mode `6` alone builds the initial age
-structure with that same mortality, so scoring it under `3` or `4` would
-fit F_(init) to a catch the population was never subject to. Under any
-other mode the row is dropped, and
+without an observation: the catch taken under it in the year before the
+hindcast. Enter it as an ordinary `catch_data` row at `styr - 1`, with
+the fleet’s `Catch` and `Log_sd`. **It is read only under mode `6`**,
+the one mode that builds the initial age structure with the mortality
+the prediction uses (Baranov at F_(init) × selectivity); under any other
+mode the row is dropped, and
 [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
 says so.
 
-That year also holds ordinary catch history — `GOA2018SS` carries 23
-rows before `styr`, two of them on `styr - 1` — so
+That year also holds ordinary catch history, so
 [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
-names the fleets whose rows it reads whenever it reads any. It refuses
-two rows for one fleet, a non-positive catch or `Log_sd`, a fleet that
-is not an active fishery, and a species with more than one fishery (one
-F_(init) per species leaves no per-fleet split to predict with).
-
+names the fleets whose rows it reads. It refuses two rows for one fleet,
+a non-positive catch or `Log_sd`, a fleet that is not an active fishery,
+and a species with more than one fishery.
 [`clean_data()`](https://afsc-assessments.github.io/Rceattle/reference/clean_data.md)
-moves the row into `data_list$equil_catch_data` so `catch_data` keeps
-one row per fitted catch, and
+moves the row into `data_list$equil_catch_data`, and
 [`write_data()`](https://afsc-assessments.github.io/Rceattle/reference/write_data.md)
 writes it back into the catch sheet. The prediction is
-`quantities$equil_catch_hat`, scored on its own `jnll_comp` row,
+`quantities$equil_catch_hat`, scored on the `jnll_comp` row
 `"Initial equilibrium catch"`.
 
 ### `estimateMode`, what does `fit_mod()` actually do?
@@ -133,17 +121,15 @@ Where year-specific diet data are not supplied (`Year = 0` in
 full hindcast by default.
 
 A *predicted* diet needs estimated suitability **and** a predation
-model: `suitMode` 2, 4 or 6 with `msmMode > 0`. Under `suitMode = 0` the
-model reads suitability from `diet_data` rather than predicting stomach
-proportions, and under `msmMode = 0` no predation is computed at all, so
-in both cases there is no fitted diet to compare against.
+model: `suitMode` 2, 4 or 6 with `msmMode > 0`. Under `suitMode = 0`
+suitability is read from `diet_data`, and under `msmMode = 0` no
+predation is computed, so neither has a fitted diet;
 `residuals(source = "diet")`,
 [`plot_diet_comp()`](https://afsc-assessments.github.io/Rceattle/reference/plot_diet_comp.md),
 [`plot_diet_comp1()`](https://afsc-assessments.github.io/Rceattle/reference/plot_diet_comp1.md)
 and
 [`plot_diet_comp2()`](https://afsc-assessments.github.io/Rceattle/reference/plot_diet_comp2.md)
-refuse on such a fit instead of reporting every observation as a
-complete misfit.
+refuse on such a fit.
 
 ## 3. Selectivity (per fleet)
 
@@ -166,25 +152,16 @@ both work:
 | `8` | `"DoubleNormal"` | Four-parameter double normal: peak, ascending and descending widths, and a right-tail floor (the Stock Synthesis pattern 24 shape without its initial-selectivity and plateau-width parameters) |
 | `9` | `"NonParametricPM"` | Ianelli non-parametric with the ADMB AMAK (“pm”) penalty; see `Sel_avgsel_pen`, `Sel_cap_bin` |
 | `11` | `"LogisticPM"` | AMAK (“pm”) logistic: multiplicative inflection/slope deviations plus a free age-1 log-selectivity |
-| `13` | `"NonParametricIntegrable"` | The `NonParametric` base curve whose deviations have a proper density: the shape penalties are charged once on the base, so `random_sel = TRUE` integrates them. `Time_varying_sel` picks the structure (`Off`, `IID` or `RandomWalk`) |
+| `13` | `"NonParametricIntegrable"` | The `NonParametric` base curve whose deviations have a proper density: the shape penalties are charged once on the base, so `random_sel = TRUE` integrates them |
 | `15` | `"DoubleNormalSS3"` | Stock Synthesis size pattern 24: the six-parameter double normal, each parameter on SS3’s own scale (peak; logit top width; log ascending and descending widths; logit initial and final selectivity) in its own array `sel_dn6`. An end left at SS3’s -999 is unscaled and fixed. Not normalized, as in SS3. All six take selectivity linkages under the SS3 manual’s names; `Time_varying_sel` must be `"Off"` |
 
-There is no `10`: the integer codes are frozen, because renumbering one
-would silently reinterpret every saved config and every fitted `.rds`
-that holds it.
+Codes `10`, `12` and `14` are unused.
 
 The AR(1) forms reuse the `Sel_curve_pen` columns as logit-scale
 correlations, one per dimension: `Sel_curve_pen1` across selectivity
 **bins** (ages or length bins, per `Selectivity_dimension`),
 `Sel_curve_pen2` across **years**, and `Sel_curve_pen3` across
-**cohorts** for `3DAR1`. Before 5.9.0 the 2DAR1 density applied these
-two the wrong way round, so a fit that started from unequal
-`Sel_curve_pen1` / `Sel_curve_pen2` (or that warm-starts from `inits`
-produced by an earlier version) begins from a mirrored point. Refit from
-`inits = NULL`, or transpose the two, when moving a 2DAR1 model across
-that boundary. Fits that start both correlations at 0 are unaffected:
-[`TMBphase()`](https://afsc-assessments.github.io/Rceattle/reference/TMBphase.md)
-holds them there, and only the two reported estimates exchange names.
+**cohorts** for `3DAR1`.
 
 Time-varying behavior is set by `Time_varying_sel` (per fleet):
 
@@ -192,63 +169,57 @@ Time-varying behavior is set by `Time_varying_sel` (per fleet):
 |:--:|----|----|
 | `0` | `"Off"` | Time-invariant |
 | `1` | `"IID"` | Independent annual deviations |
-| `2` | `"AR1"` | **Removed in 5.16.0**: [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md) errors on it. It was never an AR1: the model scored it with the same independent normal penalty as `"IID"`, and the selectivity deviations hold no correlation parameter. Set `"IID"` for the fit it actually gave, or see the replacement below. |
+| `2` | `"AR1"` | **Removed in 5.16.0**: [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md) errors on it. Set `"IID"` for the same fit, or see the replacement below. |
 | `3` | `"Block"` | Time block |
 | `4` | `"RandomWalk"` | Random walk |
 | `5` | `"RandomWalkAscending"` | Random walk on ascending portion of double logistic |
 
-Not every mode applies to every selectivity form, because the model only
-scores a deviation where it defines a density for it:
+Not every mode applies to every selectivity form:
 
 | Selectivity | Modes accepted |
 |----|----|
-| `Logistic`, `DoubleLogistic`, `DescendingLogistic`, `DoubleNormal` | `Off`, `IID`, `Block`, `RandomWalk`; `RandomWalkAscending` on `DoubleLogistic` only – it walks the ascending limb and only that form’s map frees those deviates. For the same model on another form, link its ascending parameters instead (`peak` / `sigma_asc` for `DoubleNormal`, `inf_asc` / `slp_asc` for the logistic family) with `~ rw(1 \| Year)` |
+| `Logistic`, `DoubleLogistic`, `DescendingLogistic`, `DoubleNormal` | `Off`, `IID`, `Block`, `RandomWalk`; `RandomWalkAscending` on `DoubleLogistic` only. On another form, link its ascending parameters instead (`peak` / `sigma_asc` for `DoubleNormal`, `inf_asc` / `slp_asc` for the logistic family) with `~ rw(1 \| Year)` |
 | `NonParametric` | `Off`, `IID`, `RandomWalk` |
-| `NonParametricPM` | `Off`, `RandomWalk`, its deviates *are* the walk increments, so `IID` would describe a different curve than the model builds |
-| `NonParametricIntegrable` | `Off`, `IID`, `RandomWalk`: the base curve holds the shape penalties and the deviations have a proper density, so `random_sel = TRUE` integrates them. `Off` estimates no deviations |
+| `NonParametricPM` | `Off`, `RandomWalk`: its deviates *are* the walk increments, so `IID` would describe a different curve than the model builds |
+| `NonParametricIntegrable` | `Off`, `IID`, `RandomWalk`; `Off` estimates no deviations |
 | `Hake` | `Off`, `IID` |
 | `2DAR1`, `3DAR1` | none; the field’s correlations come from `Sel_curve_pen`, and its conditional sd from `Time_varying_sel_sd`, which they always need |
 
-The two non-parametric modes differ in what they are a deviation *of*.
-`"IID"` scores each annual coefficient deviation about an estimated base
-curve; `"RandomWalk"` scores the year-to-year change in the *realized*
-selectivity, which is renormalized to mean 1 within each year.
+The two non-parametric modes differ in what they are a deviation *of*,
+and
+**[`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
+refuses `random_sel = TRUE` on both**:
 
-**Neither is integrated out, and
-[`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
-refuses `random_sel = TRUE` on both**, fit them with
-`random_sel = FALSE`, the penalized formulation the AMAK model intends.
-The walk’s density says nothing about the level of a year’s
-coefficients, so those directions are improper and the deviation
-standard deviation collapses to zero. The IID density is proper, but the
-AMAK shape penalties (`Sel_curve_pen1`, `Sel_curve_pen2`) and the
-always-on average-selectivity term are charged on each year’s realized
-curve, so the prior actually integrated is the IID normal *times* those
-penalties. None of them scales with `Time_varying_sel_sd`, so the
-estimated sd is biased low whatever the penalty weights are (measured at
-about 5% of the precision at sd 0.35 from the average-selectivity term
-alone, more as the sd grows), and `Sel_curve_pen1` is one-sided, which
-leaves the Laplace objective only piecewise smooth.
-`NonParametricIntegrable` (5.40.0) is the form to fit with
-`random_sel = TRUE`: charging the shape penalties once on the base curve
-makes the mode integrable without moving any penalized fit.
+- **`"IID"`** scores each annual coefficient deviation about an
+  estimated base curve. The density is proper, but the AMAK shape
+  penalties (`Sel_curve_pen1`, `Sel_curve_pen2`) and the always-on
+  average-selectivity term are charged on each year’s realized curve,
+  and none scales with `Time_varying_sel_sd`, so the estimated sd is
+  biased low whatever the penalty weights.
+- **`"RandomWalk"`** scores the year-to-year change in the *realized*
+  selectivity, which is renormalized to mean 1 within each year. Its
+  density says nothing about the level of a year’s coefficients, so
+  those directions are improper and the deviation standard deviation
+  collapses to zero.
 
-Even there, the Laplace marginal likelihood underestimates a variance
-component on small multinomial samples: on `Atka2022`’s fishery (input
-sample sizes 2 to 236) a true deviation SD of 0.35 comes back at 0.24 to
-0.26, 0.70 near 0.61, and 0.35 near 0.32 with ten times the sample size
-(`tools/verify/verify-sim-recovery-np-integrable.R`). Read the reported
-SD as a lower bound unless the compositions are well sampled.
+Fit them with `random_sel = FALSE`, the penalized formulation the AMAK
+model intends, or use `NonParametricIntegrable` (code `13` above) with
+`random_sel = TRUE`.
+
+Even under `NonParametricIntegrable`, the Laplace approximation
+underestimates the deviation SD on small multinomial samples (a true
+0.35 came back at 0.24 to 0.26 on `Atka2022`’s fishery), so read it as a
+lower bound unless the compositions are well sampled.
 
 `Time_varying_sel` is **soft-deprecated as a whole**, and
 [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
 says so on use. The linkage grammar expresses the same IID, random-walk
-and AR(1) deviations, `(1 | Year)`, `rw(1 | Year)`, `ar1(1 | Year)`, and
+and AR(1) deviations (`(1 | Year)`, `rw(1 | Year)`, `ar1(1 | Year)`) and
 [time
 blocks](https://afsc-assessments.github.io/Rceattle/articles/environmental-linkages-and-priors.html#time-blocks)
-as `~ cut(Year, ...)`, per selectivity *parameter* rather than per
-fleet, and additionally lets the deviation standard deviation be
-estimated, given a prior, or held fixed:
+(`~ cut(Year, ...)`) per selectivity *parameter* rather than per fleet,
+and lets the deviation standard deviation be estimated, given a prior,
+or held fixed:
 
 ``` r
 
@@ -257,10 +228,10 @@ build_selectivity(linkages = list(
 ```
 
 Name whichever parameter should vary: `slp_asc`, `inf_asc`, `slp_desc`,
-`inf_desc`, or a `DoubleNormal` alias. The GOA pollock 2025 assessment
-runs that way. `apical` is the one linkage parameter every estimated
-form has: the height of one sex’s curve relative to the other’s, see
-[Environmental linkages and
+`inf_desc`, or a `DoubleNormal` alias. `apical`, the height of one sex’s
+curve relative to the other’s, is available on every estimated form
+except `2DAR1` and `3DAR1`, on a two-sex species; see [Environmental
+linkages and
 priors](https://afsc-assessments.github.io/Rceattle/articles/environmental-linkages-and-priors.html#selectivity).
 
 Bin indexing: with non-parametric and AR(1) forms, selectivity is
@@ -286,17 +257,16 @@ meant. Legacy numbers still work: blank is `"Off"`, and `0`, `-1` or
 
 Fleets given the same `Selectivity_index` share one selectivity
 parameter block, and its penalties and priors are accumulated once, on
-the group’s first non-`Off` fleet. That is not sufficient on its own:
-the columns that shape the curve are read **per fleet**, so they have to
-agree across the group or the fleets end up with different
-selectivities:
+the group’s first non-`Off` fleet. The columns that shape the curve are
+still read **per fleet**, so they have to agree across the group or the
+fleets end up with different selectivities:
 
 | Column | If it differs within the group |
 |----|----|
 | `Selectivity`, `Selectivity_dimension`, `Bin_first_selected`, `N_sel_bins`, `Sel_norm_bin`, `Sel_norm_bin_upper`, `Sel_norm_scope`, `Sel_cap_bin` | The fleets get **different curves**: mirroring fails |
 | `Time_varying_sel` | Resolved to the lead fleet’s setting |
 | `Sel_start_year` | Resolved to the group’s earliest year |
-| `Time_varying_sel_sd` | Honoured per fleet while it is **fixed**. Under `random_sel = TRUE` the group estimates one deviation sd, and TMB averages the initial values of parameters mapped together, this one on the log scale, so the group starts at the *geometric* mean of its estimated members’ values and no fleet keeps its own. [`build_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md) warns |
+| `Time_varying_sel_sd` | Honoured per fleet while it is **fixed**. Under `random_sel = TRUE` the group estimates one deviation sd, starting at the *geometric* mean of its estimated members’ values, so no fleet keeps its own. [`build_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md) warns |
 
 A blank counts as a value in the first row: an unset `Sel_norm_bin`
 (written back as `"Off"`) means “do not normalize”, which is a different
@@ -319,15 +289,12 @@ fleet_control <- rbind(fleet_control, mirror)
 
 ### Sex structure and relative selectivity
 
-Populations are modelled as one or two sexes via `nsex`. **Every
-selectivity form is sex-specific by default** when a species has two
-sexes: each sex gets its own free copy of every selectivity parameter,
-for all forms.
+**Every selectivity form is sex-specific by default** when a species has
+two sexes (`nsex`): each sex gets its own free copy of every selectivity
+parameter.
 
-What a configuration changes is the *relative* scale between the sexes:
-whether males and females can be selected at genuinely different levels,
-or only with different shapes. Normalization makes two independent
-decisions, held by two columns:
+Two independent normalization columns decide whether the sexes keep a
+*relative* scale or differ only in shape:
 
 - **`Sel_norm_bin`, where the reference is taken**, as above.
 - **`Sel_norm_scope`, whose scale it sets.** `"AcrossSexes"` (default)
@@ -338,7 +305,7 @@ decisions, held by two columns:
 
 | `Sel_norm_bin` | `Sel_norm_scope` | Result |
 |----|----|----|
-| `"Off"` | , | nothing normalized; the relative scale is free |
+| `"Off"` | (any) | nothing normalized; the relative scale is free |
 | `"Max"` | `"AcrossSexes"` | maximum over bins **and sexes**: one sex peaks at 1, the other keeps whatever relative level its form gives it |
 | `"Max"` | `"WithinSex"` | each sex scaled at **its own plateau**, wherever that falls |
 | a bin | `"AcrossSexes"` | anchored at that bin, sexes kept comparable |
@@ -347,90 +314,63 @@ decisions, held by two columns:
 For strongly dimorphic stocks the relative sex selectivity is usually
 the quantity of interest, so keep the `"AcrossSexes"` default. Where the
 sexes plateau at different ages and each should be scaled at its own
-plateau, use `Sel_norm_bin = "Max"` with `Sel_norm_scope = "WithinSex"`:
-more robust than naming a bin, since a named bin stops being the plateau
-once selectivity is time-varying while the maximum tracks it.
+plateau, use `Sel_norm_bin = "Max"` with `Sel_norm_scope = "WithinSex"`
+rather than a named bin, which stops being the plateau once selectivity
+is time-varying.
 
 `Sel_norm_scope` has no effect on a one-sex species, or where
-`Sel_norm_bin` is `"Off"`. Before Rceattle 5.8.0 a named bin always
-implied `"WithinSex"` and max-normalization always implied
-`"AcrossSexes"`; a two-sex fleet normalizing at a named bin should set
-`Sel_norm_scope = "WithinSex"` explicitly to keep its old behaviour.
+`Sel_norm_bin` is `"Off"`.
 
 #### Which forms can hold a sex difference in level
 
-Normalization *preserves* a level ratio; it cannot create one.
-`"AcrossSexes"` divides both sexes by one pooled scalar, so whether the
-sexes can reach different levels at all is a property of the **form**,
-not of these two columns:
+`"AcrossSexes"` normalization *preserves* a level ratio and cannot
+create one, so whether the sexes can reach different levels at all is a
+property of the **form**. (`"WithinSex"` at a named bin divides each sex
+by its own value there, so two sexes whose curves differ in shape end on
+different plateaus.)
 
 | Form | Sex difference in level, from the form alone |
 |----|----|
 | `Logistic`, `DescendingLogistic`, `LogisticPM` | **none**: the curve tends to 1 for either sex, whatever its parameters |
 | `NonParametric`, `NonParametricPM`, `NonParametricIntegrable` | **none**: each sex is re-centred so its own mean selectivity-at-age is exactly 1, every year |
-| `Hake` | **none**: normalizes within sex by its own maximum; `Sel_norm_scope` is not read (`LogisticPM` likewise: its `Sel_norm_bin` is a penalty range) |
+| `Hake` | **none**: normalizes within sex by its own maximum; `Sel_norm_scope` is not read (nor by `LogisticPM`, which is not normalized at all) |
 | `DoubleNormal` | **old-age plateau only**: the right-tail floor is sex-specific, but both sexes peak at exactly 1 |
 | `DoubleLogistic`, `2DAR1`, `3DAR1` | **free**: the height is a free function of that sex’s own parameters |
 
-**Every row above describes the form on its own.** Since 5.38.0 an
-`apical` selectivity linkage adds a per-sex height multiplier to any
-estimated form, so a “none” here means the shape cannot hold the
-difference, not that the model cannot. The multiplier is applied after
-the form’s own centring or normalization.
+Every row above describes the form on its own. An `apical` selectivity
+linkage adds a per-sex height multiplier to any estimated form but
+`2DAR1`/`3DAR1`, applied after the form’s own centring and before
+`Sel_norm_bin` normalization (so `Sel_norm_scope` must be
+`"AcrossSexes"`, or `Sel_norm_bin` `"Off"`), so a “none” here means the
+shape cannot hold the difference, not that the model cannot.
+[`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
+notes the unread `Sel_norm_scope` on a two-sex `Hake` or `LogisticPM`
+fleet left on the default `"AcrossSexes"`; `LogisticPM` reuses
+`Sel_norm_bin` as a penalty bin range.
 
-A two-sex `Logistic` fleet estimates a slope and an inflection for each
-sex, and an `apical` linkage adds a height on top of two already-free
-shapes: five parameters, slope and inflection per sex plus one
-multiplier on the sex named. This is where the Stock Synthesis analogy
-stops. An SS male offset is usually an offset from the female *shape*,
-so the shape is shared and one parameter carries the sex difference;
-here both shapes stay free and the offset carries only the height. The
-distinction matters when the sexes’ compositions are thin: each shape is
-informed by every row for that sex, but the height only by the joint-sex
-rows (`Sex = 3`). Sharing a shape across the sexes is not a switch today
-– it needs a hand-edited `map` that points one sex’s cells at the
-other’s.
+On a two-sex `Logistic` fleet an `apical` linkage gives five parameters:
+slope and inflection per sex, plus one height multiplier on the sex
+named. Only the joint-sex rows (`Sex = 3`) inform that height. Unlike a
+Stock Synthesis male offset, usually an offset from the female *shape*,
+both shapes stay free; sharing a shape across the sexes needs a
+hand-edited `map` that points one sex’s cells at the other’s.
 
-Measured on `GOAatf`’s two-sex fishery, as the ratio of male to female
-maximum selectivity: `Logistic` 1.00, `DoubleLogistic` 1.97, `2DAR1`
-4.53. The same `DoubleLogistic` fit under `"WithinSex"` returns to 1.00,
-which is the column doing its job, not the form losing the difference.
-Going non-parametric does **not** open this up: a level ratio is then a
-by-product of shape rather than something the data can inform.
-`inst/dev/two-sex-selectivity-example.R` fits the comparison.
+**The composition data must be joint.** `comp_data$Sex = 3` stacks
+female and male composition into a single vector that is normalized to
+sum to 1 as a whole (as Stock Synthesis does), so the sex ratio is fit
+and the relative selectivity is informed. `Sex = 1` or `2` put each sex
+in its own row, each summing to 1 independently: those hold **no**
+sex-ratio information, and `Sel_norm_bin` then makes no difference
+however it is set. There is no separate sex-ratio likelihood component.
 
-Two things constrain what is actually estimable:
-
-- **The composition data must be joint.** `comp_data$Sex = 3` stacks
-  female and male composition into a single vector that is normalized to
-  sum to 1 as a whole (as Stock Synthesis does), so the sex ratio is fit
-  and the relative selectivity is informed. `Sex = 1` or `2` put each
-  sex in its own row, each summing to 1 independently: those hold **no**
-  sex-ratio information, and `Sel_norm_bin` then makes no difference
-  however it is set. There is no separate sex-ratio likelihood
-  component.
-- **`Sel_norm_scope` is not read by `Selectivity = "Hake"` or
-  `"LogisticPM"`**, because neither goes through the shared normalizer;
-  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
-  says so for a two-sex fleet on the default `"AcrossSexes"`. Hake
-  normalizes each sex to its own maximum in its own block, so both sexes
-  reach 1 at their own peaks and the normalization cannot express a
-  level difference; LogisticPM does not normalize at all, and reuses
-  `Sel_norm_bin` as a penalty bin range. On either form an `apical`
-  linkage can still set the per-sex level, since the multiplier is
-  applied after the form’s own rescaling.
-
-Related settings elsewhere: the sex ratio at recruitment is **fixed
-input**, not estimated, it comes from the `sex_ratio` sheet at the first
-modelled age. Sex-specific natural mortality is `build_M1(M1_model = )`
-(§7) and sex-specific growth is
+The sex ratio at recruitment is **fixed input**, not estimated, from the
+`sex_ratio` sheet at the first modelled age. Sex-specific natural
+mortality is `build_M1(M1_model = )` (§7) and sex-specific growth is
 [`build_growth()`](https://afsc-assessments.github.io/Rceattle/reference/build_growth.md)
-(§8). The per-sex hooks in the linkage grammar are
-`linkage_spec(by = ~ sex)` and its `sex =` filter.
-
-`fleet_control` also holds a `Sex` column, which is **inert**: read
-nowhere in the model, retained only so older workbooks still read. Sex
-is set per observation on `comp_data`, not per fleet.
+(§8); the linkage grammar’s per-sex hooks are `linkage_spec(by = ~ sex)`
+and its `sex =` filter. The `fleet_control` `Sex` column is **inert**,
+kept only so older workbooks still read; sex is set per observation on
+`comp_data`.
 
 ## 4. Catchability (per fleet)
 
@@ -446,8 +386,8 @@ Set the `Catchability` column of `fleet_control`:
 | `2` | `"Estimated-with-prior"` | Estimated with a lognormal prior on q: mean `Catchability_init` (median when `bias_adjust_proc = FALSE`), log-scale SD `Catchability_prior_sd` |
 | `3` | `"Analytical"` | The closed-form maximum likelihood q for the fleet’s `Index_distribution` (concentrated likelihood). Refused under `TruncatedNormal`, which has no closed-form q |
 | `4` | `"PowerEquation"` | Power-function catchability (q · B^(α)). **Not implemented**: [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md) rejects it. |
-| `5` | `"Environmental"` | q linked to an environmental index. **Deprecated in 4.9.0** (recorded in the 5.8.1 notes), express it as a covariate linkage instead: `build_catchability(linkages = list(q = linkage_spec(~ temp, by = ~ fleet)))`. The series is named by `Time_varying_q`, not `Catchability_index`. |
-| `6` | `"AR1"` | **Removed in 5.12.0**: [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md) errors on it. It never worked: the log-q deviates were gated on `Time_varying_q`, which under this form holds an `env_data` column index rather than a mode, so q came back constant. Express the Rogers et al. (2024) form as a q linkage instead, see below. |
+| `5` | `"Environmental"` | q linked to an environmental index. **Deprecated in 4.9.0**: express it as a covariate linkage instead, `build_catchability(linkages = list(q = linkage_spec(~ temp, by = ~ fleet)))`. The series is named by `Time_varying_q`, not `Catchability_index`. |
+| `6` | `"AR1"` | **Removed in 5.12.0**: [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md) errors on it. Its deviates were never estimated, so q came back constant. Express the Rogers et al. (2024) form as a q linkage instead, see below. |
 | `7` | `"AnalyticalArith"` | q solved from the fleet’s own index observations using the AMAK arithmetic-mean estimator; pair with `Index_distribution = "MVN"` for a supplied covariance |
 
 ### Index likelihood (`Index_distribution`)
@@ -457,29 +397,11 @@ residuals and plot intervals are computed.
 
 | Value | String | Scale | Description |
 |:--:|----|----|----|
-| `0` | `"Lognormal"` | log | Independent lognormal on `log(obs)`. The historical default. `Log_sd` is a log-scale CV. |
+| `0` | `"Lognormal"` | log | Independent lognormal on `log(obs)`. The default. `Log_sd` is a log-scale CV. |
 | `1` | `"MVN"` | natural | The AMAK/`ebswp` `DoCovBTS = 1` bare quadratic form `0.5 · r' Σ⁻¹ r` on the residual `obs − q·pred`. Drops the normalizing constant, so the reported value matches ADMB. Needs `index_cov`. |
 | `2` | `"MVNORM"` | natural | The full multivariate-normal negative log-density. Identical fit to `"MVN"` (the extra term is constant), but properly normalized. Needs `index_cov`. |
 | `3` | `"Normal"` | natural | Normal on `obs − q·pred`, with `Log_sd` read as an **absolute** natural-scale sd, not a CV. No lognormal bias correction. |
 | `4` | `"TruncatedNormal"` | natural | The same normal, left-truncated at zero. An index cannot be negative, so this is the only natural-scale family whose simulator and likelihood are the same distribution. **Prefer it over `"Normal"`** unless you need an exact ADMB comparison. [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md) refuses it with `Catchability = "Analytical"`. |
-
-The `MVN` families read their Σ from `index_cov`, a VAST-derived
-covariance for instance, and pair with the AMAK arithmetic-mean q
-(`"AnalyticalArith"`).
-
-**A family’s scale is recorded in three places.** Adding one to
-`index_distribution_map` is not enough: it must also be classified in
-`.index_rows_natural_scale()`, which is what
-`residuals(type = "pearson")`,
-[`plot_index()`](https://afsc-assessments.github.io/Rceattle/reference/plot_index.md)’s
-observation interval and
-[`plot_index_residual()`](https://afsc-assessments.github.io/Rceattle/reference/plot_index_residual.md)
-read. A natural-scale family that misses it does not error, it silently
-gets the log-scale formula, whose `σ²/2` term is then a number the size
-of the index squared. A family carrying a covariance matrix rather than
-a scalar sd goes in `.index_fleets_covariance()` as well, which is what
-those same three consumers read to take their sd from `index_cov`
-instead.
 
 Time-varying behavior is set by `Time_varying_q` (per fleet):
 
@@ -487,18 +409,18 @@ Time-varying behavior is set by `Time_varying_q` (per fleet):
 |:--:|----|----|
 | `0` | `"Off"` | Time-invariant |
 | `1` | `"IID"` | Independent annual deviations |
-| `2` | `"AR1"` | **Removed in 5.16.0**: [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md) errors on it. It was never an AR1: the model scored it with the same independent normal penalty as `"IID"`, no correlation parameter exists for this switch (the one that did belonged to the removed `Catchability = "AR1"` form). Set `"IID"` for the fit it actually gave, or see the replacement below. |
+| `2` | `"AR1"` | **Removed in 5.16.0**: [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md) errors on it. Set `"IID"` for the same fit, or see the replacement below. |
 | `3` | `"Block"` | Time block |
 | `4` | `"RandomWalk"` | Random walk |
 
 `Time_varying_q` is **soft-deprecated as a whole**, as
 `Time_varying_sel` is, and
 [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
-says so on use. The linkage grammar expresses the same IID, random-walk
-and AR(1) deviations, and [time
-blocks](https://afsc-assessments.github.io/Rceattle/articles/environmental-linkages-and-priors.html#time-blocks)
-as `~ cut(Year, ...)`, and additionally lets the deviation standard
-deviation be estimated, given a prior, or held fixed:
+says so on use; the linkage grammar expresses the same deviations and
+[time
+blocks](https://afsc-assessments.github.io/Rceattle/articles/environmental-linkages-and-priors.html#time-blocks),
+with the deviation standard deviation estimated, given a prior, or held
+fixed:
 
 ``` r
 
@@ -507,8 +429,8 @@ build_catchability(linkages = list(
 ```
 
 The removed `Catchability = "AR1"` (QAR1, Rogers et al. 2024) is the
-same formula plus the series the deviations are *observed* against: that
-is what makes it the state-space form rather than a free AR(1) on q:
+same formula plus the series the deviations are *observed* against,
+which makes it the state-space form rather than a free AR(1) on q:
 
 ``` r
 build_catchability(linkages = list(
@@ -516,9 +438,6 @@ build_catchability(linkages = list(
                    observe = "<that fleet's env_data column>",
                    obs_sd  = <its measurement SD>)))
 ```
-
-`obs_sd` is that series’ measurement standard deviation, which the old
-switch never asked for. GOA pollock 2025 is a worked example.
 
 Under `Catchability = "Environmental"`, `Time_varying_q` instead names
 the `env_data` series to use: an integer, or a string of them
@@ -529,62 +448,50 @@ the `env_data` series to use: an integer, or a string of them
 Catchability follows the **data**, not the fleet type. A fleet is given
 a q if it holds `index_data` the model fits, a fishery with a CPUE
 series as much as a survey. A fishery’s index is predicted from that
-fishery’s own selectivity, which is what CPUE should share; an index
-needing a *different* selectivity has to be its own fleet, since
-`sel_at_age` is one block per fleet (the same is true of
-`Observation_units`).
+fishery’s own selectivity; an index needing a *different* selectivity
+has to be its own fleet, since `sel_at_age` is one block per fleet (the
+same is true of `Observation_units`).
 
 A fleet with no fitted index rows gets **no** q, whatever `Catchability`
-says, a catchability with no index to inform it is a flat direction in
-the likelihood. This applies to a composition-only survey exactly as it
-does to an ordinary fishery.
-[`print()`](https://rdrr.io/r/base/print.html) marks the case so the
-column does not read as authoritative:
+says, since nothing would inform it; that includes a composition-only
+survey. [`print()`](https://rdrr.io/r/base/print.html) marks the case:
 
     [2] Fishery │ Fishery │ sel: Logistic │ q: Estimated (fixed: no index data)
 
 The exception is sharing. Fleets with the same `Catchability_index`
-share one q parameter, so the group can only hold one answer to “is it
-estimated?”, and the **lead** fleet (the group’s first non-`Off` fleet)
-decides for all of them, regardless of type. A fleet with no index of
-its own is therefore still estimated if its group’s lead is, and a fleet
-whose own `Catchability` is `"Estimated"` is still fixed if its lead is
+share one q parameter, so the **lead** fleet (the group’s first
+non-`Off` fleet) decides for all of them whether it is estimated,
+regardless of type: a fleet with no index of its own is still estimated
+if its lead is, and an `"Estimated"` fleet is still fixed if its lead is
 `"Fixed"`. Give a fleet its own `Catchability_index` when it should be
-estimated independently.
+estimated independently. Within a group:
 
-`"Analytical"` and `"AnalyticalArith"` are the exception to that
-sharing: they solve q from each fleet’s own index observations rather
-than from the shared parameter. A group containing one does **not**
-share a catchability, even when every fleet in it holds the same
-setting, since each still solves separately. Give those fleets their own
-`Catchability_index`, or use an estimated q for the whole group.
-
-`"Environmental"` *does* share: it rebuilds q from the group’s shared
-parameters (`index_log_q`, `index_q_beta`), so the whole group follows
-the lead fleet, including when the fleets name different environmental
-series in `Time_varying_q`, where the lead’s series is the one used. A
-`"Fixed"` lead is a third case: nothing is estimated for the group and
-nothing is shared, so each fleet sits at its own `Catchability_init`.
-Where a q *is* estimated for the group, its starting value is the mean
-of the group’s log `Catchability_init` (TMB averages the initial values
-of parameters mapped together) rather than the lead’s; only the prior
-centre uses the lead’s.
-[`build_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md)
-warns when those inits differ, and names the geometric mean the group
-will start from. A shared q starting at the mean scales a survey’s whole
-predicted index by a constant factor, which no residual pattern
-distinguishes from a real change in abundance.
-
-`Time_varying_q_sd` is shared the same way once it is estimated, which
-is `random_q = TRUE` with a `Time_varying_q` of `"IID"` or
-`"RandomWalk"`: the group gets one deviation sd starting at the
-geometric mean of its estimated members’ values, and
-[`build_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md)
-warns when they differ. While the sd is fixed, each fleet keeps its own.
-`Catchability_prior_sd` is a prior sd the assessor sets and is never
-estimated, but in a shared group only the **lead** fleet’s is read: the
-prior is scored once, on the lead, so a differing value on a non-lead
-fleet has no effect at all.
+- **`"Analytical"` / `"AnalyticalArith"`** solve q from each fleet’s own
+  index observations, so a group containing one does **not** share a
+  catchability, even when every fleet in it holds the same setting. Give
+  those fleets their own `Catchability_index`, or use an estimated q for
+  the whole group.
+- **`"Environmental"`** *does* share: the whole group follows the lead
+  fleet, including its environmental series where the fleets name
+  different ones in `Time_varying_q`.
+- **A `"Fixed"` lead** estimates and shares nothing: each fleet sits at
+  its own `Catchability_init`.
+- **An estimated q** starts at the mean of the group’s log
+  `Catchability_init`, not the lead’s; only the prior centre uses the
+  lead’s.
+  [`build_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md)
+  warns when those inits differ and names the geometric mean: a shared q
+  starting there scales a survey’s whole predicted index by a constant
+  factor, which no residual pattern distinguishes from a real change in
+  abundance.
+- **`Time_varying_q_sd`**, once estimated (`random_q = TRUE` with
+  `Time_varying_q` of `"IID"` or `"RandomWalk"`), is one sd for the
+  group, starting at the geometric mean of its estimated members’
+  values, and
+  [`build_map()`](https://afsc-assessments.github.io/Rceattle/reference/build_map.md)
+  warns when they differ. While fixed, each fleet keeps its own.
+- **`Catchability_prior_sd`** is read only on the lead, where the prior
+  is scored once.
 
 [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
 warns on the analytical case, on a `Fixed` lead that leaves fleets on
@@ -593,9 +500,7 @@ differs within a group.
 
 ### How an index is timed against mortality
 
-Which numbers an index is predicted from depends on the kind of
-observation, which the model keys on `Fleet_type`; there is no column to
-set.
+The index prediction depends on `Fleet_type`; there is no column to set.
 
 A **survey** index is a snapshot at the month given in `index_data`:
 
@@ -612,42 +517,38 @@ $`F`$ (since $`F_a = q_e E s_a`$):
 \qquad \bar{N}_{a,y} = N_{a,y}\frac{1 - e^{-Z_{a,y}}}{Z_{a,y}}
 ```
 
-$`\bar{N}`$ is the mean-numbers term the catch equation uses, and the
-one a fishery’s age composition is already built on, so a fleet’s index,
-catch, and comps are consistent by construction. `Month` is not read for
-a fishery’s index rows.
+The catch equation and a fishery’s age composition use the same
+$`\bar{N}`$, so a fleet’s index, catch, and comps are consistent.
+`Month` is not read for a fishery’s index rows.
 
 This affects trend, not just scale, so a constant $`q`$ cannot absorb
-it. At `Month = 6`, $`e^{-Z/2}`$ approximates $`\bar{N}/N`$ to within 1%
-at $`Z = 0.5`$ but is 9.6% low at $`Z = 1.5`$; at `Month = 0` the
-snapshot factor is $`e^0 = 1`$, against $`\bar{N}/N`$ of 0.906 at
-$`Z = 0.2`$ and 0.432 at $`Z = 2.0`$. A seasonal fishery needs no
-special treatment, its exact window predictor differs from the
-year-average by a near-constant factor $`q`$ takes up (1–3% trend error
-across $`F`$ 0.05–0.8 for $`M`$ between 0.1 and 0.5, against 29–33% for
-a snapshot).
+it. At `Month = 6`, $`e^{-Z/2}`$ is 1.0% below $`\bar{N}/N`$ at
+$`Z = 0.5`$ but 8.8% below at $`Z = 1.5`$; at `Month = 0` the snapshot
+factor is $`e^0 = 1`$, against $`\bar{N}/N`$ of 0.906 at $`Z = 0.2`$ and
+0.432 at $`Z = 2.0`$. A seasonal fishery needs no special treatment: its
+exact window predictor differs from the year-average by a near-constant
+factor $`q`$ takes up (1–3% trend error across $`F`$ 0.05–0.8 for $`M`$
+between 0.1 and 0.5, against 29–33% for a snapshot).
 
 ### A snapshot-timed index on a fishery’s selectivity
 
 This is the AMAK/ebswp CPUE form, and what an ADMB bridge needs. Give
 the index its own `Survey` fleet and point that fleet’s
-`Selectivity_index` at the fishery: fleets sharing a `Selectivity_index`
-share one selectivity block, so the index gets the fishery’s selectivity
-along with its own `Month` and its own q. Build the mirror by copying
-the fishery’s `fleet_control` row; see [Sharing a selectivity between
-fleets](#sharing-a-selectivity-between-fleets) for the columns that have
-to agree, and why a hand-authored row can silently get a different
-curve.
+`Selectivity_index` at the fishery, so the index gets the fishery’s
+selectivity along with its own `Month` and its own q. Build the mirror
+by copying the fishery’s `fleet_control` row; see [Sharing a selectivity
+between fleets](#sharing-a-selectivity-between-fleets) for the columns
+that have to agree.
 
 ## 5. Composition likelihoods
 
 Set `Comp_distribution` (or `CAAL_distribution`) per fleet:
 
-| Value | String                                       |
-|:-----:|----------------------------------------------|
-| `-1`  | `"MultinomialAFSC"` (legacy AFSC convention) |
-|  `0`  | `"Multinomial"`                              |
-|  `1`  | `"DirichletMultinomial"`                     |
+| Value | String |
+|:--:|----|
+| `-1` | `"MultinomialAFSC"` (AFSC convention; the `Comp_distribution` default) |
+| `0` | `"Multinomial"` (the `CAAL_distribution` default) |
+| `1` | `"DirichletMultinomial"` |
 
 Diet composition uses an analogous switch on the bioenergetics control
 sheet: `Diet_distribution = 0` (multinomial) or `1`
@@ -659,25 +560,21 @@ fleet.
 
 `age_error` holds one matrix per species by default, and every fleet
 reads its own species’. A stock whose ageing protocol changed part way
-through a series needs more than one — GOA Pacific cod reads its
-pre-2007 survey otoliths about a year older than its post-2007 ones — so
-both `age_error` and `fleet_control` take an optional
-`Ageing_error_index`: give the matrices index values, then point each
-fleet at the one that aged its samples. Omit the column, or leave it
-`NA`, and the index is the species, the behaviour of a model with one
-matrix per species. The two eras of a survey are then two fleets sharing
-a `Selectivity_index` and a `Catchability_index`, so they still estimate
-one selectivity and one catchability between them.
+through a series needs more than one (GOA Pacific cod reads its pre-2007
+survey otoliths about a year older than its post-2007 ones), so both
+`age_error` and `fleet_control` take an optional `Ageing_error_index`:
+give the matrices index values, then point each fleet at the one that
+aged its samples. Omit the column, or leave it `NA`, and the index is
+the species. The two eras of a survey are then two fleets sharing a
+`Selectivity_index` and a `Catchability_index`.
 
-Each index belongs to one species, because a matrix’s rows are sized and
-offset by that species’ age range.
+Each index belongs to one species, since a matrix’s rows are sized by
+that species’ age range.
 [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
 refuses an index that names no matrix, an index whose rows give more
 than one `Species`, and a fleet pointed at a matrix belonging to another
-species — which is the mistake the species default invites, since
-without the column `2` means “species 2’s matrix” and not “the second
-matrix”. Coverage is reported per matrix, so an incomplete one is named
-even where the species’ other matrices are complete.
+species (without the column, `2` means “species 2’s matrix”, not “the
+second matrix”), and reports coverage per matrix.
 
 ## 6. Recruitment / stock-recruit (`recFun = build_srr()`)
 
@@ -735,37 +632,31 @@ and
 `M1_re > 0` requires an `M1_model` of `0`, `1` or `2`, or `3` with a
 by-year family (`2` or `5`). Under `M1_model = 0` the input schedule is
 held fixed and the deviations carry all of M’s variation, which makes
-them the most identifiable of any level. Under `M1_model = 3` only a
-by-year deviation stays identifiable: an age-varying one (`1`, `3`, `4`,
-`6`) and the age-specific level enter the likelihood only as their sum,
-and `M1_model = 1` with `M1_re = 4` is the identifiable version of that
-model. The deprecated env-driven `M1_model` `4` and `5` are refused for
-every family – a request there would silently give constant M, and
+them the most identifiable of any level. Under `M1_model = 3` an
+age-varying deviation (`1`, `3`, `4`, `6`) and the age-specific level
+enter the likelihood only as their sum; `M1_model = 1` with `M1_re = 4`
+is the identifiable version of that model. The deprecated env-driven
+`M1_model` `4` and `5` are refused for every family;
 `linkage_spec(~ temp + (1 | Year))` expresses the same model.
 
 Variance and correlation parameters are species-specific but
 sex-invariant. `M1_dev_log_sd` is the AR(1) **innovation** standard
-deviation, the marginal is `sigma / sqrt(1 - rho^2)`, as in WHAM. (The
+deviation; the marginal is `sigma / sqrt(1 - rho^2)`, as in WHAM. (The
 linkage grammar uses the opposite convention:
 `linkage_spec(~ ar1(1 | Year), init = ...)` takes `sigma` as the
 marginal SD.) `M2_use_prior = TRUE` adds a log-normal prior with mean
 `M_prior` (the median when `bias_adjust_proc = FALSE`) and log-scale SD
 `M_prior_sd` on total M (M1 + M2) in multi-species mode.
 
-Modes `3` and `6` estimate a full age × year deviation field. Before
-5.9.0 a map defect gave them one deviation per *year* laid on a stride
-pattern instead (42 free deviations where 882 were meant, on
-`GOA2018SS`) so fits in these two modes change. They are also the two to
-treat carefully: a free age-by-year mortality field with a single
-standard deviation and no prior on M is strongly confounded with
-selectivity and recruitment in a single-species assessment. Read
+Modes `3` and `6` estimate a full age × year deviation field which, with
+a single standard deviation and no prior on M, is strongly confounded
+with selectivity and recruitment in a single-species assessment. Read
 `fit$convergence` and the estimability table before trusting one, and
-consider a prior on M. Modes `1`/`2`/`4`/`5` are unaffected; they hold
-the deviation constant along one dimension deliberately.
+consider a prior on M.
 
 ## 8. Growth and weight-at-age (`growthFun = build_growth()`)
 
-### `growth_model`, fixed-effects structure of growth
+### `fun` (`growth_model`): fixed-effects growth
 
 | Value | String | Description |
 |:--:|----|----|
@@ -791,14 +682,10 @@ and
 [`vignette("environmental-linkages-and-priors")`](https://afsc-assessments.github.io/Rceattle/articles/environmental-linkages-and-priors.md).
 
 Time-varying growth is specified through the linkage grammar rather than
-a switch of its own,
+a switch of its own:
 `build_growth(linkages = list(K = linkage_spec(~ rw(1 | Year))))` puts a
 random walk on the von Bertalanffy `K`, and `ar1()` / `(1 | Year)` give
 the autoregressive and independent alternatives.
-
-When the not-yet-enabled length-based suitability modes
-(`suitMode = 1/3/5`) arrive, prey length-at-age will be taken from the
-estimated growth model (`growth_model > 0`).
 
 ## 9. Harvest control rules (`HCR = build_hcr()`)
 
@@ -816,71 +703,60 @@ estimated growth model (`growth_model > 0`).
 `DynamicHCR = TRUE` switches from static to dynamic SB₀ reference
 points. `HCRorder` controls the order in which species F is solved for
 iterative multi-species HCRs (e.g. predators before prey). See
-[`?build_hcr`](https://afsc-assessments.github.io/Rceattle/reference/build_hcr.md)
-for more details.
+[`?build_hcr`](https://afsc-assessments.github.io/Rceattle/reference/build_hcr.md).
 
 ## 10. Projection and MSE
 
 | Function | Purpose |
 |----|----|
 | `fit_mod(estimateMode = 2, HCR = build_hcr(...))` | Forward projection under a fixed HCR |
-| [`sample_rec()`](https://afsc-assessments.github.io/Rceattle/reference/sample_rec.md) | Bootstrap historical recruitment deviations (with optional `rec_trend`) into the projection |
+| [`sample_rec()`](https://afsc-assessments.github.io/Rceattle/reference/sample_rec.md) | Bootstrap historical recruitment deviations (with optional `rec_trend`) into the projection; projected recruitment reads them only under `build_srr(proj_mean_rec = FALSE)` |
 | [`remove_F()`](https://afsc-assessments.github.io/Rceattle/reference/remove_F.md) | Refit a model with F = 0 from `styr` (default: the year after `endyr`); [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md) uses it for the no-fishing run behind the collapse metrics |
 | [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md) | Closed-loop MSE: refit EM on the `assessment_period` schedule (a period, or the years themselves), sample new data at `sampling_period` |
 | [`load_mse()`](https://afsc-assessments.github.io/Rceattle/reference/load_mse.md) | Reload per-simulation `.rds` files written when `dir =` is supplied |
 | [`check_mse()`](https://afsc-assessments.github.io/Rceattle/reference/check_mse.md) | Validate which OM/EM simulations converged |
-| [`mse_summary()`](https://afsc-assessments.github.io/Rceattle/reference/mse_summary.md) | Per-fleet performance metrics: mean catch, IAV, P(closed), P(F \> Flimit), P(SSB \< SSBlimit), terminal depletion |
+| [`mse_summary()`](https://afsc-assessments.github.io/Rceattle/reference/mse_summary.md) | Performance metrics by species, fishery fleet and in total: mean catch, IAV, P(closed), P(F \> Flimit), P(SSB \< SSBlimit), terminal depletion |
 
 [`run_mse()`](https://afsc-assessments.github.io/Rceattle/reference/run_mse.md)
 parallelizes over simulations, on a FORK cluster where the platform
 allows one and PSOCK on Windows. The [MSE
 vignette](https://afsc-assessments.github.io/Rceattle/articles/hcrs-and-mses.md)
-has the seed plumbing and the reproducibility guarantees.
+has the seed handling and the reproducibility guarantees.
 
 ## 11. Diagnostics and inference
 
 | Function | Purpose |
 |----|----|
-| [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md) | Peel terminal years and refit; reports Mohn’s ρ for each quantity / species, optionally with forecast-skill peels (`nyrs_forecast`) |
+| [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md) | Peel terminal years and refit; reports Mohn’s rho for each quantity / species at the terminal year and the `nyrs_forecast` (default 3) years after it |
 | [`jitter()`](https://afsc-assessments.github.io/Rceattle/reference/jitter.md) | Refit from random-perturbed starting values; check optimum stability |
 | [`sim_mod()`](https://afsc-assessments.github.io/Rceattle/reference/sim_mod.md) / [`simulate()`](https://rdrr.io/r/stats/simulate.html) | Simulate data from a fitted model. Observations always; process error (recruitment, M, growth, catchability, selectivity) via `process =`. [`simulate()`](https://rdrr.io/r/stats/simulate.html) is the `stats` generic and draws `nsim` replicates at once |
 | [`self_test()`](https://afsc-assessments.github.io/Rceattle/reference/self_test.md) | Simulate and refit; check the model recovers what generated the data |
 | [`compare_sim()`](https://afsc-assessments.github.io/Rceattle/reference/compare_sim.md) | Estimation-vs-truth comparison across simulated replicates |
 | [`model_average()`](https://afsc-assessments.github.io/Rceattle/reference/model_average.md) | Weighted average of derived quantities across multiple fits, with optional bootstrap uncertainty |
-| `calc_mcall_ianelli()` / `calc_mcall_ianelli_diet()` | McAllister-Ianelli composition-data reweighting |
+| [`reweight_comps()`](https://afsc-assessments.github.io/Rceattle/reference/reweight_comps.md) | Iterative McAllister-Ianelli tuning of multinomial `Comp_weights` |
 
 ## 12. Plotting
 
-Pop / mortality / fit / predation / biology plots, all named after the
-quantity they show: `plot_biomass`, `plot_ssb`, `plot_recruitment`,
-`plot_depletion`, `plot_ssb_depletion`, `plot_exploitable_biomass`,
-`plot_catch`, `plot_f`, `plot_mortality`, `plot_m_at_age`,
-`plot_m2_at_age_prop`, `plot_index`, `plot_index_residual`, `plot_comp`,
-`plot_data`, `plot_form`, `plot_b_eaten`, `plot_b_eaten_prop`,
-`plot_diet_comp`, `plot_ration`, `plot_selectivity`,
-`plot_selectivity_vs_maturity`, `plot_maturity`, `plot_stock_recruit`,
-`plot_timeseries`. Most accept a single fitted model or a list of models
-with `model_names`.
+Each plotter is named after the quantity it shows: `plot_biomass`,
+`plot_ssb`, `plot_recruitment`, `plot_depletion`, `plot_ssb_depletion`,
+`plot_exploitable_biomass`, `plot_catch`, `plot_f`, `plot_mortality`,
+`plot_m_at_age`, `plot_m2_at_age_prop`, `plot_index`,
+`plot_index_residual`, `plot_comp`, `plot_data`, `plot_form`,
+`plot_b_eaten`, `plot_b_eaten_prop`, `plot_diet_comp`, `plot_ration`,
+`plot_selectivity`, `plot_selectivity_vs_maturity`, `plot_maturity`,
+`plot_stock_recruit`, `plot_timeseries`. Most accept a single fitted
+model or a list of models with `model_names`.
 
 These are built with **ggplot2** (colorblind-safe Okabe-Ito palette for
-discrete series, viridis for continuous ones; `theme_classic` with a
-panel border for the trajectory figures, `theme_bw` for the OSA and
-composition panels) and **return the `ggplot` object**, so they print
-when called interactively and take further ggplot2 layers
+discrete series, viridis for continuous ones) and **return the `ggplot`
+object**, so they print when called interactively and take further
+ggplot2 layers
 (e.g. `plot_biomass(fit) + ggplot2::ggtitle("My title")`). Pass
-`file = "stem"` to also write the figure to a PNG. The suffix is
-per-plotter and not derived from the function name –
-[`plot_recruitment()`](https://afsc-assessments.github.io/Rceattle/reference/plot_recruitment.md)
-writes `stem_R_trajectory.png`,
-[`plot_catch()`](https://afsc-assessments.github.io/Rceattle/reference/plot_catch.md)
-`stem_fishery_catch.png`,
-[`plot_data()`](https://afsc-assessments.github.io/Rceattle/reference/plot_data.md)
-`stem_data_plot.png` – and the per-fleet plotters write one file each:
-[`plot_comp()`](https://afsc-assessments.github.io/Rceattle/reference/plot_comp.md)
-writes `stem_comp_pearson.png` plus
-`stem_comp_annual_fleet<N>_<age|length>.png` and
-`stem_comp_aggregated_fleet<N>_<age|length>.png`.
-`tests/testthat/test-plot-save-paths.R` records every name.
+`file = "stem"` to also write a PNG with a per-plotter suffix
+([`plot_recruitment()`](https://afsc-assessments.github.io/Rceattle/reference/plot_recruitment.md)
+writes `stem_R_trajectory.png`); the per-fleet plotters write one file
+each, e.g. `stem_comp_annual_fleet<N>_<age|length>.png` from
+[`plot_comp()`](https://afsc-assessments.github.io/Rceattle/reference/plot_comp.md).
 
 **Shared arguments.** The timeseries plotters (`plot_biomass`,
 `plot_ssb`, `plot_recruitment`, the depletions,
@@ -891,24 +767,23 @@ common vocabulary, documented together in
 [`?"rceattle-plot-args"`](https://afsc-assessments.github.io/Rceattle/reference/rceattle-plot-args.md):
 `line_col`, `lwd`, `lty`, `alpha`, `species`, `spnames`, `minyr`,
 `maxyr`, `incl_proj`, `incl_mean`, `add_ci`, `model_names`, `file`,
-`width` and `height`. Each word means the same thing wherever it
-appears, but not every plotter takes every one: `incl_mean` is on the
-predation plotters, `add_ci` only where the quantity holds standard
-errors, and `alpha` only where the figure has a ribbon or a fan. Check
-[`args()`](https://rdrr.io/r/base/args.html). The other plotters still
-take their own arguments.
+`width` and `height`. Each means the same thing wherever it appears, but
+not every plotter takes every one (`incl_mean` is on the predation
+plotters, `add_ci` only where the quantity holds standard errors,
+`alpha` only where the figure has a ribbon or a fan); check
+[`args()`](https://rdrr.io/r/base/args.html).
 
 - `line_col` takes colour names, hex codes, or base-graphics palette
   indices (`line_col = 1`), and `lwd` keeps the base-graphics scale
   where the default `3` is a standard-weight line.
 - `line_col` and `lty` supply values for whichever variable the *figure*
-  separates by colour or line type, which is not always the model. In
-  [`plot_b_eaten_prop()`](https://afsc-assessments.github.io/Rceattle/reference/plot_b_eaten_prop.md)
-  colour separates predators; in
-  [`plot_ration()`](https://afsc-assessments.github.io/Rceattle/reference/plot_ration.md)
-  line type separates the sexes. Each function’s help says which. Too
-  few colours are recycled, with a warning naming what they coloured.
-  Where colour is a magnitude (the year fan in
+  separates by colour or line type, which is not always the model
+  (predators in
+  [`plot_b_eaten_prop()`](https://afsc-assessments.github.io/Rceattle/reference/plot_b_eaten_prop.md),
+  sexes in
+  [`plot_ration()`](https://afsc-assessments.github.io/Rceattle/reference/plot_ration.md));
+  each function’s help says which. Too few colours are recycled, with a
+  warning. Where colour is a magnitude (the year fan in
   [`plot_selectivity()`](https://afsc-assessments.github.io/Rceattle/reference/plot_selectivity.md))
   `line_col` gives the ramp anchors, so `line_col = "black"` draws the
   fan in black.
@@ -916,41 +791,40 @@ take their own arguments.
   order given) and `spnames` labels.
 - `minyr` and `maxyr` narrow the data, not just the axis, so a panel
   with a free y scale rescales to the window.
-- Arguments left over from the base-graphics version, `right_adj`,
-  `top_adj`, `mod_cex`, `legend.pos`, `single.plots`, `theta`, are still
-  accepted, and ignored, by the plotters that had them; they were never
-  added to the ones that did not. Set the equivalent on the returned
-  ggplot instead, e.g.
-  `plot_biomass(fit) + ggplot2::theme(legend.position = "right")`.
+- Base-graphics arguments (`right_adj`, `top_adj`, `mod_cex`,
+  `legend.pos`, `single.plots`, `theta`) are accepted and ignored by the
+  plotters that had them, and absent from the rest. Set the equivalent
+  on the returned ggplot instead,
+  e.g. `plot_biomass(fit) + ggplot2::theme(legend.position = "right")`.
 
-**Display units.** The model works in mt and thousands of fish:
-numbers-at-age are in thousands and weight-at-age in kg, so biomass and
-SSB come out in mt and recruitment in thousands of fish. The timeseries
-plotters rescale to `million mt` and `millions` for the axis, and derive
-the recruitment age from `minage` rather than assuming age 1. Supply the
-model’s inputs on that convention, catch and index in mt, weight-at-age
-in kg, or the axis labels will not describe what is plotted. Pass `ylab`
-to override the derived label.
+**Display units.** Numbers-at-age are in thousands of fish and
+weight-at-age in kg, so biomass and SSB come out in mt and recruitment
+in thousands of fish. The timeseries plotters rescale the axis to
+`million mt` and `millions`, and derive the recruitment age from
+`minage` rather than assuming age 1. Supply inputs on that convention
+(catch and index in mt, weight-at-age in kg), or the axis labels will
+not describe what is plotted; pass `ylab` to override the derived label.
 
 **Confidence intervals.** `add_ci = TRUE` draws a 95% interval. Strictly
 positive series take it on the log scale, `exp(log(x) ± 1.96 · sd_log)`,
 using the model’s `log_biomass` / `log_ssb` / `log_R` where they exist
-and the delta-method identity `sd(log x) = sd(x)/x` where they do not.
-The interval is therefore right-skewed and cannot reach zero for a weak
-year class or a depleted stock. See
-[`?plot_timeseries`](https://afsc-assessments.github.io/Rceattle/reference/plot_timeseries.md)
-for the full derivation.
+and the delta-method identity `sd(log x) = sd(x)/x` where they do not,
+so it is right-skewed and cannot reach zero for a weak year class or a
+depleted stock
+([`?plot_timeseries`](https://afsc-assessments.github.io/Rceattle/reference/plot_timeseries.md)
+has the derivation).
 
 [`plot_selectivity()`](https://afsc-assessments.github.io/Rceattle/reference/plot_selectivity.md)
 takes it too, but only on a fit run with
 `fit_control(selectivity_se = TRUE)` and only for estimated, age-based
 fleets; otherwise it warns and draws none. Selectivity is identified
 only up to a scalar, so `Sel_norm_bin` fixes the curve’s level rather
-than measuring it: the pinned bin has a standard error of 0 and the band
-widens away from it. Quote that anchor with the interval.
+than measuring it: the pinned bin has a standard error of 0, the band
+widens away from it, and the band’s shape depends on `Sel_norm_bin` as
+well as on the information in the data. Quote that anchor with the
+interval.
 
-The error comes from whichever `sdreport` the fit ends on, and that is
-not always the one that estimated the curve. Under
+The error comes from whichever `sdreport` the fit ends on. Under
 `estimateMode = "Estimate"` with an estimating HCR,
 [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
 re-optimizes the projection with every hindcast parameter fixed, so the
@@ -975,28 +849,18 @@ mod <- fit_mod(data_list = data, HCR = build_hcr(HCR = 5),
 [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md)
 warns when the combination would report zeros, and
 [`plot_selectivity()`](https://afsc-assessments.github.io/Rceattle/reference/plot_selectivity.md)
-declines to draw a band that is 0 wide at every age rather than render
-it as certainty. Give `minyr` / `maxyr` a single year on a time-varying
-fleet: every year drawn gets its own band.
+declines to draw a band that is 0 wide at every age. Give `minyr` /
+`maxyr` a single year on a time-varying fleet: every year drawn gets its
+own band.
 
-Two further conditions belong with any interval you report:
-
-- **The normalization.** On `Atka2022` the survey pins age 4, and its
-  standard deviation runs 0.33, 0.18, 0.12, 0.00, 0.14 over ages 1–5;
-  the fishery pins nothing, normalizes to a mean of one, and is flattest
-  mid-range instead. Same fit, same data, the shape of the band is a
-  property of `Sel_norm_bin`, not of the information in the data.
-- **The smoothing.** Under `random_sel = FALSE` the annual deviations
-  are penalized rather than integrated, so these are
-  penalized-likelihood errors conditional on `Sel_curve_pen1` /
-  `Sel_curve_pen2` and on a fixed `Time_varying_sel_sd`. Change the
-  smoothing and both the curve and its band move, with nothing in the
-  data to arbitrate.
-
-The band is marginal. Selectivity error is strongly correlated with F
-and q through the same confounding, so propagating it into a derived
-quantity needs the covariance
-(`fit_control(getReportCovariance = TRUE)`), not this interval alone.
+Under `random_sel = FALSE` the annual deviations are penalized rather
+than integrated, so the band is a penalized-likelihood error conditional
+on `Sel_curve_pen1` / `Sel_curve_pen2` and on a fixed
+`Time_varying_sel_sd`: change the smoothing and both the curve and its
+band move. The band is also marginal. Selectivity error is strongly
+correlated with F and q, so propagating it into a derived quantity needs
+the covariance (`fit_control(getReportCovariance = TRUE)`), not this
+interval alone.
 
 ## References
 
@@ -1013,7 +877,5 @@ quantity needs the covariance
   K.N., Punt, A.E. (2025). Even low levels of cannibalism can bias
   population estimates for Pacific hake. *ICES Journal of Marine
   Science*, 82(1), fsae064.
-- Cheng, M.L.H., et al. (2024). 2D / 3D AR(1) selectivity (citation in
-  vignette 8).
-- Rogers, L.A., et al. (2024). AR(1) catchability for GOA pollock
-  (citation in vignette 8).
+- Cheng, M.L.H., et al. (2024). 2D / 3D AR(1) selectivity.
+- Rogers, L.A., et al. (2024). AR(1) catchability for GOA pollock.

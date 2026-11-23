@@ -252,7 +252,7 @@ template&lt;class Type&gt; </div>
 </div><div class="memdoc">
 
 <p>Available food, predation mortality (M2), and consumed biomass (MSVPA). </p>
-<p>Available food is suitability-weighted prey biomass plus "other food": prey numbers (thousands of fish) x weight (kg) = mt, and other_food is mt. Under msmMode = 2 (Type III) the prey term is squared, so the denominator is not a biomass there. M2 divides each predator's consumption (avgN x ration) by that denominator, so a LARGER available-food denominator gives LESS predation mortality. The dB0 (F = 0) and dBF (F = Ftarget) arrays repeat the calculation for the dynamic reference points. Prey biomass and the predator scalars are each computed once outside the deepest loop.</p>
+<p>Available food is suitability-weighted prey biomass plus "other food": prey numbers (thousands of fish) x weight (kg) = mt, and other_food is mt. Under msmMode = 2 (Type III) the prey term is squared, so the denominator is not a biomass there. M2 divides each predator's consumption (avgN x ration) by that denominator, so a LARGER available-food denominator gives LESS predation mortality. The dB0 (F = 0) and dBF (F = Ftarget) arrays repeat the calculation for the dynamic reference points.</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">avail_food</td><td>Available food (mt) [nspp, max_sex, max_age, nyrs], updated. </td></tr>
@@ -283,7 +283,7 @@ template&lt;class Type&gt; </div>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="predation_8hpp_source.html#l00348">348</a> of file <a class="el" href="predation_8hpp_source.html">predation.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="predation_8hpp_source.html#l00349">349</a> of file <a class="el" href="predation_8hpp_source.html">predation.hpp</a>.</p>
 
 </div>
 </div>

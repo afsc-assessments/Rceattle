@@ -7,8 +7,8 @@
 <title>8. Model parameterizations • Rceattle</title>
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_Pro-0.4.10/font.css" rel="stylesheet">
-<link href="../deps/JetBrains_Mono-0.4.10/font.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/Source_Sans_Pro-0.5.0/font.css" rel="stylesheet">
+<link href="../deps/JetBrains_Mono-0.5.0/font.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="8. Model parameterizations">
@@ -21,7 +21,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.67.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.70.8</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -80,7 +80,7 @@
       <h1>8. Model parameterizations</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/vignettes/model-parameterizations.Rmd" class="external-link"><code>vignettes/model-parameterizations.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/5.70.8/vignettes/model-parameterizations.Rmd" class="external-link"><code>vignettes/model-parameterizations.Rmd</code></a></small>
       <div class="d-none name"><code>model-parameterizations.Rmd</code></div>
     </div>
 
@@ -89,35 +89,37 @@
 <div class="section level2">
 <h2 id="in-progress">In progress!<a class="anchor" aria-label="anchor" href="#in-progress"></a>
 </h2>
+<p>This vignette gives the equations behind CEATTLE’s population
+dynamics, predation, consumption and observation models, and the inputs
+that select each selectivity and catchability form.</p>
 </div>
 <div class="section level2">
 <h2 id="population-dynamics">Population dynamics<a class="anchor" aria-label="anchor" href="#population-dynamics"></a>
 </h2>
-<p>CEATTLE is an age-structured model that follows cohorts of a species
+<p>CEATTLE is an age-structured model following cohorts of species
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>,
 age
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>a</mi><annotation encoding="application/x-tex">a</annotation></semantics></math>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>a</mi><annotation encoding="application/x-tex">a</annotation></semantics></math>
 and sex
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>s</mi><annotation encoding="application/x-tex">s</annotation></semantics></math>
 through time
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>y</mi><annotation encoding="application/x-tex">y</annotation></semantics></math>.
-Annual recruitment and the initial age structure are estimated, either
-as random effects with the recruitment variance estimated, or as
-penalized deviates with it fixed. Because the initial age structure is
-estimated assuming the population was already depleted before the first
-model year, the mean recruitment parameter
+Annual recruitment and the initial age structure are estimated as random
+effects (recruitment variance estimated) or as penalized deviates
+(variance fixed). Because the initial age structure is estimated
+assuming the population was already depleted before the first model
+year, the mean recruitment parameter
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mover><mi>R</mi><mo accent="true">‾</mo></mover><mi>i</mi></msub><annotation encoding="application/x-tex">\bar{R}_{i}</annotation></semantics></math>
-is biased low: projected recruitment should instead resemble the
-hindcast recruitment deviations, and biomass reference points should use
-the mean of annual recruitment. Populations are 1- or 2-sex via
-<code>nsex</code>, with the sex ratio at birth
+is biased low: projected recruitment should resemble the hindcast
+recruitment deviations, and biomass reference points should use mean
+annual recruitment. <code>nsex</code> sets 1- or 2-sex populations; the
+sex ratio at birth
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ρ</mi><mrow><mi>i</mi><mn>1</mn></mrow></msub><annotation encoding="application/x-tex">\rho_{i1}</annotation></semantics></math>
-taken from the first age of <code>sex_ratio</code>. Natural mortality is
-partitioned into predation mortality (M2) and residual mortality from
-all other causes (M1), which is either input on the <code>M1_base</code>
-sheet or estimated with <code>M1Fun = build_M1(M1_model = ...)</code> in
-<code><a href="../reference/fit_mod.html">fit_mod()</a></code>. Setting <code>msmMode = 0</code> turns predation
-off (below).</p>
+is the first age of <code>sex_ratio</code>. Natural mortality is split
+into predation mortality (M2) and residual mortality from all other
+causes (M1); M1 is input on the <code>M1_base</code> sheet or estimated
+with <code>M1Fun = build_M1(M1_model = ...)</code> in
+<code><a href="../reference/fit_mod.html">fit_mod()</a></code>.</p>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>N</mi><mrow><mi>i</mi><mi>s</mi><mn>1</mn><mo>,</mo><mi>y</mi></mrow></msub><mo>=</mo><msub><mi>R</mi><mrow><mi>i</mi><mi>s</mi><mi>y</mi></mrow></msub><mo>=</mo><msub><mover><mi>R</mi><mo accent="true">‾</mo></mover><mi>i</mi></msub><msup><mi>e</mi><msub><mi>τ</mi><mrow><mi>i</mi><mo>,</mo><mi>y</mi></mrow></msub></msup><mo>*</mo><msub><mi>ρ</mi><mrow><mi>i</mi><mn>1</mn></mrow></msub></mrow><annotation encoding="application/x-tex">N_{is1,y} = R_{isy} = \bar{R}_{i }e^{\tau_{i,y}}*\rho_{i1}</annotation></semantics></math><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>N</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mn>1</mn></mrow></msub><mo>=</mo><mrow><mo stretchy="true" form="prefix">{</mo><mtable><mtr><mtd columnalign="center" style="text-align: center"><msub><mover><mi>R</mi><mo accent="true">‾</mo></mover><mi>i</mi></msub><msup><mi>e</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>−</mi><mi>j</mi><mi>M</mi><msub><mn>1</mn><mrow><mi>i</mi><mi>s</mi><mi>a</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow></msup><mo>*</mo><msub><mi>ρ</mi><mrow><mi>i</mi><mn>1</mn></mrow></msub></mtd></mtr><mtr><mtd columnalign="center" style="text-align: center"><mfrac><mrow><msub><mover><mi>R</mi><mo accent="true">‾</mo></mover><mi>i</mi></msub><msup><mi>e</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>−</mi><mover><mo>∑</mo><mrow><mi>a</mi><mo>−</mo><mn>1</mn></mrow></mover><mi>M</mi><msub><mn>1</mn><mrow><mi>i</mi><mi>s</mi><mi>a</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow></msup></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><msup><mi>e</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>−</mi><mover><mo>∑</mo><mrow><mi>a</mi><mo>−</mo><mn>1</mn></mrow></mover><mi>M</mi><msub><mn>1</mn><mrow><mi>i</mi><mi>s</mi><msub><mi>A</mi><mi>i</mi></msub></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow></msup><mo stretchy="true" form="postfix">)</mo></mrow></mfrac><mo>*</mo><msub><mi>ρ</mi><mrow><mi>i</mi><mn>1</mn></mrow></msub></mtd></mtr></mtable></mrow></mrow><annotation encoding="application/x-tex">N_{isa,1} = \left \{ \begin{array}{} \bar{R}_ie^{ \left( -j M1_{isa} \right)}*\rho_{i1} \\ \frac{\bar{R}_ie^{ \left( -\sum^{a-1} M1_{isa} \right)}} {\left(1 - e^{\left( -\sum^{a-1} M1_{is A_i} \right)} \right)} *\rho_{i1} \end{array} \right.</annotation></semantics></math><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>N</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>+</mo><mn>1</mn><mo>,</mo><mi>y</mi><mo>+</mo><mn>1</mn></mrow></msub><mo>=</mo><msub><mi>N</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><msup><mi>e</mi><mrow><mi>−</mi><msub><mi>Z</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub></mrow></msup></mrow><annotation encoding="application/x-tex">N_{is a+1, y+1} = N_{isa,y} e^{-Z_{isa,y}}</annotation></semantics></math><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>N</mi><mrow><mi>i</mi><mi>s</mi><msub><mi>A</mi><mi>i</mi></msub><mo>,</mo><mi>y</mi><mo>+</mo><mn>1</mn></mrow></msub><mo>=</mo><msub><mi>N</mi><mrow><mi>i</mi><mi>s</mi><msub><mi>A</mi><mi>i</mi></msub><mo>−</mo><mn>1</mn><mo>,</mo><mi>y</mi></mrow></msub><msup><mi>e</mi><mrow><mi>−</mi><msub><mi>Z</mi><mrow><mi>i</mi><mi>s</mi><msub><mi>A</mi><mi>i</mi></msub><mo>−</mo><mn>1</mn><mo>,</mo><mi>y</mi></mrow></msub></mrow></msup><mo>+</mo><msub><mi>N</mi><mrow><mi>i</mi><mi>s</mi><msub><mi>A</mi><mi>i</mi></msub><mo>,</mo><mi>y</mi></mrow></msub><msup><mi>e</mi><mrow><mi>−</mi><msub><mi>Z</mi><mrow><mi>i</mi><mi>s</mi><msub><mi>A</mi><mi>i</mi></msub><mo>,</mo><mi>y</mi></mrow></msub></mrow></msup></mrow><annotation encoding="application/x-tex">N_{is A_i, y+1} = N_{is A_{i}-1,y} e^{-Z_{is A_{i}-1,y}} + N_{is A_{i},y} e^{-Z_{is A_{i},y}}</annotation></semantics></math><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>B</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><mo>=</mo><msub><mi>N</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><msub><mi>W</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub></mrow><annotation encoding="application/x-tex">B_{isa,y} = N_{isa,y} W_{isa,y}</annotation></semantics></math><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>S</mi><mi>S</mi><msub><mi>B</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><mo>=</mo><msub><mi>B</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><msub><mi>ρ</mi><mrow><mi>i</mi><mi>a</mi></mrow></msub></mrow><annotation encoding="application/x-tex">SSB_{isa,y} = B_{isa,y} \rho_{ia}</annotation></semantics></math><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>Z</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><mo>=</mo><mi>M</mi><msub><mn>1</mn><mrow><mi>i</mi><mi>s</mi><mi>a</mi></mrow></msub><mo>+</mo><mi>M</mi><msub><mn>2</mn><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><mo>+</mo><msub><mi>F</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub></mrow><annotation encoding="application/x-tex">Z_{isa,y} = M1_{isa} + M2_{isa,y} + F_{isa,y}</annotation></semantics></math></p>
 </div>
 <div class="section level2">
@@ -125,24 +127,21 @@ off (below).</p>
 </h2>
 <p><code>suitMode</code> sets predator-prey preference (suitability,
 that is predator selectivity) and <code>msmMode</code> the functional
-response. The predation model is parameterized from the proportion by
-weight of prey-at-age in a predator-at-age’s diet
-(<code>diet_data</code>) and from ration/consumption (below).</p>
+response.</p>
 <div class="section level3">
 <h3 id="suitability">Suitability<a class="anchor" aria-label="anchor" href="#suitability"></a>
 </h3>
-<p>Suitability represents a predator’s prey and size preference,
-together with factors such as spatial overlap between predator and prey
-distributions.</p>
+<p>Suitability is a predator’s prey and size preference, together with
+factors such as predator-prey spatial overlap.</p>
 <div class="section level4">
 <h4 id="msvpa-type-2-based-suitability">MSVPA Type 2 based suitability<a class="anchor" aria-label="anchor" href="#msvpa-type-2-based-suitability"></a>
 </h4>
-<p>Suitability is derived empirically from the mean proportion by weight
-of prey-at-age in the stomachs of predators-at-age,
+<p>Suitability is derived empirically, following Magnusson (1995), from
+the mean proportion by weight of prey-at-age in the stomachs of
+predators-at-age,
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mover><mi>U</mi><mo accent="true">‾</mo></mover><mrow><mi>p</mi><mi>b</mi><mi>j</mi><mi>i</mi><mi>s</mi><mi>a</mi></mrow></msub><annotation encoding="application/x-tex">\bar{U}_{pbjisa}</annotation></semantics></math>
-(<code>diet_data</code>). Magnusson (1995) derives the suitability
-coefficients. <code>suitMode = 0</code> Predator-prey suitability for
-predators of species
+(<code>diet_data</code>). <code>suitMode = 0</code> Predator-prey
+suitability for predators of species
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>,
 sex
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>b</mi><annotation encoding="application/x-tex">b</annotation></semantics></math>,
@@ -162,8 +161,8 @@ and age
 <div class="section level4">
 <h4 id="single-species-mode">Single-species mode<a class="anchor" aria-label="anchor" href="#single-species-mode"></a>
 </h4>
-<p>Multiple independent single-species age-structured models: all
-mortality is fishing plus input or estimated natural mortality
+<p>Independent single-species models: mortality is fishing plus input or
+estimated natural mortality
 (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>M</mi><mo>=</mo><mi>M</mi><mn>1</mn></mrow><annotation encoding="application/x-tex">M = M1</annotation></semantics></math>).
 <code>msmMode = 0</code>
 <math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>M</mi><msub><mn>2</mn><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">M2_{isa,y} = 0</annotation></semantics></math></p>
@@ -173,19 +172,19 @@ mortality is fishing plus input or estimated natural mortality
 </h4>
 <p><code>msmMode = 1</code> An MSVPA-based formulation following
 previous MSCAA models (Curti et al., 2013; Holsman et al., 2016; Tsehaye
-et al., 2014). Predation mortality is built from suitability
-coefficients
+et al., 2014), built from suitability coefficients
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mover><mi>S</mi><mo accent="true">̂</mo></mover><mrow><mi>p</mi><mi>b</mi><mi>j</mi><mi>i</mi><mi>s</mi><mi>a</mi></mrow></msub><annotation encoding="application/x-tex">\hat{S}_{pbjisa}</annotation></semantics></math>
 (estimated or empirical), input annual ration/consumption (below), mean
-annual prey biomass whether estimated or input, and the input biomass of
-other prey available to predator
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>
-(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mi>B</mi><mi>p</mi><mrow><mi>o</mi><mi>t</mi><mi>h</mi><mi>e</mi><mi>r</mi></mrow></msubsup><annotation encoding="application/x-tex">B_p^{other}</annotation></semantics></math>).
+annual prey biomass (estimated or input), and the input biomass of other
+prey available to predator
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mi>B</mi><mi>p</mi><mrow><mi>o</mi><mi>t</mi><mi>h</mi><mi>e</mi><mi>r</mi></mrow></msubsup><annotation encoding="application/x-tex">B_p^{other}</annotation></semantics></math>.
 Predation and biomass are interdependent, so predation mortality and the
-age-structured dynamics are iterated to convergence; three to five
-iterations suffice. Fits are generally insensitive to
+age-structured dynamics are iterated a fixed number of times
+(<code>niter</code>, no convergence test); three to five iterations
+suffice. Fits are generally insensitive to
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mi>B</mi><mi>p</mi><mrow><mi>o</mi><mi>t</mi><mi>h</mi><mi>e</mi><mi>r</mi></mrow></msubsup><annotation encoding="application/x-tex">B_p^{other}</annotation></semantics></math>
-over a range of values, which has historically been derived from
+over a range of values; it has historically been derived from
 ecosystem-wide biomass estimates. For predators of species
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>,
 sex
@@ -202,16 +201,14 @@ age
 <div class="section level4">
 <h4 id="msvpa-type-3-based-predation-mortality">MSVPA Type 3 based predation mortality<a class="anchor" aria-label="anchor" href="#msvpa-type-3-based-predation-mortality"></a>
 </h4>
-<p><code>msmMode = 2</code> A Type III functional response variant of
-the MSVPA predation model. The available-food denominator replaces prey
-biomass
+<p><code>msmMode = 2</code> A Type III functional response: the
+available-food denominator replaces prey biomass
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>B</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><mo>=</mo><msub><mi>N</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><msub><mi>W</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub></mrow><annotation encoding="application/x-tex">B_{isa,y} = N_{isa,y} W_{isa,y}</annotation></semantics></math>
 with
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>N</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow><mn>2</mn></msubsup><msub><mi>W</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub></mrow><annotation encoding="application/x-tex">N^2_{isa,y} W_{isa,y}</annotation></semantics></math>,
-creating a sigmoidal (accelerating-then-saturating) relationship between
-prey density and predation rate. This gives low-density prey a refuge
-from predation and can stabilize multi-species dynamics at low stock
-sizes.
+so predation rate is sigmoidal (accelerating, then saturating) in prey
+density. Low-density prey get a refuge from predation, which can
+stabilize multi-species dynamics at low stock sizes.
 <math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>M</mi><msub><mn>2</mn><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><mo>=</mo><munder><mo>∑</mo><mrow><mi>p</mi><mi>b</mi><mi>j</mi></mrow></munder><mrow><mo stretchy="true" form="prefix">(</mo><mfrac><mrow><msub><mi>N</mi><mrow><mi>p</mi><mi>b</mi><mi>j</mi><mo>,</mo><mi>y</mi></mrow></msub><msub><mi>δ</mi><mrow><mi>p</mi><mi>b</mi><mi>j</mi><mo>,</mo><mi>y</mi></mrow></msub><msub><mi>S</mi><mrow><mi>p</mi><mi>b</mi><mi>j</mi><mi>i</mi><mi>s</mi><mi>a</mi></mrow></msub></mrow><mrow><munder><mo>∑</mo><mrow><msup><mi>i</mi><mo>′</mo></msup><msup><mi>a</mi><mo>′</mo></msup><msup><mi>s</mi><mo>′</mo></msup></mrow></munder><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>S</mi><mrow><mi>p</mi><mi>b</mi><mi>j</mi><msup><mi>i</mi><mo>′</mo></msup><msup><mi>a</mi><mo>′</mo></msup><msup><mi>s</mi><mo>′</mo></msup></mrow></msub><msubsup><mi>N</mi><mrow><msup><mi>i</mi><mo>′</mo></msup><msup><mi>a</mi><mo>′</mo></msup><msup><mi>s</mi><mo>′</mo></msup><mo>,</mo><mi>y</mi></mrow><mn>2</mn></msubsup><msub><mi>W</mi><mrow><msup><mi>i</mi><mo>′</mo></msup><msup><mi>a</mi><mo>′</mo></msup><msup><mi>s</mi><mo>′</mo></msup><mo>,</mo><mi>y</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>+</mo><msubsup><mi>B</mi><mi>p</mi><mrow><mi>o</mi><mi>t</mi><mi>h</mi><mi>e</mi><mi>r</mi></mrow></msubsup><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><munder><mo>∑</mo><mrow><msup><mi>i</mi><mo>′</mo></msup><msup><mi>a</mi><mo>′</mo></msup><msup><mi>s</mi><mo>′</mo></msup></mrow></munder><msub><mover><mi>S</mi><mo accent="true">̂</mo></mover><mrow><mi>p</mi><mi>b</mi><mi>j</mi><msup><mi>i</mi><mo>′</mo></msup><msup><mi>a</mi><mo>′</mo></msup><msup><mi>s</mi><mo>′</mo></msup></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mfrac><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">M2_{isa,y} = \sum_{pbj} \left( \frac{N_{pbj,y} \delta_{pbj,y} {S}_{pbjisa}} {\sum_{i'a's'} \left({S}_{pbji'a's'} N^2_{i'a's',y} W_{i'a's',y} \right) + B_p^{other} \left(1 - \sum_{i'a's'} \hat{S}_{pbji'a's'} \right)} \right)</annotation></semantics></math></p>
 </div>
 </div>
@@ -227,10 +224,10 @@ or direct input of consumption-at-age, controlled per species on the
 consumption with temperature: 1 = exponential (Stewart et al 1983); 2 =
 warm-water temperature dependence (Kitchell et al 1977; sensu Holsman et
 al 2015); 3 = cool- and cold-water temperature dependence (Thornton and
-Lessem 1979); 4 = temperature function held at 1.0, which bypasses
-bioenergetics and reads <code>ration_data</code> as empirical annual
-ration (set <code>CA = 1</code>, <code>fday = 1</code>,
-<code>CB = 0</code>)</li>
+Lessem 1979); 4 = no bioenergetics: annual ration (kg per predator per
+year) is read from <code>ration_data</code> and scaled by
+<code>Pvalue</code>; <code>CA</code>, <code>CB</code> and
+<code>fday</code> are not read</li>
 <li>
 <code>Cindex</code> Which <code>env_data</code> index supplies
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>T</mi><mi>y</mi></msub><annotation encoding="application/x-tex">T_y</annotation></semantics></math>
@@ -267,17 +264,18 @@ and
 of the temperature scaling function; which are read depends on
 <code>Ceq</code>, per the algorithms below</li>
 </ul>
-<p><code>ration_data</code> holds the relative foraging rate
+<p>Under <code>Ceq</code> 1-3, <code>ration_data</code> holds the
+relative foraging rate
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mi>F</mi><msub><mi>R</mi><mrow><mi>p</mi><mi>b</mi><mi>j</mi><mo>,</mo><mi>y</mi></mrow></msub></mrow><annotation encoding="application/x-tex">RFR_{pbj,y}</annotation></semantics></math>;
-it, and so ration, can be tuned through <code>fday</code> and
-<code>Pvalue</code>. The weight-at-age used in the consumption equations
-is set by <code>pop_wt_index</code>.</p>
+ration can be tuned through <code>fday</code> and <code>Pvalue</code>.
+The weight-at-age used in the consumption equations is set by
+<code>pop_wt_index</code>.</p>
 <div class="section level4">
 <h4 id="bioenergetics-based-ration">Bioenergetics based ration<a class="anchor" aria-label="anchor" href="#bioenergetics-based-ration"></a>
 </h4>
-<p><code>Ceq %in% 1:3</code> Individual specific ration
-(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>δ</mi><mrow><mi>p</mi><mi>b</mi><mi>j</mi><mo>,</mo><mi>y</mi></mrow></msub><annotation encoding="application/x-tex">\delta_{pbj,y}</annotation></semantics></math><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">(</mo><mi>k</mi><mi>g</mi><mspace width="0.222em"></mspace><mi>k</mi><msup><mi>g</mi><mrow><mi>−</mi><mn>1</mn></mrow></msup><mspace width="0.222em"></mspace><mi>y</mi><msup><mi>r</mi><mrow><mi>−</mi><mn>1</mn></mrow></msup><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(kg~kg^{-1}~yr^{-1})</annotation></semantics></math>)
-of predator
+<p><code>Ceq %in% 1:3</code> Annual ration
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>δ</mi><mrow><mi>p</mi><mi>b</mi><mi>j</mi><mo>,</mo><mi>y</mi></mrow></msub><annotation encoding="application/x-tex">\delta_{pbj,y}</annotation></semantics></math>,
+kg per predator per year) of predator
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>
 of sex
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>b</mi><annotation encoding="application/x-tex">b</annotation></semantics></math>
@@ -288,13 +286,12 @@ in year
 <math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>δ</mi><mrow><mi>p</mi><mi>b</mi><mi>j</mi><mo>,</mo><mi>y</mi></mrow></msub><mo>=</mo><mi>R</mi><mi>F</mi><msub><mi>R</mi><mrow><mi>p</mi><mi>b</mi><mi>j</mi><mo>,</mo><mi>y</mi></mrow></msub><mo>*</mo><mi>F</mi><mi>d</mi><mi>a</mi><msub><mi>y</mi><mi>p</mi></msub><mo>*</mo><msubsup><mi>α</mi><mi>p</mi><mi>δ</mi></msubsup><msubsup><mi>W</mi><mrow><mi>p</mi><mi>b</mi><mi>j</mi><mo>,</mo><mi>y</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>+</mo><msubsup><mi>β</mi><mi>p</mi><mi>δ</mi></msubsup><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>*</mo><mi>f</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>T</mi><mi>y</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mi>p</mi></msub></mrow><annotation encoding="application/x-tex">\delta_{pbj,y} = RFR_{pbj,y}*Fday_p *\alpha^{\delta}_p W_{pbj,y}^{\left(1+\beta^{\delta}_p\right)} *f\left(T_y \right)_p</annotation></semantics></math></p>
 <p>where
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>W</mi><annotation encoding="application/x-tex">W</annotation></semantics></math>
-is weight-at-age in <strong>grams</strong> (the model stores it in kg
-and multiplies by 1000 here) and
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>δ</mi><annotation encoding="application/x-tex">\delta</annotation></semantics></math>
-comes back in kg per predator per year, so
+is weight-at-age in <strong>grams</strong> (stored in kg and multiplied
+by 1000 here), so
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mi>α</mi><mi>p</mi><mi>δ</mi></msubsup><annotation encoding="application/x-tex">\alpha^{\delta}_p</annotation></semantics></math>
-is the coefficient for a gram-scale weight. Ration can be tuned by
-adjusting <code>Pvalue</code>
+is the coefficient for a gram-scale weight; the result, in grams, is
+divided by 1000 to give kg. Ration can be tuned by adjusting
+<code>Pvalue</code>
 (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>φ</mi><mi>p</mi></msub><annotation encoding="application/x-tex">\varphi_p</annotation></semantics></math>)
 to help convergence:
 <math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>δ</mi><mrow><mi>p</mi><mi>b</mi><mi>j</mi><mo>,</mo><mi>y</mi></mrow></msub><mo>=</mo><msub><mi>φ</mi><mi>p</mi></msub><mo>*</mo><msub><mi>δ</mi><mrow><mi>p</mi><mi>b</mi><mi>j</mi><mo>,</mo><mi>y</mi></mrow></msub></mrow><annotation encoding="application/x-tex">\delta_{pbj,y} = \varphi_p * \delta_{pbj,y}</annotation></semantics></math></p>
@@ -311,11 +308,12 @@ species from Thornton and Lessem 1979:
 <div class="section level4">
 <h4 id="input-ration-at-age">Input ration-at-age<a class="anchor" aria-label="anchor" href="#input-ration-at-age"></a>
 </h4>
-<p><code>Ceq = 4</code> reads consumption-at-sex/age directly from
-<code>ration_data</code> as
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mi>F</mi><msub><mi>R</mi><mrow><mi>p</mi><mi>b</mi><mi>j</mi><mo>,</mo><mi>y</mi></mrow></msub></mrow><annotation encoding="application/x-tex">RFR_{pbj,y}</annotation></semantics></math>.
-Set <code>CA = 1</code>, <code>fday = 1</code> and <code>CB = 0</code>.
-<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>δ</mi><mrow><mi>p</mi><mi>b</mi><mi>j</mi><mo>,</mo><mi>y</mi></mrow></msub><mo>=</mo><mi>R</mi><mi>F</mi><msub><mi>R</mi><mrow><mi>p</mi><mi>b</mi><mi>j</mi><mo>,</mo><mi>y</mi></mrow></msub><mo>*</mo><msub><mi>W</mi><mrow><mi>p</mi><mi>b</mi><mi>j</mi><mo>,</mo><mi>y</mi></mrow></msub></mrow><annotation encoding="application/x-tex">\delta_{pbj,y} = RFR_{pbj,y}* W_{pbj,y} </annotation></semantics></math></p>
+<p><code>Ceq = 4</code> reads annual ration at sex/age,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mi>δ</mi><mrow><mi>p</mi><mi>b</mi><mi>j</mi><mo>,</mo><mi>y</mi></mrow><mrow><mi>i</mi><mi>n</mi></mrow></msubsup><annotation encoding="application/x-tex">\delta^{in}_{pbj,y}</annotation></semantics></math>,
+directly from <code>ration_data</code> (kg per predator per year),
+scaled by <code>Pvalue</code>; <code>CA</code>, <code>CB</code> and
+<code>fday</code> are not read.
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>δ</mi><mrow><mi>p</mi><mi>b</mi><mi>j</mi><mo>,</mo><mi>y</mi></mrow></msub><mo>=</mo><msub><mi>φ</mi><mi>p</mi></msub><mo>*</mo><msubsup><mi>δ</mi><mrow><mi>p</mi><mi>b</mi><mi>j</mi><mo>,</mo><mi>y</mi></mrow><mrow><mi>i</mi><mi>n</mi></mrow></msubsup></mrow><annotation encoding="application/x-tex">\delta_{pbj,y} = \varphi_p * \delta^{in}_{pbj,y}</annotation></semantics></math></p>
 </div>
 </div>
 </div>
@@ -323,18 +321,18 @@ Set <code>CA = 1</code>, <code>fday = 1</code> and <code>CB = 0</code>.
 <h2 id="fishery-and-survey-observation-model">Fishery and survey observation model<a class="anchor" aria-label="anchor" href="#fishery-and-survey-observation-model"></a>
 </h2>
 <p>CEATTLE is fit to time series of fishery catch, survey biomass, and
-length- or age-composition data. Log-catch and log-index observations
-are normally distributed; age and length compositions are multinomial,
-with their sample sizes input. There is no separate sex-ratio likelihood
-component: sex-ratio information enters through joint
-(<code>comp_data$Sex = 3</code>) composition data, whose female and male
-cells are normalized together. The log-scale index SD is input,
-estimated as a free parameter, or derived analytically following Walters
-and Ludwig (1994), per <code>Estimate_index_sd</code>. Selectivity and
-catchability are estimated or input separately for each fishery and
-survey.</p>
-<p>Catch is estimated in the model following the Baranov catch equation:
-<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mi>C</mi><mo accent="true">̂</mo></mover><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><mo>=</mo><mfrac><msub><mi>F</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><msub><mi>Z</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub></mfrac><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><msup><mi>e</mi><mrow><mi>−</mi><msub><mi>Z</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub></mrow></msup><mo stretchy="true" form="postfix">)</mo></mrow><msub><mi>N</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub></mrow><annotation encoding="application/x-tex">\hat{C}_{isa,y} = \frac{F_{isa,y}} {Z_{isa,y}} \left( 1 - e^{-Z_{isa,y}} \right) N_{isa,y}</annotation></semantics></math><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mi>C</mi><mo accent="true">̂</mo></mover><mrow><mi>i</mi><mo>,</mo><mi>y</mi></mrow></msub><mo>=</mo><munder><mo>∑</mo><mi>s</mi></munder><munderover><mo>∑</mo><mi>a</mi><msub><mi>A</mi><mi>i</mi></msub></munderover><mfrac><mrow><msub><mi>F</mi><mi>i</mi></msub><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow><msub><mi>Z</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub></mfrac><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><msup><mi>e</mi><mrow><mi>−</mi><msub><mi>Z</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub></mrow></msup><mo stretchy="true" form="postfix">)</mo></mrow><msub><mi>N</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><msub><mi>W</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub></mrow><annotation encoding="application/x-tex">\hat{C}_{i,y} = \sum_s\sum_a^{A_i} \frac{F_isa,y} {Z_{isa,y}} \left( 1 - e^{-Z_{isa,y}} \right) N_{isa,y} W_{isa,y}</annotation></semantics></math><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>F</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><mo>=</mo><msub><mover><mi>F</mi><mo accent="true">‾</mo></mover><msub><mi>f</mi><mi>i</mi></msub></msub><msup><mi>e</mi><mrow><msub><mi>ϵ</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mo>,</mo><mi>y</mi></mrow></msub><msub><mi>s</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>s</mi><mi>a</mi></mrow></msub></mrow></msup></mrow><annotation encoding="application/x-tex">F_{isa,y} = \bar{F}_{f_i}e^{\epsilon_{{f_i},y} s_{{f_i}sa}}</annotation></semantics></math>
+length- or age-composition data. Log-catch and (by default) log-index
+observations are normally distributed; age and length compositions are
+multinomial or Dirichlet-multinomial, with their sample sizes input.
+There is no separate sex-ratio likelihood component: sex-ratio
+information enters through joint (<code>comp_data$Sex = 3</code>)
+composition data, whose female and male cells are normalized together.
+The log-scale index SD is input, estimated as a free parameter, or
+derived analytically following Walters and Ludwig (1994), per
+<code>Estimate_index_sd</code>. Selectivity and catchability are
+estimated or input separately for each fishery and survey.</p>
+<p>Predicted catch follows the Baranov catch equation:
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mi>C</mi><mo accent="true">̂</mo></mover><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><mo>=</mo><mfrac><msub><mi>F</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><msub><mi>Z</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub></mfrac><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><msup><mi>e</mi><mrow><mi>−</mi><msub><mi>Z</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub></mrow></msup><mo stretchy="true" form="postfix">)</mo></mrow><msub><mi>N</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub></mrow><annotation encoding="application/x-tex">\hat{C}_{isa,y} = \frac{F_{isa,y}} {Z_{isa,y}} \left( 1 - e^{-Z_{isa,y}} \right) N_{isa,y}</annotation></semantics></math><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mi>C</mi><mo accent="true">̂</mo></mover><mrow><mi>i</mi><mo>,</mo><mi>y</mi></mrow></msub><mo>=</mo><munder><mo>∑</mo><mi>s</mi></munder><munderover><mo>∑</mo><mi>a</mi><msub><mi>A</mi><mi>i</mi></msub></munderover><mfrac><msub><mi>F</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><msub><mi>Z</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub></mfrac><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><msup><mi>e</mi><mrow><mi>−</mi><msub><mi>Z</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub></mrow></msup><mo stretchy="true" form="postfix">)</mo></mrow><msub><mi>N</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><msub><mi>W</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub></mrow><annotation encoding="application/x-tex">\hat{C}_{i,y} = \sum_s\sum_a^{A_i} \frac{F_{isa,y}} {Z_{isa,y}} \left( 1 - e^{-Z_{isa,y}} \right) N_{isa,y} W_{isa,y}</annotation></semantics></math><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>F</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><mo>=</mo><msub><mover><mi>F</mi><mo accent="true">‾</mo></mover><msub><mi>f</mi><mi>i</mi></msub></msub><msup><mi>e</mi><msub><mi>ϵ</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mo>,</mo><mi>y</mi></mrow></msub></msup><msub><mi>s</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>s</mi><mi>a</mi></mrow></msub></mrow><annotation encoding="application/x-tex">F_{isa,y} = \bar{F}_{f_i}e^{\epsilon_{{f_i},y}} s_{{f_i}sa}</annotation></semantics></math>
 An index is predicted from catchability
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>q</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>y</mi></mrow></msub><annotation encoding="application/x-tex">q_{f_iy}</annotation></semantics></math>
 and selectivity
@@ -345,40 +343,38 @@ in biomass
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mover><mrow><mi>I</mi><mo>:</mo><mi>N</mi></mrow><mo accent="true">̂</mo></mover><mrow><msub><mi>f</mi><mi>i</mi></msub><mo>,</mo><mi>y</mi></mrow></msub><annotation encoding="application/x-tex">\hat{I:N}_{{f_i},y}</annotation></semantics></math>
 (thousands of fish), per <code>Observation_units</code>:</p>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mrow><mi>I</mi><mo>:</mo><mi>B</mi></mrow><mo accent="true">̂</mo></mover><mrow><msub><mi>f</mi><mi>i</mi></msub><mo>,</mo><mi>y</mi></mrow></msub><mo>=</mo><munder><mo>∑</mo><mi>s</mi></munder><munder><mo>∑</mo><mi>a</mi></munder><mrow><mo stretchy="true" form="prefix">(</mo><msub><mover><mi>N</mi><mo accent="true">̃</mo></mover><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><mspace width="0.167em"></mspace><msub><mi>W</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><mspace width="0.167em"></mspace><msub><mi>S</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><mspace width="0.167em"></mspace><msub><mi>q</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>y</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\hat{I:B}_{{f_i},y} = \sum_s\sum_a \left( \tilde{N}_{isa,y}\, W_{{f_i}sa,y}\, S_{{f_i}sa,y}\, q_{{f_i}y} \right)</annotation></semantics></math><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mrow><mi>I</mi><mo>:</mo><mi>N</mi></mrow><mo accent="true">̂</mo></mover><mrow><msub><mi>f</mi><mi>i</mi></msub><mo>,</mo><mi>y</mi></mrow></msub><mo>=</mo><munder><mo>∑</mo><mi>s</mi></munder><munder><mo>∑</mo><mi>a</mi></munder><mrow><mo stretchy="true" form="prefix">(</mo><msub><mover><mi>N</mi><mo accent="true">̃</mo></mover><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><mspace width="0.167em"></mspace><msub><mi>S</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><mspace width="0.167em"></mspace><msub><mi>q</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>y</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\hat{I:N}_{{f_i},y} = \sum_s\sum_a \left( \tilde{N}_{isa,y}\, S_{{f_i}sa,y}\, q_{{f_i}y} \right)</annotation></semantics></math></p>
-<p>What differs between the two fleet types is the numbers the index
-sees,
+<p>The two fleet types differ in the numbers the index sees,
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mover><mi>N</mi><mo accent="true">̃</mo></mover><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><annotation encoding="application/x-tex">\tilde{N}_{isa,y}</annotation></semantics></math>.
-A <strong>survey</strong> index is a snapshot: the survey is on the
-grounds at one point in the year,
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>M</mi><mi>o</mi><mi>n</mi><mi>t</mi><msub><mi>h</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mo>,</mo><mi>y</mi></mrow></msub></mrow><annotation encoding="application/x-tex">Month_{{f_i},y}</annotation></semantics></math>,
-and sees the numbers that have survived to it. That month is read from
-the <code>index_data</code> row, not from the fleet, so a fleet whose
-survey timing has moved carries a different value per year.</p>
+A <strong>survey</strong> index is a snapshot of the numbers that have
+survived to the survey month,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>M</mi><mi>o</mi><mi>n</mi><mi>t</mi><msub><mi>h</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mo>,</mo><mi>y</mi></mrow></msub></mrow><annotation encoding="application/x-tex">Month_{{f_i},y}</annotation></semantics></math>.
+That month is read from each <code>index_data</code> row, not from the
+fleet, so survey timing can differ by year.</p>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mi>N</mi><mo accent="true">̃</mo></mover><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><mo>=</mo><msub><mi>N</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><mspace width="0.167em"></mspace><msup><mi>e</mi><mrow><mi>−</mi><mo stretchy="false" form="prefix">(</mo><mi>M</mi><mi>o</mi><mi>n</mi><mi>t</mi><msub><mi>h</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mo>,</mo><mi>y</mi></mrow></msub><mi>/</mi><mn>12</mn><mo stretchy="false" form="postfix">)</mo><msub><mi>Z</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub></mrow></msup><mspace width="2.0em"></mspace><mtext mathvariant="normal">(Fleet_type = Survey)</mtext></mrow><annotation encoding="application/x-tex">\tilde{N}_{isa,y} = N_{isa,y}\, e^{-(Month_{{f_i},y}/12) Z_{isa,y}} \qquad \text{(Fleet\_type = Survey)}</annotation></semantics></math></p>
-<p>A <strong>fishery</strong> index is CPUE, which accumulates over the
-whole year alongside the catch rather than at an instant. Baranov gives
+<p>A <strong>fishery</strong> index is CPUE, accumulated over the year
+with the catch. Baranov gives
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mi>C</mi><mo accent="true">̂</mo></mover><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><mo>=</mo><msub><mi>F</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><msub><mover><mi>N</mi><mo accent="true">‾</mo></mover><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub></mrow><annotation encoding="application/x-tex">\hat{C}_{isa,y} = F_{isa,y} \bar{N}_{isa,y}</annotation></semantics></math>,
 and effort cancels the
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>F</mi><annotation encoding="application/x-tex">F</annotation></semantics></math>
 (since
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>F</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><mo>=</mo><msubsup><mi>q</mi><msub><mi>f</mi><mi>i</mi></msub><mi>E</mi></msubsup><msub><mi>E</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mo>,</mo><mi>y</mi></mrow></msub><msub><mi>s</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>s</mi><mi>a</mi></mrow></msub></mrow><annotation encoding="application/x-tex">F_{isa,y} = q^{E}_{f_i} E_{f_i,y} s_{{f_i}sa}</annotation></semantics></math>),
-leaving the same year-average numbers the catch equation uses:</p>
+leaving the year-average numbers the catch equation uses:</p>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mi>N</mi><mo accent="true">̃</mo></mover><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><mo>=</mo><msub><mover><mi>N</mi><mo accent="true">‾</mo></mover><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><mo>=</mo><msub><mi>N</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><mspace width="0.167em"></mspace><mfrac><mrow><mn>1</mn><mo>−</mo><msup><mi>e</mi><mrow><mi>−</mi><msub><mi>Z</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub></mrow></msup></mrow><msub><mi>Z</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub></mfrac><mspace width="2.0em"></mspace><mtext mathvariant="normal">(Fleet_type = Fishery)</mtext></mrow><annotation encoding="application/x-tex">\tilde{N}_{isa,y} = \bar{N}_{isa,y} = N_{isa,y}\, \frac{1 - e^{-Z_{isa,y}}}{Z_{isa,y}} \qquad \text{(Fleet\_type = Fishery)}</annotation></semantics></math></p>
-<p><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>N</mi><mo accent="true">‾</mo></mover><annotation encoding="application/x-tex">\bar{N}</annotation></semantics></math>
-is also what a fishery’s age composition is built on, so a fleet’s
-index, catch and comps are consistent by construction, and
+<p>A fishery’s age composition is also built on
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>N</mi><mo accent="true">‾</mo></mover><annotation encoding="application/x-tex">\bar{N}</annotation></semantics></math>,
+so its index, catch and comps are consistent, and
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>M</mi><mi>o</mi><mi>n</mi><mi>t</mi><msub><mi>h</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mo>,</mo><mi>y</mi></mrow></msub></mrow><annotation encoding="application/x-tex">Month_{{f_i},y}</annotation></semantics></math>
-is not read for a fishery’s index rows. The model keys this on
+is not read for a fishery’s index rows. This is keyed on
 <code>Fleet_type</code>; there is no column to set. The distinction
 moves trend as well as scale, so a constant
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>q</mi><annotation encoding="application/x-tex">q</annotation></semantics></math>
 cannot absorb it: at <code>Month = 6</code>,
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>e</mi><mrow><mi>−</mi><mi>Z</mi><mi>/</mi><mn>2</mn></mrow></msup><annotation encoding="application/x-tex">e^{-Z/2}</annotation></semantics></math>
-approximates
+is 1.0% below
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>N</mi><mo accent="true">‾</mo></mover><mi>/</mi><mi>N</mi></mrow><annotation encoding="application/x-tex">\bar{N}/N</annotation></semantics></math>
-to within 1% at
+at
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Z</mi><mo>=</mo><mn>0.5</mn></mrow><annotation encoding="application/x-tex">Z = 0.5</annotation></semantics></math>
-but is 9.6% low at
+but 8.8% below at
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Z</mi><mo>=</mo><mn>1.5</mn></mrow><annotation encoding="application/x-tex">Z = 1.5</annotation></semantics></math>.
 Stock Synthesis splits the same way on its per-fleet survey timing
 (<code>SS_expval.tpl</code>:
@@ -410,7 +406,7 @@ or <code>"Hake"</code>, non-parametric sensu Taylor et al 2014; 6 or
 <code>"2DAR1"</code> for bin by year; 7 or <code>"3DAR1"</code> sensu
 Cheng et al (2024); 8 or <code>"DoubleNormal"</code>, a four-parameter
 double normal (peak, ascending and descending widths, and a right-tail
-floor); this is the Stock Synthesis pattern 24 shape without its
+floor): the Stock Synthesis pattern 24 shape without its
 initial-selectivity and plateau-width parameters; 9 or
 <code>"NonParametricPM"</code>, Ianelli non-parametric with the ADMB
 AMAK (<code>"pm"</code>) penalty; 11 or <code>"LogisticPM"</code>, the
@@ -419,10 +415,9 @@ AMAK logistic with a free age-1 selectivity; 13 or
 deviations have a proper density and so integrate under
 <code>random_sel</code> (<code>Time_varying_sel</code> picks the
 structure: <code>"Off"</code>, <code>"IID"</code> or
-<code>"RandomWalk"</code>). There is no 10, 12 or 14; the integer codes
-are frozen, because renumbering one would silently reinterpret every
-saved config and every fitted <code>.rds</code> that holds it. Whether a
-form is age- or length-based is set by
+<code>"RandomWalk"</code>); 15 or <code>"DoubleNormalSS3"</code>, the
+six-parameter Stock Synthesis pattern 24 double normal. There is no 10,
+12 or 14. Whether a form is age- or length-based is set by
 <code>Selectivity_dimension</code>, not by the code, except that
 <code>"Fixed"</code> is always at age.</li>
 <li>
@@ -441,23 +436,20 @@ estimated under <code>fit_mod(random_sel = TRUE)</code>; 3 or
 <code>"Block"</code> = time blocks with no penalty; 4 or
 <code>"RandomWalk"</code> = random walk following Dorn; 5 or
 <code>"RandomWalkAscending"</code> = random walk on the ascending
-portion of the double logistic only. Value 2 (<code>"AR1"</code>) was
-<strong>removed in 5.16.0</strong>: it was never an AR1, and an
-autocorrelated deviation is now a selectivity linkage,
-<code>linkage_spec(~ ar1(1 | Year))</code>. The switch as a whole is
-soft-deprecated in favour of that grammar.</li>
+portion of the double logistic only. Value 2 (<code>"AR1"</code>) is
+refused by <code><a href="../reference/data_check.html">data_check()</a></code>; an autocorrelated deviation is a
+selectivity linkage, <code>linkage_spec(~ ar1(1 | Year))</code>. The
+switch as a whole is soft-deprecated in favour of that grammar.</li>
 <li>
 <code>Time_varying_sel_sd</code>: The sd of the time-varying
 selectivity deviates. Under <code>fit_mod(random_sel = FALSE)</code> it
 is fixed at this value, per fleet. Under <code>random_sel = TRUE</code>
-the deviates are integrated out and the sd is <em>estimated</em>, so
-this is only a starting value, and fleets sharing a
-<code>Selectivity_index</code> share one estimated sd started at the
-geometric mean of theirs. The 2DAR1 and 3DAR1 forms read it under every
-<code>Time_varying_sel</code>, as the conditional sd of their deviation
-field, so they always need a positive value.
-<code>Time_varying_q_sd</code> is the catchability equivalent, under
-<code>random_q</code>.</li>
+the deviates are integrated out and the sd is <em>estimated</em> from
+this starting value; fleets sharing a <code>Selectivity_index</code>
+share one estimated sd started at the geometric mean of theirs. The
+2DAR1 and 3DAR1 forms read it under every <code>Time_varying_sel</code>,
+as the conditional sd of their deviation field, so they always need a
+positive value.</li>
 <li>
 <code>Bin_first_selected</code>: First age/length bin with non-zero
 selectivity; the curve is 0 below it. A 1-based bin ordinal on the
@@ -466,14 +458,13 @@ fleet’s <code>Selectivity_dimension</code>.</li>
 <div class="section level4">
 <h4 id="selectivity-penalty-weights">Selectivity penalty weights<a class="anchor" aria-label="anchor" href="#selectivity-penalty-weights"></a>
 </h4>
-<p><code>Sel_curve_pen1/2/3</code> are penalty <em>weights</em>. Each
-penalty is a Gaussian sum-of-squares
+<p><code>Sel_curve_pen1/2/3</code> are penalty <em>weights</em> on a
+Gaussian sum-of-squares
 (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">weight</mtext><mo>⋅</mo><msup><mi>x</mi><mn>2</mn></msup><mo>=</mo><msup><mi>x</mi><mn>2</mn></msup><mi>/</mi><mo stretchy="false" form="prefix">(</mo><mn>2</mn><msup><mi>σ</mi><mn>2</mn></msup><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\text{weight}\cdot x^2 = x^2 / (2\sigma^2)</annotation></semantics></math>),
-so you may instead supply a <strong>standard deviation</strong> and let
-<code><a href="../reference/switch_check.html">switch_check()</a></code> convert it with
+so you may instead supply a <strong>standard deviation</strong>, which
+sets the matching <code>Sel_curve_pen</code> column to
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">weight</mtext><mo>=</mo><mn>1</mn><mi>/</mi><mo stretchy="false" form="prefix">(</mo><mn>2</mn><msup><mi>σ</mi><mn>2</mn></msup><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\text{weight} = 1/(2\sigma^2)</annotation></semantics></math>.
-Supplying an SD sets the matching <code>Sel_curve_pen</code> column; a
-<code>Sel_curve_pen</code> you set directly is never overwritten.</p>
+A <code>Sel_curve_pen</code> you set directly is never overwritten.</p>
 <p>Which form reads which slot, and what it charges:</p>
 <table style="width:100%;" class="table">
 <colgroup>
@@ -535,25 +526,24 @@ sexes and years (form 2 under <code>"IID"</code> or
 <code>"RandomWalk"</code>, form 9 from <code>Sel_start_year</code> under
 <code>"RandomWalk"</code>; 9 refuses <code>"IID"</code>). Form 13
 charges them once per sex on the <em>base</em> coefficients. The same
-weight therefore bites harder on a time-varying 2 or 9 – retune rather
+weight therefore bites harder on a time-varying 2 or 9; retune rather
 than copy one across forms.</p>
-<p>Three points that decide whether a value you set does anything:</p>
+<p>Whether a value you set has any effect depends on:</p>
 <ul>
 <li>
 <strong>The direction.</strong>
 <code>Sel_shape_dir = "Increasing"</code> is implemented only by
 <code>NonParametricPM</code> (9) under
-<code>Sel_shape_mode = "Directional"</code>, where the template switches
-the one-sided penalty from the decreasing side to the increasing one.
-Everywhere else – including 9 under <code>"Smooth"</code>, which is
-two-sided – the weight is applied as written, so
-<code>"Increasing"</code> is refused rather than silently negating
-it.</li>
+<code>Sel_shape_mode = "Directional"</code>, where it moves the
+one-sided penalty from the decreasing side to the increasing one.
+Everywhere else, including 9 under <code>"Smooth"</code> (two-sided),
+the weight is applied as written, so <code>"Increasing"</code> is
+refused rather than silently negating it.</li>
 <li>
 <strong>The sign.</strong> A weight multiplies a squared deviation,
 so a negative one <em>rewards</em> that deviation.
 <code><a href="../reference/data_check.html">data_check()</a></code> refuses a negative <code>Sel_curve_pen</code>
-wherever the template reads it as a weight – which leaves four cases it
+wherever the template reads it as a weight, which leaves four cases it
 does not refuse: the directional case above, a
 <code>Fleet_type = "Off"</code> fleet (charged no selectivity penalty at
 all), a fleet that follows another’s <code>Selectivity_index</code>
@@ -637,10 +627,9 @@ Penalized likelihood random walk: <code>Time_varying_sel = 4</code>
 time-varying parameters)<a class="anchor" aria-label="anchor" href="#time-varying-double-logistic-1-ascending-and-descending-time-varying-parameters"></a>
 </h4>
 <p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mi>e</mi><msub><mi>l</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>s</mi><mi>a</mi></mrow></msub><mo>=</mo><mn>1</mn><mi>/</mi><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>+</mo><msup><mi>e</mi><mrow><mi>−</mi><mo stretchy="false" form="prefix">(</mo><mi>S</mi><mi>l</mi><mi>p</mi><msub><mn>1</mn><msub><mi>f</mi><mi>i</mi></msub></msub><mo>+</mo><msup><mi>e</mi><msubsup><mi>ϕ</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>s</mi><mi>y</mi></mrow><mrow><mi>s</mi><mi>l</mi><mi>p</mi><mn>1</mn></mrow></msubsup></msup><mo stretchy="false" form="postfix">)</mo><mo stretchy="false" form="prefix">(</mo><mi>a</mi><mo>−</mo><mo stretchy="false" form="prefix">(</mo><mi>I</mi><mi>n</mi><mi>f</mi><msub><mn>1</mn><msub><mi>f</mi><mi>i</mi></msub></msub><mo>+</mo><msubsup><mi>ϕ</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>s</mi><mi>y</mi></mrow><mrow><mi>I</mi><mi>n</mi><mi>f</mi><mn>1</mn></mrow></msubsup><mo stretchy="false" form="postfix">)</mo><mo stretchy="false" form="postfix">)</mo></mrow></msup><mo stretchy="false" form="postfix">)</mo><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><mn>1</mn><mi>/</mi><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>+</mo><msup><mi>e</mi><mrow><mi>−</mi><mo stretchy="false" form="prefix">(</mo><mi>S</mi><mi>l</mi><mi>p</mi><msub><mn>2</mn><msub><mi>f</mi><mi>i</mi></msub></msub><mo>+</mo><msup><mi>e</mi><msubsup><mi>ϕ</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>s</mi><mi>y</mi></mrow><mrow><mi>s</mi><mi>l</mi><mi>p</mi><mn>2</mn></mrow></msubsup></msup><mo stretchy="false" form="postfix">)</mo><mo stretchy="false" form="prefix">(</mo><mi>a</mi><mo>−</mo><mo stretchy="false" form="prefix">(</mo><mi>I</mi><mi>n</mi><mi>f</mi><msub><mn>2</mn><msub><mi>f</mi><mi>i</mi></msub></msub><mo>+</mo><msubsup><mi>ϕ</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>s</mi><mi>y</mi></mrow><mrow><mi>I</mi><mi>n</mi><mi>f</mi><mn>2</mn></mrow></msubsup><mo stretchy="false" form="postfix">)</mo><mo stretchy="false" form="postfix">)</mo></mrow></msup><mo stretchy="false" form="postfix">)</mo><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">sel_{f_i sa}=1/(1+e^{-(Slp1_{f_i}+e^{\phi_{f_i sy}^{slp1} } ) (a-(Inf1_{f_i}+\phi_{f_i sy}^{Inf1} ) ) } )(1-1/(1+e^{-(Slp2_{f_i}+e^{\phi_{f_i sy}^{slp2} } ) (a-(Inf2_{f_i}+\phi_{f_i sy}^{Inf2} ) ) } ))</annotation></semantics></math></p>
-<p>The four deviate structures – <code>Time_varying_sel</code> 1
-penalized, 1 as a random effect under
-<code>fit_mod(random_sel = TRUE)</code>, 3 block, and 4 random walk –
-are as under <strong>Time-varying logistic</strong> above.</p>
+<p>The four deviate structures (<code>Time_varying_sel</code> 1
+penalized or as a random effect, 3 block, and 4 random walk) are as
+under <strong>Time-varying logistic</strong> above.</p>
 </div>
 <div class="section level4">
 <h4 id="time-varying-double-logistic-2-random-walk-ascending-time-varying-parameters">Time-varying double logistic 2 (random walk ascending-time varying
@@ -680,9 +669,9 @@ logistic</strong> above.</p>
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>a</mi><mo>≥</mo><msub><mi>A</mi><mrow><mi>m</mi><mi>i</mi><mi>n</mi></mrow></msub></mrow><annotation encoding="application/x-tex">a \geq A_{min}</annotation></semantics></math>
 there is an incremental selectivity parameter
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>p</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>s</mi><mi>a</mi><mi>y</mi></mrow></msub><annotation encoding="application/x-tex">p_{f_i say}</annotation></semantics></math>
-for the fleet
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>f</mi><mi>i</mi></msub><annotation encoding="application/x-tex">f_i</annotation></semantics></math>.
-Selectivity at age is calculated as follows:</p>
+for fleet
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>f</mi><mi>i</mi></msub><annotation encoding="application/x-tex">f_i</annotation></semantics></math>,
+and selectivity at age is:</p>
 <p><span class="math display">$$sel_{f_i sa}=e^{sel^{`}_{f_i sa} -
 max(sel^{`}_{f_i sa})}$$</span> where <span class="math display">$$
 sel^{`}_{f_i sa} = \sum_{i=A_{min}}^a p_{f_i sa}$$</span> Selectivity is
@@ -690,9 +679,9 @@ sel^{`}_{f_i sa} = \sum_{i=A_{min}}^a p_{f_i sa}$$</span> Selectivity is
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>a</mi><mo>&lt;</mo><msub><mi>A</mi><mrow><mi>m</mi><mi>i</mi><mi>n</mi></mrow></msub></mrow><annotation encoding="application/x-tex">a &lt; A_{min}</annotation></semantics></math>,
 and
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>p</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>s</mi><mi>a</mi></mrow></msub><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">p_{f_i sa} = 0</annotation></semantics></math>
-above <code>minage + N_sel_bins</code>, so selectivity is constant
-beyond the last estimated bin. <code>minage</code>, set in the data, is
-the youngest age modeled.</p>
+from <code>minage + N_sel_bins</code>, so selectivity is constant beyond
+the last estimated bin. <code>minage</code>, set in the data, is the
+youngest age modeled.</p>
 <p>Input: <code>Selectivity = 5 or "Hake"</code>,
 <code>N_sel_bins = 6</code>, <code>Time_varying_sel = NA</code>,
 <code>Time_varying_sel_sd = NA</code>, and
@@ -710,10 +699,8 @@ deviation
 <p>Penalized likelihood: <code>Time_varying_sel = 1</code>
 <math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ϕ</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>s</mi><mi>y</mi></mrow></msub><mo>∼</mo><mi>N</mi><mo stretchy="false" form="prefix">(</mo><mn>0</mn><mo>,</mo><msubsup><mi>σ</mi><msub><mi>f</mi><mi>i</mi></msub><mi>ϕ</mi></msubsup><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\phi_{f_i sy} \sim N(0,\sigma^{\phi}_{f_i}) </annotation></semantics></math>
 Random effect: <code>Time_varying_sel = 1</code> with
-<code>fit_mod(random_sel = TRUE)</code>, where the deviations are
-integrated out by the Laplace approximation and
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mover><mi>σ</mi><mo accent="true">̂</mo></mover><msub><mi>f</mi><mi>i</mi></msub><mi>ϕ</mi></msubsup><annotation encoding="application/x-tex">\hat\sigma^{\phi}_{f_i}</annotation></semantics></math>
-is estimated rather than fixed at <code>Time_varying_sel_sd</code>
+<code>fit_mod(random_sel = TRUE)</code>, as under <strong>Time-varying
+logistic</strong>
 <math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ϕ</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>s</mi><mi>y</mi></mrow></msub><mo>∼</mo><mi>N</mi><mo stretchy="false" form="prefix">(</mo><mn>0</mn><mo>,</mo><msubsup><mover><mi>σ</mi><mo accent="true">̂</mo></mover><msub><mi>f</mi><mi>i</mi></msub><mi>ϕ</mi></msubsup><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\phi_{f_i sy} \sim N(0,\hat\sigma^{\phi}_{f_i}) </annotation></semantics></math></p>
 </div>
 </div>
@@ -727,20 +714,18 @@ is estimated rather than fixed at <code>Time_varying_sel_sd</code>
 <code>Catchability_index</code> Fleets given the same value share
 one catchability parameter.</li>
 <li>
-<code>Catchability</code> Text or integer switch specifying
-catchability. 0 or “Fixed” = fixed at <code>Catchability_init</code>; 1
-or “Estimated” = a single free parameter; 2 or “Estimated-with-prior” =
-a single free parameter with a prior; 3 or “Analytical” = q solved in
-closed form as the maximum likelihood q for the fleet’s
-<code>Index_distribution</code> (refused under TruncatedNormal); 4 or
-“PowerEquation” = power equation, <strong>declared but not yet
-implemented</strong>; 5 or “Environmental” = linear equation log(q_y) =
-q_mu + beta * index_y; 6 or “AR1” = REMOVED in 5.12.0 (it never
-estimated the deviates, so q was constant) – express the Rogers et
-al. form as a q linkage with <code>ar1(1 | Year)</code> and
-<code>observe =</code>; 7 or “AnalyticalArith” = arithmetic-mean
-analytical q, the AMAK/ebswp form, paired with the MVN survey
-likelihood.</li>
+<code>Catchability</code> Catchability form: 0 or “Fixed” = fixed at
+<code>Catchability_init</code>; 1 or “Estimated” = a single free
+parameter; 2 or “Estimated-with-prior” = a single free parameter with a
+prior; 3 or “Analytical” = q solved in closed form as the maximum
+likelihood q for the fleet’s <code>Index_distribution</code> (refused
+under TruncatedNormal); 4 or “PowerEquation” = power equation,
+<strong>declared but not yet implemented</strong>; 5 or “Environmental”
+= linear equation log(q_y) = q_mu + beta * index_y; 6 or “AR1” = refused
+by <code><a href="../reference/data_check.html">data_check()</a></code>; express the Rogers et al. form as a q
+linkage with <code>ar1(1 | Year)</code> and <code>observe =</code>; 7 or
+“AnalyticalArith” = arithmetic-mean analytical q, the AMAK/ebswp form,
+paired with the MVN survey likelihood.</li>
 <li>
 <code>Catchability_init</code> Starting or fixed value for
 catchability</li>
@@ -750,10 +735,10 @@ dnorm(log_q, log(Catchability_init) - bias_adjust_proc * sd^2/2,
 sd)</li>
 <li>
 <code>Time_varying_q</code> Whether a time-varying q is estimated. 0
-= no; 1 = penalized deviate; 2 = AR1 (REMOVED in 5.16.0;
-<code><a href="../reference/data_check.html">data_check()</a></code> errors); 3 = time blocks with no penalty; 4 =
-random walk from the mean following Dorn 2018 (dnorm(q_y - q_y-1, 0,
-sigma)). Under <code>Catchability = 5</code> it instead holds the
+= no; 1 = penalized deviate; 2 = AR1 (refused by
+<code><a href="../reference/data_check.html">data_check()</a></code>); 3 = time blocks with no penalty; 4 = random
+walk from the mean following Dorn 2018 (dnorm(q_y - q_y-1, 0, sigma)).
+Under <code>Catchability = 5</code> it instead holds the
 <code>env_data</code> index for log(q_y) = q_mu + beta * index_y.</li>
 <li>
 <code>Time_varying_q_sd</code> Fixed or starting sd of the
@@ -843,8 +828,8 @@ because its truncation term depends on
 so <code><a href="../reference/data_check.html">data_check()</a></code> refuses <code>Catchability = 3</code>
 there.</p>
 <p>Each estimate is solved for the current values of the other
-parameters, random effects included. With random effects it is therefore
-not the
+parameters, random effects included, so with random effects it is not
+the
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>q</mi><annotation encoding="application/x-tex">q</annotation></semantics></math>
 that maximizes the likelihood with them integrated out, and its
 objective should not be compared with that of a fit that estimates
@@ -863,8 +848,11 @@ mean catchability.</p>
 random effects</em></p>
 <p><code>Catchability %in% c(1:2)</code> and
 <code>Time_varying_q %in% c(1, 4)</code>
-<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mi>q</mi><mo accent="true">̂</mo></mover><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>y</mi></mrow></msub><mo>=</mo><msup><mi>e</mi><mrow><msub><mover><mi>q</mi><mo accent="true">‾</mo></mover><msub><mi>f</mi><mi>i</mi></msub></msub><mo>+</mo><msub><mi>ω</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>y</mi></mrow></msub></mrow></msup></mrow><annotation encoding="application/x-tex">\hat{q}_{f_iy} = e^{\bar{q}_{f_i}+ \omega_{f_iy}}</annotation></semantics></math><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ω</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>y</mi></mrow></msub><mo>∼</mo><mi>N</mi><mo stretchy="false" form="prefix">(</mo><mn>0</mn><mo>,</mo></mrow><annotation encoding="application/x-tex">\omega_{f_iy} \sim N(0,</annotation></semantics></math><code>Time_varying_q_sd</code><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo stretchy="false" form="postfix">)</mo><annotation encoding="application/x-tex">)</annotation></semantics></math>,
-with <code>Time_varying_q_sd</code> either fixed or estimated under
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mi>q</mi><mo accent="true">̂</mo></mover><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>y</mi></mrow></msub><mo>=</mo><msup><mi>e</mi><mrow><msub><mover><mi>q</mi><mo accent="true">‾</mo></mover><msub><mi>f</mi><mi>i</mi></msub></msub><mo>+</mo><msub><mi>ω</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>y</mi></mrow></msub></mrow></msup></mrow><annotation encoding="application/x-tex">\hat{q}_{f_iy} = e^{\bar{q}_{f_i}+ \omega_{f_iy}}</annotation></semantics></math><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ω</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>y</mi></mrow></msub><mo>∼</mo><mi>N</mi><mo stretchy="false" form="prefix">(</mo><mn>0</mn><mo>,</mo></mrow><annotation encoding="application/x-tex">\omega_{f_iy} \sim N(0,</annotation></semantics></math><code>Time_varying_q_sd</code><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo stretchy="false" form="postfix">)</mo><annotation encoding="application/x-tex">)</annotation></semantics></math>
+under <code>1</code> (IID), or
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ω</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>y</mi></mrow></msub><mo>−</mo><msub><mi>ω</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mo>,</mo><mi>y</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>∼</mo><mi>N</mi><mo stretchy="false" form="prefix">(</mo><mn>0</mn><mo>,</mo></mrow><annotation encoding="application/x-tex">\omega_{f_iy} - \omega_{f_i,y-1} \sim N(0,</annotation></semantics></math><code>Time_varying_q_sd</code><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo stretchy="false" form="postfix">)</mo><annotation encoding="application/x-tex">)</annotation></semantics></math>
+under <code>4</code> (random walk), with <code>Time_varying_q_sd</code>
+either fixed or estimated under
 <code>fit_mod(random_q = TRUE)</code></p>
 <p><em>Catchability time-blocks</em></p>
 <p><code>Catchability %in% c(1:2)</code>,
