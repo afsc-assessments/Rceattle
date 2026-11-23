@@ -29,11 +29,13 @@
 #' composition or catch, and no parameter for a later year, enters its
 #' estimates. It starts from the unpeeled estimates for its own years and uses
 #' the unpeeled map cut to them. Its removed years are then its retrospective
-#' forecast: F is fitted to the observed catch with the hindcast held;
-#' weight-at-age, empirical selectivity and ration stay at the terminal year, and
-#' the q, selectivity and M1 deviations keep their terminal-year values, M1's
-#' through the projection too (a form whose deviations are year-to-year
-#' increments takes an increment of 0).
+#' forecast: F is fitted to the observed catch with the hindcast held, and the
+#' rest follows the model's own projection. Weight-at-age, empirical selectivity
+#' and ration stay at the terminal year, and the q and selectivity deviations keep
+#' their terminal-year values (a form whose deviations are year-to-year
+#' increments takes an increment of 0). M1 deviations and linkage effects take
+#' the peel's projection values: 0 for an estimated by-year M1 deviation, and a
+#' random walk's terminal value, an AR1's decay toward 0, or 0 for an IID effect.
 #' Recruitment takes the deviation [sample_rec()] uses with
 #' `sample_rec = FALSE`, computed from the peel's fit (for a penalty-form curve
 #' with no penalty years in the peel, the mean over its own years after the
@@ -157,7 +159,6 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
   styr <- object$data_list$styr
   nyrs <- length(styr:endyr)
   projyr <- object$data_list$projyr
-  nyrs_proj <- projyr - styr + 1
 
   # FORK cluster where available, PSOCK on Windows (.parallel_lapply()); R CMD
   # check sets _R_CHECK_LIMIT_CORES_ and makeCluster() errors above 2 cores.
@@ -439,10 +440,10 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
     hind_defaults <- suppressWarnings(suppressMessages(build_params(hind_list)))
     inits <- .peel_params(object$estimated_params, hind_defaults, nyrs_peel)
     map <- .peel_map(object$map, hind_defaults, nyrs_peel)
-    # Every estimated M1 deviation starts at the unpeeled estimate. One by age is a
-    # single parameter shared by all years, so its later years must start there too.
-    m1_free <- !is.na(map$mapList$log_M1_dev)
-    inits$log_M1_dev[m1_free] <- object$estimated_params$log_M1_dev[m1_free]
+    # M1 deviations keep the unpeeled values, but one estimated for a removed year
+    # takes its projection value, 0. One by age is shared by every year.
+    m1_keep <- !is.na(map$mapList$log_M1_dev) | is.na(object$map$mapList$log_M1_dev)
+    inits$log_M1_dev[m1_keep] <- object$estimated_params$log_M1_dev[m1_keep]
 
     newmod <- suppressWarnings(
       suppressMessages(
@@ -469,14 +470,10 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
     hindcast <- newmod   # its covariance gives the bands below
 
     # Forecast ----
-    # Back to the full model: the peel's estimates in its own years; in the removed
-    # years F starts from the unpeeled estimates and is fitted to the observed
-    # catch, while the q, selectivity and M1 deviations keep their terminal values,
-    # M1's through the projection too.
+    # Back to the full model: the removed years' F is fitted to their catch, and the
+    # rest follows the model's projection (q and selectivity deviations held).
     forecast_pars <- .unpeel_params(newmod$estimated_params, object$estimated_params)
     forecast_pars <- .hold_devs(forecast_pars, data_list, nyrs_peel)
-    forecast_pars$log_M1_dev[, , , (nyrs_peel + 1):nyrs_proj] <-
-      forecast_pars$log_M1_dev[, , , nyrs_peel]
 
     # - Add in peeled catch to fit to
     data_list$catch_data <- data_list$catch_data |>

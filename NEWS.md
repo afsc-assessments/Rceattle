@@ -28,10 +28,13 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   the removed years, and their fixed deviations no longer enter the recruitment or
   M1 densities. The peel starts from the unpeeled estimates for its own years and
   uses the unpeeled map cut to them, so a parameter fixed, freed or shared by hand
-  stays so. In its forecast years the q, selectivity and M1 deviations keep the
-  peel's own terminal-year values, M1's through the projection too, and under
-  `getsd = TRUE` every year's band comes from the peel's hindcast covariance,
-  random effects included, under any harvest control rule.
+  stays so. Its forecast years follow the model's own projection: the q and
+  selectivity deviations keep the peel's terminal-year values, and M1 deviations
+  and linkage effects take the peel's projection values (0 for an estimated
+  by-year M1 deviation; a random walk's terminal value, an AR1's decay toward 0,
+  or 0 for an IID linkage effect). Under `getsd = TRUE` every year's band comes
+  from the peel's hindcast covariance, random effects included, under any
+  harvest control rule.
 
   **Whose Mohn's rho moves**: in the forecast years, any model with q,
   selectivity or M1 year deviations, IID included, whose forecast years took the
@@ -53,13 +56,13 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   as an `ar1(1 | Year)` linkage, which this release neither cuts to a peel's
   years nor holds.
 
-* **In the years `run_mse()` adds, and in a peel's forecast years, the q,
-  selectivity and M1 deviations keep their last-year values.** A selectivity form
-  whose deviations are year-to-year increments (`NonParametricPM`, and
-  `NonParametricIntegrable` under `RandomWalk`) takes an increment of 0 there, so
-  its selectivity stays constant instead of walking on. In `run_mse()` the
-  operating model's by-year M1 deviation stays at the last year's rather than 0,
-  and projection years keep the model's own projection values. The EBS pollock
+* **In the years `run_mse()` adds, and in a peel's forecast years, the q and
+  selectivity deviations keep their last-year values**, as the model's projection
+  holds selectivity. A selectivity form whose deviations are year-to-year
+  increments (`NonParametricPM`, and `NonParametricIntegrable` under `RandomWalk`)
+  takes an increment of 0 there, so its selectivity stays constant instead of
+  walking on. In `run_mse()` the by-year M1 deviation also keeps the last year's
+  rather than 0, and projection years keep the model's own projection values. The EBS pollock
   2024 MSE (`mse.R`), whose fishery, AVO, ATS and CPUE selectivity are
   `NonParametricPM` under `RandomWalk`, now holds their selectivity in the years
   it adds; the Pacific hake (`MSE_yr2024.R`) and `BS2017SS` MSEs are unchanged.

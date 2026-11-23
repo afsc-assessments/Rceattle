@@ -1,9 +1,9 @@
-# The q, selectivity and M1 deviations in years no data inform (a retrospective
-# peel's forecast, the years run_mse() adds) keep their last year's values; a
-# selectivity form whose deviations are year-to-year increments takes an
-# increment of 0. Projection years are left as they are.
+# The q and selectivity deviations in years past a model's data (a retrospective
+# peel's forecast, the years run_mse() adds) keep their last year's values, as
+# the projection holds selectivity; a selectivity form whose deviations are
+# year-to-year increments takes an increment of 0. M1 is left as it is.
 
-testthat::test_that(".hold_devs() keeps the last year's q, selectivity and M1 deviations", {
+testthat::test_that(".hold_devs() keeps the last year's q and selectivity deviations", {
   n_yrs <- 5
   last <- 3
   fc <- data.frame(
@@ -26,9 +26,8 @@ testthat::test_that(".hold_devs() keeps the last year's q, selectivity and M1 de
     testthat::expect_identical(h$sel_inf_dev[, , , yr], p$sel_inf_dev[, , , last])
     testthat::expect_identical(h$sel_coff_dev[1:2, , , yr], p$sel_coff_dev[1:2, , , last])
     testthat::expect_true(all(h$sel_coff_dev[3:4, , , yr] == 0))
-    testthat::expect_identical(h$log_M1_dev[, , , yr], p$log_M1_dev[, , , last])
   }
-  testthat::expect_identical(h$log_M1_dev[, , , n_yrs + 1:2], p$log_M1_dev[, , , n_yrs + 1:2])
+  testthat::expect_identical(h$log_M1_dev, p$log_M1_dev)
   # The years with data are untouched.
   testthat::expect_identical(h$index_q_dev[, 1:last], p$index_q_dev[, 1:last])
   testthat::expect_identical(h$sel_coff_dev[, , , 1:last], p$sel_coff_dev[, , , 1:last])

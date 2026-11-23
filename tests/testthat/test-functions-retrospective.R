@@ -1304,9 +1304,9 @@ testthat::test_that("a peel's hindcast is the fit of its own years", {
   testthat::expect_true(all(q_dev[(nyrs_peel + 1):nyrs] == q_dev[nyrs_peel]))
 })
 
-# M1 holds its terminal value through a peel's projection, not only its forecast
-# years; here a fixed M1 deviation that differs every year.
-testthat::test_that("a peel's M1 holds its terminal value through the projection", {
+# A peel's forecast and projection years take M1 as the model projects it: an
+# input M1 deviation, here one that differs every year, as given.
+testthat::test_that("a peel's M1 follows the model's projection", {
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("TMB")
 
@@ -1324,9 +1324,9 @@ testthat::test_that("a peel's M1 holds its terminal value through the projection
     fit, peels = 1, cores = 1, getsd = FALSE, phase = FALSE)))$Rceattle_list[[paste0("Year_", endyr_peel)]]
 
   k <- endyr_peel - d$styr + 1
-  m1 <- peel$quantities$M1_at_age
   for (yr in (k + 1):nyrs_proj) {
-    testthat::expect_equal(unname(m1[, , , yr]), unname(m1[, , , k]))
+    testthat::expect_equal(unname(peel$quantities$M1_at_age[, , , yr]),
+                           unname(fit$quantities$M1_at_age[, , , yr]))
   }
 })
 

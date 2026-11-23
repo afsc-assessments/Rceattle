@@ -77,11 +77,13 @@ have been fitted at its terminal year: it ends there, so no later index,
 composition or catch, and no parameter for a later year, enters its
 estimates. It starts from the unpeeled estimates for its own years and uses
 the unpeeled map cut to them. Its removed years are then its retrospective
-forecast: F is fitted to the observed catch with the hindcast held;
-weight-at-age, empirical selectivity and ration stay at the terminal year, and
-the q, selectivity and M1 deviations keep their terminal-year values, M1's
-through the projection too (a form whose deviations are year-to-year
-increments takes an increment of 0).
+forecast: F is fitted to the observed catch with the hindcast held, and the
+rest follows the model's own projection. Weight-at-age, empirical selectivity
+and ration stay at the terminal year, and the q and selectivity deviations keep
+their terminal-year values (a form whose deviations are year-to-year
+increments takes an increment of 0). M1 deviations and linkage effects take
+the peel's projection values: 0 for an estimated by-year M1 deviation, and a
+random walk's terminal value, an AR1's decay toward 0, or 0 for an IID effect.
 Recruitment takes the deviation \code{\link[=sample_rec]{sample_rec()}} uses with
 \code{sample_rec = FALSE}, computed from the peel's fit (for a penalty-form curve
 with no penalty years in the peel, the mean over its own years after the
