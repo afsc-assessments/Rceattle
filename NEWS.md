@@ -55,8 +55,8 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
     corrected years.
   - Help pages now cite methods they described without a source: Mohn (1999)
     in `?retrospective`, Thorson et al. (2017) in `?build_composition`,
-    Thorson and Kristensen (2016) in `?fit_control`, Beverton and Holt (1957)
-    and Ricker (1954) in `?build_srr`, Punt et al. (2016) in `?run_mse`,
+    Beverton and Holt (1957) and Ricker (1954) in `?build_srr`, Punt et al.
+    (2016) in `?run_mse`,
     Richards (1959) in `?build_growth`, Dunn and Smyth (1996) in
     `?osa_residuals`, and Methot and Wetzel (2013) for the `DoubleNormalSS3`
     form.
