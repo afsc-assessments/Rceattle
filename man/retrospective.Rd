@@ -45,8 +45,8 @@ starts from the unpeeled model's estimates.}
 
 \item{projected_env_data_known}{\code{env_data} columns whose values after each
 peel's terminal year were known then, such as a climate projection, so the
-peels keep them (a categorical linkage term, and a q or selectivity random
-effect, is held regardless): \code{FALSE} (default) none, \code{TRUE} all, or a
+peels keep them (a categorical linkage term or a q or selectivity random
+effect is held regardless): \code{FALSE} (default) none, \code{TRUE} all, or a
 character vector of column names.}
 
 \item{Rceattle}{deprecated name for \code{object}, still accepted so existing
@@ -84,11 +84,9 @@ the q and selectivity deviations keep their terminal-year values (a form whose
 deviations are year-to-year increments takes an increment of 0). M1 deviations
 take the peel's projection values: 0 for one estimated by year, an input series
 as given. A q or selectivity linkage deviation keeps its terminal-year level
-too, so q and selectivity follow the last year's, as the projection holds
-selectivity. Any other
-linkage effect takes the peel's own estimate for each removed year, as the
-projection does: a random walk its terminal value, an AR1 its decay toward 0,
-an IID effect 0.
+too, as the projection holds selectivity. Any other linkage effect takes the
+peel's own estimate for each removed year, as the projection does: a random
+walk its terminal value, an AR1 its decay toward 0, an IID effect 0.
 Recruitment takes the deviation \code{\link[=sample_rec]{sample_rec()}} uses with
 \code{sample_rec = FALSE}, computed from the peel's fit (for a penalty-form curve
 with no penalty years in the peel, the mean over its own years after the

@@ -20,8 +20,8 @@
 #'   starts from the unpeeled model's estimates.
 #' @param projected_env_data_known `env_data` columns whose values after each
 #'   peel's terminal year were known then, such as a climate projection, so the
-#'   peels keep them (a categorical linkage term, and a q or selectivity random
-#'   effect, is held regardless): `FALSE` (default) none, `TRUE` all, or a
+#'   peels keep them (a categorical linkage term or a q or selectivity random
+#'   effect is held regardless): `FALSE` (default) none, `TRUE` all, or a
 #'   character vector of column names.
 #'
 #' @details
@@ -36,11 +36,9 @@
 #' deviations are year-to-year increments takes an increment of 0). M1 deviations
 #' take the peel's projection values: 0 for one estimated by year, an input series
 #' as given. A q or selectivity linkage deviation keeps its terminal-year level
-#' too, so q and selectivity follow the last year's, as the projection holds
-#' selectivity. Any other
-#' linkage effect takes the peel's own estimate for each removed year, as the
-#' projection does: a random walk its terminal value, an AR1 its decay toward 0,
-#' an IID effect 0.
+#' too, as the projection holds selectivity. Any other linkage effect takes the
+#' peel's own estimate for each removed year, as the projection does: a random
+#' walk its terminal value, an AR1 its decay toward 0, an IID effect 0.
 #' Recruitment takes the deviation [sample_rec()] uses with
 #' `sample_rec = FALSE`, computed from the peel's fit (for a penalty-form curve
 #' with no penalty years in the peel, the mean over its own years after the

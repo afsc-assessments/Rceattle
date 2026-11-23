@@ -128,9 +128,8 @@ NULL
 #'   In a [retrospective()] peel, a fixed-effect term that is a category
 #'   (`cut(Year, ...)`, `factor()`, a logical column) holds its terminal-year value
 #'   in every later `env_data` row, as the peel has no data after that year to show
-#'   a block or regime changed, and so does a q or selectivity random effect, as a
-#'   `fleet_control` deviation does. A fit's own projection reads `env_data` as
-#'   given.
+#'   a block or regime changed. A q or selectivity random effect also holds its
+#'   terminal-year level. A fit's own projection reads `env_data` as given.
 #'
 #' @return An `Rceattle_linkage_spec` object.
 #' @examples
