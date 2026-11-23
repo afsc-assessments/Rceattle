@@ -1330,6 +1330,49 @@ testthat::test_that("a peel's M1 follows the model's projection", {
   }
 })
 
+# With no catch to fit in a peel's removed years, its band must still take the
+# hindcast's joint precision: this full-length model's would score the random
+# walk's step into the removed year (8.9% on the fitted-year index band).
+testthat::test_that("a peel with no peeled catch keeps its hindcast band under a random walk", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("TMB")
+
+  data(BS2017SS, envir = environment())
+  d <- BS2017SS
+  d$projyr <- 2020
+  d$fleet_control$Proj_F_proportion <- rep(1, 7)
+  d$fleet_control$Time_varying_q[7] <- "RandomWalk"
+  d$fleet_control$Time_varying_q_sd[7] <- 0.2
+  # No catch to fit in the last year: two fisheries' rows dropped, the third's 0.
+  cd <- d$catch_data
+  cd <- cd[!(cd$Year == d$endyr & cd$Fleet_code %in% 1:2), ]
+  cd$Catch[cd$Year == d$endyr & cd$Fleet_code == 3] <- 0
+  d$catch_data <- cd
+  fit_d <- function(dd) suppressMessages(suppressWarnings(fit_mod(
+    data_list = dd, inits = NULL, file = NULL, estimateMode = 0,
+    random_rec = FALSE, random_q = TRUE, msmMode = 0,
+    fit_control = fit_control(phase = FALSE, getsd = TRUE, verbose = 0))))
+  fit <- fit_d(d)
+  endyr_peel <- d$endyr - 1
+  peel <- suppressMessages(suppressWarnings(retrospective(
+    fit, peels = 1, cores = 1, getsd = TRUE, phase = FALSE)))$Rceattle_list[[paste0("Year_", endyr_peel)]]
+  testthat::expect_null(attr(peel, "sd_report_error", exact = TRUE))
+
+  own <- d
+  own$endyr <- endyr_peel
+  for (nm in c("index_data", "comp_data", "catch_data")) {
+    own[[nm]] <- own[[nm]][own[[nm]]$Year <= endyr_peel, ]
+  }
+  own_fit <- fit_d(own)
+  hat <- function(s, what) s[[what]][names(s$value) == "log_index_hat"]
+  n <- length(hat(own_fit$sdrep, "value"))
+  # Same rows, then the same band.
+  testthat::expect_equal(hat(peel$sdrep, "value")[1:n], hat(own_fit$sdrep, "value"),
+                         tolerance = 1e-4)
+  testthat::expect_equal(hat(peel$sdrep, "sd")[1:n], hat(own_fit$sdrep, "sd"),
+                         tolerance = 1e-3)
+})
+
 # Under a harvest control rule that estimates F, a fit's sdrep is the
 # projection's; a peel's band must still come from its hindcast.
 testthat::test_that("a peel keeps its hindcast band under an HCR that estimates F", {

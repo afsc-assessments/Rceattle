@@ -601,7 +601,9 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
             hindcast$obj, hessian.fixed = H, getJointPrecision = TRUE)$jointPrecision
         }
         tryCatch({
-          if (length(fitted_rows)) {
+          # Under random effects even with no peeled catch, so the band takes the
+          # hindcast's joint precision, not this model's walk into the removed years.
+          if (length(fitted_rows) || length(obj$env$random)) {
             sdr <- .rce_catch_conditioned_sd(obj, sdr, fitted_rows, data_list$styr)
           }
           list(sdrep = sdr)
@@ -1243,8 +1245,11 @@ print.Rceattle_jitter <- function(x, tol = 0.01, ...) {
   # qr.solve() applies j_c[F]^-1 from the formula above (least squares when a fleet
   # has several catch rows in a year).
   keep <- setdiff(seq_along(pa), f_col)
-  j_cc <- j_q[, keep, drop = FALSE] - j_q[, f_col, drop = FALSE] %*%
-    qr.solve(j_c[, f_col, drop = FALSE], j_c[, keep, drop = FALSE])
+  j_cc <- j_q[, keep, drop = FALSE]
+  if (n_f > 0) {
+    j_cc <- j_cc - j_q[, f_col, drop = FALSE] %*%
+      qr.solve(j_c[, f_col, drop = FALSE], j_c[, keep, drop = FALSE])
+  }
   # Covariance of theta: fixed and random effects jointly, else the fixed.
   cov_theta <- if (length(obj$env$random)) solve(sdrep$jointPrecision) else sdrep$cov.fixed
   cov_q <- j_cc %*% cov_theta %*% t(j_cc)   # the delta method
