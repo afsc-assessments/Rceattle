@@ -260,3 +260,38 @@ testthat::test_that("run_mse still errors when no fleet takes projected F", {
                         sampling_period = 5))),
     "Proj_F_proportion")
 })
+
+# The years run_mse() adds take the operating model's projection M1 (5.70.6);
+# 5.70.3 to 5.70.5 held the last hindcast year's. Here an input M1 deviation
+# differs every year.
+testthat::test_that("run_mse gives the years it adds the model's projection M1", {
+  testthat::skip_if_not_installed("TMB")
+  testthat::skip_on_cran()
+
+  d <- make_test_data(nyrs = 20, seed = 1)
+  d$fleet_control$Proj_F_proportion <-
+    ifelse(d$fleet_control$Fleet_type %in% c(1, "Fishery"), 1, 0)
+  inits <- suppressMessages(Rceattle::build_params(d))
+  nyrs_proj <- d$projyr - d$styr + 1
+  inits$log_M1_dev[] <- rep(seq(-0.2, 0.2, length.out = nyrs_proj),
+                            each = prod(dim(inits$log_M1_dev)[1:3]))
+  om <- suppressMessages(suppressWarnings(Rceattle::fit_mod(
+    data_list = d, inits = inits, file = NULL, estimateMode = 0,
+    random_rec = FALSE, msmMode = 0,
+    HCR = Rceattle::build_hcr(HCR = 5, Ftarget = 0.4, Flimit = 0.35,
+                              Plimit = 0.2, Alpha = 0.05),
+    fit_control = Rceattle::fit_control(phase = FALSE, getsd = FALSE, verbose = 0))))
+  mse <- suppressMessages(suppressWarnings(Rceattle::run_mse(
+    om = om, em = om, nsim = 1, assessment_period = 2, sampling_period = 2,
+    simulate_data = FALSE, sample_rec = FALSE)))
+  sim <- mse[[grep("^Sim", names(mse))[1]]]
+  om_end <- sim$OM
+  added <- (d$endyr - d$styr + 2):(om_end$data_list$endyr - d$styr + 1)
+  testthat::expect_equal(om_end$quantities$M1_at_age[, , , added],
+                         om$quantities$M1_at_age[, , , added], ignore_attr = TRUE)
+  # And the estimation model's added years keep the input series.
+  em_end <- sim$EM[[length(sim$EM)]]
+  em_added <- (d$endyr - d$styr + 2):(em_end$data_list$endyr - d$styr + 1)
+  testthat::expect_equal(em_end$estimated_params$log_M1_dev[, , , em_added],
+                         inits$log_M1_dev[, , , em_added], ignore_attr = TRUE)
+})

@@ -110,11 +110,13 @@ A list of operating models (differing by simulated recruitment, per
 }
 \description{
 Runs a forward-projecting management strategy evaluation (MSE).
-In the years it adds, the selectivity, catchability and M1 deviations,
-foraging days and weight-at-age are held at the operating model's terminal
-hindcast year, survey SD is the average over the historical series, and
-composition sample size is held at the last year. There is no
-implementation error and no observation error on catch. Fixed numbers-at-age (\code{estDynamics > 0}) are an input rather than a
+In the years it adds, the selectivity and catchability deviations, foraging
+days and weight-at-age are held at the operating model's terminal hindcast
+year, M1 deviations take the operating model's projection values (0 where
+estimated by year, an input series as given), survey SD is the average over
+the historical series, and composition sample size is held at the last
+year. There is no implementation error and no observation error on catch.
+Fixed numbers-at-age (\code{estDynamics > 0}) are an input rather than a
 forecast, so they are NOT held forward: supply \code{NByageFixed} rows for every
 projection year, or the uncovered years read 0 and that species contributes
 nothing, with a warning naming it.
