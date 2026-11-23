@@ -188,8 +188,9 @@
 #'
 #' @format A list with the same structure as \code{\link{BS2017SS}}.
 #' @source The single-species models of Adams et al. (2022, Fisheries Research
-#'   251: 106303), set up in CEATTLE from the 2018 assessments cited in
-#'   \code{\link{GOApollock}}, \code{\link{GOAcod}} and \code{\link{GOAatf}}.
+#'   251: 106303), set up in CEATTLE from the assessments cited in
+#'   \code{\link{GOApollock}}, \code{\link{GOAcod}} and \code{\link{GOAatf}}
+#'   (arrowtooth from the 2017 model).
 "GOA2018SS"
 
 
@@ -286,8 +287,8 @@
 #' Data inputs for a three-species Georges Bank CEATTLE model
 #'
 #' A data list containing inputs for a multispecies CEATTLE model fit to
-#' cod, hake and herring on Georges Bank, 1978-2007. See \code{\link{BS2017SS}}
-#' for format details.
+#' Atlantic cod, silver hake and Atlantic herring on Georges Bank, 1978-2007.
+#' See \code{\link{BS2017SS}} for format details.
 #'
 #' @format A list with the same structure as \code{\link{BS2017SS}}.
 #' @source A CEATTLE recreation of the multispecies statistical catch-at-age

@@ -32,7 +32,8 @@ Type posfun(Type x, Type eps, Type &penalty) {
 }
 
 
-// Dirichlet-multinomial density (log when do_log = 1), from WHAM src/age_comp_osa.hpp (GPL-3).
+// Dirichlet-multinomial density (log when do_log = 1), from WHAM
+// src/age_comp_osa.hpp (GPL-3).
 template<class Type>
 Type ddirmultinom(vector<Type> obs, vector<Type> alpha, int do_log)
 {
@@ -152,8 +153,8 @@ Type log_mean_exp(const vector<Type> &x)
 /**
  * @brief Construct a sparse GMRF precision matrix separable along year, age, and cohort.
  *
- * From Matt Cheng's GMRF_WAA (https://github.com/chengmatt/GMRF_WAA; Cheng et al. 2023,
- * Fisheries Research 266: 106755). Builds Q = (I - B^T) * Omega * (I - B), where B carries the partial correlation to each
+ * From Matthew Cheng's GMRF_WAA (https://github.com/chengmatt/GMRF_WAA; Cheng et
+ * al. 2023, Fisheries Research 266: 106755). Builds Q = (I - B^T) * Omega * (I - B), where B carries the partial correlation to each
  * neighbouring node and Omega is the diagonal precision (1 / variance). `Var_Param`
  * selects the conditional (0) or marginal (1) variance parameterization of the GMRF.
  *

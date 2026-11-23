@@ -117,9 +117,9 @@ Computed \emph{post hoc} and expensive -- TMB re-optimizes the random effects as
 each observation is added -- so \code{\link[=fit_mod]{fit_mod()}} does not produce them, and the fit
 must have been optimized at \code{estimateMode < 3}. Composition data are
 decomposed into univariate conditional residuals (binomial / beta-binomial;
-Trijoulet et al. 2023, in the form adapted from WHAM, Stock and Miller 2021),
-and the last bin of each composition is fixed by the sum-to-N constraint, so
-it has no residual (\code{NA}).
+Trijoulet et al. 2023), using code adapted from WHAM (Stock and Miller 2021).
+The last bin of each composition is fixed by the sum-to-N constraint, so it
+has no residual (\code{NA}).
 
 Choosing between the methods, what each costs, how they behave under random
 effects, the ceiling on \verb{|residual|} under \code{"cdf"}, and where compositions at

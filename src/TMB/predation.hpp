@@ -47,7 +47,8 @@ void calculate_vulnerability(matrix<Type> &vulnerability,
 /**
  * @brief Parametric suitability (Gamma, Lognormal, Normal) from size ratios.
  *
- * Evaluates the predator-to-prey size ratio against a density scaled to a peak of 1.
+ * Evaluates the predator-to-prey size ratio against a density scaled to a peak of 1,
+ * adapted from Trijoulet et al. (2020), MS_SSM.cpp in vtrijoulet/Multisp_model_JAE.
  * `suitMode` sets both the density and the size metric:
  * - Gamma: suitMode 1 (length-based) or 2 (weight-based)
  * - Lognormal: suitMode 3 (length-based) or 4 (weight-based)

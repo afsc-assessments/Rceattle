@@ -108,6 +108,7 @@ void fill_age_length_key(int wtind, int sp, int sex, int age, int yr,
  * - After year 0 a cohort recursion advances \f$L_{a, y}\f$ from \f$L_{a-1, y-1}\f$ with
  *   the previous year's parameters; where that predecessor is still on the ramp, or at
  *   slot 0, the closed-form anchor at \f$l_1\f$ is used instead.
+ *
  * Adapted from Giancarlo Correa's mean length-at-age block in src/wham_v0.cpp, WHAM's
  * growth branch (timjmiller/wham at 16770d4, GPL-3).
  *
@@ -316,13 +317,15 @@ void estimate_growth(
  * @brief Mean length-at-age, age-length key and weight-at-age `fracyr` into the year.
  *
  * Advances the Jan-1 mean length stored at `id_pop` by `fracyr` of growth, for SSB
- * weight-at-age at the spawning month and each fleet's weight-at-age at its own month.
- * Adapted from Giancarlo Correa's pred_LAA() in the same WHAM growth branch:
+ * weight-at-age at the spawning month and each fleet's weight-at-age at its own month:
  * - von Bertalanffy (`growth_model` 1):
  *   \f$L_a = L_{\infty} + (L_{a, jan1} - L_{\infty}) \cdot e^{-K \cdot fracyr}\f$
  * - Richards (2):
  *   \f$L_a = [L_{\infty}^m + (L_{a, jan1}^m - L_{\infty}^m) \cdot e^{-K \cdot fracyr}]^{1/m}\f$
  * - Below the anchor age (`current_age <= age_L1`) the linear ramp applies, as at Jan-1.
+ *
+ * Adapted from Giancarlo Correa's pred_LAA() in WHAM's growth branch (timjmiller/wham at
+ * 16770d4, GPL-3).
  *
  * Under `growth_plus_length == 1` the plus group keeps the Jan-1 mean length
  * `estimate_growth()` set for it; under the SS3 forms (2-4) it grows within the year like

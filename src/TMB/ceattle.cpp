@@ -4199,8 +4199,8 @@ Type objective_function<Type>::operator() () {
           }
 
           // Arguments run bin, year, cohort. construct_Q()'s parameter names read the
-          // other way round, but ay_index is also filled the other way round from WHAM's,
-          // so the two cancel. Do not "correct" the call to match the names.
+          // other way round, but ay_index is also filled the other way round from
+          // GMRF_WAA's, so the two cancel. Do not "correct" the call to match the names.
           Eigen::SparseMatrix<Type> Q_sparse(num_rows, num_rows);
           Q_sparse = construct_Q(nyrs_hind, n_sel_bins, ay_index,
                                  sel_curve_pen(flt, 0), sel_curve_pen(flt, 1), sel_curve_pen(flt, 2), // natural scale

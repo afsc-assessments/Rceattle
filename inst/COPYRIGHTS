@@ -2,11 +2,10 @@ Code and data in Rceattle that come from other projects
 =======================================================
 
 Rceattle is a TMB reimplementation of CEATTLE, the ADMB model written by
-Kirstin Holsman, Jim Ianelli and Kerim Aydin (Holsman et al. 2016). The pieces
+Kirstin Holsman, James Ianelli and Kerim Aydin (Holsman et al. 2016). The pieces
 below come from other projects and keep their original licenses. The authors
-of the adapted code are listed as contributors in DESCRIPTION, except for
-rho_trans() and max2(), one-line idioms from the TMB examples and the
-tmb-users list.
+of the adapted code are listed as contributors in DESCRIPTION, except for the
+standard idioms and build templates in the last entry of the first section.
 
 
 Code adapted from other projects
@@ -23,26 +22,21 @@ src/TMB/helper_functions.hpp: ddirmultinom()
     From WHAM, src/age_comp_osa.hpp. GPL-3.
 
 src/TMB/helper_functions.hpp: construct_Q()
-    From Matt Cheng's GMRF_WAA (https://github.com/chengmatt/GMRF_WAA), the code
+    From Matthew Cheng's GMRF_WAA (https://github.com/chengmatt/GMRF_WAA), the code
     for Cheng et al. (2023). That repository states no license.
 
-src/TMB/helper_functions.hpp: rho_trans()
-    From the TMB examples (https://github.com/kaskr/adcomp). GPL-2.
-
-src/TMB/helper_functions.hpp: max2()
-    A one-line idiom from the tmb-users list
-    (https://groups.google.com/g/tmb-users/c/QAVmgj66OC0).
-
-src/TMB/growth.hpp: estimate_growth(), estimate_growth_within_yr()
+src/TMB/growth.hpp (the growth functions and the length_sd_at_age() and
+fill_age_length_key() helpers split from them) and R/8-sim_mod.R: get_growth_matrix_r()
     Adapted from Giancarlo Correa's growth code in WHAM's growth branch
     (https://github.com/timjmiller/wham/tree/growth, at commit 16770d4): the
     mean length-at-age block of src/wham_v0.cpp and pred_LAA() in
     src/helper_functions.hpp. GPL-3.
 
-src/TMB/predation.hpp: calculate_vulnerability()
-    The multinomial-logistic vulnerability transform of Trijoulet et al. (2020),
-    following MS_SSM.cpp in https://github.com/vtrijoulet/Multisp_model_JAE
-    (Vanessa Trijoulet). That repository states no license.
+src/TMB/predation.hpp: calculate_vulnerability(), calculate_parametric_suitability()
+    The multinomial-logistic vulnerability transform and the size-ratio
+    suitability scaled to a peak of 1, of Trijoulet et al. (2020), following
+    MS_SSM.cpp in https://github.com/vtrijoulet/Multisp_model_JAE (Vanessa
+    Trijoulet). That repository states no license.
 
 R/6-phaser.R: TMBphase()
     Adapted from TMBphase by Gavin Fay
@@ -52,12 +46,13 @@ R/6-tmb_aic.R: TMBAIC()
     Copied from TMBhelper::TMBAIC() by James Thorson
     (https://github.com/kaskr/TMB_contrib_R/tree/master/TMBhelper). GPL-3.
 
-R/7-plot_ceattle.R: rich.colors.short()
+R/7-plot_ceattle.R: rich.colors.short(); R/7-plot_data.R: plot_data()
     rich.colors() from gplots, by Arni Magnusson (GPL-2), as shortened in r4ss
-    by Ian G. Taylor (GPL-3).
+    by Ian G. Taylor (GPL-3). plot_data() is modelled on r4ss::SSplotData()
+    (the r4ss authors; GPL-3).
 
 tests/testthat/helpers-make-msm-data.R
-    Adapted from code by Matt Cheng.
+    Adapted from code by Matthew Cheng.
 
 tests/comparison/WHAM-growth-comparison.R, tests/comparison/WHAM-OSA-comparison.R,
 tests/comparison/WHAM_growth_comparison/helper.R and case3.xlsx, data/whamGrowthData.rda
@@ -65,25 +60,38 @@ tests/comparison/WHAM_growth_comparison/helper.R and case3.xlsx, data/whamGrowth
     Sullivan for the Ocean Frontier Institute's 2023 workshop
     (https://giancarlomcorrea.netlify.app/post/ofi-workshop/). No license stated.
 
+Standard idioms and build templates
+    - src/TMB/helper_functions.hpp: rho_trans(), from the TMB examples
+      (https://github.com/kaskr/adcomp, GPL-2); max2(), from the tmb-users list
+      (https://groups.google.com/g/tmb-users/c/QAVmgj66OC0); posfun() and
+      first_difference(), ADMB's functions in their usual TMB form (ADMB,
+      https://github.com/admb-project/admb, BSD license).
+    - src/TMB/ceattle.cpp: LOM_t, TMB's list-of-matrices idiom.
+    - src/Makevars and src/Makevars.win: the TMBtools templates (Martin Lysy;
+      https://github.com/mlysy/TMBtools, GPL-3).
+
 
 Methods taken from other assessment models
 ------------------------------------------
 
-These were translated into TMB from each model's equations, documentation and
-ADMB code. The source is cited in the code where each is used, and the license
-notices are given here in case a translated passage counts as a copy.
+These were written for Rceattle from each project's equations, documentation
+and code. The source is cited in the code where each is used, and the license
+notices are given here in case a translated passage counts as a copy (MIT
+license text: https://opensource.org/license/mit).
 
 Stock Synthesis (Methot and Wetzel 2013; https://github.com/nmfs-ost/ss3-source-code,
 CC0-1.0): the DoubleNormalSS3 selectivity, growth CV patterns, plus-group mean
 length, the exponential environmental link on catchability, initial equilibrium
 catch and the InitF convention.
 
-AMAK (https://github.com/afsc-assessments/amak; Copyright (c) 2014 NMFS-toolbox)
-and ebswp (https://github.com/afsc-assessments/ebswp; Copyright (c) 2026 Jim
-Ianelli), both MIT-licensed: the AFSC multinomial composition likelihood, the
-non-parametric selectivity penalties, the NonParametricPM and LogisticPM forms,
-the stock-recruit curve penalty, the normal index likelihood, the MVN survey
-likelihood and the arithmetic-mean analytical q.
+AMAK (https://github.com/afsc-assessments/amak; Copyright (c) 2014 NMFS-toolbox),
+ebswp (https://github.com/afsc-assessments/ebswp; Copyright (c) 2026 Jim Ianelli)
+and rtmb_ebswp (https://github.com/jimianelli/rtmb_ebswp; Copyright (c) 2026 Jim
+Ianelli), all MIT-licensed: the AFSC multinomial composition likelihood, the
+non-parametric selectivity penalties (the smooth shape penalty is rtmb_ebswp's
+"rpm"), the NonParametricPM and LogisticPM forms, the stock-recruit curve
+penalty, the normal index likelihood, the MVN survey likelihood and the
+arithmetic-mean analytical q.
 
 afscOSA (https://github.com/noaa-afsc/afscOSA, GPL-3): the layout of the
 one-step-ahead residual plots, rewritten here.
@@ -96,10 +104,11 @@ data/ holds:
   - the 2017 Eastern Bering Sea CEATTLE inputs (Holsman et al. 2017) and three
     Rceattle fits to them;
   - single-species models set up in CEATTLE from published assessments, which
-    are not the operational models, and the estimates of the 2018 and 2020
-    Gulf of Alaska assessments (GOAsafe2018);
+    are not the operational models, and the estimates printed in the 2018 Gulf
+    of Alaska SAFE (arrowtooth from the 2017 model) and the 2020 Pacific cod
+    assessment (GOAsafe2018);
   - the Georges Bank recreation of Curti et al. (2013);
-  - the OFI 2023 workshop example (whamGrowthData).
+  - whamGrowthData, from the OFI 2023 workshop's WHAM examples.
 
 Each help page (for example ?GOApollock) cites its source under "Source".
 inst/extdata/BS2017SS.xlsx is the same data as ?BS2017SS, and

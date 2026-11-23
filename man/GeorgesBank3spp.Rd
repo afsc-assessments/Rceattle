@@ -18,7 +18,7 @@ GeorgesBank3spp
 }
 \description{
 A data list containing inputs for a multispecies CEATTLE model fit to
-cod, hake and herring on Georges Bank, 1978-2007. See \code{\link{BS2017SS}}
-for format details.
+Atlantic cod, silver hake and Atlantic herring on Georges Bank, 1978-2007.
+See \code{\link{BS2017SS}} for format details.
 }
 \keyword{datasets}

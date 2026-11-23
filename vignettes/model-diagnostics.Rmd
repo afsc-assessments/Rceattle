@@ -292,8 +292,8 @@ types: survey indices (`"index"`), fishery catch (`"catch"`), age/length
 composition (`"comp"`), conditional age-at-length (`"caal"`), predator diet
 (`"diet"`), and, where a linkage holds an observed state-space covariate, the
 covariate observation itself (`"ecov"`). Composition data use the conditional
-binomial / beta-binomial decomposition of Trijoulet et al. (2023), in the form
-Rceattle adapted from WHAM (Stock and Miller 2021). OSA re-optimizes the random effects for
+binomial / beta-binomial decomposition of Trijoulet et al. (2023), using code
+adapted from WHAM (Stock and Miller 2021). OSA re-optimizes the random effects for
 each observation, so it is expensive; run it on a converged fit
 (`estimateMode < 3`). A requested source the model has no observations for is
 skipped (the call errors only if *none* of them have any). `"diet"` is not in

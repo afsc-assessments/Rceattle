@@ -158,16 +158,16 @@ Wassermann, S. N., Adams, G. D., Haltuch, M. A., Kaplan, I. C., Marshall, K. N.,
 
 ## Code and data from other projects
 
-Rceattle reimplements in TMB the ADMB CEATTLE model of Kirstin Holsman, Jim Ianelli
+Rceattle reimplements in TMB the ADMB CEATTLE model of Kirstin Holsman, James Ianelli
 and Kerim Aydin (Holsman et al. 2016). It adapts code from
 [WHAM](https://github.com/timjmiller/wham) (one-step-ahead composition likelihoods, and
 growth curves from Giancarlo Correa's growth branch), Vanessa Trijoulet's multispecies
-model (the predator-prey vulnerability transform), Matt Cheng's GMRF_WAA (the 3D-AR1
-precision matrix), Jim Thorson's TMBhelper (`TMBAIC()`), Gavin Fay's `TMBphase`, and
-`rich.colors` from gplots and r4ss. It follows Stock Synthesis, AMAK and ebswp
-conventions for several options, and the `afscOSA` layout for the one-step-ahead
-residual plots. The bundled datasets come from published assessments and papers and
-one WHAM workshop, each cited on its help page.
+model (predator-prey vulnerability and suitability), Matthew Cheng's GMRF_WAA (the 3D-AR1
+precision matrix), James Thorson's TMBhelper (`TMBAIC()`), Gavin Fay's `TMBphase`, and
+gplots and r4ss (`rich.colors`, and the layout of `plot_data()`). It follows conventions of Stock Synthesis, AMAK and
+the EBS pollock model (ebswp) for several options, and the `afscOSA` layout for the
+one-step-ahead residual plots. The bundled datasets come from published assessments,
+papers and one workshop's WHAM examples, each cited on its help page.
 [inst/COPYRIGHTS](https://github.com/afsc-assessments/Rceattle/blob/main/inst/COPYRIGHTS)
 gives the file-by-file sources and licenses, and the contributors are listed in
 [DESCRIPTION](https://github.com/afsc-assessments/Rceattle/blob/main/DESCRIPTION).
