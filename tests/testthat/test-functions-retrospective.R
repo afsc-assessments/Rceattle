@@ -1331,7 +1331,7 @@ testthat::test_that("a peel's M1 follows the model's projection", {
 
 # With no catch to fit in a peel's removed years, its band must still take the
 # hindcast's joint precision: this full-length model's would score the random
-# walk's step into the removed year (8.9% on the fitted-year index band).
+# walk's step into the removed year (a fitted-year index band 8.9% too narrow).
 testthat::test_that("a peel with no peeled catch keeps its hindcast band under a random walk", {
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("TMB")

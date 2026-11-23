@@ -861,8 +861,9 @@ build_params <- function(data_list) {
 #' Hold the catchability and selectivity deviations at their year-`last` values
 #'
 #' For a retrospective peel's forecast years and the years `run_mse()` adds (the
-#' operating model's assumed truth; the estimation model's starting values), as the
-#' model's projection holds selectivity. Each deviation keeps its year-`last` value
+#' operating model's assumed truth; the estimation model's starting values),
+#' matching the projection, which holds selectivity at the last hindcast year.
+#' Each deviation keeps its year-`last` value
 #' through the model's last hindcast year; a selectivity form whose deviations are
 #' year-to-year increments (NonParametricPM, and NonParametricIntegrable under
 #' RandomWalk) takes an increment of 0, so its selectivity holds too.
