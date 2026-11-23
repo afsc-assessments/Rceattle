@@ -343,9 +343,10 @@
 #'   value or vector the same length as the number of fleets.
 #' @param simulate_data Include simulated random error proportional to that
 #'   estimated or provided for the data from the OM.
-#' @param regenerate_past Refit the EM before the MSE to the OM's expected
-#'   historical index, composition and CAAL data, with no sampling error
-#'   regardless of \code{simulate_data}.
+#' @param regenerate_past Refit the EM before the MSE to historical index,
+#'   composition and CAAL data regenerated from the OM, with observation error
+#'   when \code{simulate_data = TRUE} (drawn once and shared by every simulation)
+#'   and as expected values otherwise.
 #' @param sample_rec Include resampled hindcast recruitment deviations in the OM
 #'   projection. Resampled rather than drawn from N(0, sigmaR) because the
 #'   initial deviations bias R0 low. `FALSE` uses the single deviation described
@@ -374,8 +375,9 @@
 #'   If NULL, no files are saved.
 #' @param dir (Optional) Directory where each OM simulation is saved
 #' @param seed seed for the simulation
-#' @param regenerate_seed Has no effect on the MSE, since \code{regenerate_past}
-#'   uses no random numbers; kept so existing scripts run.
+#' @param regenerate_seed Seed for the observation error drawn into the
+#'   regenerated past data (\code{regenerate_past} and \code{simulate_data} both
+#'   \code{TRUE}). Default \code{seed}.
 #' @param timeout Minutes estimation runs before a sim is stopped (default 999)
 #' @param endyr Terminal year of the MSE projection. Default NA uses
 #'   \code{projyr} from the operating model.
@@ -588,6 +590,10 @@ run_mse <- function(om, em, nsim = 10, start_sim = 1, assessment_period = 1, sam
   sample_yrs = data.frame(Fleet_code = unlist(fleet_id), Year = unlist(sample_yrs))
 
 
+  # regenerate_past draws from the OM as fitted: sim_mod() simulates every row
+  # its TMB object was built with, including the ones the filter below drops.
+  if (regenerate_past) past_sim <- sim_mod(om, simulate = simulate_data)
+
   # * Filter arbitrary "future" data ----
   # -- index_data
   om$data_list$index_data <- om$data_list$index_data |>
@@ -611,12 +617,14 @@ run_mse <- function(om, em, nsim = 10, start_sim = 1, assessment_period = 1, sam
   # Regenerate past data from OM and refit EM ----
   if(regenerate_past){
 
-    # - Simulate index and comp data and updatae EM
-    sim_dat <- sim_mod(om, simulate = FALSE)
-
-    em$data_list$index_data <- sim_dat$index_data
-    em$data_list$comp_data <- sim_dat$comp_data
-    em$data_list$caal_data <- sim_dat$caal_data
+    # - The OM's index, comp and CAAL data (drawn above, with observation error
+    #   under simulate_data, else expected values), cut to the EM's years.
+    in_em_years <- function(x) {
+      dplyr::filter(x, abs(Year) <= em$data_list$endyr)
+    }
+    em$data_list$index_data <- in_em_years(past_sim$index_data)
+    em$data_list$comp_data <- in_em_years(past_sim$comp_data)
+    em$data_list$caal_data <- in_em_years(past_sim$caal_data)
 
     # Re-estimate
     em <- .refit_like(

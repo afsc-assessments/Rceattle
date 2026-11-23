@@ -49,9 +49,10 @@ value or vector the same length as the number of fleets.}
 \item{simulate_data}{Include simulated random error proportional to that
 estimated or provided for the data from the OM.}
 
-\item{regenerate_past}{Refit the EM before the MSE to the OM's expected
-historical index, composition and CAAL data, with no sampling error
-regardless of \code{simulate_data}.}
+\item{regenerate_past}{Refit the EM before the MSE to historical index,
+composition and CAAL data regenerated from the OM, with observation error
+when \code{simulate_data = TRUE} (drawn once and shared by every simulation)
+and as expected values otherwise.}
 
 \item{sample_rec}{Include resampled hindcast recruitment deviations in the OM
 projection. Resampled rather than drawn from N(0, sigmaR) because the
@@ -82,8 +83,9 @@ NULL.}
 
 \item{seed}{seed for the simulation}
 
-\item{regenerate_seed}{Has no effect on the MSE, since \code{regenerate_past}
-uses no random numbers; kept so existing scripts run.}
+\item{regenerate_seed}{Seed for the observation error drawn into the
+regenerated past data (\code{regenerate_past} and \code{simulate_data} both
+\code{TRUE}). Default \code{seed}.}
 
 \item{loopnum}{Number of times to restart optimization; \code{loopnum = 3}
 sometimes reaches a lower final gradient than \code{1}.}

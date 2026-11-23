@@ -18,6 +18,50 @@ throughout.
 review. It landed as 5.66.9, so a version check written for that fix needs 5.66.9.
 -->
 
+# Rceattle 5.70.4
+
+## Behavior changes
+
+* **`run_mse(regenerate_past = TRUE)` draws observation error into the regenerated
+  past data when `simulate_data = TRUE`** (the default), as it does for each
+  assessment's new data. The draw is made once, before the simulations, and every
+  simulation shares it; `regenerate_seed` sets it. Since December 2023 the EM had
+  been refitted to the OM's expected values whatever `simulate_data` was (5.70.2
+  documented this), so `regenerate_seed` had no effect, and no setting now gives
+  expected past data with sampled future data. Under `simulate_data = FALSE`
+  nothing changes. On `BS2017SS` the regenerated EM's 2017 pollock SSB is 6,371,109
+  or 5,981,965 mt with `regenerate_seed = 1` or `2`, against 6,276,201 mt from
+  expected values.
+
+  **Whose MSEs move**: every `run_mse(regenerate_past = TRUE, simulate_data = TRUE)`
+  run. No registered sibling repository makes one, nor the Pacific hake MSE; the
+  unregistered `Rceattle_MSE` (`1a_BSAI_MSE_Runs.R`, `1b_GOA_MSE_Runs_1977.R`) does,
+  through a wrapper that defaults to `regenerate_past = TRUE` and sets
+  `simulate_data = TRUE`.
+
+## Bug fixes
+
+* **`run_mse(regenerate_past = TRUE)` regenerates the past data from the OM as
+  fitted, then keeps the EM's years.** It drew from the OM after dropping its
+  index, composition and CAAL rows past `endyr`, while the OM's model still
+  simulated them. Where the OM's data held such a row, the regenerated data were
+  misaligned, with only a generic length warning. On `BS2017SS`:
+  - one projection survey row shifted each later index value by one row: the second
+    survey's series started at 6,508,004, the first survey's projection value;
+  - one projection composition row misaligned every composition value across rows
+    and bins, and the EM's 2017 pollock SSB came out 5,489,001 mt, against
+    6,276,201 mt without that row.
+
+  **Whose MSEs move**: `regenerate_past = TRUE` with an OM whose index, composition
+  or CAAL data hold a row past `endyr`. No bundled dataset has one, and no
+  registered sibling sets `regenerate_past = TRUE`. An OM with no row past `endyr`
+  is unchanged.
+
+* **Under a Dirichlet-multinomial diet likelihood, `sim_mod()`'s empty-diet warning
+  no longer blames `Diet_comp_weights`**: it now says the sample size is multiplied
+  by `Diet_comp_weights` only under a multinomial, as the count it has tested since
+  5.69.1 is.
+
 # Rceattle 5.70.3
 
 ## Bug fixes
