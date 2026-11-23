@@ -46,7 +46,8 @@ starts from the unpeeled model's estimates.}
 \item{projected_env_data_known}{\code{env_data} columns whose values after each
 peel's terminal year were known then, such as a climate projection, so the
 peels keep them (a categorical linkage term or a q or selectivity random
-effect is held regardless): \code{FALSE} (default) none, \code{TRUE} all, or a
+effect keeps its terminal-year value regardless): \code{FALSE} (default) none,
+\code{TRUE} all, or a
 character vector of column names.}
 
 \item{Rceattle}{deprecated name for \code{object}, still accepted so existing
@@ -58,10 +59,12 @@ An \code{Rceattle_retro} list:
 \item{\code{Rceattle_list}}{each kept peel, deepest first, then the
 unpeeled model, named for its terminal year (e.g. \code{Year_2016});
 index by name, since a dropped peel leaves a gap.}
-\item{\code{mohns}}{Mohn's rho by \code{Object} and
-\code{Forecast year}, one column per species, with \code{N} the number
-of peels averaged (\code{NaN} where \code{N} is 0; the call warns only
-if no peel converged).}
+\item{\code{mohns}}{Mohn's rho, the mean over peels of (peel -
+unpeeled) / unpeeled, by \code{Object} (\code{biomass}, \code{ssb},
+\code{R}, \code{F_spp}) and \code{Forecast year} (0 = the peel's
+terminal year), one column per species, with \code{N} the number of
+peels averaged (\code{NaN} where \code{N} is 0, with no warning unless
+no peel converged).}
 \item{\code{peels_requested}}{the \code{peels} asked for.}
 }
 }
@@ -84,7 +87,7 @@ Weight-at-age, empirical selectivity and ration stay at the terminal year, and
 the q and selectivity deviations keep their terminal-year values (a form whose
 deviations are year-to-year increments takes an increment of 0). M1 deviations
 take the peel's projection values: 0 for one estimated by year, an input series
-as given. A q or selectivity linkage deviation keeps its terminal-year level
+as given. A q or selectivity linkage random effect keeps its terminal-year level
 too, as the projection holds selectivity. Any other linkage effect takes the
 peel's own estimate for each removed year, as the projection does: a random
 walk its terminal value, an AR1 its decay toward 0, an IID effect 0.

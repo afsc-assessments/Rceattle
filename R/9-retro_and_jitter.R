@@ -21,7 +21,8 @@
 #' @param projected_env_data_known `env_data` columns whose values after each
 #'   peel's terminal year were known then, such as a climate projection, so the
 #'   peels keep them (a categorical linkage term or a q or selectivity random
-#'   effect is held regardless): `FALSE` (default) none, `TRUE` all, or a
+#'   effect keeps its terminal-year value regardless): `FALSE` (default) none,
+#'   `TRUE` all, or a
 #'   character vector of column names.
 #'
 #' @details
@@ -36,7 +37,7 @@
 #' the q and selectivity deviations keep their terminal-year values (a form whose
 #' deviations are year-to-year increments takes an increment of 0). M1 deviations
 #' take the peel's projection values: 0 for one estimated by year, an input series
-#' as given. A q or selectivity linkage deviation keeps its terminal-year level
+#' as given. A q or selectivity linkage random effect keeps its terminal-year level
 #' too, as the projection holds selectivity. Any other linkage effect takes the
 #' peel's own estimate for each removed year, as the projection does: a random
 #' walk its terminal value, an AR1 its decay toward 0, an IID effect 0.
@@ -121,10 +122,12 @@
 #'     \item{\code{Rceattle_list}}{each kept peel, deepest first, then the
 #'       unpeeled model, named for its terminal year (e.g. \code{Year_2016});
 #'       index by name, since a dropped peel leaves a gap.}
-#'     \item{\code{mohns}}{Mohn's rho by \code{Object} and
-#'       \code{Forecast year}, one column per species, with \code{N} the number
-#'       of peels averaged (\code{NaN} where \code{N} is 0; the call warns only
-#'       if no peel converged).}
+#'     \item{\code{mohns}}{Mohn's rho, the mean over peels of (peel -
+#'       unpeeled) / unpeeled, by \code{Object} (\code{biomass}, \code{ssb},
+#'       \code{R}, \code{F_spp}) and \code{Forecast year} (0 = the peel's
+#'       terminal year), one column per species, with \code{N} the number of
+#'       peels averaged (\code{NaN} where \code{N} is 0, with no warning unless
+#'       no peel converged).}
 #'     \item{\code{peels_requested}}{the \code{peels} asked for.}
 #'   }
 #'
@@ -294,10 +297,10 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
                       c(.keep_fixed, .keep_group, .known))
   if (.post_any && length(.no_kept)) {
     warning("env_data column(s) ", paste(.no_kept, collapse = ", "), " have no ",
-            "value in years ", styr, "-", endyr - peels, ", so a peel that retains ",
-            "none of them keeps their post-peel values: a blanked column would have ",
-            "no retained mean to fill it. Where the model reads them, Mohn's rho is ",
-            "then conditional on those values.", call. = FALSE)
+            "value in years ", styr, "-", endyr - peels, ", so a peel whose retained ",
+            "years hold no value of a column keeps that column's post-peel values, ",
+            "as there is no retained mean to fill it. Where the model reads them, ",
+            "Mohn's rho is then conditional on those values.", call. = FALSE)
   }
   .raw <- .rescale_cols[.n_kept[.rescale_cols] < 2L]
   if (length(.raw)) {
@@ -533,7 +536,7 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
         }
       }
 
-      # -- OMs where SR curve is estimated as penalty (sensu Ianelli)
+      # -- A curve fitted as a recruitment penalty (sensu Ianelli)
       if(newmod$data_list$srr_fun != newmod$data_list$srr_pred_fun){
         # Log of the mean of R / R_hat over the penalty years, so projected
         # recruitment is the mean around the curve, not the median.
@@ -541,7 +544,7 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
 
       }
 
-      # - Update OM with devs
+      # - Set the peel's forecast-year rec_dev
       forecast_pars$rec_dev[sp, (peel_prj_yrs - styr + 1)] <- replace(
         forecast_pars$rec_dev[sp, (peel_prj_yrs - styr + 1)],
         values =  rec_dev)

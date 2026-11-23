@@ -654,7 +654,7 @@ reproducibility guarantees.
 
 | Function | Purpose |
 |---|---|
-| `retrospective()` | Peel terminal years and refit; reports Mohn's rho for each quantity / species, optionally with forecast-skill peels (`nyrs_forecast`) |
+| `retrospective()` | Peel terminal years and refit; reports Mohn's rho for each quantity / species at the terminal year and the `nyrs_forecast` (default 3) years after it |
 | `jitter()` | Refit from random-perturbed starting values; check optimum stability |
 | `sim_mod()` / `simulate()` | Simulate data from a fitted model. Observations always; process error (recruitment, M, growth, catchability, selectivity) via `process =`. `simulate()` is the `stats` generic and draws `nsim` replicates at once |
 | `self_test()` | Simulate and refit; check the model recovers what generated the data |
