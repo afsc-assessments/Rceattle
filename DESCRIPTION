@@ -30,7 +30,7 @@ Authors@R: c(
            comment = c(ORCID = "0000-0001-7415-1010",
                        "TMBAIC(), from TMBhelper")),
     person("Matthew L. H.", "Cheng", role = "ctb",
-           comment = "construct_Q(), from GMRF_WAA; multispecies test helper"),
+           comment = "construct_Q(), from GMRF_WAA"),
     person("Vanessa", "Trijoulet", role = "ctb",
            comment = "predator-prey vulnerability and suitability"),
     person("Gavin", "Fay", role = "ctb",

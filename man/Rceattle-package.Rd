@@ -57,7 +57,7 @@ Other contributors:
   \item Giancarlo M. Correa (growth curves, from WHAM's growth branch; OFI 2023 examples) [contributor]
   \item Jane Sullivan (whamGrowthData, from the OFI 2023 workshop's WHAM examples) [contributor]
   \item James Thorson (\href{https://orcid.org/0000-0001-7415-1010}{ORCID}) (TMBAIC(), from TMBhelper) [contributor]
-  \item Matthew L. H. Cheng (construct_Q(), from GMRF_WAA; multispecies test helper) [contributor]
+  \item Matthew L. H. Cheng (construct_Q(), from GMRF_WAA) [contributor]
   \item Vanessa Trijoulet (predator-prey vulnerability and suitability) [contributor]
   \item Gavin Fay (TMBphase()) [contributor]
   \item Arni Magnusson (rich.colors(), from gplots) [contributor]

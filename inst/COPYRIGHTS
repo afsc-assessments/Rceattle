@@ -51,9 +51,6 @@ R/7-plot_ceattle.R: rich.colors.short(); R/7-plot_data.R: plot_data()
     by Ian G. Taylor (GPL-3). plot_data() is modelled on r4ss::SSplotData()
     (the r4ss authors; GPL-3).
 
-tests/testthat/helpers-make-msm-data.R
-    Adapted from code by Matthew Cheng.
-
 tests/comparison/WHAM-growth-comparison.R, tests/comparison/WHAM-OSA-comparison.R,
 tests/comparison/WHAM_growth_comparison/helper.R and case3.xlsx, data/whamGrowthData.rda
     Modified from case 3 of the WHAM growth examples by Giancarlo Correa and Jane
