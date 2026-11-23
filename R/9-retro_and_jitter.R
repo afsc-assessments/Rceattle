@@ -31,8 +31,9 @@
 #' the unpeeled map cut to them. Its removed years are then its retrospective
 #' forecast: F is fitted to the observed catch with the hindcast held;
 #' weight-at-age, empirical selectivity and ration stay at the terminal year, and
-#' the q, selectivity and M1 deviations keep their terminal-year values (a form
-#' whose deviations are year-to-year increments takes an increment of 0).
+#' the q, selectivity and M1 deviations keep their terminal-year values, M1's
+#' through the projection too (a form whose deviations are year-to-year
+#' increments takes an increment of 0).
 #' Recruitment takes the deviation [sample_rec()] uses with
 #' `sample_rec = FALSE`, computed from the peel's fit (for a penalty-form curve
 #' with no penalty years in the peel, the mean over its own years after the
@@ -475,9 +476,12 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
     # Forecast ----
     # Back to the full model: the peel's estimates in its own years; in the removed
     # years F starts from the unpeeled estimates and is fitted to the observed
-    # catch, while the q, selectivity and M1 deviations keep their terminal values.
+    # catch, while the q, selectivity and M1 deviations keep their terminal values,
+    # M1's through the projection too.
     forecast_pars <- .unpeel_params(newmod$estimated_params, object$estimated_params)
     forecast_pars <- .hold_devs(forecast_pars, data_list, nyrs_peel)
+    forecast_pars$log_M1_dev[, , , (nyrs_peel + 1):nyrs_proj] <-
+      forecast_pars$log_M1_dev[, , , nyrs_peel]
 
     # - Add in peeled catch to fit to
     data_list$catch_data <- data_list$catch_data |>

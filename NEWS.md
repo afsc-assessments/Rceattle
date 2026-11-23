@@ -29,9 +29,9 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   M1 densities. The peel starts from the unpeeled estimates for its own years and
   uses the unpeeled map cut to them, so a parameter fixed, freed or shared by hand
   stays so. In its forecast years the q, selectivity and M1 deviations keep the
-  peel's own terminal-year values, and under `getsd = TRUE` every year's band
-  comes from the peel's hindcast covariance, random effects included, under any
-  harvest control rule.
+  peel's own terminal-year values, M1's through the projection too, and under
+  `getsd = TRUE` every year's band comes from the peel's hindcast covariance,
+  random effects included, under any harvest control rule.
 
   **Whose Mohn's rho moves**: a model with a random walk on q or selectivity, as
   measured here, and, unmeasured, one with `random_rec` or M1 year deviations. On

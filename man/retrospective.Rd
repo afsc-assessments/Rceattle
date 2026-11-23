@@ -79,8 +79,9 @@ estimates. It starts from the unpeeled estimates for its own years and uses
 the unpeeled map cut to them. Its removed years are then its retrospective
 forecast: F is fitted to the observed catch with the hindcast held;
 weight-at-age, empirical selectivity and ration stay at the terminal year, and
-the q, selectivity and M1 deviations keep their terminal-year values (a form
-whose deviations are year-to-year increments takes an increment of 0).
+the q, selectivity and M1 deviations keep their terminal-year values, M1's
+through the projection too (a form whose deviations are year-to-year
+increments takes an increment of 0).
 Recruitment takes the deviation \code{\link[=sample_rec]{sample_rec()}} uses with
 \code{sample_rec = FALSE}, computed from the peel's fit (for a penalty-form curve
 with no penalty years in the peel, the mean over its own years after the

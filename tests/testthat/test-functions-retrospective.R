@@ -1303,6 +1303,32 @@ testthat::test_that("a peel's hindcast is the fit of its own years", {
   testthat::expect_true(all(q_dev[(nyrs_peel + 1):nyrs] == q_dev[nyrs_peel]))
 })
 
+# M1 holds its terminal value through a peel's projection, not only its forecast
+# years; here a fixed M1 deviation that differs every year.
+testthat::test_that("a peel's M1 holds its terminal value through the projection", {
+  testthat::skip_on_cran()
+  testthat::skip_if_not_installed("TMB")
+
+  d <- make_test_data(nyrs = 20, seed = 1)
+  inits <- suppressMessages(Rceattle::build_params(d))
+  nyrs_proj <- d$projyr - d$styr + 1
+  inits$log_M1_dev[] <- rep(seq(-0.2, 0.2, length.out = nyrs_proj),
+                            each = prod(dim(inits$log_M1_dev)[1:3]))
+  fit <- suppressWarnings(suppressMessages(Rceattle::fit_mod(
+    data_list = d, inits = inits, file = NULL, estimateMode = 0,
+    random_rec = FALSE, msmMode = 0,
+    fit_control = Rceattle::fit_control(phase = FALSE, getsd = FALSE, verbose = 0))))
+  endyr_peel <- d$endyr - 1
+  peel <- suppressWarnings(suppressMessages(Rceattle::retrospective(
+    fit, peels = 1, cores = 1, getsd = FALSE, phase = FALSE)))$Rceattle_list[[paste0("Year_", endyr_peel)]]
+
+  k <- endyr_peel - d$styr + 1
+  m1 <- peel$quantities$M1_at_age
+  for (yr in (k + 1):nyrs_proj) {
+    testthat::expect_equal(unname(m1[, , , yr]), unname(m1[, , , k]))
+  }
+})
+
 # Under a harvest control rule that estimates F, a fit's sdrep is the
 # projection's; a peel's band must still come from its hindcast.
 testthat::test_that("a peel keeps its hindcast band under an HCR that estimates F", {
