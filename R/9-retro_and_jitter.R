@@ -866,8 +866,9 @@ print.Rceattle_retro <- function(x, band = 0.2, ...) {
 }
 
 #' The unpeeled map cut to a peel's years, so a parameter fixed, freed or shared
-#' by hand stays so. A later year of rec_dev or log_M1_dev is fixed unless the map
-#' ties it to one of the peel's years, as for an M1 deviation by age.
+#' by hand stays so (`.map_holds()` carries only the fixed cells). A later year of
+#' rec_dev or log_M1_dev is fixed unless the map ties it to one of the peel's
+#' years, as for an M1 deviation by age.
 #' @noRd
 .peel_map <- function(map, defaults, nyrs_peel) {
   for (nm in intersect(names(defaults), names(map$mapList))) {

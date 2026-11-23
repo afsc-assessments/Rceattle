@@ -33,21 +33,36 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   `getsd = TRUE` every year's band comes from the peel's hindcast covariance,
   random effects included, under any harvest control rule.
 
-  **Whose Mohn's rho moves**: a model with a random walk on q or selectivity, as
-  measured here, and, unmeasured, one with `random_rec` or M1 year deviations. On
-  3 peels of `GOA2018SS`, whose Shelikof survey q is a random walk, the peel ending
-  in 2015 estimates its terminal q deviation (log scale) at -0.185 rather than
-  0.072, and pollock SSB rho moves from -0.0751 to -0.0700 (terminal year) and from
-  0.5541 to 0.5360 (forecast year 3, one peel). `BS2017SS`, which has no q or
-  selectivity deviation, moves by at most 2e-5, relative (optimizer tolerance).
+  **Whose Mohn's rho moves**: in the forecast years, any model with q,
+  selectivity or M1 year deviations, IID included, whose forecast years took the
+  unpeeled model's value at the peel's terminal year rather than the peel's own;
+  in every year, a model with a random walk on q or selectivity, as measured
+  here, and, unmeasured, one with `random_rec` or M1 year deviations. On
+  `GOA2018SS` (3 peels with `getsd = FALSE`, of a fit with `phase = FALSE`), whose
+  Shelikof and ADF&G survey q are random walks and whose fishery selectivity is
+  `RandomWalkAscending`, the peel ending in 2015 estimates its terminal q
+  deviations (log scale) at -0.185 (Shelikof) and -0.028 (ADF&G) rather than
+  0.072 and -0.303, and pollock SSB rho moves from -0.0751 to -0.0700 (terminal
+  year) and from 0.554 to 0.536 (forecast year 3, one peel). `BS2017SS`, which has
+  no q or selectivity deviation, moves by under 2e-6, relative (optimizer
+  tolerance). The sibling assessments that run `retrospective()` include GOA
+  pollock 2024 to 2026, EBS pollock 2024, Pacific hake, BSAI yellowfin sole, GOA
+  arrowtooth flounder, the GOA multispecies assessment and GOA-ATF-ESP. The GOA
+  pollock 2025 and 2026 scripts
+  carry ADF&G q and fishery selectivity as `rw(1 | Year)` linkages and Shelikof q
+  as an `ar1(1 | Year)` linkage, which this release neither cuts to a peel's
+  years nor holds.
 
 * **In the years `run_mse()` adds, and in a peel's forecast years, the q,
   selectivity and M1 deviations keep their last-year values.** A selectivity form
   whose deviations are year-to-year increments (`NonParametricPM`, and
   `NonParametricIntegrable` under `RandomWalk`) takes an increment of 0 there, so
   its selectivity stays constant instead of walking on. In `run_mse()` the
-  operating model's by-year M1 deviation stays at the last year's rather than 0.
-  Projection years keep the model's own projection values.
+  operating model's by-year M1 deviation stays at the last year's rather than 0,
+  and projection years keep the model's own projection values. The EBS pollock
+  2024 MSE (`mse.R`), whose fishery, AVO, ATS and CPUE selectivity are
+  `NonParametricPM` under `RandomWalk`, now holds their selectivity in the years
+  it adds; the Pacific hake (`MSE_yr2024.R`) and `BS2017SS` MSEs are unchanged.
 
 # Rceattle 5.70.2
 

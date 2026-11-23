@@ -22,6 +22,7 @@ testthat::test_that(".hold_devs() keeps the last year's q, selectivity and M1 de
   # increment forms take an increment of 0.
   for (yr in later) {
     testthat::expect_identical(h$index_q_dev[, yr], p$index_q_dev[, last])
+    testthat::expect_identical(h$log_sel_slp_dev[, , , yr], p$log_sel_slp_dev[, , , last])
     testthat::expect_identical(h$sel_inf_dev[, , , yr], p$sel_inf_dev[, , , last])
     testthat::expect_identical(h$sel_coff_dev[1:2, , , yr], p$sel_coff_dev[1:2, , , last])
     testthat::expect_true(all(h$sel_coff_dev[3:4, , , yr] == 0))
