@@ -804,9 +804,9 @@ sim_mod <- function(object = NULL, simulate = FALSE, process = FALSE, Rceattle =
   # does not rest on that refusal staying. NEITHER branch below may invent a
   # value for such a row: a drawn one makes a `self_test()` refit fit a survey
   # year the data lack, and the expected value does the same through
-  # `run_mse(regenerate_past = TRUE)`. Projection rows (`Year <= 0`, or past
-  # `endyr`) ARE filled, since `run_mse()` splices the negative-Year rows in as
-  # each assessment's new data.
+  # `run_mse(regenerate_past = TRUE, simulate_data = FALSE)`. Projection rows
+  # (`Year <= 0`, or past `endyr`) ARE filled, since `run_mse()` splices the
+  # negative-Year rows in as each assessment's new data.
   .idx_yr  <- dat_sim$index_data$Year
   .idx_obs <- dat_sim$index_data$Observation
   index_unfitted <- !is.na(.idx_yr) & .idx_yr > 0 & .idx_yr <= dat_sim$endyr &

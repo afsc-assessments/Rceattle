@@ -20,6 +20,25 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
 
 # Rceattle 5.70.4
 
+## Behavior changes
+
+* **`run_mse(regenerate_past = TRUE)` draws observation error into the regenerated
+  past data when `simulate_data = TRUE`** (the default), as it does for each
+  assessment's new data. The draw is made once, before the simulations, and every
+  simulation shares it; `regenerate_seed` sets it. Since December 2023 the EM had
+  been refitted to the OM's expected values whatever `simulate_data` was (5.70.2
+  documented this), so `regenerate_seed` had no effect, and no setting now gives
+  expected past data with sampled future data. Under `simulate_data = FALSE`
+  nothing changes. On `BS2017SS` the regenerated EM's 2017 pollock SSB is 6,371,109
+  or 5,981,965 mt under two `regenerate_seed` values, against 6,276,201 mt from
+  expected values.
+
+  **Whose MSEs move**: every `run_mse(regenerate_past = TRUE, simulate_data = TRUE)`
+  run. No registered sibling repository makes one, nor the Pacific hake MSE; the
+  unregistered `Rceattle_MSE` (`1a_BSAI_MSE_Runs.R`, `1b_GOA_MSE_Runs_1977.R`) does,
+  through a wrapper whose defaults are `regenerate_past = TRUE` and
+  `simulate_data = TRUE`.
+
 ## Bug fixes
 
 * **Under a Dirichlet-multinomial diet likelihood, `sim_mod()`'s empty-diet warning
