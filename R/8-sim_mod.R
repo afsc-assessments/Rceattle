@@ -1362,7 +1362,8 @@ compare_sim <- function(operating_mod, simulation_mods, object = "quantities") {
 #' @param growth_model_sp Integer. 1 = Von Bertalanffy, 2 = Richards.
 #' @param M_plus_sp Numeric. Natural mortality at the oldest age (one value, or one per sex), which weights the ages pooled in the plus group by survival, as the template does.
 #'
-#' @return A 4D array of probabilities with dimensions (sex, age, length, year).
+#' @return A list: `length_at_age`, mean length (cm) by (sex, age, year), and
+#'   `growth_matrix`, the probability of each length bin by (sex, age, length, year).
 get_growth_matrix_r <- function(fracyr, nsex_sp, nages_sp, nlengths_sp, nyrs,
                                 lengths_sp, minage_sp, maxage_sp,
                                 growth_params_sp, growth_log_sd_sp, growth_model_sp,

@@ -1,6 +1,6 @@
 # get_growth_matrix_r()'s Richards cohort step after year 1 must match the Richards
 # branch of estimate_growth() in src/TMB/growth.hpp. It read L1 where K belongs and
-# divided by m instead of taking the 1/m root; found by the PR #346 attribution review.
+# divided by m instead of taking the 1/m root; found reviewing PR #265 (2026-10-21).
 
 # One sex, 10 ages, L1 = 20 cm at age 1, 5-cm bins from 0 cm; parameters vary by year.
 growth_r <- function(model, m, K = c(0.30, 0.20, 0.25), linf = c(90, 80, 85)) {

@@ -55,7 +55,7 @@ make_msm_test_data <- function(
 
     # Growth bits
     growth_params = matrix(c(0.3, 4.5, 90, 1.0,
-                             0.35, 4.5, 50, 1.0), # K, L1, Linf, M
+                             0.35, 4.5, 50, 1.0), # K, L1, Linf, Richards m
                            nrow = nspp, ncol = 4, byrow = TRUE),
     growth_model = 1,
     nlengths = 20,
