@@ -125,8 +125,10 @@ model_average <- function(object = NULL, weights = NULL, uncertainty = FALSE, nb
     })
     if (any(hcr_only)) {
       stop("Model(s) ", paste(which(hcr_only), collapse = ", "), " hold every ",
-           "hindcast parameter fixed in `fit$obj`, as an \"Estimate\" fit under a ",
-           "fishing harvest control rule does without projection_uncertainty, so ",
+           "hindcast parameter fixed in `fit$obj` (a \"Projection\" or ",
+           "\"DebugOptimize\" fit, or an ",
+           "\"Estimate\" fit under a fishing harvest control rule without ",
+           "projection_uncertainty), so ",
            "their draws would leave every hindcast quantity at its estimate. Refit ",
            "with estimateMode = \"Hindcast\", which projects with no fishing, or, for ",
            "a fixed-effects fit under any rule but \"ConstantF\", with ",

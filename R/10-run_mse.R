@@ -232,7 +232,8 @@
 
 # Projection rows for the fixed biological inputs ------------------------------
 #
-# `weight` (weight-at-age, kg) and `ration_data` (annual foraging days) are held
+# `weight` (weight-at-age, kg) and `ration_data` (a relative foraging rate, or
+# annual ration in kg per predator under `Ceq = 4`) are held
 # at the operating model's terminal hindcast year: each series' last hindcast
 # row is repeated, one row per projection year.
 #
@@ -321,12 +322,18 @@
 #' Run a management strategy evaluation
 #'
 #' @description Runs a forward-projecting management strategy evaluation (MSE).
-#'   In the years it adds, the selectivity and catchability deviations, foraging
-#'   days and weight-at-age are held at the operating model's terminal hindcast
-#'   year, M1 deviations take the operating model's projection values (0 where
-#'   estimated by year, an input series as given), survey SD is the average over
-#'   the historical series, and composition sample size is held at the last
-#'   year. There is no implementation error and no observation error on catch.
+#'   In the years it adds, the selectivity and catchability deviations (a form
+#'   whose deviations are year-to-year increments takes an increment of 0),
+#'   empirical selectivity, ration and weight-at-age are held at the operating
+#'   model's terminal hindcast year. M1 deviations take the operating model's
+#'   projection values (0 where estimated by year, an input series as given). An
+#'   index's `Log_sd` and a composition's `Sample_size` are copied from the
+#'   fleet's last historical row and scaled by `fut_sample`. Unlike a
+#'   [retrospective()] peel, `run_mse()` holds no linkage: covariates read
+#'   `env_data` as given, and a q or selectivity linkage random effect takes the
+#'   operating model's own estimate for each added year (an AR1 decaying toward
+#'   0, an IID effect 0). There is no implementation error and no observation
+#'   error on catch.
 #'   Fixed numbers-at-age (`estDynamics > 0`) are an input rather than a
 #'   forecast, so they are NOT held forward: supply `NByageFixed` rows for every
 #'   projection year, or the uncovered years read 0 and that species contributes

@@ -261,7 +261,7 @@ head(standard_output(tabs, model = "three_species", species = 1))
 model_1_retro <- retrospective(model_1, peels = 7)
 
 # `mohns` is long: columns Object, `Forecast year` (0 = terminal peel), N, then one
-# column per species. Read the rho by name -- column 2 is the peel year, not a rho.
+# column per species. Read the rho by name -- column 2 is `Forecast year`, not a rho.
 rho <- subset(model_1_retro$mohns, Object == "biomass" & `Forecast year` == 0)
 plot_biomass(model_1_retro$Rceattle_list,
              model_names = paste("Pollock; mohns =", round(rho[["Pollock"]], 3)))

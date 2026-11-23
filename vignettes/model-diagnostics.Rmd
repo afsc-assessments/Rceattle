@@ -568,7 +568,7 @@ Each peel holds its own terminal year as `data_list$endyr`, so the first plot dr
 | `mohns` | Mohn's rho (mean relative error) by `Object` (`"biomass"`, `"ssb"`, `"R"`, `"F_spp"`) and `Forecast year` (0 = terminal-year bias; 1 to `nyrs_forecast`, default 3, = forecast skill), with `N` the peels used in that row and one column per species |
 | `peels_requested` | the `peels` asked for |
 
-A peel still estimates the years it dropped, as its retrospective forecast: F is fitted to the observed catch, with those years' survey and composition data withheld, and so is their `env_data`, except the columns `?retrospective` lists. The forecast years are `endyr_peel + seq_len(endyr_full - endyr_peel)`, where `endyr_peel` is the peel's terminal year and `endyr_full` the unpeeled one; the harvest control rule takes over after `endyr_full`, through `projyr`, and `incl_proj = TRUE` plots both. A series known ahead, such as a climate projection, goes in `projected_env_data_known = "<column>"` so the peels keep it, and `rescale = "<column>"` standardizes a covariate on each peel's retained years.
+A peel is refitted as a model ending at its terminal year. The years it dropped are then its retrospective forecast: F is fitted to the observed catch, with those years' survey and composition data withheld, and so is their `env_data`, except the columns `?retrospective` lists. The forecast years are `endyr_peel + seq_len(endyr_full - endyr_peel)`, where `endyr_peel` is the peel's terminal year and `endyr_full` the unpeeled one; the harvest control rule takes over after `endyr_full`, through `projyr`, and `incl_proj = TRUE` plots both. A series known ahead, such as a climate projection, goes in `projected_env_data_known = "<column>"` so the peels keep it, and `rescale = "<column>"` standardizes a covariate on each peel's retained years.
 
 `print(model_1_retro)` counts the peels that were dropped or flagged:
 
@@ -837,6 +837,7 @@ plot_biomass(mod_avg)
 With `uncertainty = TRUE`, each fit's parameters are drawn from its asymptotic
 covariance. Under any harvest control rule but `"NoFishing"`, an
 `estimateMode = "Estimate"` fit is refused unless it used
-`fit_control(projection_uncertainty = TRUE)`; `?model_average` gives the refits.
+`fit_control(projection_uncertainty = TRUE)`, which serves fixed-effects fits
+under any rule but `"ConstantF"`; `?model_average` gives the refits.
 A `"Hindcast"` refit projects with no fishing, so its averaged projection is of
 an unfished stock.
