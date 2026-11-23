@@ -999,11 +999,9 @@ testthat::test_that("a peel whose sd rebuild fails keeps its sdreport, and recor
                            "forced report-build failure")
   }
 
-  # The two non-throwing failures. One stub per arm, each asserting its OWN
-  # message: a single stub setting both conditions would stay green if either
-  # half of the predicate were deleted. The stub is reached only through the
-  # mocked rebuild, so the fitting refits get the real sdreport and the peel
-  # still converges.
+  # A rebuild that fails without throwing, and one TMB marks pdHess = FALSE that
+  # is not a failure. The stub is reached only through the mocked rebuild, so the
+  # fitting refits get the real sdreport and the peel still converges.
   real_sdreport <- TMB::sdreport
   # The rebuild zeroes the peeled catch in obj$env$data and retapes before
   # calling sdreport, so the stub carries an empty catch table and a no-op retape.
@@ -1050,12 +1048,15 @@ testthat::test_that("a peel whose sd rebuild fails keeps its sdreport, and recor
     }
   }
 
-  # Arm 1: an unfactorable Hessian, but the report itself is finite.
+  # Arm 1: the band is the hindcast's, whose Hessian already passed its own
+  # definiteness check, so a finite report is kept whatever pdHess TMB returns.
   fake_indef <- structure(list(pdHess = FALSE, sd = 1, value = c(ssb = 0)),
                           class = "sdreport")
-  check_flagged(run_bad_rebuild(fake_indef), fake_indef, "not positive definite")
+  m <- run_bad_rebuild(fake_indef)$fit$Rceattle_list[[paste0("Year_", full_endyr - 1)]]
+  testthat::expect_identical(m$sdrep, fake_indef)
+  testthat::expect_null(attr(m, "sd_report_error", exact = TRUE))
 
-  # Arm 2: a factorable Hessian that still reports nothing finite.
+  # Arm 2: a rebuild that reports nothing finite.
   fake_nan <- structure(list(pdHess = TRUE, sd = NA_real_, value = c(ssb = 0)),
                         class = "sdreport")
   check_flagged(run_bad_rebuild(fake_nan), fake_nan, "no finite standard error")

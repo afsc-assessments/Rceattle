@@ -61,9 +61,9 @@
 #' `msmMode > 0`, `DynamicHCR = FALSE`), which reads the peeled F. A forecast
 #' year's band treats the catch as known and carries the hindcast's uncertainty
 #' through the F needed to take it, without recruitment variability, so it is
-#' narrower than a prediction interval. If the rebuild fails (an error, a
-#' Hessian that is not positive definite, or no finite standard error), the
-#' peel is kept, but plots, `as.data.frame()` and `vcov()` ignore its `sdrep`,
+#' narrower than a prediction interval. If the rebuild fails (an error, or no
+#' finite standard error), the peel is kept, but plots, `as.data.frame()` and
+#' `vcov()` ignore its `sdrep`,
 #' which may not hold valid standard errors; `attr(peel, "sd_report_error")`
 #' gives the reason. `print()` counts the peels carrying either attribute;
 #' `retrospective()` warns about neither.
@@ -466,12 +466,7 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
     # Judge the hindcast here: the forecast refit below replaces `newmod` and frees only F,
     # so its gradient cannot show whether the hindcast that Mohn's rho reads converged.
     if (!.refit_converged(newmod)) return(NULL)
-    # The hindcast's own covariance, joint with its random effects, for the bands.
-    hind_sdrep <- if (isTRUE(getsd) && length(newmod$obj$env$random)) {
-      TMB::sdreport(newmod$obj, getJointPrecision = TRUE)
-    } else {
-      newmod$sdrep
-    }
+    hindcast <- newmod   # its covariance gives the bands below
 
     # Forecast ----
     # Back to the full model: the peel's estimates in its own years; in the removed
@@ -596,16 +591,20 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
         # A catch of 0 is read as missing; F, and so the removals, are unchanged.
         obj$env$data$catch_obs[peeled, 1] <- 0
         obj$retape()   # rebuild the model with the changed catch
-        # Every year's band from the hindcast's own covariance (its Hessian, and its
-        # joint precision under random effects), not this full-length model's,
-        # which also carries the removed years' penalties. Quiet: an indefinite
-        # Hessian warns "NaNs produced", and the reason is recorded below.
-        sdr <- suppressWarnings(TMB::sdreport(
-          obj, hessian.fixed = solve(hind_sdrep$cov.fixed)))
-        sdr$jointPrecision <- hind_sdrep$jointPrecision
+        # The band reads the hindcast's own covariance, not this full-length model's,
+        # which also carries the removed years' penalties.
+        H <- solve(hindcast$sdrep$cov.fixed)
+        # Symmetrized: solve() leaves its two triangles slightly unequal and TMB reads
+        # one, which fails its chol() check from condition number ~3e9.
+        H <- (H + t(H)) / 2
+        # Quiet; a rebuild with no finite standard error is flagged below.
+        sdr <- suppressWarnings(TMB::sdreport(obj, hessian.fixed = H))
+        if (length(hindcast$obj$env$random)) {
+          sdr$jointPrecision <- TMB::sdreport(
+            hindcast$obj, hessian.fixed = H, getJointPrecision = TRUE)$jointPrecision
+        }
         tryCatch({
-          # Run for peeled catch, or under random effects to apply the joint precision.
-          if (isTRUE(sdr$pdHess) && (length(fitted_rows) || length(obj$env$random))) {
+          if (length(fitted_rows)) {
             sdr <- .rce_catch_conditioned_sd(obj, sdr, fitted_rows, data_list$styr)
           }
           list(sdrep = sdr)
@@ -615,15 +614,10 @@ retrospective <- function(object = NULL, peels = 5, rescale = FALSE, nyrs_foreca
                         conditionMessage(e))))
       }, error = function(e) list(error = conditionMessage(e)))
 
-      # A rebuild can fail without throwing: TMB::sdreport() returns pdHess = FALSE
-      # on a Hessian it cannot factor. Name which condition fired for the reader.
+      # A rebuild can fail without throwing; name it for the reader.
       .sdr <- sd_try[["sdrep"]]
-      if (is.null(sd_try[["error"]])) {
-        if (isFALSE(.sdr[["pdHess"]])) {
-          sd_try[["error"]] <- "the rebuilt hindcast Hessian is not positive definite"
-        } else if (!any(is.finite(.sdr[["sd"]]))) {
-          sd_try[["error"]] <- "the rebuilt hindcast reported no finite standard error"
-        }
+      if (is.null(sd_try[["error"]]) && !any(is.finite(.sdr[["sd"]]))) {
+        sd_try[["error"]] <- "the rebuilt hindcast reported no finite standard error"
       }
 
       # Keep the point estimates and what TMB returned (none if the rebuild threw
@@ -1251,11 +1245,8 @@ print.Rceattle_jitter <- function(x, tol = 0.01, ...) {
   # qr.solve() applies j_c[F]^-1 from the formula above (least squares when a fleet
   # has several catch rows in a year).
   keep <- setdiff(seq_along(pa), f_col)
-  j_cc <- j_q[, keep, drop = FALSE]
-  if (n_f > 0) {
-    j_cc <- j_cc - j_q[, f_col, drop = FALSE] %*%
-      qr.solve(j_c[, f_col, drop = FALSE], j_c[, keep, drop = FALSE])
-  }
+  j_cc <- j_q[, keep, drop = FALSE] - j_q[, f_col, drop = FALSE] %*%
+    qr.solve(j_c[, f_col, drop = FALSE], j_c[, keep, drop = FALSE])
   # Covariance of theta: fixed and random effects jointly, else the fixed.
   cov_theta <- if (length(obj$env$random)) solve(sdrep$jointPrecision) else sdrep$cov.fixed
   cov_q <- j_cc %*% cov_theta %*% t(j_cc)   # the delta method

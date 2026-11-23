@@ -109,9 +109,9 @@ relative to last-projection-year biomass (\code{HCR = "NoFishing"},
 \code{msmMode > 0}, \code{DynamicHCR = FALSE}), which reads the peeled F. A forecast
 year's band treats the catch as known and carries the hindcast's uncertainty
 through the F needed to take it, without recruitment variability, so it is
-narrower than a prediction interval. If the rebuild fails (an error, a
-Hessian that is not positive definite, or no finite standard error), the
-peel is kept, but plots, \code{as.data.frame()} and \code{vcov()} ignore its \code{sdrep},
+narrower than a prediction interval. If the rebuild fails (an error, or no
+finite standard error), the peel is kept, but plots, \code{as.data.frame()} and
+\code{vcov()} ignore its \code{sdrep},
 which may not hold valid standard errors; \code{attr(peel, "sd_report_error")}
 gives the reason. \code{print()} counts the peels carrying either attribute;
 \code{retrospective()} warns about neither.
