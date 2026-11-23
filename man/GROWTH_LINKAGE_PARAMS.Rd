@@ -16,4 +16,8 @@ on the SD endpoints, they thread through \code{init} / \code{bounds} /
 \code{priors} onto the growth SD-at-age but do not vary by year.
 The empirical weight-at-age model admits no linkages.
 }
+\references{
+Richards, F.J. 1959. A flexible growth function for empirical use. J. Exp.
+Bot. 10:290-301.
+}
 \keyword{internal}

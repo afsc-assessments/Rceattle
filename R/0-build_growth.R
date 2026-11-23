@@ -68,6 +68,9 @@ GROWTH_FUNS <- c("empirical", "vonBertalanffy", "Richards")
 #' `priors` onto the growth SD-at-age but do not vary by year.
 #' The empirical weight-at-age model admits no linkages.
 #'
+#' @references
+#' Richards, F.J. 1959. A flexible growth function for empirical use. J. Exp.
+#'   Bot. 10:290-301.
 #' @keywords internal
 GROWTH_LINKAGE_PARAMS <- c("K", "L1", "Linf", "m", "sd_L1", "sd_Linf")
 

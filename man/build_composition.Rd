@@ -18,8 +18,8 @@ A list of composition-weighting settings for \code{\link[=fit_mod]{fit_mod()}}.
 Holds \strong{priors} on the Dirichlet-multinomial (Thorson et al. 2017)
 composition-weighting overdispersion. The DM weight (the "theta" that scales
 the effective sample size) is otherwise an unpenalized free parameter; a
-linkage lets you put a
-prior on it through the same grammar as every other parameter. The three
+linkage lets you put a prior on it through the same grammar as every other
+parameter. The three
 parameters target the three DM likelihoods:
 \describe{
 \item{\code{theta_comp}}{age / length composition weight (\code{comp_weights}), per

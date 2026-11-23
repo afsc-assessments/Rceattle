@@ -70,10 +70,11 @@ no peel converged).}
 }
 \description{
 Refit an Rceattle model with its last 1, 2, ..., \code{peels} years
-of data removed, and calculate Mohn's rho (Mohn 1999) for the terminal year
-and the \code{nyrs_forecast} years after it. Each peel is fitted twice: its
-hindcast, then F in the removed years, fitted to their observed catch with
-the hindcast held fixed.
+of data removed, and calculate Mohn's rho (Mohn 1999), averaged over peels
+as in Hurtado-Ferro et al. (2015), for the terminal year and the
+\code{nyrs_forecast} years after it. Each peel is fitted twice: its hindcast,
+then F in the removed years, fitted to their observed catch with the
+hindcast held fixed.
 }
 \details{
 \strong{Hindcast and forecast years.} A peel's hindcast is the model as it would
@@ -181,4 +182,8 @@ retro <- retrospective(ss_run, peels = 10)
 Mohn, R. 1999. The retrospective problem in sequential population analysis:
 an investigation using cod fishery and simulated data. ICES J. Mar. Sci.
 56:473-488.
+
+Hurtado-Ferro, F., et al. 2015. Looking in the rear-view mirror: bias and
+retrospective patterns in integrated, age-structured stock assessment
+models. ICES J. Mar. Sci. 72:99-110.
 }

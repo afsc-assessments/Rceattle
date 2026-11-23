@@ -321,8 +321,9 @@
 
 #' Run a management strategy evaluation
 #'
-#' @description Runs a forward-projecting management strategy evaluation (MSE).
-#'   In the years each assessment adds, the operating model holds its
+#' @description Runs a forward-projecting management strategy evaluation
+#'   (MSE; Punt et al. 2016). In the years each assessment adds, the operating
+#'   model holds its
 #'   selectivity and catchability deviations at its terminal hindcast year (a
 #'   form whose deviations are year-to-year increments takes an increment of 0);
 #'   its M1 deviations take its projection values (0 where estimated by year, an

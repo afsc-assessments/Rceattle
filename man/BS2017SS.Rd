@@ -63,10 +63,10 @@ fleet_control: controls for survey and fisheries data
 \item{Fleet_type}{0 or 'Off' = Do not estimate; 1 = 'Fishery'; 2 = 'Survey'}
 \item{Species}{Species number}
 \item{Selectivity_index}{Index used to give fleets the same selectivity (otherwise, same as Fleet_code). Fleets sharing a value share one selectivity parameter block, with its penalties and priors accumulated once on the group's first non-Off fleet. Sharing the parameters is not enough on its own: the columns that shape the curve are read per fleet and must agree across the group, or the fleets end up with different selectivities. \code{data_check()} reports any that differ. To mirror a fleet, copy its fleet_control row and change only the identity and catchability columns. See \code{vignette("model-options-and-functionality")}.}
-\item{Selectivity}{Selectivity form: 0 = "Fixed"; 1 = "Logistic"; 2 = "NonParametric" (Ianelli et al. 2018); 3 = "DoubleLogistic"; 4 = "DescendingLogistic"; 5 = "Hake" non-parametric (Taylor et al. 2015); 6 = "2DAR1" (Xu et al. 2019); 7 = "3DAR1" (Cheng et al. 2023); 8 = "DoubleNormal"; 9 = "NonParametricPM" (non-parametric random walk with penalized increments, AMAK "pm"; not integrable under random_sel); 11 = "LogisticPM" (logistic with a free age-1 selectivity, AMAK "pm"); 13 = "NonParametricIntegrable" (the Ianelli base curve whose deviations have a proper density, so random_sel integrates them; Time_varying_sel picks the structure: "Off", "IID" or "RandomWalk"); 15 = "DoubleNormalSS3" (Stock Synthesis size pattern 24, Methot and Wetzel 2013; six parameters on SS3's scales, varied through selectivity linkages). Whether a form is age- or length-based is set by Selectivity_dimension.}
+\item{Selectivity}{Selectivity form: 0 = "Fixed"; 1 = "Logistic"; 2 = "NonParametric" (Ianelli et al. 2018); 3 = "DoubleLogistic"; 4 = "DescendingLogistic"; 5 = "Hake" non-parametric (Taylor et al. 2015); 6 = "2DAR1" (deviations as in Xu et al. 2019, around a non-parametric base); 7 = "3DAR1" (the weight-at-age GMRF of Cheng et al. 2023, applied to selectivity); 8 = "DoubleNormal"; 9 = "NonParametricPM" (non-parametric random walk with penalized increments, AMAK "pm"; not integrable under random_sel); 11 = "LogisticPM" (logistic with a free age-1 selectivity, AMAK "pm"); 13 = "NonParametricIntegrable" (the Ianelli base curve whose deviations have a proper density, so random_sel integrates them; Time_varying_sel picks the structure: "Off", "IID" or "RandomWalk"); 15 = "DoubleNormalSS3" (Stock Synthesis size pattern 24, Methot and Wetzel 2013; six parameters on SS3's scales, varied through selectivity linkages). Whether a form is age- or length-based is set by Selectivity_dimension.}
 \item{Selectivity_dimension}{"Age" or "Length".}
 \item{N_sel_bins}{Number of bins (ages or length bins) to estimate for non-parametric selectivity.}
-\item{Time_varying_sel}{Whether a time-varying selectivity should be estimated. 0 = "Off"; 1 = "IID" penalized deviates given \code{Time_varying_sel_sd}, or random effects with that sd estimated under \code{random_sel}; 2 = "AR1" REMOVED in 5.16.0, it was scored as "IID", so \code{data_check()} errors on it; use "IID" for the same fit, or \code{linkage_spec(~ ar1(1 | Year))} for a real one; 3 = "Block" time blocks with no penalty; 4 = "RandomWalk" following Dorn et al. 2018; 5 = "RandomWalkAscending" on the ascending limb of double logistic only.}
+\item{Time_varying_sel}{Whether a time-varying selectivity should be estimated. 0 = "Off"; 1 = "IID" penalized deviates given \code{Time_varying_sel_sd}, or random effects with that sd estimated under \code{random_sel}; 2 = "AR1" REMOVED in 5.16.0, it was scored as "IID", so \code{data_check()} errors on it; use "IID" for the same fit, or \code{linkage_spec(~ ar1(1 | Year))} for a real one; 3 = "Block" time blocks with no penalty; 4 = "RandomWalk" on both limbs (extending Dorn et al. 2018); 5 = "RandomWalkAscending" on the ascending limb of double logistic only (Dorn et al. 2018).}
 \item{Time_varying_sel_sd}{The fixed or initial sd to use for time varying selectivity; always required by the 2DAR1 and 3DAR1 forms.}
 \item{Sel_start_year}{First year the fleet's time-varying selectivity deviations are estimated and penalized. Deviations before this year are fixed at 0: they have no data and no penalty (the selectivity penalties are anchored at this year), so estimating them would leave unidentified flat directions. Defaults to the earliest year of data across all fleets sharing the fleet's \code{Selectivity_index} (fleets sharing an index share one selectivity curve), bounded below by \code{styr}. Only used for time-varying selectivity; set explicitly to override.}
 \item{Bin_first_selected}{Age/length bin at which selectivity is non-zero}
@@ -139,5 +139,57 @@ BS2017SS
 \description{
 A data list of inputs for the single-species Eastern Bering Sea CEATTLE model
 (walleye pollock, Pacific cod, and arrowtooth flounder), covering 1979-2017.
+}
+\references{
+Cheng, M.L.H., Thorson, J.T., Ianelli, J.N., and Cunningham, C.J. 2023. Unlocking
+the triad of age, year, and cohort effects for stock assessment. Fish. Res.
+266:106755.
+
+Dorn, M., et al. 2018. Assessment of the walleye pollock stock in the Gulf of
+Alaska. NPFMC Gulf of Alaska SAFE report, Anchorage, AK.
+
+Holsman, K.K., and Aydin, K. 2015. Comparative methods for evaluating climate
+change impacts on the foraging ecology of Alaskan groundfish. Mar. Ecol.
+Prog. Ser. 521:217-235.
+
+Ianelli, J., et al. 2018. Assessment of the walleye pollock stock in the
+Eastern Bering Sea. NPFMC Bering Sea/Aleutian Islands SAFE report, Anchorage,
+AK.
+
+Kitchell, J.F., Stewart, D.J., and Weininger, D. 1977. Applications of a
+bioenergetics model to yellow perch and walleye. J. Fish. Res. Board Can.
+34:1922-1935.
+
+McAllister, M.K., and Ianelli, J.N. 1997. Bayesian stock assessment using
+catch-age data and the sampling-importance resampling algorithm. Can. J.
+Fish. Aquat. Sci. 54:284-300.
+
+Methot, R.D., and Wetzel, C.R. 2013. Stock synthesis: a biological and
+statistical framework for fish stock assessment and fishery management.
+Fish. Res. 142:86-99.
+
+Rogers, L.A., Monnahan, C.C., Williams, K., Jones, D.T., and Dorn, M.W. 2024.
+Climate-driven changes in the timing of spawning and the availability of
+walleye pollock to assessment surveys in the Gulf of Alaska. ICES J. Mar.
+Sci. 82:fsae005.
+
+Stewart, D.J., Weininger, D., Rottiers, D.V., and Edsall, T.A. 1983. An
+energetics model for lake trout, Salvelinus namaycush. Can. J. Fish. Aquat.
+Sci. 40:681-698.
+
+Taylor, I.G., Grandin, C., Hicks, A.C., Taylor, N., and Cox, S. 2015. Status
+of the Pacific hake (whiting) stock in U.S. and Canadian waters in 2015.
+Joint Technical Committee of the Pacific Hake/Whiting Agreement.
+
+Thornton, K.W., and Lessem, A.S. 1978. A temperature algorithm for modifying
+biological rates. Trans. Am. Fish. Soc. 107:284-287.
+
+Walters, C., and Ludwig, D. 1994. Calculation of Bayes posterior probability
+distributions for key population parameters. Can. J. Fish. Aquat. Sci.
+51:713-722.
+
+Xu, H., Thorson, J.T., Methot, R.D., and Taylor, I.G. 2019. A new
+semi-parametric method for autocorrelated age- and time-varying selectivity
+in age-structured assessment models. Can. J. Fish. Aquat. Sci. 76:268-285.
 }
 \keyword{datasets}

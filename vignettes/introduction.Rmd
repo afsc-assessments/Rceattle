@@ -139,7 +139,7 @@ model_4 <- Rceattle::fit_mod(data_list = mydata,
 summary(model_4)
 ```
 
-Model 5 sets `msmMode = 1`, running in multi-species mode: it estimates time- and age-varying natural mortality from predation, following the MSVPA parameterization of [Magnusson (1995)](https://link.springer.com/article/10.1007/BF00179756).
+Model 5 sets `msmMode = 1`, running in multi-species mode: it estimates time- and age-varying natural mortality from predation, following the MSVPA parameterization of [Magnússon (1995)](https://link.springer.com/article/10.1007/BF00179756).
 
 ```{r, message = FALSE}
 model_5 <- Rceattle::fit_mod(data_list = BS2017MS,

@@ -4180,7 +4180,7 @@ Type objective_function<Type>::operator() () {
         }
       }
 
-      // 3D AR1 (7): GMRF over bin, year and cohort (Cheng et al. 2023). Sel_curve_pen1-3
+      // 3D AR1 (7): GMRF over bin, year and cohort (the weight-at-age GMRF of Cheng et al. 2023). Sel_curve_pen1-3
       // carry the bin, year and cohort correlations.
       if(flt_sel_type(flt) == 7){
         int n_sel_bins = flt_n_sel_bins(flt);

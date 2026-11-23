@@ -97,8 +97,9 @@ level.
 
 ### Time-varying growth
 
-The same grammar holds time variation (Correa et al. 2023), with a
-random-effect term on the right-hand side instead of (or alongside) a
+The same grammar holds time-varying growth (see Correa et al. 2023 for the
+approach in a state-space assessment), with a random-effect term on the
+right-hand side instead of (or alongside) a
 covariate:
 
 ```{r}

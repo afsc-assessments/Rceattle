@@ -211,6 +211,12 @@
 #' )
 #' }
 #'
+#' @references
+#' Holsman, K.K., Ianelli, J., Aydin, K., Punt, A.E., and Moffitt, E.A. 2016. A
+#'   comparison of fisheries biological reference points estimated from
+#'   temperature-specific multi-species and single-species climate-enhanced
+#'   stock assessment models. Deep Sea Res. II 134:360-378.
+#'
 #' @export
 fit_mod <-
   function(

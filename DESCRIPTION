@@ -49,12 +49,11 @@ Description: Implements the CEATTLE model using Template Model Builder
     ('TMB'; Kristensen et al. 2016 <doi:10.18637/jss.v070.i05>), which can be
     installed following <https://github.com/kaskr/adcomp/wiki/Download>.
     Structured similar to the original manuscript in terms of
-    modularization. Separate
-    functions estimate retrospective temperature- and size-specific
-    predator rations, prey preference, and weight-at-age. These are then
-    used as inputs to the CEATTLE model to evaluate how predation
-    mortality, recruitment, and survival of three target species change
-    under historical climate conditions and harvest rates.
+    modularization. Separate functions estimate retrospective temperature-
+    and size-specific predator rations, prey preference, and weight-at-age.
+    These are then used as inputs to the CEATTLE model to evaluate how
+    predation mortality, recruitment, and survival of three target species
+    change under historical climate conditions and harvest rates.
 URL: https://afsc-assessments.github.io/Rceattle/, https://github.com/afsc-assessments/Rceattle
 BugReports: https://github.com/afsc-assessments/Rceattle/issues
 License: GPL (>= 2)

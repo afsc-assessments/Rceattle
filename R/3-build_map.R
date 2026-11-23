@@ -1380,7 +1380,7 @@ build_map_catchability <- function(map_list, data_list, nyrs_hind, random_q = FA
       }
 
       # Time_varying_q: "Off"; "IID" penalized deviate or random effect; "Block"
-      # time blocks with no penalty; "RandomWalk" from the mean following Dorn et al. 2018
+      # time blocks with no penalty; "RandomWalk" from the mean following Dorn et al.
       # 2018, dnorm(q_y - q_y-1, 0, sigma). "AR1" is removed and refused by
       # data_check(), but still maps its deviates here, identically to "IID", on
       # a direct build_map() call. Under Catchability = "Environmental" this

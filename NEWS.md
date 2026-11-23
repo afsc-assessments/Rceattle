@@ -47,15 +47,21 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   for the one-step-ahead composition likelihoods. `License:` is unchanged.
 
 * **Literature citations corrected and completed.**
-  - Wrong citations fixed: Thornton and Lessem is 1978; Kinzey and Punt is 2009;
-    the MSVPA model is Holsman et al. 2016; 2D-AR1 selectivity is Xu et al.
+  - Wrong citations fixed: Thornton and Lessem is 1978; the MSVPA model is
+    Holsman et al. 2016; `?build_bounds` no longer credits Kinzey and Punt,
+    whose bounds were removed in 5.49.2; 2D-AR1 selectivity is Xu et al.
     2019; and 3D-AR1 is Cheng et al. 2023, since no 2024 paper exists. TMB is
     now cited as the 2016 *Journal of Statistical Software* paper, not the 2015
     preprint. The "Hake" selectivity form cites the 2015 Pacific hake
-    assessment (Taylor et al. 2015, not 2014), the warm-water bioenergetics
-    form Holsman and Aydin (2015), and random-walk selectivity the 2018 GOA
-    pollock assessment (Dorn et al. 2018). Two `data_check()` messages and one
-    from `plot_form()` carry the corrected years.
+    assessment (Taylor et al. 2015), the warm-water bioenergetics form
+    Holsman and Aydin (2015), and the ascending-limb random walk
+    (`"RandomWalkAscending"`) and random-walk catchability the 2018 GOA
+    pollock assessment (Dorn et al. 2018); `"RandomWalk"` extends that
+    selectivity walk to both limbs. The 2D- and 3D-AR1
+    forms say what they take from Xu et al. (2019) and Cheng et al. (2023),
+    and Mohn's rho is described as averaged over peels (Hurtado-Ferro et al.
+    2015). Two `data_check()` messages and one from `plot_form()` carry the
+    corrected years.
   - Help pages now cite methods they described without a source: Mohn (1999)
     in `?retrospective`, Thorson et al. (2017) in `?build_composition`,
     Thorson and Kristensen (2016) for TMB's epsilon bias correction
@@ -63,9 +69,9 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
     (1954) in `?build_srr`, Punt et al. (2016) in `?run_mse`,
     Richards (1959) in `?build_growth`, Dunn and Smyth (1996) in
     `?osa_residuals`, and Methot and Wetzel (2013) for the `DoubleNormalSS3`
-    form.
-  - Every vignette that cites a paper now ends with a reference list, and the
-    vignettes cite the same methods where they introduce them.
+    form in `?BS2017SS`.
+  - Every user vignette that cites a paper now ends with a reference list, and
+    the vignettes cite these methods where they introduce them.
 
 * **A request to anyone reusing Rceattle code.** The README asks that code
   copied or adapted into another project, by hand or through an AI assistant,
