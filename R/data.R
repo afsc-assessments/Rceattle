@@ -140,8 +140,8 @@
 #'
 #' @format A list with the same structure as \code{\link{BS2017SS}}.
 #' @source Converted from the ADMB inputs of the 2017 Eastern Bering Sea
-#'   multispecies CEATTLE assessment (Holsman et al. 2017), multispecies mode;
-#'   the full citation is in \code{\link{BS2017SS}}.
+#'   multispecies CEATTLE assessment (Holsman et al. 2017), run in multispecies
+#'   mode; the full citation is in \code{\link{BS2017SS}}.
 "BS2017MS"
 
 

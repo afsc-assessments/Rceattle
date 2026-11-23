@@ -4198,9 +4198,9 @@ Type objective_function<Type>::operator() () {
             }
           }
 
-          // Arguments run bin, year, cohort. construct_Q()'s parameter names read the
-          // other way round, but ay_index is also filled the other way round from
-          // GMRF_WAA's, so the two cancel. Do not "correct" the call to match the names.
+          // Arguments run bin, year, cohort. construct_Q(), as in GMRF_WAA, applies rho_y
+          // between adjacent bins in a year and rho_a between adjacent years in a bin,
+          // whatever the names say. Do not "correct" the order to match the names.
           Eigen::SparseMatrix<Type> Q_sparse(num_rows, num_rows);
           Q_sparse = construct_Q(nyrs_hind, n_sel_bins, ay_index,
                                  sel_curve_pen(flt, 0), sel_curve_pen(flt, 1), sel_curve_pen(flt, 2), // natural scale

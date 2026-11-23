@@ -86,7 +86,8 @@
     }))
   }
 
-  # Fallback: plain nlminb + sdreport
+  # Fallback: plain nlminb + sdreport. Its Newton steps, diagnostics table and
+  # convergence messages mirror TMBhelper::fit_tmb() (Thorson; GPL-3).
   start_par <- obj$par
   best <- NULL
   for (i in seq_len(max(1, loopnum))) {

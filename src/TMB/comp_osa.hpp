@@ -4,7 +4,9 @@
  *
  * TMB's oneStepPredict() needs every observation in a flat `obsvec`, its likelihood
  * term multiplied by its own `keep` element, which multivariate discrete
- * composition data cannot supply directly. Following Trijoulet et al. (2023) and
+ * composition data cannot supply directly. Following Trijoulet et al. (2023), their
+ * reference code (distr.hpp in github.com/vtrijoulet/OSA_multivariate_dists, from
+ * which dmultinom_osa() and ddirmultinom_osa() take their names and CDF terms) and
  * WHAM (src/age_comp_osa.hpp), a composition of A bins is decomposed into A-1
  * univariate conditionals -- binomials for the multinomial, beta-binomials for the
  * Dirichlet-multinomial -- each gated by its keep element. The last bin is fixed by
@@ -86,7 +88,7 @@ Type osa_squeeze_cdf(Type u){
  * the binomial CDF at whole counts and stays smooth at the fractional ones composition
  * data carry: a bin count is proportion * effective sample size, an integer only by
  * coincidence. Same expression as the Trijoulet et al. (2023) reference implementation
- * TMB ships (contrib/OSA_multivariate_dists-main/distr.hpp, `dists::pbinom`).
+ * (distr.hpp, `dists::pbinom`, which TMB:::install.contrib() installs).
  *
  * @param x Count in this bin.
  * @param n Count still unplaced across this bin and every later one.

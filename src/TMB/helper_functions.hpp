@@ -33,7 +33,7 @@ Type posfun(Type x, Type eps, Type &penalty) {
 
 
 // Dirichlet-multinomial density (log when do_log = 1), from WHAM
-// src/age_comp_osa.hpp (GPL-3).
+// src/age_comp_osa.hpp (GPL-3); identical in Trijoulet et al.'s distr.hpp.
 template<class Type>
 Type ddirmultinom(vector<Type> obs, vector<Type> alpha, int do_log)
 {
@@ -154,13 +154,14 @@ Type log_mean_exp(const vector<Type> &x)
  * @brief Construct a sparse GMRF precision matrix separable along year, age, and cohort.
  *
  * From Matthew Cheng's GMRF_WAA (https://github.com/chengmatt/GMRF_WAA; Cheng et
- * al. 2023, Fisheries Research 266: 106755). Builds Q = (I - B^T) * Omega * (I - B), where B carries the partial correlation to each
- * neighbouring node and Omega is the diagonal precision (1 / variance). `Var_Param`
- * selects the conditional (0) or marginal (1) variance parameterization of the GMRF.
+ * al. 2023, Fisheries Research 266: 106755). Builds Q = (I - B^T) * Omega * (I - B),
+ * where B carries the partial correlation to each neighbouring node and Omega is the
+ * diagonal precision (1 / variance). `Var_Param` selects the conditional (0) or
+ * marginal (1) variance parameterization of the GMRF.
  *
- * The sole caller reads these names the other way round: ceattle.cpp's 3D-AR1 selectivity
- * passes its (bin, year, cohort) correlations in and fills `ay_Index` as (bin, year), so
- * the two inversions cancel. Read the note at that call before renaming anything here.
+ * The names do not match what they act on: `rho_y` links nodes one apart in column 0 of
+ * `ay_Index` (age, or bin) within a year, and `rho_a` nodes one year apart. The sole
+ * caller, ceattle.cpp's 3D-AR1 selectivity, relies on this; read its note first.
  *
  * @param n_years Number of years.
  * @param n_ages Number of ages.
