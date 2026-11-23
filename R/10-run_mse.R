@@ -590,6 +590,10 @@ run_mse <- function(om, em, nsim = 10, start_sim = 1, assessment_period = 1, sam
   sample_yrs = data.frame(Fleet_code = unlist(fleet_id), Year = unlist(sample_yrs))
 
 
+  # regenerate_past draws from the OM as fitted: sim_mod() simulates every row
+  # its TMB object was built with, including the ones the filter below drops.
+  if (regenerate_past) past_sim <- sim_mod(om, simulate = simulate_data)
+
   # * Filter arbitrary "future" data ----
   # -- index_data
   om$data_list$index_data <- om$data_list$index_data |>
@@ -613,13 +617,14 @@ run_mse <- function(om, em, nsim = 10, start_sim = 1, assessment_period = 1, sam
   # Regenerate past data from OM and refit EM ----
   if(regenerate_past){
 
-    # - Index, comp and CAAL data from the OM: drawn with observation error under
-    #   simulate_data, as each assessment's new data are, else its expected values.
-    sim_dat <- sim_mod(om, simulate = simulate_data)
-
-    em$data_list$index_data <- sim_dat$index_data
-    em$data_list$comp_data <- sim_dat$comp_data
-    em$data_list$caal_data <- sim_dat$caal_data
+    # - The OM's index, comp and CAAL data (drawn above, with observation error
+    #   under simulate_data, else expected values), cut to the EM's years.
+    in_em_years <- function(x) {
+      dplyr::filter(x, abs(Year) <= em$data_list$endyr)
+    }
+    em$data_list$index_data <- in_em_years(past_sim$index_data)
+    em$data_list$comp_data <- in_em_years(past_sim$comp_data)
+    em$data_list$caal_data <- in_em_years(past_sim$caal_data)
 
     # Re-estimate
     em <- .refit_like(
