@@ -45,6 +45,18 @@ unoptimized debug build, bit-identically (measured). A normal install was always
 `RCEATTLE_DEBUG_CPP=1`. **Any absolute fit timing must state its build** — an `-O0` number
 overstates real cost ~10x.
 
+**Skipping AD work the objective never reads can change the gradient's last bits; skipping only
+array stores did not.** TMBad's `optimize()` runs `remap_identical_sub_expressions()` before
+`eliminate()`, so an unused operation that is the first copy of an expression a used one repeats
+becomes the node the used one points to. Dropping it moves that node, and with it the order the
+reverse sweep adds into its inputs. Measured on 5.70.10's predation skips, one at a time: each
+changed the gradient (by up to 6.8e-13) or the ADREPORT Jacobian on BS2017MS or GOA2018SS while
+the objective, `report()` and ADREPORT values stayed `identical()`. All of them together lowered
+a `suitMode = 4` fit's objective by 7.3e-7 while one parameter moved 1.69 along a flat direction.
+A variant that kept every arithmetic operation and skipped only the array stores was
+`identical()` on all 16 configurations tried. Check a performance change with `identical()` on
+`gr` and the ADREPORT Jacobian, not only `fn`.
+
 **A slow fit is the model, not a regression.** A full `BS2017SS` `estimateMode = 0,
 phase = TRUE` fit is ~55 s: ~14 s for one optimization, ~3x for phasing, +~14 s for
 `sdreport`. That single fit has needed ~500–700 `nlminb` iterations since at least 2023

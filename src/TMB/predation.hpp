@@ -233,7 +233,6 @@ void calculate_msvpa_suitability(array<Type> &stom_div_bio,
                   int r_idx = rsp + (nspp * r_sex);
                   for(int r_age = 0; r_age < nages(rsp); r_age++) {
 
-                    suitability(r_idx, k_idx, r_age, k_age, yr) = 0.0;
                     Type d_prop = diet_prop(r_idx, k_idx, r_age, k_age, yr);
 
                     if (d_prop > Type(0.0)) {
@@ -317,6 +316,8 @@ void calculate_msvpa_suitability(array<Type> &stom_div_bio,
  * divides each predator's consumption (avgN x ration) by that denominator, so a LARGER
  * available-food denominator gives LESS predation mortality. The dB0 (F = 0) and dBF
  * (F = Ftarget) arrays repeat the calculation for the dynamic reference points.
+ * Outputs the objective reads only in some configurations are filled only when their fill_
+ * flag is set.
  *
  * @param avail_food          Available food (mt) [nspp, max_sex, max_age, nyrs], updated.
  * @param avail_food_dB0      Available food at F=0, updated.
@@ -344,6 +345,12 @@ void calculate_msvpa_suitability(array<Type> &stom_div_bio,
  * @param weight_hat          Estimated weights-at-age (kg).
  * @param ration              Individual consumption (kg/predator/yr); consumption_at_age.
  * @param other_food          "Other food" biomass by predator (mt).
+ * @param fill_report_only    Fill M2_prop, B_eaten and B_eaten_as_prey (REPORT()ed) and
+ *                            other_diet_prop_hat (unread); otherwise they stay 0.
+ * @param fill_diet           Fill diet_prop_hat, which section 11 turns into the predicted
+ *                            stomach content, diet_hat; otherwise it stays 0.
+ * @param fill_dynamic_B0     Repeat the prey sums at F = 0 and F = Ftarget; otherwise M2_at_age_dB0
+ *                            and _dBF stay 0 and avail_food_dB0 and _dBF hold only other food.
  */
 template <class Type>
 void calculate_msvpa_predation(array<Type> &avail_food,
@@ -368,10 +375,14 @@ void calculate_msvpa_predation(array<Type> &avail_food,
                                array<Type> &suit_other, // const
                                array<Type> &weight_hat, // const
                                array<Type> &ration,
-                               const vector<Type> &other_food) {
+                               const vector<Type> &other_food,
+                               bool fill_report_only,
+                               bool fill_diet,
+                               bool fill_dynamic_B0) {
 
-  // Re-entered on every multispecies iteration (niter), so all outputs are zeroed: the pair
-  // outputs and other_diet_prop_hat are written only where available food is > 0 or NaN.
+  // Can run on every multispecies iteration (niter), so all outputs are zeroed: the pair outputs
+  // and other_diet_prop_hat are written only where available food is > 0 or NaN and their
+  // fill_ flag is set.
   avail_food.setZero();
   avail_food_dB0.setZero();
   avail_food_dBF.setZero();
@@ -440,8 +451,10 @@ void calculate_msvpa_predation(array<Type> &avail_food,
       for(int r_cell = 0; r_cell < ncell; r_cell++) {
         Type suit = suitability(cell_sp_sex(r_cell), k_idx, cell_age(r_cell), k_age, yr);
         avail(r_cell)     += suit * bio_avail;
-        avail_dB0(r_cell) += suit * bio_avail_dB0;
-        avail_dBF(r_cell) += suit * bio_avail_dBF;
+        if(fill_dynamic_B0) {
+          avail_dB0(r_cell) += suit * bio_avail_dB0;
+          avail_dBF(r_cell) += suit * bio_avail_dBF;
+        }
       }
     }
 
@@ -493,7 +506,9 @@ void calculate_msvpa_predation(array<Type> &avail_food,
           pred_mort_scalar_dBF = (avgN_at_age_dBF(rsp, r_sex, r_age, yr) * pred_rat) / avail_r_dBF;
         }
 
-        other_diet_prop_hat(rsp, r_sex, r_age, yr) = other_food(rsp) * suit_other(rsp, r_sex, r_age, yr) * inv_avail;
+        if(fill_report_only) {
+          other_diet_prop_hat(rsp, r_sex, r_age, yr) = other_food(rsp) * suit_other(rsp, r_sex, r_age, yr) * inv_avail;
+        }
 
         for(int k_cell = 0; k_cell < ncell; k_cell++) {
           int k_idx = cell_sp_sex(k_cell), k_age = cell_age(k_cell);
@@ -501,18 +516,24 @@ void calculate_msvpa_predation(array<Type> &avail_food,
 
           Type M2_frac = pred_mort_scalar * suit;
           M2(k_cell) += M2_frac;
-          M2_prop(r_idx, k_idx, r_age, k_age, yr) = M2_frac;
+
+          if(fill_report_only) {
+            M2_prop(r_idx, k_idx, r_age, k_age, yr) = M2_frac;
+            Type eaten = prey_N_cell(k_cell) * prey_wt_cell(k_cell) * M2_frac;
+            B_eaten(r_idx, k_idx, r_age, k_age, yr) = eaten;
+            eaten_as_prey(k_cell) += eaten;
+          }
 
           // N x weight stays per pair: computed once per prey, it can change the gradient's
           // last bits where diet_prop_hat reaches the diet likelihood (suitMode > 0).
-          Type eaten = prey_N_cell(k_cell) * prey_wt_cell(k_cell) * M2_frac;
-          B_eaten(r_idx, k_idx, r_age, k_age, yr) = eaten;
-          eaten_as_prey(k_cell) += eaten;
+          if(fill_diet) {
+            diet_prop_hat(r_idx, k_idx, r_age, k_age, yr) = prey_N_cell(k_cell) * prey_wt_cell(k_cell) * suit * inv_avail;
+          }
 
-          diet_prop_hat(r_idx, k_idx, r_age, k_age, yr) = prey_N_cell(k_cell) * prey_wt_cell(k_cell) * suit * inv_avail;
-
-          M2_dB0(k_cell) += pred_mort_scalar_dB0 * suit;
-          M2_dBF(k_cell) += pred_mort_scalar_dBF * suit;
+          if(fill_dynamic_B0) {
+            M2_dB0(k_cell) += pred_mort_scalar_dB0 * suit;
+            M2_dBF(k_cell) += pred_mort_scalar_dBF * suit;
+          }
         }
       }
     }

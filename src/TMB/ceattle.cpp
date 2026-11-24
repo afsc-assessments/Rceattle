@@ -1507,6 +1507,15 @@ Type objective_function<Type>::operator() () {
   /** ------------------------------------------------------------------------ //
    * 6. POPULATION DYNAMICS EQUATIONS                                          //
    * ------------------------------------------------------------------------- */
+  // TMB records this template on AD types for the objective and ADREPORT(), and runs it on
+  // doubles for REPORT() and simulation. Predation output only REPORT() reads is skipped on AD.
+  const bool reporting = isDouble<Type>::value;
+  // Stomach contents are predicted (section 11) and fitted (13.6).
+  const bool diet_fitted = (msmMode > 2) || (imax(suitMode) > 0);
+  const bool diet_used = reporting || diet_fitted;
+  // Dynamic B0 and BF (predation at F = 0 and F = Ftarget) are read by REPORT() and a dynamic HCR.
+  const bool dynamic_B0_used = (DynamicHCR == 1) || reporting;
+
   // Start iterations for multi-species convergence (anything dependent on M)
   for(int iter = 0; iter < niter; iter++) {
 
@@ -2450,7 +2459,10 @@ Type objective_function<Type>::operator() () {
      * ------------------------------------------------------------------------- */
 
     // START PREDATION
-    if(msmMode > 0) {
+    // Predation sets the M2 the next iteration uses; after the last one only REPORT() and a
+    // fitted diet read it. A new reader after the loop must be added to this test.
+    const bool predation_needed = (iter < niter - 1) || diet_used;
+    if((msmMode > 0) && predation_needed) {
 
       // NOTE -- LOOPING INDICES -- sp = species, age = age, ln = length, ksp = prey, k_age = prey age (yr), k_ln = prey length, yr = year, rsp = predator, r_age = predator age (yr), r_ln = predator length
 
@@ -2467,7 +2479,9 @@ Type objective_function<Type>::operator() () {
                                   B_eaten, B_eaten_as_prey, diet_prop_hat, other_diet_prop_hat,
                                   nspp, nyrs, nsex, nages, msmMode,
                                   avgN_at_age, avgN_at_age_dB0, avgN_at_age_dBF,
-                                  suitability, suit_other, weight_hat, consumption_at_age, other_food);
+                                  suitability, suit_other, weight_hat, consumption_at_age, other_food,
+                                  reporting /* fill_report_only */, diet_used /* fill_diet */,
+                                  dynamic_B0_used /* fill_dynamic_B0 */);
       }
     } // End 7. Predation mortality
   } // End population dynamics iterations
@@ -3230,7 +3244,7 @@ Type objective_function<Type>::operator() () {
    * ------------------------------------------------------------------------- */
 
   // Predict stomach content
-  if((msmMode > 2) || (imax(suitMode) > 0)) {
+  if(diet_fitted) {
     predict_stomach_content(nspp, nyrs_hind, styr, suit_styr, suit_endyr,
                             minage, nsex, nages, diet_obs, diet_ctl,
                             avgN_at_age, diet_prop_hat, diet_hat);
@@ -3750,7 +3764,7 @@ Type objective_function<Type>::operator() () {
   // when suitability is estimated.
   matrix<Type> diet_sim = diet_obs;   // simulated diet; see the _sim rule in section 5.2b
 
-  if((msmMode > 2) || (imax(suitMode) > 0)) {
+  if(diet_fitted) {
 
     int current_j = 0; // Track position in diet_ctl
 
@@ -4872,7 +4886,7 @@ Type objective_function<Type>::operator() () {
   REPORT( M2_at_age );
   REPORT( B_eaten );
   REPORT( B_eaten_as_prey );
-  // ADREPORT( B_eaten_as_prey );    // no SEs: see ?plot_b_eaten_prop
+  // ADREPORT( B_eaten_as_prey );    // no SEs: see ?plot_b_eaten_prop; also 0 on AD types (7.2)
   REPORT( vulnerability );
   REPORT( vulnerability_other );
   REPORT( gam_a );
