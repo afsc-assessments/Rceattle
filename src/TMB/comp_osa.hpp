@@ -1,3 +1,15 @@
+// Adapted in part from distr.hpp (github.com/vtrijoulet/OSA_multivariate_dists),
+// whose notice is kept here:
+//  --------------------------------------------------------------------------
+// Copyright (c) 2022, Vanessa Trijoulet <vtri@aqua.dtu.dk>,
+// Christoffer Moesgaard Albertsen <cmoe@aqua.dtu.dk>,
+// Kasper Kristensen <kkr@aqua.dtu.dk>,
+// Chris M. Legault <chris.legault@noaa.gov>,
+// Timothy J. Miller <Timothy.J.Miller@noaa.gov>,
+// and Anders Nielsen <an@aqua.dtu.dk>.
+// All rights reserved.
+//  --------------------------------------------------------------------------
+
 /**
  * @file comp_osa.hpp
  * @brief One-step-ahead (OSA) residual helpers for composition data.

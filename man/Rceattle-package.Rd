@@ -53,6 +53,7 @@ Other contributors:
   \item Cole C. Monnahan (bias-adjustment controls in fit_control()) [contributor]
   \item Raquel Ruiz Diaz (predicted diet averaged over predator ages, weighted by numbers) [contributor]
   \item Tim Miller (\href{https://orcid.org/0000-0003-1411-1206}{ORCID}) (OSA composition code, via OSA_multivariate_dists and WHAM) [contributor]
+  \item Brian Stock (\href{https://orcid.org/0000-0002-2393-6747}{ORCID}) (WHAM co-author (Stock and Miller 2021)) [contributor]
   \item Anders Nielsen (OSA composition code, incl. osa_order()) [contributor]
   \item Christoffer Moesgaard Albertsen (OSA composition code, from OSA_multivariate_dists) [contributor]
   \item Kasper Kristensen (OSA composition code, from OSA_multivariate_dists) [contributor]

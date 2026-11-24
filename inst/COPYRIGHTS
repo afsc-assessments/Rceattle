@@ -10,6 +10,11 @@ evaluation). The pieces below come from other projects and keep their original
 licenses. Each entry names who holds copyright in what was taken; the main
 authors are also listed as contributors in DESCRIPTION.
 
+License: DESCRIPTION gives GPL (>= 2). The package now includes GPL-3 code
+(WHAM, TMBhelper, r4ss) beside GPL-2-only code (TMBphase, gplots), so whether
+the label should become GPL (>= 3) is pending review by the NMFS GitHub
+Governance Team. It is unchanged until then.
+
 
 Code adapted from other projects
 --------------------------------

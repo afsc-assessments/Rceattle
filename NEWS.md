@@ -44,7 +44,8 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   license, and the README has a short "Code and data from other projects"
   section. `?TMBAIC` credits James Thorson, and `?osa_residuals` and
   `vignette("model-diagnostics")` credit WHAM's code (Stock and Miller 2021)
-  for the one-step-ahead composition likelihoods. `License:` is unchanged.
+  for the one-step-ahead composition likelihoods. `License:` is unchanged
+  pending review by the NMFS GitHub Governance Team (`inst/COPYRIGHTS` says why).
 
 * **Literature citations corrected and completed.**
   - Wrong citations fixed: Thornton and Lessem is 1978; the MSVPA model is
