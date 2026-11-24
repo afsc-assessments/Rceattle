@@ -72,8 +72,7 @@ tests/comparison/WHAM-growth-comparison.R, tests/comparison/WHAM-OSA-comparison.
 tests/comparison/WHAM_growth_comparison/helper.R and case3.xlsx, data/whamGrowthData.rda
     Modified from case 3 of the WHAM growth examples by Giancarlo Correa and Jane
     Sullivan for the Ocean Frontier Institute's 2023 workshop
-    (https://giancarlomcorrea.netlify.app/post/ofi-workshop/). No license stated;
-    redistributed with Giancarlo Correa's permission (2026-11-23).
+    (https://giancarlomcorrea.netlify.app/post/ofi-workshop/). No license stated.
 
 tests/comparison/WHAM_growth_comparison/res_tables/par_tables.Rmd
     WHAM's inst/contribute/par_tables.Rmd template, written out by WHAM's
