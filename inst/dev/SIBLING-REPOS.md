@@ -270,15 +270,23 @@ Ianelli penalty became mean-centred; 5.32.1 on the right. Hake terminal SSB chan
 0.86%, survey DM theta fell from 43-49 to 31-35 and diet theta from 94.2 to 56.5 and 18.4 to 11.8 (the M-estimated fits), and every fit kept a
 positive-definite Hessian. The script ran end to end, `run_mse()` included.
 
-| Fit | -log L (5.67.0) | 5.64.0 | 5.33.0 | 5.32.1 |
-|---|---|---|---|---|
-| `ss_run_DM_CSL` | 2439.8745021712 | 2440.0941615018 | 2440.0941615088 | 2436.8886423469 |
-| `ss_run_DM_hcr_CSL` | 2440.4436787246 | 2440.6633383397 | 2440.6633379056 | 2437.4573180484 |
-| `ms_run_DM_CSL` | 2446.7852323978 | 2447.0048917398 | 2447.0048917469 | 2443.8538668697 |
-| `run_ms_CSL_Mest_prior_DM_CSL` | 2669.1578908528 | 2669.3775501963 | 2669.3775502006 | 2663.8053181169 |
-| `run_ms_CSL_Mest_prior_DM_CSL_BH` | 2735.4596083200 | 2735.6792676725 | 2735.6792676724 | n/a (see below) |
-| `run_ms_CSL_Mest_prior_DM_CSL_stable` | 2669.1578908528 | 2669.3775501963 | 2669.3775502006 | 2663.8053181169 |
-| `ss_run_DM_hcr_B0` | 2439.8745021712 | 2440.0941615018 | 2440.0941615088 | 2436.8886423469 |
+| Fit | -log L (5.71.2) | 5.67.0 | 5.64.0 | 5.33.0 | 5.32.1 |
+|---|---|---|---|---|---|
+| `ss_run_DM_CSL` | 2439.8745021712 | 2439.8745021712 | 2440.0941615018 | 2440.0941615088 | 2436.8886423469 |
+| `ss_run_DM_hcr_CSL` | 2440.4436787246 | 2440.4436787246 | 2440.6633383397 | 2440.6633379056 | 2437.4573180484 |
+| `ms_run_DM_CSL` | 2446.7852324102 | 2446.7852323978 | 2447.0048917398 | 2447.0048917469 | 2443.8538668697 |
+| `run_ms_CSL_Mest_prior_DM_CSL` | 2669.1578908559 | 2669.1578908528 | 2669.3775501963 | 2669.3775502006 | 2663.8053181169 |
+| `run_ms_CSL_Mest_prior_DM_CSL_BH` | 2735.4596083239 | 2735.4596083200 | 2735.6792676725 | 2735.6792676724 | n/a (see below) |
+| `run_ms_CSL_Mest_prior_DM_CSL_stable` | 2669.1578908559 | 2669.1578908528 | 2669.3775501963 | 2669.3775502006 | 2663.8053181169 |
+| `ss_run_DM_hcr_B0` | 2439.8745021712 | 2439.8745021712 | 2440.0941615018 | 2440.0941615088 | 2436.8886423469 |
+
+**5.71.2 moves the four multispecies fits by +3.1e-9 to +1.2e-8** (2026-11-23). Predation now
+skips work the objective does not read while TMB records it, which changes the gradient's last
+bits (see `TRAPS.md`, "Build and test"), so `nlminb` stops at a nearby point: 67 iterations
+instead of 103 for `run_ms_CSL_Mest_prior_DM_CSL`. Parameters stay within 3.7e-5, SSB within
+1.1e-5 and SEs within 4.7e-5 (relative); the three single-species fits are `identical()`.
+Measured on explicit-`lib` installs with the version asserted: `dev` 5.70.8 reproduced the 5.67.0
+column to every digit shown, and `run_mse(nsim = 2, cores = 2)` completed on both.
 
 **5.67.0 moves every row by -0.21966** (2026-11-05): `Hake_survey` is `Catchability =
 "Analytical"` with the sd input by year, and analytical q now carries the lognormal bias term,

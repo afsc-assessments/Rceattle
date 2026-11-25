@@ -47,7 +47,8 @@ Log-SD of length: 1st param is SD at minage, 2nd param is SD at maxage.}
 \item{M_plus_sp}{Numeric. Natural mortality at the oldest age (one value, or one per sex), which weights the ages pooled in the plus group by survival, as the template does.}
 }
 \value{
-A 4D array of probabilities with dimensions (sex, age, length, year).
+A list: \code{length_at_age}, mean length (cm) by (sex, age, year), and
+\code{growth_matrix}, the probability of each length bin by (sex, age, length, year).
 }
 \description{
 This function calculates a probability transition matrix that defines the

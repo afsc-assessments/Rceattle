@@ -61,6 +61,61 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
   named `Bin_first_selected`; its `N_sel_bins` refusal names `Age_first_selected` and the
   maximum age when `Age_first_selected` was set.
 
+# Rceattle 5.71.2
+
+## Performance
+
+* **TMB records a multispecies model in 22-37% less time.** While it records the
+  objective, predation now skips what the objective does not read: the
+  consumption outputs only `fit$quantities` reports (`M2_prop`, `B_eaten`,
+  `B_eaten_as_prey`), the predicted diet and the last iteration's predation
+  unless a diet is fitted (`suitMode > 0`), and the dynamic B0 and BF predation
+  unless `DynamicHCR = TRUE`. `fit$quantities` still has all
+  of them. With `msmMode = 1`, recording (`obj$retape()`) takes 1,061 ms rather
+  than 1,632 for BS2017MS and 1,707 ms rather than 2,726 for GOA2018SS; with
+  `suitMode = 4` the saving is 22-25%. It repeats in every refit inside
+  `retrospective()`, `jitter()`, `profile()` and `run_mse()`. A single fit's
+  time, which the optimizer sets, does not change measurably, and single-species
+  models are unchanged.
+
+* **Multispecies fits can end at a slightly different point.** At the same
+  parameter values the objective and `fit$quantities` are identical (4 points in
+  each of 16 configurations), as are the ADREPORT values (1 point in each). The
+  gradient can differ in its last bits, because TMB merges repeated expressions
+  before it drops unused ones: by at most 6.8e-13 near the start values, and
+  7.6e-8 at one far point of a cold start where the objective is 1.9e6.
+  - With `newtonsteps = 3`, BS2017MS and GOA2018SS with empirical suitability,
+    and GOA2018SS under a dynamic HCR, reach the same estimates, within 2.5e-14
+    in parameters and 1.3e-11 in standard errors. BS2017MS with `suitMode = 4`,
+    from the single-species estimates, ends 7.3e-7 lower with one parameter 1.69
+    away along a flat direction, SSB within 1.2e-7 and standard errors within
+    5.3e-5 (relative).
+  - Without Newton steps (the default), four of the five multispecies fits in the
+    Pacific hake `MSE_yr2024.R` end 3.1e-9 to 1.2e-8 higher, with SSB within
+    1.1e-5 and standard errors within 4.7e-5 (the fifth, `_BHv_2`, was not
+    compared). Its three single-species fits are identical.
+  - A flat direction moves most. BS2017MS with `suitMode = 4`, fitted without
+    Newton steps from the single-species estimates, ends 2.5e-5 lower with
+    pollock SSB within 2.9e-4: two prey-preference parameters with near-zero
+    vulnerability (`log_phi` -12 and -8), which the data cannot tell apart,
+    drift to -23 and -18. Its convergence check reads FAIL (largest gradient
+    1.26) where 5.70.8 reads WARN (0.368).
+  - A multispecies MSE (`tools/verify/verify-mse-repro.R`, BS2017MS) keeps SSB,
+    biomass and F within 9.1e-6 and recruitment within 1.2e-4.
+
+# Rceattle 5.71.1
+
+## Bug fixes
+
+* **`get_growth_matrix_r()` grows each cohort under Richards growth on last year's
+  K and takes the 1/m root**, as the template's `estimate_growth()` does. After
+  year 1 it read L1 for K and divided by m: with K = 0.3, L1 = 20 cm at age 1 and
+  Linf = 90 cm, a 5-year-old in year 2 was 90.0 cm instead of 68.9 cm at m = 1
+  (von Bertalanffy), and 267.0 cm instead of 71.5 cm at m = 1.3. No fit,
+  simulation or MSE calls this internal function. Outside its own test, its one
+  caller is the multispecies test-data helper, which builds a single year; its
+  output is unchanged.
+
 # Rceattle 5.71.0
 
 ## Breaking changes
