@@ -1,5 +1,3 @@
-# Adapted from Matt Cheng
-#
 #' Make a multi-species operating-model data set
 #'
 #' Simulates an age-structured, multi-species CEATTLE population (MSVPA-style

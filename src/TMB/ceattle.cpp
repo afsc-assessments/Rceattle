@@ -61,7 +61,7 @@ struct LOM_t : vector<matrix<Type> > {
  * except that free functions stay snake_case.
  *
  * CITATIONS:
- * 1. Holsman, K. K., Ianelli, J., Aydin, K., Punt, A. E., & Moffitt, E. A. (2015). A comparison of fisheries biological reference points estimated from temperature-specific multi-species and single-species climate-enhanced stock assessment models. Deep-Sea Research Part II: Topical Studies in Oceanography, 134, 360–378. https://doi.org/10.1016/j.dsr2.2015.08.001
+ * 1. Holsman, K. K., Ianelli, J., Aydin, K., Punt, A. E., & Moffitt, E. A. (2016). A comparison of fisheries biological reference points estimated from temperature-specific multi-species and single-species climate-enhanced stock assessment models. Deep-Sea Research Part II: Topical Studies in Oceanography, 134, 360–378. https://doi.org/10.1016/j.dsr2.2015.08.001
  * 2. Adams, G. D., Holsman, K. K., Barbeaux, S. J., Dorn, M. W., Ianelli, J. N., Spies, I., ... & Punt, A. E. (2022). An ensemble approach to understand predation mortality for groundfish in the Gulf of Alaska. Fisheries Research, 251, 106303.
  * 3. Wassermann, S. N., Adams, G. D., Haltuch, M. A., Kaplan, I. C., Marshall, K. N., & Punt, A. E. (2025). Even low levels of cannibalism can bias population estimates for Pacific hake. ICES Journal of Marine Science, 82(1), fsae064.
  * ------------------------------------------------------------------------- //
@@ -97,7 +97,7 @@ Type objective_function<Type>::operator() () {
   DATA_INTEGER(estimateMode);             // 0 = hindcast + HCR projection, 1 = hindcast, 2 = projection from inits, 3 = build only, 4 = smoke test
   DATA_INTEGER(msmMode);
   //    0 = single species (no predation mortality)
-  //    1 = Type II MSVPA based (sensu Holsman et al 2015)
+  //    1 = Type II MSVPA based (sensu Holsman et al. 2016)
   //    2 = Type III MSVPA based
   //    3-9 = not yet implemented (Holling forms, predator interference and
   //          preemption, Hassell-Varley, Ecosim)
@@ -4145,7 +4145,7 @@ Type objective_function<Type>::operator() () {
         }
       }
 
-      // Hake non-parametric (5): IID deviates (Taylor et al. 2014), over all N_sel_bins,
+      // Hake non-parametric (5): IID deviates (Taylor et al. 2015), over all N_sel_bins,
       // including any bin build_map() holds at 0.
       if(((flt_varying_sel(flt) == 1) || (flt_varying_sel(flt) == 2)) && (flt_sel_type(flt) == 5)){
         for(int bin = 0; bin < flt_n_sel_bins(flt); bin++){
@@ -4180,7 +4180,7 @@ Type objective_function<Type>::operator() () {
         }
       }
 
-      // 3D AR1 (7): GMRF over bin, year and cohort (Cheng et al. 2024). Sel_curve_pen1-3
+      // 3D AR1 (7): GMRF over bin, year and cohort (the weight-at-age GMRF of Cheng et al. 2023). Sel_curve_pen1-3
       // carry the bin, year and cohort correlations.
       if(flt_sel_type(flt) == 7){
         int n_sel_bins = flt_n_sel_bins(flt);
@@ -4198,9 +4198,9 @@ Type objective_function<Type>::operator() () {
             }
           }
 
-          // Arguments run bin, year, cohort. construct_Q()'s parameter names read the
-          // other way round, but ay_index is also filled the other way round from WHAM's,
-          // so the two cancel. Do not "correct" the call to match the names.
+          // Arguments run bin, year, cohort. construct_Q(), as in GMRF_WAA, applies rho_y
+          // between adjacent bins in a year and rho_a between adjacent years in a bin,
+          // whatever the names say. Do not "correct" the order to match the names.
           Eigen::SparseMatrix<Type> Q_sparse(num_rows, num_rows);
           Q_sparse = construct_Q(nyrs_hind, n_sel_bins, ay_index,
                                  sel_curve_pen(flt, 0), sel_curve_pen(flt, 1), sel_curve_pen(flt, 2), // natural scale

@@ -13,7 +13,11 @@ Currently:
 no parameters estimated.
 \item \code{"vonBertalanffy"}: sex-specific von Bertalanffy (parameters
 \code{K}, \code{L1}, \code{Linf}).
-\item \code{"Richards"}: sex-specific Richards (adds \code{m}).
+\item \code{"Richards"}: sex-specific Richards (1959) curve (adds \code{m}).
 }
+}
+\references{
+Richards, F.J. 1959. A flexible growth function for empirical use. J. Exp.
+Bot. 10:290-301.
 }
 \keyword{internal}

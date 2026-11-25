@@ -37,7 +37,7 @@ data_check <- function(data_list) {
       "predation formulation (Holling I/II/III, predator interference, ",
       "preemption, Hassell-Varley, or Ecosim). These are deprecated and ",
       "have not been validated in the current code base. Use msmMode = 0 ",
-      "(single-species), 1 (Holsman et al. 2015 MSVPA), or 2 (Holling ",
+      "(single-species), 1 (Holsman et al. 2016 MSVPA), or 2 (Holling ",
       "Type III MSVPA)."
     ))
   }
@@ -739,7 +739,7 @@ data_check <- function(data_list) {
   }
 
   # Bioenergetics: Ceq 1 (exponential, Stewart et al. 1983), 2 (warm-water,
-  # Kitchell et al. 1977) and 3 (cool/cold-water, Thornton and Lessem 1979) each
+  # Kitchell et al. 1977) and 3 (cool/cold-water, Thornton and Lessem 1978) each
   # read env_index(year, Cindex); only Ceq 4 (constant, fT = 1) reads nothing.
   # Cindex is 1-based and counts the covariate columns of env_data, the Year
   # column not being one. The messages below say how each case is reported.
@@ -769,7 +769,7 @@ data_check <- function(data_list) {
         "`Ceq` is ", paste(unique(data_list$Ceq[.ceq_bad]), collapse = ", "),
         " for species ", paste(.ceq_bad, collapse = ", "),
         ". It must be 1 (exponential, Stewart et al. 1983), 2 (warm-water, ",
-        "Kitchell et al. 1977), 3 (cool/cold-water, Thornton and Lessem 1979) ",
+        "Kitchell et al. 1977), 3 (cool/cold-water, Thornton and Lessem 1978) ",
         "or 4 (constant, no temperature effect)."))
     }
     .n_env <- if(is.null(data_list$env_data)) 0L else max(0L, ncol(data_list$env_data) - 1L)

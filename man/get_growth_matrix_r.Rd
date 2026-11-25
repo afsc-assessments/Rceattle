@@ -53,5 +53,6 @@ A 4D array of probabilities with dimensions (sex, age, length, year).
 This function calculates a probability transition matrix that defines the
 probability of a fish of a given age belonging to specific length bins.
 It supports Von Bertalanffy and Richards growth models and includes
-a Stock Synthesis (SS) style plus-group correction.
+a Stock Synthesis (SS) style plus-group correction. Like \code{growth.hpp}, it is
+adapted from Giancarlo Correa's growth code in WHAM's growth branch.
 }
