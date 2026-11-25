@@ -22,7 +22,7 @@
   dat$growth_model <- rep(0, dat$nspp)
   dat$fleet_control$Selectivity <- "Hake"
   dat$fleet_control$N_sel_bins <- 4
-  dat$fleet_control$Bin_first_selected <- 1
+  dat$fleet_control$Age_first_selected <- 1
   dat$fleet_control$Time_varying_sel <- tv_sel
   dat
 }

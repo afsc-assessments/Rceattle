@@ -154,7 +154,7 @@ simData$fleet_control <- data.frame(
   # 4 = random walk
   # 5 = random walk on ascending limb of double logistic only
   Time_varying_sel_sd_prior = 1,
-  Bin_first_selected        = 1,            # Youngest fully-selected age/length
+  Age_first_selected        = 1,            # Youngest selected age (absolute age; 0 below it)
   Sel_norm_bin             = NA,           # Bin to normalize from (optional)
   Sel_norm_bin_upper             = NA,           # Upper bin to normalize from a range (can be NA)
 

@@ -24,7 +24,7 @@ testthat::skip_on_cran()
   m$Catchability        <- "Estimated"
   m$Catchability_init   <- 1
   m$Estimate_index_sd   <- 0
-  m$Bin_first_selected  <- 3L          # differs from the fishery it mirrors
+  m$Age_first_selected  <- 3L          # differs from the fishery it mirrors
   d$fleet_control <- rbind(fc, m)
 
   add <- d$index_data[d$index_data$Fleet_code == fc$Fleet_code[srv], , drop = FALSE]

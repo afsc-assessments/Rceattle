@@ -6,7 +6,7 @@ Version-numbering note. Five gaps in this file are deliberate, not lost entries:
   * main's 4.9.0 / 4.9.1 are the same recruitment changes this line has as
     5.5.0 / 5.5.1, applied to the two lines separately.
   * 5.66.3 to 5.66.5 were numbers a branch held during review; it landed as 5.66.8.
-  * 5.68.0 is the number #308 (`Age_first_selected`) held in review when 5.69.0 landed.
+  * 5.68.0 is the number #308 (`Age_first_selected`) held in review; it landed as 5.72.0.
 
 No tag existed above 4.8.0 while the first three were in flight, and the last two's
 numbers never reached dev, so nobody could have installed an intermediate. They were
@@ -17,6 +17,49 @@ throughout.
 5.66.8 was also the number #300 (`run_mse()` keeps the EM's fixed parameters) held in
 review. It landed as 5.66.9, so a version check written for that fix needs 5.66.9.
 -->
+
+# Rceattle 5.72.0
+
+## New features
+
+* **`Age_first_selected` is now its own `fleet_control` column: the first age a fleet
+  selects, an absolute age.** On an age-based fleet selectivity is 0 below it. On a
+  length-based fleet, younger ages are removed from that fleet's age-length key, so it catches
+  no fish below that age at any length, as a Stock Synthesis age-range mask (age pattern 11
+  up to the plus group; pattern 10 when the first age is 1) does; before, a length-based fleet
+  could exclude only length bins. `Bin_first_selected` remains the first selected length
+  bin there. A blank leaves the fleet selected from `minage`; a `"Fixed"` fleet's curve is
+  used as given, as it was.
+
+## Deprecations
+
+* **`Bin_first_selected` on an age-based fleet is deprecated; use `Age_first_selected`.**
+  It is read as age `minage + Bin_first_selected - 1`, so no fit changes, and `fit_mod()`
+  says so once per fit when an active, estimated age-based fleet sets a value other than 1
+  (a value of 1 equals a blank, and `"Fixed"` and `"Off"` fleets do not read it). Setting both
+  on one age-based fleet to different ages is refused, so a script that assigns
+  `Bin_first_selected` to data already carrying a different `Age_first_selected` stops instead
+  of choosing one. All bundled datasets now carry `Age_first_selected` alongside
+  `Bin_first_selected`, and the two that set a first selected age (`GOA2018SS` and
+  `GOApollock`, age 3 on two fleets each) carry it in `Age_first_selected` with
+  `Bin_first_selected` blank, so `GOA2018SS$fleet_control$Bin_first_selected <- 1` is refused
+  there and `Bin_first_selected <- NA` leaves those floors in place; assign
+  `Age_first_selected`. `write_template()` writes it too.
+* `Age_first_selected` was the pre-4.0.1 name of `Bin_first_selected`, so `read_data()`
+  still reads a workbook that has it without a `Bin_first_selected` column the old way, with
+  a message, and ensures both columns are present on `fleet_control` so assigning a single
+  fleet (`fc$Age_first_selected[1] <- 3`) does not create and recycle a new column. In an R
+  `data_list`, `Age_first_selected` is always read as the new column; the bundled pre-4.0.1
+  fits (`EBS_ss_run`, `EBS_ss_M_run`, `EBS_ms_run`) have `minage = 1` and age-based fleets,
+  where the two readings coincide. A workbook carrying both columns with different values,
+  refused before, now reads both. `write_data()` writes both columns whenever either is
+  present, so `write_data()` followed by `read_data()` preserves `Age_first_selected`, and
+  earlier versions refuse a workbook written by 5.72.0 whenever `Age_first_selected` is set
+  and `Bin_first_selected` does not repeat it.
+* `data_check()`'s warning for fleets sharing a `Selectivity_index` compares the first
+  selected age as resolved, and names `Age_first_selected` for an age-based group where it
+  named `Bin_first_selected`; its `N_sel_bins` refusal names `Age_first_selected` and the
+  maximum age when `Age_first_selected` was set.
 
 # Rceattle 5.71.2
 

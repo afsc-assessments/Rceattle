@@ -13,7 +13,9 @@
   d$growth_model <- rep(0, d$nspp)
   d$minage <- rep(minage, d$nspp)
   d$nages  <- rep(nages, d$nspp)
-  d$fleet_control$Bin_first_selected   <- bfs
+  # `bfs` is a bin ordinal: an age-based fleet takes it as the age it names.
+  d$fleet_control$Bin_first_selected    <- if (dim == "Length") bfs else NA
+  d$fleet_control$Age_first_selected    <- if (dim == "Length") NA else minage + bfs - 1
   d$fleet_control$Selectivity_dimension <- dim
   if (!is.null(sel)) d$fleet_control$Selectivity <- sel
   d
@@ -52,10 +54,9 @@ testthat::test_that("the words mean what the schema says", {
 
 
 testthat::test_that("a value below the first selected bin normalizes by the maximum", {
-  # selectivity.hpp zeroes the curve below Bin_first_selected, so a reference
-  # taken there would divide by nothing. Bin_first_selected is a 1-based bin
-  # ordinal while Sel_norm_bin is an absolute age, so with minage = 1 a
-  # Bin_first_selected of 3 makes age 3 the first age that can be the reference.
+  # selectivity.hpp zeroes the curve below the first selected bin, so a
+  # reference taken there would divide by nothing. Age 3 is the first age that
+  # can be the reference when it is the first selected age.
   d <- .snb(bfs = 3)
   testthat::expect_equal(.code(d, 1), -99)
   testthat::expect_equal(.code(d, 2), -99)

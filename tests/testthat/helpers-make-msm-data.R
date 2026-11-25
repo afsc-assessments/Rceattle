@@ -368,7 +368,8 @@ make_msm_test_data <- function(
     Sel_curve_pen2 = NA,
     Time_varying_sel = 0,
     Time_varying_sel_sd = 1,
-    Bin_first_selected = 1,
+    Bin_first_selected = NA,
+    Age_first_selected = NA,         # selected from minage
     Sel_norm_bin = NA,
     Sel_norm_bin_upper = NA,
     Comp_distribution = "Multinomial",

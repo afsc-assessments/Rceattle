@@ -23,7 +23,7 @@ testthat::test_that("LogisticPM construction matches the AMAK mid-age logistic +
   rows_use <- which(GOA2018SS$fleet_control$Selectivity != 0)
 
   GOA2018SS$fleet_control$Selectivity[rows_use]               <- "LogisticPM"
-  GOA2018SS$fleet_control$Bin_first_selected[rows_use]        <- 1   # age-1 selected (free)
+  GOA2018SS$fleet_control$Age_first_selected[rows_use]        <- 1   # age-1 selected (free)
   GOA2018SS$fleet_control$Sel_norm_bin[rows_use]             <- NA  # no normalization
   GOA2018SS$fleet_control$Time_varying_sel[rows_use]          <- 0   # time-invariant
   GOA2018SS$fleet_control$Sel_curve_pen1[rows_use]            <- 0
@@ -66,7 +66,7 @@ testthat::test_that("LogisticPM penalty = realized-logsel RW (age-range, start-y
   start_year <- GOA2018SS$styr + 3 # exercise the start-year offset
 
   GOA2018SS$fleet_control$Selectivity[rows_use]               <- "LogisticPM"
-  GOA2018SS$fleet_control$Bin_first_selected[rows_use]        <- 1
+  GOA2018SS$fleet_control$Age_first_selected[rows_use]        <- 1
   GOA2018SS$fleet_control$Sel_norm_bin[rows_use]             <- NA  # default age-range = whole selected range
   GOA2018SS$fleet_control$Sel_norm_bin_upper[rows_use]             <- NA
   GOA2018SS$fleet_control$Sel_start_year[rows_use]            <- start_year
@@ -144,7 +144,7 @@ testthat::test_that("LogisticPM defaults the free age-1 log-selectivity slot to 
   data("GOA2018SS")
   rows_use <- which(GOA2018SS$fleet_control$Selectivity != 0)
   GOA2018SS$fleet_control$Selectivity[rows_use]        <- "LogisticPM"
-  GOA2018SS$fleet_control$Bin_first_selected[rows_use] <- 1   # age-1 selected (free)
+  GOA2018SS$fleet_control$Age_first_selected[rows_use] <- 1   # age-1 selected (free)
   GOA2018SS$fleet_control$Sel_norm_bin[rows_use]      <- NA  # no normalization
   GOA2018SS$fleet_control$Time_varying_sel[rows_use]   <- 0   # time-invariant
 

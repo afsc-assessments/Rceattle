@@ -31,7 +31,7 @@ blocked_data <- function(tv_sel, nyrs = 10, nages = 5) {
   d$fleet_control$Selectivity        <- "Logistic"
   d$fleet_control$Time_varying_sel   <- tv_sel
   d$fleet_control$Selectivity_index  <- seq_len(nrow(d$fleet_control))
-  d$fleet_control$Bin_first_selected <- 1
+  d$fleet_control$Age_first_selected <- 1
   if (tv_sel == "Block") {
     half <- floor(nyrs / 2)
     d$catch_data$Selectivity_block <-

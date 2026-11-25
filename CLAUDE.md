@@ -124,9 +124,11 @@ how this package is written; very little over what it means.
     dimensioned by `nrow()` but indexed by `Fleet_code`, so read columns by row index `i`, never
     by `flt`. Fleets sharing a `Selectivity_index` / `Catchability_index` share ONE parameter block.
     Selectivity bin columns are read on the fleet's own `Selectivity_dimension`, but not on one
-    convention: `Bin_first_selected` is a 1-based bin ordinal, while `Sel_norm_bin`,
+    convention: `Bin_first_selected` is a 1-based bin ordinal, and on an age-based fleet the
+    deprecated spelling of `Age_first_selected`, an absolute age on any fleet; `Sel_norm_bin`,
     `Sel_norm_bin_upper`, `Sel_pen_first_bin`, `Sel_pen_last_bin` and `Sel_cap_bin` are absolute
-    AGES on an age-based fleet. Check `rearrange_data()`'s offset before reading one.
+    AGES on an age-based fleet. Read the first selected bin via `.rce_first_selected()`, and
+    check `rearrange_data()`'s offset before reading one.
 11. **`nages` is a count of age bins, not the oldest age.** Ages run
     `minage .. minage + nages - 1`; age `a` sits at index `a - minage + 1`. `minage = 1` hides
     every confusion, and that is every bundled dataset and the live assessments — so write
@@ -411,7 +413,8 @@ section holds the fuller text as of 2026-09-14).
 - **`estimateMode`: prefer the strings.** Mode 4's objective is a placeholder; mode 3's is real and usable before fitting.
 - **`fit$obj` (and `fit$sdrep` unless `ConstantF`) is the projection's under any HCR but `NoFishing`**; `fit$identified` and `fit$.conv_hindcast` are the hindcast's.
 - **`fit$data_list` is the pre-`rearrange_data()` list**; recompute rearranged fields from `fleet_control`.
-- **`Bin_first_selected` is a 1-based bin ordinal; `Sel_norm_bin` is an absolute age** (rules 10, 11).
+- **`Bin_first_selected` is a 1-based bin ordinal; `Age_first_selected` and `Sel_norm_bin` are
+  absolute ages** (rules 10, 11).
 - **`init_dev`'s ages start at `minage + 1`**; `.PAR_AXIS_OFFSET` is the registry.
 - **`condition_number` reads the correlation matrix since 5.26.0**; `covariance_condition_number` is the old value.
 - **`getsd = FALSE` leaves `sdrep` NULL** (no `vcov()`, NA bands); the refit diagnostics read the bias-adjust flags and `projection_uncertainty` off `data_list`. **The converse does not hold**: since 5.58.2 a retrospective peel whose standard-error rebuild failed is KEPT, with whatever `sdreport()` returned (`NULL` only if the rebuild threw first, 5.66.8), so read `attr(peel, "sd_report_error")` rather than inferring `getsd` or a usable band from `sdrep`.

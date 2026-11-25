@@ -862,6 +862,7 @@ data_check <- function(data_list) {
     }
 
     # Per-fleet checks
+    first_sel <- .rce_first_selected(data_list)
     for(flt in 1:nrow(fc)){
       sp_idx <- fc_num(fc, "Species", flt)
       if(is.na(sp_idx) || sp_idx < 1 || sp_idx > data_list$nspp) next
@@ -869,11 +870,28 @@ data_check <- function(data_list) {
       flt_name   <- fc$Fleet_name[flt]
       dim_is_age <- !isTRUE(fc$Selectivity_dimension[flt] == "Length")
       max_bin    <- if(dim_is_age) data_list$nages[sp_idx] else data_list$nlengths[sp_idx]
+      ages       <- data_list$minage[sp_idx] + c(0, data_list$nages[sp_idx] - 1)
 
-      # Bin_first_selected
-      bfs <- fc_num(fc, "Bin_first_selected", flt)
-      if(!is.na(bfs) && (bfs < 1 || bfs > max_bin)){
-        errors <- c(errors, paste0("Fleet '", flt_name, "': Bin_first_selected (", bfs, ") must be in 1:", max_bin))
+      # First selected bin and age. On an age-based fleet both come from one
+      # column, so the check names the column the fleet actually set.
+      bfs <- first_sel$bin[flt]
+      afs <- first_sel$age[flt]
+      if(!first_sel$from_bin[flt] && !is.na(afs)){
+        if(afs != round(afs)){
+          errors <- c(errors, paste0("Fleet '", flt_name, "': Age_first_selected (", afs,
+                                     ") must be a whole age"))
+        } else if(afs < ages[1] || afs > ages[2]){
+          errors <- c(errors, paste0("Fleet '", flt_name, "': Age_first_selected (", afs,
+                                     ") must be an age in ", ages[1], ":", ages[2]))
+        }
+      }
+      if((!dim_is_age || first_sel$from_bin[flt]) && !is.na(bfs)){
+        if(bfs != round(bfs)){
+          errors <- c(errors, paste0("Fleet '", flt_name, "': Bin_first_selected (", bfs,
+                                     ") must be a whole bin"))
+        } else if(bfs < 1 || bfs > max_bin){
+          errors <- c(errors, paste0("Fleet '", flt_name, "': Bin_first_selected (", bfs, ") must be in 1:", max_bin))
+        }
       }
 
       # N_sel_bins
@@ -882,8 +900,8 @@ data_check <- function(data_list) {
         errors <- c(errors, paste0("Fleet '", flt_name, "': N_sel_bins (", nsb, ") must be in 1:", max_bin))
       }
 
-      # A coefficient-per-bin fleet estimates one coefficient over
-      # Bin_first_selected:N_sel_bins, so N_sel_bins below the first selected bin
+      # A coefficient-per-bin fleet estimates one coefficient per bin from the
+      # first selected bin to N_sel_bins, so N_sel_bins below the first selected bin
       # leaves it none. Hake starts one bin later -- its first coefficient is not
       # identifiable and build_map() drops it -- so it needs a strictly wider
       # range. Only the forms that read N_sel_bins are checked; a logistic fleet
@@ -894,12 +912,21 @@ data_check <- function(data_list) {
                                            "Hake", "2DAR1", "3DAR1"))
       .lowest_nsb <- if(isTRUE(.sel_form == "Hake")) bfs + 1L else bfs
       if(reads_nsb && !is.na(bfs) && !is.na(nsb) && .lowest_nsb > nsb){
-        errors <- c(errors, paste0("Fleet '", flt_name, "': Bin_first_selected (", bfs,
-                                   ") leaves no estimated selectivity coefficients below ",
-                                   "N_sel_bins (", nsb, "); it must be at most ",
-                                   nsb - (.lowest_nsb - bfs),
-                                   if(isTRUE(.sel_form == "Hake"))
-                                     " ('Hake' does not estimate its first selected bin)" else ""))
+        if(dim_is_age && !first_sel$from_bin[flt]){
+          errors <- c(errors, paste0("Fleet '", flt_name, "': Age_first_selected (", afs,
+                                     ") leaves no estimated selectivity coefficients below ",
+                                     "N_sel_bins (", nsb, "); it must be at most age ",
+                                     ages[1] + nsb - 1L - (.lowest_nsb - bfs),
+                                     if(isTRUE(.sel_form == "Hake"))
+                                       " ('Hake' does not estimate its first selected bin)" else ""))
+        } else {
+          errors <- c(errors, paste0("Fleet '", flt_name, "': Bin_first_selected (", bfs,
+                                     ") leaves no estimated selectivity coefficients below ",
+                                     "N_sel_bins (", nsb, "); it must be at most ",
+                                     nsb - (.lowest_nsb - bfs),
+                                     if(isTRUE(.sel_form == "Hake"))
+                                       " ('Hake' does not estimate its first selected bin)" else ""))
+        }
       }
 
       # Non-parametric shape-penalty range and cap, given on the fleet's own
@@ -1174,7 +1201,7 @@ data_check <- function(data_list) {
     # deviation map over the group: the curves match and the other fleets'
     # settings are discarded. NA there really is "unset", so it is skipped.
     .sel_shaping_cols <- c("Selectivity", "Selectivity_dimension",
-                           "Bin_first_selected", "N_sel_bins",
+                           "Bin_first_selected", "Age_first_selected", "N_sel_bins",
                            "Sel_norm_bin", "Sel_norm_bin_upper",
                            "Sel_norm_scope", "Sel_cap_bin")
     if ("Selectivity_index" %in% colnames(fc)) {
@@ -1185,11 +1212,21 @@ data_check <- function(data_list) {
         rows <- which(!is.na(fc$Selectivity_index) & fc$Selectivity_index == si & .live)
         if (length(rows) < 2) next
         .differs <- function(col, na_is_a_value) {
-          if (!col %in% colnames(fc)) return(FALSE)
+          # The first selected age is compared as resolved, so a fleet giving it
+          # as the old 'Bin_first_selected' agrees with one giving the same age;
+          # 'Bin_first_selected' is then compared on length-based fleets only.
+          if (!col %in% c(colnames(fc), "Age_first_selected")) return(FALSE)
           # The normalization columns take a word or a bin, so "Max" and -1 are
           # the same instruction; compare what they resolve to, not how they
           # were typed.
-          v <- if (col %in% c("Sel_norm_bin", "Sel_norm_bin_upper")) {
+          # A blank is the first age or bin, so it agrees with naming that one.
+          v <- if (col == "Age_first_selected") {
+            .min <- data_list$minage[fc$Species[rows]]
+            as.character(ifelse(is.na(first_sel$age[rows]), .min, first_sel$age[rows]))
+          } else if (col == "Bin_first_selected") {
+            as.character(ifelse(first_sel$length_based[rows],
+                                ifelse(is.na(first_sel$bin[rows]), 1, first_sel$bin[rows]), NA))
+          } else if (col %in% c("Sel_norm_bin", "Sel_norm_bin_upper")) {
             # Resolved against each fleet's own first selected bin, as the model
             # will resolve it; lo = 1 would call equivalent settings different.
             lo <- vapply(rows, function(i) {
@@ -2710,7 +2747,7 @@ data_check <- function(data_list) {
                  as.character(col_or_na("Selectivity_dimension")) == "Length"
     np_form   <- .canon_switch(col_or_na("Selectivity"), sel_map) %in%
                    bin_indexed_forms
-    bfs       <- suppressWarnings(as.integer(col_or_na("Bin_first_selected")))
+    bfs       <- suppressWarnings(as.integer(.rce_first_selected(data_list)$bin))
     names_bin <- !is.na(bfs) & bfs > 1L
     for (cl in intersect(bin_cols, names(fc))) {
       # Strictly positive: on every one of these columns 0 or below is a

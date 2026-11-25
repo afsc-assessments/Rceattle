@@ -11,7 +11,7 @@
 # The recurring hazard in this file is a zero. log(0) = -Inf on the AD tape
 # makes sdreport return NaN for EVERY quantity, biomass and ssb included, not
 # just selectivity, so each test below pins one route to a zero cell shut:
-# Fixed selectivity, a length-based fleet, and Bin_first_selected.
+# Fixed selectivity, a length-based fleet, and the first selected age.
 
 testthat::test_that("selectivity_se adds a log-scale SE without moving the fit", {
   testthat::skip_on_cran()
@@ -161,19 +161,18 @@ testthat::test_that("a Fixed-selectivity fleet cannot NaN the sdreport", {
 })
 
 
-# Bin_first_selected is the second route to a zero, and the one a real
+# The first selected age is the second route to a zero, and the one a real
 # assessment reaches first: selectivity.hpp zeroes the curve outright below it,
-# for every estimated fleet, before normalizing. No bundled dataset sets it above
-# minage, but 117 workbooks across the sibling assessment repositories do --
-# GOA pollock 2024 (Age_first_selected = 3 on two fleets) and the Pacific hake
-# MSE model among them -- so the fixture sets it here rather than waiting for a
-# real fit to find it. Measured on Atka2022 with Bin_first_selected = 3: 92 of
-# fleet 1's 506 hindcast sel_at_age cells are exactly 0.
-testthat::test_that("Bin_first_selected cannot NaN the sdreport", {
+# for every estimated fleet, before normalizing. 117 workbooks across the sibling
+# assessment repositories set it above minage -- GOA pollock 2024 (3 on two
+# fleets) and the Pacific hake MSE model among them. Measured on Atka2022 with a
+# first selected age of 3: 92 of fleet 1's 506 hindcast sel_at_age cells are
+# exactly 0.
+testthat::test_that("the first selected age cannot NaN the sdreport", {
   testthat::skip_on_cran()
 
   d <- Atka2022
-  d$fleet_control$Bin_first_selected <- c(3, 1)
+  d$fleet_control$Age_first_selected <- c(3, 1)
 
   m <- suppressMessages(suppressWarnings(fit_mod(
     data_list = d, msmMode = 0, estimateMode = "Hindcast",
@@ -191,8 +190,8 @@ testthat::test_that("Bin_first_selected cannot NaN the sdreport", {
   k <- names(m$sdrep$value) == "log_sel_at_age"
   testthat::expect_true(all(is.finite(m$sdrep$value[k])))
 
-  # Ages below Bin_first_selected are absent, not reported as -Inf. Ages are
-  # absolute, so the first one reported is the column value itself.
+  # Ages below Age_first_selected are absent, not reported as -Inf, and the
+  # first one reported is the column value itself.
   idx <- m$quantities$log_sel_at_age_index
   testthat::expect_equal(min(idx[idx[, 1] == 1, 3]), 3)
   testthat::expect_equal(min(idx[idx[, 1] == 2, 3]), 1)

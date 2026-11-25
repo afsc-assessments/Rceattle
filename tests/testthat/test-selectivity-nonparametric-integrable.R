@@ -38,7 +38,7 @@ testthat::test_that("with no deviates the form gives the NonParametric objective
 
 testthat::test_that("the Off equivalence holds with a first selected bin above 1", {
   testthat::skip_on_cran()
-  bfs <- function(form) { d <- np_data(form, "Off"); d$fleet_control$Bin_first_selected[2] <- 3; d }
+  bfs <- function(form) { d <- np_data(form, "Off"); d$fleet_control$Age_first_selected[2] <- 3; d }
   bent <- function(m) { ini <- m$initial_params; ini$sel_coff[2, 1, 3:10] <- log(seq(0.2, 1, length.out = 8)); ini }
   m2  <- np_build(bfs("NonParametric"));    m2  <- np_build(bfs("NonParametric"),    inits = bent(m2))
   m13 <- np_build(bfs("NonParametricIntegrable")); m13 <- np_build(bfs("NonParametricIntegrable"), inits = bent(m13))
@@ -162,11 +162,11 @@ testthat::test_that("coefficients and deviates below the first selected bin are 
   testthat::skip_on_cran()
   # They are mapped off, but the curve centres each year by the log mean over
   # every bin, so a value there shifts the whole curve with no density scoring
-  # it. `inits` from a fit with a lower Bin_first_selected carry such values:
+  # it. `inits` from a fit with a lower first selected age carry such values:
   # measured before the guard, 0.9 in those cells moved Atka2022's fishery
   # objective by 704 nats (116258.42 -> 115554.32) and year-1 selectivity by 0.21.
   d <- np_data("NonParametricIntegrable", "IID")
-  d$fleet_control$Bin_first_selected[2] <- 3
+  d$fleet_control$Age_first_selected[2] <- 3
   m   <- np_build(d)
   ini <- m$initial_params
   ini$sel_coff[2, 1, 1:2]      <- 0.9
@@ -190,7 +190,7 @@ testthat::test_that("above a first selected bin of 1, the scored cells are exact
   for (tv in c("IID", "RandomWalk")) {
     iid <- identical(tv, "IID")
     d <- np_data("NonParametricIntegrable", tv)
-    d$fleet_control$Bin_first_selected[2] <- 3
+    d$fleet_control$Age_first_selected[2] <- 3
     m   <- np_build(d)
     nyh <- d$endyr - d$styr + 1
     yrs <- if (iid) seq_len(nyh) else 2:nyh          # the walk fixes year 1 at 0
