@@ -18,6 +18,19 @@ throughout.
 review. It landed as 5.66.9, so a version check written for that fix needs 5.66.9.
 -->
 
+# Rceattle 5.71.1
+
+## Bug fixes
+
+* **`get_growth_matrix_r()` grows each cohort under Richards growth on last year's
+  K and takes the 1/m root**, as the template's `estimate_growth()` does. After
+  year 1 it read L1 for K and divided by m: with K = 0.3, L1 = 20 cm at age 1 and
+  Linf = 90 cm, a 5-year-old in year 2 was 90.0 cm instead of 68.9 cm at m = 1
+  (von Bertalanffy), and 267.0 cm instead of 71.5 cm at m = 1.3. No fit,
+  simulation or MSE calls this internal function. Outside its own test, its one
+  caller is the multispecies test-data helper, which builds a single year; its
+  output is unchanged.
+
 # Rceattle 5.71.0
 
 ## Breaking changes
