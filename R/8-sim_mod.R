@@ -1345,7 +1345,8 @@ compare_sim <- function(operating_mod, simulation_mods, object = "quantities") {
 #' This function calculates a probability transition matrix that defines the
 #' probability of a fish of a given age belonging to specific length bins.
 #' It supports Von Bertalanffy and Richards growth models and includes
-#' a Stock Synthesis (SS) style plus-group correction.
+#' a Stock Synthesis (SS) style plus-group correction. Like `growth.hpp`, it is
+#' adapted from Giancarlo Correa's growth code in WHAM's growth branch.
 #'
 #' @param fracyr Numeric. Fraction of the year (0 = Jan 1st).
 #' @param nsex_sp Integer. Number of sexes for the species.

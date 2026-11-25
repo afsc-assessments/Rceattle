@@ -25,12 +25,17 @@
 
 #' Build parameter bounds
 #'
-#' Function to build parameter bounds based on Holsman et al 2015 and Kinzey and Punt 2010
+#' Function to build parameter bounds based on Holsman et al. 2016
 #'
 #' @param param_list Parameter list object built from \code{\link{build_params}}
 #' @param data_list a Rceattle data object
 #'
 #' @return List of upper and lower bounds
+#' @references
+#' Holsman, K.K., Ianelli, J., Aydin, K., Punt, A.E., and Moffitt, E.A. 2016. A
+#'   comparison of fisheries biological reference points estimated from
+#'   temperature-specific multi-species and single-species climate-enhanced
+#'   stock assessment models. Deep Sea Res. II 134:360-378.
 #' @export
 #'
 build_bounds <- function(param_list = NULL, data_list) {

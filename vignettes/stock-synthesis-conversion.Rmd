@@ -7,9 +7,9 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
-For assessment authors porting a Stock Synthesis (SS3) model to Rceattle: this
-vignette follows the SS files top to bottom and maps each block onto the
-corresponding Rceattle sheet.
+For assessment authors porting a Stock Synthesis (SS3; Methot and Wetzel 2013)
+model to Rceattle: this vignette follows the SS files top to bottom and maps
+each block onto the corresponding Rceattle sheet.
 
 The examples reference the 2019 Pacific hake assessment, in Nis Sand Jacobsen's
 [`PacifichakeMSE`](https://github.com/nissandjac/PacifichakeMSE/tree/master/inst/extdata/SS32019)
@@ -206,3 +206,9 @@ Dirichlet-multinomial.
   for the option tables referenced above.
 * Vignette 8, [Model parameterizations](model-parameterizations.html),
   for equation-level detail on selectivity, catchability, and predation.
+
+## References
+
+- Methot, R.D., Wetzel, C.R. (2013). Stock synthesis: a biological and
+  statistical framework for fish stock assessment and fishery
+  management. *Fisheries Research*, 142, 86-99.

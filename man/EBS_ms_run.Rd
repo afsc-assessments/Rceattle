@@ -7,6 +7,10 @@
 \format{
 An object of class \code{Rceattle}.
 }
+\source{
+Fit by Rceattle to the 2017 Eastern Bering Sea CEATTLE inputs; see
+\code{\link{BS2017SS}} for their source.
+}
 \usage{
 EBS_ms_run
 }
