@@ -38,7 +38,7 @@
 // Reads an R list() of matrices into a vector<matrix<Type>>: the per-fleet
 // survey-index covariance matrices Sigma supplied when Index_loglike is
 // "MVN"/"MVNORM" (the AMAK/ebswp DoCovBTS covariance survey likelihood; sections
-// 8.2b and 13.1). Other fleets pass a 1x1 inert dummy, so the list is always
+// 8.2 and 13.1). Other fleets pass a 1x1 inert dummy, so the list is always
 // length n_flt and indexes by fleet code.
 template<class Type>
 struct LOM_t : vector<matrix<Type> > {
@@ -61,7 +61,7 @@ struct LOM_t : vector<matrix<Type> > {
  * except that free functions stay snake_case.
  *
  * CITATIONS:
- * 1. Holsman, K. K., Ianelli, J., Aydin, K., Punt, A. E., & Moffitt, E. A. (2015). A comparison of fisheries biological reference points estimated from temperature-specific multi-species and single-species climate-enhanced stock assessment models. Deep-Sea Research Part II: Topical Studies in Oceanography, 134, 360–378. https://doi.org/10.1016/j.dsr2.2015.08.001
+ * 1. Holsman, K. K., Ianelli, J., Aydin, K., Punt, A. E., & Moffitt, E. A. (2016). A comparison of fisheries biological reference points estimated from temperature-specific multi-species and single-species climate-enhanced stock assessment models. Deep-Sea Research Part II: Topical Studies in Oceanography, 134, 360–378. https://doi.org/10.1016/j.dsr2.2015.08.001
  * 2. Adams, G. D., Holsman, K. K., Barbeaux, S. J., Dorn, M. W., Ianelli, J. N., Spies, I., ... & Punt, A. E. (2022). An ensemble approach to understand predation mortality for groundfish in the Gulf of Alaska. Fisheries Research, 251, 106303.
  * 3. Wassermann, S. N., Adams, G. D., Haltuch, M. A., Kaplan, I. C., Marshall, K. N., & Punt, A. E. (2025). Even low levels of cannibalism can bias population estimates for Pacific hake. ICES Journal of Marine Science, 82(1), fsae064.
  * ------------------------------------------------------------------------- //
@@ -97,7 +97,7 @@ Type objective_function<Type>::operator() () {
   DATA_INTEGER(estimateMode);             // 0 = hindcast + HCR projection, 1 = hindcast, 2 = projection from inits, 3 = build only, 4 = smoke test
   DATA_INTEGER(msmMode);
   //    0 = single species (no predation mortality)
-  //    1 = Type II MSVPA based (sensu Holsman et al 2015)
+  //    1 = Type II MSVPA based (sensu Holsman et al. 2016)
   //    2 = Type III MSVPA based
   //    3-9 = not yet implemented (Holling forms, predator interference and
   //          preemption, Hassell-Varley, Ecosim)
@@ -694,7 +694,7 @@ Type objective_function<Type>::operator() () {
   vector<Type>  index_analytical_sd(n_flt); index_analytical_sd.setZero();          // Concentrated (analytical) index sd used when Estimate_index_sd = 2; a log-scale sd, not a log
   vector<Type>  index_q_analytical(n_flt); index_q_analytical.setZero();            // Analytical catchability (not an sd) used when Catchability = 3; "AnalyticalArith" (7) has its own block at 8.2b
   matrix<Type>  index_q(n_flt, nyrs_hind); index_q.setZero();                       // Estimated survey catchability //FIXME: extend out to full time-series
-  vector<Type>  index_n_obs(n_flt); index_n_obs.setZero();                          // Observations per survey time series
+  vector<Type>  index_n_obs(n_flt); index_n_obs.setZero();                          // Per-fleet denominator: sum of weights in 8.2, observation count in 8.4
 
   // -- 4.8. Composition data
   // age_hat / age_obs_hat are indexed by AGE whatever dimension the fleet's composition
@@ -2550,42 +2550,87 @@ Type objective_function<Type>::operator() () {
   }
 
 
-  // -- 8.2. Analytical survey q following Walters and Ludwig 1994
+  // -- 8.2. Analytical survey q (lognormal form: Walters and Ludwig 1994)
+  // The q that maximizes the fleet's index likelihood (13.1) given the other parameters and any
+  // random effects; vignette("model-parameterizations") gives it for each Index_distribution.
+  // index_q_analytical sums the numerator and index_n_obs the denominator (Lognormal, Normal);
+  // MVN/MVNORM solve with Sigma below. data_check() refuses TruncatedNormal (no closed form).
   index_n_obs.setZero();
   index_q_analytical.setZero();
   for(index_ind = 0; index_ind < index_ctl.rows(); index_ind++){
-
-
-
     index = index_ctl(index_ind, 0) - 1;            // Survey index
-    sp = index_ctl(index_ind, 1) - 1;             // Species
-    flt_yr = index_ctl(index_ind, 2);             // Data year
+    flt_yr = index_ctl(index_ind, 2);               // Data year
+    // Only hindcast years with an observation, as 13.1 fits; a missing (NA) year fails the > 0 test
+    if((flt_yr <= 0) || (flt_yr - styr >= nyrs_hind) || !(index_obs(index_ind, 0) > 0)) continue;
 
-    if(flt_yr > 0){
-      flt_yr = flt_yr - styr;
+    if(index_ll_type(index) == 3){      // Normal: sd is absolute, input by year or estimated
+      Type sd2 = (est_sigma_index(index) == 0) ? square(index_obs(index_ind, 1)) : exp(2.0 * index_log_sd(index));
+      index_n_obs(index) += square(index_hat(index_ind)) / sd2;
+      index_q_analytical(index) += index_obs(index_ind, 0) * index_hat(index_ind) / sd2;
+      continue;
+    }
 
-
-      mo = index_n(index_ind, 0);                    // Month
-      if(flt_yr < nyrs_hind){
-
-        // If etimated standard deviation or analytical sigma (non-time-varying)
-        if(est_sigma_index(index) > 0) {
-          index_n_obs(index) += 1;
-          index_q_analytical(index) += log(index_obs(index_ind, 0) / index_hat(index_ind));
-        }
-
-        // If time-varying sigma
-        if(est_sigma_index(index) == 0 ) {
-          index_n_obs(index) += 1 / square(index_obs(index_ind, 1));
-          index_q_analytical(index) += log(index_obs(index_ind, 0) / index_hat(index_ind)) / square(index_obs(index_ind, 1));
-        }
-      }
+    Type log_ratio = log(index_obs(index_ind, 0) / index_hat(index_ind));
+    Type b = (index_ll_type(index) == 0) ? bias_adjust_obs : Type(0.0);
+    switch(est_sigma_index(index)){
+    case 0:   // sd input by year: weight each year by 1 / sd^2
+      index_n_obs(index) += 1 / square(index_obs(index_ind, 1));
+      index_q_analytical(index) += log_ratio / square(index_obs(index_ind, 1)) + b / 2.0;
+      break;
+    case 1:   // estimated sd
+      index_n_obs(index) += 1;
+      index_q_analytical(index) += log_ratio + b * exp(2.0 * index_log_sd(index)) / 2.0;
+      break;
+    case 2:   // analytical sd: its bias term needs the mean, so is added below
+      index_n_obs(index) += 1;
+      index_q_analytical(index) += log_ratio;
+      break;
     }
   }
+  index_q_analytical = index_q_analytical / index_n_obs;
 
-  // Take average
+  // Analytical sd: variance of the log residuals about their mean, so 8.4 returns the joint MLE
+  vector<Type> index_q_resid_ss(n_flt); index_q_resid_ss.setZero();
+  for(index_ind = 0; index_ind < index_ctl.rows(); index_ind++){
+    index = index_ctl(index_ind, 0) - 1;
+    flt_yr = index_ctl(index_ind, 2);
+    if((flt_yr <= 0) || (flt_yr - styr >= nyrs_hind) || !(index_obs(index_ind, 0) > 0) ||
+       (est_sigma_index(index) != 2)) continue;
+    index_q_resid_ss(index) += square(log(index_obs(index_ind, 0) / index_hat(index_ind)) - index_q_analytical(index));
+  }
+
   for(index = 0 ; index < n_flt; index ++){
-    index_q_analytical(index) = exp(index_q_analytical(index) / index_n_obs(index));
+    if((est_sigma_index(index) == 2) && (index_ll_type(index) == 0)){
+      index_q_analytical(index) += bias_adjust_obs * index_q_resid_ss(index) / index_n_obs(index) / 2.0;
+    }
+    if(index_ll_type(index) != 3) index_q_analytical(index) = exp(index_q_analytical(index));
+
+    // MVN / MVNORM: the fitted rows in index_obs order, which is the row order of Sigma (13.1)
+    if((est_index_q(index) == 3) && (flt_type(index) > 0) &&
+       ((index_ll_type(index) == 1) || (index_ll_type(index) == 2))){
+      int n_mvn = 0;
+      for(index_ind = 0; index_ind < index_ctl.rows(); index_ind++){
+        flt_yr = index_ctl(index_ind, 2);
+        if(((index_ctl(index_ind, 0) - 1) == index) && (flt_yr > 0) && (flt_yr <= endyr) &&
+           (index_obs(index_ind, 0) > 0)) n_mvn++;
+      }
+      if(n_mvn > 0){
+        matrix<Type> mvn_obs(n_mvn, 1), mvn_pred(n_mvn, 1);
+        int k = 0;
+        for(index_ind = 0; index_ind < index_ctl.rows(); index_ind++){
+          flt_yr = index_ctl(index_ind, 2);
+          if(((index_ctl(index_ind, 0) - 1) == index) && (flt_yr > 0) && (flt_yr <= endyr) &&
+             (index_obs(index_ind, 0) > 0)){
+            mvn_obs(k, 0) = index_obs(index_ind, 0);
+            mvn_pred(k, 0) = index_hat(index_ind);
+            k++;
+          }
+        }
+        Eigen::LLT<Eigen::Matrix<Type, Eigen::Dynamic, Eigen::Dynamic> > llt(index_cov_mat(index));
+        matrix<Type> w = llt.solve(mvn_pred);                        // Sigma^-1 pred
+        index_q_analytical(index) = (w.transpose() * mvn_obs)(0, 0) / (w.transpose() * mvn_pred)(0, 0);
+      }
+    }
 
     // Set index_q to analytical if used
     if(est_index_q(index) == 3){
@@ -2608,7 +2653,7 @@ Type objective_function<Type>::operator() () {
     flt_yr = index_ctl(index_ind, 2);
     if(flt_yr > 0){
       flt_yr = flt_yr - styr;
-      if(flt_yr < nyrs_hind){
+      if((flt_yr < nyrs_hind) && (index_obs(index_ind, 0) > 0)){   // a missing (NA) year compares false
         index_obs_sum(index) += index_obs(index_ind, 0);
         index_hat_sum(index) += index_hat(index_ind);
       }
@@ -2646,8 +2691,8 @@ Type objective_function<Type>::operator() () {
 
 
   // --8.4. Calculate analytical sigma following Walters and Ludwig 1994
-  // The positive-observation guard matches the catch estimator below; it is
-  // belt-and-braces, data_check() having already refused a non-positive index.
+  // Only hindcast years with an observation; a missing (NA) year fails the > 0 test,
+  // as in 8.2 and the catch estimator.
   index_n_obs.setZero();
   index_analytical_sd.setZero();
   for(index_ind = 0; index_ind < index_ctl.rows(); index_ind++){
@@ -2887,7 +2932,7 @@ Type objective_function<Type>::operator() () {
         }
       }
 
-      // Assign CAAL to marginal age or length composition
+      // Sum predicted numbers at age and length into the marginal age or length composition
       for(age = 0; age < nages(sp); age++) {
         for(ln = 0; ln < nlengths(sp); ln++) {
 
@@ -4118,7 +4163,7 @@ Type objective_function<Type>::operator() () {
         }
       }
 
-      // Hake non-parametric (5): IID deviates (Taylor et al. 2014), over all N_sel_bins,
+      // Hake non-parametric (5): IID deviates (Taylor et al. 2015), over all N_sel_bins,
       // including any bin build_map() holds at 0.
       if(((flt_varying_sel(flt) == 1) || (flt_varying_sel(flt) == 2)) && (flt_sel_type(flt) == 5)){
         for(int bin = 0; bin < flt_n_sel_bins(flt); bin++){
@@ -4153,7 +4198,7 @@ Type objective_function<Type>::operator() () {
         }
       }
 
-      // 3D AR1 (7): GMRF over bin, year and cohort (Cheng et al. 2024). Sel_curve_pen1-3
+      // 3D AR1 (7): GMRF over bin, year and cohort (the weight-at-age GMRF of Cheng et al. 2023). Sel_curve_pen1-3
       // carry the bin, year and cohort correlations.
       if(flt_sel_type(flt) == 7){
         int n_sel_bins = flt_n_sel_bins(flt);
@@ -4171,9 +4216,9 @@ Type objective_function<Type>::operator() () {
             }
           }
 
-          // Arguments run bin, year, cohort. construct_Q()'s parameter names read the
-          // other way round, but ay_index is also filled the other way round from WHAM's,
-          // so the two cancel. Do not "correct" the call to match the names.
+          // Arguments run bin, year, cohort. construct_Q(), as in GMRF_WAA, applies rho_y
+          // between adjacent bins in a year and rho_a between adjacent years in a bin,
+          // whatever the names say. Do not "correct" the order to match the names.
           Eigen::SparseMatrix<Type> Q_sparse(num_rows, num_rows);
           Q_sparse = construct_Q(nyrs_hind, n_sel_bins, ay_index,
                                  sel_curve_pen(flt, 0), sel_curve_pen(flt, 1), sel_curve_pen(flt, 2), // natural scale

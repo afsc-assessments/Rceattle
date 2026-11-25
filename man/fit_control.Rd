@@ -25,8 +25,9 @@ fit_control(
 )
 }
 \arguments{
-\item{bias.correct}{logical. Apply bias correction via \code{\link[TMB:sdreport]{TMB::sdreport()}}.
-Default \code{FALSE}.}
+\item{bias.correct}{logical. Apply TMB's epsilon bias correction (Thorson
+and Kristensen 2016) in \code{\link[TMB:sdreport]{TMB::sdreport()}}; not the lognormal adjustment of
+\code{bias_adjust_obs} / \code{bias_adjust_proc}. Default \code{FALSE}.}
 
 \item{getsd}{logical. Run \code{\link[TMB:sdreport]{TMB::sdreport()}} after optimization. Default
 \code{TRUE}.}
@@ -64,14 +65,17 @@ than a median. A value between 0 and 1 scales the shift.}
 Default \code{TRUE}.}
 
 \item{rel_tol}{Numeric tolerance for flagging a discontinuous likelihood,
-comparing \code{nlminb}'s objective with a fresh evaluation of the object it
-came from. Default \code{1}.}
+comparing \code{nlminb}'s objective with a fresh evaluation at the estimates
+(under \code{newtonsteps > 0} the reported objective is that evaluation, so
+nothing is flagged). Default \code{1}.}
 
 \item{loopnum}{Integer. Times to restart optimization; \code{3} sometimes reaches
 a lower final gradient than \code{1}. Default \code{5}.}
 
 \item{newtonsteps}{Integer. Extra unconstrained Newton steps after
-optimization, an alternative to \code{loopnum}. Default \code{0}.}
+optimization, an alternative to \code{loopnum}; a singular Hessian (usually a
+parameter the data do not inform) ends them with a warning, and with
+TMBhelper installed the fit is redone without Newton steps. Default \code{0}.}
 
 \item{phase}{\code{TRUE}/\code{FALSE}, or a list of parameter names with their phases.
 Default \code{FALSE}.}
@@ -128,4 +132,9 @@ ctl <- fit_control(getsd = FALSE, loopnum = 1)
 
 # Production fit with bias correction and joint precision
 ctl <- fit_control(bias.correct = TRUE, getJointPrecision = TRUE)
+}
+\references{
+Thorson, J.T., and Kristensen, K. 2016. Implementing a generic method for bias
+correction in statistical models using random effects, with spatial and
+population dynamics examples. Fish. Res. 175:66-74.
 }

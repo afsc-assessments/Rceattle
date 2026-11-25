@@ -891,7 +891,7 @@
 
 #' Warn when a plot draws forecast years whose F did not fit the catch
 #'
-#' A retrospective peel with `attr(peel, "forecast_error")` keeps those years, and
+#' A retrospective peel with `attr(peel, "forecast_refit_error")` keeps those years, and
 #' drawn they would read as a real forecast.
 #'
 #' @param models A list of `Rceattle` fits.
@@ -903,7 +903,7 @@
   drawn <- vapply(seq_along(models), function(i) {
     max(years[[i]]) > models[[i]]$data_list$endyr
   }, logical(1))
-  unfit <- unlist(lapply(models[drawn], attr, "forecast_error", exact = TRUE))
+  unfit <- unlist(lapply(models[drawn], attr, "forecast_refit_error", exact = TRUE))
   if (length(unfit)) {
     warning("Drawing forecast years that were not fitted to catch, so they are not a ",
             "forecast of it; leave them out with incl_proj = FALSE or a smaller maxyr: ",

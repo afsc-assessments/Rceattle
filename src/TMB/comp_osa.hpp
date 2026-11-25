@@ -1,10 +1,24 @@
+// Adapted in part from distr.hpp (github.com/vtrijoulet/OSA_multivariate_dists),
+// whose notice is kept here:
+//  --------------------------------------------------------------------------
+// Copyright (c) 2022, Vanessa Trijoulet <vtri@aqua.dtu.dk>,
+// Christoffer Moesgaard Albertsen <cmoe@aqua.dtu.dk>,
+// Kasper Kristensen <kkr@aqua.dtu.dk>,
+// Chris M. Legault <chris.legault@noaa.gov>,
+// Timothy J. Miller <Timothy.J.Miller@noaa.gov>,
+// and Anders Nielsen <an@aqua.dtu.dk>.
+// All rights reserved.
+//  --------------------------------------------------------------------------
+
 /**
  * @file comp_osa.hpp
  * @brief One-step-ahead (OSA) residual helpers for composition data.
  *
  * TMB's oneStepPredict() needs every observation in a flat `obsvec`, its likelihood
  * term multiplied by its own `keep` element, which multivariate discrete
- * composition data cannot supply directly. Following Trijoulet et al. (2023) and
+ * composition data cannot supply directly. Following Trijoulet et al. (2023), their
+ * reference code (distr.hpp in github.com/vtrijoulet/OSA_multivariate_dists, from
+ * which dmultinom_osa() and ddirmultinom_osa() take their names and CDF terms) and
  * WHAM (src/age_comp_osa.hpp), a composition of A bins is decomposed into A-1
  * univariate conditionals -- binomials for the multinomial, beta-binomials for the
  * Dirichlet-multinomial -- each gated by its keep element. The last bin is fixed by
@@ -31,7 +45,8 @@
  */
 
 // Reorder categories so kept (keep > 0.5) entries come first, preserving the
-// original order within the kept and dropped groups.
+// original order within the kept and dropped groups. Anders Nielsen's order(),
+// via WHAM src/age_comp_osa.hpp.
 template<class Type>
 vector<int> osa_order(vector<Type> k){
   int n = k.size();
@@ -85,7 +100,7 @@ Type osa_squeeze_cdf(Type u){
  * the binomial CDF at whole counts and stays smooth at the fractional ones composition
  * data carry: a bin count is proportion * effective sample size, an integer only by
  * coincidence. Same expression as the Trijoulet et al. (2023) reference implementation
- * TMB ships (contrib/OSA_multivariate_dists-main/distr.hpp, `dists::pbinom`).
+ * (distr.hpp, `dists::pbinom`, which TMB:::install.contrib() installs).
  *
  * @param x Count in this bin.
  * @param n Count still unplaced across this bin and every later one.

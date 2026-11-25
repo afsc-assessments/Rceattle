@@ -532,6 +532,18 @@ build_params <- function(data_list) {
   param_list$log_M1 <- .rce_fill_M1_padding(param_list$log_M1, data_list)
   .rce_stop_if_nonfinite_M1(param_list$log_M1, "build_params()")
 
+  # FreeParams init_dev is log numbers at age: start it at the unfished equilibrium of R0
+  # and sex-1 M1. A single-species curve sets R_init from alpha and beta, so it keeps 0.
+  free_n <- .canon_switch(data_list[["initMode"]], initMode_map) == "FreeParams"
+  curve_r <- data_list[["srr_fun"]] > 1 && data_list[["msmMode"]] == 0
+  for (sp in seq_len(data_list[["nspp"]])[free_n && !curve_r]) {
+    A <- data_list[["nages"]][sp]
+    M <- exp(param_list[["log_M1"]][sp, 1, seq_len(A)])
+    log_n <- param_list[["rec_pars"]][sp, 1] - c(0, cumsum(M[-A]))  # ages minage..
+    log_n[A] <- log_n[A] - log(1 - exp(-M[A]))                       # plus group
+    param_list[["init_dev"]][sp, seq_len(A - 1)] <- log_n[-1]        # ages minage + 1..
+  }
+
   param_list
 }
 
@@ -843,4 +855,34 @@ build_params <- function(data_list) {
     }
   }
   m1
+}
+
+
+#' Hold the catchability and selectivity deviations at their year-`last` values
+#'
+#' For a retrospective peel's forecast years and the years `run_mse()` adds (the
+#' operating model's assumed truth; the estimation model's starting values),
+#' matching the projection, which holds selectivity at the last hindcast year.
+#' Each deviation keeps its year-`last` value
+#' through the model's last hindcast year; a selectivity form whose deviations are
+#' year-to-year increments (NonParametricPM, and NonParametricIntegrable under
+#' RandomWalk) takes an increment of 0, so its selectivity holds too.
+#'
+#' @param params parameter list whose deviation arrays already span the later years.
+#' @param data_list the model's data list.
+#' @param last year index (1 = styr) whose values the later years take.
+#' @noRd
+.hold_devs <- function(params, data_list, last) {
+  later <- (last + 1):dim(params[["index_q_dev"]])[2]
+  params[["index_q_dev"]][, later] <- params[["index_q_dev"]][, last]
+  params[["log_sel_slp_dev"]][, , , later] <- params[["log_sel_slp_dev"]][, , , last]
+  params[["sel_inf_dev"]][, , , later] <- params[["sel_inf_dev"]][, , , last]
+  params[["sel_coff_dev"]][, , , later] <- params[["sel_coff_dev"]][, , , last]
+
+  fc <- data_list[["fleet_control"]]
+  increments <- fc[["Selectivity"]] %in% "NonParametricPM" |
+    (fc[["Selectivity"]] %in% "NonParametricIntegrable" &
+       fc[["Time_varying_sel"]] %in% "RandomWalk")
+  params[["sel_coff_dev"]][increments, , , later] <- 0
+  params
 }

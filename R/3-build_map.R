@@ -1365,7 +1365,7 @@ build_map_catchability <- function(map_list, data_list, nyrs_hind, random_q = FA
       # linkage with ar1(1 | Year) and `observe`.
 
 
-      # "Analytical" (geometric) and "AnalyticalArith" (arithmetic) both SOLVE q
+      # "Analytical" (closed-form MLE) and "AnalyticalArith" (arithmetic) both SOLVE q
       # from the data rather than estimating it, so index_log_q is unused and
       # must be mapped out -- otherwise it is a free parameter that never enters
       # the objective, leaving a flat direction that makes the Hessian singular.
@@ -1382,7 +1382,7 @@ build_map_catchability <- function(map_list, data_list, nyrs_hind, random_q = FA
       }
 
       # Time_varying_q: "Off"; "IID" penalized deviate or random effect; "Block"
-      # time blocks with no penalty; "RandomWalk" from the mean following Dorn
+      # time blocks with no penalty; "RandomWalk" from the mean following Dorn et al.
       # 2018, dnorm(q_y - q_y-1, 0, sigma). "AR1" is removed and refused by
       # data_check(), but still maps its deviates here, identically to "IID", on
       # a direct build_map() call. Under Catchability = "Environmental" this
@@ -2039,12 +2039,9 @@ map_linkage_adjuster <- function(map_list, data_list) {
     # n_cells is the array's size in the EM, so cells past it are the years added since.
     old_cells <- seq_len(attr(cells, "n_cells"))
     new_cells <- setdiff(seq_along(level), old_cells)
-    # A block stays estimated while any earlier cell in it is free; otherwise its new
-    # years join the fixed cells.
     still_free <- level[setdiff(old_cells, cells)]
     fixed_blocks <- setdiff(level[cells], c(NA, still_free))
     joined <- new_cells[level[new_cells] %in% fixed_blocks]
-    # A joining year takes the value of its block's first fixed cell.
     first_fixed <- cells[match(level[joined], level[cells])]
     params[[nm]][joined] <- params[[nm]][first_fixed]
     map[["mapList"]][[nm]][c(cells, joined)] <- NA

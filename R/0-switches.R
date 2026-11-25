@@ -511,14 +511,14 @@ initMode_map <- c(
 )
 
 # Predator-prey suitability mode (per predator species)
-# 1 and 3 are blocked in data_check() until growth-model validation is added
+# data_check() refuses 1, 3 and 5 (length-based) until growth-model validation is added
 suitMode_map <- c(
   "Empirical"       = 0,
   "GammaLength"     = 1,   # NOT YET AVAILABLE
   "GammaWeight"     = 2,
   "LognormalLength" = 3,   # NOT YET AVAILABLE
   "LognormalWeight" = 4,
-  "NormalLength"    = 5,
+  "NormalLength"    = 5,   # NOT YET AVAILABLE
   "NormalWeight"    = 6
 )
 
@@ -646,7 +646,7 @@ estimateMode_map <- c(
 )
 
 # Predation-mortality mode (the `msmMode` argument). 0 = single-species (no
-# predation); 1 = Type II MSVPA (Holsman et al. 2015); 2 = Type III MSVPA. Higher
+# predation); 1 = Type II MSVPA (Holsman et al. 2016); 2 = Type III MSVPA. Higher
 # integer codes (Kinzey-Punt, Holling forms) are not yet implemented.
 msmMode_map <- c(
   "SingleSpecies" = 0,
@@ -2013,7 +2013,9 @@ convert_switches <- function(data_list) {
 #' Report an age-based fleet read from `Bin_first_selected`
 #'
 #' On an age-based fleet `Bin_first_selected` is the deprecated spelling of
-#' `Age_first_selected`. Called from `fit_mod()` rather than `switch_check()`,
+#' `Age_first_selected`. A value of 1 (selected from `minage`, the same as a
+#' blank) and `"Fixed"` or `"Off"` fleets (whose curve is not shaped by this
+#' column) are skipped. Called from `fit_mod()` rather than `switch_check()`,
 #' for the reason given in `.rce_flag_dm_weight_scale()`.
 #'
 #' @param data_list a data list, after `switch_check()` has resolved
@@ -2022,14 +2024,18 @@ convert_switches <- function(data_list) {
 #' @keywords internal
 #' @noRd
 .rce_flag_bin_first_selected <- function(data_list) {
+  fc <- data_list$fleet_control
   first_sel <- .rce_first_selected(data_list)
-  if (any(first_sel$from_bin)) {
-    f <- which(first_sel$from_bin)
+  active <- !fc[["Fleet_type"]] %in% c(0, "0", "Off") &
+            !fc[["Selectivity"]] %in% c(0, "0", "Fixed")
+  flag <- first_sel$from_bin & active & !is.na(first_sel$bin) & first_sel$bin != 1
+  if (any(flag)) {
+    f <- which(flag)
     message(sprintf(paste0(
       "'Bin_first_selected' on an age-based fleet is deprecated; use ",
       "'Age_first_selected', an absolute age. Read as age %s for fleet(s) %s."),
       paste(first_sel$age[f], collapse = ", "),
-      paste(data_list$fleet_control$Fleet_name[f], collapse = ", ")))
+      paste(fc[["Fleet_name"]][f], collapse = ", ")))
   }
   invisible(data_list)
 }

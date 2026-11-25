@@ -113,6 +113,15 @@ write_data <- function(data_list, file = "Rceattle_data.xlsx") {
   # diff between them readable. Columns the schema does not know are kept, at
   # the end, rather than silently dropped.
   .fc_out <- as.data.frame(data_list$fleet_control)
+  # Always write both first-selected columns when either is present, so
+  # read_data() does not mistake a 5.72.0+ workbook with only Age_first_selected
+  # for a pre-4.0.1 one.
+  if ("Age_first_selected" %in% names(.fc_out) && !"Bin_first_selected" %in% names(.fc_out)) {
+    .fc_out$Bin_first_selected <- rep(NA_integer_, nrow(.fc_out))
+  }
+  if ("Bin_first_selected" %in% names(.fc_out) && !"Age_first_selected" %in% names(.fc_out)) {
+    .fc_out$Age_first_selected <- rep(NA_integer_, nrow(.fc_out))
+  }
   .fc_order <- c(intersect(.rce_schema_names("fleet_control"), names(.fc_out)),
                  setdiff(names(.fc_out), .rce_schema_names("fleet_control")))
   xcel_list$fleet_control <- .fc_out[, .fc_order, drop = FALSE]
@@ -529,12 +538,19 @@ read_data <- function(file = "Rceattle_data.xlsx") {
 
   # A workbook with 'Age_first_selected' but no 'Bin_first_selected' column
   # predates the 4.0.1 rename, so its column is the bin ordinal and is read as one.
+  # Both columns are then ensured present so a script assigning one fleet
+  # (`fc$Age_first_selected[1] <- 3`) does not create and recycle a new column.
   fc_names <- names(data_list$fleet_control)
   if ("Age_first_selected" %in% fc_names && !"Bin_first_selected" %in% fc_names) {
     names(data_list$fleet_control)[fc_names == "Age_first_selected"] <- "Bin_first_selected"
     message("'Age_first_selected' without a 'Bin_first_selected' column is the ",
             "pre-4.0.1 name of 'Bin_first_selected', and is read as that. Add a ",
             "'Bin_first_selected' column to read it as an absolute age.")
+  }
+  for (.col in c("Bin_first_selected", "Age_first_selected")) {
+    if (!.col %in% names(data_list$fleet_control)) {
+      data_list$fleet_control[[.col]] <- rep(NA_integer_, nrow(data_list$fleet_control))
+    }
   }
 
   # Default a missing `Month` column.

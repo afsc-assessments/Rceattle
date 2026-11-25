@@ -32,7 +32,7 @@ for (ds in datasets) {
 
   res  <- first_selected(before)
   move <- res$from_bin
-  if (!any(move)) next
+  if ("Age_first_selected" %in% names(fc) && !any(move)) next
 
   after <- before
   afs <- if ("Age_first_selected" %in% names(fc)) fc$Age_first_selected else rep(NA_integer_, nrow(fc))

@@ -719,11 +719,12 @@
 #' year comes back empty, while a stomach whose predator has empirical
 #' suitability, and a covariance fleet's observations outside its fitted window,
 #' keep their observed values. A composition, CAAL or diet row whose sample size
-#' times its weight rounds below one observation also comes back empty, with
-#' \code{Sample_size} dropped to zero so a refit does not score a row with no
-#' data behind it. A hindcast survey year with no observation (\code{NA}) stays
-#' \code{NA} and is NOT warned about, since the likelihood never scored it,
-#' while the independent survey families still draw their projection rows
+#' (times its weight under a multinomial) rounds to zero also comes back empty;
+#' a composition or CAAL row then has \code{Sample_size} set to zero so a refit
+#' does not score a row with no data behind it. A hindcast survey year with no
+#' observation (\code{NA}) stays \code{NA} and is NOT warned about, since the
+#' likelihood never scored it, while the independent survey families still draw
+#' their projection rows
 #' (negative \code{Year}), which \code{\link{run_mse}} reveals as each
 #' assessment's new data.
 #'
@@ -804,9 +805,9 @@ sim_mod <- function(object = NULL, simulate = FALSE, process = FALSE, Rceattle =
   # does not rest on that refusal staying. NEITHER branch below may invent a
   # value for such a row: a drawn one makes a `self_test()` refit fit a survey
   # year the data lack, and the expected value does the same through
-  # `run_mse(regenerate_past = TRUE)`. Projection rows (`Year <= 0`, or past
-  # `endyr`) ARE filled, since `run_mse()` splices the negative-Year rows in as
-  # each assessment's new data.
+  # `run_mse(regenerate_past = TRUE, simulate_data = FALSE)`. Projection rows
+  # (`Year <= 0`, or past `endyr`) ARE filled, since `run_mse()` splices the
+  # negative-Year rows in as each assessment's new data.
   .idx_yr  <- dat_sim$index_data$Year
   .idx_obs <- dat_sim$index_data$Observation
   index_unfitted <- !is.na(.idx_yr) & .idx_yr > 0 & .idx_yr <= dat_sim$endyr &
@@ -986,18 +987,22 @@ sim_mod <- function(object = NULL, simulate = FALSE, process = FALSE, Rceattle =
                 "recovery of predation is optimistic.", call. = FALSE)
       }
 
-      # A stomach the draw placed nothing in comes back at zero rather than
-      # frozen (ceattle.cpp, diet SIMULATE block). The per-predator test above
-      # cannot see it: a predator with some stomachs drawn and some rounded away
-      # is not frozen. Count the emptied stomachs directly, as the composition
-      # draw does.
-      emptied <- was > 0 & kept == 0
+      # A stomach draws Sample_size (first row; times the weight if multinomial)
+      # items rounded half up (ceattle.cpp, section 13.6): under 0.5, none.
+      td    <- sim_obj$env$data
+      sid   <- td[["stomach_id"]]
+      n_s   <- td[["diet_obs"]][match(sid, sid), 1]
+      pl    <- sim_obj$env$parList(par = sim_obj$env$last.par.best)
+      n_eff <- n_s * ifelse(td[["diet_ll_type"]][pred_sp] == 0,
+                            pl[["diet_comp_weights"]][pred_sp], 1)
+      emptied <- td[["suitMode"]][pred_sp] > 0 & !is.na(n_s) & n_s > 0 &
+        n_eff + 0.5 < 1
       if (any(emptied)) {
         warning(sum(emptied), " diet row(s) came back empty for predator(s) ",
                 paste(unique(pred_sp[emptied]), collapse = ", "),
-                ". Their sample size times Diet_comp_weights rounded to zero, ",
-                "so the draw placed no prey items. Those rows carry no ",
-                "information into a refit.", call. = FALSE)
+                ". Their sample size (times Diet_comp_weights under a ",
+                "multinomial) rounded to zero, so the draw placed no prey items. ",
+                "Those rows carry no information into a refit.", call. = FALSE)
       }
     }
   }
@@ -1124,6 +1129,19 @@ sim_mod <- function(object = NULL, simulate = FALSE, process = FALSE, Rceattle =
 #' @param update_model Update model dynamics. Default = TRUE
 #' @param rec_trend Linear increase or decrease in mean recruitment from \code{endyr} to \code{projyr}. This is the terminal multiplier \code{mean rec * (1 + (rec_trend/projection years) * 1:projection years)}. Can be of length 1 or of length nspp. If length 1, all species get the same trend.
 #'
+#' @details Projected recruitment uses the sampled deviations only if the model
+#'   was fitted with `build_srr(proj_mean_rec = FALSE)`; under the default it is
+#'   mean recruitment over the hindcast, and `update_model = TRUE` warns. In
+#'   [run_mse()] each projection year becomes an operating-model hindcast year,
+#'   where the deviations apply either way.
+#'
+#'   `update_model = TRUE` holds the hindcast estimates fixed. A fit run with its
+#'   harvest control rule (`estimateMode` `"Estimate"` or `"Projection"`) reruns
+#'   that rule, so an F the rule estimates is re-solved for the new recruitment.
+#'   Under predation (`msmMode > 0`) a fishing rule's unfished SSB and biomass
+#'   (`MSSB0`, `MSB0`) are re-derived too, so SB0, B0 and depletion in every year
+#'   follow the new recruitment, as in a fresh [fit_mod()] from those deviations.
+#'
 #' @returns Rceattle model
 #' @export
 #'
@@ -1134,6 +1152,17 @@ sample_rec <- function(object = NULL, sample_rec = TRUE, update_model = TRUE, re
 
   if (!inherits(object, "Rceattle")) {
     stop("`object` must be a fitted Rceattle model (from fit_mod()).", call. = FALSE)
+  }
+
+  # proj_mean_rec projects R at avg_R; rec_dev reaches only dynamic B0/BF.
+  # run_mse() passes update_model = FALSE: its projection years become hindcast.
+  if (update_model &&
+      isTRUE(as.logical(object$data_list[["proj_mean_rec"]]))) {
+    warning("proj_mean_rec = TRUE projects recruitment at avg_R (mean hindcast ",
+            "recruitment), so the deviations sample_rec() writes do not drive ",
+            "it. To apply them, add proj_mean_rec = FALSE to the model's ",
+            "build_srr() call, refit, and pass that fit.",
+            call. = FALSE)
   }
 
   # Years for simulations
@@ -1195,18 +1224,22 @@ sample_rec <- function(object = NULL, sample_rec = TRUE, update_model = TRUE, re
   if(update_model){
     # * Update fit ----
     estMode <- object$data_list$estimateMode
+    # A fit that ran its harvest control rule reruns it at mode 2, hindcast fixed; build-only
+    # mode 3 never runs the rule (projected F = 0). Both keep the fit's own map and getsd.
+    fit_getsd <- isTRUE(object[["run_config"]][["fit_control"]][["getsd"]])
     object <-
       suppressWarnings(
         suppressMessages(
-          # Rebuild so the resampled projection recruitment propagates into the
-          # reported dynamics. .refit_like() carries the source model's whole
-          # specification across the refit -- HCR, stock-recruit, M, growth, and
-          # the catchability / selectivity / composition linkages.
+          # Rebuild so the resampled deviations reach the reported dynamics.
+          # .refit_like() carries the source model's whole specification across
+          # the refit -- HCR, stock-recruit, M, growth, and the catchability /
+          # selectivity / composition linkages.
           .refit_like(
             data_list    = object$data_list,
             inits        = object$estimated_params,
-            estimateMode = 3,
-            getsd        = TRUE)
+            estimateMode = if (estMode %in% c(0, 2)) 2 else 3,
+            map          = object$map,
+            getsd        = fit_getsd)
         )
       )
     object$data_list$estimateMode <- estMode
@@ -1312,7 +1345,8 @@ compare_sim <- function(operating_mod, simulation_mods, object = "quantities") {
 #' This function calculates a probability transition matrix that defines the
 #' probability of a fish of a given age belonging to specific length bins.
 #' It supports Von Bertalanffy and Richards growth models and includes
-#' a Stock Synthesis (SS) style plus-group correction.
+#' a Stock Synthesis (SS) style plus-group correction. Like `growth.hpp`, it is
+#' adapted from Giancarlo Correa's growth code in WHAM's growth branch.
 #'
 #' @param fracyr Numeric. Fraction of the year (0 = Jan 1st).
 #' @param nsex_sp Integer. Number of sexes for the species.

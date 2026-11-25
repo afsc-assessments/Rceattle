@@ -37,7 +37,7 @@ data_check <- function(data_list) {
       "predation formulation (Holling I/II/III, predator interference, ",
       "preemption, Hassell-Varley, or Ecosim). These are deprecated and ",
       "have not been validated in the current code base. Use msmMode = 0 ",
-      "(single-species), 1 (Holsman et al. 2015 MSVPA), or 2 (Holling ",
+      "(single-species), 1 (Holsman et al. 2016 MSVPA), or 2 (Holling ",
       "Type III MSVPA)."
     ))
   }
@@ -739,7 +739,7 @@ data_check <- function(data_list) {
   }
 
   # Bioenergetics: Ceq 1 (exponential, Stewart et al. 1983), 2 (warm-water,
-  # Kitchell et al. 1977) and 3 (cool/cold-water, Thornton and Lessem 1979) each
+  # Kitchell et al. 1977) and 3 (cool/cold-water, Thornton and Lessem 1978) each
   # read env_index(year, Cindex); only Ceq 4 (constant, fT = 1) reads nothing.
   # Cindex is 1-based and counts the covariate columns of env_data, the Year
   # column not being one. The messages below say how each case is reported.
@@ -769,7 +769,7 @@ data_check <- function(data_list) {
         "`Ceq` is ", paste(unique(data_list$Ceq[.ceq_bad]), collapse = ", "),
         " for species ", paste(.ceq_bad, collapse = ", "),
         ". It must be 1 (exponential, Stewart et al. 1983), 2 (warm-water, ",
-        "Kitchell et al. 1977), 3 (cool/cold-water, Thornton and Lessem 1979) ",
+        "Kitchell et al. 1977), 3 (cool/cold-water, Thornton and Lessem 1978) ",
         "or 4 (constant, no temperature effect)."))
     }
     .n_env <- if(is.null(data_list$env_data)) 0L else max(0L, ncol(data_list$env_data) - 1L)
@@ -873,25 +873,24 @@ data_check <- function(data_list) {
       ages       <- data_list$minage[sp_idx] + c(0, data_list$nages[sp_idx] - 1)
 
       # First selected bin and age. On an age-based fleet both come from one
-      # column, so the bin is checked as the age it names.
+      # column, so the check names the column the fleet actually set.
       bfs <- first_sel$bin[flt]
       afs <- first_sel$age[flt]
-      if(!is.na(afs) && afs != round(afs)){
-        errors <- c(errors, paste0("Fleet '", flt_name, "': Age_first_selected (", afs,
-                                   ") must be a whole age"))
+      if(!first_sel$from_bin[flt] && !is.na(afs)){
+        if(afs != round(afs)){
+          errors <- c(errors, paste0("Fleet '", flt_name, "': Age_first_selected (", afs,
+                                     ") must be a whole age"))
+        } else if(afs < ages[1] || afs > ages[2]){
+          errors <- c(errors, paste0("Fleet '", flt_name, "': Age_first_selected (", afs,
+                                     ") must be an age in ", ages[1], ":", ages[2]))
+        }
       }
-      if(dim_is_age && !first_sel$from_bin[flt]){
-        if(!is.na(afs) && (afs < ages[1] || afs > ages[2])){
-          errors <- c(errors, paste0("Fleet '", flt_name, "': Age_first_selected (", afs,
-                                     ") must be an age in ", ages[1], ":", ages[2]))
-        }
-      } else {
-        if(!is.na(bfs) && (bfs < 1 || bfs > max_bin)){
+      if((!dim_is_age || first_sel$from_bin[flt]) && !is.na(bfs)){
+        if(bfs != round(bfs)){
+          errors <- c(errors, paste0("Fleet '", flt_name, "': Bin_first_selected (", bfs,
+                                     ") must be a whole bin"))
+        } else if(bfs < 1 || bfs > max_bin){
           errors <- c(errors, paste0("Fleet '", flt_name, "': Bin_first_selected (", bfs, ") must be in 1:", max_bin))
-        }
-        if(!dim_is_age && !is.na(afs) && (afs < ages[1] || afs > ages[2])){
-          errors <- c(errors, paste0("Fleet '", flt_name, "': Age_first_selected (", afs,
-                                     ") must be an age in ", ages[1], ":", ages[2]))
         }
       }
 
@@ -913,12 +912,21 @@ data_check <- function(data_list) {
                                            "Hake", "2DAR1", "3DAR1"))
       .lowest_nsb <- if(isTRUE(.sel_form == "Hake")) bfs + 1L else bfs
       if(reads_nsb && !is.na(bfs) && !is.na(nsb) && .lowest_nsb > nsb){
-        errors <- c(errors, paste0("Fleet '", flt_name, "': the first selected bin (", bfs,
-                                   ") leaves no estimated selectivity coefficients below ",
-                                   "N_sel_bins (", nsb, "); it must be at most ",
-                                   nsb - (.lowest_nsb - bfs),
-                                   if(isTRUE(.sel_form == "Hake"))
-                                     " ('Hake' does not estimate its first selected bin)" else ""))
+        if(dim_is_age && !first_sel$from_bin[flt]){
+          errors <- c(errors, paste0("Fleet '", flt_name, "': Age_first_selected (", afs,
+                                     ") leaves no estimated selectivity coefficients below ",
+                                     "N_sel_bins (", nsb, "); it must be at most age ",
+                                     ages[1] + nsb - 1L - (.lowest_nsb - bfs),
+                                     if(isTRUE(.sel_form == "Hake"))
+                                       " ('Hake' does not estimate its first selected bin)" else ""))
+        } else {
+          errors <- c(errors, paste0("Fleet '", flt_name, "': Bin_first_selected (", bfs,
+                                     ") leaves no estimated selectivity coefficients below ",
+                                     "N_sel_bins (", nsb, "); it must be at most ",
+                                     nsb - (.lowest_nsb - bfs),
+                                     if(isTRUE(.sel_form == "Hake"))
+                                       " ('Hake' does not estimate its first selected bin)" else ""))
+        }
       }
 
       # Non-parametric shape-penalty range and cap, given on the fleet's own
@@ -1527,6 +1535,7 @@ data_check <- function(data_list) {
         "Estimate_index_sd = 'Fixed'."), call. = FALSE)
     }
   }
+  errors <- c(errors, .check_analytical_q_family(data_list))
 
   # An analytical sd is concentrated out of the likelihood, so it is defined
   # only where there are fitted residuals to concentrate. A fleet that carries
@@ -1814,11 +1823,8 @@ data_check <- function(data_list) {
     }
   }
 
-  # Empirical growth (growth_model == 0) does NOT populate growth_matrix from
-  # age_trans_matrix; the C++ pred_CAAL = N * sel * growth_matrix then sees
-  # growth_matrix = 0 and pred_CAAL collapses to ~0. The multinomial NLL
-  # evaluates to a constant offset with no useful gradient, and the optimizer
-  # finds spurious minima. Check per-species since growth_model is per-species.
+  # CAAL is predicted only under parametric growth: the CAAL loop (ceattle.cpp 10.2)
+  # skips a species with empirical growth (growth_model 0), so its CAAL inform nothing.
   if(has_data(data_list$caal_data) && "Species" %in% colnames(data_list$caal_data)){
     bad_sp <- integer(0)
     for(sp in seq_along(data_list$growth_model)){
@@ -1830,13 +1836,12 @@ data_check <- function(data_list) {
     if(length(bad_sp) > 0){
       sp_names <- if(!is.null(data_list$spnames)) data_list$spnames[bad_sp] else as.character(bad_sp)
       errors <- c(errors, paste0(
-        "Empirical growth (growth_model == 0) is incompatible with CAAL data ",
-        "for species: ", paste(sp_names, collapse = ", "), ". The C++ ",
-        "growth_matrix is not populated from age_trans_matrix in the empirical ",
-        "branch, so pred_CAAL = 0 and the CAAL likelihood gradient is ",
-        "uninformative. Either (a) switch to parametric growth for these ",
-        "species via build_growth(fun = 'vonBertalanffy'), or (b) drop ",
-        "caal_data rows for these species (set to empty, Sample_size = 0, or Year < 0)."
+        "Empirical growth (build_growth(fun = 'empirical'), the default) is ",
+        "incompatible with CAAL data for species: ", paste(sp_names, collapse = ", "),
+        ". CAAL is predicted only under parametric growth, so the predicted CAAL is ",
+        "zero and these observations inform nothing. Use parametric growth for these ",
+        "species (build_growth(fun = 'vonBertalanffy' or 'Richards')), or exclude their ",
+        "caal_data rows from the fit (Sample_size = 0 or Year < 0)."
       ))
     }
   }
@@ -1867,15 +1872,8 @@ data_check <- function(data_list) {
     }
   }
 
-  # The second reason pred_CAAL comes back zero, after the empirical-growth rule
-  # above. CAAL is a composition of ages WITHIN a length bin, so it is predicted
-  # from selectivity-at-length convolved with the growth matrix (ceattle.cpp
-  # 10.2), and selectivity.hpp writes sel_at_length only under `is_length_based`
-  # -- an age-dimensioned fleet predicts nothing. The CAAL likelihood is still
-  # evaluated, against a prediction that is uniform once comp_offset is added, so
-  # these observations add a term to the objective that no parameter can move.
-  # Selectivity_dimension defaults to "Age", so this is the default outcome
-  # rather than an unusual one.
+  # Besides empirical growth (above), CAAL is predicted only on a length-based fleet with
+  # a non-Fixed selectivity (ceattle.cpp 10.2). Selectivity_dimension defaults to "Age".
   if(has_data(data_list$caal_data) &&
      all(c("Fleet_code", "Year", "Sample_size") %in% colnames(data_list$caal_data)) &&
      !is.null(data_list$fleet_control$Selectivity_dimension)){
@@ -1897,14 +1895,12 @@ data_check <- function(data_list) {
     if(length(bad_flt) > 0){
       warning(paste0(
         "CAAL data on fleet(s) ", paste(bad_flt, collapse = ", "),
-        " whose Selectivity_dimension is not 'Length'. CAAL is the age ",
-        "composition within a length bin, so it is predicted from ",
-        "selectivity-at-length; an age-dimensioned fleet has none, so pred_CAAL ",
-        "is zero and the CAAL likelihood scores these observations against a ",
-        "flat composition it cannot move -- they add a term to the objective ",
-        "but inform nothing. Either set Selectivity_dimension = 'Length' for ",
-        "these fleets, or drop their caal_data rows (set to empty, ",
-        "Sample_size = 0, or Year < 0)."), call. = FALSE)
+        " whose Selectivity_dimension is not 'Length'. CAAL is predicted from ",
+        "selectivity at length, which such a fleet does not have, so the predicted CAAL ",
+        "is zero and these observations inform nothing. Set Selectivity_dimension = ",
+        "'Length' for these fleets, with a Selectivity other than 'Fixed' (then give ",
+        "their selectivity bin columns as length bins), or exclude their ",
+        "caal_data rows from the fit (Sample_size = 0 or Year < 0)."), call. = FALSE)
     }
   }
 
@@ -2655,40 +2651,55 @@ data_check <- function(data_list) {
 }
 
 
-# Reference points and projected F read the terminal hindcast year's selectivity, and a
-# Fixed fleet has none for a sex with no emp_sel row in that year.
+#' Warn where a Fixed fishery has no selectivity for a sex in endyr
+#'
+#' Ftarget, Flimit and projected F read the terminal hindcast year's selectivity, and a
+#' Fixed fleet has none for a sex with no emp_sel row in that year.
+#'
+#' @param data_list Rceattle data list.
+#' @noRd
 .warn_fixed_fishery_endyr <- function(data_list) {
-  fc <- data_list$fleet_control
-  es <- data_list$emp_sel
-  in_endyr <- es$Year %in% c(0, data_list$endyr)
-  fishery <- .canon_switch(fc$Fleet_type, .rce_allowed_map("Fleet_type")) == "Fishery"
-  candidates <- which(fishery & .rce_is_fixed_sel(fc$Selectivity))
+  fc <- data_list[["fleet_control"]]
+  es <- data_list[["emp_sel"]]
+  in_endyr <- es[["Year"]] %in% c(0, data_list[["endyr"]])
+  fishery <- .canon_switch(fc[["Fleet_type"]], .rce_allowed_map("Fleet_type")) == "Fishery"
+  candidates <- which(fishery & .rce_is_fixed_sel(fc[["Selectivity"]]))
   bad <- vapply(candidates, function(i) {
-    sexes <- es$Sex[in_endyr & es$Fleet_code == fc$Fleet_code[i]]
-    !(0 %in% sexes || all(seq_len(data_list$nsex[fc$Species[i]]) %in% sexes))
+    sexes <- es[["Sex"]][in_endyr & es[["Fleet_code"]] == fc[["Fleet_code"]][i]]
+    !(0 %in% sexes || all(seq_len(data_list[["nsex"]][fc[["Species"]][i]]) %in% sexes))
   }, logical(1))
   if (any(bad)) {
     warning(paste0(
-      "Fixed-selectivity fishery fleet(s) ", paste(fc$Fleet_name[candidates[bad]], collapse = ", "),
-      " have no emp_sel row for endyr (", data_list$endyr, ") for at least one sex, so ",
-      "selectivity is 0 in that year, and reference points and projected F read it. Add ",
-      "a row for endyr, or use Year = 0 to apply one curve to every year."), call. = FALSE)
+      "Fishery fleet(s) ", paste(fc[["Fleet_name"]][candidates[bad]], collapse = ", "),
+      ", whose Selectivity is 'Fixed', have no emp_sel row for endyr (", data_list[["endyr"]],
+      ") for at least one sex, so that sex's selectivity is 0 in that year: the fleet ",
+      "takes none of that sex there, and projected F reads the zero (as do Ftarget and ",
+      "Flimit when it is the female or only sex). ",
+      "Add emp_sel rows with Year = endyr or, if the selectivity does not change over ",
+      "time, replace their rows with Year = 0 rows; Sex = 0 covers every sex."),
+      call. = FALSE)
   }
   invisible(NULL)
 }
 
-# Fixed selectivity is at age whatever Selectivity_dimension says, so CAAL on a Fixed
-# fleet labelled "Length" is as unpredicted as on an age-dimensioned one.
+#' Warn about CAAL data on a Fixed fleet labelled Length
+#'
+#' Fixed selectivity is at age whatever Selectivity_dimension says, so CAAL on a Fixed
+#' fleet labelled "Length" is as unpredicted as on an age-dimensioned one.
+#'
+#' @param fc The fleet_control table.
+#' @param caal_fleets Fleet codes with CAAL rows the fit uses.
+#' @noRd
 .warn_caal_fixed_fleet <- function(fc, caal_fleets) {
-  fixed <- fc$Fleet_code %in% caal_fleets & .rce_is_fixed_sel(fc$Selectivity) &
-    as.character(fc$Selectivity_dimension) %in% "Length"
+  fixed <- fc[["Fleet_code"]] %in% caal_fleets & .rce_is_fixed_sel(fc[["Selectivity"]]) &
+    as.character(fc[["Selectivity_dimension"]]) %in% "Length"
   if (any(fixed)) {
     warning(paste0(
-      "CAAL data on fleet(s) ", paste(fc$Fleet_name[fixed], collapse = ", "),
-      " whose Selectivity is 'Fixed'. Fixed selectivity is always at age, so ",
-      "pred_CAAL is zero and these observations inform nothing, whatever ",
-      "Selectivity_dimension says. Estimate this fleet's selectivity at length, ",
-      "or drop its caal_data rows."), call. = FALSE)
+      "CAAL data on fleet(s) ", paste(fc[["Fleet_name"]][fixed], collapse = ", "),
+      " whose Selectivity is 'Fixed'. Fixed selectivity is always at age, whatever ",
+      "Selectivity_dimension says, so the predicted CAAL is zero and these observations ",
+      "inform nothing. Give these fleets a Selectivity other than 'Fixed', or exclude ",
+      "their caal_data rows from the fit (Sample_size = 0 or Year < 0)."), call. = FALSE)
   }
   invisible(NULL)
 }
@@ -2736,7 +2747,7 @@ data_check <- function(data_list) {
                  as.character(col_or_na("Selectivity_dimension")) == "Length"
     np_form   <- .canon_switch(col_or_na("Selectivity"), sel_map) %in%
                    bin_indexed_forms
-    bfs       <- suppressWarnings(as.integer(col_or_na("Bin_first_selected")))
+    bfs       <- suppressWarnings(as.integer(.rce_first_selected(data_list)$bin))
     names_bin <- !is.na(bfs) & bfs > 1L
     for (cl in intersect(bin_cols, names(fc))) {
       # Strictly positive: on every one of these columns 0 or below is a
@@ -2769,4 +2780,29 @@ data_check <- function(data_list) {
     }
   }
   errors
+}
+
+#' Refuse analytical catchability on an index family with no closed-form q
+#'
+#' `Catchability = "Analytical"` solves the q that maximizes the index likelihood in
+#' closed form. A truncated normal has no closed-form q: its truncation term,
+#' log Phi(q * pred / sd), depends on q. An Off fleet is exempt, as its index is never fitted.
+#'
+#' @param data_list Rceattle data list.
+#' @keywords internal
+#' @noRd
+.check_analytical_q_family <- function(data_list) {
+  fc <- data_list[["fleet_control"]]
+  # Absent on a raw list given straight to data_check(), before switch_check() fills it.
+  if (!all(c("Catchability", "Index_distribution") %in% colnames(fc))) return(character(0))
+  canon <- function(col) .canon_switch(fc[[col]], .rce_allowed_map(col))
+  bad <- which(canon("Catchability") == "Analytical" &
+               canon("Index_distribution") == "TruncatedNormal" &
+               canon("Fleet_type") != "Off")
+  if (!length(bad)) return(character(0))
+  paste0("Fleet(s) ", paste(fc[["Fleet_name"]][bad], collapse = ", "),
+         " combine Catchability = 'Analytical' with Index_distribution = ",
+         "'TruncatedNormal'. Analytical q is the closed-form maximum likelihood q, and ",
+         "the truncated normal has no closed-form q: its truncation term depends on q. ",
+         "Set Catchability = 'Estimated' for these fleets.")
 }

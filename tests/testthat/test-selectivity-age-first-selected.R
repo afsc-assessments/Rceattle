@@ -150,35 +150,86 @@ testthat::test_that("an age-based fleet reads Bin_first_selected as the age it n
   bad$fleet_control$Age_first_selected <- c(4.5, NA)
   testthat::expect_error(suppressMessages(data_check(switch_check(bad))),
                          "Age_first_selected (4.5) must be a whole age", fixed = TRUE)
+
+  bad_bin <- old
+  bad_bin$fleet_control$Bin_first_selected <- c(1.5, NA)
+  testthat::expect_error(suppressMessages(data_check(switch_check(bad_bin))),
+                         "Bin_first_selected (1.5) must be a whole bin", fixed = TRUE)
+
+  bad_nsb <- d
+  bad_nsb$fleet_control$Selectivity[1] <- "NonParametric"
+  bad_nsb$fleet_control$Sel_curve_pen1[1] <- 5
+  bad_nsb$fleet_control$Sel_curve_pen2[1] <- 10
+  bad_nsb$fleet_control$N_sel_bins[1] <- 2
+  bad_nsb$fleet_control$Age_first_selected <- c(5, NA)       # age 5 > max age 4 (minage 3 + 2 - 1)
+  testthat::expect_error(suppressMessages(data_check(switch_check(bad_nsb))),
+                         "Age_first_selected (5) leaves no estimated selectivity coefficients below N_sel_bins (2); it must be at most age 4",
+                         fixed = TRUE)
 })
 
 
 testthat::test_that("the old spelling is reported once per fit", {
   d <- make_test_data(nyrs = 6, nprojyrs = 2, nages = 5)
   d$fleet_control$Age_first_selected <- NULL
-  d$fleet_control$Bin_first_selected <- 1
-  msgs <- character(0)
-  withCallingHandlers(
-    suppressWarnings(fit_mod(data_list = d, estimateMode = 3, msmMode = 0,
-                             fit_control = fit_control(verbose = 0))),
-    message = function(cnd) {
-      msgs <<- c(msgs, conditionMessage(cnd))
-      invokeRestart("muffleMessage")
-    })
-  testthat::expect_equal(sum(grepl("'Bin_first_selected' on an age-based fleet is deprecated",
-                                   msgs, fixed = TRUE)), 1)
+  d$fleet_control$Bin_first_selected <- c(2, 1)
+  capture_dep <- function(dd) {
+    msgs <- character(0)
+    withCallingHandlers(
+      suppressWarnings(fit_mod(data_list = dd, estimateMode = 3, msmMode = 0,
+                               fit_control = fit_control(verbose = 0))),
+      message = function(cnd) {
+        msgs <<- c(msgs, conditionMessage(cnd))
+        invokeRestart("muffleMessage")
+      })
+    msgs[grepl("'Bin_first_selected' on an age-based fleet is deprecated", msgs, fixed = TRUE)]
+  }
+  msgs <- capture_dep(d)
+  testthat::expect_length(msgs, 1)
+  testthat::expect_match(msgs, "Read as age 2 for fleet(s) Survey.", fixed = TRUE)
+
+  # Bin_first_selected = 1 (equals a blank) and Fixed/Off fleets are not flagged.
+  d1 <- d
+  d1$fleet_control$Bin_first_selected <- 1
+  testthat::expect_length(capture_dep(d1), 0)
+  dfix <- d
+  dfix$fleet_control$Fleet_type[1] <- "Off"
+  testthat::expect_length(capture_dep(dfix), 0)
 })
 
 
 testthat::test_that("Age_first_selected round-trips through write_data() and read_data()", {
   d <- GOA2018SS
   f <- tempfile(fileext = ".xlsx")
-  on.exit(unlink(f))
+  on.exit(unlink(f), add = TRUE)
   suppressMessages(write_data(d, f))
   rt <- suppressMessages(read_data(f))
   testthat::expect_identical(as.numeric(rt$fleet_control$Age_first_selected),
                              as.numeric(d$fleet_control$Age_first_selected))
   testthat::expect_true(any(!is.na(d$fleet_control$Age_first_selected)))
+
+  # A data_list with Age_first_selected and no Bin_first_selected column (at
+  # minage = 3, on both age- and length-based fleets) writes both columns so
+  # read_data() does not treat it as pre-4.0.1.
+  d3 <- make_test_data(nyrs = 6, nprojyrs = 2, nages = 6, minage = 3)
+  d3$fleet_control$Bin_first_selected <- NULL
+  d3$fleet_control$Selectivity_dimension <- c("Age", "Length")
+  d3$fleet_control$Age_first_selected <- c(5L, 4L)
+  f3 <- tempfile(fileext = ".xlsx")
+  on.exit(unlink(f3), add = TRUE)
+  suppressMessages(write_data(d3, f3))
+  msgs3 <- character(0)
+  withCallingHandlers(rt3 <- read_data(f3), message = function(cnd) {
+    msgs3 <<- c(msgs3, conditionMessage(cnd))
+    invokeRestart("muffleMessage")
+  })
+  testthat::expect_false(any(grepl("pre-4.0.1", msgs3, fixed = TRUE)))
+  testthat::expect_identical(as.integer(rt3$fleet_control$Age_first_selected), c(5L, 4L))
+  r_d3  <- suppressMessages(rearrange_data(switch_check(d3)))
+  r_rt3 <- suppressMessages(rearrange_data(switch_check(rt3)))
+  testthat::expect_identical(r_rt3$bin_first_selected, c(2L, 0L))
+  testthat::expect_identical(r_rt3$age_first_selected, c(0L, 1L))
+  testthat::expect_identical(r_rt3$bin_first_selected, r_d3$bin_first_selected)
+  testthat::expect_identical(r_rt3$age_first_selected, r_d3$age_first_selected)
 })
 
 
@@ -250,6 +301,13 @@ testthat::test_that("a workbook from before the rename reads its column as Bin_f
   writexl::write_xlsx(wb, f_old)
 
   testthat::expect_message(old <- read_data(f_old), "pre-4.0.1 name", fixed = TRUE)
-  testthat::expect_false("Age_first_selected" %in% names(old$fleet_control))
+  testthat::expect_true(all(is.na(old$fleet_control$Age_first_selected)))
   testthat::expect_identical(.afs_bins(old), c(1L, 0L))      # bin 2, age 3
+
+  # Assigning one fleet's Age_first_selected after read_data() does not recycle
+  # across rows.
+  old$fleet_control$Bin_first_selected[1] <- NA
+  old$fleet_control$Age_first_selected[1] <- 4L
+  testthat::expect_identical(as.integer(old$fleet_control$Age_first_selected), c(4L, NA))
+  testthat::expect_identical(.afs_bins(old), c(2L, 0L))
 })

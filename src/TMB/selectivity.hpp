@@ -136,14 +136,14 @@ void convert_length_selectivity(
  * - 2 NonParametric (Ianelli et al. 2018, AMAK): one log coefficient per bin, mean-centred.
  * - 3 DoubleLogistic (Dorn and Methot 1990).
  * - 4 DescendingLogistic.
- * - 5 Hake (Taylor et al. 2014): exp of the cumulative sum of coefficients.
- * - 6 2DAR1: inverse logit of coefficients with AR1 deviates by bin and year.
- * - 7 3DAR1 (Cheng et al. 2024): as 6, with a cohort term.
+ * - 5 Hake (Taylor et al. 2015): exp of the cumulative sum of coefficients.
+ * - 6 2DAR1 (deviations as in Xu et al. 2019): inverse logit of coefficients with AR1 deviates by bin and year.
+ * - 7 3DAR1: as 6, with a cohort term; the weight-at-age GMRF of Cheng et al. 2023.
  * - 8 DoubleNormal: Gaussian dome with a right-tail floor.
  * - 9 NonParametricPM (AMAK "pm"): random walk on the log curve, capped at Sel_cap_bin.
  * - 11 LogisticPM (AMAK "pm" bottom-trawl survey): multiplicative deviates, free first bin.
  * - 13 NonParametricIntegrable: form 2 with deviates random_sel can integrate.
- * - 15 DoubleNormalSS3: Stock Synthesis size pattern 24 (age pattern 20).
+ * - 15 DoubleNormalSS3: Stock Synthesis size pattern 24 (age pattern 20; Methot and Wetzel 2013).
  *
  * Which linkage offsets a form accepts is checked in R, by .check_sel_linkage_support().
  */

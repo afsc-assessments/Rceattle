@@ -7,6 +7,11 @@
 \format{
 A list with the same structure as \code{\link{BS2017SS}}.
 }
+\source{
+Built from case 3 of the WHAM growth examples by Giancarlo Correa
+and Jane Sullivan for the Ocean Frontier Institute's 2023 workshop,
+\url{https://giancarlomcorrea.netlify.app/post/ofi-workshop/}.
+}
 \usage{
 whamGrowthData
 }

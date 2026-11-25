@@ -66,7 +66,6 @@ test_that("a time block held for every earlier year stays held in its new years"
 test_that(".map_holds() reads a Laplace hyperparameter and a cell fixed only in mapFactor", {
   d <- make_test_data()
   d$fleet_control$Time_varying_sel[1] <- "IID"
-  d$fleet_control$Sel_dev_sd[1] <- 0.2
   fit <- suppressWarnings(suppressMessages(fit_mod(
     data_list = d, estimateMode = 3, random_rec = TRUE, random_sel = TRUE,
     fit_control = fit_control(verbose = 0, phase = FALSE, getsd = FALSE))))

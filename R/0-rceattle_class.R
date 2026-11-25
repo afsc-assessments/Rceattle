@@ -169,11 +169,8 @@ print.summary.Rceattle <- function(x, n = 10, ...) {
           sep = "")
     }
     if (all(is.na(cf$std_error))) {
-      # The user needs to know which reason: a peel whose rebuild failed, no
-      # sdreport at all, a peel's F-only estimates beside its hindcast's covariance,
-      # or variances that are unusable (Hessian not positive definite).
-      # A print method must not stop, so an unreadable spec falls back to the
-      # commoner reason.
+      # Name the reason. A print method must not stop, so an unreadable spec
+      # falls back to the commoner reason.
       v <- tryCatch(stats::vcov(x$spec), error = function(e) NULL)
       peel_reason <- attr(x$spec, "sd_report_error", exact = TRUE)
       if (!is.null(peel_reason)) {
@@ -234,7 +231,9 @@ plot.Rceattle <- function(x, what = "biomass", ...) {
     c("biomass", "ssb", "recruitment", "depletion", "ssb_depletion",
       "index", "catch", "selectivity", "mortality", "data")
   )
-  switch(
+  # The plotters return a ggplot that draws only when printed, and a value
+  # computed inside a function is never auto-printed, so print it here.
+  p <- switch(
     what,
     biomass      = plot_biomass(x, ...),
     ssb          = plot_ssb(x, ...),
@@ -251,6 +250,10 @@ plot.Rceattle <- function(x, what = "biomass", ...) {
     mortality    = plot_mortality(x, ...),
     data         = plot_data(x, ...)
   )
+  # plot_selectivity() returns a list of ggplots for a model mixing age- and
+  # length-based fleets; plot_data() returns NULL when no data match.
+  if (inherits(p, "ggplot")) p <- list(p)
+  for (g in p) print(g)
   invisible(NULL)
 }
 

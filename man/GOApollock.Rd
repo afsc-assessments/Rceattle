@@ -7,6 +7,14 @@
 \format{
 A list with the same structure as \code{\link{BS2017SS}}.
 }
+\source{
+The 2018 assessment, set up in CEATTLE (not the operational model):
+Dorn, M., Aydin, K., Fissel, B., Palsson, W., Spalinger, K., Stienessen,
+S., Williams, K., and Zador, S. 2018. Assessment of the walleye pollock
+stock in the Gulf of Alaska. In: Stock assessment and fishery evaluation
+report for the groundfish resources of the Gulf of Alaska. North Pacific
+Fishery Management Council, Anchorage, AK.
+}
 \usage{
 GOApollock
 }

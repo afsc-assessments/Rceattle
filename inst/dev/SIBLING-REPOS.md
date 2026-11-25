@@ -11,6 +11,8 @@ breaking change here breaks scripts that produce federal catch advice.
   see its section below.
 - **`../GOA-multispecies-assessment`** — the GOA multispecies assessment; `run_all.R` and
   `R/02_fit_models.R` call `Rceattle::` directly.
+- **`../GOA_circlulation_study`** — DSEM-linked GOA models, run on the `dev-DSEM` branch
+  (`Rceattle DSEM models - Grant.R`, `Forecast skill.R`).
 - **Ignore `EBS_CEATTLE_TMB`** — a vendored fork, not a consumer.
 
 Fitted `*.rds` are ~50 MB each. Keep them out of git.
@@ -18,7 +20,7 @@ Fitted `*.rds` are ~50 MB each. Keep them out of git.
 ## Sweeping
 
 ```
-grep -rn "<symbol>" --include=*.R "../Rceattle-models" "../GOA-ATF-ESP" "../Climate_MSE" "../GOA-multispecies-assessment"
+grep -rn "<symbol>" --include=*.R "../Rceattle-models" "../GOA-ATF-ESP" "../Climate_MSE" "../GOA-multispecies-assessment" "../GOA_circlulation_study"
 ```
 
 **A workbook sweep is only a result next to a BASELINE.** Reading every consumer workbook through
@@ -202,18 +204,25 @@ Hake, arrowtooth and sablefish. Unchanged since 2026-08-17 (`72bd887`, Rceattle-
 table below is live rather than historical. Four fits plus `run_mse(nsim = 2, cores = 2)` take
 ~3.75 min together on an M-series Mac.
 
+**5.67.0 moves every stage by -0.16866** (2026-11-05): this script's `Hake_survey`
+(`300426_SBF_ATF_Hake_Final.xlsx`) is also `Catchability = "Analytical"` with the sd input by
+year, so q rises 5.33% (1.148243 to 1.209406 in the single-species stages). Hake terminal SSB
+moves by at most 0.0024%; every Hessian stays positive-definite. Measured on #306's branch
+(on 5.66.11, before #303-#305 and #307 were merged in), `run_mse()` included, 5.2 min, and
+not re-run on the release tree; 5.66.11, run alongside it, reproduced the 5.48.0 column to 2e-8.
+
 Reference objectives on 5.33.0 (2026-09-11), after its lognormal priors became mean-centred
 under `bias_adjust_proc`. The 5.32.1 values are in the right-hand column; the change comes from the DM
 `prior_lognormal(0, 2)` weights and the M prior. Survey DM theta fell from 35 to 25
 (single-species) and 32 to 23 (MSVPA); hake terminal SSB changed by at most 0.71%. Every fit kept a
 positive-definite Hessian. The 5.32.1 column is measured on dev `cff500c7`.
 
-| Stage | -log L (5.33.0) | 5.48.0 | 5.32.1 |
-|---|---|---|---|
-| single-species | 2136.8588547522 | 2136.8588547554 | 2133.8207228717 |
-| single-species + category-1 HCR | 2137.5094597505 | 2137.5094602853 | 2134.4713944220 |
-| MSVPA, estimated M | 2140.4295989555 | 2140.4295989804 | 2137.4433306648 |
-| estimated suitability | 2267.4725502601 | 2267.4725502653 | 2260.7063099168 |
+| Stage | -log L (5.67.0) | 5.33.0 | 5.48.0 | 5.32.1 |
+|---|---|---|---|---|
+| single-species | 2136.6901922868 | 2136.8588547522 | 2136.8588547554 | 2133.8207228717 |
+| single-species + category-1 HCR | 2137.3407957825 | 2137.5094597505 | 2137.5094602853 | 2134.4713944220 |
+| MSVPA, estimated M | 2140.2609364954 | 2140.4295989555 | 2140.4295989804 | 2137.4433306648 |
+| estimated suitability | 2267.3038877772 | 2267.4725502601 | 2267.4725502653 | 2260.7063099168 |
 
 **Confirmed at 5.48.0** (2026-10-02): all four reproduce the 5.33.0 references to between 3.2e-09
 and 5.3e-07 absolute, 2.5e-10 relative at worst, and `run_mse()` ran end to end for both sims.
@@ -246,8 +255,8 @@ fit prints 4.5215 and 3.3794, so it is not that transform. The 0.8172 / 0.7686 r
 (stage 4 2260.7063), and the mean-centring in 5.33.0 moved that fit by 6.8 nats, so a different
 optimum is the expected result rather than drift. The script's own inline comments give the first
 three ~5 higher and the fourth as 2262.318: those are Rceattle 5.6.1 numbers that still included
-the `theta_diet` prior constants. `README.md` in that folder records the "clean" values, which are
-what the current package reproduces.
+the `theta_diet` prior constants. `README.md` in that folder records the 5.6.1 "clean" values; the
+table above supersedes them.
 
 ### `MSE_yr2024.R` — the four-species MSE
 
@@ -261,15 +270,27 @@ Ianelli penalty became mean-centred; 5.32.1 on the right. Hake terminal SSB chan
 0.86%, survey DM theta fell from 43-49 to 31-35 and diet theta from 94.2 to 56.5 and 18.4 to 11.8 (the M-estimated fits), and every fit kept a
 positive-definite Hessian. The script ran end to end, `run_mse()` included.
 
-| Fit | -log L (5.64.0) | 5.33.0 | 5.32.1 |
-|---|---|---|---|
-| `ss_run_DM_CSL` | 2440.0941615018 | 2440.0941615088 | 2436.8886423469 |
-| `ss_run_DM_hcr_CSL` | 2440.6633383397 | 2440.6633379056 | 2437.4573180484 |
-| `ms_run_DM_CSL` | 2447.0048917398 | 2447.0048917469 | 2443.8538668697 |
-| `run_ms_CSL_Mest_prior_DM_CSL` | 2669.3775501963 | 2669.3775502006 | 2663.8053181169 |
-| `run_ms_CSL_Mest_prior_DM_CSL_BH` | 2735.6792676725 | 2735.6792676724 | n/a (see below) |
-| `run_ms_CSL_Mest_prior_DM_CSL_stable` | 2669.3775501963 | 2669.3775502006 | 2663.8053181169 |
-| `ss_run_DM_hcr_B0` | 2440.0941615018 | 2440.0941615088 | 2436.8886423469 |
+| Fit | -log L (5.67.0) | 5.64.0 | 5.33.0 | 5.32.1 |
+|---|---|---|---|---|
+| `ss_run_DM_CSL` | 2439.8745021712 | 2440.0941615018 | 2440.0941615088 | 2436.8886423469 |
+| `ss_run_DM_hcr_CSL` | 2440.4436787246 | 2440.6633383397 | 2440.6633379056 | 2437.4573180484 |
+| `ms_run_DM_CSL` | 2446.7852323978 | 2447.0048917398 | 2447.0048917469 | 2443.8538668697 |
+| `run_ms_CSL_Mest_prior_DM_CSL` | 2669.1578908528 | 2669.3775501963 | 2669.3775502006 | 2663.8053181169 |
+| `run_ms_CSL_Mest_prior_DM_CSL_BH` | 2735.4596083200 | 2735.6792676725 | 2735.6792676724 | n/a (see below) |
+| `run_ms_CSL_Mest_prior_DM_CSL_stable` | 2669.1578908528 | 2669.3775501963 | 2669.3775502006 | 2663.8053181169 |
+| `ss_run_DM_hcr_B0` | 2439.8745021712 | 2440.0941615018 | 2440.0941615088 | 2436.8886423469 |
+
+**5.67.0 moves every row by -0.21966** (2026-11-05): `Hake_survey` is `Catchability =
+"Analytical"` with the sd input by year, and analytical q now carries the lognormal bias term,
+so q rises by about exp(0.1171517 / 2) = 1.060325, 0.1171517 being the harmonic mean of the 15
+fitted years' sd^2. Measured: 1.06032-1.06033 across the seven fits (1.219961 to 1.293555 in the
+three single-species fits). Hake terminal SSB moves by at most 0.0019%, and every Hessian stays
+positive-definite. First measured on a pre-release build that had only the lognormal change;
+hake's survey is lognormal with no missing year, so the Normal/MVN forms and the missing-year
+guard cannot move it. 5.66.11, run alongside it, reproduced the 5.64.0 column to every digit
+shown. **Confirmed on the release tree** (dev 9b643b28, tree 4cd95f11) on 2026-11-05,
+explicit-lib install asserted as 5.67.0: all seven fits reproduce the 5.67.0 column to 1e-10
+absolute, and `run_mse(nsim = 2, cores = 2)` completed (21.7 min).
 
 Re-recorded on **5.64.0** (2026-10-15), run against an explicit-`lib` install with the version
 asserted before the script was sourced, `run_mse(nsim = 2, cores = 2)` included, 0 errors, 14.5
@@ -286,7 +307,8 @@ earlier 2737.74 and the 5.32.1 value came from drafts of that section without th
 has a positive-definite Hessian and max gradient 5.9e-4; hake alpha is 99.87 and beta 7.63e-6, so
 1/beta (1.3e5 t) lies well below observed SSB (0.80-3.29 million t) and R/R_max is 0.86 / 0.93 /
 0.96 at the minimum / median / maximum. With an SD of 0.05 the prior, not the data, sets alpha.
-`run_mse()` takes the `_stable` fit as its OM, not this one, so the prior leaves the MSE unchanged.
+`run_mse()` takes this `_BH` fit as its OM and `ss_run_DM_hcr_B0` as its EM, so the alpha prior
+does reach the MSE.
 
 Two of those equalities are structural, not coincidences: the `_stable` refit starts from its
 parent's `data_list` and returns to the same optimum, and `ss_run_DM_hcr_B0` matches

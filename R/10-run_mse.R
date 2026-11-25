@@ -232,7 +232,8 @@
 
 # Projection rows for the fixed biological inputs ------------------------------
 #
-# `weight` (weight-at-age, kg) and `ration_data` (annual foraging days) are held
+# `weight` (weight-at-age, kg) and `ration_data` (a relative foraging rate, or
+# annual ration in kg per predator under `Ceq = 4`) are held
 # at the operating model's terminal hindcast year: each series' last hindcast
 # row is repeated, one row per projection year.
 #
@@ -320,12 +321,23 @@
 
 #' Run a management strategy evaluation
 #'
-#' @description Runs a forward-projecting management strategy evaluation (MSE).
-#'   Projected selectivity, catchability, foraging days and weight-at-age are
-#'   held at the operating model's terminal hindcast year, survey SD is the
-#'   average over the historical series, and composition sample size is held at
-#'   the last year. There is no implementation error and no observation error on
-#'   catch. Fixed numbers-at-age (`estDynamics > 0`) are an input rather than a
+#' @description Runs a forward-projecting management strategy evaluation
+#'   (MSE; Punt et al. 2016). In the years each assessment adds, the operating
+#'   model holds its
+#'   selectivity and catchability deviations at its terminal hindcast year (a
+#'   form whose deviations are year-to-year increments takes an increment of 0);
+#'   its M1 deviations take its projection values (0 where estimated by year, an
+#'   input series as given). The estimation model starts its own from those
+#'   values and re-estimates any its map leaves free. Empirical selectivity,
+#'   ration and weight-at-age stay at each model's terminal hindcast year. An index's
+#'   `Log_sd` and a composition's `Sample_size` are copied from the fleet's last
+#'   historical row and scaled by `fut_sample`. Unlike a [retrospective()] peel,
+#'   `run_mse()` holds no linkage effect: covariates read `env_data` as given,
+#'   and a q or selectivity linkage random effect takes the operating model's
+#'   own estimate for each added year (a random walk its terminal value, an AR1
+#'   its decay toward 0, an IID effect 0). There is no implementation error and
+#'   no observation error on catch.
+#'   Fixed numbers-at-age (`estDynamics > 0`) are an input rather than a
 #'   forecast, so they are NOT held forward: supply `NByageFixed` rows for every
 #'   projection year, or the uncovered years read 0 and that species contributes
 #'   nothing, with a warning naming it.
@@ -343,9 +355,10 @@
 #'   value or vector the same length as the number of fleets.
 #' @param simulate_data Include simulated random error proportional to that
 #'   estimated or provided for the data from the OM.
-#' @param regenerate_past Refit the EM to historical conditioning data before
-#'   the MSE, generated from the OM with or without sampling error according to
-#'   \code{simulate_data}.
+#' @param regenerate_past Refit the EM before the MSE to historical index,
+#'   composition and CAAL data regenerated from the OM, with observation error
+#'   when \code{simulate_data = TRUE} (drawn once and shared by every simulation)
+#'   and as expected values otherwise.
 #' @param sample_rec Include resampled hindcast recruitment deviations in the OM
 #'   projection. Resampled rather than drawn from N(0, sigmaR) because the
 #'   initial deviations bias R0 low. `FALSE` uses the single deviation described
@@ -374,7 +387,9 @@
 #'   If NULL, no files are saved.
 #' @param dir (Optional) Directory where each OM simulation is saved
 #' @param seed seed for the simulation
-#' @param regenerate_seed seed for regenerating data
+#' @param regenerate_seed Seed for the observation error drawn into the
+#'   regenerated past data (\code{regenerate_past} and \code{simulate_data} both
+#'   \code{TRUE}). Default \code{seed}.
 #' @param timeout Minutes estimation runs before a sim is stopped (default 999)
 #' @param endyr Terminal year of the MSE projection. Default NA uses
 #'   \code{projyr} from the operating model.
@@ -415,6 +430,10 @@
 #'
 #' @return A list of operating models (differing by simulated recruitment, per
 #'   \code{nsim}) and estimation models fit to each (differing by terminal year).
+#' @references
+#' Punt, A.E., Butterworth, D.S., de Moor, C.L., De Oliveira, J.A.A., and
+#'   Haddon, M. 2016. Management strategy evaluation: best practices. Fish Fish.
+#'   17:303-334.
 #' @examples
 #' \dontrun{
 #' data(BS2017SS)
@@ -587,6 +606,10 @@ run_mse <- function(om, em, nsim = 10, start_sim = 1, assessment_period = 1, sam
   sample_yrs = data.frame(Fleet_code = unlist(fleet_id), Year = unlist(sample_yrs))
 
 
+  # regenerate_past draws from the OM as fitted: sim_mod() simulates every row
+  # its TMB object was built with, including the ones the filter below drops.
+  if (regenerate_past) past_sim <- sim_mod(om, simulate = simulate_data)
+
   # * Filter arbitrary "future" data ----
   # -- index_data
   om$data_list$index_data <- om$data_list$index_data |>
@@ -610,12 +633,14 @@ run_mse <- function(om, em, nsim = 10, start_sim = 1, assessment_period = 1, sam
   # Regenerate past data from OM and refit EM ----
   if(regenerate_past){
 
-    # - Simulate index and comp data and updatae EM
-    sim_dat <- sim_mod(om, simulate = FALSE)
-
-    em$data_list$index_data <- sim_dat$index_data
-    em$data_list$comp_data <- sim_dat$comp_data
-    em$data_list$caal_data <- sim_dat$caal_data
+    # - The OM's index, comp and CAAL data (drawn above, with observation error
+    #   under simulate_data, else expected values), cut to the EM's years.
+    in_em_years <- function(x) {
+      dplyr::filter(x, abs(Year) <= em$data_list$endyr)
+    }
+    em$data_list$index_data <- in_em_years(past_sim$index_data)
+    em$data_list$comp_data <- in_em_years(past_sim$comp_data)
+    em$data_list$caal_data <- in_em_years(past_sim$caal_data)
 
     # Re-estimate
     em <- .refit_like(
@@ -863,14 +888,11 @@ run_mse <- function(om, em, nsim = 10, start_sim = 1, assessment_period = 1, sam
       # -- log_F
       om_use$estimated_params$log_F <- cbind(om_use$estimated_params$log_F, matrix(0, nrow= nrow(om_use$estimated_params$log_F), ncol = length(new_years)))
 
-      # -- M1_dev
-      #FIXME - simulate
-      # om_use$estimated_params$log_M1_dev[,,,(nyrs_hind + 1):(nyrs_hind + length(new_years))] <- om_use$estimated_params$log_M1_dev[,,,nyrs_hind]
 
-      # -- Time-varying survey catchability - assume last year, filled by columns
-      om_use$estimated_params$index_q_dev <- cbind(om_use$estimated_params$index_q_dev, matrix(om_use$estimated_params$index_q_dev[,ncol(om_use$estimated_params$index_q_dev)], nrow= nrow(om_use$estimated_params$index_q_dev), ncol = length(new_years)))
+      # -- q and selectivity deviations: padded with 0; the new years then take the
+      #    last year's (the operating model's truth). M1 keeps its projection values.
+      om_use$estimated_params$index_q_dev <- cbind(om_use$estimated_params$index_q_dev, matrix(0, nrow= nrow(om_use$estimated_params$index_q_dev), ncol = length(new_years)))
 
-      # -- Time-varying selectivity - assume last year, filled by columns.
       # Use the fitted arrays' own sex extent (max_sex), not a hardcoded 2: a
       # single-sex model has sex-dim 1, and forcing 2 silently recycles the
       # fitted values into a phantom second sex (and, since build_params sizes
@@ -884,13 +906,10 @@ run_mse <- function(om, em, nsim = 10, start_sim = 1, assessment_period = 1, sam
       sel_inf_dev[,,,1:nyrs_hind] <- om_use$estimated_params$sel_inf_dev
       sel_coff_dev[,,,1:nyrs_hind] <- om_use$estimated_params$sel_coff_dev
 
-      log_sel_slp_dev[,,,(nyrs_hind + 1):(nyrs_hind + length(new_years))] <- log_sel_slp_dev[,,,nyrs_hind]
-      sel_inf_dev[,,,(nyrs_hind + 1):(nyrs_hind + length(new_years))] <- sel_inf_dev[,,,nyrs_hind]
-      sel_coff_dev[,,,(nyrs_hind + 1):(nyrs_hind + length(new_years))] <- sel_coff_dev[,,,nyrs_hind]
-
       om_use$estimated_params$log_sel_slp_dev <- log_sel_slp_dev
       om_use$estimated_params$sel_inf_dev <- sel_inf_dev
       om_use$estimated_params$sel_coff_dev <- sel_coff_dev
+      om_use$estimated_params <- .hold_devs(om_use$estimated_params, om_use$data_list, nyrs_hind)
 
 
       # * Update map ----
@@ -941,8 +960,10 @@ run_mse <- function(om, em, nsim = 10, start_sim = 1, assessment_period = 1, sam
             # period (srr_*) and the suitability window (suit_*) are pinned to
             # the PRISTINE om$ (not the advancing om_use$) so both stay fixed
             # through the projection -- critical for multispecies models, whose
-            # predation suitability must not drift over the MSE. The OM projects
-            # on mean recruitment across sim iterations (proj_mean_rec = TRUE).
+            # predation suitability must not drift over the MSE. Past its new
+            # endyr the OM projects at mean hindcast recruitment (proj_mean_rec =
+            # TRUE); the years it adds are hindcast years, where sample_rec()'s
+            # deviations apply.
             om_use <- .refit_like(
               data_list        = om_use$data_list,
               inits            = om_use$estimated_params,
@@ -1083,13 +1104,11 @@ run_mse <- function(om, em, nsim = 10, start_sim = 1, assessment_period = 1, sam
       # -- log_F
       em_use$estimated_params$log_F <- cbind(em_use$estimated_params$log_F, matrix(0, nrow= nrow(em_use$estimated_params$log_F), ncol = length(new_years)))
 
-      # # -- log_M1_dev
-      # em_use$estimated_params$log_M1_dev[,,,(nyrs_hind + 1):(nyrs_hind + length(new_years))] <- em_use$estimated_params$log_M1_dev[,,,nyrs_hind]
 
-      # -- Time-varying survey catchability - assume last year, filled by columns
-      em_use$estimated_params$index_q_dev <- cbind(em_use$estimated_params$index_q_dev, matrix(em_use$estimated_params$index_q_dev[,ncol(em_use$estimated_params$index_q_dev)], nrow= nrow(em_use$estimated_params$index_q_dev), ncol = length(new_years)))
+      # -- q and selectivity deviations: padded with 0; the new years then start at
+      #    the last year's (the EM refits them). M1 starts at its projection values.
+      em_use$estimated_params$index_q_dev <- cbind(em_use$estimated_params$index_q_dev, matrix(0, nrow= nrow(em_use$estimated_params$index_q_dev), ncol = length(new_years)))
 
-      # -- Time-varying selectivity - assume last year, filled by columns.
       # Sex extent from the fitted arrays (max_sex), not a hardcoded 2 -- see
       # the OM extension above.
       n_sex_em <- dim(em_use$estimated_params$log_sel_slp_dev)[3]
@@ -1101,14 +1120,10 @@ run_mse <- function(om, em, nsim = 10, start_sim = 1, assessment_period = 1, sam
       sel_inf_dev[,,,1:nyrs_hind] <- em_use$estimated_params$sel_inf_dev
       sel_coff_dev[,,,1:nyrs_hind] <- em_use$estimated_params$sel_coff_dev
 
-      # - Initialize new years with last year
-      log_sel_slp_dev[,,,(nyrs_hind + 1):(nyrs_hind + length(new_years))] <- log_sel_slp_dev[,,,nyrs_hind]
-      sel_inf_dev[,,,(nyrs_hind + 1):(nyrs_hind + length(new_years))] <- sel_inf_dev[,,,nyrs_hind]
-      sel_coff_dev[,,,(nyrs_hind + 1):(nyrs_hind + length(new_years))] <- sel_coff_dev[,,,nyrs_hind]
-
       em_use$estimated_params$log_sel_slp_dev <- log_sel_slp_dev
       em_use$estimated_params$sel_inf_dev <- sel_inf_dev
       em_use$estimated_params$sel_coff_dev <- sel_coff_dev
+      em_use$estimated_params <- .hold_devs(em_use$estimated_params, em_use$data_list, nyrs_hind)
 
 
       # Re-estimate

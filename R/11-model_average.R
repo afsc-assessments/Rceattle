@@ -8,6 +8,18 @@
 #' @param nboot Number of bootstraps taken from asymptotic distribution of MLEs. Default = 10000
 #'
 #' @return an Rceattle object with derived quantities weighted by the specified weights. The length of the derived quantities spans the years which overlap across all models.
+#'
+#' @details
+#' With `uncertainty = TRUE` each fit's parameters are drawn from its asymptotic
+#' covariance, so every fit needs an sdreport (`fit_control(getsd = TRUE)`) and
+#' a `fit$obj` in which the hindcast parameters are free. An
+#' `estimateMode = "Estimate"` fit under any harvest control rule but
+#' `"NoFishing"` leaves only the rule's F free in `fit$obj` unless it used
+#' `projection_uncertainty`, and a `"Projection"` fit with the default map holds
+#' every hindcast parameter fixed, so such fits are refused. Refit with
+#' `estimateMode = "Hindcast"`, which projects with no fishing, or, for a
+#' fixed-effects fit under any rule but `"ConstantF"`, with
+#' `estimateMode = "Estimate"` and `fit_control(projection_uncertainty = TRUE)`.
 #' @examples
 #' \dontrun{
 #' # Equal weights across two candidate models.
@@ -105,18 +117,42 @@ model_average <- function(object = NULL, weights = NULL, uncertainty = FALSE, nb
   if(uncertainty){
 
     # Assuming asymptotic multivariate normal
-    # - Must have estimated joint precision matrix
-    # TRUE where the model's sdrep carries a random block; a getsd = FALSE fit
-    # reads FALSE.
-    length_ran <- sapply(object, function(x) !is.null(x$sdrep$par.random))
-    joint_est <- sapply(object, function(x) is.null(x$sdrep$jointPrecision))
-    if(sum(length_ran) > 0){
-      if(sum(joint_est) > 0){
-        stop(paste("Model(s):", which(joint_est > 0)," do not have joint precision matrices: re-estimate with getJointPrecision = TRUE"))
-      }
+    # - `obj` must leave the hindcast free: under a fishing HCR build_hcr_map() leaves
+    #   only F free unless projection_uncertainty, and "Projection" (2) and
+    #   "DebugOptimize" (4) leave only F and/or `dummy`.
+    hcr_only <- sapply(object, function(x) {
+      all(names(x[["obj"]][["par"]]) %in% c("log_Ftarget", "log_Flimit", "dummy"))
+    })
+    if (any(hcr_only)) {
+      stop("Model(s) ", paste(which(hcr_only), collapse = ", "), " hold every ",
+           "hindcast parameter fixed in `fit$obj` (a \"Projection\" or ",
+           "\"DebugOptimize\" fit, or an ",
+           "\"Estimate\" fit under a fishing harvest control rule without ",
+           "projection_uncertainty), so ",
+           "their draws would leave every hindcast quantity at its estimate. Refit ",
+           "with estimateMode = \"Hindcast\", which projects with no fishing, or, for ",
+           "a fixed-effects fit under any rule but \"ConstantF\", with ",
+           "estimateMode = \"Estimate\" and fit_control(projection_uncertainty = TRUE).",
+           call. = FALSE)
+    }
+    no_sd <- sapply(object, function(x) is.null(x[["sdrep"]]))
+    if (any(no_sd)) {
+      stop("Model(s) ", paste(which(no_sd), collapse = ", "), " have no sdreport ",
+           "to draw from: refit with estimateMode = \"Estimate\" or \"Hindcast\" and ",
+           "fit_control(getsd = TRUE).", call. = FALSE)
+    }
 
+    # - Must have estimated joint precision matrix
+    # TRUE where the model's sdrep carries a random block.
+    length_ran <- sapply(object, function(x) !is.null(x$sdrep$par.random))
+    no_joint <- sapply(object, function(x) is.null(x$sdrep$jointPrecision))
+    if(sum(length_ran) > 0){
       if(sum(length_ran) != length(object)){
         stop("Does not currently support purely fixed and random effects models together")
+      }
+
+      if(sum(no_joint) > 0){
+        stop(paste("Model(s):", which(no_joint > 0)," do not have joint precision matrices: re-estimate with getJointPrecision = TRUE"))
       }
     }
 
@@ -139,19 +175,19 @@ model_average <- function(object = NULL, weights = NULL, uncertainty = FALSE, nb
     # Loop across models
     for(i in 1:length(object)){
 
-      # - Sample parameters from asymptotic normal distribution
+      # - Sample parameters from their asymptotic normal distribution. cov.fixed
+      #   is a covariance as it stands; the joint precision must be inverted.
       # - Models with random effects
       if(sum(length_ran) > 0){
         mle <- object[[i]]$obj$env$last.par.best # Includes fixed and random
         vcov <- solve(object[[i]]$sdrep$jointPrecision) # names(mle) == rownames(vcov)
-        vcov[1,1] <- 100
       }
 
 
       # - Fixed effects models
       if(sum(length_ran) == 0){
         mle <- object[[i]]$obj$env$last.par.best # Includes fixed
-        vcov <- solve(object[[i]]$sdrep$cov.fixed) # names(mle) == rownames(vcov)
+        vcov <- object[[i]]$sdrep$cov.fixed # names(mle) == rownames(vcov)
       }
       samples <- MASS::mvrnorm(draws[i], mu = mle, Sigma = vcov)
 

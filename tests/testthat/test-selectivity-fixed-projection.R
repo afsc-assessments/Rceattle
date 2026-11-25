@@ -95,12 +95,7 @@ testthat::test_that("data_check() warns when a Fixed fishery has no row for endy
   warns <- function(d) {
     d$HCR <- 0
     x <- suppressMessages(suppressWarnings(Rceattle::switch_check(Rceattle::clean_data(d))))
-    w <- character(0)
-    withCallingHandlers(suppressMessages(data_check(x)), warning = function(e) {
-      w <<- c(w, conditionMessage(e))
-      invokeRestart("muffleWarning")
-    })
-    any(grepl("no emp_sel row for endyr", w))
+    any(grepl("no emp_sel row for endyr", collect_warnings(suppressMessages(data_check(x)))))
   }
   d <- make_test_data(nyrs = 8, nages = 5, seed = 1)
   sel <- c(0.1, 0.4, 0.8, 1, 1)
@@ -124,14 +119,8 @@ testthat::test_that("the endyr warning keys on sex, and a blank Selectivity stil
           as.data.frame(matrix(1, 1, d$nages[1], dimnames = list(NULL, paste0("Comp_", seq_len(d$nages[1]))))))
   }
   w <- function(es) {
-    x <- d
-    x$emp_sel <- es
-    got <- character(0)
-    withCallingHandlers(.warn_fixed_fishery_endyr(x), warning = function(e) {
-      got <<- c(got, conditionMessage(e))
-      invokeRestart("muffleWarning")
-    })
-    length(got) > 0
+    d$emp_sel <- es
+    length(collect_warnings(.warn_fixed_fishery_endyr(d))) > 0
   }
   testthat::expect_true(w(row(1L, d$endyr)))
   testthat::expect_false(w(rbind(row(1L, d$endyr), row(2L, d$endyr))))
