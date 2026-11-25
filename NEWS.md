@@ -1,10 +1,11 @@
 <!--
-Version-numbering note. Three gaps in this file are deliberate, not lost entries:
+Version-numbering note. Four gaps in this file are deliberate, not lost entries:
 
   * 4.14.0 was a real DESCRIPTION version whose entries were folded into 5.0.0.
   * 5.2.0-5.2.4 were likewise folded into 5.3.0.
   * main's 4.9.0 / 4.9.1 are the same recruitment changes this line has as
     5.5.0 / 5.5.1, applied to the two lines separately.
+  * 5.66.3 to 5.66.5 were numbers a branch held during review; it landed as 5.66.8.
 
 No tag existed above 4.8.0 while these were in flight, so nobody could have installed an
 intermediate. They were folded rather than renumbered because renumbering a section breaks
@@ -14,16 +15,16 @@ version throughout.
 
 # Rceattle (development version)
 
-This section is the DSEM integration. Everything from 5.66.1 down is released
-history -- `main` through 5.49.1, then `dev`'s 5.50.0 to 5.66.1, which is on
-`main` too -- merged in unchanged. The DSEM work has never been released on either line, so from its
+This section is the DSEM integration. Everything from 5.66.11 down is released
+history -- `main` through 5.49.1, then `dev`'s 5.50.0 to 5.66.11 -- merged in
+unchanged. The DSEM work has never been released on either line, so from its
 point of view this whole section is unreleased. The branch's own 5.23.0 notes
 are kept immediately below `main`'s 5.23.0, under a title that cannot be
 mistaken for it: both numbers exist on both lines with different content, the
 divergence the comment at the top of this file describes.
 
 Unreleased, and deliberately carrying a DEVELOPMENT suffix rather than a release
-number: `DESCRIPTION` reads `5.66.1.9006`, the released line this branch now
+number: `DESCRIPTION` reads `5.66.11.9000`, the released line this branch now
 contains plus a suffix. A bare release number here would make an install from
 this branch report a version that exists on `main` or `dev` and holds different
 code -- the mislabelling `95153bbc` fixed when it first moved this branch to a
@@ -33,6 +34,26 @@ suffix stays until the DSEM work is given a release number of its own. The
 numbered on the 5.23.0 line.
 
 ## Behavior changes
+
+* **5.66.8's retrospective standard errors, adapted to this line.**
+  - A peel whose forecast refit did not fit F to the peeled catch is left out of
+    `$mase` and `hindcast_skill()`, as 5.66.8 leaves it out of `$mohns`'s
+    forecast rows: both score only forecast years. `peels_used` no longer lists it.
+  - Under `random_rec` the standard-error rebuild holds the peeled recruitment
+    deviations the forecast refit wrote, so the peeled-year band leaves out
+    recruitment variability, as `?retrospective` says. This line integrates
+    those years as random effects, and freed they put it back: on BS2017SS's
+    2-year peel pollock's peeled-year recruitment SE was 5.7 times larger.
+  - A recruitment DSEM's peeled states stay integrated, so its peeled-year band
+    includes recruitment variability (7 times the held SE for cod and
+    arrowtooth on the DSEM retrospective fixture). Held, a lagged state pulls
+    the last fitted state off its estimate, and the rebuild is no longer at the
+    hindcast optimum: on that fixture's 2-year peel the largest gradient was
+    8.7, on a path coefficient, against none above 0.001 freed.
+  - A peel whose rebuild failed (`sd_report_error`) reports no standard error in
+    `summary(peel$dsem)` or its `R_sd` row.
+  - `self_test()` no longer warns that it redrew `rec_dev` on a DSEM that drives
+    recruitment: the SEM maps it out, which is not a hold the author made.
 
 * **`retrospective()` and `jitter()` refit a hindcast-only fit
   (`estimateMode = 1`) as hindcast-only.** They refitted every mode below 3
@@ -960,6 +981,179 @@ numbered on the 5.23.0 line.
   arm and worked. The predicate is
   now a `pin_block()` defined once in the dispatching frame and reading
   `object$random_vars`, the same source `.rce_peel_map()` uses.
+
+# Rceattle 5.66.11
+
+## Behavior changes
+
+* **`retrospective()`'s warning about a stored map no longer blames the map code alone.** It
+  said a difference from `build_map()` meant the fit was saved before a change to how maps
+  are built. A map the author edited, or supplied to `fit_mod()` (for example one built
+  before its starting values were set), differs too. The warning now reads "The stored map
+  differs from `build_map()` in: ... Peels use the stored map. If you did not edit or supply
+  the map yourself, this fit predates a change to how maps are built; refit it to use the
+  current map." It fires in the same cases as before, and no number changes.
+
+# Rceattle 5.66.10
+
+## Bug fixes
+
+* **`jitter()` and `self_test()` now refit under the fit's own map.** Both built a new map,
+  which released anything the author had fixed, so they tested a different model from the
+  one fitted. On a `BS2017SS` test with a log catchability (`index_log_q`) fixed at
+  -8.258635 and an objective of 10241.5762, `jitter()` moved it to -8.308635, returned the
+  objective of the model with it free (10241.0304) and still printed `status: OK`;
+  `self_test()` moved it to -8.235536 and estimated 310 parameters rather than 309. Results
+  change only for a fit whose stored map differs from `build_map()`: a parameter fixed,
+  shared or freed by hand, a map built before its starting values were set, or a fit saved
+  before a later change to how maps are built. Such a saved fit now refits under the map it
+  was fitted with, as a `retrospective()` peel's hindcast does, but without that function's
+  warning. An OM returned by `run_mse()` also differs: its map leaves only the new years'
+  fishing mortality free. A projection-only fit still refits under a rebuilt map, so nothing
+  fixed in it carries over, and unless fitted under a supplied map `jitter()` perturbs none
+  of its starts. `self_test()` now warns where `process` redrew a deviation the fit's map
+  fixes, which the refit cannot recover.
+
+# Rceattle 5.66.9
+
+## Bug fixes
+
+* **`run_mse()` now keeps parameters fixed in the EM's map at every assessment.** Each
+  refit built a new map, which released whatever the author had fixed, so the EM estimated
+  those parameters from then on. On a `BS2017SS` test, a log catchability (`index_log_q`)
+  fixed at -8.258635 moved to -8.306753 at the first assessment, and that assessment's
+  terminal SSB moved 1.1% (3,987,696 to 4,030,637 t). A parameter fixed in the EM's map now
+  stays fixed in each new map, and `run_mse()` reports how many, by parameter. Results
+  change only for an EM whose map fixes a parameter `build_map()` would estimate:
+  `verify-mse-repro.R` is unchanged, and neither hake EM fixes any. `?run_mse` gives the
+  rules for years after the EM's `endyr`, time blocks, and what in a hand-edited map does
+  not carry forward.
+
+# Rceattle 5.66.8
+
+## Behavior changes
+
+* **`retrospective()` warns about, and drops, a peel only when its hindcast did
+  not converge.** A peel whose forecast refit alone did not converge used to be
+  dropped with a warning. It is now kept with no warning: that refit holds the
+  hindcast fixed, so the hindcast and the terminal-year rho stand. Because F was
+  not fitted to the peeled catch, the peel is left out of the `$mohns` rows with
+  `Forecast year` above 0, whose `N` shows it. The reason is on
+  `attr(peel, "forecast_error")`, `print()` counts such peels under a NOTE, and
+  `plot_timeseries()` and its wrappers warn when they draw those forecast years.
+  One such F removes the peel from every forecast-year row, including years that
+  fitted. A dropped hindcast also no longer runs its forecast refit.
+* **Which forecast refits count as failed has changed.** A peeled F left at a
+  bound now counts, because F can miss the catch there with a small gradient (at
+  20 times a BS2017SS catch, max gradient 0.16 and predicted catch 36% low, with
+  F_spp rho above 100,000 in `$mohns`); those forecast-year rows lose that peel.
+  An F-only Hessian that is not positive definite no longer counts, so under
+  `getsd = TRUE` that peel is kept and enters the terminal-year and forecast-year
+  rows. Where peels return, rho changes because it averages over them too.
+* **A retrospective peel keeps its `sdreport`.** Where the standard-error rebuild
+  fails, `peel$sdrep` now holds what `TMB::sdreport()` returned rather than
+  `NULL`, which remains only if the rebuild errored first.
+  `attr(peel, "sd_report_error")` still gives the reason, which now also covers a
+  failed catch-conditioned correction. Those numbers are not usable standard
+  errors, so plots, `as.data.frame()` and `vcov()` still read none of them, and
+  `plot_timeseries()` and its wrappers now warn with that reason, and `summary()`
+  gives it. For a healthy peel, `summary()` now says its estimates are the forecast
+  refit's rather than that no variance is usable.
+  `print()` now says such peels "have no usable standard errors". The
+  "peel(s) could not report hindcast standard errors" warning is gone, since Mohn's
+  rho reads point estimates only.
+* **A peel's `sdrep$par.fixed`, `cov.fixed` and `vcov(peel)` no longer include the peeled
+  `log_F`,** which the report now holds fixed; `sd` and `cov` still carry F's response. On
+  `BS2017SS` the peel through 2015 goes from 304 parameters to 298, and through 2016 from 307
+  to 304.
+* **A fit saved before this version must be refitted for `sim_mod()` and `self_test()`.**
+  The template reads a new internal data item (`adreport_catch`), so both stop on such a fit,
+  `sim_mod()` with a message to refit, and `fit$obj$retape()` errors. `retrospective()`,
+  `jitter()`, `osa_residuals()`, `process_residuals()` and `run_mse()` still run on it.
+
+## Bug fixes
+
+* **A retrospective peel's uncertainty band is now computed at the peel's best
+  fit.** Standard errors are valid only where the objective's gradient is 0.
+  Under random effects (e.g. `random_rec = TRUE`), keeping the peeled years'
+  catch in the standard-error calculation with their F free moved that point off
+  the peel's estimates (the largest gradient, sigma_R's aside, was 0.15-4.19
+  across 10 peels of GOA pollock 2026), so a band could be off, or lost when its
+  Hessian was not positive definite. The calculation now holds the peeled F at
+  the values fitted to the observed catch and drops that catch from the
+  likelihood (F, and so the removals, are unchanged), then lets F move with the
+  hindcast parameters so the predicted catch stays at the observed catch. A band
+  in a peeled (forecast) year therefore treats the catch as known and F as
+  inferred from it, and leaves out recruitment variability in those years. Without
+  random effects (BS2017SS, a 3-year peel) fitted-year bands are unchanged and
+  forecast-year SSB bands narrow by up to 1.2%, the catch's own observation error,
+  which is no longer counted; the exception is a depletion that divides by
+  last-projection-year biomass (`HCR = 0` under `msmMode > 0`), up to 1.5% on
+  BS2017MS. Under random effects fitted-year bands move too: on GOA pollock 2026
+  they are 1.00-1.02 times as wide as before for SSB, 0.82-1.02 for biomass and 0.68-1.06
+  for recruitment; forecast-year bands are 0.81-1.04 for SSB and 0.77-1.04 for biomass;
+  biomass depletion reaches 0.84 in fitted years and 0.72 in forecast years. No point estimate or Mohn's rho changes. The calculation uses an
+  internal `adreport_catch` flag, so `sdrep$value` and fits are unchanged; it adds
+  about 0.6 s per peel on BS2017SS and 4 s on BS2017MS.
+
+# Rceattle 5.66.7
+
+## Bug fixes
+
+* **A `Selectivity = "Fixed"` fleet now holds the last hindcast year it supplied
+  through the projection, as an estimated fleet does.** It was 0 in every projection year.
+  A `Fixed` fishery then had no exploitable biomass, so an MSE with one took no catch
+  (measured under `ConstantF` and `NPFMC`) and its reported `SBF` was wrong under
+  every rule tried. Its projected F was also too low under `HCR = "NPFMC"`: on a test
+  fixture 0.950 at most against an Ftarget of 1.284, with terminal SSB 20% too high.
+  Under `ConstantFSSB` with `DynamicHCR = TRUE` its objective moves as well (201.04 to
+  -6.08 on a test fixture). A `Fixed` survey predicted an index and comps of 0 there,
+  which a direct `sim_mod()` returned as observations; an MSE with one and
+  `simulate_data = TRUE` can move. Other rules' F,
+  hindcast estimates apart from that `ConstantFSSB` case, and models with no `Fixed`
+  fleet do not move. A hindcast year with no `emp_sel` row stays 0.
+
+* `data_check()` now also warns about CAAL data on a `Fixed` fleet labelled
+  `Selectivity_dimension = "Length"`. Fixed selectivity is always at age, so those
+  data inform nothing, as on an age-dimensioned fleet.
+
+* `data_check()` now warns when a `Fixed` fishery has no `emp_sel` row for `endyr`
+  for any sex. Its selectivity is 0 in that year, which reference points and projected
+  F read: on a test fixture `catch_hat` was 0 against 10 observed, Ftarget and Flimit
+  stuck at 1, and the objective was `Inf`. That year still predicts no catch.
+
+# Rceattle 5.66.6
+
+## Bug fixes
+
+* **Under estimated growth, a fleet with selectivity at age now predicts its age
+  and length comps.** That means `Selectivity_dimension = "Age"`, the default, or
+  `Selectivity = "Fixed"`, which is always at age. Its comps were predicted from
+  selectivity-at-length, which such a fleet does not have, so the prediction was
+  all zero and no selectivity, growth or dynamics parameter could move the
+  composition likelihood; only a Dirichlet-multinomial weight could. With a
+  length-based survey carrying the CAAL data, no warning named the comps. They
+  now use catch-at-age from selectivity-at-age (selected numbers-at-age on a
+  survey), through the estimated age-length key for length comps, not
+  `age_trans_matrix`, which belongs to empirical growth. Timing is the fleet's
+  `Month`, as on a length-based fleet; a comp row's `Month` is not read under
+  estimated growth. On the test fixture the fishery's composition row was 1.182612
+  whatever its selectivity; it now starts at 1.343781, as the same data do under
+  empirical growth. **Fits with estimated growth and comps on such a fleet move.**
+  Other configurations evaluate bit-identically: GOA cod's objective, gradient and
+  comps at the starting values do not change. CAAL on such a fleet is still not
+  predicted, and `data_check()` warns about it.
+
+# Rceattle 5.66.2
+
+## Bug fixes
+
+* **`retrospective()` and `jitter()` refit a hindcast-only fit
+  (`estimateMode = 1`) as hindcast-only.** They refitted every mode below 3
+  at mode 0, so each peel or jitter of a mode-1 fit also built a projection,
+  which under `ConstantF` carried an unestimated `log_Flimit`. Only a
+  projection-only fit (mode 2) is now refitted at mode 0. No estimate moves; a
+  peel's `data_list$estimateMode` now matches its parent's.
 
 # Rceattle 5.66.1
 

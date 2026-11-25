@@ -43,6 +43,12 @@ head(whamGrowthData$caal_data)
 whamGrowthData$fleet_control$Selectivity <- "Logistic"
 whamGrowthData$fleet_control$Selectivity_dimension <- "Length"
 ```
+
+CAAL data need a length-based fleet, because they are predicted from
+selectivity-at-length. A fleet with selectivity at age, including any
+`Selectivity = "Fixed"` fleet, can still fit age and length comps here, predicted
+from selectivity-at-age through the estimated age-length key, but its CAAL data
+inform nothing.
   
 ## Build a growth model with linkages
   

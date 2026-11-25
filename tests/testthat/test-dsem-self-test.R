@@ -49,8 +49,20 @@ testthat::test_that("self_test() refits a DSEM on simulated data", {
 
   # self_test() returns the model list DIRECTLY, named Sim_1..Sim_k -- not
   # wrapped in $Rceattle_list the way retrospective() and jitter() are.
-  st <- suppressWarnings(suppressMessages(
-    Rceattle::self_test(fit, nsim = 2, seed = 11, cores = 1, getsd = FALSE)))
+  # The SEM maps out rec_dev, which build_map() would free: that is not a hold the
+  # author made, so the redrawn-deviation warning must not name it.
+  testthat::expect_true(all(is.na(fit$map$mapFactor$rec_dev)))
+  testthat::expect_false(any(c("rec_dev", "R_log_sd") %in%
+                               names(Rceattle:::.map_holds(fit))))
+  warns <- character()
+  st <- withCallingHandlers(
+    suppressMessages(
+      Rceattle::self_test(fit, nsim = 2, seed = 11, cores = 1, getsd = FALSE)),
+    warning = function(w) {
+      warns <<- c(warns, conditionMessage(w))
+      invokeRestart("muffleWarning")
+    })
+  testthat::expect_false(any(grepl("redrew deviations", warns)))
   testthat::expect_gt(length(st), 0L)
 
   bp <- fit$estimated_params$dsem_beta_z

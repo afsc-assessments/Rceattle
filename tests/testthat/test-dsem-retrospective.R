@@ -343,4 +343,20 @@ testthat::test_that("a peel's DSEM table carries the standard errors it reports"
   # vacuous here: retrospective() swaps pk$sdrep after fit_mod() recorded the
   # cached table, so these agree only because of the re-record that follows.
   testthat::expect_equal(tab, summary(pk)$dsem_coefficients)
+
+  # The rebuild leaves the peeled states integrated, so it stays at the hindcast
+  # optimum; holding them, the lagged state's pull on the last fitted year put
+  # a largest gradient of 14.6 here, against 0.0007 integrated.
+  testthat::expect_null(attr(pk, "sd_report_error", exact = TRUE))
+  n_x <- function(s) sum(names(s$par.random) == "dsem_x_tj")
+  testthat::expect_equal(n_x(pk$sdrep), n_x(fit$sdrep))
+  testthat::expect_lt(max(abs(pk$sdrep$gradient.fixed)), 0.01)
+
+  # A peel whose rebuild failed keeps its sdrep, flagged; the table reads none of it.
+  bad <- pk
+  attr(bad, "sd_report_error") <- "forced"
+  bad <- Rceattle:::.rce_record_dsem_coefs(bad)
+  testthat::expect_false(is.null(bad$sdrep))
+  testthat::expect_true(all(is.na(summary(bad$dsem)$Std_Error)))
+  testthat::expect_equal(summary(bad$dsem)$Estimate, tab$Estimate)
 })

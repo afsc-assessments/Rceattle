@@ -531,6 +531,10 @@ testthat::test_that(".rce_series_sd requires an exact length match", {
   testthat::expect_equal(.rce_series_sd(fit, "ssb", 3), c(0.1, 0.2, 0.3))
   testthat::expect_null(.rce_series_sd(fit, "biomass", 1))      # wrong name
 
+  # A peel keeps an sdreport whose rebuild failed, but it is not a band.
+  attr(fit, "sd_report_error") <- "peel 1 (through 2015): indefinite"
+  testthat::expect_null(.rce_series_sd(fit, "ssb", 3))
+
   # Taking the first n of a longer block would return another cell's standard
   # errors -- a confidence interval that is wrong rather than absent.
   two_spp <- list(sdrep = list(value = stats::setNames(1:10, rep("ssb", 10)),

@@ -1,9 +1,8 @@
 # jitter() on a DSEM.
 #
 # jitter() needs nothing special for a DSEM, unlike retrospective()'s peel: it
-# passes no map to .refit_like(), so fit_mod() rebuilds one and fills in the
-# DSEM blocks itself, and its perturbation only touches entries whose map is not
-# NA. Under a DSEM that lands exactly where it should -- the path coefficients
+# refits under the stored map, which carries the DSEM blocks fit_mod() recorded,
+# and its perturbation only touches entries whose map is not NA. Under a DSEM that lands exactly where it should -- the path coefficients
 # and the latent recruitment-deviation columns are jittered, the covariate
 # columns of dsem_x_tj are not, because with family = "fixed" those ARE the
 # environmental data and perturbing them would jitter the DATA.

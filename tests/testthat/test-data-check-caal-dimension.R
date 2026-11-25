@@ -76,3 +76,24 @@ testthat::test_that("CAAL rows that are not fitted do not flag", {
   testthat::expect_false(
     any(grepl("Selectivity_dimension", .caal_dim_warnings(.caal_dim_prep(proj)))))
 })
+
+
+testthat::test_that("CAAL on a Fixed fleet labelled Length warns", {
+  testthat::skip_if_not_installed("TMB")
+
+  # Fixed selectivity is always at age, whatever Selectivity_dimension says, so
+  # CAAL on such a fleet is unpredicted even though its label reads "Length".
+  d <- make_test_data(nyrs = 20, nages = 6, seed = 123, growth = "vonBertalanffy")
+  d$caal_data$Sample_size <- 100
+  d$fleet_control$Selectivity_dimension <- "Length"
+  testthat::expect_false(any(grepl("Fixed", .caal_dim_warnings(.caal_dim_prep(d)))))
+
+  d$fleet_control$Selectivity[d$fleet_control$Fleet_code == 1] <- "Fixed"
+  d$emp_sel <- cbind(data.frame(Fleet_name = "Survey", Fleet_code = 1L, Species = 1L,
+                                Sex = 0L, Year = d$styr:d$endyr),
+                     as.data.frame(matrix(1, length(d$styr:d$endyr), 6,
+                                          dimnames = list(NULL, paste0("Comp_", 1:6)))))
+  w <- .caal_dim_warnings(.caal_dim_prep(d))
+  testthat::expect_true(any(grepl("whose Selectivity is 'Fixed'", w)))
+  testthat::expect_false(any(grepl("Selectivity_dimension is not 'Length'", w)))
+})

@@ -772,11 +772,14 @@ testthat::test_that("CAAL residuals label both frames as age bins", {
   d <- make_test_data(nyrs = 8, nages = 5, seed = 1, growth = "vonBertalanffy")
   testthat::expect_gt(nrow(d$caal_data), 0)
 
+  # CAAL on an age-dimensioned fleet cannot inform growth, so a full fit can run
+  # it to a NaN gradient. These frames need an optimized fit, not its optimum.
   fit <- suppressWarnings(suppressMessages(Rceattle::fit_mod(
     d, file = NULL, estimateMode = 1, msmMode = 0, random_rec = FALSE,
     growthFun = Rceattle::build_growth(fun = "vonBertalanffy"),
     fit_control = Rceattle::fit_control(getsd = FALSE, verbose = 0,
-                                        phase = FALSE))))
+                                        phase = FALSE,
+                                        nlminb_control = list(iter.max = 10)))))
   osa  <- suppressWarnings(Rceattle::osa_residuals(fit, source = "caal"))
   pear <- attr(osa, "pearson")
 

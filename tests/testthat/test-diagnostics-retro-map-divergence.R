@@ -11,8 +11,9 @@
 #
 # So the divergence is reported instead of silently tolerated. The rebuild for
 # the comparison uses the ORIGINAL data and parameters, not the peel's -- a
-# difference then means the map-building code changed since the fit was saved,
-# not that the peel has fewer years. Measured on a fresh fit: 49 map blocks
+# difference then means the author edited or supplied the map, or the
+# map-building code changed since the fit was saved, not that the peel has
+# fewer years. Measured on a fresh fit: 49 map blocks
 # compared, 0 differ.
 #
 # The check is hoisted ABOVE run_one_peel's definition on purpose. A warning()
@@ -78,7 +79,7 @@ testthat::test_that("a stored map that no longer matches is reported", {
   testthat::expect_match(hit, "rec_dev", fixed = TRUE)
   # It must say which map the peels actually used, since that is what Mohn's
   # rho is computed on.
-  testthat::expect_match(hit, "STORED map", fixed = TRUE)
+  testthat::expect_match(hit, "Peels use the stored map", fixed = TRUE)
 })
 
 

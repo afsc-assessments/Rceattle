@@ -434,11 +434,14 @@ testthat::test_that("cdf residualizes conditional age-at-length", {
 
   # CAAL is a second composition source with its own call site and its own
   # likelihood-family vector (`caal_ll_type`), and nothing else here reaches it.
+  # Growth is not identified on this fixture, so stop short of where a full fit can
+  # run it to a NaN gradient. These residuals need an optimized fit, not its optimum.
   dat <- make_test_data(nyrs = 10, nages = 6, seed = 51, growth = "vonBertalanffy")
   fit <- suppressWarnings(suppressMessages(Rceattle::fit_mod(
     dat, file = NULL, estimateMode = 1, msmMode = 0,
     growthFun = build_growth(fun = "vonBertalanffy"),
-    fit_control = fit_control(phase = FALSE, verbose = 0, getsd = FALSE))))
+    fit_control = fit_control(phase = FALSE, verbose = 0, getsd = FALSE,
+                              nlminb_control = list(iter.max = 10)))))
 
   o <- suppressWarnings(suppressMessages(Rceattle::osa_residuals(
     fit, source = "caal", method = "cdf", parallel = FALSE)))

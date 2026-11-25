@@ -47,6 +47,11 @@
 #'   none back warns in its own right.
 #'
 #' @details
+#' Each simulation refits under the fit's own map, so a parameter fixed there keeps its
+#' value and is not estimated. A projection-only fit
+#' (\code{estimateMode = "Projection"}) refits under a rebuilt map. Redrawing through
+#' \code{process} a deviation the fit's map fixes warns, because the refit cannot recover it.
+#'
 #' \strong{What \code{start} costs.} \code{"initial"} uses
 #' \code{initial_params}, so the estimator travels the same distance to the
 #' optimum on simulated data as it did on the real data. \code{"estimated"}
@@ -142,8 +147,8 @@ self_test <- function(object = NULL, nsim = 50, simulate = TRUE, seed = 123, cor
   # cross-species structure are preserved across replicates, which is what makes
   # a self test able to say whether the SEM structure is identified.
   #
-  # No map is passed to .refit_like() below, so fit_mod() rebuilds one and fills
-  # in the DSEM blocks itself.
+  # The refits pass the stored map (.refit_map()), which carries the DSEM blocks
+  # fit_mod() recorded; at estimateMode 2 fit_mod() rebuilds them.
 
   # Resolve `process` here so a misspelled one is named now. Left to the
   # replicates it would surface as a worker dying inside parLapply, which
@@ -235,10 +240,11 @@ self_test <- function(object = NULL, nsim = 50, simulate = TRUE, seed = 123, cor
       suppressMessages(
         suppressWarnings(
           # Refit the simulated data set from `start`, under the source model's
-          # phasing (see `phase` above).
+          # map and phasing (see `phase` above).
           .refit_like(
             data_list        = data_list,
             inits            = inits,
+            map              = .refit_map(object),
             estimateMode     = ifelse(data_list$estimateMode < 3, 0, data_list$estimateMode),
             phase            = phase,
             getsd            = getsd,
@@ -282,6 +288,7 @@ self_test <- function(object = NULL, nsim = 50, simulate = TRUE, seed = 123, cor
   names(truths) <- names(mod_list)
   .report_dropped(sum(!converged), length(converged), "simulation")
   .report_errors(errs, "simulation")
+  .warn_redrawn_holds(object, truths)
 
   # Every replicate simulates the same model, so the same warning fires nsim
   # times; emit the unique set once. Re-raised here rather than inside the

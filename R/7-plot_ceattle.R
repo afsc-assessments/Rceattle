@@ -157,6 +157,7 @@ plot_timeseries <- function(Rceattle,
   if(!is.null(maxyr)){
     years <- lapply(Rceattle, function(x) x$data_list$styr:min(c(maxyr, x$data_list$projyr)))
   }
+  .rce_warn_unfitted_forecast(Rceattle, years)
 
   max_endyr <- max(unlist(Endyrs), na.rm = TRUE)
   nyrs_vec <- sapply(years, length)
@@ -218,8 +219,9 @@ plot_timeseries <- function(Rceattle,
         # quantities never carry standard errors, so warning on them would fire
         # on every fit.
         .rce_no_ci(TRUE, paste0("`", output, "` in model ", i),
-                   paste("this fit carries no standard errors for it",
-                         "(not reported by the model, or getsd = FALSE)"),
+                   attr(Rceattle[[i]], "sd_report_error", exact = TRUE) %||%
+                     paste("this fit carries no standard errors for it",
+                           "(not reported by the model, or getsd = FALSE)"),
                    warn = .rce_quantity_adreport(output))
       } else {
         quantity_sd[, 1:nyrs_vec[i], i] <-

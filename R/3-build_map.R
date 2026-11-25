@@ -1983,3 +1983,72 @@ map_linkage_adjuster <- function(map_list, data_list) {
 
   map_list
 }
+
+
+#' Cells a fit's map fixes that build_map() would estimate
+#'
+#' For a refit whose `endyr` moves, where the stored map no longer fits. Usually parameters
+#' the author fixed by hand; a cell frozen by a map built before its inits (`sel_dn6`, see
+#' `inst/dev/TRAPS.md`) or by a saved fit's older map code looks the same and counts too. A
+#' cell is one element of a parameter array. Year is the last dimension of any array that
+#' grows, so new years go on the end and a held cell keeps its element number.
+#'
+#' @param fit A fitted Rceattle object.
+#' @return Named list of cell positions by parameter, each carrying the array's size as
+#'   `n_cells`; empty when nothing is held.
+#' @noRd
+.map_holds <- function(fit) {
+  data_list <- fit[["data_list"]]
+  stored_map <- fit[["map"]]
+  # A mode 2 or 4 map frees only `dummy` unless supplied, so neither is read as holds.
+  if (data_list[["estimateMode"]] %in% c(2, 4)) return(list())
+  # random_sel must be passed: build_map() has no data_list fallback for it.
+  built_map <- suppressWarnings(suppressMessages(build_map(
+    data_list  = data_list,
+    params     = fit[["estimated_params"]],
+    debug      = FALSE,
+    random_rec = data_list[["random_rec"]],
+    random_sel = isTRUE(as.logical(data_list[["random_sel"]])))))
+  params <- intersect(names(stored_map[["mapFactor"]]), names(built_map[["mapFactor"]]))
+  # A recruitment SEM maps out rec_dev and R_log_sd, which build_map() can free; not holds.
+  if (.dsem_drives(fit, "recruitment")) params <- setdiff(params, c("rec_dev", "R_log_sd"))
+  holds <- lapply(params, function(nm) {
+    stored <- stored_map[["mapFactor"]][[nm]]
+    structure(unname(which(is.na(stored) & !is.na(built_map[["mapFactor"]][[nm]]))),
+              n_cells = length(stored))
+  })
+  names(holds) <- params
+  holds[lengths(holds) > 0L]
+}
+
+
+#' Hold the cells from .map_holds() on a freshly built map
+#'
+#' A new year that joins a time block held for every earlier year stays held at that block's
+#' value. Free, it would be a new parameter with no penalty; and `run_mse()` starts it from
+#' the last year, which can be a year outside the block or one with no data.
+#'
+#' @return The map and the starting values, as `map` and `params`.
+#' @noRd
+.apply_map_holds <- function(map, params, holds) {
+  for (nm in names(holds)) {
+    cells <- holds[[nm]]
+    # Cells with the same number share one estimated value, as the years of a time block
+    # do; NA is fixed.
+    level <- map[["mapList"]][[nm]]
+    # n_cells is the array's size in the EM, so cells past it are the years added since.
+    old_cells <- seq_len(attr(cells, "n_cells"))
+    new_cells <- setdiff(seq_along(level), old_cells)
+    # A block stays estimated while any earlier cell in it is free; otherwise its new
+    # years join the fixed cells.
+    still_free <- level[setdiff(old_cells, cells)]
+    fixed_blocks <- setdiff(level[cells], c(NA, still_free))
+    joined <- new_cells[level[new_cells] %in% fixed_blocks]
+    # A joining year takes the value of its block's first fixed cell.
+    first_fixed <- cells[match(level[joined], level[cells])]
+    params[[nm]][joined] <- params[[nm]][first_fixed]
+    map[["mapList"]][[nm]][c(cells, joined)] <- NA
+    map[["mapFactor"]][[nm]] <- factor(map[["mapList"]][[nm]])
+  }
+  list(map = map, params = params)
+}
