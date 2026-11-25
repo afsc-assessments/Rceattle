@@ -270,7 +270,7 @@ Ianelli penalty became mean-centred; 5.32.1 on the right. Hake terminal SSB chan
 0.86%, survey DM theta fell from 43-49 to 31-35 and diet theta from 94.2 to 56.5 and 18.4 to 11.8 (the M-estimated fits), and every fit kept a
 positive-definite Hessian. The script ran end to end, `run_mse()` included.
 
-| Fit | -log L (5.70.10) | 5.67.0 | 5.64.0 | 5.33.0 | 5.32.1 |
+| Fit | -log L (5.71.2) | 5.67.0 | 5.64.0 | 5.33.0 | 5.32.1 |
 |---|---|---|---|---|---|
 | `ss_run_DM_CSL` | 2439.8745021712 | 2439.8745021712 | 2440.0941615018 | 2440.0941615088 | 2436.8886423469 |
 | `ss_run_DM_hcr_CSL` | 2440.4436787246 | 2440.4436787246 | 2440.6633383397 | 2440.6633379056 | 2437.4573180484 |
@@ -280,7 +280,7 @@ positive-definite Hessian. The script ran end to end, `run_mse()` included.
 | `run_ms_CSL_Mest_prior_DM_CSL_stable` | 2669.1578908559 | 2669.1578908528 | 2669.3775501963 | 2669.3775502006 | 2663.8053181169 |
 | `ss_run_DM_hcr_B0` | 2439.8745021712 | 2439.8745021712 | 2440.0941615018 | 2440.0941615088 | 2436.8886423469 |
 
-**5.70.10 moves the four multispecies fits by +3.1e-9 to +1.2e-8** (2026-11-23). Predation now
+**5.71.2 moves the four multispecies fits by +3.1e-9 to +1.2e-8** (2026-11-23). Predation now
 skips work the objective does not read while TMB records it, which changes the gradient's last
 bits (see `TRAPS.md`, "Build and test"), so `nlminb` stops at a nearby point: 67 iterations
 instead of 103 for `run_ms_CSL_Mest_prior_DM_CSL`. Parameters stay within 3.7e-5, SSB within

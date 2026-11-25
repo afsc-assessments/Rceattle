@@ -292,7 +292,8 @@ types: survey indices (`"index"`), fishery catch (`"catch"`), age/length
 composition (`"comp"`), conditional age-at-length (`"caal"`), predator diet
 (`"diet"`), and, where a linkage holds an observed state-space covariate, the
 covariate observation itself (`"ecov"`). Composition data use the conditional
-binomial / beta-binomial decomposition. OSA re-optimizes the random effects for
+binomial / beta-binomial decomposition of Trijoulet et al. (2023), using code
+adapted from WHAM (Stock and Miller 2021). OSA re-optimizes the random effects for
 each observation, so it is expensive; run it on a converged fit
 (`estimateMode < 3`). A requested source the model has no observations for is
 skipped (the call errors only if *none* of them have any). `"diet"` is not in
@@ -517,9 +518,9 @@ Only multinomial fleets are tuned: a Dirichlet-multinomial fleet estimates its
 own weight inside the likelihood, so those fleets are named and skipped.
 
 The alternatives are Francis (2011) reweighting, applied by hand, and estimating
-the weights directly with a Dirichlet-multinomial likelihood
-(`Comp_distribution = "DirichletMultinomial"`), with no iteration. Under that
-likelihood `Comp_weights` is the **log** of the starting weight, so the model
+the weights directly with a Dirichlet-multinomial likelihood (Thorson et al.
+2017; `Comp_distribution = "DirichletMultinomial"`), with no iteration. Under
+that likelihood `Comp_weights` is the **log** of the starting weight, so the model
 default of `1` is a starting weight of *e*, and a weight of 1 is written `0`.
 
 Under `discrete = TRUE` (the default only for `method = "cdf"`), composition
@@ -545,7 +546,7 @@ residuals(model_1, type = "process")
 
 ## Retrospective analysis
 
-A retrospective analysis removes the most recent years of data one peel at a time and re-fits the model. Mohn's rho summarizes how the terminal estimates shift across peels; for SSB, a rho outside ±0.2 generally signals a problem worth investigating.
+A retrospective analysis removes the most recent years of data one peel at a time and re-fits the model. Mohn's rho (Mohn 1999), averaged over peels as in Hurtado-Ferro et al. (2015), summarizes how the terminal estimates shift across peels; for SSB, a rho outside ±0.2 generally signals a problem worth investigating.
 
 ```{r}
 model_1_retro <- retrospective(model_1, peels = 5)
@@ -841,3 +842,47 @@ covariance. Under any harvest control rule but `"NoFishing"`, an
 under any rule but `"ConstantF"`; `?model_average` gives the refits.
 A `"Hindcast"` refit projects with no fishing, so its averaged projection is of
 an unfished stock.
+
+## References
+
+- Dunn, P.K., Smyth, G.K. (1996). Randomized quantile residuals.
+  *Journal of Computational and Graphical Statistics*, 5, 236-244.
+- Francis, R.I.C.C. (2011). Data weighting in statistical fisheries stock
+  assessment models. *Canadian Journal of Fisheries and Aquatic
+  Sciences*, 68, 1124-1138.
+- Hurtado-Ferro, F., Szuwalski, C.S., Valero, J.L., Anderson, S.C.,
+  Cunningham, C.J., Johnson, K.F., Licandeo, R., McGilliard, C.R.,
+  Monnahan, C.C., Muradian, M.L., Ono, K., Vert-Pre, K.A., Whitten,
+  A.R., Punt, A.E. (2015). Looking in the rear-view mirror: bias and
+  retrospective patterns in integrated, age-structured stock assessment
+  models. *ICES Journal of Marine Science*, 72, 99-110.
+- McAllister, M.K., Ianelli, J.N. (1997). Bayesian stock assessment
+  using catch-age data and the sampling-importance resampling
+  algorithm. *Canadian Journal of Fisheries and Aquatic Sciences*, 54,
+  284-300.
+- Mohn, R. (1999). The retrospective problem in sequential population
+  analysis: an investigation using cod fishery and simulated data.
+  *ICES Journal of Marine Science*, 56, 473-488.
+- Nielsen, A., Berg, C.W. (2014). Estimation of time-varying selectivity
+  in stock assessments using state-space models. *Fisheries Research*,
+  158, 96-101.
+- Stewart, I.J., Monnahan, C.C. (2025). Diagnosing common sources of
+  lack of fit to composition data in fisheries stock assessment models
+  using one-step-ahead (OSA) residuals. *Canadian Journal of Fisheries
+  and Aquatic Sciences*, 82, 1-13.
+- Stock, B.C., Miller, T.J. (2021). The Woods Hole Assessment Model
+  (WHAM): a general state-space assessment framework that incorporates
+  time- and age-varying processes via random effects and links to
+  environmental covariates. *Fisheries Research*, 240, 105967.
+- Thorson, J.T., Johnson, K.F., Methot, R.D., Taylor, I.G. (2017).
+  Model-based estimates of effective sample size in stock assessment
+  models using the Dirichlet-multinomial distribution. *Fisheries
+  Research*, 192, 84-93.
+- Thygesen, U.H., Albertsen, C.M., Berg, C.W., Kristensen, K., Nielsen,
+  A. (2017). Validation of ecological state space models using the
+  Laplace approximation. *Environmental and Ecological Statistics*, 24,
+  317-339.
+- Trijoulet, V., Albertsen, C.M., Kristensen, K., Legault, C.M., Miller,
+  T.J., Nielsen, A. (2023). Model validation for compositional data in
+  stock assessment models: calculating residuals with correct
+  properties. *Fisheries Research*, 257, 106487.

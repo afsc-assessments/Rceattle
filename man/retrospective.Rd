@@ -70,7 +70,8 @@ no peel converged).}
 }
 \description{
 Refit an Rceattle model with its last 1, 2, ..., \code{peels} years
-of data removed, and calculate Mohn's rho for the terminal year and the
+of data removed, and calculate Mohn's rho (Mohn 1999), averaged over peels
+as in Hurtado-Ferro et al. (2015), for the terminal year and the
 \code{nyrs_forecast} years after it. Each peel is fitted twice: its hindcast,
 then F in the removed years, fitted to their observed catch with the
 hindcast held fixed.
@@ -176,4 +177,13 @@ ss_run <- fit_mod(data_list = BS2017SS, inits = NULL, file = NULL,
                   fit_control = fit_control(phase = FALSE, verbose = 0))
 retro <- retrospective(ss_run, peels = 10)
 }
+}
+\references{
+Mohn, R. 1999. The retrospective problem in sequential population analysis:
+an investigation using cod fishery and simulated data. ICES J. Mar. Sci.
+56:473-488.
+
+Hurtado-Ferro, F., et al. 2015. Looking in the rear-view mirror: bias and
+retrospective patterns in integrated, age-structured stock assessment
+models. ICES J. Mar. Sci. 72:99-110.
 }

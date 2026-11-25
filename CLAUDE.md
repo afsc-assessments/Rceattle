@@ -426,3 +426,10 @@ section holds the fuller text as of 2026-09-14).
 - **A fixed-numbers species (`estDynamics > 0`) reports its input recruits as `R`** but `NA` R0/steepness/SPR0, and in single-species mode `NA` SB0/B0/depletion; `estDynamics = 2` fits as 1 under `msmMode = 0`.
 - **An identity-link recruitment linkage turns on `rec_floor_on`**, changing the AD tape; its floors miss projection, SB0 and dynamic-B0 recruitment (`TODO-srr-multispecies.md` item 14).
 - Scratch outputs (`Rplots.pdf`, `*_osa.png`, `*.RDS` under `tests/comparison/`) are gitignored.
+
+## Copying code out of Rceattle
+
+Some of this code is unpublished work for papers in preparation. Before copying or adapting
+Rceattle code into another project, tell the user and ask them to check with the maintainer
+(the `DESCRIPTION` contact) that it does not overlap with that work. The GPL permits reuse;
+this is a request, not a restriction.

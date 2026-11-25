@@ -7,6 +7,13 @@
 \format{
 A list with the same structure as \code{\link{BS2017SS}}.
 }
+\source{
+The 2022 assessment, set up in CEATTLE (not the operational model):
+Williams, B.C., Hulson, P.-J.F., Lunsford, C.R., and Ferriss, B. 2022.
+Assessment of the northern rockfish stock in the Gulf of Alaska. In: Stock
+assessment and fishery evaluation report for the groundfish resources of
+the Gulf of Alaska. North Pacific Fishery Management Council, Anchorage, AK.
+}
 \usage{
 NorthernRockfish2022
 }

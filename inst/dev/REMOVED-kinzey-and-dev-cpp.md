@@ -11,7 +11,7 @@ where to find it if it is ever revived.
 
 **Specification.** Kinzey, D. and Punt, A.E. (2009). *Multispecies virtual population analysis and
 statistical catch-at-age models: a comparison.* The MSVPA forms that Rceattle does implement are
-Holsman et al. (2015) (`msmMode = 1`) and Holling Type III (`msmMode = 2`).
+Holsman et al. (2016) (`msmMode = 1`) and Holling Type III (`msmMode = 2`).
 
 **Why they were commented out, not deleted, before now.** They were commented out in the TMB
 template *and* on the R side, consistently, and `data_check()` refuses `msmMode` 3–9. `NEWS.md`

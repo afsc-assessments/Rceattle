@@ -38,7 +38,7 @@
 #' \item{sex_ratio}{Percent female at age for each species}
 #' \item{M1_base}{Residual natural mortality for each species}
 #' \item{aLW}{Parameters for weight-at-length power function for each species. Used when estimating time-variant length-based gamma suitability (suitMode = 2) or time-variant length-based lognormal suitability (suitMode = 5)}
-#' \item{Ceq}{Which bioenergetics equation to use for each species for ft to scale max consumption: 1 = Exponential (Stewart et al 1983), 2 = Temperature-dependence for warm-water species (Kitchell et al 1977; sensu Holsman et al 2015), 3 = temperature dependence for cool and cold-water species (Thornton and Lessem 1979)}
+#' \item{Ceq}{Which bioenergetics equation to use for each species for ft to scale max consumption: 1 = Exponential (Stewart et al 1983), 2 = Temperature-dependence for warm-water species (Kitchell et al 1977; sensu Holsman and Aydin 2015), 3 = temperature dependence for cool and cold-water species (Thornton and Lessem 1978)}
 #' \item{Cindex}{Which environmental index in env_data to use to drive bioenergetics}
 #' \item{Pvalue}{This scales the maximum consumption used for ration for each species; Pvalue is in Cmax*fT*Pvalue*ration_data}
 #' \item{fday}{Number of foraging days per year for each species}
@@ -62,10 +62,10 @@
 #' \item{Fleet_type}{0 or 'Off' = Do not estimate; 1 = 'Fishery'; 2 = 'Survey'}
 #' \item{Species}{Species number}
 #' \item{Selectivity_index}{Index used to give fleets the same selectivity (otherwise, same as Fleet_code). Fleets sharing a value share one selectivity parameter block, with its penalties and priors accumulated once on the group's first non-Off fleet. Sharing the parameters is not enough on its own: the columns that shape the curve are read per fleet and must agree across the group, or the fleets end up with different selectivities. \code{data_check()} reports any that differ. To mirror a fleet, copy its fleet_control row and change only the identity and catchability columns. See \code{vignette("model-options-and-functionality")}.}
-#' \item{Selectivity}{Selectivity form: 0 = "Fixed"; 1 = "Logistic"; 2 = "NonParametric" (Ianelli et al. 2018); 3 = "DoubleLogistic"; 4 = "DescendingLogistic"; 5 = "Hake" non-parametric (Taylor et al. 2014); 6 = "2DAR1"; 7 = "3DAR1" (Cheng et al. 2024); 8 = "DoubleNormal"; 9 = "NonParametricPM" (non-parametric random walk with penalized increments, AMAK "pm"; not integrable under random_sel); 11 = "LogisticPM" (logistic with a free age-1 selectivity, AMAK "pm"); 13 = "NonParametricIntegrable" (the Ianelli base curve whose deviations have a proper density, so random_sel integrates them; Time_varying_sel picks the structure: "Off", "IID" or "RandomWalk"); 15 = "DoubleNormalSS3" (Stock Synthesis size pattern 24, six parameters on SS3's scales, varied through selectivity linkages). Whether a form is age- or length-based is set by Selectivity_dimension.}
+#' \item{Selectivity}{Selectivity form: 0 = "Fixed"; 1 = "Logistic"; 2 = "NonParametric" (Ianelli et al. 2018); 3 = "DoubleLogistic"; 4 = "DescendingLogistic"; 5 = "Hake" non-parametric (Taylor et al. 2015); 6 = "2DAR1" (deviations as in Xu et al. 2019, around a non-parametric base); 7 = "3DAR1" (the weight-at-age GMRF of Cheng et al. 2023, applied to selectivity); 8 = "DoubleNormal"; 9 = "NonParametricPM" (non-parametric random walk with penalized increments, AMAK "pm"; not integrable under random_sel); 11 = "LogisticPM" (logistic with a free age-1 selectivity, AMAK "pm"); 13 = "NonParametricIntegrable" (the Ianelli base curve whose deviations have a proper density, so random_sel integrates them; Time_varying_sel picks the structure: "Off", "IID" or "RandomWalk"); 15 = "DoubleNormalSS3" (Stock Synthesis size pattern 24, Methot and Wetzel 2013; six parameters on SS3's scales, varied through selectivity linkages). Whether a form is age- or length-based is set by Selectivity_dimension.}
 #' \item{Selectivity_dimension}{"Age" or "Length".}
 #' \item{N_sel_bins}{Number of bins (ages or length bins) to estimate for non-parametric selectivity.}
-#' \item{Time_varying_sel}{Whether a time-varying selectivity should be estimated. 0 = "Off"; 1 = "IID" penalized deviates given \code{Time_varying_sel_sd}, or random effects with that sd estimated under \code{random_sel}; 2 = "AR1" REMOVED in 5.16.0, it was scored as "IID", so \code{data_check()} errors on it; use "IID" for the same fit, or \code{linkage_spec(~ ar1(1 | Year))} for a real one; 3 = "Block" time blocks with no penalty; 4 = "RandomWalk" following Dorn; 5 = "RandomWalkAscending" on the ascending limb of double logistic only.}
+#' \item{Time_varying_sel}{Whether a time-varying selectivity should be estimated. 0 = "Off"; 1 = "IID" penalized deviates given \code{Time_varying_sel_sd}, or random effects with that sd estimated under \code{random_sel}; 2 = "AR1" REMOVED in 5.16.0, it was scored as "IID", so \code{data_check()} errors on it; use "IID" for the same fit, or \code{linkage_spec(~ ar1(1 | Year))} for a real one; 3 = "Block" time blocks with no penalty; 4 = "RandomWalk" on both limbs (extending Dorn et al. 2018); 5 = "RandomWalkAscending" on the ascending limb of double logistic only (Dorn et al. 2018).}
 #' \item{Time_varying_sel_sd}{The fixed or initial sd to use for time varying selectivity; always required by the 2DAR1 and 3DAR1 forms.}
 #' \item{Sel_start_year}{First year the fleet's time-varying selectivity deviations are estimated and penalized. Deviations before this year are fixed at 0: they have no data and no penalty (the selectivity penalties are anchored at this year), so estimating them would leave unidentified flat directions. Defaults to the earliest year of data across all fleets sharing the fleet's \code{Selectivity_index} (fleets sharing an index share one selectivity curve), bounded below by \code{styr}. Only used for time-varying selectivity; set explicitly to override.}
 #' \item{Bin_first_selected}{Age/length bin at which selectivity is non-zero}
@@ -106,7 +106,7 @@
 #' \item{Catchability}{Estimate catchability? 0 or "Fixed" = fixed at prior; 1 or "Estimated" = estimate a single parameter; 2 or "Estimated-with-prior" = estimate a single parameter with a prior; 3 or "Analytical" = q solved in closed form as the maximum likelihood q for the fleet's Index_distribution, given the other parameters (lognormal: the bias-corrected geometric mean of Walters and Ludwig 1994, Normal and MVN/MVNORM: least squares); refused under TruncatedNormal; 4 = power equation (not yet implemented); 5 or "Environmental" = linear equation log(q_y) = q_mu + beta * index_y; 6 or "AR1" = removed, and \code{data_check()} errors on it, the deviates were never estimated, so q came back constant; express the Rogers et al. (2024) form as a q linkage with ar1(1 | Year) and \code{observe}, passed to \code{fit_mod(qFun = )}; 7 or "AnalyticalArith" = arithmetic-mean analytical q = mean(obs)/mean(pred), the AMAK/ebswp form used with the MVN survey likelihood.}
 #' \item{Catchability_init}{Starting value (or fixed value) for catchability. When Catchability = "Estimated-with-prior" this also centers the q prior.}
 #' \item{Catchability_prior_sd}{Log-scale standard deviation of the q prior: dnorm(log_q, log(Catchability_init) - bias_adjust_proc * sd^2/2, sd). Used only when Catchability = "Estimated-with-prior".}
-#' \item{Time_varying_q}{Whether a time-varying q should be estimated. 0 = "Off"; 1 = "IID" penalized deviate or random effect; 2 = "AR1" REMOVED in 5.16.0, it was scored as "IID", so \code{data_check()} errors on it; use "IID" for the same fit, or \code{linkage_spec(~ ar1(1 | Year))} for a real one; 3 = "Block" time blocks with no penalty; 4 = "RandomWalk" from the mean following Dorn 2018. Under \code{Catchability = "Environmental"} this column instead holds the \code{env_data} column index, not a mode.}
+#' \item{Time_varying_q}{Whether a time-varying q should be estimated. 0 = "Off"; 1 = "IID" penalized deviate or random effect; 2 = "AR1" REMOVED in 5.16.0, it was scored as "IID", so \code{data_check()} errors on it; use "IID" for the same fit, or \code{linkage_spec(~ ar1(1 | Year))} for a real one; 3 = "Block" time blocks with no penalty; 4 = "RandomWalk" from the mean following Dorn et al. 2018. Under \code{Catchability = "Environmental"} this column instead holds the \code{env_data} column index, not a mode.}
 #' \item{Time_varying_q_sd}{The sd to use for the random walk of time varying q if set to 1}
 #' \item{Estimate_index_sd}{Estimate survey/index observation SD. Accepts integer codes or readable strings: 0 / "Fixed" = use the fixed SD from the data CV; 1 / "Estimated" = estimate; 2 / "Analytical" = analytically estimate following Walters and Ludwig 1994.}
 #' \item{Index_sd}{Starting/fixed value for the index observation SD, used when Estimate_index_sd = "Estimated".}
@@ -122,6 +122,64 @@
 #' \item{Month}{Observation month for the fleet (0 = not specified).}
 #' \item{Proj_F_proportion}{The proportion of future fishing mortality assigned to this fleet.}
 #'}
+#' @source Converted from the ADMB inputs of the 2017 Eastern Bering Sea
+#'   multispecies CEATTLE assessment, run in single-species mode: Holsman, K.K.,
+#'   Ianelli, J.N., and Aydin, K. 2017. 2017 multi-species stock assessment for
+#'   walleye pollock, Pacific cod, and arrowtooth flounder in the Eastern Bering
+#'   Sea. Multi-species supplement to the stock assessment and fishery
+#'   evaluation report for the groundfish resources of the Bering Sea/Aleutian
+#'   Islands regions. North Pacific Fishery Management Council, Anchorage, AK.
+#' @references
+#' Cheng, M.L.H., Thorson, J.T., Ianelli, J.N., and Cunningham, C.J. 2023. Unlocking
+#'   the triad of age, year, and cohort effects for stock assessment. Fish. Res.
+#'   266:106755.
+#'
+#' Dorn, M., et al. 2018. Assessment of the walleye pollock stock in the Gulf of
+#'   Alaska. NPFMC Gulf of Alaska SAFE report, Anchorage, AK.
+#'
+#' Holsman, K.K., and Aydin, K. 2015. Comparative methods for evaluating climate
+#'   change impacts on the foraging ecology of Alaskan groundfish. Mar. Ecol.
+#'   Prog. Ser. 521:217-235.
+#'
+#' Ianelli, J., et al. 2018. Assessment of the walleye pollock stock in the
+#'   Eastern Bering Sea. NPFMC Bering Sea/Aleutian Islands SAFE report, Anchorage,
+#'   AK.
+#'
+#' Kitchell, J.F., Stewart, D.J., and Weininger, D. 1977. Applications of a
+#'   bioenergetics model to yellow perch and walleye. J. Fish. Res. Board Can.
+#'   34:1922-1935.
+#'
+#' McAllister, M.K., and Ianelli, J.N. 1997. Bayesian stock assessment using
+#'   catch-age data and the sampling-importance resampling algorithm. Can. J.
+#'   Fish. Aquat. Sci. 54:284-300.
+#'
+#' Methot, R.D., and Wetzel, C.R. 2013. Stock synthesis: a biological and
+#'   statistical framework for fish stock assessment and fishery management.
+#'   Fish. Res. 142:86-99.
+#'
+#' Rogers, L.A., Monnahan, C.C., Williams, K., Jones, D.T., and Dorn, M.W. 2024.
+#'   Climate-driven changes in the timing of spawning and the availability of
+#'   walleye pollock to assessment surveys in the Gulf of Alaska. ICES J. Mar.
+#'   Sci. 82:fsae005.
+#'
+#' Stewart, D.J., Weininger, D., Rottiers, D.V., and Edsall, T.A. 1983. An
+#'   energetics model for lake trout, Salvelinus namaycush. Can. J. Fish. Aquat.
+#'   Sci. 40:681-698.
+#'
+#' Taylor, I.G., Grandin, C., Hicks, A.C., Taylor, N., and Cox, S. 2015. Status
+#'   of the Pacific hake (whiting) stock in U.S. and Canadian waters in 2015.
+#'   Joint Technical Committee of the Pacific Hake/Whiting Agreement.
+#'
+#' Thornton, K.W., and Lessem, A.S. 1978. A temperature algorithm for modifying
+#'   biological rates. Trans. Am. Fish. Soc. 107:284-287.
+#'
+#' Walters, C., and Ludwig, D. 1994. Calculation of Bayes posterior probability
+#'   distributions for key population parameters. Can. J. Fish. Aquat. Sci.
+#'   51:713-722.
+#'
+#' Xu, H., Thorson, J.T., Methot, R.D., and Taylor, I.G. 2019. A new
+#'   semi-parametric method for autocorrelated age- and time-varying selectivity
+#'   in age-structured assessment models. Can. J. Fish. Aquat. Sci. 76:268-285.
 "BS2017SS"
 
 
@@ -132,6 +190,9 @@
 #' Eastern Bering Sea. See \code{\link{BS2017SS}} for format details.
 #'
 #' @format A list with the same structure as \code{\link{BS2017SS}}.
+#' @source Converted from the ADMB inputs of the 2017 Eastern Bering Sea
+#'   multispecies CEATTLE assessment (Holsman et al. 2017), run in multispecies
+#'   mode; the full citation is in \code{\link{BS2017SS}}.
 "BS2017MS"
 
 
@@ -142,6 +203,8 @@
 #' flounder) without estimating natural mortality.
 #'
 #' @format An object of class \code{Rceattle}.
+#' @source Fit by Rceattle to the 2017 Eastern Bering Sea CEATTLE inputs; see
+#'   \code{\link{BS2017SS}} for their source.
 "EBS_ss_run"
 
 
@@ -151,6 +214,8 @@
 #' for the Eastern Bering Sea with natural mortality estimated.
 #'
 #' @format An object of class \code{Rceattle}.
+#' @source Fit by Rceattle to the 2017 Eastern Bering Sea CEATTLE inputs; see
+#'   \code{\link{BS2017SS}} for their source.
 "EBS_ss_M_run"
 
 
@@ -161,6 +226,8 @@
 #' flounder).
 #'
 #' @format An object of class \code{Rceattle}.
+#' @source Fit by Rceattle to the 2017 Eastern Bering Sea CEATTLE inputs; see
+#'   \code{\link{BS2017SS}} for their source.
 "EBS_ms_run"
 
 
@@ -171,6 +238,10 @@
 #' for format details.
 #'
 #' @format A list with the same structure as \code{\link{BS2017SS}}.
+#' @source The single-species models of Adams et al. (2022, Fisheries Research
+#'   251: 106303), set up in CEATTLE from the assessments cited in
+#'   \code{\link{GOApollock}}, \code{\link{GOAcod}} and \code{\link{GOAatf}}
+#'   (arrowtooth from the 2017 model).
 "GOA2018SS"
 
 
@@ -181,6 +252,12 @@
 #' for format details.
 #'
 #' @format A list with the same structure as \code{\link{BS2017SS}}.
+#' @source The 2017 assessment model, as carried into the 2018 SAFE, set up in
+#'   CEATTLE (not the operational model): Spies, I., Aydin, K., Ianelli, J.N.,
+#'   and Palsson, W. 2017, and Spies, I., and Palsson, W. 2018. Assessment of
+#'   the arrowtooth flounder stock in the Gulf of Alaska. In: Stock assessment
+#'   and fishery evaluation report for the groundfish resources of the Gulf of
+#'   Alaska. North Pacific Fishery Management Council, Anchorage, AK.
 "GOAatf"
 
 
@@ -191,6 +268,14 @@
 #' \code{\link{BS2017SS}} for format details.
 #'
 #' @format A list with the same structure as \code{\link{BS2017SS}}.
+#' @source The 2021 assessment model, as carried into the 2023 SAFE, set up in
+#'   CEATTLE (not the operational model): Shotwell, S.K., Spies, I., Ianelli,
+#'   J.N., Aydin, K., Hanselman, D.H., Palsson, W., Siwicke, K., Sullivan, J.,
+#'   and Yasumiishi, E. 2021, and Shotwell, S.K., Hanselman, D.H., von Szalay,
+#'   P., and Williams, B.C. 2023. Assessment of the arrowtooth flounder stock in
+#'   the Gulf of Alaska. In: Stock assessment and fishery evaluation report for
+#'   the groundfish resources of the Gulf of Alaska. North Pacific Fishery
+#'   Management Council, Anchorage, AK.
 "GOAatf2023"
 
 
@@ -201,6 +286,12 @@
 #' details.
 #'
 #' @format A list with the same structure as \code{\link{BS2017SS}}.
+#' @source The 2018 assessment, set up in CEATTLE (not the operational model):
+#'   Barbeaux, S., Aydin, K., Fissel, B., Holsman, K., Laurel, B., Palsson, W.,
+#'   Shotwell, K., Yang, Q., and Zador, S. 2018.
+#'   Assessment of the Pacific cod stock in the Gulf of Alaska. In: Stock
+#'   assessment and fishery evaluation report for the groundfish resources of
+#'   the Gulf of Alaska. North Pacific Fishery Management Council, Anchorage, AK.
 "GOAcod"
 
 
@@ -211,6 +302,12 @@
 #' format details.
 #'
 #' @format A list with the same structure as \code{\link{BS2017SS}}.
+#' @source The 2018 assessment, set up in CEATTLE (not the operational model):
+#'   Dorn, M., Aydin, K., Fissel, B., Palsson, W., Spalinger, K., Stienessen,
+#'   S., Williams, K., and Zador, S. 2018. Assessment of the walleye pollock
+#'   stock in the Gulf of Alaska. In: Stock assessment and fishery evaluation
+#'   report for the groundfish resources of the Gulf of Alaska. North Pacific
+#'   Fishery Management Council, Anchorage, AK.
 "GOApollock"
 
 
@@ -218,24 +315,37 @@
 #'
 #' A list containing biomass, spawning stock biomass, and recruitment
 #' reference values from the 2018 Gulf of Alaska Stock Assessment and
-#' Fishery Evaluation (SAFE) report.
+#' Fishery Evaluation (SAFE) report, plus the 2020 Pacific cod assessment.
 #'
-#' @format A list with components:
+#' @format A list with components, each a data frame of \code{Year} and one
+#'   column per assessment (\code{2018_Pollock}, \code{2018_Cod},
+#'   \code{2018_ATF}, \code{2020_Cod}):
 #' \describe{
 #'   \item{biomass}{Total biomass time series}
 #'   \item{ssb}{Spawning stock biomass time series}
 #'   \item{recruitment}{Recruitment time series}
 #' }
+#' @source The 2018 columns are from the chapters cited in
+#'   \code{\link{GOApollock}}, \code{\link{GOAcod}} and \code{\link{GOAatf}};
+#'   \code{2020_Cod} is from Barbeaux, S., Ferriss, B., Palsson, W., Shotwell,
+#'   K., Spies, I., Wang, M., and Zador, S. 2020. Assessment of the Pacific cod
+#'   stock in the Gulf of Alaska. In: Stock assessment and fishery evaluation
+#'   report for the groundfish resources of the Gulf of Alaska. North Pacific
+#'   Fishery Management Council, Anchorage, AK.
 "GOAsafe2018"
 
 
 #' Data inputs for a three-species Georges Bank CEATTLE model
 #'
 #' A data list containing inputs for a multispecies CEATTLE model fit to
-#' three groundfish species on Georges Bank. See \code{\link{BS2017SS}} for
-#' format details.
+#' Atlantic cod, silver hake and Atlantic herring on Georges Bank, 1978-2007.
+#' See \code{\link{BS2017SS}} for format details.
 #'
 #' @format A list with the same structure as \code{\link{BS2017SS}}.
+#' @source A CEATTLE recreation of the multispecies statistical catch-at-age
+#'   model of Curti, K.L., Collie, J.S., Legault, C.M., and Link, J.S. 2013.
+#'   Evaluating the performance of a multispecies statistical catch-at-age
+#'   model. Canadian Journal of Fisheries and Aquatic Sciences 70: 470-484.
 "GeorgesBank3spp"
 
 
@@ -246,16 +356,26 @@
 #' \code{\link{BS2017SS}} for format details.
 #'
 #' @format A list with the same structure as \code{\link{BS2017SS}}.
+#' @source The 2022 assessment, set up in CEATTLE (not the operational model):
+#'   Williams, B.C., Hulson, P.-J.F., Lunsford, C.R., and Ferriss, B. 2022.
+#'   Assessment of the northern rockfish stock in the Gulf of Alaska. In: Stock
+#'   assessment and fishery evaluation report for the groundfish resources of
+#'   the Gulf of Alaska. North Pacific Fishery Management Council, Anchorage, AK.
 "NorthernRockfish2022"
 
 
 #' Data inputs for Atka mackerel CEATTLE model (2022)
 #'
 #' A data list containing inputs for a single-species CEATTLE model fit to
-#' Aleutian Islands Atka mackerel data through 2022. See
+#' Bering Sea and Aleutian Islands Atka mackerel data through 2022. See
 #' \code{\link{BS2017SS}} for format details.
 #'
 #' @format A list with the same structure as \code{\link{BS2017SS}}.
+#' @source The 2022 assessment, set up in CEATTLE (not the operational model):
+#'   Lowe, S., and Ianelli, J. 2022. Assessment of the Atka mackerel stock in
+#'   the Bering Sea and Aleutian Islands. In: Stock assessment and fishery
+#'   evaluation report for the groundfish resources of the Bering Sea/Aleutian
+#'   Islands regions. North Pacific Fishery Management Council, Anchorage, AK.
 "Atka2022"
 
 
@@ -269,4 +389,7 @@
 #' selectivity before fitting.
 #'
 #' @format A list with the same structure as \code{\link{BS2017SS}}.
+#' @source Built from case 3 of the WHAM growth examples by Giancarlo Correa
+#'   and Jane Sullivan for the Ocean Frontier Institute's 2023 workshop,
+#'   <https://giancarlomcorrea.netlify.app/post/ofi-workshop/>.
 "whamGrowthData"

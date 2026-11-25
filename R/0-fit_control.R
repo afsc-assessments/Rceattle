@@ -36,8 +36,9 @@
 #' floored so it cannot reintroduce the `-Inf`. See [plot_selectivity()], which
 #' draws the interval.
 #'
-#' @param bias.correct logical. Apply bias correction via [TMB::sdreport()].
-#'   Default `FALSE`.
+#' @param bias.correct logical. Apply TMB's epsilon bias correction (Thorson
+#'   and Kristensen 2016) in [TMB::sdreport()]; not the lognormal adjustment of
+#'   `bias_adjust_obs` / `bias_adjust_proc`. Default `FALSE`.
 #' @param getsd logical. Run [TMB::sdreport()] after optimization. Default
 #'   `TRUE`.
 #' @param getJointPrecision logical. Return the full Hessian of fixed and
@@ -84,6 +85,10 @@
 #'   `?nlminb`. Default `list(eval.max = 1e9, iter.max = 1e9, trace = 0)`.
 #'
 #' @return A list of class `"Rceattle_fit_control"`.
+#' @references
+#' Thorson, J.T., and Kristensen, K. 2016. Implementing a generic method for bias
+#'   correction in statistical models using random effects, with spatial and
+#'   population dynamics examples. Fish. Res. 175:66-74.
 #' @export
 #'
 #' @examples

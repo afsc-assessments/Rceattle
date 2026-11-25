@@ -49,7 +49,7 @@ overstates real cost ~10x.
 array stores did not.** TMBad's `optimize()` runs `remap_identical_sub_expressions()` before
 `eliminate()`, so an unused operation that is the first copy of an expression a used one repeats
 becomes the node the used one points to. Dropping it moves that node, and with it the order the
-reverse sweep adds into its inputs. Measured on 5.70.10's predation skips, one at a time: each
+reverse sweep adds into its inputs. Measured on 5.71.2's predation skips, one at a time: each
 changed the gradient (by up to 6.8e-13) or the ADREPORT Jacobian on BS2017MS or GOA2018SS while
 the objective, `report()` and ADREPORT values stayed `identical()`. All of them together lowered
 a `suitMode = 4` fit's objective by 7.3e-7 while one parameter moved 1.69 along a flat direction.

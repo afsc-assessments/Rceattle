@@ -111,3 +111,7 @@ build_growth(
 )
 }
 }
+\references{
+Richards, F.J. 1959. A flexible growth function for empirical use. J. Exp.
+Bot. 10:290-301.
+}

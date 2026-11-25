@@ -48,6 +48,7 @@ void calculate_vulnerability(matrix<Type> &vulnerability,
  * @brief Parametric suitability (Gamma, Lognormal, Normal) from size ratios.
  *
  * Evaluates the predator-to-prey size ratio against a density scaled to a peak of 1.
+ * Adapted from MS_SSM.cpp of Trijoulet et al. (2020), vtrijoulet/Multisp_model_JAE.
  * `suitMode` sets both the density and the size metric:
  * - Gamma: suitMode 1 (length-based) or 2 (weight-based)
  * - Lognormal: suitMode 3 (length-based) or 4 (weight-based)
@@ -335,7 +336,7 @@ void calculate_msvpa_suitability(array<Type> &stom_div_bio,
  * @param nyrs                Years, hindcast plus projection.
  * @param nsex                Sexes modelled per species: 1 = combined, 2 = both.
  * @param nages               Age bins per species.
- * @param msmMode             Predation mode (1 = Type II MSVPA, Holsman et al. 2015;
+ * @param msmMode             Predation mode (1 = Type II MSVPA, Holsman et al. 2016;
  *                            2 = Type III MSVPA, which squares the prey term).
  * @param avgN_at_age         Average numbers-at-age (thousands of fish).
  * @param avgN_at_age_dB0     Average numbers-at-age at F=0.

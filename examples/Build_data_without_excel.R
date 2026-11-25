@@ -531,7 +531,7 @@ colnames(simData$diet_data) <- c("Pred", "Prey", "Pred_sex", "Prey_sex",
 #               4 = debug + nlminb
 #
 # msmMode:      0 = single-species (no predation mortality)
-#               1 = Type II MSVPA (sensu Holsman et al. 2015)
+#               1 = Type II MSVPA (sensu Holsman et al. 2016)
 #               2 = Type III MSVPA
 #
 # suitMode:     Predator-prey suitability (one value per predator species):

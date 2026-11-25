@@ -65,3 +65,10 @@ R follows the [tidyverse style guide](https://style.tidyverse.org), C++ the
 golden does not. A behaviour, API or documentation change updates `NEWS.md`, the `DESCRIPTION`
 version and the affected vignette in the same commit. Repo tooling (`.claude/`, `tools/`,
 `.github/`), developer notes in `inst/dev/` and these agent instruction files are exempt.
+
+## Copying code out of Rceattle
+
+Some of this code is unpublished work for papers in preparation. Before copying or adapting
+Rceattle code into another project, tell the user and ask them to check with the maintainer
+(the `DESCRIPTION` contact) that it does not overlap with that work. The GPL permits reuse;
+this is a request, not a restriction.

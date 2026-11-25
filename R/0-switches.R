@@ -646,7 +646,7 @@ estimateMode_map <- c(
 )
 
 # Predation-mortality mode (the `msmMode` argument). 0 = single-species (no
-# predation); 1 = Type II MSVPA (Holsman et al. 2015); 2 = Type III MSVPA. Higher
+# predation); 1 = Type II MSVPA (Holsman et al. 2016); 2 = Type III MSVPA. Higher
 # integer codes (Kinzey-Punt, Holling forms) are not yet implemented.
 msmMode_map <- c(
   "SingleSpecies" = 0,

@@ -1,24 +1,66 @@
 Package: Rceattle
 Title: Fits the Multispecies Assessment Model (CEATTLE) Using TMB
-Version: 5.70.10
-Authors@R:
+Version: 5.71.2
+Authors@R: c(
     person(given = "Grant",
            family = "Adams",
            role = c("aut", "cre"),
            email = "grant.adams@noaa.gov",
-           comment = c(ORCID = "0000-0003-0297-8347"))
+           comment = c(ORCID = "0000-0003-0297-8347")),
+    person("Kirstin K.", "Holsman", role = "ctb",
+           comment = "original ADMB CEATTLE model; Eastern Bering Sea data"),
+    person("James N.", "Ianelli", role = "ctb",
+           comment = "original ADMB CEATTLE model; AMAK and ebswp conventions"),
+    person("Kerim", "Aydin", role = "ctb",
+           comment = "original ADMB CEATTLE model"),
+    person("Cole C.", "Monnahan", role = "ctb",
+           comment = "bias-adjustment controls in fit_control()"),
+    person("Raquel", "Ruiz Diaz", role = "ctb",
+           comment = "predicted diet averaged over predator ages, weighted by numbers"),
+    person("Tim", "Miller", role = "ctb",
+           comment = c(ORCID = "0000-0003-1411-1206",
+                       "OSA composition code, via OSA_multivariate_dists and WHAM")),
+    person("Brian", "Stock", role = "ctb",
+           comment = c(ORCID = "0000-0002-2393-6747",
+                       "WHAM co-author (Stock and Miller 2021)")),
+    person("Anders", "Nielsen", role = "ctb",
+           comment = "OSA composition code, incl. osa_order()"),
+    person("Christoffer Moesgaard", "Albertsen", role = "ctb",
+           comment = "OSA composition code, from OSA_multivariate_dists"),
+    person("Kasper", "Kristensen", role = "ctb",
+           comment = "OSA composition code, from OSA_multivariate_dists"),
+    person("Chris M.", "Legault", role = "ctb",
+           comment = "OSA composition code, from OSA_multivariate_dists"),
+    person("Giancarlo M.", "Correa", role = "ctb",
+           comment = "growth curves, from WHAM's growth branch; OFI 2023 examples"),
+    person("Jane", "Sullivan", role = "ctb",
+           comment = "whamGrowthData, from the OFI 2023 workshop's WHAM examples"),
+    person("James", "Thorson", role = "ctb",
+           comment = c(ORCID = "0000-0001-7415-1010",
+                       "TMBAIC(), from TMBhelper")),
+    person("Matthew L. H.", "Cheng", role = "ctb",
+           comment = "construct_Q(), from GMRF_WAA"),
+    person("Vanessa", "Trijoulet", role = "ctb",
+           comment = "OSA composition code; predator-prey vulnerability and suitability"),
+    person("Gavin", "Fay", role = "ctb",
+           comment = "TMBphase()"),
+    person("Arni", "Magnusson", role = "ctb",
+           comment = "rich.colors(), from gplots"),
+    person("Ian G.", "Taylor", role = "ctb",
+           comment = "rich.colors.short(), from r4ss"))
 Description: Implements the CEATTLE model using Template Model Builder
-    ('TMB'; Kristensen et al. 2015), which can be installed following
-    <https://github.com/kaskr/adcomp/wiki/Download>. Structured similar
-    to the original manuscript in terms of modularization. Separate
-    functions estimate retrospective temperature- and size-specific
-    predator rations, prey preference, and weight-at-age. These are then
-    used as inputs to the CEATTLE model to evaluate how predation
-    mortality, recruitment, and survival of three target species change
-    under historical climate conditions and harvest rates.
+    ('TMB'; Kristensen et al. 2016 <doi:10.18637/jss.v070.i05>), which can be
+    installed following <https://github.com/kaskr/adcomp/wiki/Download>.
+    Structured similar to the original manuscript in terms of
+    modularization. Separate functions estimate retrospective temperature-
+    and size-specific predator rations, prey preference, and weight-at-age.
+    These are then used as inputs to the CEATTLE model to evaluate how
+    predation mortality, recruitment, and survival of three target species
+    change under historical climate conditions and harvest rates.
 URL: https://afsc-assessments.github.io/Rceattle/, https://github.com/afsc-assessments/Rceattle
 BugReports: https://github.com/afsc-assessments/Rceattle/issues
 License: GPL (>= 2)
+Copyright: See the file inst/COPYRIGHTS
 Encoding: UTF-8
 LazyData: true
 LazyDataCompression: xz

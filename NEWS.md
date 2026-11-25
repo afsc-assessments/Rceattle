@@ -18,16 +18,16 @@ throughout.
 review. It landed as 5.66.9, so a version check written for that fix needs 5.66.9.
 -->
 
-# Rceattle 5.70.10
+# Rceattle 5.71.2
 
 ## Performance
 
 * **TMB records a multispecies model in 22-37% less time.** While it records the
   objective, predation now skips what the objective does not read: the
-  predator-by-prey outputs only `fit$quantities` reports (`M2_prop`, `B_eaten`,
-  `B_eaten_as_prey`), the predicted diet unless suitability is estimated, the
-  dynamic B0 and BF predation unless `DynamicHCR = TRUE`, and the last
-  iteration's predation unless a diet is fitted. `fit$quantities` still has all
+  consumption outputs only `fit$quantities` reports (`M2_prop`, `B_eaten`,
+  `B_eaten_as_prey`), the predicted diet and the last iteration's predation
+  unless a diet is fitted (`suitMode > 0`), and the dynamic B0 and BF predation
+  unless `DynamicHCR = TRUE`. `fit$quantities` still has all
   of them. With `msmMode = 1`, recording (`obj$retape()`) takes 1,061 ms rather
   than 1,632 for BS2017MS and 1,707 ms rather than 2,726 for GOA2018SS; with
   `suitMode = 4` the saving is 22-25%. It repeats in every refit inside
@@ -59,6 +59,87 @@ review. It landed as 5.66.9, so a version check written for that fix needs 5.66.
     1.26) where 5.70.8 reads WARN (0.368).
   - A multispecies MSE (`tools/verify/verify-mse-repro.R`, BS2017MS) keeps SSB,
     biomass and F within 9.1e-6 and recruitment within 1.2e-4.
+
+# Rceattle 5.71.1
+
+## Bug fixes
+
+* **`get_growth_matrix_r()` grows each cohort under Richards growth on last year's
+  K and takes the 1/m root**, as the template's `estimate_growth()` does. After
+  year 1 it read L1 for K and divided by m: with K = 0.3, L1 = 20 cm at age 1 and
+  Linf = 90 cm, a 5-year-old in year 2 was 90.0 cm instead of 68.9 cm at m = 1
+  (von Bertalanffy), and 267.0 cm instead of 71.5 cm at m = 1.3. No fit,
+  simulation or MSE calls this internal function. Outside its own test, its one
+  caller is the multispecies test-data helper, which builds a single year; its
+  output is unchanged.
+
+# Rceattle 5.71.0
+
+## Breaking changes
+
+* **`inst/extdata/GeorgesBank3sppTrijoulet.xlsx` is removed**, at the
+  maintainer's direction. Nothing in the package read it, and where it came
+  from was not documented, so it could not be credited. `system.file()` now
+  returns `""` for it; ask the maintainer for a copy. A minor bump, because no
+  fit used it. The bundled `GeorgesBank3spp` is unchanged.
+
+## Documentation
+
+* **Credit for borrowed code and data.** `DESCRIPTION` lists as contributors:
+  - the authors of the original ADMB CEATTLE (Holsman, Ianelli, Aydin);
+  - the people who contributed code to Rceattle;
+  - the authors of code adapted or copied from WHAM, Trijoulet et al.'s
+    one-step-ahead reference code, TMBhelper, `TMBphase`, GMRF_WAA, gplots,
+    r4ss and the Trijoulet et al. (2020) multispecies model;
+  - the authors of the WHAM growth examples for the Ocean Frontier Institute's
+    2023 workshop (OFI 2023), which `whamGrowthData` and two comparison
+    scripts are built from.
+
+  The new `inst/COPYRIGHTS` gives each borrowed piece's source, copyright and
+  license, and the README has a short "Code and data from other projects"
+  section. `?TMBAIC` credits James Thorson, and `?osa_residuals` and
+  `vignette("model-diagnostics")` credit WHAM's code (Stock and Miller 2021)
+  for the one-step-ahead composition likelihoods. `License:` is unchanged
+  pending review by the NMFS GitHub Governance Team (`inst/COPYRIGHTS` says why).
+
+* **Literature citations corrected and completed.**
+  - Wrong citations fixed: Thornton and Lessem is 1978; the MSVPA model is
+    Holsman et al. 2016; `?build_bounds` no longer credits Kinzey and Punt,
+    whose bounds were removed in 5.49.2; 2D-AR1 selectivity is Xu et al.
+    2019; and 3D-AR1 is Cheng et al. 2023, since no 2024 paper exists. TMB is
+    now cited as the 2016 *Journal of Statistical Software* paper, not the 2015
+    preprint. The "Hake" selectivity form cites the 2015 Pacific hake
+    assessment (Taylor et al. 2015), the warm-water bioenergetics form
+    Holsman and Aydin (2015), and the ascending-limb random walk
+    (`"RandomWalkAscending"`) and random-walk catchability the 2018 GOA
+    pollock assessment (Dorn et al. 2018); `"RandomWalk"` extends that
+    selectivity walk to both limbs. The 2D- and 3D-AR1
+    forms say what they take from Xu et al. (2019) and Cheng et al. (2023),
+    and Mohn's rho is described as averaged over peels (Hurtado-Ferro et al.
+    2015). Two `data_check()` messages and one from `plot_form()` carry the
+    corrected years.
+  - Help pages now cite methods they described without a source: Mohn (1999)
+    in `?retrospective`, Thorson et al. (2017) in `?build_composition`,
+    Thorson and Kristensen (2016) for TMB's epsilon bias correction
+    (`bias.correct`) in `?fit_control`, Beverton and Holt (1957) and Ricker
+    (1954) in `?build_srr`, Punt et al. (2016) in `?run_mse`,
+    Richards (1959) in `?build_growth`, Dunn and Smyth (1996) in
+    `?osa_residuals`, and Methot and Wetzel (2013) for the `DoubleNormalSS3`
+    form in `?BS2017SS`.
+  - Every user vignette that cites a paper now ends with a reference list, and
+    the vignettes cite these methods where they introduce them.
+
+* **A request to anyone reusing Rceattle code.** The README asks that code
+  copied or adapted into another project, by hand or through an AI assistant,
+  be checked with the maintainer first for overlap with work in preparation.
+  The retrospective code carries the same request.
+
+* **Every bundled dataset's help page has a `Source` section** citing the
+  assessment, paper or workshop it came from, with the authors of each SAFE
+  chapter. `?GOAsafe2018` now lists its `2020_Cod` columns, `?Atka2022` names
+  the Bering Sea and Aleutian Islands stock, and `?GeorgesBank3spp` names
+  Atlantic cod, silver hake and Atlantic herring rather than "three groundfish
+  species". No number changes.
 
 # Rceattle 5.70.8
 
