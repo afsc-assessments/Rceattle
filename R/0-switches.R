@@ -645,9 +645,8 @@ estimateMode_map <- c(
   "DebugOptimize" = 4
 )
 
-# Predation-mortality mode (the `msmMode` argument). 0 = single-species (no
-# predation); 1 = Type II MSVPA (Holsman et al. 2016); 2 = Type III MSVPA. Higher
-# integer codes (Kinzey-Punt, Holling forms) are not yet implemented.
+# Predation mode (`msmMode`): 0 = single-species, 1 = Type II MSVPA (Holsman et
+# al. 2016), 2 = Type III MSVPA; codes 3-9 (Kinzey & Punt) are unimplemented.
 msmMode_map <- c(
   "SingleSpecies" = 0,
   "MSVPA"         = 1,
@@ -688,19 +687,16 @@ msmMode_map <- c(
 
 #' First selected bin and age of each fleet
 #'
-#' `Age_first_selected` is an absolute age. On an age-based fleet
-#' `Bin_first_selected` is its deprecated spelling, read as age
-#' `minage + Bin_first_selected - 1`, and the two may not disagree. On a
-#' length-based fleet `Bin_first_selected` is a length-bin ordinal and
-#' `Age_first_selected` the youngest age left in the fleet's age-length key.
-#' Neither column is rewritten, so an edit to either takes effect on a refit.
+#' Resolves `Age_first_selected` (absolute age; age-length-key floor on a
+#' length-based fleet) and `Bin_first_selected` (1-based length-bin ordinal, or
+#' deprecated `minage + Bin_first_selected - 1` on an age-based fleet, where the
+#' two may not disagree) without rewriting `fleet_control`.
 #'
 #' @param data_list An Rceattle data list.
-#' @return A list over `fleet_control` rows: `bin`, the first selected bin as a
-#'   1-based ordinal on the fleet's `Selectivity_dimension`; `age`, the first
-#'   selected age (on a length-based fleet, its age floor); `length_based`; and
-#'   `from_bin`, the age-based fleets read from `Bin_first_selected`. `bin` and
-#'   `age` are `NA` where nothing is set.
+#' @return Named list of per-fleet vectors (`NA` where unset): `bin` (1-based
+#'   ordinal on `Selectivity_dimension`), `age` (first selected age),
+#'   `length_based`, and `from_bin` (age-based fleets read from
+#'   `Bin_first_selected`).
 #' @keywords internal
 #' @noRd
 .rce_first_selected <- function(data_list) {
@@ -1342,9 +1338,8 @@ switch_check <- function(data_list){
                       data_list$nages[sp_idx],
                       data_list$nlengths[sp_idx])
 
-    # The bins the fleet is actually selected over. Below the first selected bin
-    # the curve is zeroed, so normalizing there divides by ~0, and above the
-    # oldest age there is nothing to divide by.
+    # Selectivity is zeroed below the first selected bin and undefined above the
+    # last bin, so normalization must fall within [lo, hi].
     lo <- .rce_sel_norm_bounds(data_list, flt, age_selex, max_bin)
     hi <- lo$hi; lo <- lo$lo
     is_pm <- data_list$fleet_control$Selectivity[flt] %in% c(11, "LogisticPM")
@@ -2010,15 +2005,13 @@ convert_switches <- function(data_list) {
 }
 
 
-#' Report an age-based fleet read from `Bin_first_selected`
+#' Report an age-based fleet read from deprecated `Bin_first_selected`
 #'
-#' On an age-based fleet `Bin_first_selected` is the deprecated spelling of
-#' `Age_first_selected`. A value of 1 (selected from `minage`, the same as a
-#' blank) and `"Fixed"` or `"Off"` fleets (whose curve is not shaped by this
-#' column) are skipped. Called from `fit_mod()` rather than `switch_check()`,
-#' for the reason given in `.rce_flag_dm_weight_scale()`.
+#' Skips `Bin_first_selected == 1` (same as blank, selected from `minage`) and
+#' `"Fixed"` or `"Off"` fleets. Called from `fit_mod()` rather than
+#' `switch_check()`, as in `.rce_flag_dm_weight_scale()`.
 #'
-#' @param data_list a data list, after `switch_check()` has resolved
+#' @param data_list A data list after `switch_check()` has resolved
 #'   `Selectivity_dimension`.
 #' @return `data_list`, unchanged.
 #' @keywords internal

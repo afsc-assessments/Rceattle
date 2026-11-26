@@ -11,9 +11,8 @@ A list with the same structure as \code{\link{BS2017SS}}.
 The 2017 assessment model, as carried into the 2018 SAFE, set up in
 CEATTLE (not the operational model): Spies, I., Aydin, K., Ianelli, J.N.,
 and Palsson, W. 2017, and Spies, I., and Palsson, W. 2018. Assessment of
-the arrowtooth flounder stock in the Gulf of Alaska. In: Stock assessment
-and fishery evaluation report for the groundfish resources of the Gulf of
-Alaska. North Pacific Fishery Management Council, Anchorage, AK.
+the arrowtooth flounder stock in the Gulf of Alaska. NPFMC Gulf of Alaska
+SAFE report, Anchorage, AK.
 }
 \usage{
 GOAatf

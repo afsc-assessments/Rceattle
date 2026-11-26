@@ -19,9 +19,7 @@ The 2018 columns are from the chapters cited in
 \code{\link{GOApollock}}, \code{\link{GOAcod}} and \code{\link{GOAatf}};
 \code{2020_Cod} is from Barbeaux, S., Ferriss, B., Palsson, W., Shotwell,
 K., Spies, I., Wang, M., and Zador, S. 2020. Assessment of the Pacific cod
-stock in the Gulf of Alaska. In: Stock assessment and fishery evaluation
-report for the groundfish resources of the Gulf of Alaska. North Pacific
-Fishery Management Council, Anchorage, AK.
+stock in the Gulf of Alaska. NPFMC Gulf of Alaska SAFE report, Anchorage, AK.
 }
 \usage{
 GOAsafe2018

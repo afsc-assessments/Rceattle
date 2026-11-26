@@ -10,9 +10,8 @@ A list with the same structure as \code{\link{BS2017SS}}.
 \source{
 The 2022 assessment, set up in CEATTLE (not the operational model):
 Lowe, S., and Ianelli, J. 2022. Assessment of the Atka mackerel stock in
-the Bering Sea and Aleutian Islands. In: Stock assessment and fishery
-evaluation report for the groundfish resources of the Bering Sea/Aleutian
-Islands regions. North Pacific Fishery Management Council, Anchorage, AK.
+the Bering Sea and Aleutian Islands. NPFMC Bering Sea/Aleutian Islands SAFE
+report, Anchorage, AK.
 }
 \usage{
 Atka2022

@@ -738,11 +738,8 @@ data_check <- function(data_list) {
     }
   }
 
-  # Bioenergetics: Ceq 1 (exponential, Stewart et al. 1983), 2 (warm-water,
-  # Kitchell et al. 1977) and 3 (cool/cold-water, Thornton and Lessem 1978) each
-  # read env_index(year, Cindex); only Ceq 4 (constant, fT = 1) reads nothing.
-  # Cindex is 1-based and counts the covariate columns of env_data, the Year
-  # column not being one. The messages below say how each case is reported.
+  # Ceq 1 (Stewart et al. 1983), 2 (Kitchell et al. 1977) and 3 (Thornton and
+  # Lessem 1978) read 1-based covariate column Cindex of env_data; Ceq 4 sets fT = 1.
   if(!is.null(data_list$Ceq)){
     # Absent or unrecognized msmMode takes the multispecies (error) branch: the
     # warning is only safe where consumption provably cannot reach the fit, and
@@ -900,12 +897,8 @@ data_check <- function(data_list) {
         errors <- c(errors, paste0("Fleet '", flt_name, "': N_sel_bins (", nsb, ") must be in 1:", max_bin))
       }
 
-      # A coefficient-per-bin fleet estimates one coefficient per bin from the
-      # first selected bin to N_sel_bins, so N_sel_bins below the first selected bin
-      # leaves it none. Hake starts one bin later -- its first coefficient is not
-      # identifiable and build_map() drops it -- so it needs a strictly wider
-      # range. Only the forms that read N_sel_bins are checked; a logistic fleet
-      # ignores both columns.
+      # Non-parametric and AR1 forms estimate coefficients over first_bin:N_sel_bins
+      # (Hake from first_bin + 1, as its first bin is fixed), so N_sel_bins must reach it.
       .sel_form <- if("Selectivity" %in% colnames(fc)) .canon_switch(fc$Selectivity[flt], sel_map) else NA_character_
       reads_nsb <- isTRUE(.sel_form %in% c("NonParametric", "NonParametricPM",
                                            "NonParametricIntegrable",
@@ -1212,14 +1205,11 @@ data_check <- function(data_list) {
         rows <- which(!is.na(fc$Selectivity_index) & fc$Selectivity_index == si & .live)
         if (length(rows) < 2) next
         .differs <- function(col, na_is_a_value) {
-          # The first selected age is compared as resolved, so a fleet giving it
-          # as the old 'Bin_first_selected' agrees with one giving the same age;
-          # 'Bin_first_selected' is then compared on length-based fleets only.
+          # Compare the resolved first selected age on age-based fleets (whether set
+          # via Age_first_selected or Bin_first_selected), and bin on length-based.
           if (!col %in% c(colnames(fc), "Age_first_selected")) return(FALSE)
-          # The normalization columns take a word or a bin, so "Max" and -1 are
-          # the same instruction; compare what they resolve to, not how they
-          # were typed.
-          # A blank is the first age or bin, so it agrees with naming that one.
+          # Compare resolved values rather than raw entries so equivalent settings
+          # (e.g. blank vs minage/bin 1, or "Max" vs -1) agree.
           v <- if (col == "Age_first_selected") {
             .min <- data_list$minage[fc$Species[rows]]
             as.character(ifelse(is.na(first_sel$age[rows]), .min, first_sel$age[rows]))

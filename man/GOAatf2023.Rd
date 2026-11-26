@@ -13,9 +13,7 @@ CEATTLE (not the operational model): Shotwell, S.K., Spies, I., Ianelli,
 J.N., Aydin, K., Hanselman, D.H., Palsson, W., Siwicke, K., Sullivan, J.,
 and Yasumiishi, E. 2021, and Shotwell, S.K., Hanselman, D.H., von Szalay,
 P., and Williams, B.C. 2023. Assessment of the arrowtooth flounder stock in
-the Gulf of Alaska. In: Stock assessment and fishery evaluation report for
-the groundfish resources of the Gulf of Alaska. North Pacific Fishery
-Management Council, Anchorage, AK.
+the Gulf of Alaska. NPFMC Gulf of Alaska SAFE report, Anchorage, AK.
 }
 \usage{
 GOAatf2023
