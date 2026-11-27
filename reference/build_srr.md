@@ -9,11 +9,12 @@ Sets the stock-recruit curve and how recruitment is estimated.
   `steepness` holds its placeholder 0.99 rather than being estimated.
   \$\$R_y = exp(R0 + R\_{dev,y})\$\$
 
-- `srr_fun = 2` or `"BevertonHolt"`: \$\$R_y = \frac{\alpha\_{srr} \*
-  SB\_{y-minage}}{1+\beta\_{srr} \* SB\_{y-minage}}\$\$
+- `srr_fun = 2` or `"BevertonHolt"` (Beverton and Holt 1957): \$\$R_y =
+  \frac{\alpha\_{srr} \* SB\_{y-minage}}{1+\beta\_{srr} \*
+  SB\_{y-minage}}\$\$
 
-- `srr_fun = 4` or `"Ricker"`: \$\$R_y = \alpha\_{srr} \* SB\_{y-minage}
-  \* exp(-\beta\_{srr} \* SB\_{y-minage})\$\$
+- `srr_fun = 4` or `"Ricker"` (Ricker 1954): \$\$R_y = \alpha\_{srr} \*
+  SB\_{y-minage} \* exp(-\beta\_{srr} \* SB\_{y-minage})\$\$
 
 Both curves are the deterministic mean; realized recruitment applies the
 annual log deviation, \\R_y \cdot exp(R\_{dev,y})\\. For numerical
@@ -165,6 +166,15 @@ steepness \\h\\ and unfished spawning biomass per recruit \\\phi_0\\:
 \$\$\alpha = \frac{4h}{\phi_0 (1 - h)}, \qquad \beta = \frac{\alpha -
 1/\phi_0}{R_0}.\$\$ Under predation, where \\\phi_0\\ is undefined, seed
 them from a curve fitted to an earlier fit's SSB-recruitment pairs.
+
+## References
+
+Beverton, R.J.H., and Holt, S.J. 1957. On the dynamics of exploited fish
+populations. Fishery Investigations Series II, Vol. 19. UK Ministry of
+Agriculture, Fisheries and Food, London.
+
+Ricker, W.E. 1954. Stock and recruitment. J. Fish. Res. Board Can.
+11:559-623.
 
 ## Examples
 

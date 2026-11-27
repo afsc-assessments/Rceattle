@@ -38,7 +38,8 @@ get_weight_at_age_r(
 
 - lengths_sp:
 
-  Vector. Boundaries of the length bins.
+  Vector. Lower edges of the length bins (cm), as in
+  [`get_growth_matrix_r()`](https://afsc-assessments.github.io/Rceattle/reference/get_growth_matrix_r.md).
 
 - length_at_age:
 

@@ -9,7 +9,7 @@ optionally project the stock and apply a harvest control rule."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.70.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.72.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -189,13 +189,12 @@ Dirichlet-multinomial weights.</p></dd>
 
 
 <dt id="arg-msmmode">msmMode<a class="anchor" aria-label="anchor" href="#arg-msmmode"></a></dt>
-<dd><p>The predation-mortality mode, as a string alias or integer
-code: <code>"SingleSpecies"</code> (0, the default, no predation),
-<code>"MSVPA"</code> (1, the Type-II MSVPA predation of Holsman et al. 2015) or
-<code>"TypeIIIMSVPA"</code> (2). Codes 3 to 9 (Kinzey &amp; Punt 2009 functional
-responses, Holling forms, Ecosim) are declared but refused by
-<code><a href="data_check.html">data_check()</a></code> until validated against the current parameter set; see
-<code>src/TMB/predation.hpp</code>.</p></dd>
+<dd><p>Predation-mortality mode (string or integer):
+<code>"SingleSpecies"</code> (0, default; no predation), <code>"MSVPA"</code> (1;
+Type-II MSVPA, Holsman et al. 2016), or <code>"TypeIIIMSVPA"</code> (2); codes
+3–9 (Kinzey &amp; Punt 2009 functional responses: Holling forms through Ecosim)
+are declared but refused by <code><a href="data_check.html">data_check()</a></code> until validated against the
+current parameter set.</p></dd>
 
 
 <dt id="arg-avgnmode">avgnMode<a class="anchor" aria-label="anchor" href="#arg-avgnmode"></a></dt>
@@ -217,11 +216,11 @@ age structure under any mode.</p></dd>
 
 
 <dt id="arg-suitmode">suitMode<a class="anchor" aria-label="anchor" href="#arg-suitmode"></a></dt>
-<dd><p>how predator-prey suitability is derived, per predator (one
-value or a vector of length <code>nspp</code>): 0 = empirical from diet data
-(Holsman et al. 2015), 2 = weight-based gamma, 4 = weight-based lognormal,
-6 = weight-based normal. The length-based forms (1, 3, 5) are declared but
-refused by the data check.</p></dd>
+<dd><p>Predator-prey suitability mode per predator (scalar or
+length-<code>nspp</code> vector): 0 = empirical from diet data (Holsman et al.
+2016), 2 = weight-based gamma, 4 = weight-based lognormal, 6 =
+weight-based normal (length-based codes 1, 3, 5 are declared but refused
+by <code><a href="data_check.html">data_check()</a></code>).</p></dd>
 
 
 <dt id="arg-suit-styr">suit_styr<a class="anchor" aria-label="anchor" href="#arg-suit-styr"></a></dt>
@@ -291,6 +290,13 @@ so a config built with <code><a href="model_config.html">model_config()</a></cod
 object. Where both set a field and disagree, the config wins and the
 difference is warned about by name. A config written before that field record
 existed counts as having set its non-default fields.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
+    <p>Holsman, K.K., Ianelli, J., Aydin, K., Punt, A.E., and Moffitt, E.A. 2016. A
+comparison of fisheries biological reference points estimated from
+temperature-specific multi-species and single-species climate-enhanced
+stock assessment models. Deep Sea Res. II 134:360-378.</p>
     </div>
 
     <div class="section level2">

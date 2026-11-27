@@ -124,10 +124,10 @@ positive and right-skewed. It needs a fit run with
 Only estimated, age-based fleets hold one. A length-based fleet is drawn
 on `sel_at_length`, which is what was fitted and holds no error; a
 `Selectivity = "Fixed"` fleet estimates nothing; and no fleet gets a
-band below its first selected bin (`Bin_first_selected`, a 1-based bin
-ordinal, not an absolute age), where selectivity is 0 by construction. A
-fleet mirroring another's `Selectivity_index` has no errors of its own
-and borrows its lead's, but only where the two curves agree,
+band below its first selected age (`Age_first_selected`), where
+selectivity is 0 by construction. A fleet mirroring another's
+`Selectivity_index` has no errors of its own and borrows its lead's, but
+only where the two curves agree,
 [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
 only warns when a shared group differs in a shaping column such as
 `Sel_norm_bin`.

@@ -204,7 +204,8 @@ plot_recruitment(
 
 `fit_mod(HCR = build_hcr(...))` sets the rule;
 [`?build_hcr`](https://afsc-assessments.github.io/Rceattle/reference/build_hcr.md)
-has the parameters.
+has the parameters. Moffitt et al. (2016) compare options for
+multi-species reference points.
 
 | Value | String | Description | Multi-species? |
 |----|----|----|----|
@@ -240,3 +241,10 @@ ss_run_tier3 <- fit_mod(
 For closed-loop testing of control rules across many simulated
 trajectories, see
 [`vignette("hcrs-and-mses")`](https://afsc-assessments.github.io/Rceattle/articles/hcrs-and-mses.md).
+
+## References
+
+- Moffitt, E.A., Punt, A.E., Holsman, K., Aydin, K.Y., Ianelli, J.N.,
+  Ortiz, I. (2016). Moving towards ecosystem-based fisheries management:
+  options for parameterizing multi-species biological reference points.
+  *Deep Sea Research Part II*, 134, 350-359.

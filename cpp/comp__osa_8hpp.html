@@ -134,7 +134,7 @@ Functions</h2></td></tr>
 </table>
 <a name="details" id="details"></a><h2 id="header-details" class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>One-step-ahead (OSA) residual helpers for composition data. </p>
-<p>TMB's oneStepPredict() needs every observation in a flat <span class="tt">obsvec</span>, its likelihood term multiplied by its own <span class="tt">keep</span> element, which multivariate discrete composition data cannot supply directly. Following Trijoulet et al. (2023) and WHAM (src/age_comp_osa.hpp), a composition of A bins is decomposed into A-1 univariate conditionals &ndash; binomials for the multinomial, beta-binomials for the Dirichlet-multinomial &ndash; each gated by its keep element. The last bin is fixed by the sum-to-N constraint, contributes nothing, and is reported as NA on the R side. With every keep at 1 the conditional log-densities sum to the joint log-density, so OSA changes how the likelihood is <em>decomposed</em>, not its value. The <span class="tt">_osa</span> suffix and the data_indicator argument keep these clear of TMB's dmultinom() and of the <a class="el" href="helper__functions_8hpp.html#ac96c58816357fa6995b935fca1b6dbce">ddirmultinom()</a> in <a class="el" href="helper__functions_8hpp.html" title="Small differentiable (AD-safe) utilities used across the CEATTLE template: numeric guards and transfo...">helper_functions.hpp</a> that ordinary fitting uses.</p>
+<p>TMB's oneStepPredict() needs every observation in a flat <span class="tt">obsvec</span>, its likelihood term multiplied by its own <span class="tt">keep</span> element, which multivariate discrete composition data cannot supply directly. Following Trijoulet et al. (2023), their reference code (distr.hpp in github.com/vtrijoulet/OSA_multivariate_dists, from which <a class="el" href="#a2d205ff4785a3522fd0a465010941743" title="Keep-aware multinomial log-density via conditional binomials.">dmultinom_osa()</a> and <a class="el" href="#a26c79a7485304566c91ff91dd42bb9be" title="Keep-aware Dirichlet-multinomial log-density via conditional beta-binomials.">ddirmultinom_osa()</a> take their names and CDF terms) and WHAM (src/age_comp_osa.hpp), a composition of A bins is decomposed into A-1 univariate conditionals &ndash; binomials for the multinomial, beta-binomials for the Dirichlet-multinomial &ndash; each gated by its keep element. The last bin is fixed by the sum-to-N constraint, contributes nothing, and is reported as NA on the R side. With every keep at 1 the conditional log-densities sum to the joint log-density, so OSA changes how the likelihood is <em>decomposed</em>, not its value. The <span class="tt">_osa</span> suffix and the data_indicator argument keep these clear of TMB's dmultinom() and of the <a class="el" href="helper__functions_8hpp.html#ac96c58816357fa6995b935fca1b6dbce">ddirmultinom()</a> in <a class="el" href="helper__functions_8hpp.html" title="Small differentiable (AD-safe) utilities used across the CEATTLE template: numeric guards and transfo...">helper_functions.hpp</a> that ordinary fitting uses.</p>
 <p>The file also holds the conditional CDFs oneStepPredict(method = "cdf") reads &ndash; continuous binomial for a composition bin, normal / left-truncated normal for an aggregate series. That residual is Phi^-1(F(x)), formed without a conditional mean, so it cannot leave the support of a bounded observation.</p>
 <p>Shared contract of the CDF terms below &ndash; the two <span class="tt">_cdf_terms</span> helpers and <a class="el" href="#a2d205ff4785a3522fd0a465010941743" title="Keep-aware multinomial log-density via conditional binomials.">dmultinom_osa()</a>'s <span class="tt">do_cdf</span> path. Each contributes to the log-likelihood <span class="tt">keep.cdf_lower</span> times log F plus <span class="tt">keep.cdf_upper</span> times log of its complement, which is 0 whenever the cdf gates are 0: every evaluation except the two oneStepPredict(method = "cdf") makes per observation. The terms are added only when the caller asks (<span class="tt">do_cdf</span>, from osa_mode == 2), so ordinary fitting and the Gaussian OSA methods are unchanged and pay nothing for them. Every F is mapped onto the open interval by <a class="el" href="#a981c5bfaf18a6ef73ccc0c847cdeef0b" title="Map a CDF onto the open interval before its logarithm is taken.">osa_squeeze_cdf()</a> first, because an exactly 0 or 1 CDF puts a -Inf on the tape and a -Inf times a zero gate is a NaN. </p>
 
@@ -189,9 +189,9 @@ template&lt;class Type&gt; </div>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="comp__osa_8hpp_source.html#l00252">252</a> of file <a class="el" href="comp__osa_8hpp_source.html">comp_osa.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="comp__osa_8hpp_source.html#l00266">266</a> of file <a class="el" href="comp__osa_8hpp_source.html">comp_osa.hpp</a>.</p>
 
-<p class="reference">References <a class="el" href="helper__functions_8hpp_source.html#l00037">ddirmultinom()</a>, and <a class="el" href="comp__osa_8hpp_source.html#l00036">osa_order()</a>.</p>
+<p class="reference">References <a class="el" href="helper__functions_8hpp_source.html#l00038">ddirmultinom()</a>, and <a class="el" href="comp__osa_8hpp_source.html#l00050">osa_order()</a>.</p>
 
 <p class="reference">Referenced by <a class="el" href="likelihood_8hpp_source.html#l00081">comp_row_nll()</a>.</p>
 
@@ -251,9 +251,9 @@ template&lt;class Type&gt; </div>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="comp__osa_8hpp_source.html#l00159">159</a> of file <a class="el" href="comp__osa_8hpp_source.html">comp_osa.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="comp__osa_8hpp_source.html#l00173">173</a> of file <a class="el" href="comp__osa_8hpp_source.html">comp_osa.hpp</a>.</p>
 
-<p class="reference">References <a class="el" href="comp__osa_8hpp_source.html#l00036">osa_order()</a>, <a class="el" href="comp__osa_8hpp_source.html#l00095">osa_pbinom()</a>, <a class="el" href="comp__osa_8hpp_source.html#l00055">osa_squeeze()</a>, and <a class="el" href="comp__osa_8hpp_source.html#l00076">osa_squeeze_cdf()</a>.</p>
+<p class="reference">References <a class="el" href="comp__osa_8hpp_source.html#l00050">osa_order()</a>, <a class="el" href="comp__osa_8hpp_source.html#l00109">osa_pbinom()</a>, <a class="el" href="comp__osa_8hpp_source.html#l00069">osa_squeeze()</a>, and <a class="el" href="comp__osa_8hpp_source.html#l00090">osa_squeeze_cdf()</a>.</p>
 
 <p class="reference">Referenced by <a class="el" href="likelihood_8hpp_source.html#l00081">comp_row_nll()</a>.</p>
 
@@ -307,9 +307,9 @@ template&lt;class Type&gt; </div>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="comp__osa_8hpp_source.html#l00117">117</a> of file <a class="el" href="comp__osa_8hpp_source.html">comp_osa.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="comp__osa_8hpp_source.html#l00131">131</a> of file <a class="el" href="comp__osa_8hpp_source.html">comp_osa.hpp</a>.</p>
 
-<p class="reference">References <a class="el" href="comp__osa_8hpp_source.html#l00076">osa_squeeze_cdf()</a>.</p>
+<p class="reference">References <a class="el" href="comp__osa_8hpp_source.html#l00090">osa_squeeze_cdf()</a>.</p>
 
 </div>
 </div>
@@ -330,9 +330,9 @@ template&lt;class Type&gt; </div>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="comp__osa_8hpp_source.html#l00036">36</a> of file <a class="el" href="comp__osa_8hpp_source.html">comp_osa.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="comp__osa_8hpp_source.html#l00050">50</a> of file <a class="el" href="comp__osa_8hpp_source.html">comp_osa.hpp</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="comp__osa_8hpp_source.html#l00252">ddirmultinom_osa()</a>, and <a class="el" href="comp__osa_8hpp_source.html#l00159">dmultinom_osa()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="comp__osa_8hpp_source.html#l00266">ddirmultinom_osa()</a>, and <a class="el" href="comp__osa_8hpp_source.html#l00173">dmultinom_osa()</a>.</p>
 
 </div>
 </div>
@@ -363,7 +363,7 @@ template&lt;class Type&gt; </div>
 </div><div class="memdoc">
 
 <p>Conditional binomial CDF P(X &lt;= x), X ~ Binomial(n, p), at fractional x. </p>
-<p>Written through the regularized incomplete beta, 1 - I_p(x + 1, n - x), which equals the binomial CDF at whole counts and stays smooth at the fractional ones composition data carry: a bin count is proportion * effective sample size, an integer only by coincidence. Same expression as the Trijoulet et al. (2023) reference implementation TMB ships (contrib/OSA_multivariate_dists-main/distr.hpp, <span class="tt">dists::pbinom</span>).</p>
+<p>Written through the regularized incomplete beta, 1 - I_p(x + 1, n - x), which equals the binomial CDF at whole counts and stays smooth at the fractional ones composition data carry: a bin count is proportion * effective sample size, an integer only by coincidence. Same expression as the Trijoulet et al. (2023) reference implementation (distr.hpp, <span class="tt">dists::pbinom</span>, which TMB:::install.contrib() installs).</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">x</td><td>Count in this bin. </td></tr>
@@ -373,9 +373,9 @@ template&lt;class Type&gt; </div>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="comp__osa_8hpp_source.html#l00095">95</a> of file <a class="el" href="comp__osa_8hpp_source.html">comp_osa.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="comp__osa_8hpp_source.html#l00109">109</a> of file <a class="el" href="comp__osa_8hpp_source.html">comp_osa.hpp</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="comp__osa_8hpp_source.html#l00159">dmultinom_osa()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="comp__osa_8hpp_source.html#l00173">dmultinom_osa()</a>.</p>
 
 </div>
 </div>
@@ -396,9 +396,9 @@ template&lt;class Type&gt; </div>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="comp__osa_8hpp_source.html#l00055">55</a> of file <a class="el" href="comp__osa_8hpp_source.html">comp_osa.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="comp__osa_8hpp_source.html#l00069">69</a> of file <a class="el" href="comp__osa_8hpp_source.html">comp_osa.hpp</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="comp__osa_8hpp_source.html#l00159">dmultinom_osa()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="comp__osa_8hpp_source.html#l00173">dmultinom_osa()</a>.</p>
 
 </div>
 </div>
@@ -423,9 +423,9 @@ template&lt;class Type&gt; </div>
 <p>Four machine epsilons wide where <a class="el" href="#a8151f10b0a759522b5395ba564d55293">osa_squeeze()</a> uses one: oneStepPredict recovers F from 1/(1 + exp(nlcdf.lower - nlcdf.upper)) in double precision, and at one epsilon that denominator sits on the round-half-to-even tie above 1 &ndash; where it rounds to 1 so does F, and the residual is infinite. Measured on BS2017SS: 6 of 4538 composition residuals infinite at one epsilon, none at four; the cost is where |residual| saturates &ndash; 8.04 against 8.13 &ndash; a tail no Q-Q plot resolves.</p>
 <p>It maps rather than clamps, so a caller that forms F by subtracting two CDFs relies on it to absorb the cancellation: <a class="el" href="#a71125b3b6cce27bdcaa2feb74dfbb9a0" title="One-step-ahead CDF terms for a normal left-truncated at zero.">osa_trunc_norm_cdf_terms()</a>'s numerator can round to about -2e-16 at an observation near zero, which this shift carries back above 0 before the log. Narrowing it would return NaN there. </p>
 
-<p class="definition">Definition at line <a class="el" href="comp__osa_8hpp_source.html#l00076">76</a> of file <a class="el" href="comp__osa_8hpp_source.html">comp_osa.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="comp__osa_8hpp_source.html#l00090">90</a> of file <a class="el" href="comp__osa_8hpp_source.html">comp_osa.hpp</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="comp__osa_8hpp_source.html#l00159">dmultinom_osa()</a>, <a class="el" href="comp__osa_8hpp_source.html#l00117">osa_norm_cdf_terms()</a>, and <a class="el" href="comp__osa_8hpp_source.html#l00139">osa_trunc_norm_cdf_terms()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="comp__osa_8hpp_source.html#l00173">dmultinom_osa()</a>, <a class="el" href="comp__osa_8hpp_source.html#l00131">osa_norm_cdf_terms()</a>, and <a class="el" href="comp__osa_8hpp_source.html#l00153">osa_trunc_norm_cdf_terms()</a>.</p>
 
 </div>
 </div>
@@ -477,9 +477,9 @@ template&lt;class Type&gt; </div>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="comp__osa_8hpp_source.html#l00139">139</a> of file <a class="el" href="comp__osa_8hpp_source.html">comp_osa.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="comp__osa_8hpp_source.html#l00153">153</a> of file <a class="el" href="comp__osa_8hpp_source.html">comp_osa.hpp</a>.</p>
 
-<p class="reference">References <a class="el" href="comp__osa_8hpp_source.html#l00076">osa_squeeze_cdf()</a>.</p>
+<p class="reference">References <a class="el" href="comp__osa_8hpp_source.html#l00090">osa_squeeze_cdf()</a>.</p>
 
 </div>
 </div>

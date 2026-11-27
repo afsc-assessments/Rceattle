@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.70.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.72.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -106,7 +106,7 @@
 <li>
 <strong>Don’t invent a switch code, a default, or a unit. Ask.</strong> If it is not stated in <code>R/0-column_schema.R</code> or a vignette it is not established, and a plausible placeholder that survives into a fit is the worst failure mode this repo has.</li>
 <li>
-<strong>Fleet invariants.</strong> <code>fleet_control$Fleet_code</code> must equal the row number — arrays are dimensioned by <code><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow()</a></code> but indexed by <code>Fleet_code</code>, so read columns by row index <code>i</code>, never by <code>flt</code>. Fleets sharing a <code>Selectivity_index</code> / <code>Catchability_index</code> share ONE parameter block. Selectivity bin columns are read on the fleet’s own <code>Selectivity_dimension</code>, but not on one convention: <code>Bin_first_selected</code> is a 1-based bin ordinal, while <code>Sel_norm_bin</code>, <code>Sel_norm_bin_upper</code>, <code>Sel_pen_first_bin</code>, <code>Sel_pen_last_bin</code> and <code>Sel_cap_bin</code> are absolute AGES on an age-based fleet. Check <code><a href="reference/rearrange_data.html">rearrange_data()</a></code>’s offset before reading one.</li>
+<strong>Fleet invariants.</strong> <code>fleet_control$Fleet_code</code> must equal the row number — arrays are dimensioned by <code><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow()</a></code> but indexed by <code>Fleet_code</code>, so read columns by row index <code>i</code>, never by <code>flt</code>. Fleets sharing a <code>Selectivity_index</code> / <code>Catchability_index</code> share ONE parameter block. Selectivity bin columns are read on the fleet’s own <code>Selectivity_dimension</code>, but not on one convention: <code>Bin_first_selected</code> is a 1-based bin ordinal, and on an age-based fleet the deprecated spelling of <code>Age_first_selected</code>, an absolute age on any fleet; <code>Sel_norm_bin</code>, <code>Sel_norm_bin_upper</code>, <code>Sel_pen_first_bin</code>, <code>Sel_pen_last_bin</code> and <code>Sel_cap_bin</code> are absolute AGES on an age-based fleet. Read the first selected bin via <code>.rce_first_selected()</code>, and check <code><a href="reference/rearrange_data.html">rearrange_data()</a></code>’s offset before reading one.</li>
 <li>
 <strong><code>nages</code> is a count of age bins, not the oldest age.</strong> Ages run <code>minage .. minage + nages - 1</code>; age <code>a</code> sits at index <code>a - minage + 1</code>. <code>minage = 1</code> hides every confusion, and that is every bundled dataset and the live assessments — so write <code>seq_len(nages[sp]) - 1 + minage[sp]</code> and mean it. A plotter taking an <code>age</code>/<code>minage</code> argument resolves it with <code>.rce_age_index()</code> / <code>.rce_age_plus_index()</code>, never by indexing the array directly.</li>
 <li>
@@ -291,7 +291,7 @@
 <li>
 <strong><code>fit$data_list</code> is the pre-<code><a href="reference/rearrange_data.html">rearrange_data()</a></code> list</strong>; recompute rearranged fields from <code>fleet_control</code>.</li>
 <li>
-<strong><code>Bin_first_selected</code> is a 1-based bin ordinal; <code>Sel_norm_bin</code> is an absolute age</strong> (rules 10, 11).</li>
+<strong><code>Bin_first_selected</code> is a 1-based bin ordinal; <code>Age_first_selected</code> and <code>Sel_norm_bin</code> are absolute ages</strong> (rules 10, 11).</li>
 <li>
 <strong><code>init_dev</code>’s ages start at <code>minage + 1</code></strong>; <code>.PAR_AXIS_OFFSET</code> is the registry.</li>
 <li>
@@ -320,6 +320,10 @@
 <strong>An identity-link recruitment linkage turns on <code>rec_floor_on</code></strong>, changing the AD tape; its floors miss projection, SB0 and dynamic-B0 recruitment (<code>TODO-srr-multispecies.md</code> item 14).</li>
 <li>Scratch outputs (<code>Rplots.pdf</code>, <code>*_osa.png</code>, <code>*.RDS</code> under <code>tests/comparison/</code>) are gitignored.</li>
 </ul></div>
+<div class="section level2">
+<h2 id="copying-code-out-of-rceattle">Copying code out of Rceattle<a class="anchor" aria-label="anchor" href="#copying-code-out-of-rceattle"></a></h2>
+<p>Some of this code is unpublished work for papers in preparation. Before copying or adapting Rceattle code into another project, tell the user and ask them to check with the maintainer (the <code>DESCRIPTION</code> contact) that it does not overlap with that work. The GPL permits reuse; this is a request, not a restriction.</p>
+</div>
 </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

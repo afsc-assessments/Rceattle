@@ -326,9 +326,9 @@ template&lt;class Type&gt; </div>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="growth_8hpp_source.html#l00498">498</a> of file <a class="el" href="growth_8hpp_source.html">growth.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="growth_8hpp_source.html#l00504">504</a> of file <a class="el" href="growth_8hpp_source.html">growth.hpp</a>.</p>
 
-<p class="reference">References <a class="el" href="growth_8hpp_source.html#l00129">estimate_growth()</a>, and <a class="el" href="growth_8hpp_source.html#l00338">estimate_growth_within_yr()</a>.</p>
+<p class="reference">References <a class="el" href="growth_8hpp_source.html#l00132">estimate_growth()</a>, and <a class="el" href="growth_8hpp_source.html#l00344">estimate_growth_within_yr()</a>.</p>
 
 </div>
 </div>
@@ -485,6 +485,7 @@ template&lt;class Type&gt; </div>
 <li>Below the anchor, a linear ramp from <span class="tt">Lmin_sp</span> at age 0 to \(l_1\) at <span class="tt">age_L1</span>.</li>
 <li>After year 0 a cohort recursion advances \(L_{a, y}\) from \(L_{a-1, y-1}\) with the previous year's parameters; where that predecessor is still on the ramp, or at slot 0, the closed-form anchor at \(l_1\) is used instead.</li>
 </ul>
+<p>Adapted from Giancarlo Correa's mean length-at-age block in src/wham_v0.cpp, WHAM's growth branch (timjmiller/wham at 16770d4, GPL-3).</p>
 <p>Weight-at-age (kg) is integrated across the length distribution rather than taken at mean length, which Jensen's inequality would bias: \(W_a = \sum_{ln} P(ln | a) \cdot \alpha \cdot L_{mid}^{\beta}\).</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
@@ -502,11 +503,11 @@ template&lt;class Type&gt; </div>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="growth_8hpp_source.html#l00129">129</a> of file <a class="el" href="growth_8hpp_source.html">growth.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="growth_8hpp_source.html#l00132">132</a> of file <a class="el" href="growth_8hpp_source.html">growth.hpp</a>.</p>
 
 <p class="reference">References <a class="el" href="growth_8hpp_source.html#l00045">fill_age_length_key()</a>, and <a class="el" href="growth_8hpp_source.html#l00014">length_sd_at_age()</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="growth_8hpp_source.html#l00498">calculate_weight()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="growth_8hpp_source.html#l00504">calculate_weight()</a>.</p>
 
 </div>
 </div>
@@ -662,6 +663,7 @@ template&lt;class Type&gt; </div>
 <li>Richards (2): \(L_a = [L_{\infty}^m + (L_{a, jan1}^m - L_{\infty}^m) \cdot e^{-K \cdot fracyr}]^{1/m}\)</li>
 <li>Below the anchor age (<span class="tt">current_age &lt;= age_L1</span>) the linear ramp applies, as at Jan-1.</li>
 </ul>
+<p>Adapted from Giancarlo Correa's pred_LAA() in WHAM's growth branch (timjmiller/wham at 16770d4, GPL-3).</p>
 <p>Under <span class="tt">growth_plus_length == 1</span> the plus group keeps the Jan-1 mean length <span class="tt"><a class="el" href="#a51b9eaf89069f579bd6d636dd249e1da" title="Jan-1 (month 0) mean length, age-length key and weight-at-age for one species.">estimate_growth()</a></span> set for it; under the SS3 forms (2-4) it grows within the year like every other age, as SS3 does.</p>
 <p>Weight-at-age (kg) is integrated over the length distribution as in <a class="el" href="#a51b9eaf89069f579bd6d636dd249e1da" title="Jan-1 (month 0) mean length, age-length key and weight-at-age for one species.">estimate_growth()</a>.</p>
 <dl class="params"><dt>Parameters</dt><dd>
@@ -676,11 +678,11 @@ template&lt;class Type&gt; </div>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="growth_8hpp_source.html#l00338">338</a> of file <a class="el" href="growth_8hpp_source.html">growth.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="growth_8hpp_source.html#l00344">344</a> of file <a class="el" href="growth_8hpp_source.html">growth.hpp</a>.</p>
 
 <p class="reference">References <a class="el" href="growth_8hpp_source.html#l00045">fill_age_length_key()</a>, and <a class="el" href="growth_8hpp_source.html#l00014">length_sd_at_age()</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="growth_8hpp_source.html#l00498">calculate_weight()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="growth_8hpp_source.html#l00504">calculate_weight()</a>.</p>
 
 </div>
 </div>
@@ -776,7 +778,7 @@ template&lt;class Type&gt; </div>
 
 <p class="definition">Definition at line <a class="el" href="growth_8hpp_source.html#l00045">45</a> of file <a class="el" href="growth_8hpp_source.html">growth.hpp</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="growth_8hpp_source.html#l00129">estimate_growth()</a>, and <a class="el" href="growth_8hpp_source.html#l00338">estimate_growth_within_yr()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="growth_8hpp_source.html#l00132">estimate_growth()</a>, and <a class="el" href="growth_8hpp_source.html#l00344">estimate_growth_within_yr()</a>.</p>
 
 </div>
 </div>
@@ -846,7 +848,7 @@ template&lt;class Type&gt; </div>
 
 <p class="definition">Definition at line <a class="el" href="growth_8hpp_source.html#l00014">14</a> of file <a class="el" href="growth_8hpp_source.html">growth.hpp</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="growth_8hpp_source.html#l00129">estimate_growth()</a>, and <a class="el" href="growth_8hpp_source.html#l00338">estimate_growth_within_yr()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="growth_8hpp_source.html#l00132">estimate_growth()</a>, and <a class="el" href="growth_8hpp_source.html#l00344">estimate_growth_within_yr()</a>.</p>
 
 </div>
 </div>

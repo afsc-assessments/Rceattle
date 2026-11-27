@@ -196,7 +196,7 @@ modeled. Multiple fleets can target the same species.
 #   "NonParametric"      (2), freely estimated selectivity-at-age/length with smoothness penalty
 #   "DoubleLogistic"     (3), ascending + descending dome-shaped logistic
 #   "DescendingLogistic" (4), descending logistic only (declining with age)
-#   "Hake"               (5), non-parametric selectivity à la Taylor et al. (Pacific hake)
+#   "Hake"               (5), non-parametric selectivity à la Taylor et al. (2015; Pacific hake)
 #   "2DAR1"              (6), 2D autoregressive random effects (bin × year)
 #   "3DAR1"              (7), 3D autoregressive random effects (bin × year × cohort)
 #   "DoubleNormal"       (8), Gaussian ascending/descending limbs blended at peak
@@ -252,7 +252,7 @@ simData$fleet_control <- data.frame(
   #   5 / "RandomWalkAscending" = random walk on ascending portion of double logistic
   Time_varying_sel          = 0,
   Time_varying_sel_sd = 1,
-  Bin_first_selected        = 1,     # first bin selected; selectivity is 0 below it
+  Age_first_selected        = 1,     # first age selected (absolute age); 0 below it
   Sel_norm_bin             = "Off", # "Max", "Off", or a bin to normalize at
   Sel_norm_bin_upper       = "Off", # "Off", or the top of a bin range
   # Two-sex models only: whether the normalization reference is pooled over the
@@ -628,7 +628,7 @@ for each parameter.
 # Ceq: consumption (bioenergetics) equation form for each species:
 #   1 = Exponential (Stewart et al. 1983)
 #   2 = Warm-water temperature dependence (Kitchell et al. 1977)
-#   3 = Cool/cold-water temperature dependence (Thornton & Lessem 1979)
+#   3 = Cool/cold-water temperature dependence (Thornton & Lessem 1978)
 #   4 = bypass bioenergetics; ration_data is annual ration per predator (kg)
 simData$Ceq    <- rep(4,  nspp)
 
@@ -754,3 +754,25 @@ cfg <- load_config(cfg_file)
 
 Every fit also records the configuration it used in `fit$run_config`, so
 `save_config(fit, "run.yaml")` archives exactly what produced a result.
+
+## References
+
+- Kitchell, J.F., Stewart, D.J., Weininger, D. (1977). Applications of a
+  bioenergetics model to yellow perch (*Perca flavescens*) and walleye
+  (*Stizostedion vitreum vitreum*). *Journal of the Fisheries Research
+  Board of Canada*, 34, 1922-1935.
+- Stewart, D.J., Weininger, D., Rottiers, D.V., Edsall, T.A. (1983). An
+  energetics model for lake trout, *Salvelinus namaycush*: application
+  to the Lake Michigan population. *Canadian Journal of Fisheries and
+  Aquatic Sciences*, 40, 681-698.
+- Taylor, I.G., Grandin, C., Hicks, A.C., Taylor, N., Cox, S. (2015).
+  Status of the Pacific hake (whiting) stock in U.S. and Canadian waters
+  in 2015. Joint Technical Committee of the U.S. and Canada Pacific
+  Hake/Whiting Agreement; National Marine Fisheries Service; Fisheries
+  and Oceans Canada.
+- Thornton, K.W., Lessem, A.S. (1978). A temperature algorithm for
+  modifying biological rates. *Transactions of the American Fisheries
+  Society*, 107, 284-287.
+- Walters, C., Ludwig, D. (1994). Calculation of Bayes posterior
+  probability distributions for key population parameters. *Canadian
+  Journal of Fisheries and Aquatic Sciences*, 51, 713-722.

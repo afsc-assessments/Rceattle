@@ -21,7 +21,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.70.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.72.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -215,7 +215,7 @@ skipping phasing to reduce run time:</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">model_4</span><span class="op">)</span></span></code></pre></div>
 <p>Model 5 sets <code>msmMode = 1</code>, running in multi-species mode:
 it estimates time- and age-varying natural mortality from predation,
-following the MSVPA parameterization of <a href="https://link.springer.com/article/10.1007/BF00179756" class="external-link">Magnusson
+following the MSVPA parameterization of <a href="https://link.springer.com/article/10.1007/BF00179756" class="external-link">Magnússon
 (1995)</a>.</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">model_5</span> <span class="op">&lt;-</span> <span class="fu">Rceattle</span><span class="fu">::</span><span class="fu"><a href="../reference/fit_mod.html">fit_mod</a></span><span class="op">(</span>data_list <span class="op">=</span> <span class="va">BS2017MS</span>,</span>
@@ -402,6 +402,24 @@ biomass, selectivity, etc)</p></li>
 <li><p><code>model_1$opt</code> - the fit_tmb optimization
 object.</p></li>
 <li><p><code>model_1$sdrep</code> - the TMB sdreport object.</p></li>
+</ul>
+</div>
+<div class="section level2">
+<h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
+</h2>
+<ul>
+<li>Adams, G.D., Holsman, K.K., Barbeaux, S.J., Dorn, M.W., Ianelli,
+J.N., Spies, I., Stewart, I.J., Punt, A.E. (2022). An ensemble approach
+to understand predation mortality for groundfish in the Gulf of Alaska.
+<em>Fisheries Research</em>, 251, 106303.</li>
+<li>Holsman, K.K., Ianelli, J., Aydin, K., Punt, A.E., Moffitt, E.A.
+(2016). A comparison of fisheries biological reference points estimated
+from temperature-specific multi-species and single-species
+climate-enhanced stock assessment models. <em>Deep Sea Research Part
+II</em>, 134, 360-378.</li>
+<li>Magnússon, K.G. (1995). An overview of the multispecies VPA — theory
+and applications. <em>Reviews in Fish Biology and Fisheries</em>, 5,
+195-212.</li>
 </ul>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

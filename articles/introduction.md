@@ -159,7 +159,7 @@ summary(model_4)
 
 Model 5 sets `msmMode = 1`, running in multi-species mode: it estimates
 time- and age-varying natural mortality from predation, following the
-MSVPA parameterization of [Magnusson
+MSVPA parameterization of [Magnússon
 (1995)](https://link.springer.com/article/10.1007/BF00179756).
 
 ``` r
@@ -402,3 +402,17 @@ Components of the fitted object, accessed with `$`:
 - `model_1$opt` - the fit_tmb optimization object.
 
 - `model_1$sdrep` - the TMB sdreport object.
+
+## References
+
+- Adams, G.D., Holsman, K.K., Barbeaux, S.J., Dorn, M.W., Ianelli, J.N.,
+  Spies, I., Stewart, I.J., Punt, A.E. (2022). An ensemble approach to
+  understand predation mortality for groundfish in the Gulf of Alaska.
+  *Fisheries Research*, 251, 106303.
+- Holsman, K.K., Ianelli, J., Aydin, K., Punt, A.E., Moffitt, E.A.
+  (2016). A comparison of fisheries biological reference points
+  estimated from temperature-specific multi-species and single-species
+  climate-enhanced stock assessment models. *Deep Sea Research Part II*,
+  134, 360-378.
+- Magnússon, K.G. (1995). An overview of the multispecies VPA — theory
+  and applications. *Reviews in Fish Biology and Fisheries*, 5, 195-212.

@@ -137,14 +137,13 @@ fit_mod(
 
 - msmMode:
 
-  The predation-mortality mode, as a string alias or integer code:
-  `"SingleSpecies"` (0, the default, no predation), `"MSVPA"` (1, the
-  Type-II MSVPA predation of Holsman et al. 2015) or `"TypeIIIMSVPA"`
-  (2). Codes 3 to 9 (Kinzey & Punt 2009 functional responses, Holling
-  forms, Ecosim) are declared but refused by
+  Predation-mortality mode (string or integer): `"SingleSpecies"` (0,
+  default; no predation), `"MSVPA"` (1; Type-II MSVPA, Holsman et al.
+  2016), or `"TypeIIIMSVPA"` (2); codes 3–9 (Kinzey & Punt 2009
+  functional responses: Holling forms through Ecosim) are declared but
+  refused by
   [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)
-  until validated against the current parameter set; see
-  `src/TMB/predation.hpp`.
+  until validated against the current parameter set.
 
 - avgnMode:
 
@@ -166,11 +165,11 @@ fit_mod(
 
 - suitMode:
 
-  how predator-prey suitability is derived, per predator (one value or a
-  vector of length `nspp`): 0 = empirical from diet data (Holsman et al.
-  2015), 2 = weight-based gamma, 4 = weight-based lognormal, 6 =
-  weight-based normal. The length-based forms (1, 3, 5) are declared but
-  refused by the data check.
+  Predator-prey suitability mode per predator (scalar or length-`nspp`
+  vector): 0 = empirical from diet data (Holsman et al. 2016), 2 =
+  weight-based gamma, 4 = weight-based lognormal, 6 = weight-based
+  normal (length-based codes 1, 3, 5 are declared but refused by
+  [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md)).
 
 - suit_styr:
 
@@ -265,6 +264,13 @@ keeps the linkages held on the data object. Where both set a field and
 disagree, the config wins and the difference is warned about by name. A
 config written before that field record existed counts as having set its
 non-default fields.
+
+## References
+
+Holsman, K.K., Ianelli, J., Aydin, K., Punt, A.E., and Moffitt, E.A.
+2016. A comparison of fisheries biological reference points estimated
+from temperature-specific multi-species and single-species
+climate-enhanced stock assessment models. Deep Sea Res. II 134:360-378.
 
 ## Examples
 

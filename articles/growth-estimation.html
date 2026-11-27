@@ -21,7 +21,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.70.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.72.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -90,9 +90,9 @@
 <h2 id="overview">Overview<a class="anchor" aria-label="anchor" href="#overview"></a>
 </h2>
 <p>This vignette shows how to estimate growth with Rceattle’s von
-Bertalanffy and Richards growth functions, add covariates and priors to
-growth parameters with <code><a href="../reference/linkage_spec.html">linkage_spec()</a></code>, and match a Stock
-Synthesis growth specification. The examples use the bundled
+Bertalanffy and Richards (1959) growth functions, add covariates and
+priors to growth parameters with <code><a href="../reference/linkage_spec.html">linkage_spec()</a></code>, and match
+a Stock Synthesis growth specification. The examples use the bundled
 <code>whamGrowthData</code> dataset, which supplies conditional
 age-at-length data (<code>caal_data</code>) and the other inputs needed
 to estimate growth.</p>
@@ -174,8 +174,9 @@ level.</p>
 <div class="section level3">
 <h3 id="time-varying-growth">Time-varying growth<a class="anchor" aria-label="anchor" href="#time-varying-growth"></a>
 </h3>
-<p>The same grammar holds time variation, with a random-effect term on
-the right-hand side instead of (or alongside) a covariate:</p>
+<p>The same grammar holds time-varying growth (see Correa et al. 2023
+for the approach in a state-space assessment), with a random-effect term
+on the right-hand side instead of (or alongside) a covariate:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># A random walk on the von Bertalanffy k. Use ar1(1 | Year) for a stationary</span></span>
 <span><span class="co"># autoregression, or (1 | Year) for independent annual deviations; under ar1()</span></span>
@@ -343,6 +344,18 @@ not vary by year, so slope terms have no effect. See the “Growth SD
 endpoints” section of
 <code><a href="../articles/environmental-linkages-and-priors.html">vignette("environmental-linkages-and-priors")</a></code> for an
 example.</p>
+</div>
+<div class="section level2">
+<h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
+</h2>
+<ul>
+<li>Correa, G.M., Monnahan, C.C., Sullivan, J.Y., Thorson, J.T., Punt,
+A.E. (2023). Modelling time-varying growth in state-space stock
+assessments. <em>ICES Journal of Marine Science</em>, 80,
+2036-2049.</li>
+<li>Richards, F.J. (1959). A flexible growth function for empirical use.
+<em>Journal of Experimental Botany</em>, 10, 290-301.</li>
+</ul>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

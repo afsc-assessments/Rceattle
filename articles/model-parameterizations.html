@@ -21,7 +21,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.70.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.72.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -136,7 +136,7 @@ factors such as predator-prey spatial overlap.</p>
 <div class="section level4">
 <h4 id="msvpa-type-2-based-suitability">MSVPA Type 2 based suitability<a class="anchor" aria-label="anchor" href="#msvpa-type-2-based-suitability"></a>
 </h4>
-<p>Suitability is derived empirically, following Magnusson (1995), from
+<p>Suitability is derived empirically, following Magnússon (1995), from
 the mean proportion by weight of prey-at-age in the stomachs of
 predators-at-age,
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mover><mi>U</mi><mo accent="true">‾</mo></mover><mrow><mi>p</mi><mi>b</mi><mi>j</mi><mi>i</mi><mi>s</mi><mi>a</mi></mrow></msub><annotation encoding="application/x-tex">\bar{U}_{pbjisa}</annotation></semantics></math>
@@ -222,10 +222,10 @@ or direct input of consumption-at-age, controlled per species on the
 <li>
 <code>Ceq</code> Which bioenergetics equation scales maximum
 consumption with temperature: 1 = exponential (Stewart et al 1983); 2 =
-warm-water temperature dependence (Kitchell et al 1977; sensu Holsman et
-al 2015); 3 = cool- and cold-water temperature dependence (Thornton and
-Lessem 1979); 4 = no bioenergetics: annual ration (kg per predator per
-year) is read from <code>ration_data</code> and scaled by
+warm-water temperature dependence (Kitchell et al 1977; sensu Holsman
+and Aydin 2015); 3 = cool- and cold-water temperature dependence
+(Thornton and Lessem 1978); 4 = no bioenergetics: annual ration (kg per
+predator per year) is read from <code>ration_data</code> and scaled by
 <code>Pvalue</code>; <code>CA</code>, <code>CB</code> and
 <code>fday</code> are not read</li>
 <li>
@@ -302,7 +302,7 @@ to help convergence:
 from Kitchell et al. 1977:
 <math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>T</mi><mi>y</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mi>p</mi></msub><mo>=</mo><msup><mi>V</mi><mi>X</mi></msup><msup><mi>e</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>X</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>V</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">)</mo></mrow></msup></mrow><annotation encoding="application/x-tex">f \left(T_y \right)_p = V^X e^{\left(X \left(1-V \right) \right)}</annotation></semantics></math><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>V</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><msubsup><mi>T</mi><mi>p</mi><mrow><mi>c</mi><mi>m</mi></mrow></msubsup><mo>−</mo><msub><mi>T</mi><mi>y</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><mrow><mo stretchy="true" form="prefix">(</mo><msubsup><mi>T</mi><mi>p</mi><mrow><mi>c</mi><mi>m</mi></mrow></msubsup><mo>−</mo><msubsup><mi>T</mi><mi>p</mi><mrow><mi>c</mi><mi>o</mi></mrow></msubsup><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">V = \left( T^{cm}_p - T_y \right)/ \left( T^{cm}_p - T^{co}_p \right)</annotation></semantics></math><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>X</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><msup><mi>Z</mi><mn>2</mn></msup><msup><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>+</mo><msup><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>+</mo><mn>40</mn><mi>/</mi><mi>Y</mi><mo stretchy="true" form="postfix">)</mo></mrow><mn>0.5</mn></msup><mo stretchy="true" form="postfix">)</mo></mrow><mn>2</mn></msup><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><mn>400</mn></mrow><annotation encoding="application/x-tex">X = \left(Z^2 \left(1+ \left( 1 + 40 /Y \right)^{0.5} \right)^2 \right)/400</annotation></semantics></math><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Z</mi><mo>=</mo><mi>l</mi><mi>n</mi><mrow><mo stretchy="true" form="prefix">(</mo><msubsup><mi>Q</mi><mi>p</mi><mi>c</mi></msubsup><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mo stretchy="true" form="prefix">(</mo><msubsup><mi>T</mi><mi>p</mi><mrow><mi>c</mi><mi>m</mi></mrow></msubsup><mo>−</mo><msubsup><mi>T</mi><mi>p</mi><mrow><mi>c</mi><mi>o</mi></mrow></msubsup><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">Z = ln\left(Q^c_p \right) \left( T^{cm}_p - T^{co}_p \right)</annotation></semantics></math><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Y</mi><mo>=</mo><mi>l</mi><mi>n</mi><mrow><mo stretchy="true" form="prefix">(</mo><msubsup><mi>Q</mi><mi>p</mi><mi>c</mi></msubsup><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mo stretchy="true" form="prefix">(</mo><msubsup><mi>T</mi><mi>p</mi><mrow><mi>c</mi><mi>m</mi></mrow></msubsup><mo>−</mo><msubsup><mi>T</mi><mi>p</mi><mrow><mi>c</mi><mi>o</mi></mrow></msubsup><mo>+</mo><mn>2</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">Y = ln\left(Q^c_p \right) \left( T^{cm}_p - T^{co}_p + 2\right)</annotation></semantics></math></p>
 <p><code>Ceq = 3</code>: Temperature dependence for cool and cold-water
-species from Thornton and Lessem 1979:
+species from Thornton and Lessem 1978:
 <math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><msub><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>T</mi><mi>y</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow><mi>p</mi></msub><mo>=</mo><mi>K</mi><mi>a</mi><mo>*</mo><mi>K</mi><mi>b</mi></mrow><annotation encoding="application/x-tex">f \left(T_y \right)_p = Ka * Kb</annotation></semantics></math><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>K</mi><mi>a</mi><mo>=</mo><msubsup><mi>C</mi><mi>p</mi><mrow><mi>K</mi><mn>1</mn></mrow></msubsup><mo>*</mo><msub><mi>L</mi><mn>1</mn></msub><mi>/</mi><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>+</mo><msubsup><mi>C</mi><mi>p</mi><mrow><mi>K</mi><mn>1</mn></mrow></msubsup><mo>*</mo><mo stretchy="false" form="prefix">(</mo><msub><mi>L</mi><mn>1</mn></msub><mo>−</mo><mn>1</mn><mo stretchy="false" form="postfix">)</mo><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">Ka = C^{K1}_p * L_1 / (1+C^{K1}_p * (L_1 - 1 ))</annotation></semantics></math><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>L</mi><mn>1</mn></msub><mo>=</mo><msup><mi>e</mi><mrow><msub><mi>G</mi><mn>1</mn></msub><mo>*</mo><mo stretchy="false" form="prefix">(</mo><msub><mi>T</mi><mi>y</mi></msub><mo>−</mo><msubsup><mi>Q</mi><mi>p</mi><mi>c</mi></msubsup><mo stretchy="false" form="postfix">)</mo></mrow></msup></mrow><annotation encoding="application/x-tex">L_1 = e^{G_1 * (T_y - Q^c_p)}</annotation></semantics></math><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>G</mi><mn>1</mn></msub><mo>=</mo><mfrac><mn>1</mn><mrow><msubsup><mi>T</mi><mi>p</mi><mrow><mi>c</mi><mi>o</mi></mrow></msubsup><mo>−</mo><msubsup><mi>Q</mi><mi>p</mi><mi>c</mi></msubsup></mrow></mfrac><mo>*</mo><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mfrac><mrow><mn>0.98</mn><mo>*</mo><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>C</mi><mi>K</mi><msub><mn>1</mn><mi>p</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><mrow><mi>C</mi><mi>K</mi><msub><mn>1</mn><mi>p</mi></msub><mo>*</mo><mn>0.02</mn></mrow></mfrac><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">G_1 = \frac{1}{T^{co}_p-Q^c_p}*\log\left(\frac{0.98*(1-CK1_p)}{CK1_p*0.02}\right)</annotation></semantics></math><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>K</mi><mi>b</mi><mo>=</mo><mfrac><mrow><mi>C</mi><mi>K</mi><msub><mn>4</mn><mi>p</mi></msub><mo>*</mo><msub><mi>L</mi><mn>2</mn></msub></mrow><mrow><mn>1</mn><mo>+</mo><mi>C</mi><mi>K</mi><msub><mn>4</mn><mi>p</mi></msub><mo>*</mo><mo stretchy="false" form="prefix">(</mo><msub><mi>L</mi><mn>2</mn></msub><mo>−</mo><mn>1</mn><mo stretchy="false" form="postfix">)</mo></mrow></mfrac></mrow><annotation encoding="application/x-tex">Kb = \frac{CK4_p *L_2} {1+CK4_p*(L_2-1)}</annotation></semantics></math><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>L</mi><mn>2</mn></msub><mo>=</mo><msup><mi>e</mi><mrow><msub><mi>G</mi><mn>2</mn></msub><mo stretchy="false" form="prefix">(</mo><msubsup><mi>T</mi><mi>p</mi><mrow><mi>c</mi><mi>l</mi></mrow></msubsup><mo>−</mo><msub><mi>T</mi><mi>y</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow></msup></mrow><annotation encoding="application/x-tex">L_2 = e^{G_2 (T^{cl}_p - T_y)}</annotation></semantics></math><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>G</mi><mn>2</mn></msub><mo>=</mo><mfrac><mn>1</mn><mrow><msubsup><mi>T</mi><mi>p</mi><mrow><mi>c</mi><mi>l</mi></mrow></msubsup><mo>−</mo><msubsup><mi>T</mi><mi>p</mi><mrow><mi>c</mi><mi>m</mi></mrow></msubsup></mrow></mfrac><mo>*</mo><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mfrac><mrow><mn>0.98</mn><mo>*</mo><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><mi>C</mi><mi>K</mi><msub><mn>4</mn><mi>p</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><mrow><mi>C</mi><mi>K</mi><msub><mn>4</mn><mi>p</mi></msub><mo>*</mo><mn>0.02</mn></mrow></mfrac><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">G_2 = \frac{1}{T^{cl}_p-T^{cm}_p}*\log\left( \frac{0.98*(1-CK4_p)}{CK4_p*0.02}\right)</annotation></semantics></math></p>
 </div>
 <div class="section level4">
@@ -323,14 +323,15 @@ scaled by <code>Pvalue</code>; <code>CA</code>, <code>CB</code> and
 <p>CEATTLE is fit to time series of fishery catch, survey biomass, and
 length- or age-composition data. Log-catch and (by default) log-index
 observations are normally distributed; age and length compositions are
-multinomial or Dirichlet-multinomial, with their sample sizes input.
-There is no separate sex-ratio likelihood component: sex-ratio
-information enters through joint (<code>comp_data$Sex = 3</code>)
-composition data, whose female and male cells are normalized together.
-The log-scale index SD is input, estimated as a free parameter, or
-derived analytically following Walters and Ludwig (1994), per
-<code>Estimate_index_sd</code>. Selectivity and catchability are
-estimated or input separately for each fishery and survey.</p>
+multinomial or Dirichlet-multinomial (Thorson et al. 2017), with their
+sample sizes input. There is no separate sex-ratio likelihood component:
+sex-ratio information enters through joint
+(<code>comp_data$Sex = 3</code>) composition data, whose female and male
+cells are normalized together. The log-scale index SD is input,
+estimated as a free parameter, or derived analytically following Walters
+and Ludwig (1994), per <code>Estimate_index_sd</code>. Selectivity and
+catchability are estimated or input separately for each fishery and
+survey.</p>
 <p>Predicted catch follows the Baranov catch equation:
 <math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mi>C</mi><mo accent="true">̂</mo></mover><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><mo>=</mo><mfrac><msub><mi>F</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><msub><mi>Z</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub></mfrac><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><msup><mi>e</mi><mrow><mi>−</mi><msub><mi>Z</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub></mrow></msup><mo stretchy="true" form="postfix">)</mo></mrow><msub><mi>N</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub></mrow><annotation encoding="application/x-tex">\hat{C}_{isa,y} = \frac{F_{isa,y}} {Z_{isa,y}} \left( 1 - e^{-Z_{isa,y}} \right) N_{isa,y}</annotation></semantics></math><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mi>C</mi><mo accent="true">̂</mo></mover><mrow><mi>i</mi><mo>,</mo><mi>y</mi></mrow></msub><mo>=</mo><munder><mo>∑</mo><mi>s</mi></munder><munderover><mo>∑</mo><mi>a</mi><msub><mi>A</mi><mi>i</mi></msub></munderover><mfrac><msub><mi>F</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><msub><mi>Z</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub></mfrac><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><msup><mi>e</mi><mrow><mi>−</mi><msub><mi>Z</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub></mrow></msup><mo stretchy="true" form="postfix">)</mo></mrow><msub><mi>N</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><msub><mi>W</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub></mrow><annotation encoding="application/x-tex">\hat{C}_{i,y} = \sum_s\sum_a^{A_i} \frac{F_{isa,y}} {Z_{isa,y}} \left( 1 - e^{-Z_{isa,y}} \right) N_{isa,y} W_{isa,y}</annotation></semantics></math><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>F</mi><mrow><mi>i</mi><mi>s</mi><mi>a</mi><mo>,</mo><mi>y</mi></mrow></msub><mo>=</mo><msub><mover><mi>F</mi><mo accent="true">‾</mo></mover><msub><mi>f</mi><mi>i</mi></msub></msub><msup><mi>e</mi><msub><mi>ϵ</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mo>,</mo><mi>y</mi></mrow></msub></msup><msub><mi>s</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>s</mi><mi>a</mi></mrow></msub></mrow><annotation encoding="application/x-tex">F_{isa,y} = \bar{F}_{f_i}e^{\epsilon_{{f_i},y}} s_{{f_i}sa}</annotation></semantics></math>
 An index is predicted from catchability
@@ -389,9 +390,9 @@ seasonal-fishery case and the measured trend errors.</p>
 </h3>
 <p>Selectivity is controlled by <code>Selectivity_index</code>,
 <code>Selectivity</code>, <code>N_sel_bins</code>,
-<code>Time_varying_sel</code>, <code>Time_varying_sel_sd</code> and
-<code>Bin_first_selected</code> on the <code>fleet_control</code>
-sheet:</p>
+<code>Time_varying_sel</code>, <code>Time_varying_sel_sd</code>,
+<code>Age_first_selected</code> and <code>Bin_first_selected</code> on
+the <code>fleet_control</code> sheet:</p>
 <ul>
 <li>
 <code>Selectivity_index</code>: Fleets given the same value share
@@ -402,24 +403,25 @@ fleet: 0 or <code>"Fixed"</code> = empirical selectivity provided in
 <code>emp_sel</code>; 1 or <code>"Logistic"</code>; 2 or
 <code>"NonParametric"</code> sensu Ianelli et al 2018; 3 or
 <code>"DoubleLogistic"</code>; 4 or <code>"DescendingLogistic"</code>; 5
-or <code>"Hake"</code>, non-parametric sensu Taylor et al 2014; 6 or
-<code>"2DAR1"</code> for bin by year; 7 or <code>"3DAR1"</code> sensu
-Cheng et al (2024); 8 or <code>"DoubleNormal"</code>, a four-parameter
-double normal (peak, ascending and descending widths, and a right-tail
-floor): the Stock Synthesis pattern 24 shape without its
-initial-selectivity and plateau-width parameters; 9 or
-<code>"NonParametricPM"</code>, Ianelli non-parametric with the ADMB
-AMAK (<code>"pm"</code>) penalty; 11 or <code>"LogisticPM"</code>, the
-AMAK logistic with a free age-1 selectivity; 13 or
-<code>"NonParametricIntegrable"</code>, the Ianelli base curve whose
-deviations have a proper density and so integrate under
+or <code>"Hake"</code>, non-parametric sensu Taylor et al 2015; 6 or
+<code>"2DAR1"</code> for bin by year (deviations as in Xu et al. 2019);
+7 or <code>"3DAR1"</code>, the weight-at-age Gaussian Markov random
+field (GMRF) of Cheng et al. (2023) applied to selectivity; 8 or
+<code>"DoubleNormal"</code>, a four-parameter double normal (peak,
+ascending and descending widths, and a right-tail floor): the Stock
+Synthesis pattern 24 shape without its initial-selectivity and
+plateau-width parameters; 9 or <code>"NonParametricPM"</code>, Ianelli
+non-parametric with the ADMB AMAK (<code>"pm"</code>) penalty; 11 or
+<code>"LogisticPM"</code>, the AMAK logistic with a free age-1
+selectivity; 13 or <code>"NonParametricIntegrable"</code>, the Ianelli
+base curve whose deviations have a proper density and so integrate under
 <code>random_sel</code> (<code>Time_varying_sel</code> picks the
 structure: <code>"Off"</code>, <code>"IID"</code> or
 <code>"RandomWalk"</code>); 15 or <code>"DoubleNormalSS3"</code>, the
-six-parameter Stock Synthesis pattern 24 double normal. There is no 10,
-12 or 14. Whether a form is age- or length-based is set by
-<code>Selectivity_dimension</code>, not by the code, except that
-<code>"Fixed"</code> is always at age.</li>
+six-parameter Stock Synthesis pattern 24 double normal (Methot and
+Wetzel 2013). There is no 10, 12 or 14. Whether a form is age- or
+length-based is set by <code>Selectivity_dimension</code>, not by the
+code, except that <code>"Fixed"</code> is always at age.</li>
 <li>
 <code>N_sel_bins</code>: Number of age or length bins (per
 <code>Selectivity_dimension</code>) estimated for the non-parametric and
@@ -434,12 +436,13 @@ non-parametric forms. 0 or <code>"Off"</code> = no; 1 or
 <code>Time_varying_sel_sd</code>, or random effects with that sd
 estimated under <code>fit_mod(random_sel = TRUE)</code>; 3 or
 <code>"Block"</code> = time blocks with no penalty; 4 or
-<code>"RandomWalk"</code> = random walk following Dorn; 5 or
-<code>"RandomWalkAscending"</code> = random walk on the ascending
-portion of the double logistic only. Value 2 (<code>"AR1"</code>) is
-refused by <code><a href="../reference/data_check.html">data_check()</a></code>; an autocorrelated deviation is a
-selectivity linkage, <code>linkage_spec(~ ar1(1 | Year))</code>. The
-switch as a whole is soft-deprecated in favour of that grammar.</li>
+<code>"RandomWalk"</code> = random walk on both limbs (extending Dorn et
+al. 2018); 5 or <code>"RandomWalkAscending"</code> = random walk on the
+ascending portion of the double logistic only (Dorn et al. 2018). Value
+2 (<code>"AR1"</code>) is refused by <code><a href="../reference/data_check.html">data_check()</a></code>; an
+autocorrelated deviation is a selectivity linkage,
+<code>linkage_spec(~ ar1(1 | Year))</code>. The switch as a whole is
+soft-deprecated in favour of that grammar.</li>
 <li>
 <code>Time_varying_sel_sd</code>: The sd of the time-varying
 selectivity deviates. Under <code>fit_mod(random_sel = FALSE)</code> it
@@ -451,9 +454,17 @@ share one estimated sd started at the geometric mean of theirs. The
 as the conditional sd of their deviation field, so they always need a
 positive value.</li>
 <li>
-<code>Bin_first_selected</code>: First age/length bin with non-zero
-selectivity; the curve is 0 below it. A 1-based bin ordinal on the
-fleet’s <code>Selectivity_dimension</code>.</li>
+<code>Age_first_selected</code>: First age selected (absolute age).
+Selectivity is 0 below it on an age-based fleet; on a length-based fleet
+younger ages are zeroed in the fleet’s age-length key, so no fish below
+this age are caught at any length (Stock Synthesis age pattern 11 to the
+plus group, or pattern 10 when the first age is 1).</li>
+<li>
+<code>Bin_first_selected</code>: First length bin selected on a
+length-based fleet, a 1-based bin ordinal; selectivity is 0 below it. On
+an age-based fleet it is the deprecated spelling of
+<code>Age_first_selected</code>, read as age
+<code>minage + Bin_first_selected - 1</code>.</li>
 </ul>
 <div class="section level4">
 <h4 id="selectivity-penalty-weights">Selectivity penalty weights<a class="anchor" aria-label="anchor" href="#selectivity-penalty-weights"></a>
@@ -576,7 +587,7 @@ year supplied for a fleet and sex is held through the projection.</p>
 <p>Input: <code>Selectivity = 2 or "NonParametric"</code>,
 <code>N_sel_bins = 6</code>, <code>Sel_curve_pen1 = 12.5</code>,
 <code>Sel_curve_pen2 = 200</code>, and
-<code>Bin_first_selected = 1</code>. See <strong>Selectivity penalty
+<code>Age_first_selected = 1</code>. See <strong>Selectivity penalty
 weights</strong> above for the <code>Sel_curve_pen</code> slots and the
 standard-deviation columns that set them.</p>
 <p>Equation:
@@ -685,7 +696,7 @@ youngest age modeled.</p>
 <p>Input: <code>Selectivity = 5 or "Hake"</code>,
 <code>N_sel_bins = 6</code>, <code>Time_varying_sel = NA</code>,
 <code>Time_varying_sel_sd = NA</code>, and
-<code>Bin_first_selected =</code><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>A</mi><mrow><mi>m</mi><mi>i</mi><mi>n</mi></mrow></msub><annotation encoding="application/x-tex">A_{min}</annotation></semantics></math></p>
+<code>Age_first_selected =</code><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>A</mi><mrow><mi>m</mi><mi>i</mi><mi>n</mi></mrow></msub><annotation encoding="application/x-tex">A_{min}</annotation></semantics></math></p>
 </div>
 <div class="section level4">
 <h4 id="time-varying-non-parametric-type-2-for-hake">Time-varying non-parametric (Type 2 for hake)<a class="anchor" aria-label="anchor" href="#time-varying-non-parametric-type-2-for-hake"></a>
@@ -722,10 +733,10 @@ likelihood q for the fleet’s <code>Index_distribution</code> (refused
 under TruncatedNormal); 4 or “PowerEquation” = power equation,
 <strong>declared but not yet implemented</strong>; 5 or “Environmental”
 = linear equation log(q_y) = q_mu + beta * index_y; 6 or “AR1” = refused
-by <code><a href="../reference/data_check.html">data_check()</a></code>; express the Rogers et al. form as a q
-linkage with <code>ar1(1 | Year)</code> and <code>observe =</code>; 7 or
-“AnalyticalArith” = arithmetic-mean analytical q, the AMAK/ebswp form,
-paired with the MVN survey likelihood.</li>
+by <code><a href="../reference/data_check.html">data_check()</a></code>; express the Rogers et al. (2024) form as a
+q linkage with <code>ar1(1 | Year)</code> and <code>observe =</code>; 7
+or “AnalyticalArith” = arithmetic-mean analytical q, the AMAK/ebswp
+form, paired with the MVN survey likelihood.</li>
 <li>
 <code>Catchability_init</code> Starting or fixed value for
 catchability</li>
@@ -737,8 +748,8 @@ sd)</li>
 <code>Time_varying_q</code> Whether a time-varying q is estimated. 0
 = no; 1 = penalized deviate; 2 = AR1 (refused by
 <code><a href="../reference/data_check.html">data_check()</a></code>); 3 = time blocks with no penalty; 4 = random
-walk from the mean following Dorn 2018 (dnorm(q_y - q_y-1, 0, sigma)).
-Under <code>Catchability = 5</code> it instead holds the
+walk from the mean following Dorn et al. 2018 (dnorm(q_y - q_y-1, 0,
+sigma)). Under <code>Catchability = 5</code> it instead holds the
 <code>env_data</code> index for log(q_y) = q_mu + beta * index_y.</li>
 <li>
 <code>Time_varying_q_sd</code> Fixed or starting sd of the
@@ -865,6 +876,84 @@ either fixed or estimated under
 <math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mover><mi>q</mi><mo accent="true">̂</mo></mover><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>y</mi></mrow></msub><mo>=</mo><msup><mi>e</mi><mrow><msub><mover><mi>q</mi><mo accent="true">‾</mo></mover><msub><mi>f</mi><mi>i</mi></msub></msub><mo>+</mo><msub><mi>ω</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>y</mi></mrow></msub></mrow></msup></mrow><annotation encoding="application/x-tex">\hat{q}_{f_iy} = e^{\bar{q}_{f_i}+ \omega_{f_iy}}</annotation></semantics></math><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ω</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>y</mi></mrow></msub><mo>∼</mo><mi>N</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>ω</mi><mrow><msub><mi>f</mi><mi>i</mi></msub><mi>y</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo></mrow><annotation encoding="application/x-tex">\omega_{f_iy} \sim N(\omega_{f_iy-1},</annotation></semantics></math><code>Time_varying_q_sd</code><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo stretchy="false" form="postfix">)</mo><annotation encoding="application/x-tex">)</annotation></semantics></math></p>
 </div>
 </div>
+</div>
+<div class="section level2">
+<h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
+</h2>
+<ul>
+<li>Cheng, M.L.H., Thorson, J.T., Ianelli, J.N., Cunningham, C.J.
+(2023). Unlocking the triad of age, year, and cohort effects for stock
+assessment: demonstration of a computationally efficient and
+reproducible framework using weight-at-age. <em>Fisheries Research</em>,
+266, 106755.</li>
+<li>Curti, K.L., Collie, J.S., Legault, C.M., Link, J.S. (2013).
+Evaluating the performance of a multispecies statistical catch-at-age
+model. <em>Canadian Journal of Fisheries and Aquatic Sciences</em>, 70,
+470-484.</li>
+<li>Dorn, M., Aydin, K., Fissel, B., Palsson, W., Spalinger, K.,
+Stienessen, S., Williams, K., Zador, S. (2018). Assessment of the
+walleye pollock stock in the Gulf of Alaska. In: <em>Stock assessment
+and fishery evaluation report for the groundfish resources of the Gulf
+of Alaska</em>. North Pacific Fishery Management Council, Anchorage,
+AK.</li>
+<li>Holsman, K.K., Aydin, K. (2015). Comparative methods for evaluating
+climate change impacts on the foraging ecology of Alaskan groundfish.
+<em>Marine Ecology Progress Series</em>, 521, 217-235.</li>
+<li>Holsman, K.K., Ianelli, J., Aydin, K., Punt, A.E., Moffitt, E.A.
+(2016). A comparison of fisheries biological reference points estimated
+from temperature-specific multi-species and single-species
+climate-enhanced stock assessment models. <em>Deep Sea Research Part
+II</em>, 134, 360-378.</li>
+<li>Ianelli, J., Kotwicki, S., Honkalehto, T., McCarthy, A., Stienessen,
+S., Holsman, K., Siddon, E., Fissel, B. (2018). Assessment of the
+walleye pollock stock in the Eastern Bering Sea. In: <em>Stock
+assessment and fishery evaluation report for the groundfish resources of
+the Bering Sea/Aleutian Islands regions</em>. North Pacific Fishery
+Management Council, Anchorage, AK.</li>
+<li>Kitchell, J.F., Stewart, D.J., Weininger, D. (1977). Applications of
+a bioenergetics model to yellow perch (<em>Perca flavescens</em>) and
+walleye (<em>Stizostedion vitreum vitreum</em>). <em>Journal of the
+Fisheries Research Board of Canada</em>, 34, 1922-1935.</li>
+<li>Magnússon, K.G. (1995). An overview of the multispecies VPA — theory
+and applications. <em>Reviews in Fish Biology and Fisheries</em>, 5,
+195-212.</li>
+<li>Methot, R.D., Wetzel, C.R. (2013). Stock synthesis: a biological and
+statistical framework for fish stock assessment and fishery management.
+<em>Fisheries Research</em>, 142, 86-99.</li>
+<li>Rogers, L.A., Monnahan, C.C., Williams, K., Jones, D.T., Dorn, M.W.
+(2024). Climate-driven changes in the timing of spawning and the
+availability of walleye pollock (<em>Gadus chalcogrammus</em>) to
+assessment surveys in the Gulf of Alaska. <em>ICES Journal of Marine
+Science</em>, 82(1), fsae005.</li>
+<li>Stewart, D.J., Weininger, D., Rottiers, D.V., Edsall, T.A. (1983).
+An energetics model for lake trout, <em>Salvelinus namaycush</em>:
+application to the Lake Michigan population. <em>Canadian Journal of
+Fisheries and Aquatic Sciences</em>, 40, 681-698.</li>
+<li>Taylor, I.G., Grandin, C., Hicks, A.C., Taylor, N., Cox, S. (2015).
+Status of the Pacific hake (whiting) stock in U.S. and Canadian waters
+in 2015. Joint Technical Committee of the U.S. and Canada Pacific
+Hake/Whiting Agreement; National Marine Fisheries Service; Fisheries and
+Oceans Canada.</li>
+<li>Thornton, K.W., Lessem, A.S. (1978). A temperature algorithm for
+modifying biological rates. <em>Transactions of the American Fisheries
+Society</em>, 107, 284-287.</li>
+<li>Thorson, J.T., Johnson, K.F., Methot, R.D., Taylor, I.G. (2017).
+Model-based estimates of effective sample size in stock assessment
+models using the Dirichlet-multinomial distribution. <em>Fisheries
+Research</em>, 192, 84-93.</li>
+<li>Tsehaye, I., Jones, M.L., Bence, J.R., Brenden, T.O., Madenjian,
+C.P., Warner, D.M. (2014). A multispecies statistical age-structured
+model to assess predator-prey balance: application to an intensively
+managed Lake Michigan pelagic fish community. <em>Canadian Journal of
+Fisheries and Aquatic Sciences</em>, 71, 627-644.</li>
+<li>Walters, C., Ludwig, D. (1994). Calculation of Bayes posterior
+probability distributions for key population parameters. <em>Canadian
+Journal of Fisheries and Aquatic Sciences</em>, 51, 713-722.</li>
+<li>Xu, H., Thorson, J.T., Methot, R.D., Taylor, I.G. (2019). A new
+semi-parametric method for autocorrelated age- and time-varying
+selectivity in age-structured assessment models. <em>Canadian Journal of
+Fisheries and Aquatic Sciences</em>, 76, 268-285.</li>
+</ul>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

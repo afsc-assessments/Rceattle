@@ -13,7 +13,7 @@ the two gets one figure per dimension."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.70.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.72.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -184,8 +184,8 @@ and right-skewed. It needs a fit run with <code>fit_control(selectivity_se = TRU
 <p>Only estimated, age-based fleets hold one. A length-based fleet is drawn on
 <code>sel_at_length</code>, which is what was fitted and holds no error; a
 <code>Selectivity = "Fixed"</code> fleet estimates nothing; and no fleet gets a band
-below its first selected bin (<code>Bin_first_selected</code>, a 1-based bin ordinal,
-not an absolute age), where selectivity is 0 by construction. A
+below its first selected age (<code>Age_first_selected</code>), where selectivity is 0
+by construction. A
 fleet mirroring another's <code>Selectivity_index</code> has no errors of its own and
 borrows its lead's, but only where the two curves agree, <code><a href="data_check.html">data_check()</a></code> only
 warns when a shared group differs in a shaping column such as <code>Sel_norm_bin</code>.</p>

@@ -3,8 +3,8 @@
 ## Overview
 
 This vignette shows how to estimate growth with Rceattle’s von
-Bertalanffy and Richards growth functions, add covariates and priors to
-growth parameters with
+Bertalanffy and Richards (1959) growth functions, add covariates and
+priors to growth parameters with
 [`linkage_spec()`](https://afsc-assessments.github.io/Rceattle/reference/linkage_spec.md),
 and match a Stock Synthesis growth specification. The examples use the
 bundled `whamGrowthData` dataset, which supplies conditional
@@ -85,8 +85,9 @@ The intercept row is held at 0, so the base parameter keeps the level.
 
 ### Time-varying growth
 
-The same grammar holds time variation, with a random-effect term on the
-right-hand side instead of (or alongside) a covariate:
+The same grammar holds time-varying growth (see Correa et al. 2023 for
+the approach in a state-space assessment), with a random-effect term on
+the right-hand side instead of (or alongside) a covariate:
 
 ``` r
 
@@ -217,3 +218,11 @@ year, so slope terms have no effect. See the “Growth SD endpoints”
 section of
 [`vignette("environmental-linkages-and-priors")`](https://afsc-assessments.github.io/Rceattle/articles/environmental-linkages-and-priors.md)
 for an example.
+
+## References
+
+- Correa, G.M., Monnahan, C.C., Sullivan, J.Y., Thorson, J.T., Punt,
+  A.E. (2023). Modelling time-varying growth in state-space stock
+  assessments. *ICES Journal of Marine Science*, 80, 2036-2049.
+- Richards, F.J. (1959). A flexible growth function for empirical use.
+  *Journal of Experimental Botany*, 10, 290-301.

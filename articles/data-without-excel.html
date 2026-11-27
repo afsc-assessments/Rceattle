@@ -21,7 +21,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.70.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.72.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -79,7 +79,7 @@
 
       <h1>6. Building a data object in R</h1>
             
-            <h4 data-toc-skip class="date">2026-11-23</h4>
+            <h4 data-toc-skip class="date">2026-11-27</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/vignettes/data-without-excel.Rmd" class="external-link"><code>vignettes/data-without-excel.Rmd</code></a></small>
       <div class="d-none name"><code>data-without-excel.Rmd</code></div>
@@ -291,7 +291,7 @@ modeled. Multiple fleets can target the same species.</p>
 <span><span class="co">#   "NonParametric"      (2), freely estimated selectivity-at-age/length with smoothness penalty</span></span>
 <span><span class="co">#   "DoubleLogistic"     (3), ascending + descending dome-shaped logistic</span></span>
 <span><span class="co">#   "DescendingLogistic" (4), descending logistic only (declining with age)</span></span>
-<span><span class="co">#   "Hake"               (5), non-parametric selectivity à la Taylor et al. (Pacific hake)</span></span>
+<span><span class="co">#   "Hake"               (5), non-parametric selectivity à la Taylor et al. (2015; Pacific hake)</span></span>
 <span><span class="co">#   "2DAR1"              (6), 2D autoregressive random effects (bin × year)</span></span>
 <span><span class="co">#   "3DAR1"              (7), 3D autoregressive random effects (bin × year × cohort)</span></span>
 <span><span class="co">#   "DoubleNormal"       (8), Gaussian ascending/descending limbs blended at peak</span></span>
@@ -347,7 +347,7 @@ modeled. Multiple fleets can target the same species.</p>
 <span>  <span class="co">#   5 / "RandomWalkAscending" = random walk on ascending portion of double logistic</span></span>
 <span>  Time_varying_sel          <span class="op">=</span> <span class="fl">0</span>,</span>
 <span>  Time_varying_sel_sd <span class="op">=</span> <span class="fl">1</span>,</span>
-<span>  Bin_first_selected        <span class="op">=</span> <span class="fl">1</span>,     <span class="co"># first bin selected; selectivity is 0 below it</span></span>
+<span>  Age_first_selected        <span class="op">=</span> <span class="fl">1</span>,     <span class="co"># first age selected (absolute age); 0 below it</span></span>
 <span>  Sel_norm_bin             <span class="op">=</span> <span class="st">"Off"</span>, <span class="co"># "Max", "Off", or a bin to normalize at</span></span>
 <span>  Sel_norm_bin_upper       <span class="op">=</span> <span class="st">"Off"</span>, <span class="co"># "Off", or the top of a bin range</span></span>
 <span>  <span class="co"># Two-sex models only: whether the normalization reference is pooled over the</span></span>
@@ -707,7 +707,7 @@ for each parameter.</p>
 <code class="sourceCode R"><span><span class="co"># Ceq: consumption (bioenergetics) equation form for each species:</span></span>
 <span><span class="co">#   1 = Exponential (Stewart et al. 1983)</span></span>
 <span><span class="co">#   2 = Warm-water temperature dependence (Kitchell et al. 1977)</span></span>
-<span><span class="co">#   3 = Cool/cold-water temperature dependence (Thornton &amp; Lessem 1979)</span></span>
+<span><span class="co">#   3 = Cool/cold-water temperature dependence (Thornton &amp; Lessem 1978)</span></span>
 <span><span class="co">#   4 = bypass bioenergetics; ration_data is annual ration per predator (kg)</span></span>
 <span><span class="va">simData</span><span class="op">$</span><span class="va">Ceq</span>    <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fl">4</span>,  <span class="va">nspp</span><span class="op">)</span></span>
 <span></span>
@@ -815,6 +815,31 @@ with a warning:</p>
 <code>fit$run_config</code>, so
 <code>save_config(fit, "run.yaml")</code> archives exactly what produced
 a result.</p>
+</div>
+<div class="section level2">
+<h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
+</h2>
+<ul>
+<li>Kitchell, J.F., Stewart, D.J., Weininger, D. (1977). Applications of
+a bioenergetics model to yellow perch (<em>Perca flavescens</em>) and
+walleye (<em>Stizostedion vitreum vitreum</em>). <em>Journal of the
+Fisheries Research Board of Canada</em>, 34, 1922-1935.</li>
+<li>Stewart, D.J., Weininger, D., Rottiers, D.V., Edsall, T.A. (1983).
+An energetics model for lake trout, <em>Salvelinus namaycush</em>:
+application to the Lake Michigan population. <em>Canadian Journal of
+Fisheries and Aquatic Sciences</em>, 40, 681-698.</li>
+<li>Taylor, I.G., Grandin, C., Hicks, A.C., Taylor, N., Cox, S. (2015).
+Status of the Pacific hake (whiting) stock in U.S. and Canadian waters
+in 2015. Joint Technical Committee of the U.S. and Canada Pacific
+Hake/Whiting Agreement; National Marine Fisheries Service; Fisheries and
+Oceans Canada.</li>
+<li>Thornton, K.W., Lessem, A.S. (1978). A temperature algorithm for
+modifying biological rates. <em>Transactions of the American Fisheries
+Society</em>, 107, 284-287.</li>
+<li>Walters, C., Ludwig, D. (1994). Calculation of Bayes posterior
+probability distributions for key population parameters. <em>Canadian
+Journal of Fisheries and Aquatic Sciences</em>, 51, 713-722.</li>
+</ul>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

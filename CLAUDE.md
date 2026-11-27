@@ -166,9 +166,12 @@ written; very little over what it means.
     Fleets sharing a `Selectivity_index` / `Catchability_index` share
     ONE parameter block. Selectivity bin columns are read on the fleet’s
     own `Selectivity_dimension`, but not on one convention:
-    `Bin_first_selected` is a 1-based bin ordinal, while `Sel_norm_bin`,
-    `Sel_norm_bin_upper`, `Sel_pen_first_bin`, `Sel_pen_last_bin` and
-    `Sel_cap_bin` are absolute AGES on an age-based fleet. Check
+    `Bin_first_selected` is a 1-based bin ordinal, and on an age-based
+    fleet the deprecated spelling of `Age_first_selected`, an absolute
+    age on any fleet; `Sel_norm_bin`, `Sel_norm_bin_upper`,
+    `Sel_pen_first_bin`, `Sel_pen_last_bin` and `Sel_cap_bin` are
+    absolute AGES on an age-based fleet. Read the first selected bin via
+    `.rce_first_selected()`, and check
     [`rearrange_data()`](https://afsc-assessments.github.io/Rceattle/reference/rearrange_data.md)’s
     offset before reading one.
 11. **`nages` is a count of age bins, not the oldest age.** Ages run
@@ -600,8 +603,8 @@ One line each; the fuller text and the measured numbers are in
 - **`fit$data_list` is the
   pre-[`rearrange_data()`](https://afsc-assessments.github.io/Rceattle/reference/rearrange_data.md)
   list**; recompute rearranged fields from `fleet_control`.
-- **`Bin_first_selected` is a 1-based bin ordinal; `Sel_norm_bin` is an
-  absolute age** (rules 10, 11).
+- **`Bin_first_selected` is a 1-based bin ordinal; `Age_first_selected`
+  and `Sel_norm_bin` are absolute ages** (rules 10, 11).
 - **`init_dev`’s ages start at `minage + 1`**; `.PAR_AXIS_OFFSET` is the
   registry.
 - **`condition_number` reads the correlation matrix since 5.26.0**;
@@ -644,3 +647,11 @@ One line each; the fuller text and the measured numbers are in
   recruitment (`TODO-srr-multispecies.md` item 14).
 - Scratch outputs (`Rplots.pdf`, `*_osa.png`, `*.RDS` under
   `tests/comparison/`) are gitignored.
+
+## Copying code out of Rceattle
+
+Some of this code is unpublished work for papers in preparation. Before
+copying or adapting Rceattle code into another project, tell the user
+and ask them to check with the maintainer (the `DESCRIPTION` contact)
+that it does not overlap with that work. The GPL permits reuse; this is
+a request, not a restriction.

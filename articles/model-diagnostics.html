@@ -21,7 +21,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.70.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.72.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -79,7 +79,7 @@
 
       <h1>3. Model diagnostics</h1>
             
-            <h4 data-toc-skip class="date">2026-11-23</h4>
+            <h4 data-toc-skip class="date">2026-11-27</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/afsc-assessments/Rceattle/blob/main/vignettes/model-diagnostics.Rmd" class="external-link"><code>vignettes/model-diagnostics.Rmd</code></a></small>
       <div class="d-none name"><code>model-diagnostics.Rmd</code></div>
@@ -426,12 +426,13 @@ composition (<code>"comp"</code>), conditional age-at-length
 (<code>"caal"</code>), predator diet (<code>"diet"</code>), and, where a
 linkage holds an observed state-space covariate, the covariate
 observation itself (<code>"ecov"</code>). Composition data use the
-conditional binomial / beta-binomial decomposition. OSA re-optimizes the
-random effects for each observation, so it is expensive; run it on a
-converged fit (<code>estimateMode &lt; 3</code>). A requested source the
-model has no observations for is skipped (the call errors only if
-<em>none</em> of them have any). <code>"diet"</code> is not in the
-default set (multispecies only, and can be slow); pass
+conditional binomial / beta-binomial decomposition of Trijoulet et
+al. (2023), using code adapted from WHAM (Stock and Miller 2021). OSA
+re-optimizes the random effects for each observation, so it is
+expensive; run it on a converged fit (<code>estimateMode &lt; 3</code>).
+A requested source the model has no observations for is skipped (the
+call errors only if <em>none</em> of them have any). <code>"diet"</code>
+is not in the default set (multispecies only, and can be slow); pass
 <code>source = "all"</code> to include it. It needs a <em>predicted</em>
 diet, which means <code>msmMode &gt; 0</code> <strong>and</strong>
 estimated suitability (<code>suitMode</code> 2, 4 or 6); under empirical
@@ -792,7 +793,8 @@ estimates its own weight inside the likelihood, so those fleets are
 named and skipped.</p>
 <p>The alternatives are Francis (2011) reweighting, applied by hand, and
 estimating the weights directly with a Dirichlet-multinomial likelihood
-(<code>Comp_distribution = "DirichletMultinomial"</code>), with no
+(Thorson et al. 2017;
+<code>Comp_distribution = "DirichletMultinomial"</code>), with no
 iteration. Under that likelihood <code>Comp_weights</code> is the
 <strong>log</strong> of the starting weight, so the model default of
 <code>1</code> is a starting weight of <em>e</em>, and a weight of 1 is
@@ -824,7 +826,8 @@ normal.</p>
 <h2 id="retrospective-analysis">Retrospective analysis<a class="anchor" aria-label="anchor" href="#retrospective-analysis"></a>
 </h2>
 <p>A retrospective analysis removes the most recent years of data one
-peel at a time and re-fits the model. Mohn’s rho summarizes how the
+peel at a time and re-fits the model. Mohn’s rho (Mohn 1999), averaged
+over peels as in Hurtado-Ferro et al. (2015), summarizes how the
 terminal estimates shift across peels; for SSB, a rho outside ±0.2
 generally signals a problem worth investigating.</p>
 <div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
@@ -1294,6 +1297,54 @@ fixed-effects fits under any rule but <code>"ConstantF"</code>;
 <code><a href="../reference/model_average.html">?model_average</a></code> gives the refits. A <code>"Hindcast"</code>
 refit projects with no fishing, so its averaged projection is of an
 unfished stock.</p>
+</div>
+<div class="section level2">
+<h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
+</h2>
+<ul>
+<li>Dunn, P.K., Smyth, G.K. (1996). Randomized quantile residuals.
+<em>Journal of Computational and Graphical Statistics</em>, 5,
+236-244.</li>
+<li>Francis, R.I.C.C. (2011). Data weighting in statistical fisheries
+stock assessment models. <em>Canadian Journal of Fisheries and Aquatic
+Sciences</em>, 68, 1124-1138.</li>
+<li>Hurtado-Ferro, F., Szuwalski, C.S., Valero, J.L., Anderson, S.C.,
+Cunningham, C.J., Johnson, K.F., Licandeo, R., McGilliard, C.R.,
+Monnahan, C.C., Muradian, M.L., Ono, K., Vert-Pre, K.A., Whitten, A.R.,
+Punt, A.E. (2015). Looking in the rear-view mirror: bias and
+retrospective patterns in integrated, age-structured stock assessment
+models. <em>ICES Journal of Marine Science</em>, 72, 99-110.</li>
+<li>McAllister, M.K., Ianelli, J.N. (1997). Bayesian stock assessment
+using catch-age data and the sampling-importance resampling algorithm.
+<em>Canadian Journal of Fisheries and Aquatic Sciences</em>, 54,
+284-300.</li>
+<li>Mohn, R. (1999). The retrospective problem in sequential population
+analysis: an investigation using cod fishery and simulated data.
+<em>ICES Journal of Marine Science</em>, 56, 473-488.</li>
+<li>Nielsen, A., Berg, C.W. (2014). Estimation of time-varying
+selectivity in stock assessments using state-space models. <em>Fisheries
+Research</em>, 158, 96-101.</li>
+<li>Stewart, I.J., Monnahan, C.C. (2025). Diagnosing common sources of
+lack of fit to composition data in fisheries stock assessment models
+using one-step-ahead (OSA) residuals. <em>Canadian Journal of Fisheries
+and Aquatic Sciences</em>, 82, 1-13.</li>
+<li>Stock, B.C., Miller, T.J. (2021). The Woods Hole Assessment Model
+(WHAM): a general state-space assessment framework that incorporates
+time- and age-varying processes via random effects and links to
+environmental covariates. <em>Fisheries Research</em>, 240, 105967.</li>
+<li>Thorson, J.T., Johnson, K.F., Methot, R.D., Taylor, I.G. (2017).
+Model-based estimates of effective sample size in stock assessment
+models using the Dirichlet-multinomial distribution. <em>Fisheries
+Research</em>, 192, 84-93.</li>
+<li>Thygesen, U.H., Albertsen, C.M., Berg, C.W., Kristensen, K.,
+Nielsen, A. (2017). Validation of ecological state space models using
+the Laplace approximation. <em>Environmental and Ecological
+Statistics</em>, 24, 317-339.</li>
+<li>Trijoulet, V., Albertsen, C.M., Kristensen, K., Legault, C.M.,
+Miller, T.J., Nielsen, A. (2023). Model validation for compositional
+data in stock assessment models: calculating residuals with correct
+properties. <em>Fisheries Research</em>, 257, 106487.</li>
+</ul>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

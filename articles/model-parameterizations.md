@@ -57,7 +57,7 @@ factors such as predator-prey spatial overlap.
 
 #### MSVPA Type 2 based suitability
 
-Suitability is derived empirically, following Magnusson (1995), from the
+Suitability is derived empirically, following Magnússon (1995), from the
 mean proportion by weight of prey-at-age in the stomachs of
 predators-at-age, $`\bar{U}_{pbjisa}`$ (`diet_data`). `suitMode = 0`
 Predator-prey suitability for predators of species $`p`$, sex $`b`$, age
@@ -114,9 +114,9 @@ direct input of consumption-at-age, controlled per species on the
 
 - `Ceq` Which bioenergetics equation scales maximum consumption with
   temperature: 1 = exponential (Stewart et al 1983); 2 = warm-water
-  temperature dependence (Kitchell et al 1977; sensu Holsman et al
+  temperature dependence (Kitchell et al 1977; sensu Holsman and Aydin
   2015); 3 = cool- and cold-water temperature dependence (Thornton and
-  Lessem 1979); 4 = no bioenergetics: annual ration (kg per predator per
+  Lessem 1978); 4 = no bioenergetics: annual ration (kg per predator per
   year) is read from `ration_data` and scaled by `Pvalue`; `CA`, `CB`
   and `fday` are not read
 - `Cindex` Which `env_data` index supplies $`T_y`$ for
@@ -181,7 +181,7 @@ Y = ln\left(Q^c_p \right) \left( T^{cm}_p - T^{co}_p + 2\right)
 ```
 
 `Ceq = 3`: Temperature dependence for cool and cold-water species from
-Thornton and Lessem 1979:
+Thornton and Lessem 1978:
 ``` math
 f \left(T_y \right)_p = Ka * Kb
 ```
@@ -218,14 +218,14 @@ directly from `ration_data` (kg per predator per year), scaled by
 CEATTLE is fit to time series of fishery catch, survey biomass, and
 length- or age-composition data. Log-catch and (by default) log-index
 observations are normally distributed; age and length compositions are
-multinomial or Dirichlet-multinomial, with their sample sizes input.
-There is no separate sex-ratio likelihood component: sex-ratio
-information enters through joint (`comp_data$Sex = 3`) composition data,
-whose female and male cells are normalized together. The log-scale index
-SD is input, estimated as a free parameter, or derived analytically
-following Walters and Ludwig (1994), per `Estimate_index_sd`.
-Selectivity and catchability are estimated or input separately for each
-fishery and survey.
+multinomial or Dirichlet-multinomial (Thorson et al. 2017), with their
+sample sizes input. There is no separate sex-ratio likelihood component:
+sex-ratio information enters through joint (`comp_data$Sex = 3`)
+composition data, whose female and male cells are normalized together.
+The log-scale index SD is input, estimated as a free parameter, or
+derived analytically following Walters and Ludwig (1994), per
+`Estimate_index_sd`. Selectivity and catchability are estimated or input
+separately for each fishery and survey.
 
 Predicted catch follows the Baranov catch equation:
 ``` math
@@ -284,8 +284,9 @@ for the seasonal-fishery case and the measured trend errors.
 ### Selectivity parameterizations
 
 Selectivity is controlled by `Selectivity_index`, `Selectivity`,
-`N_sel_bins`, `Time_varying_sel`, `Time_varying_sel_sd` and
-`Bin_first_selected` on the `fleet_control` sheet:
+`N_sel_bins`, `Time_varying_sel`, `Time_varying_sel_sd`,
+`Age_first_selected` and `Bin_first_selected` on the `fleet_control`
+sheet:
 
 - `Selectivity_index`: Fleets given the same value share one selectivity
   parameter block.
@@ -293,20 +294,23 @@ Selectivity is controlled by `Selectivity_index`, `Selectivity`,
   `"Fixed"` = empirical selectivity provided in `emp_sel`; 1 or
   `"Logistic"`; 2 or `"NonParametric"` sensu Ianelli et al 2018; 3 or
   `"DoubleLogistic"`; 4 or `"DescendingLogistic"`; 5 or `"Hake"`,
-  non-parametric sensu Taylor et al 2014; 6 or `"2DAR1"` for bin by
-  year; 7 or `"3DAR1"` sensu Cheng et al (2024); 8 or `"DoubleNormal"`,
-  a four-parameter double normal (peak, ascending and descending widths,
-  and a right-tail floor): the Stock Synthesis pattern 24 shape without
-  its initial-selectivity and plateau-width parameters; 9 or
-  `"NonParametricPM"`, Ianelli non-parametric with the ADMB AMAK
-  (`"pm"`) penalty; 11 or `"LogisticPM"`, the AMAK logistic with a free
-  age-1 selectivity; 13 or `"NonParametricIntegrable"`, the Ianelli base
-  curve whose deviations have a proper density and so integrate under
-  `random_sel` (`Time_varying_sel` picks the structure: `"Off"`, `"IID"`
-  or `"RandomWalk"`); 15 or `"DoubleNormalSS3"`, the six-parameter Stock
-  Synthesis pattern 24 double normal. There is no 10, 12 or 14. Whether
-  a form is age- or length-based is set by `Selectivity_dimension`, not
-  by the code, except that `"Fixed"` is always at age.
+  non-parametric sensu Taylor et al 2015; 6 or `"2DAR1"` for bin by year
+  (deviations as in Xu et al. 2019); 7 or `"3DAR1"`, the weight-at-age
+  Gaussian Markov random field (GMRF) of Cheng et al. (2023) applied to
+  selectivity; 8 or `"DoubleNormal"`, a four-parameter double normal
+  (peak, ascending and descending widths, and a right-tail floor): the
+  Stock Synthesis pattern 24 shape without its initial-selectivity and
+  plateau-width parameters; 9 or `"NonParametricPM"`, Ianelli
+  non-parametric with the ADMB AMAK (`"pm"`) penalty; 11 or
+  `"LogisticPM"`, the AMAK logistic with a free age-1 selectivity; 13 or
+  `"NonParametricIntegrable"`, the Ianelli base curve whose deviations
+  have a proper density and so integrate under `random_sel`
+  (`Time_varying_sel` picks the structure: `"Off"`, `"IID"` or
+  `"RandomWalk"`); 15 or `"DoubleNormalSS3"`, the six-parameter Stock
+  Synthesis pattern 24 double normal (Methot and Wetzel 2013). There is
+  no 10, 12 or 14. Whether a form is age- or length-based is set by
+  `Selectivity_dimension`, not by the code, except that `"Fixed"` is
+  always at age.
 - `N_sel_bins`: Number of age or length bins (per
   `Selectivity_dimension`) estimated for the non-parametric and AR1
   forms; not read by the others. It is a count of bins, not an age:
@@ -317,9 +321,10 @@ Selectivity is controlled by `Selectivity_index`, `Selectivity`,
   forms. 0 or `"Off"` = no; 1 or `"IID"` = penalized deviates given
   `Time_varying_sel_sd`, or random effects with that sd estimated under
   `fit_mod(random_sel = TRUE)`; 3 or `"Block"` = time blocks with no
-  penalty; 4 or `"RandomWalk"` = random walk following Dorn; 5 or
-  `"RandomWalkAscending"` = random walk on the ascending portion of the
-  double logistic only. Value 2 (`"AR1"`) is refused by
+  penalty; 4 or `"RandomWalk"` = random walk on both limbs (extending
+  Dorn et al. 2018); 5 or `"RandomWalkAscending"` = random walk on the
+  ascending portion of the double logistic only (Dorn et al. 2018).
+  Value 2 (`"AR1"`) is refused by
   [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md);
   an autocorrelated deviation is a selectivity linkage,
   `linkage_spec(~ ar1(1 | Year))`. The switch as a whole is
@@ -332,9 +337,15 @@ Selectivity is controlled by `Selectivity_index`, `Selectivity`,
   the geometric mean of theirs. The 2DAR1 and 3DAR1 forms read it under
   every `Time_varying_sel`, as the conditional sd of their deviation
   field, so they always need a positive value.
-- `Bin_first_selected`: First age/length bin with non-zero selectivity;
-  the curve is 0 below it. A 1-based bin ordinal on the fleet’s
-  `Selectivity_dimension`.
+- `Age_first_selected`: First age selected (absolute age). Selectivity
+  is 0 below it on an age-based fleet; on a length-based fleet younger
+  ages are zeroed in the fleet’s age-length key, so no fish below this
+  age are caught at any length (Stock Synthesis age pattern 11 to the
+  plus group, or pattern 10 when the first age is 1).
+- `Bin_first_selected`: First length bin selected on a length-based
+  fleet, a 1-based bin ordinal; selectivity is 0 below it. On an
+  age-based fleet it is the deprecated spelling of `Age_first_selected`,
+  read as age `minage + Bin_first_selected - 1`.
 
 #### Selectivity penalty weights
 
@@ -398,7 +409,7 @@ through the projection.
 
 Input: `Selectivity = 2 or "NonParametric"`, `N_sel_bins = 6`,
 `Sel_curve_pen1 = 12.5`, `Sel_curve_pen2 = 200`, and
-`Bin_first_selected = 1`. See **Selectivity penalty weights** above for
+`Age_first_selected = 1`. See **Selectivity penalty weights** above for
 the `Sel_curve_pen` slots and the standard-deviation columns that set
 them.
 
@@ -519,7 +530,7 @@ estimated bin. `minage`, set in the data, is the youngest age modeled.
 
 Input: `Selectivity = 5 or "Hake"`, `N_sel_bins = 6`,
 `Time_varying_sel = NA`, `Time_varying_sel_sd = NA`, and
-`Bin_first_selected =`$`A_{min}`$
+`Age_first_selected =`$`A_{min}`$
 
 #### Time-varying non-parametric (Type 2 for hake)
 
@@ -554,9 +565,10 @@ Catchability is controlled by the following `fleet_control` columns:
   implemented**; 5 or “Environmental” = linear equation log(q_y) =
   q_mu + beta \* index_y; 6 or “AR1” = refused by
   [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md);
-  express the Rogers et al. form as a q linkage with `ar1(1 | Year)` and
-  `observe =`; 7 or “AnalyticalArith” = arithmetic-mean analytical q,
-  the AMAK/ebswp form, paired with the MVN survey likelihood.
+  express the Rogers et al. (2024) form as a q linkage with
+  `ar1(1 | Year)` and `observe =`; 7 or “AnalyticalArith” =
+  arithmetic-mean analytical q, the AMAK/ebswp form, paired with the MVN
+  survey likelihood.
 - `Catchability_init` Starting or fixed value for catchability
 - `Catchability_prior_sd` Log-scale SD of the q prior: dnorm(log_q,
   log(Catchability_init) - bias_adjust_proc \* sd^2/2, sd)
@@ -564,7 +576,7 @@ Catchability is controlled by the following `fleet_control` columns:
   penalized deviate; 2 = AR1 (refused by
   [`data_check()`](https://afsc-assessments.github.io/Rceattle/reference/data_check.md));
   3 = time blocks with no penalty; 4 = random walk from the mean
-  following Dorn 2018 (dnorm(q_y - q_y-1, 0, sigma)). Under
+  following Dorn et al. 2018 (dnorm(q_y - q_y-1, 0, sigma)). Under
   `Catchability = 5` it instead holds the `env_data` index for log(q_y)
   = q_mu + beta \* index_y.
 - `Time_varying_q_sd` Fixed or starting sd of the time-varying q
@@ -683,3 +695,76 @@ from `index_data`.
 \hat{q}_{f_iy} = e^{\bar{q}_{f_i}+ \omega_{f_iy}}
 ```
 $`\omega_{f_iy} \sim N(\omega_{f_iy-1},`$`Time_varying_q_sd`$`)`$
+
+## References
+
+- Cheng, M.L.H., Thorson, J.T., Ianelli, J.N., Cunningham, C.J. (2023).
+  Unlocking the triad of age, year, and cohort effects for stock
+  assessment: demonstration of a computationally efficient and
+  reproducible framework using weight-at-age. *Fisheries Research*, 266,
+  106755.
+- Curti, K.L., Collie, J.S., Legault, C.M., Link, J.S. (2013).
+  Evaluating the performance of a multispecies statistical catch-at-age
+  model. *Canadian Journal of Fisheries and Aquatic Sciences*, 70,
+  470-484.
+- Dorn, M., Aydin, K., Fissel, B., Palsson, W., Spalinger, K.,
+  Stienessen, S., Williams, K., Zador, S. (2018). Assessment of the
+  walleye pollock stock in the Gulf of Alaska. In: *Stock assessment and
+  fishery evaluation report for the groundfish resources of the Gulf of
+  Alaska*. North Pacific Fishery Management Council, Anchorage, AK.
+- Holsman, K.K., Aydin, K. (2015). Comparative methods for evaluating
+  climate change impacts on the foraging ecology of Alaskan groundfish.
+  *Marine Ecology Progress Series*, 521, 217-235.
+- Holsman, K.K., Ianelli, J., Aydin, K., Punt, A.E., Moffitt, E.A.
+  (2016). A comparison of fisheries biological reference points
+  estimated from temperature-specific multi-species and single-species
+  climate-enhanced stock assessment models. *Deep Sea Research Part II*,
+  134, 360-378.
+- Ianelli, J., Kotwicki, S., Honkalehto, T., McCarthy, A., Stienessen,
+  S., Holsman, K., Siddon, E., Fissel, B. (2018). Assessment of the
+  walleye pollock stock in the Eastern Bering Sea. In: *Stock assessment
+  and fishery evaluation report for the groundfish resources of the
+  Bering Sea/Aleutian Islands regions*. North Pacific Fishery Management
+  Council, Anchorage, AK.
+- Kitchell, J.F., Stewart, D.J., Weininger, D. (1977). Applications of a
+  bioenergetics model to yellow perch (*Perca flavescens*) and walleye
+  (*Stizostedion vitreum vitreum*). *Journal of the Fisheries Research
+  Board of Canada*, 34, 1922-1935.
+- Magnússon, K.G. (1995). An overview of the multispecies VPA — theory
+  and applications. *Reviews in Fish Biology and Fisheries*, 5, 195-212.
+- Methot, R.D., Wetzel, C.R. (2013). Stock synthesis: a biological and
+  statistical framework for fish stock assessment and fishery
+  management. *Fisheries Research*, 142, 86-99.
+- Rogers, L.A., Monnahan, C.C., Williams, K., Jones, D.T., Dorn, M.W.
+  (2024). Climate-driven changes in the timing of spawning and the
+  availability of walleye pollock (*Gadus chalcogrammus*) to assessment
+  surveys in the Gulf of Alaska. *ICES Journal of Marine Science*,
+  82(1), fsae005.
+- Stewart, D.J., Weininger, D., Rottiers, D.V., Edsall, T.A. (1983). An
+  energetics model for lake trout, *Salvelinus namaycush*: application
+  to the Lake Michigan population. *Canadian Journal of Fisheries and
+  Aquatic Sciences*, 40, 681-698.
+- Taylor, I.G., Grandin, C., Hicks, A.C., Taylor, N., Cox, S. (2015).
+  Status of the Pacific hake (whiting) stock in U.S. and Canadian waters
+  in 2015. Joint Technical Committee of the U.S. and Canada Pacific
+  Hake/Whiting Agreement; National Marine Fisheries Service; Fisheries
+  and Oceans Canada.
+- Thornton, K.W., Lessem, A.S. (1978). A temperature algorithm for
+  modifying biological rates. *Transactions of the American Fisheries
+  Society*, 107, 284-287.
+- Thorson, J.T., Johnson, K.F., Methot, R.D., Taylor, I.G. (2017).
+  Model-based estimates of effective sample size in stock assessment
+  models using the Dirichlet-multinomial distribution. *Fisheries
+  Research*, 192, 84-93.
+- Tsehaye, I., Jones, M.L., Bence, J.R., Brenden, T.O., Madenjian, C.P.,
+  Warner, D.M. (2014). A multispecies statistical age-structured model
+  to assess predator-prey balance: application to an intensively managed
+  Lake Michigan pelagic fish community. *Canadian Journal of Fisheries
+  and Aquatic Sciences*, 71, 627-644.
+- Walters, C., Ludwig, D. (1994). Calculation of Bayes posterior
+  probability distributions for key population parameters. *Canadian
+  Journal of Fisheries and Aquatic Sciences*, 51, 713-722.
+- Xu, H., Thorson, J.T., Methot, R.D., Taylor, I.G. (2019). A new
+  semi-parametric method for autocorrelated age- and time-varying
+  selectivity in age-structured assessment models. *Canadian Journal of
+  Fisheries and Aquatic Sciences*, 76, 268-285.

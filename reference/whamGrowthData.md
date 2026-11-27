@@ -19,3 +19,9 @@ whamGrowthData
 
 A list with the same structure as
 [`BS2017SS`](https://afsc-assessments.github.io/Rceattle/reference/BS2017SS.md).
+
+## Source
+
+Built from case 3 of the WHAM growth examples by Giancarlo Correa and
+Jane Sullivan for the Ocean Frontier Institute's 2023 workshop,
+<https://giancarlomcorrea.netlify.app/post/ofi-workshop/>.

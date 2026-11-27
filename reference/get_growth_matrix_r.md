@@ -1,9 +1,9 @@
 # Generate Length-at-Age Transition Matrix
 
-This function calculates a probability transition matrix that defines
-the probability of a fish of a given age belonging to specific length
-bins. It supports Von Bertalanffy and Richards growth models and
-includes a Stock Synthesis (SS) style plus-group correction.
+Calculates the age-to-length transition matrix under von Bertalanffy or
+Richards growth with a Stock Synthesis plus-group correction; like
+`growth.hpp`, adapted from Giancarlo Correa's growth code in WHAM's
+growth branch.
 
 ## Usage
 
@@ -28,31 +28,32 @@ get_growth_matrix_r(
 
 - fracyr:
 
-  Numeric. Fraction of the year (0 = Jan 1st).
+  Numeric fraction of the year (`0` = Jan 1).
 
 - nsex_sp:
 
-  Integer. Number of sexes for the species.
+  Integer number of sexes for the species.
 
 - nages_sp:
 
-  Integer. Number of age classes.
+  Integer number of age classes.
 
 - nlengths_sp:
 
-  Integer. Number of length bins.
+  Integer number of length bins.
 
 - nyrs:
 
-  Integer. Number of years in the simulation.
+  Integer number of years in the simulation.
 
 - lengths_sp:
 
-  Vector. Boundaries of the length bins.
+  Numeric vector of the `nlengths_sp` length-bin lower edges (cm); the
+  first bin is open below and the last open above.
 
 - minage_sp:
 
-  Numeric. The reference age (L1) for growth estimation.
+  Numeric reference age (`L1`) for growth estimation.
 
 - maxage_sp:
 
@@ -60,23 +61,24 @@ get_growth_matrix_r(
 
 - growth_params_sp:
 
-  Array. Dimensions (sex, yr, 4). Params: K, L1, Linf, Richards m.
+  Numeric `[sex, yr, 4]` array of `K`, `L1`, `Linf`, and Richards `m`.
 
 - growth_log_sd_sp:
 
-  Array. Dimensions (sex, 2). Log-SD of length: 1st param is SD at
-  minage, 2nd param is SD at maxage.
+  Numeric `[sex, 2]` array of log length SD at `minage` and `maxage`.
 
 - growth_model_sp:
 
-  Integer. 1 = Von Bertalanffy, 2 = Richards.
+  Integer growth code (`1` = von Bertalanffy, `2` = Richards).
 
 - M_plus_sp:
 
-  Numeric. Natural mortality at the oldest age (one value, or one per
-  sex), which weights the ages pooled in the plus group by survival, as
-  the template does.
+  Numeric natural mortality at the oldest age (scalar or per sex),
+  weighting ages pooled in the plus group by survival to match the TMB
+  growth model.
 
 ## Value
 
-A 4D array of probabilities with dimensions (sex, age, length, year).
+A list: `length_at_age`, mean length (cm) by (sex, age, year), and
+`growth_matrix`, the probability of each length bin by (sex, age,
+length, year).

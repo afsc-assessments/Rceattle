@@ -8,7 +8,7 @@ The switch is `msmMode` in
 | `msmMode` | Predation mortality (M2)            |
 |-----------|-------------------------------------|
 | `0`       | Off, single-species; total M = M1   |
-| `1`       | Type II MSVPA (Holsman et al. 2015) |
+| `1`       | Type II MSVPA (Holsman et al. 2016) |
 | `2`       | Type III MSVPA                      |
 
 In single-species mode the model is a standard statistical catch-at-age
@@ -147,7 +147,7 @@ species: one value for all predators, or a vector of length `nspp`.
 
 | `suitMode` | String | Description | Available? |
 |----|----|----|:--:|
-| `0` | `"Empirical"` | Empirical proportions from observed stomach content data (MSVPA-style; Holsman et al. 2015) | Yes |
+| `0` | `"Empirical"` | Empirical proportions from observed stomach content data (MSVPA-style; Holsman et al. 2016) | Yes |
 | `1` | `"GammaLength"` | Gamma suitability on prey length-at-age | Not yet |
 | `2` | `"GammaWeight"` | Gamma suitability on prey weight-at-age | Yes |
 | `3` | `"LognormalLength"` | Log-normal suitability on prey length-at-age | Not yet |
@@ -191,3 +191,11 @@ plot_b_eaten_prop(Rceattle = mod_list, model_names = mod_names)
 
 For model averaging across single- and multi-species variants, see
 [`?model_average`](https://afsc-assessments.github.io/Rceattle/reference/model_average.md).
+
+## References
+
+- Holsman, K.K., Ianelli, J., Aydin, K., Punt, A.E., Moffitt, E.A.
+  (2016). A comparison of fisheries biological reference points
+  estimated from temperature-specific multi-species and single-species
+  climate-enhanced stock assessment models. *Deep Sea Research Part II*,
+  134, 360-378.

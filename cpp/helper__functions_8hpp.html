@@ -178,9 +178,9 @@ b^2 S) - 1) / b^2</span>, which needs no branch at <span class="tt">b = 0</span>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>The sd that minimises the lognormal negative log-likelihood. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="helper__functions_8hpp_source.html#l00090">90</a> of file <a class="el" href="helper__functions_8hpp_source.html">helper_functions.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="helper__functions_8hpp_source.html#l00091">91</a> of file <a class="el" href="helper__functions_8hpp_source.html">helper_functions.hpp</a>.</p>
 
-<p class="reference">References <a class="el" href="helper__functions_8hpp_source.html#l00067">square()</a>.</p>
+<p class="reference">References <a class="el" href="helper__functions_8hpp_source.html#l00068">square()</a>.</p>
 
 </div>
 </div>
@@ -236,16 +236,16 @@ template&lt;class Type&gt; </div>
 </div><div class="memdoc">
 
 <p>Construct a sparse GMRF precision matrix separable along year, age, and cohort. </p>
-<p>Builds Q = (I - B^T) * Omega * (I - B), where B carries the partial correlation to each neighbouring node and Omega is the diagonal precision (1 / variance). <span class="tt">Var_Param</span> selects the conditional (0) or marginal (1) variance parameterization of the GMRF.</p>
-<p>The sole caller reads these names the other way round: <a class="el" href="ceattle_8cpp.html" title="The CEATTLE objective function: configuration, population dynamics, predation, likelihood and report.">ceattle.cpp</a>'s 3D-AR1 selectivity passes its (bin, year, cohort) correlations in and fills <span class="tt">ay_Index</span> as (bin, year), so the two inversions cancel. Read the note at that call before renaming anything here.</p>
+<p>From Matthew Cheng's GMRF_WAA (<a href="https://github.com/chengmatt/GMRF_WAA;">https://github.com/chengmatt/GMRF_WAA;</a> Cheng et al. 2023, Fisheries Research 266: 106755). Builds Q = (I - B^T) * Omega * (I - B), where B carries the partial correlation to each neighbouring node and Omega is the diagonal precision (1 / variance). <span class="tt">Var_Param</span> selects the conditional (0) or marginal (1) variance parameterization of the GMRF.</p>
+<p>The names do not match what they act on: <span class="tt">rho_y</span> links nodes one apart in column 0 of <span class="tt">ay_Index</span> (age, or bin) within a year, and <span class="tt">rho_a</span> nodes one year apart. The sole caller, <a class="el" href="ceattle_8cpp.html" title="The CEATTLE objective function: configuration, population dynamics, predation, likelihood and report.">ceattle.cpp</a>'s 3D-AR1 selectivity, relies on this; read its note first.</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">n_years</td><td>Number of years. </td></tr>
     <tr><td class="paramname">n_ages</td><td>Number of ages. </td></tr>
     <tr><td class="paramname">ay_Index</td><td>[total_n x 2] age/year index locating each node. </td></tr>
-    <tr><td class="paramname">rho_y</td><td>Partial correlation to the node one back in <span class="tt">ay_Index</span> column 0. </td></tr>
-    <tr><td class="paramname">rho_a</td><td>Partial correlation to the node one back in column 1. </td></tr>
-    <tr><td class="paramname">rho_c</td><td>Partial correlation to the node one back in both &ndash; the diagonal, which is the cohort when the columns are filled (age, year). </td></tr>
+    <tr><td class="paramname">rho_y</td><td>Partial correlation across <span class="tt">ay_Index</span> column 0 (adjacent bins within a year in 3D-AR1 selectivity). </td></tr>
+    <tr><td class="paramname">rho_a</td><td>Partial correlation across column 1 (adjacent years at the same bin). </td></tr>
+    <tr><td class="paramname">rho_c</td><td>Partial correlation along the diagonal of both columns, which is the cohort when column 0 is age. </td></tr>
     <tr><td class="paramname">log_sigma2</td><td>Log variance parameter governing the GMRF. </td></tr>
     <tr><td class="paramname">Var_Param</td><td>0 = conditional variance, 1 = marginal variance. </td></tr>
   </table>
@@ -253,7 +253,7 @@ template&lt;class Type&gt; </div>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Sparse precision matrix [total_n x total_n], total_n = n_years * n_ages. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="helper__functions_8hpp_source.html#l00175">175</a> of file <a class="el" href="helper__functions_8hpp_source.html">helper_functions.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="helper__functions_8hpp_source.html#l00179">179</a> of file <a class="el" href="helper__functions_8hpp_source.html">helper_functions.hpp</a>.</p>
 
 </div>
 </div>
@@ -283,9 +283,9 @@ template&lt;class Type&gt; </div>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="helper__functions_8hpp_source.html#l00037">37</a> of file <a class="el" href="helper__functions_8hpp_source.html">helper_functions.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="helper__functions_8hpp_source.html#l00038">38</a> of file <a class="el" href="helper__functions_8hpp_source.html">helper_functions.hpp</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="likelihood_8hpp_source.html#l00081">comp_row_nll()</a>, and <a class="el" href="comp__osa_8hpp_source.html#l00252">ddirmultinom_osa()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="likelihood_8hpp_source.html#l00081">comp_row_nll()</a>, and <a class="el" href="comp__osa_8hpp_source.html#l00266">ddirmultinom_osa()</a>.</p>
 
 </div>
 </div>
@@ -306,7 +306,7 @@ template&lt;class Type&gt; </div>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="helper__functions_8hpp_source.html#l00098">98</a> of file <a class="el" href="helper__functions_8hpp_source.html">helper_functions.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="helper__functions_8hpp_source.html#l00099">99</a> of file <a class="el" href="helper__functions_8hpp_source.html">helper_functions.hpp</a>.</p>
 
 </div>
 </div>
@@ -329,7 +329,7 @@ template&lt;class Type&gt; </div>
 
 <p class="definition">Definition at line <a class="el" href="helper__functions_8hpp_source.html#l00011">11</a> of file <a class="el" href="helper__functions_8hpp_source.html">helper_functions.hpp</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="predation_8hpp_source.html#l00179">calculate_msvpa_suitability()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="predation_8hpp_source.html#l00180">calculate_msvpa_suitability()</a>.</p>
 
 </div>
 </div>
@@ -350,7 +350,7 @@ template&lt;class Type&gt; </div>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="helper__functions_8hpp_source.html#l00062">62</a> of file <a class="el" href="helper__functions_8hpp_source.html">helper_functions.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="helper__functions_8hpp_source.html#l00063">63</a> of file <a class="el" href="helper__functions_8hpp_source.html">helper_functions.hpp</a>.</p>
 
 </div>
 </div>
@@ -371,7 +371,7 @@ template&lt;class Type&gt; </div>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="helper__functions_8hpp_source.html#l00056">56</a> of file <a class="el" href="helper__functions_8hpp_source.html">helper_functions.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="helper__functions_8hpp_source.html#l00057">57</a> of file <a class="el" href="helper__functions_8hpp_source.html">helper_functions.hpp</a>.</p>
 
 <p class="reference">Referenced by <a class="el" href="selectivity_8hpp_source.html#l00151">calculate_selectivity()</a>.</p>
 
@@ -404,9 +404,9 @@ template&lt;class Type&gt; </div>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>log of the mean of exp(x). </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="helper__functions_8hpp_source.html#l00140">140</a> of file <a class="el" href="helper__functions_8hpp_source.html">helper_functions.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="helper__functions_8hpp_source.html#l00141">141</a> of file <a class="el" href="helper__functions_8hpp_source.html">helper_functions.hpp</a>.</p>
 
-<p class="reference">References <a class="el" href="helper__functions_8hpp_source.html#l00120">max2()</a>.</p>
+<p class="reference">References <a class="el" href="helper__functions_8hpp_source.html#l00121">max2()</a>.</p>
 
 <p class="reference">Referenced by <a class="el" href="selectivity_8hpp_source.html#l00151">calculate_selectivity()</a>.</p>
 
@@ -433,9 +433,9 @@ template&lt;class Type&gt; </div>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="helper__functions_8hpp_source.html#l00120">120</a> of file <a class="el" href="helper__functions_8hpp_source.html">helper_functions.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="helper__functions_8hpp_source.html#l00121">121</a> of file <a class="el" href="helper__functions_8hpp_source.html">helper_functions.hpp</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="predation_8hpp_source.html#l00179">calculate_msvpa_suitability()</a>, <a class="el" href="selectivity_8hpp_source.html#l00151">calculate_selectivity()</a>, <a class="el" href="helper__functions_8hpp_source.html#l00140">log_mean_exp()</a>, and <a class="el" href="selectivity_8hpp_source.html#l00016">normalize_and_project_selectivity()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="predation_8hpp_source.html#l00180">calculate_msvpa_suitability()</a>, <a class="el" href="selectivity_8hpp_source.html#l00151">calculate_selectivity()</a>, <a class="el" href="helper__functions_8hpp_source.html#l00141">log_mean_exp()</a>, and <a class="el" href="selectivity_8hpp_source.html#l00016">normalize_and_project_selectivity()</a>.</p>
 
 </div>
 </div>
@@ -486,7 +486,7 @@ template&lt;class Type&gt; </div>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="helper__functions_8hpp_source.html#l00050">50</a> of file <a class="el" href="helper__functions_8hpp_source.html">helper_functions.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="helper__functions_8hpp_source.html#l00051">51</a> of file <a class="el" href="helper__functions_8hpp_source.html">helper_functions.hpp</a>.</p>
 
 </div>
 </div>
@@ -507,9 +507,9 @@ template&lt;class Type&gt; </div>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="helper__functions_8hpp_source.html#l00067">67</a> of file <a class="el" href="helper__functions_8hpp_source.html">helper_functions.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="helper__functions_8hpp_source.html#l00068">68</a> of file <a class="el" href="helper__functions_8hpp_source.html">helper_functions.hpp</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="selectivity_8hpp_source.html#l00151">calculate_selectivity()</a>, <a class="el" href="helper__functions_8hpp_source.html#l00090">concentrated_lognormal_sd()</a>, and <a class="el" href="likelihood_8hpp_source.html#l00160">linkage_log_prior()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="selectivity_8hpp_source.html#l00151">calculate_selectivity()</a>, <a class="el" href="helper__functions_8hpp_source.html#l00091">concentrated_lognormal_sd()</a>, and <a class="el" href="likelihood_8hpp_source.html#l00160">linkage_log_prior()</a>.</p>
 
 </div>
 </div>

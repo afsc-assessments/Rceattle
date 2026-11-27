@@ -13,7 +13,7 @@ equivalent individual arguments, which are kept for back-compatibility."></head>
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.70.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.72.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -98,8 +98,9 @@ equivalent individual arguments, which are kept for back-compatibility.</p>
 
 
 <dl><dt id="arg-bias-correct">bias.correct<a class="anchor" aria-label="anchor" href="#arg-bias-correct"></a></dt>
-<dd><p>logical. Apply bias correction via <code><a href="https://rdrr.io/pkg/TMB/man/sdreport.html" class="external-link">TMB::sdreport()</a></code>.
-Default <code>FALSE</code>.</p></dd>
+<dd><p>Logical (<code>FALSE</code> by default): apply TMB's epsilon bias
+correction (Thorson and Kristensen 2016) in <code><a href="https://rdrr.io/pkg/TMB/man/sdreport.html" class="external-link">TMB::sdreport()</a></code>, as distinct
+from the lognormal bias adjustment of <code>bias_adjust_obs</code> / <code>bias_adjust_proc</code>.</p></dd>
 
 
 <dt id="arg-getsd">getsd<a class="anchor" aria-label="anchor" href="#arg-getsd"></a></dt>
@@ -215,14 +216,20 @@ mean selectivity 1 instead of a maximum of 1 – 58% of <code>Atka2022</code>'s
 <code>sel_at_age</code> exceeds 1, up to 3.06 – so a logit is undefined over most of
 the array.</p>
 <p>Rows cover estimated, age-based lead fleets only, starting at each fleet's
-first selected bin. Four kinds of cell are a structural zero (a <code>Fixed</code>
-fleet's empirical curve, a length-based fleet's growth-matrix projection, a
-bin below <code>Bin_first_selected</code>, and array padding), and one <code>log(0) = -Inf</code>
-on the tape turns <em>every</em> quantity in the <code>sdreport</code> to <code>NaN</code>, biomass and
-SSB included. All four are identified from the data, so the reported set
-never depends on a parameter value, and a value that underflows to zero is
-floored so it cannot reintroduce the <code>-Inf</code>. See <code><a href="plot_selectivity.html">plot_selectivity()</a></code>, which
-draws the interval.</p>
+first selected age (<code>Age_first_selected</code>, or a deprecated <code>Bin_first_selected</code>).
+Four kinds of cell are a structural zero (a <code>Fixed</code> fleet's empirical curve, a
+length-based fleet's growth-matrix projection, an age below the first selected
+age, and array padding), and one <code>log(0) = -Inf</code> on the tape turns <em>every</em> quantity in the
+<code>sdreport</code> to <code>NaN</code>, biomass and SSB included. All four are identified from
+the data, so the reported set never depends on a parameter value, and a value
+that underflows to zero is floored so it cannot reintroduce the <code>-Inf</code>. See
+<code><a href="plot_selectivity.html">plot_selectivity()</a></code>, which draws the interval.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
+    <p>Thorson, J.T., and Kristensen, K. 2016. Implementing a generic method for bias
+correction in statistical models using random effects, with spatial and
+population dynamics examples. Fish. Res. 175:66-74.</p>
     </div>
 
     <div class="section level2">

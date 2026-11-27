@@ -21,7 +21,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.70.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.72.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -210,10 +210,9 @@ walk, which rewrites it to <code>-13</code>. Write
 or <code>sel_at_length</code>, picked by <code>is_length_based</code>)
 at <code>x(bin)</code>, reading logistic slots with
 <code>slope(k)</code> and <code>inflection(k)</code>;
-<code>normalize_and_project_selectivity()</code> then applies
-<code>Bin_first_selected</code>, the <code>Sel_norm_bin</code>
-normalization and the projection for every form except those it
-names.</td>
+<code>normalize_and_project_selectivity()</code> then zeroes the curve
+below the first selected bin, applies the <code>Sel_norm_bin</code>
+normalization and projects for every form except those it names.</td>
 </tr>
 <tr class="odd">
 <td><code>R/3-build_map.R</code></td>
@@ -348,9 +347,9 @@ the form has no penalty of its own. <code>.PAR_SEL_SLOTS</code> relabels
 the slots, <code>.SEL_LINKAGE_WIRED_FORMS</code> admits the form with
 the parameter names <code>peak</code>, <code>right_floor</code>,
 <code>sigma_asc</code> and <code>sigma_desc</code>, and the shared
-normalizer zeroes the curve below <code>Bin_first_selected</code>,
-normalizes at <code>Sel_norm_bin</code> if set, and holds the last
-hindcast year into the projection.</p>
+normalizer zeroes the curve below the first selected bin, normalizes at
+<code>Sel_norm_bin</code> if set, and holds the last hindcast year into
+the projection.</p>
 </div>
 <div class="section level2">
 <h2 id="worked-example-switching-the-fishery-to-doublenormal">Worked example: switching the fishery to

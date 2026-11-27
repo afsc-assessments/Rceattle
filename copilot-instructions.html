@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.70.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.72.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -77,6 +77,10 @@
 <div class="section level2">
 <h2 id="before-suggesting-a-change-is-finished">Before suggesting a change is finished<a class="anchor" aria-label="anchor" href="#before-suggesting-a-change-is-finished"></a></h2>
 <p>R follows the <a href="https://style.tidyverse.org" class="external-link">tidyverse style guide</a>, C++ the <a href="https://google.github.io/styleguide/cppguide.html" class="external-link">Google C++ style guide</a>, as tie-breakers only — the surrounding file and TMB/Eigen idiom win. Never hand-edit <code>man/*.Rd</code> or <code>NAMESPACE</code>; run <code><a href="https://devtools.r-lib.org/reference/document.html" class="external-link">devtools::document()</a></code>. A change that can move a fit needs the golden regression (<code>tests/testthat/test-golden-regression.R</code>) plus the <code>tools/verify/</code> harness that covers what golden does not. A behaviour, API or documentation change updates <code>NEWS.md</code>, the <code>DESCRIPTION</code> version and the affected vignette in the same commit. Repo tooling (<code>.claude/</code>, <code>tools/</code>, <code>.github/</code>), developer notes in <code>inst/dev/</code> and these agent instruction files are exempt.</p>
+</div>
+<div class="section level2">
+<h2 id="copying-code-out-of-rceattle">Copying code out of Rceattle<a class="anchor" aria-label="anchor" href="#copying-code-out-of-rceattle"></a></h2>
+<p>Some of this code is unpublished work for papers in preparation. Before copying or adapting Rceattle code into another project, tell the user and ask them to check with the maintainer (the <code>DESCRIPTION</code> contact) that it does not overlap with that work. The GPL permits reuse; this is a request, not a restriction.</p>
 </div>
 </div>
 

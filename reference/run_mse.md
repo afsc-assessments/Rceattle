@@ -1,15 +1,16 @@
 # Run a management strategy evaluation
 
-Runs a forward-projecting management strategy evaluation (MSE). In the
-years each assessment adds, the operating model holds its selectivity
-and catchability deviations at its terminal hindcast year (a form whose
-deviations are year-to-year increments takes an increment of 0); its M1
-deviations take its projection values (0 where estimated by year, an
-input series as given). The estimation model starts its own from those
-values and re-estimates any its map leaves free. Empirical selectivity,
-ration and weight-at-age stay at each model's terminal hindcast year. An
-index's `Log_sd` and a composition's `Sample_size` are copied from the
-fleet's last historical row and scaled by `fut_sample`. Unlike a
+Runs a forward-projecting management strategy evaluation (MSE; Punt et
+al. 2016). In the years each assessment adds, the operating model holds
+its selectivity and catchability deviations at its terminal hindcast
+year (a form whose deviations are year-to-year increments takes an
+increment of 0); its M1 deviations take its projection values (0 where
+estimated by year, an input series as given). The estimation model
+starts its own from those values and re-estimates any its map leaves
+free. Empirical selectivity, ration and weight-at-age stay at each
+model's terminal hindcast year. An index's `Log_sd` and a composition's
+`Sample_size` are copied from the fleet's last historical row and scaled
+by `fut_sample`. Unlike a
 [`retrospective()`](https://afsc-assessments.github.io/Rceattle/reference/retrospective.md)
 peel, `run_mse()` holds no linkage effect: covariates read `env_data` as
 given, and a q or selectivity linkage random effect takes the operating
@@ -210,6 +211,12 @@ would fix them, return to the
 default. Nothing carries over from an `em` fitted with
 `estimateMode = "Projection"`, even under a supplied map, or from a
 re-assessment stored by `run_mse()`, which has no map.
+
+## References
+
+Punt, A.E., Butterworth, D.S., de Moor, C.L., De Oliveira, J.A.A., and
+Haddon, M. 2016. Management strategy evaluation: best practices. Fish
+Fish. 17:303-334.
 
 ## Examples
 

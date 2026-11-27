@@ -386,20 +386,20 @@ template&lt;class Type&gt; </div>
 <li>2 NonParametric (Ianelli et al. 2018, AMAK): one log coefficient per bin, mean-centred.</li>
 <li>3 DoubleLogistic (Dorn and Methot 1990).</li>
 <li>4 DescendingLogistic.</li>
-<li>5 Hake (Taylor et al. 2014): exp of the cumulative sum of coefficients.</li>
-<li>6 2DAR1: inverse logit of coefficients with AR1 deviates by bin and year.</li>
-<li>7 3DAR1 (Cheng et al. 2024): as 6, with a cohort term.</li>
+<li>5 Hake (Taylor et al. 2015): exp of the cumulative sum of coefficients.</li>
+<li>6 2DAR1 (deviations as in Xu et al. 2019): inverse logit of coefficients with AR1 deviates by bin and year.</li>
+<li>7 3DAR1: as 6, with a cohort term; the weight-at-age GMRF of Cheng et al. 2023.</li>
 <li>8 DoubleNormal: Gaussian dome with a right-tail floor.</li>
 <li>9 NonParametricPM (AMAK "pm"): random walk on the log curve, capped at Sel_cap_bin.</li>
 <li>11 LogisticPM (AMAK "pm" bottom-trawl survey): multiplicative deviates, free first bin.</li>
 <li>13 NonParametricIntegrable: form 2 with deviates random_sel can integrate.</li>
-<li>15 DoubleNormalSS3: Stock Synthesis size pattern 24 (age pattern 20).</li>
+<li>15 DoubleNormalSS3: Stock Synthesis size pattern 24 (age pattern 20; Methot and Wetzel 2013).</li>
 </ul>
 <p>Which linkage offsets a form accepts is checked in R, by .check_sel_linkage_support(). </p>
 
 <p class="definition">Definition at line <a class="el" href="selectivity_8hpp_source.html#l00151">151</a> of file <a class="el" href="selectivity_8hpp_source.html">selectivity.hpp</a>.</p>
 
-<p class="reference">References <a class="el" href="selectivity_8hpp_source.html#l00106">convert_length_selectivity()</a>, <a class="el" href="helper__functions_8hpp_source.html#l00056">isNA()</a>, <a class="el" href="helper__functions_8hpp_source.html#l00140">log_mean_exp()</a>, <a class="el" href="helper__functions_8hpp_source.html#l00120">max2()</a>, <a class="el" href="selectivity_8hpp_source.html#l00016">normalize_and_project_selectivity()</a>, and <a class="el" href="helper__functions_8hpp_source.html#l00067">square()</a>.</p>
+<p class="reference">References <a class="el" href="selectivity_8hpp_source.html#l00106">convert_length_selectivity()</a>, <a class="el" href="helper__functions_8hpp_source.html#l00057">isNA()</a>, <a class="el" href="helper__functions_8hpp_source.html#l00141">log_mean_exp()</a>, <a class="el" href="helper__functions_8hpp_source.html#l00121">max2()</a>, <a class="el" href="selectivity_8hpp_source.html#l00016">normalize_and_project_selectivity()</a>, and <a class="el" href="helper__functions_8hpp_source.html#l00068">square()</a>.</p>
 
 </div>
 </div>
@@ -567,7 +567,7 @@ template&lt;class Type&gt; </div>
 
 <p class="definition">Definition at line <a class="el" href="selectivity_8hpp_source.html#l00016">16</a> of file <a class="el" href="selectivity_8hpp_source.html">selectivity.hpp</a>.</p>
 
-<p class="reference">References <a class="el" href="helper__functions_8hpp_source.html#l00120">max2()</a>.</p>
+<p class="reference">References <a class="el" href="helper__functions_8hpp_source.html#l00121">max2()</a>.</p>
 
 <p class="reference">Referenced by <a class="el" href="selectivity_8hpp_source.html#l00151">calculate_selectivity()</a>.</p>
 

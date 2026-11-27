@@ -21,7 +21,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.70.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.72.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -374,7 +374,7 @@ bioenergetics).</p>
 <td align="center"><code>0</code></td>
 <td><code>"Empirical"</code></td>
 <td>Empirical proportions from observed stomach data (MSVPA-style;
-Holsman et al. 2015)</td>
+Holsman et al. 2016)</td>
 <td align="center">Yes</td>
 </tr>
 <tr class="even">
@@ -478,17 +478,19 @@ parameterizations</a>.</p>
 <tr class="even">
 <td align="center"><code>5</code></td>
 <td><code>"Hake"</code></td>
-<td>Non-parametric à la Taylor et al. (Pacific hake)</td>
+<td>Non-parametric à la Taylor et al. (2015; Pacific hake)</td>
 </tr>
 <tr class="odd">
 <td align="center"><code>6</code></td>
 <td><code>"2DAR1"</code></td>
-<td>2D AR(1) bin × year (Cheng et al. 2024)</td>
+<td>2D AR(1) bin × year (deviations as in Xu et al. 2019, around a
+non-parametric base)</td>
 </tr>
 <tr class="even">
 <td align="center"><code>7</code></td>
 <td><code>"3DAR1"</code></td>
-<td>3D AR(1) bin × year × cohort</td>
+<td>3D AR(1) bin × year × cohort (the weight-at-age Gaussian Markov
+random field, GMRF, of Cheng et al. 2023, applied to selectivity)</td>
 </tr>
 <tr class="odd">
 <td align="center"><code>8</code></td>
@@ -520,13 +522,13 @@ proper density: the shape penalties are charged once on the base, so
 <tr class="odd">
 <td align="center"><code>15</code></td>
 <td><code>"DoubleNormalSS3"</code></td>
-<td>Stock Synthesis size pattern 24: the six-parameter double normal,
-each parameter on SS3’s own scale (peak; logit top width; log ascending
-and descending widths; logit initial and final selectivity) in its own
-array <code>sel_dn6</code>. An end left at SS3’s -999 is unscaled and
-fixed. Not normalized, as in SS3. All six take selectivity linkages
-under the SS3 manual’s names; <code>Time_varying_sel</code> must be
-<code>"Off"</code>
+<td>Stock Synthesis size pattern 24 (Methot and Wetzel 2013): the
+six-parameter double normal, each parameter on SS3’s own scale (peak;
+logit top width; log ascending and descending widths; logit initial and
+final selectivity) in its own array <code>sel_dn6</code>. An end left at
+SS3’s -999 is unscaled and fixed. Not normalized, as in SS3. All six
+take selectivity linkages under the SS3 manual’s names;
+<code>Time_varying_sel</code> must be <code>"Off"</code>
 </td>
 </tr>
 </tbody>
@@ -705,14 +707,14 @@ selectivity over that range instead.</p>
 <p>A numeric <code>Sel_norm_bin</code> is read on the fleet’s own
 <code>Selectivity_dimension</code>: an absolute <strong>age</strong> for
 an age-based fleet (<code>6</code> means age 6, not the sixth bin) or a
-1-based <strong>length-bin ordinal</strong> for a length-based one.
-<code>Bin_first_selected</code> beside it uses the opposite convention
-and is always a bin ordinal. Below <code>Bin_first_selected</code> the
-curve is zeroed, so a reference taken there would divide by nothing;
-such a value is read as <code>"Max"</code>, which is what a negative has
-always meant. Legacy numbers still work: blank is <code>"Off"</code>,
-and <code>0</code>, <code>-1</code> or <code>-999</code> are
-<code>"Max"</code>.</p>
+1-based <strong>length-bin ordinal</strong> for a length-based one,
+matching <code>Age_first_selected</code> and
+<code>Bin_first_selected</code> respectively. Because the curve is
+zeroed below the first selected bin, a value below it is read as
+<code>"Max"</code> (<code>"All"</code> on a <code>"LogisticPM"</code>
+fleet): legacy <code>-1</code> and <code>-999</code>, and <code>0</code>
+unless the fleet is age-based and selects age 0. Blank is
+<code>"Off"</code>.</p>
 <div class="section level3">
 <h3 id="sharing-a-selectivity-between-fleets">Sharing a selectivity between fleets<a class="anchor" aria-label="anchor" href="#sharing-a-selectivity-between-fleets"></a>
 </h3>
@@ -735,9 +737,10 @@ different selectivities:</p>
 <tr class="odd">
 <td>
 <code>Selectivity</code>, <code>Selectivity_dimension</code>,
-<code>Bin_first_selected</code>, <code>N_sel_bins</code>,
-<code>Sel_norm_bin</code>, <code>Sel_norm_bin_upper</code>,
-<code>Sel_norm_scope</code>, <code>Sel_cap_bin</code>
+<code>Age_first_selected</code>, <code>Bin_first_selected</code>,
+<code>N_sel_bins</code>, <code>Sel_norm_bin</code>,
+<code>Sel_norm_bin_upper</code>, <code>Sel_norm_scope</code>,
+<code>Sel_cap_bin</code>
 </td>
 <td>The fleets get <strong>different curves</strong>: mirroring
 fails</td>
@@ -1306,7 +1309,8 @@ default)</td>
 </tr>
 <tr class="odd">
 <td align="center"><code>1</code></td>
-<td><code>"DirichletMultinomial"</code></td>
+<td>
+<code>"DirichletMultinomial"</code> (Thorson et al. 2017)</td>
 </tr>
 </tbody>
 </table>
@@ -1798,7 +1802,7 @@ optional bootstrap uncertainty</td>
 </tr>
 <tr class="odd">
 <td><code><a href="../reference/reweight_comps.html">reweight_comps()</a></code></td>
-<td>Iterative McAllister-Ianelli tuning of multinomial
+<td>Iterative McAllister-Ianelli (1997) tuning of multinomial
 <code>Comp_weights</code>
 </td>
 </tr>
@@ -1947,18 +1951,48 @@ interval alone.</p>
 J.N., Spies, I., Stewart, I.J., Punt, A.E. (2022). An ensemble approach
 to understand predation mortality for groundfish in the Gulf of Alaska.
 <em>Fisheries Research</em>, 251, 106303.</li>
+<li>Cheng, M.L.H., Thorson, J.T., Ianelli, J.N., Cunningham, C.J.
+(2023). Unlocking the triad of age, year, and cohort effects for stock
+assessment: demonstration of a computationally efficient and
+reproducible framework using weight-at-age. <em>Fisheries Research</em>,
+266, 106755.</li>
 <li>Holsman, K.K., Ianelli, J., Aydin, K., Punt, A.E., Moffitt, E.A.
 (2016). A comparison of fisheries biological reference points estimated
 from temperature-specific multi-species and single-species
 climate-enhanced stock assessment models. <em>Deep Sea Research Part
 II</em>, 134, 360-378.</li>
+<li>Kinzey, D., Punt, A.E. (2009). Multispecies and single-species
+models of fish population dynamics: comparing parameter estimates.
+<em>Natural Resource Modeling</em>, 22, 67-104.</li>
+<li>McAllister, M.K., Ianelli, J.N. (1997). Bayesian stock assessment
+using catch-age data and the sampling-importance resampling algorithm.
+<em>Canadian Journal of Fisheries and Aquatic Sciences</em>, 54,
+284-300.</li>
+<li>Methot, R.D., Wetzel, C.R. (2013). Stock synthesis: a biological and
+statistical framework for fish stock assessment and fishery management.
+<em>Fisheries Research</em>, 142, 86-99.</li>
+<li>Rogers, L.A., Monnahan, C.C., Williams, K., Jones, D.T., Dorn, M.W.
+(2024). Climate-driven changes in the timing of spawning and the
+availability of walleye pollock (<em>Gadus chalcogrammus</em>) to
+assessment surveys in the Gulf of Alaska. <em>ICES Journal of Marine
+Science</em>, 82(1), fsae005.</li>
+<li>Taylor, I.G., Grandin, C., Hicks, A.C., Taylor, N., Cox, S. (2015).
+Status of the Pacific hake (whiting) stock in U.S. and Canadian waters
+in 2015. Joint Technical Committee of the U.S. and Canada Pacific
+Hake/Whiting Agreement; National Marine Fisheries Service; Fisheries and
+Oceans Canada.</li>
+<li>Thorson, J.T., Johnson, K.F., Methot, R.D., Taylor, I.G. (2017).
+Model-based estimates of effective sample size in stock assessment
+models using the Dirichlet-multinomial distribution. <em>Fisheries
+Research</em>, 192, 84-93.</li>
 <li>Wassermann, S.N., Adams, G.D., Haltuch, M.A., Kaplan, I.C.,
 Marshall, K.N., Punt, A.E. (2025). Even low levels of cannibalism can
 bias population estimates for Pacific hake. <em>ICES Journal of Marine
 Science</em>, 82(1), fsae064.</li>
-<li>Cheng, M.L.H., et al. (2024). 2D / 3D AR(1) selectivity.</li>
-<li>Rogers, L.A., et al. (2024). AR(1) catchability for GOA
-pollock.</li>
+<li>Xu, H., Thorson, J.T., Methot, R.D., Taylor, I.G. (2019). A new
+semi-parametric method for autocorrelated age- and time-varying
+selectivity in age-structured assessment models. <em>Canadian Journal of
+Fisheries and Aquatic Sciences</em>, 76, 268-285.</li>
 </ul>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

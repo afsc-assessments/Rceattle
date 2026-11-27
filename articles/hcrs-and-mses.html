@@ -21,7 +21,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.70.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.72.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -95,12 +95,12 @@ schedules and a climate-linked operating model.</p>
 <div class="section level3">
 <h3 id="fitting-the-operating-model">Fitting the operating model<a class="anchor" aria-label="anchor" href="#fitting-the-operating-model"></a>
 </h3>
-<p>A management strategy evaluation (MSE) runs a management strategy in
-closed loop: an operating model (OM) represents the “true” stock and
-generates data, an estimation model (EM) is fitted to that data and
-applies a harvest control rule (HCR), and the resulting catch feeds back
-into the OM. This example uses the Gulf of Alaska northern rockfish
-assessment as the OM.</p>
+<p>A management strategy evaluation (MSE; Punt et al. 2016) runs a
+management strategy in closed loop: an operating model (OM) represents
+the “true” stock and generates data, an estimation model (EM) is fitted
+to that data and applies a harvest control rule (HCR), and the resulting
+catch feeds back into the OM. This example uses the Gulf of Alaska
+northern rockfish assessment as the OM.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://afsc-assessments.github.io/Rceattle/">Rceattle</a></span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="st">"NorthernRockfish2022"</span><span class="op">)</span></span>
@@ -523,6 +523,15 @@ the EM keeps assuming stationary recruitment.</p>
 <span>        <span class="fu">stack_species</span><span class="op">(</span><span class="fu"><a href="../reference/mse_summary.html">mse_summary</a></span><span class="op">(</span><span class="va">mse2</span><span class="op">)</span>, <span class="fl">2</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>    <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/relocate.html" class="external-link">relocate</a></span><span class="op">(</span><span class="va">MSE</span><span class="op">)</span>,</span>
 <span>  digits <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
+</h2>
+<ul>
+<li>Punt, A.E., Butterworth, D.S., de Moor, C.L., De Oliveira, J.A.A.,
+Haddon, M. (2016). Management strategy evaluation: best practices.
+<em>Fish and Fisheries</em>, 17, 303-334.</li>
+</ul>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

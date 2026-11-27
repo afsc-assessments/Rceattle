@@ -6,9 +6,9 @@ Recruitment is \(R0\) (log scale) plus annual deviates, and the
 reported steepness holds its placeholder 0.99 rather than being
 estimated.
 $$R_y = exp(R0 + R_{dev,y})$$
-srr_fun = 2 or &quot;BevertonHolt&quot;:
+srr_fun = 2 or &quot;BevertonHolt&quot; (Beverton and Holt 1957):
 $$R_y = \frac{\alpha_{srr} * SB_{y-minage}}{1+\beta_{srr} * SB_{y-minage}}$$
-srr_fun = 4 or &quot;Ricker&quot;:
+srr_fun = 4 or &quot;Ricker&quot; (Ricker 1954):
 $$R_y = \alpha_{srr} * SB_{y-minage} * exp(-\beta_{srr} * SB_{y-minage})$$
 
 
@@ -40,9 +40,9 @@ Recruitment is \(R0\) (log scale) plus annual deviates, and the
 reported steepness holds its placeholder 0.99 rather than being
 estimated.
 $$R_y = exp(R0 + R_{dev,y})$$
-srr_fun = 2 or &quot;BevertonHolt&quot;:
+srr_fun = 2 or &quot;BevertonHolt&quot; (Beverton and Holt 1957):
 $$R_y = \frac{\alpha_{srr} * SB_{y-minage}}{1+\beta_{srr} * SB_{y-minage}}$$
-srr_fun = 4 or &quot;Ricker&quot;:
+srr_fun = 4 or &quot;Ricker&quot; (Ricker 1954):
 $$R_y = \alpha_{srr} * SB_{y-minage} * exp(-\beta_{srr} * SB_{y-minage})$$
 
 
@@ -75,7 +75,7 @@ refused."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.70.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.72.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -132,9 +132,9 @@ Recruitment is \(R0\) (log scale) plus annual deviates, and the
 reported <code>steepness</code> holds its placeholder 0.99 rather than being
 estimated.
 $$R_y = exp(R0 + R_{dev,y})$$</p></li>
-<li><p><code>srr_fun = 2</code> or <code>"BevertonHolt"</code>:
+<li><p><code>srr_fun = 2</code> or <code>"BevertonHolt"</code> (Beverton and Holt 1957):
 $$R_y = \frac{\alpha_{srr} * SB_{y-minage}}{1+\beta_{srr} * SB_{y-minage}}$$</p></li>
-<li><p><code>srr_fun = 4</code> or <code>"Ricker"</code>:
+<li><p><code>srr_fun = 4</code> or <code>"Ricker"</code> (Ricker 1954):
 $$R_y = \alpha_{srr} * SB_{y-minage} * exp(-\beta_{srr} * SB_{y-minage})$$</p></li>
 </ul><p>Both curves are the deterministic mean; realized recruitment applies the
 annual log deviation, \(R_y \cdot exp(R_{dev,y})\). For numerical stability
@@ -287,6 +287,14 @@ $$\alpha = \frac{4h}{\phi_0 (1 - h)}, \qquad
       \beta  = \frac{\alpha - 1/\phi_0}{R_0}.$$
 Under predation, where \(\phi_0\) is undefined, seed them from a curve
 fitted to an earlier fit's SSB-recruitment pairs.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
+    <p>Beverton, R.J.H., and Holt, S.J. 1957. On the dynamics of exploited fish
+populations. Fishery Investigations Series II, Vol. 19.
+UK Ministry of Agriculture, Fisheries and Food, London.</p>
+<p>Ricker, W.E. 1954. Stock and recruitment. J. Fish. Res. Board Can.
+11:559-623.</p>
     </div>
 
     <div class="section level2">

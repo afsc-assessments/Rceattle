@@ -27,3 +27,9 @@ TMBAIC(opt, p = 2, n = Inf)
 
 AIC, where a parsimonious model has a AIC relative to other candidate
 models
+
+## Author
+
+James Thorson; copied from
+[`TMBhelper::TMBAIC()`](https://rdrr.io/pkg/TMBhelper/man/TMBAIC.html)
+(<https://github.com/kaskr/TMB_contrib_R>, GPL-3).

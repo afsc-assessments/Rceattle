@@ -12,3 +12,9 @@ EBS_ss_M_run
 ## Format
 
 An object of class `Rceattle`.
+
+## Source
+
+Fit by Rceattle to the 2017 Eastern Bering Sea CEATTLE inputs; see
+[`BS2017SS`](https://afsc-assessments.github.io/Rceattle/reference/BS2017SS.md)
+for their source.

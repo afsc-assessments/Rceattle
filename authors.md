@@ -5,6 +5,66 @@
 - **Grant Adams**. Author, maintainer.
   [](https://orcid.org/0000-0003-0297-8347)
 
+- **Kirstin K. Holsman**. Contributor.  
+  original ADMB CEATTLE model; Eastern Bering Sea data
+
+- **James N. Ianelli**. Contributor.  
+  original ADMB CEATTLE model; AMAK and ebswp conventions
+
+- **Kerim Aydin**. Contributor.  
+  original ADMB CEATTLE model
+
+- **Cole C. Monnahan**. Contributor.  
+  bias-adjustment controls in fit_control()
+
+- **Raquel Ruiz Diaz**. Contributor.  
+  predicted diet averaged over predator ages, weighted by numbers
+
+- **Tim Miller**. Contributor.
+  [](https://orcid.org/0000-0003-1411-1206)  
+  OSA composition code, via OSA_multivariate_dists and WHAM
+
+- **Brian Stock**. Contributor.
+  [](https://orcid.org/0000-0002-2393-6747)  
+  WHAM co-author (Stock and Miller 2021)
+
+- **Anders Nielsen**. Contributor.  
+  OSA composition code, incl. osa_order()
+
+- **Christoffer Moesgaard Albertsen**. Contributor.  
+  OSA composition code, from OSA_multivariate_dists
+
+- **Kasper Kristensen**. Contributor.  
+  OSA composition code, from OSA_multivariate_dists
+
+- **Chris M. Legault**. Contributor.  
+  OSA composition code, from OSA_multivariate_dists
+
+- **Giancarlo M. Correa**. Contributor.  
+  growth curves, from WHAM's growth branch; OFI 2023 examples
+
+- **Jane Sullivan**. Contributor.  
+  whamGrowthData, from the OFI 2023 workshop's WHAM examples
+
+- **James Thorson**. Contributor.
+  [](https://orcid.org/0000-0001-7415-1010)  
+  TMBAIC(), from TMBhelper
+
+- **Matthew L. H. Cheng**. Contributor.  
+  construct_Q(), from GMRF_WAA
+
+- **Vanessa Trijoulet**. Contributor.  
+  OSA composition code; predator-prey vulnerability and suitability
+
+- **Gavin Fay**. Contributor.  
+  TMBphase()
+
+- **Arni Magnusson**. Contributor.  
+  rich.colors(), from gplots
+
+- **Ian G. Taylor**. Contributor.  
+  rich.colors.short(), from r4ss
+
 ## Citation
 
 Source:

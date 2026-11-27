@@ -8,12 +8,12 @@ assessment schedules and a climate-linked operating model.
 
 ### Fitting the operating model
 
-A management strategy evaluation (MSE) runs a management strategy in
-closed loop: an operating model (OM) represents the “true” stock and
-generates data, an estimation model (EM) is fitted to that data and
-applies a harvest control rule (HCR), and the resulting catch feeds back
-into the OM. This example uses the Gulf of Alaska northern rockfish
-assessment as the OM.
+A management strategy evaluation (MSE; Punt et al. 2016) runs a
+management strategy in closed loop: an operating model (OM) represents
+the “true” stock and generates data, an estimation model (EM) is fitted
+to that data and applies a harvest control rule (HCR), and the resulting
+catch feeds back into the OM. This example uses the Gulf of Alaska
+northern rockfish assessment as the OM.
 
 ``` r
 
@@ -471,3 +471,9 @@ knitr::kable(
     dplyr::relocate(MSE),
   digits = 2)
 ```
+
+## References
+
+- Punt, A.E., Butterworth, D.S., de Moor, C.L., De Oliveira, J.A.A.,
+  Haddon, M. (2016). Management strategy evaluation: best practices.
+  *Fish and Fisheries*, 17, 303-334.

@@ -1,8 +1,8 @@
 # 7. Converting from Stock Synthesis
 
-For assessment authors porting a Stock Synthesis (SS3) model to
-Rceattle: this vignette follows the SS files top to bottom and maps each
-block onto the corresponding Rceattle sheet.
+For assessment authors porting a Stock Synthesis (SS3; Methot and Wetzel
+2013) model to Rceattle: this vignette follows the SS files top to
+bottom and maps each block onto the corresponding Rceattle sheet.
 
 The examples reference the 2019 Pacific hake assessment, in Nis Sand
 Jacobsen’s
@@ -14,11 +14,10 @@ control file.
 > **Updated for the Rceattle 4.0+ data structure.** Several `data_list`
 > columns and sheet names changed in 4.0.1 (`Pyrs` → `ration_data`,
 > `UobsWtAge` → `diet_data`, `fsh_biom` → `catch_data`, `srv_biom` →
-> `index_data`, `Nselages` → `N_sel_bins`, `Age_first_selected` →
-> `Bin_first_selected`, `Age_max_selected` / `_upper` → `Sel_norm_bin` /
-> `Sel_norm_bin_upper`); the names used below are current. The
-> `meta_data` sheet in the Rceattle Excel template is the authoritative
-> column reference.
+> `index_data`, `Nselages` → `N_sel_bins`, `Age_max_selected` / `_upper`
+> → `Sel_norm_bin` / `Sel_norm_bin_upper`); the names used below are
+> current. The `meta_data` sheet in the Rceattle Excel template is the
+> authoritative column reference.
 
 ## Model controls
 
@@ -101,7 +100,7 @@ Comp options, on `fleet_control` unless the row says otherwise:
 | `_N_lbins` (26) | `nlengths` (on `control` sheet) | Number of length bins |
 | Sex aggregation | `Sex` column on `comp_data` | Hake is single-sex |
 | Comp likelihood | `Comp_distribution` | `0` = multinomial, `1` = Dirichlet-multinomial; default `-1` = AFSC multinomial |
-| Selectivity bin range | `Sel_norm_bin`, `Sel_norm_bin_upper`, `Bin_first_selected` | First selected bin and the bin(s) at which selectivity is normalized to 1 |
+| Selectivity bin range | `Sel_norm_bin`, `Sel_norm_bin_upper`, `Age_first_selected`, `Bin_first_selected` | First selected age (`Age_first_selected`; also SS3 age pattern 11 to the plus group, or pattern 10 when the first age is 1, on a length-selected fleet), first selected length bin (`Bin_first_selected`), and normalization bin(s) |
 
 `comp_data`:
 
@@ -210,3 +209,9 @@ multinomial or Dirichlet-multinomial.
 - Vignette 8, [Model
   parameterizations](https://afsc-assessments.github.io/Rceattle/articles/model-parameterizations.md),
   for equation-level detail on selectivity, catchability, and predation.
+
+## References
+
+- Methot, R.D., Wetzel, C.R. (2013). Stock synthesis: a biological and
+  statistical framework for fish stock assessment and fishery
+  management. *Fisheries Research*, 142, 86-99.

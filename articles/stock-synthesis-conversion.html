@@ -21,7 +21,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">Rceattle</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.70.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">5.72.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -86,9 +86,9 @@
 
     
     
-<p>For assessment authors porting a Stock Synthesis (SS3) model to
-Rceattle: this vignette follows the SS files top to bottom and maps each
-block onto the corresponding Rceattle sheet.</p>
+<p>For assessment authors porting a Stock Synthesis (SS3; Methot and
+Wetzel 2013) model to Rceattle: this vignette follows the SS files top
+to bottom and maps each block onto the corresponding Rceattle sheet.</p>
 <p>The examples reference the 2019 Pacific hake assessment, in Nis Sand
 Jacobsen’s <a href="https://github.com/nissandjac/PacifichakeMSE/tree/master/inst/extdata/SS32019" class="external-link"><code>PacifichakeMSE</code></a>
 repo. Apart from consumption and diet, which SS does not estimate, every
@@ -100,8 +100,7 @@ Several <code>data_list</code> columns and sheet names changed in 4.0.1
 (<code>Pyrs</code> → <code>ration_data</code>, <code>UobsWtAge</code> →
 <code>diet_data</code>, <code>fsh_biom</code> → <code>catch_data</code>,
 <code>srv_biom</code> → <code>index_data</code>, <code>Nselages</code> →
-<code>N_sel_bins</code>, <code>Age_first_selected</code> →
-<code>Bin_first_selected</code>, <code>Age_max_selected</code> /
+<code>N_sel_bins</code>, <code>Age_max_selected</code> /
 <code>_upper</code> → <code>Sel_norm_bin</code> /
 <code>Sel_norm_bin_upper</code>); the names used below are current. The
 <code>meta_data</code> sheet in the Rceattle Excel template is the
@@ -410,10 +409,12 @@ Dirichlet-multinomial; default <code>-1</code> = AFSC multinomial</td>
 <td>Selectivity bin range</td>
 <td>
 <code>Sel_norm_bin</code>, <code>Sel_norm_bin_upper</code>,
-<code>Bin_first_selected</code>
+<code>Age_first_selected</code>, <code>Bin_first_selected</code>
 </td>
-<td>First selected bin and the bin(s) at which selectivity is normalized
-to 1</td>
+<td>First selected age (<code>Age_first_selected</code>; also SS3 age
+pattern 11 to the plus group, or pattern 10 when the first age is 1, on
+a length-selected fleet), first selected length bin
+(<code>Bin_first_selected</code>), and normalization bin(s)</td>
 </tr>
 </tbody>
 </table>
@@ -589,6 +590,15 @@ above.</li>
 <li>Vignette 8, <a href="model-parameterizations.html">Model
 parameterizations</a>, for equation-level detail on selectivity,
 catchability, and predation.</li>
+</ul>
+</div>
+<div class="section level2">
+<h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
+</h2>
+<ul>
+<li>Methot, R.D., Wetzel, C.R. (2013). Stock synthesis: a biological and
+statistical framework for fish stock assessment and fishery management.
+<em>Fisheries Research</em>, 142, 86-99.</li>
 </ul>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

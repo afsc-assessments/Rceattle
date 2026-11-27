@@ -1,10 +1,11 @@
 # Composition-weighting specification
 
-Holds **priors** on the Dirichlet-multinomial composition-weighting
-overdispersion. The DM weight (the "theta" that scales the effective
-sample size) is otherwise an unpenalized free parameter; a linkage lets
-you put a prior on it through the same grammar as every other parameter.
-The three parameters target the three DM likelihoods:
+Holds **priors** on the Dirichlet-multinomial (Thorson et al. 2017)
+composition-weighting overdispersion. The DM weight (the "theta" that
+scales the effective sample size) is otherwise an unpenalized free
+parameter; a linkage lets you put a prior on it through the same grammar
+as every other parameter. The three parameters target the three DM
+likelihoods:
 
 - `theta_comp`:
 
@@ -47,6 +48,13 @@ build_composition(linkages = NULL)
 
 A list of composition-weighting settings for
 [`fit_mod()`](https://afsc-assessments.github.io/Rceattle/reference/fit_mod.md).
+
+## References
+
+Thorson, J.T., Johnson, K.F., Methot, R.D., and Taylor, I.G. 2017.
+Model-based estimates of effective sample size in stock assessment
+models using the Dirichlet-multinomial distribution. Fish. Res.
+192:84-93.
 
 ## Examples
 

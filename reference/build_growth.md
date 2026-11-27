@@ -120,6 +120,11 @@ its Jan-1 length through the year.
 **Maturity-at-length** is set in the data, not here: the per-species
 control columns `L50_mat_len` and `slope_mat_len`.
 
+## References
+
+Richards, F.J. 1959. A flexible growth function for empirical use. J.
+Exp. Bot. 10:290-301.
+
 ## Examples
 
 ``` r

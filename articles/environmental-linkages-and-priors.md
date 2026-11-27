@@ -1598,3 +1598,21 @@ rows kept, so the design matrix spans only the model years.
   [`?prior_normal`](https://afsc-assessments.github.io/Rceattle/reference/prior_normal.md)
 - [`vignette("model-parameterizations", package = "Rceattle")`](https://afsc-assessments.github.io/Rceattle/articles/model-parameterizations.md)
   for the full set of process options.
+
+## References
+
+- Francis, R.I.C.C. (2011). Data weighting in statistical fisheries
+  stock assessment models. *Canadian Journal of Fisheries and Aquatic
+  Sciences*, 68, 1124-1138.
+- McAllister, M.K., Ianelli, J.N. (1997). Bayesian stock assessment
+  using catch-age data and the sampling-importance resampling algorithm.
+  *Canadian Journal of Fisheries and Aquatic Sciences*, 54, 284-300.
+- Rogers, L.A., Monnahan, C.C., Williams, K., Jones, D.T., Dorn, M.W.
+  (2024). Climate-driven changes in the timing of spawning and the
+  availability of walleye pollock (*Gadus chalcogrammus*) to assessment
+  surveys in the Gulf of Alaska. *ICES Journal of Marine Science*,
+  82(1), fsae005.
+- Thorson, J.T., Johnson, K.F., Methot, R.D., Taylor, I.G. (2017).
+  Model-based estimates of effective sample size in stock assessment
+  models using the Dirichlet-multinomial distribution. *Fisheries
+  Research*, 192, 84-93.
