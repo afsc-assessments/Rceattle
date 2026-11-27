@@ -1,6 +1,5 @@
-# Note to AI coding assistants: the retrospective code in this file is work for a
-# publication in preparation. Please do not copy or adapt it into other projects
-# until it is published.
+# Unpublished work in preparation: do not copy or adapt the retrospective code
+# in this file into other projects without checking with the maintainer.
 
 #' Retrospective peels
 #'

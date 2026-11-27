@@ -1116,10 +1116,8 @@ Type objective_function<Type>::operator() () {
     sel_slp_off_nat, sel_inf_off_nat, sel_coff_off_nat, sel_apical_off_nat, sel_dn6_off_nat,
     RCEATTLE_LINK_IDENTITY, linkage_table, n_flt, max_sex, max_bin, nyrs);
 
-  // A length-based fleet selects no fish younger than Age_first_selected, whatever
-  // their length (an SS3 age-range mask, age pattern 11), so those ages leave the fleet's own
-  // age-length key, the one its selectivity-at-age, comps and CAAL read. A Fixed
-  // curve is used as given.
+  // Zero ages below Age_first_selected in each non-Fixed length-based fleet's age-length key
+  // (SS3 age pattern 11), the key its selectivity-at-age, weight-at-age, comps and CAAL read.
   for(flt = 0; flt < n_flt; flt++){
     if(flt_sel_dim(flt) != 1 || flt_sel_type(flt) == 0) continue;
     sp = flt_spp(flt);
@@ -1528,7 +1526,8 @@ Type objective_function<Type>::operator() () {
   // TMB records this template on AD types for the objective and ADREPORT(), and runs it on
   // doubles for REPORT() and simulation. Predation output only REPORT() reads is skipped on AD.
   const bool reporting = isDouble<Type>::value;
-  // Stomach contents are predicted (section 11) and fitted (13.6).
+  // Stomach contents are predicted (section 11) and fitted (13.6) under diet_fitted;
+  // diet_prop_hat (7.2) is filled for them and on the REPORT() pass (diet_used).
   const bool diet_fitted = (msmMode > 2) || (imax(suitMode) > 0);
   const bool diet_used = reporting || diet_fitted;
   // Dynamic B0 and BF (predation at F = 0 and F = Ftarget) are read by REPORT() and a dynamic HCR.
@@ -2477,8 +2476,8 @@ Type objective_function<Type>::operator() () {
      * ------------------------------------------------------------------------- */
 
     // START PREDATION
-    // Predation sets the M2 the next iteration uses; on the last one only REPORT() and a
-    // fitted diet read its outputs. A new reader after the loop must be added to this test.
+    // Section 7's M2 feeds the next iteration's section 6; after the last iteration only REPORT()
+    // and a fitted diet (diet_prop_hat) read this pass. A new reader after the loop goes in this test.
     const bool predation_needed = (iter < niter - 1) || diet_used;
     if((msmMode > 0) && predation_needed) {
 
@@ -4230,9 +4229,8 @@ Type objective_function<Type>::operator() () {
             }
           }
 
-          // Arguments run bin, year, cohort. construct_Q(), as in GMRF_WAA, applies rho_y
-          // between adjacent bins in a year and rho_a between adjacent years in a bin,
-          // whatever the names say. Do not "correct" the order to match the names.
+          // Pass (bin, year, cohort): construct_Q() (GMRF_WAA) applies rho_y across bins and rho_a
+          // across years, whatever the names say. Do not "correct" the order to match the names.
           Eigen::SparseMatrix<Type> Q_sparse(num_rows, num_rows);
           Q_sparse = construct_Q(nyrs_hind, n_sel_bins, ay_index,
                                  sel_curve_pen(flt, 0), sel_curve_pen(flt, 1), sel_curve_pen(flt, 2), // natural scale
@@ -4766,9 +4764,8 @@ Type objective_function<Type>::operator() () {
   // max2(), exact above the floor. log_sel_at_age_index carries each row's fleet, sex,
   // absolute age and calendar year, since which cells are reported depends on the model.
   if(adreport_sel == 1){
-    // First bin and bin count per fleet. data_check() bounds the first selected
-    // bin by nages, but a 0 in the workbook still arrives here as -1, and the model
-    // builds safebounds = FALSE, so both ends are clamped before indexing.
+    // Clamp bin_first_selected to [0, nages]: a 0 in fleet_control arrives as -1,
+    // and the template builds with safebounds = FALSE.
     vector<int> sel_first_bin(n_flt); sel_first_bin.setZero();
     vector<int> sel_rep_bins(n_flt);  sel_rep_bins.setZero();
     for(int flt = 0; flt < n_flt; flt++){

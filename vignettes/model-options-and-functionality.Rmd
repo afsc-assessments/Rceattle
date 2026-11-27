@@ -141,7 +141,7 @@ Set the `Selectivity` column of `fleet_control`; integers and strings both work:
 | `4` | `"DescendingLogistic"` | Descending only |
 | `5` | `"Hake"` | Non-parametric à la Taylor et al. (2015; Pacific hake) |
 | `6` | `"2DAR1"` | 2D AR(1) bin × year (deviations as in Xu et al. 2019, around a non-parametric base) |
-| `7` | `"3DAR1"` | 3D AR(1) bin × year × cohort (the weight-at-age GMRF of Cheng et al. 2023, applied to selectivity) |
+| `7` | `"3DAR1"` | 3D AR(1) bin × year × cohort (the weight-at-age Gaussian Markov random field, GMRF, of Cheng et al. 2023, applied to selectivity) |
 | `8` | `"DoubleNormal"` | Four-parameter double normal: peak, ascending and descending widths, and a right-tail floor (the Stock Synthesis pattern 24 shape without its initial-selectivity and plateau-width parameters) |
 | `9` | `"NonParametricPM"` | Ianelli non-parametric with the ADMB AMAK ("pm") penalty; see `Sel_avgsel_pen`, `Sel_cap_bin` |
 | `11` | `"LogisticPM"` | AMAK ("pm") logistic: multiplicative inflection/slope deviations plus a free age-1 log-selectivity |
@@ -227,11 +227,11 @@ well and the reference is mean selectivity over that range instead.
 
 A numeric `Sel_norm_bin` is read on the fleet's own `Selectivity_dimension`: an
 absolute **age** for an age-based fleet (`6` means age 6, not the sixth bin) or
-a 1-based **length-bin ordinal** for a length-based one, the same conventions
-as `Age_first_selected` and `Bin_first_selected`. Below the first selected bin
-the curve is zeroed, so a reference taken there would divide by nothing; such a
-value is read as `"Max"`, which is what a negative has always meant. Legacy numbers still work: blank is `"Off"`, and `0`, `-1` or `-999` are
-`"Max"`.
+a 1-based **length-bin ordinal** for a length-based one, matching
+`Age_first_selected` and `Bin_first_selected` respectively. Because the curve is
+zeroed below the first selected bin, a value below it is read as `"Max"` (`"All"`
+on a `"LogisticPM"` fleet): legacy `-1` and `-999`, and `0` unless the fleet is
+age-based and selects age 0. Blank is `"Off"`.
 
 ### Sharing a selectivity between fleets
 

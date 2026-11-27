@@ -124,13 +124,12 @@
 #' @param compFun Composition-weighting specification from
 #'   \code{\link{build_composition}}, holding any priors on the
 #'   Dirichlet-multinomial weights.
-#' @param msmMode The predation-mortality mode, as a string alias or integer
-#'   code: \code{"SingleSpecies"} (0, the default, no predation),
-#'   \code{"MSVPA"} (1, the Type-II MSVPA predation of Holsman et al. 2016) or
-#'   \code{"TypeIIIMSVPA"} (2). Codes 3 to 9 (Kinzey & Punt 2009 functional
-#'   responses, Holling forms, Ecosim) are declared but refused by
-#'   \code{data_check()} until validated against the current parameter set; see
-#'   \code{src/TMB/predation.hpp}.
+#' @param msmMode Predation-mortality mode (string or integer):
+#'   \code{"SingleSpecies"} (0, default; no predation), \code{"MSVPA"} (1;
+#'   Type-II MSVPA, Holsman et al. 2016), or \code{"TypeIIIMSVPA"} (2); codes
+#'   3--9 (Kinzey & Punt 2009 functional responses: Holling forms through Ecosim)
+#'   are declared but refused by \code{data_check()} until validated against the
+#'   current parameter set.
 #' @param avgnMode the average abundance-at-age approximation in the predation
 #'   equations. Only mode 0, \eqn{N/Z(1 - exp(-Z))} (the MSVPA form), is
 #'   implemented; the alternatives are declared but have no effect.
@@ -143,11 +142,11 @@
 #'   \code{vignette("model-options-and-functionality")}. In multispecies mode the
 #'   initial decay uses \eqn{M1} only, so predation does not shape the initial
 #'   age structure under any mode.
-#' @param suitMode how predator-prey suitability is derived, per predator (one
-#'   value or a vector of length \code{nspp}): 0 = empirical from diet data
-#'   (Holsman et al. 2016), 2 = weight-based gamma, 4 = weight-based lognormal,
-#'   6 = weight-based normal. The length-based forms (1, 3, 5) are declared but
-#'   refused by the data check.
+#' @param suitMode Predator-prey suitability mode per predator (scalar or
+#'   length-\code{nspp} vector): 0 = empirical from diet data (Holsman et al.
+#'   2016), 2 = weight-based gamma, 4 = weight-based lognormal, 6 =
+#'   weight-based normal (length-based codes 1, 3, 5 are declared but refused
+#'   by \code{data_check()}).
 #' @param suit_styr The first year used to calculate mean suitability, as one
 #'   integer for every predator or a vector of length `nspp`. Defaults to `styr`.
 #'   Set it where diet data were sampled from a subset of years.
@@ -1311,10 +1310,6 @@ fit_mod <-
           data_list$fleet_control[["Selectivity_index"]])))
     }
 
-    # Starting parameters as the model uses them: the blocks above set
-    # proj_F_prop, log_Ftarget, log_M1 and the stock-recruit alpha / beta.
-    # retrospective() and jitter() reuse this as their refit starting values.
-    # Taken before TMBphase() replaces start_par with a fitted state.
     # Non-parametric coefficients below the first selected bin are mapped off but
     # enter the curve's centring unscored, so hold them at 0 whatever `inits` carries.
     .np_forms <- c("NonParametric", "NonParametricPM", "NonParametricIntegrable")
@@ -1328,6 +1323,8 @@ fit_mod <-
       if (!is.null(start_par$sel_coff_dev)) start_par$sel_coff_dev[.flt, , .below, ] <- 0
     }
 
+    # Starting values as the model uses them, after every override above and before
+    # phasing; jitter() and self_test() refit from them.
     mod_objects$initial_params <- start_par
 
     if (verbose > 0) { message("Step 4: Data rearrange complete") }

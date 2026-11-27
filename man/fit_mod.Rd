@@ -88,13 +88,12 @@ holding any environmental linkages on selectivity parameters.}
 \code{\link{build_composition}}, holding any priors on the
 Dirichlet-multinomial weights.}
 
-\item{msmMode}{The predation-mortality mode, as a string alias or integer
-code: \code{"SingleSpecies"} (0, the default, no predation),
-\code{"MSVPA"} (1, the Type-II MSVPA predation of Holsman et al. 2016) or
-\code{"TypeIIIMSVPA"} (2). Codes 3 to 9 (Kinzey & Punt 2009 functional
-responses, Holling forms, Ecosim) are declared but refused by
-\code{data_check()} until validated against the current parameter set; see
-\code{src/TMB/predation.hpp}.}
+\item{msmMode}{Predation-mortality mode (string or integer):
+\code{"SingleSpecies"} (0, default; no predation), \code{"MSVPA"} (1;
+Type-II MSVPA, Holsman et al. 2016), or \code{"TypeIIIMSVPA"} (2); codes
+3--9 (Kinzey & Punt 2009 functional responses: Holling forms through Ecosim)
+are declared but refused by \code{data_check()} until validated against the
+current parameter set.}
 
 \item{avgnMode}{the average abundance-at-age approximation in the predation
 equations. Only mode 0, \eqn{N/Z(1 - exp(-Z))} (the MSVPA form), is
@@ -110,11 +109,11 @@ integer code: \code{"FreeParams"} (0), \code{"Equilibrium"} (1),
 initial decay uses \eqn{M1} only, so predation does not shape the initial
 age structure under any mode.}
 
-\item{suitMode}{how predator-prey suitability is derived, per predator (one
-value or a vector of length \code{nspp}): 0 = empirical from diet data
-(Holsman et al. 2016), 2 = weight-based gamma, 4 = weight-based lognormal,
-6 = weight-based normal. The length-based forms (1, 3, 5) are declared but
-refused by the data check.}
+\item{suitMode}{Predator-prey suitability mode per predator (scalar or
+length-\code{nspp} vector): 0 = empirical from diet data (Holsman et al.
+2016), 2 = weight-based gamma, 4 = weight-based lognormal, 6 =
+weight-based normal (length-based codes 1, 3, 5 are declared but refused
+by \code{data_check()}).}
 
 \item{suit_styr}{The first year used to calculate mean suitability, as one
 integer for every predator or a vector of length \code{nspp}. Defaults to \code{styr}.
