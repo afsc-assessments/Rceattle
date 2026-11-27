@@ -256,8 +256,9 @@
 #' @source The 2017 assessment model, as carried into the 2018 SAFE, set up in
 #'   CEATTLE (not the operational model): Spies, I., Aydin, K., Ianelli, J.N.,
 #'   and Palsson, W. 2017, and Spies, I., and Palsson, W. 2018. Assessment of
-#'   the arrowtooth flounder stock in the Gulf of Alaska. NPFMC Gulf of Alaska
-#'   SAFE report, Anchorage, AK.
+#'   the arrowtooth flounder stock in the Gulf of Alaska. In: Stock assessment
+#'   and fishery evaluation report for the groundfish resources of the Gulf of
+#'   Alaska. North Pacific Fishery Management Council, Anchorage, AK.
 "GOAatf"
 
 
@@ -273,7 +274,9 @@
 #'   J.N., Aydin, K., Hanselman, D.H., Palsson, W., Siwicke, K., Sullivan, J.,
 #'   and Yasumiishi, E. 2021, and Shotwell, S.K., Hanselman, D.H., von Szalay,
 #'   P., and Williams, B.C. 2023. Assessment of the arrowtooth flounder stock in
-#'   the Gulf of Alaska. NPFMC Gulf of Alaska SAFE report, Anchorage, AK.
+#'   the Gulf of Alaska. In: Stock assessment and fishery evaluation report for
+#'   the groundfish resources of the Gulf of Alaska. North Pacific Fishery
+#'   Management Council, Anchorage, AK.
 "GOAatf2023"
 
 
@@ -286,8 +289,10 @@
 #' @format A list with the same structure as \code{\link{BS2017SS}}.
 #' @source The 2018 assessment, set up in CEATTLE (not the operational model):
 #'   Barbeaux, S., Aydin, K., Fissel, B., Holsman, K., Laurel, B., Palsson, W.,
-#'   Shotwell, K., Yang, Q., and Zador, S. 2018. Assessment of the Pacific cod
-#'   stock in the Gulf of Alaska. NPFMC Gulf of Alaska SAFE report, Anchorage, AK.
+#'   Shotwell, K., Yang, Q., and Zador, S. 2018.
+#'   Assessment of the Pacific cod stock in the Gulf of Alaska. In: Stock
+#'   assessment and fishery evaluation report for the groundfish resources of
+#'   the Gulf of Alaska. North Pacific Fishery Management Council, Anchorage, AK.
 "GOAcod"
 
 
@@ -301,7 +306,9 @@
 #' @source The 2018 assessment, set up in CEATTLE (not the operational model):
 #'   Dorn, M., Aydin, K., Fissel, B., Palsson, W., Spalinger, K., Stienessen,
 #'   S., Williams, K., and Zador, S. 2018. Assessment of the walleye pollock
-#'   stock in the Gulf of Alaska. NPFMC Gulf of Alaska SAFE report, Anchorage, AK.
+#'   stock in the Gulf of Alaska. In: Stock assessment and fishery evaluation
+#'   report for the groundfish resources of the Gulf of Alaska. North Pacific
+#'   Fishery Management Council, Anchorage, AK.
 "GOApollock"
 
 
@@ -323,7 +330,9 @@
 #'   \code{\link{GOApollock}}, \code{\link{GOAcod}} and \code{\link{GOAatf}};
 #'   \code{2020_Cod} is from Barbeaux, S., Ferriss, B., Palsson, W., Shotwell,
 #'   K., Spies, I., Wang, M., and Zador, S. 2020. Assessment of the Pacific cod
-#'   stock in the Gulf of Alaska. NPFMC Gulf of Alaska SAFE report, Anchorage, AK.
+#'   stock in the Gulf of Alaska. In: Stock assessment and fishery evaluation
+#'   report for the groundfish resources of the Gulf of Alaska. North Pacific
+#'   Fishery Management Council, Anchorage, AK.
 "GOAsafe2018"
 
 
@@ -350,8 +359,9 @@
 #' @format A list with the same structure as \code{\link{BS2017SS}}.
 #' @source The 2022 assessment, set up in CEATTLE (not the operational model):
 #'   Williams, B.C., Hulson, P.-J.F., Lunsford, C.R., and Ferriss, B. 2022.
-#'   Assessment of the northern rockfish stock in the Gulf of Alaska. NPFMC Gulf
-#'   of Alaska SAFE report, Anchorage, AK.
+#'   Assessment of the northern rockfish stock in the Gulf of Alaska. In: Stock
+#'   assessment and fishery evaluation report for the groundfish resources of
+#'   the Gulf of Alaska. North Pacific Fishery Management Council, Anchorage, AK.
 "NorthernRockfish2022"
 
 
@@ -364,8 +374,9 @@
 #' @format A list with the same structure as \code{\link{BS2017SS}}.
 #' @source The 2022 assessment, set up in CEATTLE (not the operational model):
 #'   Lowe, S., and Ianelli, J. 2022. Assessment of the Atka mackerel stock in
-#'   the Bering Sea and Aleutian Islands. NPFMC Bering Sea/Aleutian Islands SAFE
-#'   report, Anchorage, AK.
+#'   the Bering Sea and Aleutian Islands. In: Stock assessment and fishery
+#'   evaluation report for the groundfish resources of the Bering Sea/Aleutian
+#'   Islands regions. North Pacific Fishery Management Council, Anchorage, AK.
 "Atka2022"
 
 
