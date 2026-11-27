@@ -27,7 +27,7 @@ fit_control(
 \arguments{
 \item{bias.correct}{Logical (\code{FALSE} by default): apply TMB's epsilon bias
 correction (Thorson and Kristensen 2016) in \code{\link[TMB:sdreport]{TMB::sdreport()}}, as distinct
-from the lognormal \code{bias_adjust_obs} / \code{bias_adjust_proc} shift.}
+from the lognormal bias adjustment of \code{bias_adjust_obs} / \code{bias_adjust_proc}.}
 
 \item{getsd}{logical. Run \code{\link[TMB:sdreport]{TMB::sdreport()}} after optimization. Default
 \code{TRUE}.}
@@ -116,10 +116,10 @@ mean selectivity 1 instead of a maximum of 1 -- 58\% of \code{Atka2022}'s
 the array.
 
 Rows cover estimated, age-based lead fleets only, starting at each fleet's
-first selected age (\code{Age_first_selected}). Four kinds of cell are a
-structural zero (a \code{Fixed} fleet's empirical curve, a length-based fleet's
-growth-matrix projection, an age below \code{Age_first_selected}, and array
-padding), and one \code{log(0) = -Inf} on the tape turns \emph{every} quantity in the
+first selected age (\code{Age_first_selected}, or a deprecated \code{Bin_first_selected}).
+Four kinds of cell are a structural zero (a \code{Fixed} fleet's empirical curve, a
+length-based fleet's growth-matrix projection, an age below the first selected
+age, and array padding), and one \code{log(0) = -Inf} on the tape turns \emph{every} quantity in the
 \code{sdreport} to \code{NaN}, biomass and SSB included. All four are identified from
 the data, so the reported set never depends on a parameter value, and a value
 that underflows to zero is floored so it cannot reintroduce the \code{-Inf}. See

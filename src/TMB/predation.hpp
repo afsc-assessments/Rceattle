@@ -381,7 +381,7 @@ void calculate_msvpa_predation(array<Type> &avail_food,
                                bool fill_diet,
                                bool fill_dynamic_B0) {
 
-  // Zero all outputs before each niter pass: pair outputs and other_diet_prop_hat
+  // Zero all outputs on every pass this runs: pair outputs and other_diet_prop_hat
   // are written only where available food > 0 (or NaN) and their fill_ flag is set.
   avail_food.setZero();
   avail_food_dB0.setZero();
@@ -524,8 +524,8 @@ void calculate_msvpa_predation(array<Type> &avail_food,
             eaten_as_prey(k_cell) += eaten;
           }
 
-          // Multiply prey biomass (prey_N * prey_wt, mt) per predator-prey pair: precomputing
-          // it once per prey reorders floating-point operations in the diet gradient (suitMode > 0).
+          // Prey biomass (prey_N * prey_wt, mt) stays per predator-prey pair: computed once per
+          // prey it changes the diet gradient's last bits (suitMode > 0), which can move a fit.
           if(fill_diet) {
             diet_prop_hat(r_idx, k_idx, r_age, k_age, yr) = prey_N_cell(k_cell) * prey_wt_cell(k_cell) * suit * inv_avail;
           }

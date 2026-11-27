@@ -738,8 +738,8 @@ data_check <- function(data_list) {
     }
   }
 
-  # Ceq 1 (Stewart et al. 1983), 2 (Kitchell et al. 1977) and 3 (Thornton and
-  # Lessem 1978) read 1-based covariate column Cindex of env_data; Ceq 4 sets fT = 1.
+  # Ceq 1 exponential (Stewart et al. 1983), 2 warm-water (Kitchell et al. 1977), 3 cool/cold-water
+  # (Thornton and Lessem 1978) read env_data covariate Cindex (1-based, Year not counted); 4: fT = 1.
   if(!is.null(data_list$Ceq)){
     # Absent or unrecognized msmMode takes the multispecies (error) branch: the
     # warning is only safe where consumption provably cannot reach the fit, and
@@ -1205,8 +1205,8 @@ data_check <- function(data_list) {
         rows <- which(!is.na(fc$Selectivity_index) & fc$Selectivity_index == si & .live)
         if (length(rows) < 2) next
         .differs <- function(col, na_is_a_value) {
-          # Compare the resolved first selected age on age-based fleets (whether set
-          # via Age_first_selected or Bin_first_selected), and bin on length-based.
+          # Compare the resolved first selected age on every fleet (the age-length-key
+          # floor on a length-based one), and Bin_first_selected on length-based fleets only.
           if (!col %in% c(colnames(fc), "Age_first_selected")) return(FALSE)
           # Compare resolved values rather than raw entries so equivalent settings
           # (e.g. blank vs minage/bin 1, or "Max" vs -1) agree.

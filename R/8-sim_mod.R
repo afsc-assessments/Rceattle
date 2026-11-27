@@ -1352,7 +1352,8 @@ compare_sim <- function(operating_mod, simulation_mods, object = "quantities") {
 #' @param nages_sp Integer number of age classes.
 #' @param nlengths_sp Integer number of length bins.
 #' @param nyrs Integer number of years in the simulation.
-#' @param lengths_sp Numeric vector of length-bin boundaries.
+#' @param lengths_sp Numeric vector of the `nlengths_sp` length-bin lower edges
+#'   (cm); the first bin is open below and the last open above.
 #' @param minage_sp Numeric reference age (`L1`) for growth estimation.
 #' @param maxage_sp Unused by the body; `helpers-make-msm-data.R` passes it.
 #' @param growth_params_sp Numeric `[sex, yr, 4]` array of `K`, `L1`, `Linf`,
@@ -1499,7 +1500,7 @@ get_growth_matrix_r <- function(fracyr, nsex_sp, nages_sp, nlengths_sp, nyrs,
 #' @param nages_sp Integer. Number of age classes.
 #' @param nlengths_sp Integer. Number of length bins.
 #' @param nyrs Integer. Number of years.
-#' @param lengths_sp Vector. Boundaries of the length bins.
+#' @param lengths_sp Vector. Lower edges of the length bins (cm), as in `get_growth_matrix_r()`.
 #' @param length_at_age Array. Mean length at age from get_growth_matrix_r.
 #' @param growth_matrix Array. 4D array (sex, age, length, year) from get_growth_matrix_r.
 #' @param lw_params Array. Dimensions (sex, yr, 2).

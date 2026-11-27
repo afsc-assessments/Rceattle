@@ -530,8 +530,8 @@ read_data <- function(file = "Rceattle_data.xlsx") {
   data_list$fleet_control <-
     .rce_upgrade_fleet_control_aliases(data_list$fleet_control)
 
-  # 'Age_first_selected' without 'Bin_first_selected' is a legacy 1-based bin
-  # ordinal; initialize both columns so single-fleet `[i] <-` edits work directly.
+  # 'Age_first_selected' without 'Bin_first_selected' is a legacy bin ordinal. Both are created so
+  # `fc$Age_first_selected[1] <- 3` sets one fleet rather than adding a column recycled to all.
   fc_names <- names(data_list$fleet_control)
   if ("Age_first_selected" %in% fc_names && !"Bin_first_selected" %in% fc_names) {
     names(data_list$fleet_control)[fc_names == "Age_first_selected"] <- "Bin_first_selected"

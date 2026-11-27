@@ -27,10 +27,10 @@
 #' the array.
 #'
 #' Rows cover estimated, age-based lead fleets only, starting at each fleet's
-#' first selected age (`Age_first_selected`). Four kinds of cell are a
-#' structural zero (a `Fixed` fleet's empirical curve, a length-based fleet's
-#' growth-matrix projection, an age below `Age_first_selected`, and array
-#' padding), and one `log(0) = -Inf` on the tape turns *every* quantity in the
+#' first selected age (`Age_first_selected`, or a deprecated `Bin_first_selected`).
+#' Four kinds of cell are a structural zero (a `Fixed` fleet's empirical curve, a
+#' length-based fleet's growth-matrix projection, an age below the first selected
+#' age, and array padding), and one `log(0) = -Inf` on the tape turns *every* quantity in the
 #' `sdreport` to `NaN`, biomass and SSB included. All four are identified from
 #' the data, so the reported set never depends on a parameter value, and a value
 #' that underflows to zero is floored so it cannot reintroduce the `-Inf`. See
@@ -38,7 +38,7 @@
 #'
 #' @param bias.correct Logical (`FALSE` by default): apply TMB's epsilon bias
 #'   correction (Thorson and Kristensen 2016) in [TMB::sdreport()], as distinct
-#'   from the lognormal `bias_adjust_obs` / `bias_adjust_proc` shift.
+#'   from the lognormal bias adjustment of `bias_adjust_obs` / `bias_adjust_proc`.
 #' @param getsd logical. Run [TMB::sdreport()] after optimization. Default
 #'   `TRUE`.
 #' @param getJointPrecision logical. Return the full Hessian of fixed and

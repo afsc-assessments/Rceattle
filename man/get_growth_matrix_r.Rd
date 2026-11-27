@@ -30,7 +30,8 @@ get_growth_matrix_r(
 
 \item{nyrs}{Integer number of years in the simulation.}
 
-\item{lengths_sp}{Numeric vector of length-bin boundaries.}
+\item{lengths_sp}{Numeric vector of the \code{nlengths_sp} length-bin lower edges
+(cm); the first bin is open below and the last open above.}
 
 \item{minage_sp}{Numeric reference age (\code{L1}) for growth estimation.}
 

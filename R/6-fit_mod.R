@@ -127,9 +127,9 @@
 #' @param msmMode Predation-mortality mode (string or integer):
 #'   \code{"SingleSpecies"} (0, default; no predation), \code{"MSVPA"} (1;
 #'   Type-II MSVPA, Holsman et al. 2016), or \code{"TypeIIIMSVPA"} (2); codes
-#'   3--9 (Kinzey & Punt 2009 functional responses, Holling forms, Ecosim in
-#'   \code{src/TMB/predation.hpp}) are declared but refused by
-#'   \code{data_check()} until validated against the current parameter set.
+#'   3--9 (Kinzey & Punt 2009 functional responses: Holling forms through Ecosim)
+#'   are declared but refused by \code{data_check()} until validated against the
+#'   current parameter set.
 #' @param avgnMode the average abundance-at-age approximation in the predation
 #'   equations. Only mode 0, \eqn{N/Z(1 - exp(-Z))} (the MSVPA form), is
 #'   implemented; the alternatives are declared but have no effect.
@@ -1323,7 +1323,8 @@ fit_mod <-
       if (!is.null(start_par$sel_coff_dev)) start_par$sel_coff_dev[.flt, , .below, ] <- 0
     }
 
-    # Save pre-optimization starting values for retrospective() and jitter() refits.
+    # Starting values as the model uses them, after every override above and before
+    # phasing; jitter() and self_test() refit from them.
     mod_objects$initial_params <- start_par
 
     if (verbose > 0) { message("Step 4: Data rearrange complete") }

@@ -166,9 +166,11 @@ Type log_mean_exp(const vector<Type> &x)
  * @param n_years Number of years.
  * @param n_ages Number of ages.
  * @param ay_Index [total_n x 2] age/year index locating each node.
- * @param rho_y Partial correlation across `ay_Index` column 0 (adjacent age/length bins within a year in 3D-AR1 selectivity).
- * @param rho_a Partial correlation across `ay_Index` column 1 (adjacent years at the same age/length bin in 3D-AR1 selectivity).
- * @param rho_c Partial correlation along the diagonal of both columns (cohort: adjacent age/bin and year).
+ * @param rho_y Partial correlation across `ay_Index` column 0 (adjacent bins within a year
+ *   in 3D-AR1 selectivity).
+ * @param rho_a Partial correlation across column 1 (adjacent years at the same bin).
+ * @param rho_c Partial correlation along the diagonal of both columns, which is the cohort
+ *   when column 0 is age.
  * @param log_sigma2 Log variance parameter governing the GMRF.
  * @param Var_Param 0 = conditional variance, 1 = marginal variance.
  * @return Sparse precision matrix [total_n x total_n], total_n = n_years * n_ages.

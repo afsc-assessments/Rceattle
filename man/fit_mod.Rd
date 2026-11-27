@@ -91,9 +91,9 @@ Dirichlet-multinomial weights.}
 \item{msmMode}{Predation-mortality mode (string or integer):
 \code{"SingleSpecies"} (0, default; no predation), \code{"MSVPA"} (1;
 Type-II MSVPA, Holsman et al. 2016), or \code{"TypeIIIMSVPA"} (2); codes
-3--9 (Kinzey & Punt 2009 functional responses, Holling forms, Ecosim in
-\code{src/TMB/predation.hpp}) are declared but refused by
-\code{data_check()} until validated against the current parameter set.}
+3--9 (Kinzey & Punt 2009 functional responses: Holling forms through Ecosim)
+are declared but refused by \code{data_check()} until validated against the
+current parameter set.}
 
 \item{avgnMode}{the average abundance-at-age approximation in the predation
 equations. Only mode 0, \eqn{N/Z(1 - exp(-Z))} (the MSVPA form), is

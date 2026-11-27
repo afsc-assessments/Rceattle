@@ -1338,8 +1338,8 @@ switch_check <- function(data_list){
                       data_list$nages[sp_idx],
                       data_list$nlengths[sp_idx])
 
-    # Selectivity is zeroed below the first selected bin and undefined above the
-    # last bin, so normalization must fall within [lo, hi].
+    # Selectivity is zeroed below the first selected bin (lo) and undefined past the last (hi):
+    # past hi is refused; below lo means the maximum ("All" on LogisticPM, no range for _upper).
     lo <- .rce_sel_norm_bounds(data_list, flt, age_selex, max_bin)
     hi <- lo$hi; lo <- lo$lo
     is_pm <- data_list$fleet_control$Selectivity[flt] %in% c(11, "LogisticPM")
