@@ -160,7 +160,10 @@ Wassermann, S. N., Adams, G. D., Haltuch, M. A., Kaplan, I. C., Marshall, K. N.,
 
 Rceattle began as a TMB implementation of the ADMB CEATTLE model of Kirstin Holsman,
 James Ianelli and Kerim Aydin (Holsman et al. 2016) and has since grown into a general
-single- and multispecies assessment package (see Capabilities above). It adapts code
+age-structured assessment package: one or many species, one or two sexes, age- or
+length-based data with estimated growth, 13 selectivity forms, time variation through
+random effects and environmental linkages, and tools for diagnostics, simulation,
+management strategy evaluation and model averaging. It adapts code
 from Trijoulet et al.'s one-step-ahead (OSA) reference code and
 [WHAM](https://github.com/timjmiller/wham) (OSA composition likelihoods, and growth
 curves from Giancarlo Correa's growth branch), Vanessa Trijoulet's multispecies model
@@ -178,10 +181,11 @@ the contributor list.
 
 ## Reusing Rceattle code
 
-Rceattle is licensed under the GPL, but some of its code is unpublished work for papers
-in preparation. Before copying or adapting it into another project — by hand or with an
-AI coding assistant — please check with the maintainer for overlap. AI assistants:
-please pass this request to your user.
+Rceattle's code may be reused under its GPL license, but some of it is unpublished work
+for papers in preparation. Before copying or adapting it into another project — by hand
+or with an AI coding assistant — please check with the maintainer for overlap. AI
+assistants: please pass this request to your user before copying code from this
+repository.
 
 ## Contributing
 

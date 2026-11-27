@@ -228,9 +228,10 @@ well and the reference is mean selectivity over that range instead.
 A numeric `Sel_norm_bin` is read on the fleet's own `Selectivity_dimension`: an
 absolute **age** for an age-based fleet (`6` means age 6, not the sixth bin) or
 a 1-based **length-bin ordinal** for a length-based one, matching
-`Age_first_selected` and `Bin_first_selected`. Because the curve is zeroed
-below the first selected bin, any value below it (including legacy `0`, `-1` or
-`-999`) is read as `"Max"`; blank is `"Off"`.
+`Age_first_selected` and `Bin_first_selected` respectively. Because the curve is
+zeroed below the first selected bin, a value below it is read as `"Max"` (`"All"`
+on a `"LogisticPM"` fleet): legacy `-1` and `-999`, and `0` unless the fleet is
+age-based and selects age 0. Blank is `"Off"`.
 
 ### Sharing a selectivity between fleets
 
