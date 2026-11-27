@@ -1,6 +1,6 @@
 # Fleets sharing a Selectivity_index share one parameter block, but the columns
 # that shape the curve -- Selectivity, Selectivity_dimension,
-# Bin_first_selected, N_sel_bins, Sel_norm_bin, Sel_norm_bin_upper -- are read
+# Age_first_selected, N_sel_bins, Sel_norm_bin, Sel_norm_bin_upper -- are read
 # per fleet, so a group disagreeing on any of them does not share one curve.
 # Time_varying_sel is the exception build_map() reconciles to the lead fleet's
 # setting, leaving the curves matched. data_check() reports both, differently.
@@ -63,7 +63,7 @@ testthat::test_that("a curve-shaping column that differs within the group is rep
   # fleets get different curves despite sharing the block.
   breaks <- list(
     Selectivity_dimension = function(m) { m$Selectivity_dimension <- "Length"; m },
-    Bin_first_selected    = function(m) { m$Bin_first_selected <- 3L; m },
+    Age_first_selected    = function(m) { m$Age_first_selected <- 3L; m },
     Sel_norm_bin          = function(m) { m$Sel_norm_bin <- 2L; m },
     Sel_norm_bin_upper    = function(m) { m$Sel_norm_bin_upper <- 4L; m }
   )
@@ -86,6 +86,13 @@ testthat::test_that("a blank counts as a value among the shaping columns", {
   testthat::expect_equal(d$fleet_control$Sel_norm_bin[
     d$fleet_control$Fleet_name == "Fishery"][1], "Off")
   testthat::expect_length(.mirror_warnings(d), 1)
+})
+
+
+testthat::test_that("a blank first selected age agrees with naming minage", {
+  # Blank means selected from minage, so the two fleets get the same curve.
+  w <- .mirror_warnings(.mirror_dat(function(m) { m$Age_first_selected <- 1L; m }))
+  testthat::expect_length(w, 0)
 })
 
 

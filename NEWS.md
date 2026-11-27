@@ -6,7 +6,7 @@ Version-numbering note. Five gaps in this file are deliberate, not lost entries:
   * main's 4.9.0 / 4.9.1 are the same recruitment changes this line has as
     5.5.0 / 5.5.1, applied to the two lines separately.
   * 5.66.3 to 5.66.5 were numbers a branch held during review; it landed as 5.66.8.
-  * 5.68.0 is the number #308 (`Age_first_selected`) held in review when 5.69.0 landed.
+  * 5.68.0 is the number #308 (`Age_first_selected`) held in review; it landed as 5.72.0.
 
 No tag existed above 4.8.0 while the first three were in flight, and the last two's
 numbers never reached dev, so nobody could have installed an intermediate. They were
@@ -17,6 +17,184 @@ throughout.
 5.66.8 was also the number #300 (`run_mse()` keeps the EM's fixed parameters) held in
 review. It landed as 5.66.9, so a version check written for that fix needs 5.66.9.
 -->
+
+# Rceattle 5.72.1
+
+## Documentation
+
+* **Release notes, help pages, vignettes and code comments are shorter and stated
+  in assessment terms.** This covers `NEWS.md` 5.71.0 to 5.72.0, `README.md`,
+  `?fit_control`, `?fit_mod`, `?get_growth_matrix_r`, the selectivity passages
+  of three vignettes, the column descriptions for `Selectivity`,
+  `Bin_first_selected` and `Age_first_selected` (`?BS2017SS` and
+  `meta_data_names.xlsx`) and `Sel_norm_bin` (`meta_data_names.xlsx`), and code
+  comments in `R/` and `src/TMB/`. Three statements are also corrected:
+  `lengths_sp` holds the length bins' lower edges (`?get_growth_matrix_r`,
+  `?get_weight_at_age_r`), `?fit_mod`'s `msmMode` no longer points to code that
+  does not exist, and a `Sel_norm_bin` of 0 means `"Max"` only where 0 lies below
+  the fleet's first selected bin. No number changes.
+
+# Rceattle 5.72.0
+
+## New features
+
+* **`Age_first_selected` is a new `fleet_control` column giving a fleet's first
+  selected age (an absolute age).** On an age-based fleet, selectivity is 0 below
+  it. On a length-based fleet, younger ages are removed from that fleet's
+  age-length key so it catches no fish below that age at any length, like a Stock
+  Synthesis age-range mask (age pattern 11 up to the plus group; pattern 10 when
+  the first age is 1); previously a length-based fleet could exclude only length
+  bins (`Bin_first_selected`, which remains the first selected length bin). A
+  blank selects from `minage`; a `"Fixed"` fleet's curve is used as given, as before.
+
+## Deprecations
+
+* **`Bin_first_selected` on an age-based fleet is deprecated; use `Age_first_selected`.**
+  It is still read as age `minage + Bin_first_selected - 1` (no fit changes), and
+  `fit_mod()` messages once per fit when an active, estimated age-based fleet sets
+  a value other than 1 (1 equals a blank; `"Fixed"` and `"Off"` fleets ignore it).
+  Setting both columns to different ages on an age-based fleet errors. All bundled
+  datasets and `write_template()` now carry `Age_first_selected` alongside
+  `Bin_first_selected`. `GOA2018SS` and `GOApollock`, the only two that set a
+  first selected age, store their age-3 floor (two fleets each) in
+  `Age_first_selected` with `Bin_first_selected` blank, so scripts changing those
+  floors must assign `Age_first_selected`:
+  `GOA2018SS$fleet_control$Bin_first_selected <- 1` now errors, because it
+  disagrees with that floor, and `Bin_first_selected <- NA` leaves the floor in place.
+* Because `Age_first_selected` was the pre-4.0.1 name of `Bin_first_selected`,
+  `read_data()` still reads a workbook with `Age_first_selected` and no
+  `Bin_first_selected` column as `Bin_first_selected` (with a message), and
+  initializes both columns on `fleet_control` (`NA` where absent), so assigning a
+  single fleet (`fc$Age_first_selected[1] <- 3`) does not create a new column
+  recycled to every fleet. In an R `data_list`, `Age_first_selected` is always the
+  absolute age; on the bundled pre-4.0.1 fits (`EBS_ss_run`, `EBS_ss_M_run`,
+  `EBS_ms_run`, all `minage = 1` and age-based), the old bin ordinal and the
+  absolute age coincide. `read_data()` now accepts workbooks where the two columns
+  differ, and `write_data()` writes both whenever either is present, so
+  `Age_first_selected` is preserved on re-read. Earlier versions refuse a 5.72.0
+  workbook in which `Age_first_selected` is set and `Bin_first_selected` does not
+  repeat it.
+* `data_check()`'s warning for fleets sharing a `Selectivity_index` compares the
+  resolved first selected age (naming `Age_first_selected` instead of `Bin_first_selected`
+  for age-based groups), and names `Age_first_selected` and the maximum age in
+  its `N_sel_bins` error when `Age_first_selected` is set.
+
+# Rceattle 5.71.2
+
+## Performance
+
+* **Building the TMB objective for a multispecies model takes 22-37% less time.**
+  While TMB builds the automatic-differentiation (AD) objective, MSVPA predation
+  now skips quantities that do not enter the likelihood or harvest control rule —
+  consumption and mortality breakdowns reported only in `fit$quantities`
+  (`M2_prop`, `B_eaten`, `B_eaten_as_prey`), predicted stomach contents and the
+  final MSVPA iteration's predation pass unless diet data are fitted
+  (`suitMode > 0`), and the dynamic B0 and BF predation (at F = 0 and F =
+  Ftarget) unless `DynamicHCR = TRUE`; `fit$quantities` is unchanged. With `msmMode = 1`, `obj$retape()` drops from 1,632 to
+  1,061 ms for `BS2017MS` and from 2,726 to 1,707 ms for `GOA2018SS` (22-25% with
+  `suitMode = 4`). The saving repeats in every `retrospective()`, `jitter()`,
+  `profile()` and `run_mse()` refit. A single fit's runtime, set by the optimizer,
+  does not change measurably, and single-species models are unchanged.
+
+* **Multispecies fits can stop at a slightly different point.** At fixed
+  parameters, the objective and `fit$quantities` (4 points in each of 16
+  configurations) and the ADREPORT values (1 point in each) are identical. But
+  TMB merges repeated expressions before it drops unused ones, so skipping unused
+  predation terms changes the order in which the gradient is summed, and it can
+  differ in its last digits (by at most 6.8e-13 near starting values, and 7.6e-8
+  at one far cold-start point with objective 1.9e6):
+  - With `newtonsteps = 3`, `BS2017MS` and `GOA2018SS` (empirical suitability)
+    and `GOA2018SS` (dynamic HCR) match within 2.5e-14 in parameters and 1.3e-11
+    in SEs. `BS2017MS` with `suitMode = 4`, started from the single-species
+    estimates, ends 7.3e-7 lower with one parameter 1.69 away along a flat
+    direction, SSB within 1.2e-7 and SEs within 5.3e-5 (relative).
+  - Without Newton steps (the default), a separate `BS2017MS` `suitMode = 4` fit,
+    the one in `tools/verify/verify-sim-diet.R`, now reads FAIL in its
+    convergence check (largest gradient 1.26) where 5.70.8 read WARN (0.368). It
+    ends 2.5e-5 lower, with pollock SSB within 2.9e-4, as two prey preferences
+    near zero (`log_phi` -12 and -8), which the data cannot tell apart, drift to
+    -23 and -18.
+  - In the Pacific hake `MSE_yr2024.R` (no Newton steps), four of the five
+    multispecies fits end 3.1e-9 to 1.2e-8 higher, with SSB within 1.1e-5 and
+    SEs within 4.7e-5 (`_BHv_2` was not compared); its three single-species fits
+    are identical.
+  - A multispecies MSE (`tools/verify/verify-mse-repro.R`, `BS2017MS`) keeps SSB,
+    biomass and F within 9.1e-6 and recruitment within 1.2e-4.
+
+# Rceattle 5.71.1
+
+## Bug fixes
+
+* **`get_growth_matrix_r()` (the R age-length key helper) now matches C++
+  `estimate_growth()` for Richards cohort growth after year 1**, using the
+  previous year's growth rate `K` (rather than `L1`) and taking the `1/m` root
+  (rather than dividing by `m`). With K = 0.3, L1 = 20 cm at age 1 and
+  Linf = 90 cm, a 5-year-old in year 2 had mean length 90.0 cm instead of
+  68.9 cm at m = 1 (von Bertalanffy) and 267.0 cm instead of 71.5 cm at m = 1.3.
+  No fit, simulation or MSE calls this internal function. Outside its own test,
+  its one caller is the multispecies test-data helper, which builds a single
+  year, so its output is unchanged.
+
+# Rceattle 5.71.0
+
+## Breaking changes
+
+* **`inst/extdata/GeorgesBank3sppTrijoulet.xlsx` is removed** at the
+  maintainer's direction: nothing in the package read it (making this a minor
+  bump) and its provenance was undocumented, so it could not be credited.
+  `system.file()` now returns `""`
+  for it; ask the maintainer for a copy. The bundled `GeorgesBank3spp` is
+  unchanged.
+
+## Documentation
+
+* **Credit for borrowed code and data.** `DESCRIPTION` now lists as contributors
+  the original ADMB CEATTLE authors (Holsman, Ianelli, Aydin), Rceattle code
+  contributors, the authors of code adapted or copied from WHAM, Trijoulet et al.'s
+  one-step-ahead (OSA) reference code, TMBhelper, `TMBphase`, GMRF_WAA, gplots,
+  r4ss and the Trijoulet et al. (2020) multispecies model, and the authors of
+  the Ocean Frontier Institute 2023 workshop (OFI 2023) WHAM growth examples
+  behind `whamGrowthData` and two comparison scripts. The new `inst/COPYRIGHTS`
+  records each piece's source, copyright and license (and why `License:` is
+  unchanged pending NMFS GitHub Governance Team review); `README.md` adds "Code
+  and data from other projects"; `?TMBAIC` credits James Thorson; and
+  `?osa_residuals` and `vignette("model-diagnostics")` credit WHAM (Stock and
+  Miller 2021) for the OSA composition likelihoods.
+
+* **Literature citations corrected and completed.**
+  - Corrected citations (including in two `data_check()` messages and one
+    `plot_form()` message): Thornton and Lessem (1978); Holsman et al. (2016)
+    for MSVPA; Holsman and Aydin (2015) for warm-water bioenergetics;
+    Kristensen et al. (2016, *J. Stat. Softw.*) rather than the 2015 TMB
+    preprint; Taylor et al. (2015) for `"Hake"` selectivity; Dorn et al. (2018)
+    for random-walk catchability and `"RandomWalkAscending"` selectivity
+    (`"RandomWalk"` extends that walk to both limbs); Xu et al. (2019) for
+    2D-AR1 and Cheng et al. (2023; previously cited as a 2024 paper that does
+    not exist) for
+    3D-AR1 selectivity, noting what each form takes from them; and
+    Hurtado-Ferro et al. (2015) for Mohn's rho averaged over peels.
+    `?build_bounds` drops the Kinzey and Punt citation for bounds removed in
+    5.49.2.
+  - Added missing citations to help pages: Mohn (1999) in `?retrospective`, Thorson et al. (2017) in
+    `?build_composition`, Thorson and Kristensen (2016) for `bias.correct` in
+    `?fit_control`, Beverton and Holt (1957) and Ricker (1954) in `?build_srr`,
+    Punt et al. (2016) in `?run_mse`, Richards (1959) in `?build_growth`, Dunn
+    and Smyth (1996) in `?osa_residuals`, and Methot and Wetzel (2013) for
+    `DoubleNormalSS3` in `?BS2017SS`. The vignettes cite these methods where they
+    introduce them, and every user vignette that cites a paper now ends with a
+    reference list.
+
+* **A request to anyone reusing Rceattle code.** The README asks that code
+  copied or adapted into another project, by hand or through an AI assistant,
+  be checked with the maintainer first for overlap with work in preparation.
+  The retrospective code carries the same request.
+
+* **Every bundled dataset's help page has a `Source` section** citing the
+  assessment, paper or workshop it came from, with the authors of each SAFE
+  chapter. `?GOAsafe2018` now lists its `2020_Cod` columns, `?Atka2022` names
+  the Bering Sea and Aleutian Islands stock, and `?GeorgesBank3spp` names
+  Atlantic cod, silver hake and Atlantic herring rather than "three groundfish
+  species". No number changes.
 
 # Rceattle 5.70.8
 

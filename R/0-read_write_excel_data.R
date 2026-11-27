@@ -113,6 +113,14 @@ write_data <- function(data_list, file = "Rceattle_data.xlsx") {
   # diff between them readable. Columns the schema does not know are kept, at
   # the end, rather than silently dropped.
   .fc_out <- as.data.frame(data_list$fleet_control)
+  # Write both columns: read_data() treats Age_first_selected without a
+  # Bin_first_selected column as a legacy 1-based bin ordinal.
+  if ("Age_first_selected" %in% names(.fc_out) && !"Bin_first_selected" %in% names(.fc_out)) {
+    .fc_out$Bin_first_selected <- rep(NA_integer_, nrow(.fc_out))
+  }
+  if ("Bin_first_selected" %in% names(.fc_out) && !"Age_first_selected" %in% names(.fc_out)) {
+    .fc_out$Age_first_selected <- rep(NA_integer_, nrow(.fc_out))
+  }
   .fc_order <- c(intersect(.rce_schema_names("fleet_control"), names(.fc_out)),
                  setdiff(names(.fc_out), .rce_schema_names("fleet_control")))
   xcel_list$fleet_control <- .fc_out[, .fc_order, drop = FALSE]
@@ -323,7 +331,7 @@ write_template <- function(file = "Rceattle_data_template.xlsx",
   d$fleet_control$Selectivity_index     <- 1:2
   d$fleet_control$Selectivity           <- "Logistic"
   d$fleet_control$Selectivity_dimension <- "Age"
-  d$fleet_control$Bin_first_selected    <- 1L
+  d$fleet_control$Age_first_selected    <- as.integer(minage)
   d$fleet_control$Comp_distribution     <- "Multinomial"
   d$fleet_control$Comp_weights          <- 1
   d$fleet_control$CAAL_distribution     <- 0L
@@ -517,15 +525,25 @@ read_data <- function(file = "Rceattle_data.xlsx") {
     data_list[[matrix_data[i]]] <- sheet
   }
 
-  # -- Upgrade any deprecated fleet_control column names to canonical, from the
-  # single schema-driven migration (the `aliases` field). The same call
-  # switch_check() uses, so the xlsx-read and direct-data-list paths upgrade
-  # identically from one source (no hand-maintained cascade to drift). Legacy
-  # names accepted: Estimate_survey_sd, Survey_sd_prior/Index_sd_prior, Nselages,
-  # Sel_sd_prior, Time_varying_{q,sel}_sd_prior, Q_prior, Catch_sd_prior,
-  # Estimate_q, Age_first_selected, Age_max_selected(_upper).
+  # Upgrade deprecated fleet_control column names from the schema's `aliases`
+  # field, matching switch_check() on direct data_list inputs.
   data_list$fleet_control <-
     .rce_upgrade_fleet_control_aliases(data_list$fleet_control)
+
+  # 'Age_first_selected' without 'Bin_first_selected' is a legacy bin ordinal. Both are created so
+  # `fc$Age_first_selected[1] <- 3` sets one fleet rather than adding a column recycled to all.
+  fc_names <- names(data_list$fleet_control)
+  if ("Age_first_selected" %in% fc_names && !"Bin_first_selected" %in% fc_names) {
+    names(data_list$fleet_control)[fc_names == "Age_first_selected"] <- "Bin_first_selected"
+    message("'Age_first_selected' without a 'Bin_first_selected' column is the ",
+            "pre-4.0.1 name of 'Bin_first_selected', and is read as that. Add a ",
+            "'Bin_first_selected' column to read it as an absolute age.")
+  }
+  for (.col in c("Bin_first_selected", "Age_first_selected")) {
+    if (!.col %in% names(data_list$fleet_control)) {
+      data_list$fleet_control[[.col]] <- rep(NA_integer_, nrow(data_list$fleet_control))
+    }
+  }
 
   # Default a missing `Month` column.
   if(is.null(data_list$fleet_control$Month)){

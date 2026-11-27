@@ -13,9 +13,9 @@
 #'         K.N., Punt, A.E. (2025). Even low levels of cannibalism can bias
 #'         population estimates for Pacific hake. ICES Journal of Marine Science,
 #'         82(1), fsae064.
-#'   \item Kristensen, K., Nielsen, A., Berg, C.W., Skaug, H., Bell, B. (2015).
-#'         TMB: automatic differentiation and Laplace approximation. arXiv
-#'         preprint arXiv:1509.00660.
+#'   \item Kristensen, K., Nielsen, A., Berg, C.W., Skaug, H., Bell, B.M. (2016).
+#'         TMB: automatic differentiation and Laplace approximation. Journal of
+#'         Statistical Software, 70(5). doi:10.18637/jss.v070.i05.
 #' }
 #' @rawNamespace useDynLib(Rceattle, .registration=TRUE); useDynLib(ceattle)
 #' @keywords internal

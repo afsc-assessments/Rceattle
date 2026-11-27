@@ -92,8 +92,8 @@ and right-skewed. It needs a fit run with \code{fit_control(selectivity_se = TRU
 Only estimated, age-based fleets hold one. A length-based fleet is drawn on
 \code{sel_at_length}, which is what was fitted and holds no error; a
 \code{Selectivity = "Fixed"} fleet estimates nothing; and no fleet gets a band
-below its first selected bin (\code{Bin_first_selected}, a 1-based bin ordinal,
-not an absolute age), where selectivity is 0 by construction. A
+below its first selected age (\code{Age_first_selected}), where selectivity is 0
+by construction. A
 fleet mirroring another's \code{Selectivity_index} has no errors of its own and
 borrows its lead's, but only where the two curves agree, \code{data_check()} only
 warns when a shared group differs in a shaping column such as \code{Sel_norm_bin}.

@@ -1342,27 +1342,32 @@ compare_sim <- function(operating_mod, simulation_mods, object = "quantities") {
 
 #' Generate Length-at-Age Transition Matrix
 #'
-#' This function calculates a probability transition matrix that defines the
-#' probability of a fish of a given age belonging to specific length bins.
-#' It supports Von Bertalanffy and Richards growth models and includes
-#' a Stock Synthesis (SS) style plus-group correction.
+#' Calculates the age-to-length transition matrix under von Bertalanffy or
+#' Richards growth with a Stock Synthesis plus-group correction; like
+#' `growth.hpp`, adapted from Giancarlo Correa's growth code in WHAM's growth
+#' branch.
 #'
-#' @param fracyr Numeric. Fraction of the year (0 = Jan 1st).
-#' @param nsex_sp Integer. Number of sexes for the species.
-#' @param nages_sp Integer. Number of age classes.
-#' @param nlengths_sp Integer. Number of length bins.
-#' @param nyrs Integer. Number of years in the simulation.
-#' @param lengths_sp Vector. Boundaries of the length bins.
-#' @param minage_sp Numeric. The reference age (L1) for growth estimation.
+#' @param fracyr Numeric fraction of the year (`0` = Jan 1).
+#' @param nsex_sp Integer number of sexes for the species.
+#' @param nages_sp Integer number of age classes.
+#' @param nlengths_sp Integer number of length bins.
+#' @param nyrs Integer number of years in the simulation.
+#' @param lengths_sp Numeric vector of the `nlengths_sp` length-bin lower edges
+#'   (cm); the first bin is open below and the last open above.
+#' @param minage_sp Numeric reference age (`L1`) for growth estimation.
 #' @param maxage_sp Unused by the body; `helpers-make-msm-data.R` passes it.
-#' @param growth_params_sp Array. Dimensions (sex, yr, 4).
-#'   Params: K, L1, Linf, Richards m.
-#' @param growth_log_sd_sp Array. Dimensions (sex, 2).
-#'   Log-SD of length: 1st param is SD at minage, 2nd param is SD at maxage.
-#' @param growth_model_sp Integer. 1 = Von Bertalanffy, 2 = Richards.
-#' @param M_plus_sp Numeric. Natural mortality at the oldest age (one value, or one per sex), which weights the ages pooled in the plus group by survival, as the template does.
+#' @param growth_params_sp Numeric `[sex, yr, 4]` array of `K`, `L1`, `Linf`,
+#'   and Richards `m`.
+#' @param growth_log_sd_sp Numeric `[sex, 2]` array of log length SD at
+#'   `minage` and `maxage`.
+#' @param growth_model_sp Integer growth code (`1` = von Bertalanffy, `2` =
+#'   Richards).
+#' @param M_plus_sp Numeric natural mortality at the oldest age (scalar or per
+#'   sex), weighting ages pooled in the plus group by survival to match the TMB
+#'   growth model.
 #'
-#' @return A 4D array of probabilities with dimensions (sex, age, length, year).
+#' @return A list: `length_at_age`, mean length (cm) by (sex, age, year), and
+#'   `growth_matrix`, the probability of each length bin by (sex, age, length, year).
 get_growth_matrix_r <- function(fracyr, nsex_sp, nages_sp, nlengths_sp, nyrs,
                                 lengths_sp, minage_sp, maxage_sp,
                                 growth_params_sp, growth_log_sd_sp, growth_model_sp,
@@ -1432,10 +1437,10 @@ get_growth_matrix_r <- function(fracyr, nsex_sp, nages_sp, nlengths_sp, nyrs,
 
                 length_at_age[s, a, y] = (last_linear^m + (last_linear^m - linf^m) * (exp(-k * (current_age - minage_sp)) - 1.0))^(1/m)
               }else{
-                lagk <- growth_params_sp[s, y-1, 2]
+                lagk <- growth_params_sp[s, y-1, 1]
                 lagm <- growth_params_sp[s, y-1, 4]
                 laglinf <-  growth_params_sp[s, y-1, 3]
-                length_at_age[s, a, y] <- (length_at_age[s, a-1, y-1]^lagm + (length_at_age[s, a-1, y-1]^lagm - laglinf^lagm) * (exp(-lagk) - 1))^1/lagm
+                length_at_age[s, a, y] <- (length_at_age[s, a-1, y-1]^lagm + (length_at_age[s, a-1, y-1]^lagm - laglinf^lagm) * (exp(-lagk) - 1))^(1/lagm)
               }
             }
           }
@@ -1495,7 +1500,7 @@ get_growth_matrix_r <- function(fracyr, nsex_sp, nages_sp, nlengths_sp, nyrs,
 #' @param nages_sp Integer. Number of age classes.
 #' @param nlengths_sp Integer. Number of length bins.
 #' @param nyrs Integer. Number of years.
-#' @param lengths_sp Vector. Boundaries of the length bins.
+#' @param lengths_sp Vector. Lower edges of the length bins (cm), as in `get_growth_matrix_r()`.
 #' @param length_at_age Array. Mean length at age from get_growth_matrix_r.
 #' @param growth_matrix Array. 4D array (sex, age, length, year) from get_growth_matrix_r.
 #' @param lw_params Array. Dimensions (sex, yr, 2).

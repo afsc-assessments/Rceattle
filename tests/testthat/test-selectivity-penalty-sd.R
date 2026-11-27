@@ -303,7 +303,7 @@ testthat::test_that("the form-9 shape penalty charges the direction Sel_shape_di
   # penalty would also enter. Asserted rather than assumed: lifting this oracle
   # to a fleet like EBS pollock (excluded age-1 bin, AMAK caps) gives a wrong
   # answer, and these are what would make it wrong.
-  testthat::expect_equal(as.integer(d$fleet_control$Bin_first_selected[flt]), 1L)
+  testthat::expect_true(.rce_first_selected(d)$bin[flt] %in% c(NA, 1))   # blank is bin 1
   testthat::expect_true(is.null(d$fleet_control$Sel_cap_bin) ||
                           is.na(d$fleet_control$Sel_cap_bin[flt]))
   testthat::expect_true(is.null(d$fleet_control$Sel_pen_first_bin) ||

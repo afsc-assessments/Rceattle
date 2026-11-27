@@ -24,7 +24,7 @@ get_weight_at_age_r(
 
 \item{nyrs}{Integer. Number of years.}
 
-\item{lengths_sp}{Vector. Boundaries of the length bins.}
+\item{lengths_sp}{Vector. Lower edges of the length bins (cm), as in \code{get_growth_matrix_r()}.}
 
 \item{length_at_age}{Array. Mean length at age from get_growth_matrix_r.}
 

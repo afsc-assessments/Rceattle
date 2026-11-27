@@ -178,7 +178,7 @@ m6 <- fit_mod(data_list = d6, msmMode = 0, estimateMode = "Hindcast",
               fit_control = fit_control(phase = TRUE),
               random_sel = FALSE)                # Set to true to estimate sigma
 
-## --- 7. 3DAR1 over age x year x cohort (Cheng et al. 2024) ----
+## --- 7. 3DAR1 over age x year x cohort (Cheng et al. 2023) ----
 ## As 2DAR1, plus Sel_curve_pen3 as the cohort correlation.
 d7 <- d
 d7$fleet_control$Selectivity[FISHERY]      <- "3DAR1"

@@ -20,38 +20,43 @@ get_growth_matrix_r(
 )
 }
 \arguments{
-\item{fracyr}{Numeric. Fraction of the year (0 = Jan 1st).}
+\item{fracyr}{Numeric fraction of the year (\code{0} = Jan 1).}
 
-\item{nsex_sp}{Integer. Number of sexes for the species.}
+\item{nsex_sp}{Integer number of sexes for the species.}
 
-\item{nages_sp}{Integer. Number of age classes.}
+\item{nages_sp}{Integer number of age classes.}
 
-\item{nlengths_sp}{Integer. Number of length bins.}
+\item{nlengths_sp}{Integer number of length bins.}
 
-\item{nyrs}{Integer. Number of years in the simulation.}
+\item{nyrs}{Integer number of years in the simulation.}
 
-\item{lengths_sp}{Vector. Boundaries of the length bins.}
+\item{lengths_sp}{Numeric vector of the \code{nlengths_sp} length-bin lower edges
+(cm); the first bin is open below and the last open above.}
 
-\item{minage_sp}{Numeric. The reference age (L1) for growth estimation.}
+\item{minage_sp}{Numeric reference age (\code{L1}) for growth estimation.}
 
 \item{maxage_sp}{Unused by the body; \code{helpers-make-msm-data.R} passes it.}
 
-\item{growth_params_sp}{Array. Dimensions (sex, yr, 4).
-Params: K, L1, Linf, Richards m.}
+\item{growth_params_sp}{Numeric \verb{[sex, yr, 4]} array of \code{K}, \code{L1}, \code{Linf},
+and Richards \code{m}.}
 
-\item{growth_log_sd_sp}{Array. Dimensions (sex, 2).
-Log-SD of length: 1st param is SD at minage, 2nd param is SD at maxage.}
+\item{growth_log_sd_sp}{Numeric \verb{[sex, 2]} array of log length SD at
+\code{minage} and \code{maxage}.}
 
-\item{growth_model_sp}{Integer. 1 = Von Bertalanffy, 2 = Richards.}
+\item{growth_model_sp}{Integer growth code (\code{1} = von Bertalanffy, \code{2} =
+Richards).}
 
-\item{M_plus_sp}{Numeric. Natural mortality at the oldest age (one value, or one per sex), which weights the ages pooled in the plus group by survival, as the template does.}
+\item{M_plus_sp}{Numeric natural mortality at the oldest age (scalar or per
+sex), weighting ages pooled in the plus group by survival to match the TMB
+growth model.}
 }
 \value{
-A 4D array of probabilities with dimensions (sex, age, length, year).
+A list: \code{length_at_age}, mean length (cm) by (sex, age, year), and
+\code{growth_matrix}, the probability of each length bin by (sex, age, length, year).
 }
 \description{
-This function calculates a probability transition matrix that defines the
-probability of a fish of a given age belonging to specific length bins.
-It supports Von Bertalanffy and Richards growth models and includes
-a Stock Synthesis (SS) style plus-group correction.
+Calculates the age-to-length transition matrix under von Bertalanffy or
+Richards growth with a Stock Synthesis plus-group correction; like
+\code{growth.hpp}, adapted from Giancarlo Correa's growth code in WHAM's growth
+branch.
 }

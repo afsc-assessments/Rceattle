@@ -26,7 +26,7 @@ testthat::test_that("the 2D-AR1 selectivity density correlates bins by Sel_curve
   d$fleet_control$Selectivity_index <- seq_len(nrow(d$fleet_control))
   d$fleet_control$Selectivity[FLT] <- "2DAR1"
   d$fleet_control$Time_varying_sel_sd[FLT] <- 1
-  d$fleet_control$Bin_first_selected[FLT] <- 1
+  d$fleet_control$Age_first_selected[FLT] <- 1
   d$fleet_control$N_sel_bins[FLT] <- N_BINS
   d$fleet_control$Sel_curve_pen1[FLT] <- 0
   d$fleet_control$Sel_curve_pen2[FLT] <- 0

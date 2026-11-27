@@ -57,10 +57,10 @@
 #'   estimated.
 #'   \deqn{R_y = exp(R0 + R_{dev,y})}
 #'
-#' - \code{srr_fun = 2} or \code{"BevertonHolt"}:
+#' - \code{srr_fun = 2} or \code{"BevertonHolt"} (Beverton and Holt 1957):
 #'   \deqn{R_y = \frac{\alpha_{srr} * SB_{y-minage}}{1+\beta_{srr} * SB_{y-minage}}}
 #'
-#' - \code{srr_fun = 4} or \code{"Ricker"}:
+#' - \code{srr_fun = 4} or \code{"Ricker"} (Ricker 1954):
 #'   \deqn{R_y = \alpha_{srr} * SB_{y-minage} * exp(-\beta_{srr} * SB_{y-minage})}
 #'
 #' Both curves are the deterministic mean; realized recruitment applies the
@@ -109,6 +109,13 @@
 #' fitted to an earlier fit's SSB-recruitment pairs.
 #'
 #' @return A \code{list} containing the stock recruitment relationship settings
+#' @references
+#' Beverton, R.J.H., and Holt, S.J. 1957. On the dynamics of exploited fish
+#'   populations. Fishery Investigations Series II, Vol. 19.
+#'   UK Ministry of Agriculture, Fisheries and Food, London.
+#'
+#' Ricker, W.E. 1954. Stock and recruitment. J. Fish. Res. Board Can.
+#'   11:559-623.
 #' @examples
 #' # Mean recruitment: no stock-recruit relationship fitted.
 #' build_srr(srr_fun = "mean")

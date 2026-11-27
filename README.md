@@ -8,7 +8,7 @@
 
 Rceattle: an R package for fitting climate-linked, single- and multi-species age-structured stock assessment models and testing via diagnostics, simulation, and management strategy evaluation.
 
-`Rceattle` implements models in R using Template Model Builder (`TMB`; Kristensen et al., 2015). Data can be supplied via the bundled Excel template or constructed programmatically as an R list (see *Building a data object without Excel* vignette). Capabilities include:
+`Rceattle` implements models in R using Template Model Builder (`TMB`; Kristensen et al., 2016). Data can be supplied via the bundled Excel template or constructed programmatically as an R list (see *Building a data object without Excel* vignette). Capabilities include:
 
 - **Single-species** (`msmMode = 0`) and **multispecies** (`msmMode > 0`) configurations, with one- or two-sex population dynamics
 - **One or multiple stocks** can be fit jointly.
@@ -40,7 +40,7 @@ For operational / management use, pin a specific tagged release rather than
 tracking `main`, e.g.:
 
 ```r
-remotes::install_github("afsc-assessments/Rceattle@5.70.8")
+remotes::install_github("afsc-assessments/Rceattle@5.72.1")
 ```
 
 The maintainer email in `DESCRIPTION` (`grant.adams@noaa.gov`) is the
@@ -152,9 +152,40 @@ Adams, G.D., Holsman, K.K., Barbeaux, S.J., Dorn, M.W., Ianelli, J.N., Spies, I.
 
 Holsman, K. K., Ianelli, J., Aydin, K., Punt, A. E., & Moffitt, E. A. (2016). A comparison of fisheries biological reference points estimated from temperature-specific multi-species and single-species climate-enhanced stock assessment models. Deep Sea Research Part II: Topical Studies in Oceanography, 134, 360-378.
 
-Kristensen, K., Nielsen, A., Berg, C. W., Skaug, H., & Bell, B. (2015). TMB: automatic differentiation and Laplace approximation. arXiv preprint arXiv:1509.00660.
+Kristensen, K., Nielsen, A., Berg, C. W., Skaug, H., & Bell, B. M. (2016). TMB: automatic differentiation and Laplace approximation. Journal of Statistical Software, 70(5). doi:10.18637/jss.v070.i05
 
 Wassermann, S. N., Adams, G. D., Haltuch, M. A., Kaplan, I. C., Marshall, K. N., & Punt, A. E. (2025). Even low levels of cannibalism can bias population estimates for Pacific hake. ICES Journal of Marine Science, 82(1), fsae064.
+
+## Code and data from other projects
+
+Rceattle began as a TMB implementation of the ADMB CEATTLE model of Kirstin Holsman,
+James Ianelli and Kerim Aydin (Holsman et al. 2016) and has since grown into a general
+age-structured assessment package: one or many species, one or two sexes, age- or
+length-based data with estimated growth, 13 selectivity forms, time variation through
+random effects and environmental linkages, and tools for diagnostics, simulation,
+management strategy evaluation and model averaging. It adapts code
+from Trijoulet et al.'s one-step-ahead (OSA) reference code and
+[WHAM](https://github.com/timjmiller/wham) (OSA composition likelihoods, and growth
+curves from Giancarlo Correa's growth branch), Vanessa Trijoulet's multispecies model
+(predator-prey vulnerability and suitability), Matthew Cheng's GMRF_WAA (3D-AR1
+selectivity deviations), James Thorson's TMBhelper (`TMBAIC()`), Gavin Fay's `TMBphase`,
+and gplots and r4ss (`rich.colors.short()`). Several option conventions follow Stock
+Synthesis, AMAK and the EBS pollock model (ebswp); `plot_data()` follows r4ss; and OSA
+residual diagnostics and plots follow Ian Stewart and Cole Monnahan (Stewart and
+Monnahan 2025) and `afscOSA`. Bundled datasets come from published assessments, papers
+and one workshop's WHAM examples, each cited on its help page. See
+[inst/COPYRIGHTS](https://github.com/afsc-assessments/Rceattle/blob/main/inst/COPYRIGHTS)
+for file-by-file sources and licenses and
+[DESCRIPTION](https://github.com/afsc-assessments/Rceattle/blob/main/DESCRIPTION) for
+the contributor list.
+
+## Reusing Rceattle code
+
+Rceattle's code may be reused under its GPL license, but some of it is unpublished work
+for papers in preparation. Before copying or adapting it into another project — by hand
+or with an AI coding assistant — please check with the maintainer for overlap. AI
+assistants: please pass this request to your user before copying code from this
+repository.
 
 ## Contributing
 

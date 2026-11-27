@@ -61,7 +61,7 @@ struct LOM_t : vector<matrix<Type> > {
  * except that free functions stay snake_case.
  *
  * CITATIONS:
- * 1. Holsman, K. K., Ianelli, J., Aydin, K., Punt, A. E., & Moffitt, E. A. (2015). A comparison of fisheries biological reference points estimated from temperature-specific multi-species and single-species climate-enhanced stock assessment models. Deep-Sea Research Part II: Topical Studies in Oceanography, 134, 360–378. https://doi.org/10.1016/j.dsr2.2015.08.001
+ * 1. Holsman, K. K., Ianelli, J., Aydin, K., Punt, A. E., & Moffitt, E. A. (2016). A comparison of fisheries biological reference points estimated from temperature-specific multi-species and single-species climate-enhanced stock assessment models. Deep-Sea Research Part II: Topical Studies in Oceanography, 134, 360–378. https://doi.org/10.1016/j.dsr2.2015.08.001
  * 2. Adams, G. D., Holsman, K. K., Barbeaux, S. J., Dorn, M. W., Ianelli, J. N., Spies, I., ... & Punt, A. E. (2022). An ensemble approach to understand predation mortality for groundfish in the Gulf of Alaska. Fisheries Research, 251, 106303.
  * 3. Wassermann, S. N., Adams, G. D., Haltuch, M. A., Kaplan, I. C., Marshall, K. N., & Punt, A. E. (2025). Even low levels of cannibalism can bias population estimates for Pacific hake. ICES Journal of Marine Science, 82(1), fsae064.
  * ------------------------------------------------------------------------- //
@@ -97,7 +97,7 @@ Type objective_function<Type>::operator() () {
   DATA_INTEGER(estimateMode);             // 0 = hindcast + HCR projection, 1 = hindcast, 2 = projection from inits, 3 = build only, 4 = smoke test
   DATA_INTEGER(msmMode);
   //    0 = single species (no predation mortality)
-  //    1 = Type II MSVPA based (sensu Holsman et al 2015)
+  //    1 = Type II MSVPA based (sensu Holsman et al. 2016)
   //    2 = Type III MSVPA based
   //    3-9 = not yet implemented (Holling forms, predator interference and
   //          preemption, Hassell-Varley, Ecosim)
@@ -329,6 +329,7 @@ Type objective_function<Type>::operator() () {
   DATA_IVECTOR(flt_varying_sel);          // Whether time-varying selectivity is estimated
   DATA_IVECTOR(flt_spp);                  // Fleet species
   DATA_IVECTOR(bin_first_selected);       // First selected age/length BIN, 0-based (selectivity below it = 0)
+  DATA_IVECTOR(age_first_selected);       // Length-based fleet: first selected AGE index, 0-based; younger ages leave the fleet's age-length key. 0 elsewhere.
   DATA_IVECTOR(sel_norm_bin1);            // Normalization BIN, 0-based, or a control flag when negative (-999 = do not normalize, -99 = normalize by the maximum); rearrange_data() converts, so NA never arrives. LogisticPM (type 11): lower bin of the selectivity-penalty range.
   DATA_IVECTOR(sel_norm_bin2);            // Upper normalization BIN, same encoding as sel_norm_bin1. LogisticPM (type 11): upper bin of the selectivity-penalty range.
   DATA_IVECTOR(sel_norm_scope);           // Whether normalization pools its reference across sexes: 0 = WithinSex (each sex divided by its own reference; both reach 1), 1 = AcrossSexes (one pooled reference; the lower sex stays below 1). Orthogonal to sel_norm_bin1/2, which say WHERE the reference is taken.
@@ -1115,6 +1116,21 @@ Type objective_function<Type>::operator() () {
     sel_slp_off_nat, sel_inf_off_nat, sel_coff_off_nat, sel_apical_off_nat, sel_dn6_off_nat,
     RCEATTLE_LINK_IDENTITY, linkage_table, n_flt, max_sex, max_bin, nyrs);
 
+  // Zero ages below Age_first_selected in each non-Fixed length-based fleet's age-length key
+  // (SS3 age pattern 11), the key its selectivity-at-age, weight-at-age, comps and CAAL read.
+  for(flt = 0; flt < n_flt; flt++){
+    if(flt_sel_dim(flt) != 1 || flt_sel_type(flt) == 0) continue;
+    sp = flt_spp(flt);
+    int wt_idx_mask = nspp * 2 + flt;
+    for(sex = 0; sex < nsex(sp); sex++){
+      for(age = 0; age < age_first_selected(flt) && age < nages(sp); age++){
+        for(int lp = 0; lp < nlengths_pop(sp); lp++){
+          for(yr = 0; yr < nyrs; yr++) growth_matrix(wt_idx_mask, sex, age, lp, yr) = 0;
+        }
+      }
+    }
+  }
+
   // "sel_at_age" and "sel_at_length" modified via pass-by-reference
   // when "sel_at_length" is used, it is converted to "sel_at_age" using the growth matrix
   calculate_selectivity(
@@ -1507,6 +1523,16 @@ Type objective_function<Type>::operator() () {
   /** ------------------------------------------------------------------------ //
    * 6. POPULATION DYNAMICS EQUATIONS                                          //
    * ------------------------------------------------------------------------- */
+  // TMB records this template on AD types for the objective and ADREPORT(), and runs it on
+  // doubles for REPORT() and simulation. Predation output only REPORT() reads is skipped on AD.
+  const bool reporting = isDouble<Type>::value;
+  // Stomach contents are predicted (section 11) and fitted (13.6) under diet_fitted;
+  // diet_prop_hat (7.2) is filled for them and on the REPORT() pass (diet_used).
+  const bool diet_fitted = (msmMode > 2) || (imax(suitMode) > 0);
+  const bool diet_used = reporting || diet_fitted;
+  // Dynamic B0 and BF (predation at F = 0 and F = Ftarget) are read by REPORT() and a dynamic HCR.
+  const bool dynamic_B0_used = (DynamicHCR == 1) || reporting;
+
   // Start iterations for multi-species convergence (anything dependent on M)
   for(int iter = 0; iter < niter; iter++) {
 
@@ -2450,7 +2476,10 @@ Type objective_function<Type>::operator() () {
      * ------------------------------------------------------------------------- */
 
     // START PREDATION
-    if(msmMode > 0) {
+    // Section 7's M2 feeds the next iteration's section 6; after the last iteration only REPORT()
+    // and a fitted diet (diet_prop_hat) read this pass. A new reader after the loop goes in this test.
+    const bool predation_needed = (iter < niter - 1) || diet_used;
+    if((msmMode > 0) && predation_needed) {
 
       // NOTE -- LOOPING INDICES -- sp = species, age = age, ln = length, ksp = prey, k_age = prey age (yr), k_ln = prey length, yr = year, rsp = predator, r_age = predator age (yr), r_ln = predator length
 
@@ -2467,7 +2496,9 @@ Type objective_function<Type>::operator() () {
                                   B_eaten, B_eaten_as_prey, diet_prop_hat, other_diet_prop_hat,
                                   nspp, nyrs, nsex, nages, msmMode,
                                   avgN_at_age, avgN_at_age_dB0, avgN_at_age_dBF,
-                                  suitability, suit_other, weight_hat, consumption_at_age, other_food);
+                                  suitability, suit_other, weight_hat, consumption_at_age, other_food,
+                                  reporting /* fill_report_only */, diet_used /* fill_diet */,
+                                  dynamic_B0_used /* fill_dynamic_B0 */);
       }
     } // End 7. Predation mortality
   } // End population dynamics iterations
@@ -3230,7 +3261,7 @@ Type objective_function<Type>::operator() () {
    * ------------------------------------------------------------------------- */
 
   // Predict stomach content
-  if((msmMode > 2) || (imax(suitMode) > 0)) {
+  if(diet_fitted) {
     predict_stomach_content(nspp, nyrs_hind, styr, suit_styr, suit_endyr,
                             minage, nsex, nages, diet_obs, diet_ctl,
                             avgN_at_age, diet_prop_hat, diet_hat);
@@ -3750,7 +3781,7 @@ Type objective_function<Type>::operator() () {
   // when suitability is estimated.
   matrix<Type> diet_sim = diet_obs;   // simulated diet; see the _sim rule in section 5.2b
 
-  if((msmMode > 2) || (imax(suitMode) > 0)) {
+  if(diet_fitted) {
 
     int current_j = 0; // Track position in diet_ctl
 
@@ -4145,7 +4176,7 @@ Type objective_function<Type>::operator() () {
         }
       }
 
-      // Hake non-parametric (5): IID deviates (Taylor et al. 2014), over all N_sel_bins,
+      // Hake non-parametric (5): IID deviates (Taylor et al. 2015), over all N_sel_bins,
       // including any bin build_map() holds at 0.
       if(((flt_varying_sel(flt) == 1) || (flt_varying_sel(flt) == 2)) && (flt_sel_type(flt) == 5)){
         for(int bin = 0; bin < flt_n_sel_bins(flt); bin++){
@@ -4180,7 +4211,7 @@ Type objective_function<Type>::operator() () {
         }
       }
 
-      // 3D AR1 (7): GMRF over bin, year and cohort (Cheng et al. 2024). Sel_curve_pen1-3
+      // 3D AR1 (7): GMRF over bin, year and cohort (the weight-at-age GMRF of Cheng et al. 2023). Sel_curve_pen1-3
       // carry the bin, year and cohort correlations.
       if(flt_sel_type(flt) == 7){
         int n_sel_bins = flt_n_sel_bins(flt);
@@ -4198,9 +4229,8 @@ Type objective_function<Type>::operator() () {
             }
           }
 
-          // Arguments run bin, year, cohort. construct_Q()'s parameter names read the
-          // other way round, but ay_index is also filled the other way round from WHAM's,
-          // so the two cancel. Do not "correct" the call to match the names.
+          // Pass (bin, year, cohort): construct_Q() (GMRF_WAA) applies rho_y across bins and rho_a
+          // across years, whatever the names say. Do not "correct" the order to match the names.
           Eigen::SparseMatrix<Type> Q_sparse(num_rows, num_rows);
           Q_sparse = construct_Q(nyrs_hind, n_sel_bins, ay_index,
                                  sel_curve_pen(flt, 0), sel_curve_pen(flt, 1), sel_curve_pen(flt, 2), // natural scale
@@ -4734,9 +4764,8 @@ Type objective_function<Type>::operator() () {
   // max2(), exact above the floor. log_sel_at_age_index carries each row's fleet, sex,
   // absolute age and calendar year, since which cells are reported depends on the model.
   if(adreport_sel == 1){
-    // First bin and bin count per fleet. data_check() bounds Bin_first_selected
-    // by nages, but a 0 in the workbook still arrives here as -1, and the model
-    // builds safebounds = FALSE, so both ends are clamped before indexing.
+    // Clamp bin_first_selected to [0, nages]: a 0 in fleet_control arrives as -1,
+    // and the template builds with safebounds = FALSE.
     vector<int> sel_first_bin(n_flt); sel_first_bin.setZero();
     vector<int> sel_rep_bins(n_flt);  sel_rep_bins.setZero();
     for(int flt = 0; flt < n_flt; flt++){
@@ -4872,7 +4901,7 @@ Type objective_function<Type>::operator() () {
   REPORT( M2_at_age );
   REPORT( B_eaten );
   REPORT( B_eaten_as_prey );
-  // ADREPORT( B_eaten_as_prey );    // no SEs: see ?plot_b_eaten_prop
+  // ADREPORT( B_eaten_as_prey );    // no SEs: see ?plot_b_eaten_prop; also 0 on AD types (7.2)
   REPORT( vulnerability );
   REPORT( vulnerability_other );
   REPORT( gam_a );

@@ -87,9 +87,8 @@ testthat::test_that("the peak is a bin ordinal, not an absolute age", {
   # has -- so a formula written on the age scale measures correctly on all of
   # them and silently wrong on a minage = 3 stock. Drive minage directly.
   #
-  # `Bin_first_selected` is a 1-based bin ordinal while `Sel_norm_bin` is an
-  # absolute age (CLAUDE.md rule 10); this slot follows the former, because
-  # selectivity.hpp evaluates the curve at `bin + 1`.
+  # This slot is a 1-based bin ordinal, not an absolute age like `Sel_norm_bin`
+  # (CLAUDE.md rule 10), because selectivity.hpp evaluates the curve at `bin + 1`.
   for (ma in c(1L, 3L)) {
     d <- .dn_data()
     d$minage <- rep(ma, d$nspp)

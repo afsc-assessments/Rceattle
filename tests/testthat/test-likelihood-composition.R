@@ -235,10 +235,10 @@ testthat::test_that("Integer to text DM comp_loglike", {
 
 testthat::test_that("A multinomial bin with no fish and no predicted fish scores 0, not NaN", {
   # With comp_offset = 0 (a WHAM-style multinomial) and no ageing error, ages
-  # below Bin_first_selected have a predicted proportion of exactly 0. A bin
+  # below the first selected age have a predicted proportion of exactly 0. A bin
   # observed empty there must add nothing, as 0 * log(0) would otherwise be NaN.
   d <- make_test_data()
-  d$fleet_control$Bin_first_selected[2] <- 3          # fishery selects ages 3+
+  d$fleet_control$Age_first_selected[2] <- 3          # fishery selects ages 3+
   fsh <- d$comp_data$Fleet_code == 2
   d$comp_data[fsh, paste0("Comp_", 1:5)] <- c(0, 0, 1, 1, 1) / 3
   d$comp_data$Sample_size[fsh] <- 50

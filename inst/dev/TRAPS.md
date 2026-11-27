@@ -45,6 +45,18 @@ unoptimized debug build, bit-identically (measured). A normal install was always
 `RCEATTLE_DEBUG_CPP=1`. **Any absolute fit timing must state its build** — an `-O0` number
 overstates real cost ~10x.
 
+**Skipping AD work the objective never reads can change the gradient's last bits; skipping only
+array stores did not.** TMBad's `optimize()` runs `remap_identical_sub_expressions()` before
+`eliminate()`, so an unused operation that is the first copy of an expression a used one repeats
+becomes the node the used one points to. Dropping it moves that node, and with it the order the
+reverse sweep adds into its inputs. Measured on 5.71.2's predation skips, one at a time: each
+changed the gradient (by up to 6.8e-13) or the ADREPORT Jacobian on BS2017MS or GOA2018SS while
+the objective, `report()` and ADREPORT values stayed `identical()`. All of them together lowered
+a `suitMode = 4` fit's objective by 7.3e-7 while one parameter moved 1.69 along a flat direction.
+A variant that kept every arithmetic operation and skipped only the array stores was
+`identical()` on all 16 configurations tried. Check a performance change with `identical()` on
+`gr` and the ADREPORT Jacobian, not only `fn`.
+
 **A slow fit is the model, not a regression.** A full `BS2017SS` `estimateMode = 0,
 phase = TRUE` fit is ~55 s: ~14 s for one optimization, ~3x for phasing, +~14 s for
 `sdreport`. That single fit has needed ~500–700 `nlminb` iterations since at least 2023
@@ -1024,12 +1036,11 @@ a `minage != 1` fixture the whole suite passes on a bin index read as an age, be
 bundled dataset and the live assessments have `minage = 1`.
 
 **The same class in prose: `Bin_first_selected` is a 1-based BIN ORDINAL, not an age.**
-`rearrange_data()` converts it with a bare `- 1`, while `Sel_norm_bin` beside it gets
-`sel_bin_offset = minage[species]` — the two columns use opposite conventions, and the alias
-`Age_first_selected` argues for the wrong one. On a `minage = 3` stock `Bin_first_selected = 3`
-is age 5. `minage = 1` hides it everywhere it is currently written, so the column description in
-`R/0-column_schema.R` now says which convention it is, and the selectivity documentation says
-"first selected bin" rather than naming an age.
+On a `minage = 3` stock `Bin_first_selected = 3` is age 5, while `Age_first_selected` and
+`Sel_norm_bin` beside it are absolute ages. Since 5.72.0 an age-based fleet's first selected
+age is `Age_first_selected`, and `Bin_first_selected` there is its deprecated spelling, read as
+`minage + Bin_first_selected - 1`; `.rce_first_selected()` resolves the two, and every reader on
+an age-based fleet goes through it. `minage = 1` hides any reader that skips it.
 
 ## The guards are not themselves guarded
 
@@ -1545,8 +1556,8 @@ section above.
 - **`fit$data_list` is the PRE-`rearrange_data()` list** — it carries no `flt_sel_lead`,
   `flt_sel_type` or any other `rearrange_data()` output. Those live on
   `data_list_reorganized`, which `fit_mod()` does not keep. Recompute from `fleet_control`.
-- **`Bin_first_selected` is a 1-based bin ordinal; `Sel_norm_bin` is an absolute age** — opposite
-  conventions in adjacent columns, and `minage = 1` hides it.
+- **`Bin_first_selected` is a 1-based bin ordinal; `Age_first_selected` and `Sel_norm_bin` are
+  absolute ages** — opposite conventions in adjacent columns, and `minage = 1` hides it.
 - **`init_dev`'s ages start at `minage + 1`** — age `minage` in the first year is recruitment, so
   a `nages-1` axis is shifted, not just short. `.PAR_AXIS_OFFSET` (`R/0-parameter_index.R`) is the
   registry; `minage = 1` hides the shift everywhere bundled.

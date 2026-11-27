@@ -857,6 +857,8 @@ build_map_selectivity <- function(map_list, data_list, nyrs_hind, random_sel) {
   # mask must start at the earliest year any of them has data (otherwise the
   # result depends on fleet_control row order).
   sel_start_yr_grp <- .sel_start_year_by_group(data_list$fleet_control, data_list$styr)
+  # 1-based first selected bin on each fleet's Selectivity_dimension (age or length).
+  first_sel_bin <- .rce_first_selected(data_list)$bin
 
   # Loop through fleets to set up selectivity parameters
   for (i in 1:n_flt) {
@@ -986,7 +988,7 @@ build_map_selectivity <- function(map_list, data_list, nyrs_hind, random_sel) {
                       " or '", .np_modes[length(.np_modes)], "'. Current value: ", tv_sel))
         }
 
-        bin_first_selected <- data_list$fleet_control$Bin_first_selected[i]
+        bin_first_selected <- first_sel_bin[i]
         N_sel_bins <- data_list$fleet_control$N_sel_bins[i]
         if (is.na(N_sel_bins)) stop(paste0("N_sel_bins is NA for fleet ", i))
 
@@ -1210,7 +1212,7 @@ build_map_selectivity <- function(map_list, data_list, nyrs_hind, random_sel) {
           warning(paste("Time_varying_sel for fleet", flt, "is not compatible (select 'Off' (0) or 'IID' (1)). Current value:", tv_sel))
         }
 
-        bin_first_selected <- data_list$fleet_control$Bin_first_selected[i]
+        bin_first_selected <- first_sel_bin[i]
         N_sel_bins <- data_list$fleet_control$N_sel_bins[i]
         if (is.na(N_sel_bins)) stop(paste0("N_sel_bins is NA for fleet ", i))
 
@@ -1243,7 +1245,7 @@ build_map_selectivity <- function(map_list, data_list, nyrs_hind, random_sel) {
           warning("Laplace approximation for selectivity is turned off via `random_sel` in `fit_mod`.  Variance will not be estimated.")
         }
 
-        bin_first_selected <- data_list$fleet_control$Bin_first_selected[i]
+        bin_first_selected <- first_sel_bin[i]
         N_sel_bins <- data_list$fleet_control$N_sel_bins[i]
         if (is.na(N_sel_bins)) stop(paste0("N_sel_bins is NA for fleet ", i))
 
@@ -1280,7 +1282,7 @@ build_map_selectivity <- function(map_list, data_list, nyrs_hind, random_sel) {
           warning("Laplace approximation for selectivity is turned off via `random_sel` in `fit_mod`. Variance will not be estimated.")
         }
 
-        bin_first_selected <- data_list$fleet_control$Bin_first_selected[i]
+        bin_first_selected <- first_sel_bin[i]
         N_sel_bins <- data_list$fleet_control$N_sel_bins[i]
         if (is.na(N_sel_bins)) stop(paste0("N_sel_bins is NA for fleet ", i))
 
@@ -1379,13 +1381,8 @@ build_map_catchability <- function(map_list, data_list, nyrs_hind, random_q = FA
         # map_list$index_q_pow[flt] <- flt
       }
 
-      # Time_varying_q: "Off"; "IID" penalized deviate or random effect; "Block"
-      # time blocks with no penalty; "RandomWalk" from the mean following Dorn
-      # 2018, dnorm(q_y - q_y-1, 0, sigma). "AR1" is removed and refused by
-      # data_check(), but still maps its deviates here, identically to "IID", on
-      # a direct build_map() call. Under Catchability = "Environmental" this
-      # column names env_data columns for log(q_y) = q_mu + beta * index_y
-      # rather than a mode.
+      # Time_varying_q: IID; Block (unpenalized); RandomWalk, dnorm(q_y - q_y-1, 0, sigma) (Dorn et al.
+      # 2018); removed "AR1" maps like IID. Under "Environmental" catchability it names env_data columns.
 
       # -- Set up time varying catchability if used (account for missing years)
       if(data_list$fleet_control$Catchability[i] %in% c("Estimated", "Estimated-with-prior") &
@@ -1505,9 +1502,8 @@ adjust_map_shared_params <- function(map_list, data_list) {
     if(sel_test){
       sel_duplicate <- first_est(which(sel_index_tested == sel_index[i]))
 
-      # Per-fleet settings a shared Selectivity_index does not reconcile
-      # (Selectivity, Selectivity_dimension, Bin_first_selected, N_sel_bins,
-      # Sel_norm_bin*, Time_varying_sel) are checked in data_check().
+      # Per-fleet shaping columns (Selectivity, Selectivity_dimension, Bin/Age_first_selected,
+      # N_sel_bins, Sel_norm_bin*, Sel_norm_scope, Sel_cap_bin) are checked in data_check().
 
       # A differing Time_varying_sel_sd across the group is reported by
       # .warn_shared_block_start(), which runs at the end of build_map() because two

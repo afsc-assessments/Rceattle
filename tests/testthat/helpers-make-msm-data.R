@@ -1,5 +1,3 @@
-# Adapted from Matt Cheng
-#
 #' Make a multi-species operating-model data set
 #'
 #' Simulates an age-structured, multi-species CEATTLE population (MSVPA-style
@@ -55,7 +53,7 @@ make_msm_test_data <- function(
 
     # Growth bits
     growth_params = matrix(c(0.3, 4.5, 90, 1.0,
-                             0.35, 4.5, 50, 1.0), # K, L1, Linf, M
+                             0.35, 4.5, 50, 1.0), # K, L1, Linf, Richards m
                            nrow = nspp, ncol = 4, byrow = TRUE),
     growth_model = 1,
     nlengths = 20,
@@ -370,7 +368,8 @@ make_msm_test_data <- function(
     Sel_curve_pen2 = NA,
     Time_varying_sel = 0,
     Time_varying_sel_sd = 1,
-    Bin_first_selected = 1,
+    Bin_first_selected = NA,
+    Age_first_selected = NA,         # selected from minage
     Sel_norm_bin = NA,
     Sel_norm_bin_upper = NA,
     Comp_distribution = "Multinomial",

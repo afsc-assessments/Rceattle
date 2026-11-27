@@ -1,5 +1,5 @@
 # =============================================================================
-# Time_varying_sel compatibility warning for "Hake" (Taylor et al. 2014)
+# Time_varying_sel compatibility warning for "Hake" (Taylor et al. 2015)
 # selectivity, in build_map_selectivity().
 #
 # The Hake form supports exactly two time-varying modes -- "Off" (0), i.e. the
@@ -22,7 +22,7 @@
   dat$growth_model <- rep(0, dat$nspp)
   dat$fleet_control$Selectivity <- "Hake"
   dat$fleet_control$N_sel_bins <- 4
-  dat$fleet_control$Bin_first_selected <- 1
+  dat$fleet_control$Age_first_selected <- 1
   dat$fleet_control$Time_varying_sel <- tv_sel
   dat
 }

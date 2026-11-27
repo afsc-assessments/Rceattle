@@ -108,7 +108,7 @@ distribution parameters estimated.
 
 | Value | String | Description | Available? |
 |:---:|---|---|:---:|
-| `0` | `"Empirical"` | Empirical proportions from observed stomach data (MSVPA-style; Holsman et al. 2015) | Yes |
+| `0` | `"Empirical"` | Empirical proportions from observed stomach data (MSVPA-style; Holsman et al. 2016) | Yes |
 | `1` | `"GammaLength"` | Gamma suitability on prey length-at-age | **Not yet** |
 | `2` | `"GammaWeight"` | Gamma suitability on prey weight-at-age | Yes |
 | `3` | `"LognormalLength"` | Log-normal suitability on prey length-at-age | **Not yet** |
@@ -139,14 +139,14 @@ Set the `Selectivity` column of `fleet_control`; integers and strings both work:
 | `2` | `"NonParametric"` | Age- or length-bin-indexed; penalties via `Sel_curve_pen1` / `Sel_curve_pen2` |
 | `3` | `"DoubleLogistic"` | Dome-shaped (ascending + descending logistic) |
 | `4` | `"DescendingLogistic"` | Descending only |
-| `5` | `"Hake"` | Non-parametric à la Taylor et al. (Pacific hake) |
-| `6` | `"2DAR1"` | 2D AR(1) bin × year (Cheng et al. 2024) |
-| `7` | `"3DAR1"` | 3D AR(1) bin × year × cohort |
+| `5` | `"Hake"` | Non-parametric à la Taylor et al. (2015; Pacific hake) |
+| `6` | `"2DAR1"` | 2D AR(1) bin × year (deviations as in Xu et al. 2019, around a non-parametric base) |
+| `7` | `"3DAR1"` | 3D AR(1) bin × year × cohort (the weight-at-age Gaussian Markov random field, GMRF, of Cheng et al. 2023, applied to selectivity) |
 | `8` | `"DoubleNormal"` | Four-parameter double normal: peak, ascending and descending widths, and a right-tail floor (the Stock Synthesis pattern 24 shape without its initial-selectivity and plateau-width parameters) |
 | `9` | `"NonParametricPM"` | Ianelli non-parametric with the ADMB AMAK ("pm") penalty; see `Sel_avgsel_pen`, `Sel_cap_bin` |
 | `11` | `"LogisticPM"` | AMAK ("pm") logistic: multiplicative inflection/slope deviations plus a free age-1 log-selectivity |
 | `13` | `"NonParametricIntegrable"` | The `NonParametric` base curve whose deviations have a proper density: the shape penalties are charged once on the base, so `random_sel = TRUE` integrates them |
-| `15` | `"DoubleNormalSS3"` | Stock Synthesis size pattern 24: the six-parameter double normal, each parameter on SS3's own scale (peak; logit top width; log ascending and descending widths; logit initial and final selectivity) in its own array `sel_dn6`. An end left at SS3's -999 is unscaled and fixed. Not normalized, as in SS3. All six take selectivity linkages under the SS3 manual's names; `Time_varying_sel` must be `"Off"` |
+| `15` | `"DoubleNormalSS3"` | Stock Synthesis size pattern 24 (Methot and Wetzel 2013): the six-parameter double normal, each parameter on SS3's own scale (peak; logit top width; log ascending and descending widths; logit initial and final selectivity) in its own array `sel_dn6`. An end left at SS3's -999 is unscaled and fixed. Not normalized, as in SS3. All six take selectivity linkages under the SS3 manual's names; `Time_varying_sel` must be `"Off"` |
 
 Codes `10`, `12` and `14` are unused.
 
@@ -227,12 +227,11 @@ well and the reference is mean selectivity over that range instead.
 
 A numeric `Sel_norm_bin` is read on the fleet's own `Selectivity_dimension`: an
 absolute **age** for an age-based fleet (`6` means age 6, not the sixth bin) or
-a 1-based **length-bin ordinal** for a length-based one. `Bin_first_selected`
-beside it uses the opposite convention and is always a bin ordinal. Below
-`Bin_first_selected` the curve is zeroed, so a reference taken there would divide
-by nothing; such a value is read as `"Max"`, which is what a negative has always
-meant. Legacy numbers still work: blank is `"Off"`, and `0`, `-1` or `-999` are
-`"Max"`.
+a 1-based **length-bin ordinal** for a length-based one, matching
+`Age_first_selected` and `Bin_first_selected` respectively. Because the curve is
+zeroed below the first selected bin, a value below it is read as `"Max"` (`"All"`
+on a `"LogisticPM"` fleet): legacy `-1` and `-999`, and `0` unless the fleet is
+age-based and selects age 0. Blank is `"Off"`.
 
 ### Sharing a selectivity between fleets
 
@@ -243,7 +242,7 @@ have to agree across the group or the fleets end up with different selectivities
 
 | Column | If it differs within the group |
 |---|---|
-| `Selectivity`, `Selectivity_dimension`, `Bin_first_selected`, `N_sel_bins`, `Sel_norm_bin`, `Sel_norm_bin_upper`, `Sel_norm_scope`, `Sel_cap_bin` | The fleets get **different curves**: mirroring fails |
+| `Selectivity`, `Selectivity_dimension`, `Age_first_selected`, `Bin_first_selected`, `N_sel_bins`, `Sel_norm_bin`, `Sel_norm_bin_upper`, `Sel_norm_scope`, `Sel_cap_bin` | The fleets get **different curves**: mirroring fails |
 | `Time_varying_sel` | Resolved to the lead fleet's setting |
 | `Sel_start_year` | Resolved to the group's earliest year |
 | `Time_varying_sel_sd` | Honoured per fleet while it is **fixed**. Under `random_sel = TRUE` the group estimates one deviation sd, starting at the *geometric* mean of its estimated members' values, so no fleet keeps its own. `build_map()` warns |
@@ -497,7 +496,7 @@ Set `Comp_distribution` (or `CAAL_distribution`) per fleet:
 |:---:|---|
 | `-1` | `"MultinomialAFSC"` (AFSC convention; the `Comp_distribution` default) |
 | `0` | `"Multinomial"` (the `CAAL_distribution` default) |
-| `1` | `"DirichletMultinomial"` |
+| `1` | `"DirichletMultinomial"` (Thorson et al. 2017) |
 
 Diet composition uses an analogous switch on the bioenergetics control sheet:
 `Diet_distribution = 0` (multinomial) or `1` (Dirichlet-multinomial).
@@ -660,7 +659,7 @@ reproducibility guarantees.
 | `self_test()` | Simulate and refit; check the model recovers what generated the data |
 | `compare_sim()` | Estimation-vs-truth comparison across simulated replicates |
 | `model_average()` | Weighted average of derived quantities across multiple fits, with optional bootstrap uncertainty |
-| `reweight_comps()` | Iterative McAllister-Ianelli tuning of multinomial `Comp_weights` |
+| `reweight_comps()` | Iterative McAllister-Ianelli (1997) tuning of multinomial `Comp_weights` |
 
 ## 12. Plotting
 
@@ -773,14 +772,45 @@ derived quantity needs the covariance
   Spies, I., Stewart, I.J., Punt, A.E. (2022). An ensemble approach
   to understand predation mortality for groundfish in the Gulf of
   Alaska. *Fisheries Research*, 251, 106303.
+- Cheng, M.L.H., Thorson, J.T., Ianelli, J.N., Cunningham, C.J. (2023).
+  Unlocking the triad of age, year, and cohort effects for stock
+  assessment: demonstration of a computationally efficient and
+  reproducible framework using weight-at-age. *Fisheries Research*,
+  266, 106755.
 - Holsman, K.K., Ianelli, J., Aydin, K., Punt, A.E., Moffitt, E.A.
   (2016). A comparison of fisheries biological reference points
   estimated from temperature-specific multi-species and single-species
   climate-enhanced stock assessment models. *Deep Sea Research Part II*,
   134, 360-378.
+- Kinzey, D., Punt, A.E. (2009). Multispecies and single-species models
+  of fish population dynamics: comparing parameter estimates. *Natural
+  Resource Modeling*, 22, 67-104.
+- McAllister, M.K., Ianelli, J.N. (1997). Bayesian stock assessment
+  using catch-age data and the sampling-importance resampling
+  algorithm. *Canadian Journal of Fisheries and Aquatic Sciences*, 54,
+  284-300.
+- Methot, R.D., Wetzel, C.R. (2013). Stock synthesis: a biological and
+  statistical framework for fish stock assessment and fishery management.
+  *Fisheries Research*, 142, 86-99.
+- Rogers, L.A., Monnahan, C.C., Williams, K., Jones, D.T., Dorn, M.W.
+  (2024). Climate-driven changes in the timing of spawning and the
+  availability of walleye pollock (*Gadus chalcogrammus*) to assessment
+  surveys in the Gulf of Alaska. *ICES Journal of Marine Science*,
+  82(1), fsae005.
+- Taylor, I.G., Grandin, C., Hicks, A.C., Taylor, N., Cox, S. (2015).
+  Status of the Pacific hake (whiting) stock in U.S. and Canadian waters
+  in 2015. Joint Technical Committee of the U.S. and Canada Pacific
+  Hake/Whiting Agreement; National Marine Fisheries Service; Fisheries
+  and Oceans Canada.
+- Thorson, J.T., Johnson, K.F., Methot, R.D., Taylor, I.G. (2017).
+  Model-based estimates of effective sample size in stock assessment
+  models using the Dirichlet-multinomial distribution. *Fisheries
+  Research*, 192, 84-93.
 - Wassermann, S.N., Adams, G.D., Haltuch, M.A., Kaplan, I.C., Marshall,
   K.N., Punt, A.E. (2025). Even low levels of cannibalism can bias
   population estimates for Pacific hake. *ICES Journal of Marine
   Science*, 82(1), fsae064.
-- Cheng, M.L.H., et al. (2024). 2D / 3D AR(1) selectivity.
-- Rogers, L.A., et al. (2024). AR(1) catchability for GOA pollock.
+- Xu, H., Thorson, J.T., Methot, R.D., Taylor, I.G. (2019). A new
+  semi-parametric method for autocorrelated age- and time-varying
+  selectivity in age-structured assessment models. *Canadian Journal of
+  Fisheries and Aquatic Sciences*, 76, 268-285.

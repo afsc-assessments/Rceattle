@@ -32,7 +32,8 @@ Type posfun(Type x, Type eps, Type &penalty) {
 }
 
 
-// Dirichlet multinomial (from WHAM)
+// Dirichlet-multinomial density (log when do_log = 1), from WHAM
+// src/age_comp_osa.hpp (GPL-3); identical in Trijoulet et al.'s distr.hpp.
 template<class Type>
 Type ddirmultinom(vector<Type> obs, vector<Type> alpha, int do_log)
 {
@@ -152,21 +153,24 @@ Type log_mean_exp(const vector<Type> &x)
 /**
  * @brief Construct a sparse GMRF precision matrix separable along year, age, and cohort.
  *
- * Builds Q = (I - B^T) * Omega * (I - B), where B carries the partial correlation to each
- * neighbouring node and Omega is the diagonal precision (1 / variance). `Var_Param`
- * selects the conditional (0) or marginal (1) variance parameterization of the GMRF.
+ * From Matthew Cheng's GMRF_WAA (https://github.com/chengmatt/GMRF_WAA; Cheng et
+ * al. 2023, Fisheries Research 266: 106755). Builds Q = (I - B^T) * Omega * (I - B),
+ * where B carries the partial correlation to each neighbouring node and Omega is the
+ * diagonal precision (1 / variance). `Var_Param` selects the conditional (0) or
+ * marginal (1) variance parameterization of the GMRF.
  *
- * The sole caller reads these names the other way round: ceattle.cpp's 3D-AR1 selectivity
- * passes its (bin, year, cohort) correlations in and fills `ay_Index` as (bin, year), so
- * the two inversions cancel. Read the note at that call before renaming anything here.
+ * The names do not match what they act on: `rho_y` links nodes one apart in column 0 of
+ * `ay_Index` (age, or bin) within a year, and `rho_a` nodes one year apart. The sole
+ * caller, ceattle.cpp's 3D-AR1 selectivity, relies on this; read its note first.
  *
  * @param n_years Number of years.
  * @param n_ages Number of ages.
  * @param ay_Index [total_n x 2] age/year index locating each node.
- * @param rho_y Partial correlation to the node one back in `ay_Index` column 0.
- * @param rho_a Partial correlation to the node one back in column 1.
- * @param rho_c Partial correlation to the node one back in both -- the diagonal,
- *   which is the cohort when the columns are filled (age, year).
+ * @param rho_y Partial correlation across `ay_Index` column 0 (adjacent bins within a year
+ *   in 3D-AR1 selectivity).
+ * @param rho_a Partial correlation across column 1 (adjacent years at the same bin).
+ * @param rho_c Partial correlation along the diagonal of both columns, which is the cohort
+ *   when column 0 is age.
  * @param log_sigma2 Log variance parameter governing the GMRF.
  * @param Var_Param 0 = conditional variance, 1 = marginal variance.
  * @return Sparse precision matrix [total_n x total_n], total_n = n_years * n_ages.

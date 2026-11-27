@@ -190,11 +190,14 @@ rearrange_data <- function(data_list, build_osa = FALSE){
   # - 6) Time-varying selectivity type.
   data_list$flt_varying_sel <- .pull_int(data_list$fleet_control, "Time_varying_sel")
 
-  # - 7) First selected bin, converted to 0-based for the template
-  data_list$bin_first_selected <- data_list$fleet_control %>%
-    dplyr::mutate(Bin_first_selected = .data$Bin_first_selected - 1, # R to C++ indexing
-                  Bin_first_selected = ifelse(is.na(.data$Bin_first_selected), 0, .data$Bin_first_selected)) %>%
-    dplyr::pull(.data$Bin_first_selected) %>% as.integer()
+  # - 7) First selected bin on the fleet's own dimension, and a length-based
+  #      fleet's first selected age index, both 0-based for the template
+  .first_sel <- .rce_first_selected(data_list)
+  data_list$bin_first_selected <- as.integer(
+    ifelse(is.na(.first_sel$bin), 0, .first_sel$bin - 1))
+  data_list$age_first_selected <- as.integer(
+    ifelse(!.first_sel$length_based | is.na(.first_sel$age), 0,
+           .first_sel$age - data_list$minage[data_list$fleet_control$Species]))
 
   # - 8) Normalization bin, 0-based; NA becomes -999 (no normalization) and a
   #      negative value -99 (normalize by the maximum)

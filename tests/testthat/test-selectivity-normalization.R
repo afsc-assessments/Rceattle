@@ -16,7 +16,7 @@ testthat::test_that("Sex-specific logistic selectivity divided by max sel (acros
   # tests are about normalization, not time variation.
   GOA2018SS$fleet_control$Time_varying_sel[rows_use] <- "Off"
   GOA2018SS$fleet_control$Selectivity_index <- 1:nrow(GOA2018SS$fleet_control)
-  GOA2018SS$fleet_control$Bin_first_selected <- 1
+  GOA2018SS$fleet_control$Age_first_selected <- 1
   GOA2018SS$fleet_control$Sel_norm_bin <- -999
 
 
@@ -70,7 +70,7 @@ testthat::test_that("Sex-specific logistic selectivity not normalized", {
   # tests are about normalization, not time variation.
   GOA2018SS$fleet_control$Time_varying_sel[rows_use] <- "Off"
   GOA2018SS$fleet_control$Selectivity_index <- 1:nrow(GOA2018SS$fleet_control)
-  GOA2018SS$fleet_control$Bin_first_selected <- 1
+  GOA2018SS$fleet_control$Age_first_selected <- 1
   GOA2018SS$fleet_control$Sel_norm_bin <- NA
 
   # Specify logistic selectivity
@@ -128,7 +128,7 @@ testthat::test_that("Sex-invariant logistic selectivity divided by sel-at-age", 
   # Logistic curve, so this block has always fitted a static one. These
   # tests are about normalization, not time variation.
   GOA2018SS$fleet_control$Time_varying_sel[rows_use] <- "Off"
-  GOA2018SS$fleet_control$Bin_first_selected <- 1
+  GOA2018SS$fleet_control$Age_first_selected <- 1
   GOA2018SS$fleet_control$Sel_norm_bin <- 7
 
   # Specify logistic selectivity
@@ -179,7 +179,7 @@ testthat::test_that("Sex-invariant logistic selectivity divided by sel-at-age-RA
   # Logistic curve, so this block has always fitted a static one. These
   # tests are about normalization, not time variation.
   GOA2018SS$fleet_control$Time_varying_sel[rows_use] <- "Off"
-  GOA2018SS$fleet_control$Bin_first_selected <- 1
+  GOA2018SS$fleet_control$Age_first_selected <- 1
   GOA2018SS$fleet_control$Sel_norm_bin <- 7
   GOA2018SS$fleet_control$Sel_norm_bin_upper <- 9
 
@@ -230,7 +230,7 @@ testthat::test_that("Sex-specific logistic selectivity divided by sel-at-age-RAN
   # Logistic curve, so this block has always fitted a static one. These
   # tests are about normalization, not time variation.
   GOA2018SS$fleet_control$Time_varying_sel[rows_use] <- "Off"
-  GOA2018SS$fleet_control$Bin_first_selected <- 1
+  GOA2018SS$fleet_control$Age_first_selected <- 1
   # Each sex divided by its OWN mean over the range. Before v5.8.0 a named bin
   # always meant this; it is now Sel_norm_scope = "WithinSex", and the pooled
   # default is the companion test below. Species 9 (arrowtooth) is the two-sex
@@ -293,7 +293,7 @@ testthat::test_that("AcrossSexes pools the sel-at-age-RANGE reference over both 
   # Logistic curve, so this block has always fitted a static one. These
   # tests are about normalization, not time variation.
   GOA2018SS$fleet_control$Time_varying_sel[rows_use] <- "Off"
-  GOA2018SS$fleet_control$Bin_first_selected <- 1
+  GOA2018SS$fleet_control$Age_first_selected <- 1
   GOA2018SS$fleet_control$Sel_norm_scope <- "AcrossSexes"
   GOA2018SS$fleet_control$Sel_norm_bin <- 7
   GOA2018SS$fleet_control$Sel_norm_bin_upper <- 9
@@ -336,7 +336,7 @@ testthat::test_that("Sex-invariant time-varying logistic selectivity divided by 
   GOA2018SS$fleet_control$Selectivity[rows_use] <- "Logistic" # Age-based logistic
   GOA2018SS$fleet_control$Time_varying_sel <- 1
   GOA2018SS$fleet_control$Time_varying_sel_sd <- 1
-  GOA2018SS$fleet_control$Bin_first_selected <- 1
+  GOA2018SS$fleet_control$Age_first_selected <- 1
   GOA2018SS$fleet_control$Sel_norm_bin <- -999
 
   # Specify logistic selectivity
@@ -394,7 +394,7 @@ testthat::test_that("Normalize by max for each fishery and year across bins, and
   GOA2018SS$fleet_control$Selectivity[rows_use] <- "Logistic" # Age-based logistic
   GOA2018SS$fleet_control$Time_varying_sel <- 1
   GOA2018SS$fleet_control$Time_varying_sel_sd <- 1
-  GOA2018SS$fleet_control$Bin_first_selected <- 1
+  GOA2018SS$fleet_control$Age_first_selected <- 1
   GOA2018SS$fleet_control$Sel_norm_bin <- -999
 
   # Specify logistic selectivity
